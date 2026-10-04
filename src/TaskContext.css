@@ -1,0 +1,26 @@
+.task-context-modal { width: min(700px, calc(100vw - 32px)); }
+.task-context-modal > p { color: var(--text-secondary, #706e78); line-height: 1.6; }
+.task-context-section { border-top: 1px solid var(--border, #e8e6eb); padding: 18px 0; }
+.task-context-section h3 { margin: 0 0 10px; font-size: 15px; }
+.context-option { border: 1px solid var(--border, #e8e6eb); border-radius: 12px; padding: 12px; margin: 8px 0; overflow-wrap: anywhere; }
+.context-option label, label.context-option { display: flex; align-items: flex-start; gap: 9px; }
+.context-option input[type=checkbox] { flex: none; margin-top: 4px; }
+.context-option small, .run-inputs small { display: block; color: var(--text-secondary, #706e78); margin-top: 4px; font-size: 11px; }
+.context-option select { max-width: 100%; margin-top: 10px; }
+.context-option > label + label { margin-top: 8px; }
+.context-skill summary { cursor: pointer; }
+.context-skill pre, .task-run-card pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.6 monospace; background: #f7f5f9; padding: 12px; border-radius: 8px; max-height: 280px; overflow: auto; }
+.context-skill > label { margin-top: 12px; }
+.context-memory > span { white-space: pre-wrap; max-height: 160px; overflow: auto; }
+.context-sticky-actions { position: sticky; bottom: -24px; background: var(--surface, #fff); border-top: 1px solid var(--border, #e8e6eb); padding: 10px 0 0; }
+.context-sticky-actions > p { font-size: 12px; color: var(--text-secondary, #706e78); }
+.composer-context-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: 820px; margin: 0 auto 8px; padding: 0 12px; color: #78747f; font-size: 11px; }
+.composer-context-row button { background: transparent; color: inherit; border: 0; padding: 4px 0; text-align: left; }
+.composer-context-row label { display: flex; gap: 5px; align-items: center; white-space: nowrap; }
+.task-run-card { margin: 12px 0 18px; padding: 16px; border: 1px solid #e2dbe8; border-radius: 16px; background: #fdfbfe; color: #393240; font-size: 13px; overflow-wrap: anywhere; }
+.task-run-card header { display: flex; justify-content: space-between; gap: 10px; }
+.run-inputs { margin-top: 12px; }.run-inputs summary { cursor: pointer; font-size: 12px; }.run-inputs p { white-space: pre-wrap; }
+.run-plan { padding-left: 22px; }.run-plan li { padding: 6px 0; }.run-plan small { margin-left: 10px; color: #82778c; }
+.run-proposal { border-top: 1px solid #e2dbe8; padding-top: 6px; margin-top: 14px; }.run-proposal h4 { font-size: 13px; }
+.run-output-link { display: block; padding: 12px 0; color: #654782; text-decoration: underline; }
+@media (max-width: 600px) { .task-context-modal { padding: 20px; }.composer-context-row { padding: 0 4px; }.context-sticky-actions { bottom: -20px; }.task-run-card { padding: 12px; }.context-sticky-actions .modal-actions { flex-wrap: wrap; } }

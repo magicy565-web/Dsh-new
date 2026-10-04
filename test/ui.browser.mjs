@@ -1,0 +1,56 @@
+/** Real browser checks. Not completed in the restricted delivery environment. */
+import assert from 'node:assert/strict';
+import { chromium } from 'playwright';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { createApp } from '../server/index.mjs';
+const dir=await mkdtemp(path.join(tmpdir(),'workspace-browser-'));
+const app=await createApp({dataDirectory:dir});
+const address=await app.listen(0);const base=`http://127.0.0.1:${address.port}`;
+let browser; const checks=[]; const errors=[];
+try {
+ browser=await chromium.launch({headless:true,chromiumSandbox:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
+ const page=await browser.newPage({viewport:{width:1188,height:761}});
+ page.on('pageerror',error=>errors.push(error.message));
+ await page.goto(base);await page.getByRole('textbox',{name:'输入消息'}).waitFor();
+ await mkdir('evidence/browser',{recursive:true});
+ await page.screenshot({path:'evidence/browser/01-home.png'});checks.push('Desktop home rendered');
+ // These are real browser geometry checks, not jsdom or source-only claims.
+ const near=(actual,expected,label,tolerance=1)=>assert.ok(Math.abs(actual-expected)<=tolerance,`${label}: ${actual} vs ${expected}`);
+ let shell=await page.locator('.nav-rail').boundingBox(); near(shell.width,72,'rail width');
+ let panel=await page.locator('.assistant-panel').boundingBox(); near(panel.x,828,'panel left');near(panel.width,360,'panel width');
+ let composer=await page.locator('.composer').boundingBox();near(composer.x,88,'composer left');near(composer.y,686,'composer top');near(composer.width,724,'composer width');near(composer.height,60,'composer height');
+ const choices=await page.locator('.starter-bubble').boundingBox();near(choices.x,96,'starter left');near(choices.width,334,'starter width');near(choices.height,208,'starter height');near(choices.y+choices.height,655,'starter bottom');
+ const profile=await page.locator('.assistant-profile').boundingBox();near(profile.height,274,'profile region');
+ assert.equal(await page.locator('.nav-rail .brand-button').count(),0);checks.push('1188x761 measured chat shell geometry');
+ await page.locator('.chat-title-pill').click(); await page.locator('.side-chat-empty').waitFor();
+ const drawer=await page.locator('.conversation-sidebar').boundingBox();near(drawer.width,240,'drawer width');
+ await page.screenshot({path:'evidence/browser/01b-chat-sidebar.png'});
+ await page.getByRole('button',{name:'收起聊天列表',exact:true}).click();
+ await page.getByRole('button',{name:'收起助手面板',exact:true}).click();await page.locator('.floating-assistant').waitFor();
+ composer=await page.locator('.composer').boundingBox();near(composer.x,246,'expanded composer left');near(composer.width,768,'expanded composer width');
+ await page.screenshot({path:'evidence/browser/01c-chat-expanded.png'});
+ await page.getByRole('button',{name:'显示助手面板',exact:true}).click();checks.push('Drawer and assistant panel collapse/reopen geometry');
+ await page.getByRole('button',{name:'目标',exact:true}).click();
+ await page.getByRole('button',{name:'效率提升',exact:true}).click();
+ await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');
+ assert.equal(await page.getByRole('dialog').count(),0);checks.push('Goal category dialog Escape');
+ await page.getByRole('button',{name:'效率提升',exact:true}).click();await page.getByRole('button',{name:'开始吧',exact:true}).click();
+ await page.getByRole('textbox',{name:'输入消息'}).waitFor();checks.push('Category creates conversation-first persistent goal');
+ await page.getByRole('textbox',{name:'输入消息'}).fill('Browser fixture: clarify release checklist');
+ await page.getByRole('button',{name:'发送消息',exact:true}).click();
+ await page.getByText('Browser fixture: clarify release checklist',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'查看连接设置',exact:true}).waitFor();
+ await page.reload();await page.getByText('Browser fixture: clarify release checklist',{exact:true}).waitFor();
+ checks.push('No-key send preserved and survives page reload');
+ await page.keyboard.press('Control+k');await page.getByRole('textbox',{name:'搜索整个空间'}).waitFor();await page.keyboard.press('Escape');
+ assert.equal(await page.getByRole('dialog').count(),0);checks.push('Search shortcut and Escape');
+ await page.getByRole('button',{name:'目标',exact:true}).click();await page.screenshot({path:'evidence/browser/02-goals.png'});
+ await page.goBack();await page.getByRole('textbox',{name:'输入消息'}).waitFor();checks.push('Browser Back restores conversation');
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:'evidence/browser/03-mobile.png'});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),true);checks.push('390px layout has no horizontal overflow');
+ assert.deepEqual(errors,[]);checks.push('No page JavaScript errors');
+ await writeFile('evidence/browser/results.json',JSON.stringify({passed:true,checks,errors},null,2));
+ console.log(checks.join('\n'));
+} finally {await browser?.close();await app.close();await rm(dir,{recursive:true,force:true});}

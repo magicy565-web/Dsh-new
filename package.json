@@ -1,0 +1,41 @@
+{
+  "name": "workspace-agent",
+  "version": "0.5.0-rc.2",
+  "private": true,
+  "type": "module",
+  "description": "A single-enterprise agent workspace release candidate with audited execution, guarded access and recovery",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite --host 127.0.0.1",
+    "dev:server": "node --env-file-if-exists=.env server/index.mjs",
+    "build": "tsc --noEmit && vite build",
+    "start": "node --env-file-if-exists=.env server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test-backend.mjs",
+    "test:ui": "npm run build && node --test test/ui.dom.test.mjs",
+    "test:browser": "npm run build && node test/ui.browser.mjs",
+    "preview:offline": "npm run build && node scripts/export-preview.mjs",
+    "test:all": "npm test && npm run test:ui",
+    "test:recovery": "node --test test/recovery.test.mjs test/recovery-control.test.mjs test/native-recovery.test.mjs test/store.test.mjs test/store-migration.test.mjs",
+    "test:provider-live": "node scripts/acceptance-provider.mjs",
+    "test:release": "npm run test:all && python3 scripts/package-release.py --light && python3 scripts/check-release.py release/Workspace-Agent-v0.5.0-rc.2-App.zip",
+    "check:launch": "node scripts/check-launch-gates.mjs",
+    "test:provider-native-live": "node scripts/acceptance-native-provider.mjs",
+    "test:offline-evidence": "node scripts/validate-local.mjs"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "typescript": "6.0.3",
+    "vite": "8.0.16",
+    "playwright": "1.61.1",
+    "jsdom": "29.1.1"
+  }
+}
