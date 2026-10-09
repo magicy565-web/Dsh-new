@@ -2,6 +2,24 @@
 
 Node 24 ESM. The entrypoint serves frontend and API at loopback 127.0.0.1:8787. Explicit enterprise mode adds signed-ingress identity, browser sessions, roles and CSRF; it is one shared workspace, not a multi-tenant service. Read docs/DEPLOYMENT.md before any network deployment. Bodies are JSON objects; errors are `{error:{code,message}}`. No credential value, raw provider error, or arbitrary server path is included in safe errors.
 
+## AI Worker service desk (business delegation, V1 branch)
+
+The enterprise homepage `/workers` is an outcome/service-oriented layer. Existing conversation, goal, artifact and exact-action connector interfaces are retained. This new V1 does **not** add a live third-party executor by default.
+
+| Method | Route | Action |
+| --- | --- | --- |
+| GET | `/api/worker-services` | Curated offers, verified host-registered adapter availability |
+| GET | `/api/worker-orders` | Single-workspace durable order list |
+| GET | `/api/worker-orders/:id` | Inspect exact order |
+| POST | `/api/worker-orders` | Authorized operator creates consent-bound draft |
+| POST | `/api/worker-orders/:id/approve` | Admin reviews scope, partner and budget |
+| POST | `/api/worker-orders/:id/dispatch` | Admin sends exact approved task to reviewed adapter |
+| POST | `/api/worker-orders/:id/refresh` | Admin requests status and evidence from remote worker |
+| POST | `/api/worker-orders/:id/accept` | Admin accepts evidentiary deliverables |
+| POST | `/api/worker-orders/:id/cancel` | Admin requests cancellation and awaits real worker confirmation |
+
+Server registration `createApp({ workerAdapters: { reviewedPartner: adapter } })` only; remote installation from UI is not allowed. Adapter-provided `budgetEnforced` must be supported by independently verified hard caps before any production task. `rfq-recovery` requires separately reviewed private-data gateway; not eligible for external delegation. API responses never label remote evidence as independently verified. See [full contract](../docs/AI-WORKER-V1.md).
+
 ## Startup and security
 
 - `WORKSPACE_RUNTIME=fastaitoken` (CLI default): fixed documented relay Chat Completions endpoint, server-only FASTAITOKEN_API_KEY + explicit FASTAITOKEN_MODEL (user-selected gpt-6-sol), no tools or fallback

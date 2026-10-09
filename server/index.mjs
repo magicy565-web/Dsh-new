@@ -14,6 +14,7 @@ import { createArtifactService } from './artifacts.mjs';
 import { createRunOutputService } from './run-output.mjs';
 import { createWorkspaceLibraryAdapter, WORKSPACE_LIBRARY_ADAPTER } from './workspace-library.mjs';
 import { createCapabilityService, CapabilityError } from './capabilities.mjs';
+import { createWorkerServiceDesk, WorkerDeskError } from './worker-desk.mjs';
 import { AccessError, validateAccessConfig, createAccessControl, accessConfigFromEnvironment } from './access.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -53,15 +54,17 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk;
   try {
     recovery = await readRecoveryStatus(store.directory, provider.kind);
+    workerDesk = createWorkerServiceDesk({ store, adapters: workerAdapters });
+    await workerDesk.recoverInterrupted();
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
     capabilities = await createCapabilityService({ store, adapters: { ...connectorAdapters, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }) });
@@ -122,6 +125,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (pathname === '/api/events') return await streamChanges(req, res, context);
         if (pathname === '/api/runs') return await respond(res, 200, runtime.listRuns());
         if (pathname === '/api/artifacts') return await respond(res, 200, artifacts.list());
+        if (pathname === '/api/worker-services') return await respond(res, 200, { services: workerDesk.catalog() });
+        if (pathname === '/api/worker-orders') return await respond(res, 200, { orders: workerDesk.list() });
+        const workerOrderRead = pathname.match(/^\/api\/worker-orders\/([^/]+)$/);
+        if (workerOrderRead) return await respond(res, 200, { order: workerDesk.get(workerOrderRead[1]) });
         if (pathname === '/api/schedule-runs') return await respond(res, 200, { runs: capabilities.listScheduleRuns() });
         if (pathname === '/api/connector-runs') return await respond(res, 200, { runs: capabilities.listConnectorRuns() });
         if (pathname === '/api/capabilities') return await respond(res, 200, capabilitySnapshot());
@@ -166,6 +173,17 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       const accessSession = pathname.match(/^\/api\/access\/sessions\/([^/]+)\/revoke$/);
       if (method === 'POST' && accessSession) return await respond(res, 200, await access.revokeSession(context, accessSession[1]));
+      if (method === 'POST' && pathname === '/api/worker-orders') return await respond(res, 201, await workerDesk.create(body, context.subject));
+      const workerOperation = pathname.match(/^\/api\/worker-orders\/([^/]+)\/(approve|dispatch|refresh|accept|cancel)$/);
+      if (workerOperation && method === 'POST') {
+        if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'An administrator must authorize third-party work and review delivery.');
+        const [, orderId, action] = workerOperation;
+        if (action === 'approve') return await respond(res, 200, await workerDesk.approve(orderId, context.subject, body));
+        if (action === 'dispatch') return await respond(res, 200, await workerDesk.dispatch(orderId));
+        if (action === 'refresh') return await respond(res, 200, await workerDesk.refresh(orderId));
+        if (action === 'accept') return await respond(res, 200, await workerDesk.accept(orderId, context.subject, body));
+        if (action === 'cancel') return await respond(res, 200, await workerDesk.cancel(orderId));
+      }
       if (method === 'POST' && pathname === '/api/artifacts') return await respond(res, 201, await artifacts.create(body));
       if (method === 'POST' && pathname === '/api/skills') return await respond(res, 201, await capabilities.createSkill(body));
       if (method === 'POST' && pathname === '/api/connectors') return await respond(res, 201, await capabilities.createConnector(body));
@@ -215,7 +233,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
     } catch (error) {
-      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof AccessError;
+      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof AccessError;
       try {
         if (!res.accessFinish) await access.recordDenial(error);
         if (!res.headersSent) await respond(res, safe ? error.status : 500, { error: { code: safe ? error.code : 'INTERNAL_ERROR', message: safe ? error.message : 'The server could not complete this action. Please retry.' } });
@@ -232,7 +250,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, capabilities, access, diagnostics,
+    server, runtime, store, artifacts, capabilities, workerDesk, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');

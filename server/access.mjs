@@ -16,12 +16,12 @@ const emptyHash = hash('');
 const cookieName = '__Host-workspace_session';
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const administrative = /^(?:\/api\/(settings|skills|connectors|approvals|schedules|access)(?:\/|$)|\/api\/runs\/[^/]+\/action-decision$)/;
-const writable = /^\/api\/(conversations|goals|runs|memories|artifacts)(?:\/|$)/;
+const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|worker-orders)(?:\/|$)/;
 const iso = value => new Date(value).toISOString();
 function routeLabel(pathname) {
   const parts = pathname.split('/');
   if (parts[1] !== 'api') return 'static';
-  const roots = new Set(['session', 'access', 'health', 'diagnostics', 'bootstrap', 'status', 'events', 'conversations', 'goals', 'runs', 'memories', 'artifacts', 'settings', 'skills', 'connectors', 'approvals', 'schedules', 'activity', 'search', 'capabilities', 'schedule-runs', 'connector-runs']);
+  const roots = new Set(['session', 'access', 'health', 'diagnostics', 'bootstrap', 'status', 'events', 'conversations', 'goals', 'runs', 'memories', 'artifacts', 'settings', 'skills', 'connectors', 'approvals', 'schedules', 'activity', 'search', 'capabilities', 'schedule-runs', 'connector-runs', 'worker-services', 'worker-orders']);
   if (!roots.has(parts[2])) return '/api/unknown';
   return `/api/${parts[2]}${parts.length > 3 ? '/:resource' : ''}`;
 }

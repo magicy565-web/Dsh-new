@@ -75,9 +75,9 @@ test('production UI: navigation, interrupted goal intake, guarded chat, search, 
     input(aria('输入消息'), '只输入草稿'); await waitFor(() => aria('发送消息'), 'typing changes microphone to send');
     input(aria('输入消息'), ''); await waitFor(() => aria('语音输入（暂未提供）'), 'clearing draft restores unavailable voice affordance');
     click(aria('目标')); await waitFor(() => document.querySelectorAll('.category-row').length === 7, 'seven goal categories');
-    click(button('效率提升')); await waitFor(() => document.querySelector('[role="dialog"]'), 'goal category dialog');
+    click(button('业务效率')); await waitFor(() => document.querySelector('[role="dialog"]'), 'goal category dialog');
     escape(); await waitFor(() => !document.querySelector('.modal-backdrop'), 'Escape closes category dialog'); assert.equal(window.location.pathname, '/goals');
-    click(button('效率提升')); await waitFor(() => button('开始吧'), 'reopened goal dialog'); click(button('开始吧'));
+    click(button('业务效率')); await waitFor(() => button('开始吧'), 'reopened goal dialog'); click(button('开始吧'));
     await waitFor(() => api.state.goals.length === 1 && !document.querySelector('.modal-backdrop') && document.querySelector('.chat-goal-strip'), 'goal intake persists and opens conversation');
     assert.equal(api.state.goals[0].status, 'draft'); assert.equal(api.requests.filter(r => r.path.endsWith('/messages')).length, 0, 'Starting intake does not execute model');
     const form = document.querySelector('.composer'); form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
@@ -86,7 +86,7 @@ test('production UI: navigation, interrupted goal intake, guarded chat, search, 
     assert.ok(api.requests.find(r => r.path.endsWith('/messages')).body.requestId);
     assert.equal(aria('输入消息').value, '');
     click(document.querySelector('.chat-title-pill')); await waitFor(() => document.querySelector('.conversation-sidebar'), 'conversation drawer');
-    click(aria('重命名 我的效率目标')); await waitFor(() => document.querySelector('.modal input'), 'rename dialog'); input(document.querySelector('.modal input'), '专注学习'); click(button('保存'));
+    click(aria('重命名 我的业务效率目标')); await waitFor(() => document.querySelector('.modal input'), 'rename dialog'); input(document.querySelector('.modal input'), '专注学习'); click(button('保存'));
     await waitFor(() => api.state.conversations[0].title === '专注学习' && !document.querySelector('.modal-backdrop'), 'rename persists');
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })); await waitFor(() => aria('搜索整个空间'), 'keyboard search');
     input(aria('搜索整个空间'), '专注'); await waitFor(() => document.querySelector('.search-result strong')?.textContent === '专注学习', 'search filtered result'); escape(); await waitFor(() => !document.querySelector('.search-modal'), 'search dismissal');
@@ -598,7 +598,7 @@ test('draft goal UI follows its conversation file selection when started after i
   const file = (await post(api, '/artifacts', { filename: 'goal-source.txt', title: 'Goal source', content: 'GOAL_CONTEXT_SELECTED_AFTER_INTAKE' })).artifact;
   const ui = await renderWorkspace(api); const { document, aria, button, click } = ui;
   try {
-    await waitFor(() => document.querySelector('.intro-bubble'), 'initial ready state'); await click(aria('目标')); await click(button('职业')); await waitFor(() => button('开始吧'), 'goal category'); await click(button('开始吧'));
+    await waitFor(() => document.querySelector('.intro-bubble'), 'initial ready state'); await click(aria('目标')); await click(button('市场开发')); await waitFor(() => button('开始吧'), 'goal category'); await click(button('开始吧'));
     await waitFor(() => api.state.goals.length === 1 && document.querySelector('.chat-goal-strip'), 'draft goal intake'); assert.equal(calls.length, 0);
     await click(aria('选择任务输入')); await click(aria('使用文件 Goal source')); await click(button('保存任务输入')); await waitFor(() => !document.querySelector('.task-context-modal'), 'goal conversation context saved');
     await click(document.querySelector('.chat-goal-strip button')); await waitFor(() => button('开始推进'), 'draft goal ready'); await click(button('开始推进'));

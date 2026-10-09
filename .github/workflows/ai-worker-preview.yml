@@ -1,0 +1,45 @@
+name: AI Worker | build, tests and real browser screenshots
+on:
+  push:
+    branches:
+      - feat/worker-service-desk-v1-20261010
+  pull_request:
+    paths:
+      - "src/**"
+      - "server/**"
+      - "test/**"
+      - "package*.json"
+      - ".github/workflows/ai-worker-preview.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  worker-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Typecheck and build actual project
+        run: npm run build
+      - name: Worker API, A2A, storage tests
+        run: node --test test/worker-desk.test.mjs test/worker-desk.http.test.mjs test/worker-a2a-adapter.test.mjs
+      - name: Existing backend / DOM regression
+        run: npm run test:all
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Real browser desktop + mobile screenshots
+        run: npm run test:browser
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-worker-browser-evidence
+          path: evidence/browser/
+          if-no-files-found: warn
+          retention-days: 7
