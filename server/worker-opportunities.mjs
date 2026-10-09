@@ -100,7 +100,7 @@ export function createWorkerOpportunityService({ store, maxOpportunities = 5000 
           createdCount++;
         }
         order.opportunityImports.push({
-          requestId: input.requestId, fingerprint, importedIds, createdCount,
+          requestId: input.requestId, fingerprint, indices: sorted, importedIds, createdCount,
           actor, at,
         });
         return { importedIds, createdCount, duplicate: false };

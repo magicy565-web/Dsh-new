@@ -115,3 +115,20 @@ test('unaccepted, unpersisted and out-of-scope orders cannot publish customer op
     { indices: [0], requestId: 'cannot-import', confirmed: true }, 'admin'), { code: 'DELIVERY_NOT_ACCEPTED' });
   assert.equal(opportunities.list().length, 0);
 });
+
+
+test('an accepted buyer task supports multiple independently approved partial imports', async t => {
+  const { desk, opportunities, store } = await setup(t);
+  const order = await acceptOrder(desk, 'partial-import-source');
+  const first = await opportunities.importFromOrder(order.id, { indices: [0], requestId: 'partial-batch-a', confirmed: true }, 'admin');
+  assert.equal(first.createdCount, 1);
+  assert.equal(opportunities.list().length, 1);
+  const second = await opportunities.importFromOrder(order.id, { indices: [1], requestId: 'partial-batch-b', confirmed: true }, 'admin');
+  assert.equal(second.createdCount, 1);
+  assert.equal(opportunities.list().length, 2);
+  const batches = store.read().workerOrders.find(item => item.id === order.id).opportunityImports;
+  assert.deepEqual(batches.map(batch => batch.indices), [[0], [1]]);
+  const replay = await opportunities.importFromOrder(order.id, { indices: [0], requestId: 'partial-batch-a', confirmed: true }, 'admin');
+  assert.equal(replay.duplicate, true);
+  assert.deepEqual(replay.importedIds, first.importedIds);
+});

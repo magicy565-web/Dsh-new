@@ -11,12 +11,18 @@ const prospect = {
   fitReason: 'Published wholesale textile assortment',
   sourceUrl: 'https://distributor.example.org/products',
 };
+const otherProspect = {
+  name: 'Fixture Second Buyer', country: 'United States',
+  website: 'https://second-buyer.example.org',
+  fitReason: 'Independent fabric distribution catalog',
+  sourceUrl: 'https://second-buyer.example.org/about',
+};
 const worker = {
   ready: true, budgetEnforced: true, services: ['buyer-discovery'], displayName: 'Fixture Worker',
   async submit(task) { return { jobId: 'fixture-' + task.orderId }; },
   async get(jobId) { return { jobId, status: 'completed', costCredits: 2,
-    deliverables: [{ name: 'Prospect sheet', type: 'table', summary: 'One sourced distributor' }],
-    prospects: [prospect],
+    deliverables: [{ name: 'Prospect sheet', type: 'table', summary: 'Two sourced distributors' }],
+    prospects: [prospect, otherProspect],
     evidence: [{ title: 'Company catalog', url: prospect.sourceUrl, detail: 'Fixture only' }],
   }; },
   async cancel() { return { status: 'cancel_requested' }; },
@@ -45,16 +51,29 @@ try {
   await post('/api/worker-orders/' + order.id + '/dispatch');
   await post('/api/worker-orders/' + order.id + '/refresh');
   await post('/api/worker-orders/' + order.id + '/accept', { confirmed: true });
-  await post('/api/worker-orders/' + order.id + '/promote', {
-    indices: [0], requestId: 'promote-' + order.id, confirmed: true,
-  });
   browser = await chromium.launch({ headless: true, chromiumSandbox: true });
   const page = await browser.newPage({ viewport: { width: 1260, height: 900 } });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base + '/workers');
   await page.getByRole('heading', { name: '企业商机池' }).waitFor();
-  await page.getByText('Fixture Textile Distributor').waitFor();
-  const row = page.locator('.worker-opportunity-row').first();
+  await page.locator('.worker-order-row').first().click();
+  const drawer = page.getByRole('dialog');
+  await drawer.getByRole('heading', { name: '海外经销商开发' }).waitFor();
+  const choices = drawer.locator('.worker-prospect-pick input');
+  assert.equal(await choices.count(), 2);
+  await choices.nth(1).uncheck();
+  await drawer.getByRole('button', { name: '导入已选 1 条客户线索' }).click();
+  const imported = await (await fetch(base + '/api/worker-opportunities')).json();
+  assert.equal(imported.opportunities.length, 1, 'Only the selected prospect was promoted');
+  assert.equal(imported.opportunities[0].name, prospect.name);
+  assert.equal(imported.opportunities[0].sourceProspectIndex, 0);
+  await drawer.getByText('已导入商机池').first().waitFor();
+  assert.equal(await drawer.locator('.worker-prospect-pick input').count(), 1, 'Only the remaining buyer can be selected');
+  await drawer.getByRole('button', { name: '导入已选 1 条客户线索' }).click();
+  const afterSecond = await (await fetch(base + '/api/worker-opportunities')).json();
+  assert.equal(afterSecond.opportunities.length, 2, 'A separate approved partial batch can be imported');
+  await page.keyboard.press('Escape');
+  const row = page.locator('.worker-opportunity-row').filter({ hasText: prospect.name });
   assert.equal(await row.getByText('待审核').count(), 1);
   await mkdir('evidence/browser', { recursive: true });
   await page.screenshot({ path: 'evidence/browser/10-worker-opportunity-desktop.png', fullPage: true });

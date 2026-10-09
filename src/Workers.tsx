@@ -21,7 +21,7 @@ type Order = {
   workerReport?: { deliverables: Deliverable[]; evidence: Evidence[]; prospects?: Prospect[]; independentlyVerified: false } | null;
   reportedCostCredits?: number | null;
   deliveryArtifactId?: string | null;
-  opportunityImports?: { importedIds: string[]; createdCount: number; requestId: string }[];
+  opportunityImports?: { importedIds: string[]; createdCount: number; requestId: string; indices?: number[] }[];
 };
 type Opportunity = { id: string; name: string; country: string; website: string; fitReason: string; sourceUrl: string; sourceOrderId: string; sourceProspectIndex: number; status: 'candidate' | 'qualified' | 'rejected'; verification: string; createdAt: string; reviewedAt?: string | null; reviewNotes?: string };
 type Role = 'admin' | 'operator' | 'viewer';
@@ -53,6 +53,7 @@ export default function Workers({ role }: { role: Role }) {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [chosenProspects, setChosenProspects] = useState<number[]>([]);
   const [selection, setSelection] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
   const [product, setProduct] = useState('');
@@ -66,6 +67,7 @@ export default function Workers({ role }: { role: Role }) {
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const retryId = useRef(requestId());
+  const pendingImportRef = useRef<{ key: string; id: string } | null>(null);
   const load = useCallback(async () => {
     const [catalog, tasks, pipeline] = await Promise.all([
       api<{ services: Service[] }>('/worker-services'),
@@ -85,6 +87,24 @@ export default function Workers({ role }: { role: Role }) {
   const selectedService = services.find(item => item.id === selection);
   const selectedOrder = orders.find(item => item.id === focused);
   const selectedOpportunity = opportunities.find(item => item.id === reviewId);
+  // Older import records created before row selection had no indices and
+  // represented an all-rows import. Preserve that interpretation.
+  const importedRows = useMemo(() => {
+    const batches = selectedOrder?.opportunityImports || [];
+    const length = selectedOrder?.workerReport?.prospects?.length || 0;
+    if (batches.some(batch => !Array.isArray(batch.indices))) return new Set(Array.from({ length }, (_, index) => index));
+    return new Set(batches.flatMap(batch => batch.indices || []));
+  }, [selectedOrder?.opportunityImports, selectedOrder?.workerReport?.prospects?.length]);
+  const allPromoted = !!selectedOrder?.workerReport?.prospects?.length &&
+    importedRows.size >= selectedOrder.workerReport.prospects.length;
+  useEffect(() => {
+    const count = selectedOrder?.workerReport?.prospects?.length || 0;
+    const batches = selectedOrder?.opportunityImports || [];
+    const already = batches.some(batch => !Array.isArray(batch.indices))
+      ? new Set(Array.from({ length: count }, (_, index) => index))
+      : new Set(batches.flatMap(batch => batch.indices || []));
+    setChosenProspects(Array.from({ length: count }, (_, index) => index).filter(index => !already.has(index)));
+  }, [focused, selectedOrder?.workerReport?.prospects?.length, selectedOrder?.opportunityImports?.length]);
   // Dialog keyboard dismissal and background scroll lock on mobile and desktop.
   useEffect(() => {
     if (!selection && !focused && !reviewId) return;
@@ -158,14 +178,18 @@ export default function Workers({ role }: { role: Role }) {
 
   async function promote(order: Order) {
     if (role !== 'admin' || busy) return;
-    const indices = order.workerReport?.prospects?.map((_, index) => index) || [];
-    if (!indices.length) return;
+    const indices = chosenProspects.filter(index => !importedRows.has(index)).sort((a, b) => a - b);
+    if (!indices.length) { setNotice({ text: '请至少选择一条尚未导入的客户线索。', error: true }); return; }
+    const key = order.id + ':' + indices.join(',');
+    const stableId = pendingImportRef.current?.key === key ? pendingImportRef.current.id : requestId();
+    pendingImportRef.current = { key, id: stableId };
     setBusy(true);
     try {
       const result = await api<{ importedIds: string[]; createdCount: number }>('/worker-orders/' + order.id + '/promote', 'POST', {
-        requestId: 'promote-' + order.id, indices, confirmed: true,
+        requestId: stableId, indices, confirmed: true,
       });
       await load();
+      pendingImportRef.current = null;
       setNotice({ text: '已将 ' + result.createdCount + ' 条新候选加入企业商机池，其来源仍需人工核实。', error: false });
     } catch (error) { setNotice({ text: errorText(error), error: true }); }
     finally { setBusy(false); }
@@ -290,6 +314,11 @@ export default function Workers({ role }: { role: Role }) {
             {!!selectedOrder.workerReport.prospects?.length && <div className="worker-prospect-section">
               <h3>潜在经销商 <span>{selectedOrder.workerReport.prospects.length} 条待核实记录</span></h3>
               <div className="worker-prospect-grid">{selectedOrder.workerReport.prospects.map((prospect, index) => <div className="worker-prospect" key={prospect.website + '-' + index}>
+                {selectedOrder.status === 'accepted' && selectedOrder.serviceId === 'buyer-discovery' && role === 'admin' && !importedRows.has(index) && <label className="worker-prospect-pick">
+                  <input type="checkbox" aria-label={'选择导入 ' + prospect.name} checked={chosenProspects.includes(index)} onChange={event => setChosenProspects(previous => event.target.checked ? [...previous, index] : previous.filter(n => n !== index))}/>
+                  <span>导入此客户</span>
+                </label>}
+                {selectedOrder.status === 'accepted' && importedRows.has(index) && <span className="worker-prospect-imported">已导入商机池</span>}
                 <div><strong>{prospect.name}</strong><small>{prospect.country}</small></div>
                 <p>{prospect.fitReason}</p>
                 <div className="worker-prospect-links"><a href={prospect.website} target="_blank" rel="noopener noreferrer"><Icon name="external" size={12}/>企业官网</a><a href={prospect.sourceUrl} target="_blank" rel="noopener noreferrer"><Icon name="file" size={12}/>原始来源</a></div>
@@ -307,8 +336,8 @@ export default function Workers({ role }: { role: Role }) {
             {selectedOrder.status === 'approved' && role === 'admin' && <button type="button" className="worker-primary" disabled={busy} onClick={() => void action(selectedOrder.id, 'dispatch')}>正式委托执行</button>}
             {liveStatuses.has(selectedOrder.status) && role === 'admin' && <button type="button" className="worker-primary" disabled={busy} onClick={() => void action(selectedOrder.id, 'refresh')}>查询 Worker 进度</button>}
             {selectedOrder.status === 'review_required' && role === 'admin' && <button type="button" className="worker-primary" disabled={busy} onClick={() => void action(selectedOrder.id, 'accept', { confirmed: true })}>验收并确认交付</button>}
-            {selectedOrder.status === 'accepted' && selectedOrder.serviceId === 'buyer-discovery' && role === 'admin' && !!selectedOrder.workerReport?.prospects?.length && <button type="button" className="worker-primary" disabled={busy || !!selectedOrder.opportunityImports?.some(batch => batch.requestId === 'promote-' + selectedOrder.id)} onClick={() => void promote(selectedOrder)}>
-              <Icon name="people" size={17}/> {selectedOrder.opportunityImports?.some(batch => batch.requestId === 'promote-' + selectedOrder.id) ? '已加入商机池' : '将候选客户加入商机池'}
+            {selectedOrder.status === 'accepted' && selectedOrder.serviceId === 'buyer-discovery' && role === 'admin' && !!selectedOrder.workerReport?.prospects?.length && <button type="button" className="worker-primary" disabled={busy || chosenProspects.length === 0 || allPromoted} onClick={() => void promote(selectedOrder)}>
+              <Icon name="people" size={17}/> {allPromoted ? '所有客户已导入' : '导入已选 ' + chosenProspects.length + ' 条客户线索'}
             </button>}
             {['draft', 'approved', 'running', 'input_required', 'cancel_requested'].includes(selectedOrder.status) && role === 'admin' &&
               <button type="button" className="worker-secondary" disabled={busy} onClick={() => void action(selectedOrder.id, 'cancel')}>取消这次委托</button>}
