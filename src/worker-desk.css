@@ -182,3 +182,30 @@
 .worker-prospect-links{display:flex;flex-wrap:wrap;gap:16px}
 .worker-prospect-links a{display:inline-flex;gap:5px;align-items:center;color:#3266b2;font-size:11px;text-decoration:none}
 .worker-prospect-links a:hover{text-decoration:underline}
+
+/* Sales opportunity pipeline: buyer-facing records, not a second chat screen. */
+.worker-pipeline-heading{margin-top:40px}
+.worker-opportunities{background:#fff;border:1px solid #e7e9ed;border-radius:17px;overflow:hidden;box-shadow:0 5px 24px #19233304}
+.worker-opportunity-row{display:flex;align-items:flex-start;gap:14px;padding:18px 21px;border-bottom:1px solid #f0f2f5}
+.worker-opportunity-row:last-child{border-bottom:0}
+.worker-opportunity-avatar{display:grid;place-items:center;flex-shrink:0;width:39px;height:39px;border-radius:11px;background:#eef4f6;color:#568f8e}
+.worker-opportunity-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.worker-opportunity-copy strong{color:#253148;font-size:13px;font-weight:650}
+.worker-opportunity-copy small{color:#9ba3af;font-size:10px}
+.worker-opportunity-copy p{font-size:11px;line-height:1.6;color:#657287;max-width:650px}
+.worker-opportunity-links{display:flex;flex-wrap:wrap;gap:16px;padding-top:5px}
+.worker-opportunity-links a{display:inline-flex;gap:4px;align-items:center;color:#3468b8;font-size:11px;text-decoration:none}
+.worker-opportunity-links a:hover{text-decoration:underline}
+.worker-opportunity-review{border:1px solid #dbe6f5;border-radius:9px;padding:9px 11px;color:#3267ac;font-size:11px;display:flex;gap:5px;align-items:center;background:#f7faff;white-space:nowrap}
+.worker-opportunity-review:hover{background:#eaf2ff}
+.worker-state-qualified{background:#e7f6ef;color:#278263}
+.worker-state-rejected{background:#f1f2f4;color:#788390}
+.worker-review-notes{display:flex;flex-direction:column;gap:8px;color:#39475e;font-size:12px;font-weight:640}
+.worker-review-notes textarea{width:100%;resize:vertical;min-height:96px;border:1px solid #e2e7ef;border-radius:11px;padding:12px;background:#fff;font:inherit;font-weight:400;font-size:12px;color:#334459}
+.worker-review-footnote{font-size:11px;color:#96a1b0;line-height:1.7}
+@media(max-width:620px){.worker-opportunity-row{padding:14px 12px;gap:8px;flex-wrap:wrap}
+.worker-opportunity-avatar{width:31px;height:31px}
+.worker-opportunity-row>.worker-state{margin-left:39px}
+.worker-opportunity-review{margin-left:auto}
+.worker-opportunity-copy{flex-basis:calc(100% - 50px)}
+.worker-opportunity-links{gap:14px}}

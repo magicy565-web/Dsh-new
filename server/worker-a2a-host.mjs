@@ -45,6 +45,61 @@ function checkInterfaceOrigin(card, endpoint) {
       actual.toString() !== target.toString()) throw error('Agent Card: exact reviewed interface mismatch.');
 }
 
+/**
+ * Constrain every official SDK network call to the exact reviewed A2A URL.
+ * Prohibit redirects (including redirects to private networks), unexpected
+ * methods, oversized requests and giant untrusted response bodies. DNS-level
+ * IP filtering still requires independently configured host egress controls.
+ */
+export function createPinnedA2AFetch({ endpoint, fetchImpl = fetch, maxResponseBytes = 2 * 1024 * 1024 } = {}) {
+  if (typeof endpoint !== 'string' || typeof fetchImpl !== 'function' ||
+      !Number.isSafeInteger(maxResponseBytes) || maxResponseBytes < 1024 || maxResponseBytes > 4 * 1024 * 1024)
+    throw error('A2A network guard requires a fixed endpoint and bounded response size.');
+  const target = new URL(endpoint);
+  if (target.protocol !== 'https:' || target.username || target.password ||
+      target.hostname === 'localhost' || target.hostname.endsWith('.local') ||
+      /^[0-9.]+$/.test(target.hostname) || target.hostname.includes(':'))
+    throw error('A2A network guard accepts only a reviewed public HTTPS hostname.');
+  return async (input, init = {}) => {
+    const requested = typeof input === 'string' || input instanceof URL ? String(input) : input?.url;
+    if (typeof requested !== 'string' || new URL(requested).toString() !== target.toString())
+      throw error('A2A network call left the pinned endpoint.');
+    if (String(init.method || '').toUpperCase() !== 'POST' ||
+        typeof init.body !== 'string' || Buffer.byteLength(init.body) > 128 * 1024)
+      throw error('A2A network request exceeded the reviewed JSON-RPC contract.');
+    const result = await fetchImpl(target.toString(), { ...init, redirect: 'manual', credentials: 'omit' });
+    if (result.status >= 300 && result.status < 400)
+      throw error('A2A endpoint attempted an unapproved redirect.');
+    const declared = Number(result.headers.get('content-length') || '0');
+    if (!Number.isFinite(declared) || declared > maxResponseBytes)
+      throw error('A2A response exceeded the approved size limit.');
+    if (!result.body) return result;
+    const reader = result.body.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+      for (;;) {
+        const next = await reader.read();
+        if (next.done) break;
+        total += next.value.byteLength;
+        if (total > maxResponseBytes) throw error('A2A response exceeded the approved size limit.');
+        chunks.push(next.value);
+      }
+    } catch (failure) {
+      await reader.cancel().catch(() => {});
+      throw failure;
+    } finally { reader.releaseLock(); }
+    const output = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) { output.set(chunk, offset); offset += chunk.byteLength; }
+    const headers = new Headers(result.headers);
+    headers.delete('content-length');
+    headers.delete('content-encoding');
+    headers.delete('transfer-encoding');
+    return new Response(output, { status: result.status, statusText: result.statusText, headers });
+  };
+}
+
 // Official SDK v1 (JSON-RPC) owns transport/protocol; no fork, no fallback.
 // A signed-off reference is not *proof* of an actual enforceable hard cap:
 // operators must verify the partner-side account and egress policy externally.
@@ -83,11 +138,18 @@ export async function loadReviewedA2AWorkers({
   }
   if (!entries.length) return { adapters: {}, status: { configured: true, connections: 0 }, close: async () => {} };
   const sdk = await sdkLoader();
-  if (typeof sdk?.ClientFactory !== 'function' || !sdk.ClientFactoryOptions?.default?.transports?.length)
-    throw error('Official A2A SDK ClientFactory/transport defaults missing. Install reviewed SDK in host.');
+  if (typeof sdk?.ClientFactory !== 'function' || typeof sdk.JsonRpcTransportFactory !== 'function')
+    throw error('Official A2A SDK JSON-RPC ClientFactory exports missing. Install reviewed SDK in host.');
   const adapters = {};
   for (const { worker, card, token } of entries) {
-    const factory = new sdk.ClientFactory({ ...sdk.ClientFactoryOptions.default, clientConfig: { polling: true } });
+    const pinnedFetch = createPinnedA2AFetch({ endpoint: worker.endpoint });
+    // Explicitly choose only the approved JSONRPC v1 transport. Do not enable
+    // REST fallback or automatic unreviewed Agent Card discovery.
+    const factory = new sdk.ClientFactory({
+      transports: [new sdk.JsonRpcTransportFactory({ fetchImpl: pinnedFetch })],
+      preferredTransports: ['JSONRPC'],
+      clientConfig: { polling: true },
+    });
     const client = await factory.createFromAgentCard(card);
     if (!client || ['sendMessage','getTask','cancelTask'].some(k => typeof client[k] !== 'function'))
       throw error('Official A2A SDK could not create a valid task client.');

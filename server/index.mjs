@@ -15,6 +15,7 @@ import { createRunOutputService } from './run-output.mjs';
 import { createWorkspaceLibraryAdapter, WORKSPACE_LIBRARY_ADAPTER } from './workspace-library.mjs';
 import { createCapabilityService, CapabilityError } from './capabilities.mjs';
 import { createWorkerServiceDesk, WorkerDeskError } from './worker-desk.mjs';
+import { createWorkerOpportunityService, WorkerOpportunityError } from './worker-opportunities.mjs';
 import { loadReviewedA2AWorkers } from './worker-a2a-host.mjs';
 import { AccessError, validateAccessConfig, createAccessControl, accessConfigFromEnvironment } from './access.mjs';
 
@@ -61,12 +62,13 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities;
   try {
     recovery = await readRecoveryStatus(store.directory, provider.kind);
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
     workerDesk = createWorkerServiceDesk({ store, adapters: workerAdapters, artifacts });
+    workerOpportunities = createWorkerOpportunityService({ store });
     await workerDesk.recoverInterrupted();
     capabilities = await createCapabilityService({ store, adapters: { ...connectorAdapters, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
@@ -128,6 +130,9 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (pathname === '/api/artifacts') return await respond(res, 200, artifacts.list());
         if (pathname === '/api/worker-services') return await respond(res, 200, { services: workerDesk.catalog() });
         if (pathname === '/api/worker-orders') return await respond(res, 200, { orders: workerDesk.list() });
+        if (pathname === '/api/worker-opportunities') return await respond(res, 200, { opportunities: workerOpportunities.list() });
+        const opportunityRead = pathname.match(/^\/api\/worker-opportunities\/([^/]+)$/);
+        if (opportunityRead) return await respond(res, 200, { opportunity: workerOpportunities.get(opportunityRead[1]) });
         const workerOrderRead = pathname.match(/^\/api\/worker-orders\/([^/]+)$/);
         if (workerOrderRead) return await respond(res, 200, { order: workerDesk.get(workerOrderRead[1]) });
         if (pathname === '/api/schedule-runs') return await respond(res, 200, { runs: capabilities.listScheduleRuns() });
@@ -175,6 +180,16 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const accessSession = pathname.match(/^\/api\/access\/sessions\/([^/]+)\/revoke$/);
       if (method === 'POST' && accessSession) return await respond(res, 200, await access.revokeSession(context, accessSession[1]));
       if (method === 'POST' && pathname === '/api/worker-orders') return await respond(res, 201, await workerDesk.create(body, context.subject));
+      const promote = pathname.match(/^\/api\/worker-orders\/([^/]+)\/promote$/);
+      if (promote && method === 'POST') {
+        if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only an administrator may import externally sourced prospects.');
+        return await respond(res, 200, await workerOpportunities.importFromOrder(promote[1], body, context.subject));
+      }
+      const prospectReview = pathname.match(/^\/api\/worker-opportunities\/([^/]+)\/review$/);
+      if (prospectReview && method === 'POST') {
+        if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only an administrator may qualify an external prospect.');
+        return await respond(res, 200, await workerOpportunities.review(prospectReview[1], body, context.subject));
+      }
       const workerOperation = pathname.match(/^\/api\/worker-orders\/([^/]+)\/(approve|dispatch|refresh|accept|cancel)$/);
       if (workerOperation && method === 'POST') {
         if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'An administrator must authorize third-party work and review delivery.');
@@ -234,7 +249,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
     } catch (error) {
-      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof AccessError;
+      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof AccessError;
       try {
         if (!res.accessFinish) await access.recordDenial(error);
         if (!res.headersSent) await respond(res, safe ? error.status : 500, { error: { code: safe ? error.code : 'INTERNAL_ERROR', message: safe ? error.message : 'The server could not complete this action. Please retry.' } });
@@ -251,7 +266,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, capabilities, workerDesk, access, diagnostics,
+    server, runtime, store, artifacts, capabilities, workerDesk, workerOpportunities, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');

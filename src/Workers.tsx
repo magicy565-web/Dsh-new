@@ -21,8 +21,11 @@ type Order = {
   workerReport?: { deliverables: Deliverable[]; evidence: Evidence[]; prospects?: Prospect[]; independentlyVerified: false } | null;
   reportedCostCredits?: number | null;
   deliveryArtifactId?: string | null;
+  opportunityImports?: { importedIds: string[]; createdCount: number; requestId: string }[];
 };
+type Opportunity = { id: string; name: string; country: string; website: string; fitReason: string; sourceUrl: string; sourceOrderId: string; sourceProspectIndex: number; status: 'candidate' | 'qualified' | 'rejected'; verification: string; createdAt: string; reviewedAt?: string | null; reviewNotes?: string };
 type Role = 'admin' | 'operator' | 'viewer';
+const opportunityLabels: Record<Opportunity['status'], string> = { candidate: '待审核', qualified: '相关客户', rejected: '不匹配' };
 const icons: Record<string, IconName> = {
   'buyer-discovery': 'people', 'channel-validation': 'work',
   'sales-assets': 'file', 'rfq-recovery': 'activity',
@@ -47,6 +50,9 @@ const serviceSteps = [
 export default function Workers({ role }: { role: Role }) {
   const [services, setServices] = useState<Service[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const [reviewNotes, setReviewNotes] = useState('');
   const [selection, setSelection] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
   const [product, setProduct] = useState('');
@@ -61,11 +67,13 @@ export default function Workers({ role }: { role: Role }) {
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const retryId = useRef(requestId());
   const load = useCallback(async () => {
-    const [catalog, tasks] = await Promise.all([
+    const [catalog, tasks, pipeline] = await Promise.all([
       api<{ services: Service[] }>('/worker-services'),
       api<{ orders: Order[] }>('/worker-orders'),
+      api<{ opportunities: Opportunity[] }>('/worker-opportunities'),
     ]);
-    setServices(catalog.services); setOrders(tasks.orders); setLoaded(true);
+    setServices(catalog.services); setOrders(tasks.orders);
+    setOpportunities(pipeline.opportunities); setLoaded(true);
   }, []);
   useEffect(() => {
     let mounted = true;
@@ -76,15 +84,17 @@ export default function Workers({ role }: { role: Role }) {
   const availableWorkers = useMemo(() => new Set(services.flatMap(item => item.executable ? item.workers.map(worker => worker.id) : [])).size, [services]);
   const selectedService = services.find(item => item.id === selection);
   const selectedOrder = orders.find(item => item.id === focused);
+  const selectedOpportunity = opportunities.find(item => item.id === reviewId);
   // Dialog keyboard dismissal and background scroll lock on mobile and desktop.
   useEffect(() => {
-    if (!selection && !focused) return;
+    if (!selection && !focused && !reviewId) return;
     const before = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSelection(null);
         setFocused(null);
+        setReviewId(null);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -92,12 +102,16 @@ export default function Workers({ role }: { role: Role }) {
       document.body.style.overflow = before;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [selection, focused]);
+  }, [selection, focused, reviewId]);
   const summary = useMemo(() => ({
     working: orders.filter(order => ['running', 'input_required', 'cancel_requested'].includes(order.status)).length,
     review: orders.filter(order => ['review_required', 'result_incomplete'].includes(order.status)).length,
     accepted: orders.filter(order => order.status === 'accepted').length,
   }), [orders]);
+  const opportunitySummary = useMemo(() => ({
+    candidate: opportunities.filter(item => item.status === 'candidate').length,
+    qualified: opportunities.filter(item => item.status === 'qualified').length,
+  }), [opportunities]);
   const resetDraft = () => {
     setSelection(null); setProduct(''); setMarket('美国'); setObjective(''); setBudget('20');
     setDeadline(sampleDate()); setWorkerId(''); setConfirmedPublic(false); retryId.current = requestId();
@@ -142,6 +156,33 @@ export default function Workers({ role }: { role: Role }) {
     finally { setBusy(false); }
   }
 
+  async function promote(order: Order) {
+    if (role !== 'admin' || busy) return;
+    const indices = order.workerReport?.prospects?.map((_, index) => index) || [];
+    if (!indices.length) return;
+    setBusy(true);
+    try {
+      const result = await api<{ importedIds: string[]; createdCount: number }>('/worker-orders/' + order.id + '/promote', 'POST', {
+        requestId: 'promote-' + order.id, indices, confirmed: true,
+      });
+      await load();
+      setNotice({ text: '已将 ' + result.createdCount + ' 条新候选加入企业商机池，其来源仍需人工核实。', error: false });
+    } catch (error) { setNotice({ text: errorText(error), error: true }); }
+    finally { setBusy(false); }
+  }
+  async function reviewOpportunity(decision: 'qualified' | 'rejected') {
+    if (!selectedOpportunity || role !== 'admin' || busy) return;
+    setBusy(true);
+    try {
+      await api('/worker-opportunities/' + selectedOpportunity.id + '/review', 'POST', {
+        decision, notes: reviewNotes, confirmed: true,
+      });
+      await load();
+      setReviewId(null); setReviewNotes('');
+      setNotice({ text: decision === 'qualified' ? '已记为人工判断的相关客户；尚未授权对外联系。' : '已标记为不匹配，不会自动删除来源证据。', error: false });
+    } catch (error) { setNotice({ text: errorText(error), error: true }); }
+    finally { setBusy(false); }
+  }
   return <div className="worker-desk">
     <div className="worker-topbar">
       <div className="worker-breadcrumb"><span>WORKSPACE</span><span className="worker-breadcrumb-divider">/</span><strong>AI Worker</strong></div>
@@ -193,6 +234,22 @@ export default function Workers({ role }: { role: Role }) {
         </button>)}
     </section>
 
+
+    <div className="worker-section-heading worker-pipeline-heading">
+      <div><span className="worker-eyebrow">SALES PIPELINE</span><h2>企业商机池</h2><p>仅收录人工验收后明确导入的候选客户；审核不会触发对外联系。</p></div>
+      <span className="worker-quiet-tag">{opportunities.length} 条记录 · {opportunitySummary.candidate} 条待审核 · {opportunitySummary.qualified} 条人工确认</span>
+    </div>
+    <section className="worker-opportunities" aria-label="企业商机池">
+      {opportunities.length === 0 ? <div className="worker-empty"><span><Icon name="people" size={28}/></span><strong>待导入第一批真实客户线索</strong><p>从已验收的经销商研究任务中选择“加入商机池”。</p></div> :
+        [...opportunities].reverse().map(item => <article className="worker-opportunity-row" key={item.id}>
+          <span className="worker-opportunity-avatar"><Icon name="people" size={18}/></span>
+          <div className="worker-opportunity-copy"><strong>{item.name}</strong><small>{item.country} · 外部 Worker 来源，尚未独立验证</small><p>{item.fitReason}</p>
+            <div className="worker-opportunity-links"><a href={item.website} target="_blank" rel="noopener noreferrer"><Icon name="external" size={12}/>企业官网</a>
+              <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"><Icon name="file" size={12}/>来源证据</a></div></div>
+          <span className={'worker-state worker-state-' + item.status}>{opportunityLabels[item.status]}</span>
+          {item.status === 'candidate' && role === 'admin' && <button type="button" className="worker-opportunity-review" disabled={busy} onClick={() => { setReviewId(item.id); setReviewNotes(''); }}><Icon name="check" size={15}/>审核</button>}
+        </article>)}
+    </section>
     <div className="worker-bottom-note"><Icon name="shield" size={17}/><p>企业私有资料不会自动发送给第三方。外部 Worker 必须经过后台登记、预算与权限核验；未接入时不得显示虚假的执行结果。</p></div>
     <div className="worker-how">{serviceSteps.map((step, index) => <div key={step.title}><span>{index + 1}</span><Icon name={step.icon} size={20}/><strong>{step.title}</strong><small>{step.detail}</small></div>)}</div>
 
@@ -228,7 +285,7 @@ export default function Workers({ role }: { role: Role }) {
             <Icon name="download" size={17}/>下载已验收交付记录 (JSON)<Icon name="chevron" size={14}/>
           </a>}
           {selectedOrder.error && <div className="worker-detail-warning"><Icon name="info" size={16}/>{selectedOrder.error.message}</div>
-          {selectedOrder.workerReport && <div className="worker-delivery"><h3>交付成果 <span>待人工核验</span></h3>
+          {selectedOrder.workerReport && <div className="worker-delivery"><h3>交付成果 <span>{selectedOrder.status === 'accepted' ? '已人工验收 · 未独立验证' : '待人工核验'}</span></h3>
             {selectedOrder.workerReport.deliverables.map((item, index) => <div className="worker-result" key={index}><Icon name="file" size={18}/><div><strong>{item.name}</strong><p>{item.summary}</p>{item.url && <a href={item.url} target="_blank" rel="noopener noreferrer">打开原始交付 <Icon name="external" size={12}/></a>}</div></div>)}
             {!!selectedOrder.workerReport.prospects?.length && <div className="worker-prospect-section">
               <h3>潜在经销商 <span>{selectedOrder.workerReport.prospects.length} 条待核实记录</span></h3>
@@ -250,9 +307,31 @@ export default function Workers({ role }: { role: Role }) {
             {selectedOrder.status === 'approved' && role === 'admin' && <button type="button" className="worker-primary" disabled={busy} onClick={() => void action(selectedOrder.id, 'dispatch')}>正式委托执行</button>}
             {liveStatuses.has(selectedOrder.status) && role === 'admin' && <button type="button" className="worker-primary" disabled={busy} onClick={() => void action(selectedOrder.id, 'refresh')}>查询 Worker 进度</button>}
             {selectedOrder.status === 'review_required' && role === 'admin' && <button type="button" className="worker-primary" disabled={busy} onClick={() => void action(selectedOrder.id, 'accept', { confirmed: true })}>验收并确认交付</button>}
+            {selectedOrder.status === 'accepted' && selectedOrder.serviceId === 'buyer-discovery' && role === 'admin' && !!selectedOrder.workerReport?.prospects?.length && <button type="button" className="worker-primary" disabled={busy || !!selectedOrder.opportunityImports?.some(batch => batch.requestId === 'promote-' + selectedOrder.id)} onClick={() => void promote(selectedOrder)}>
+              <Icon name="people" size={17}/> {selectedOrder.opportunityImports?.some(batch => batch.requestId === 'promote-' + selectedOrder.id) ? '已加入商机池' : '将候选客户加入商机池'}
+            </button>}
             {['draft', 'approved', 'running', 'input_required', 'cancel_requested'].includes(selectedOrder.status) && role === 'admin' &&
               <button type="button" className="worker-secondary" disabled={busy} onClick={() => void action(selectedOrder.id, 'cancel')}>取消这次委托</button>}
           </div>
+        </div>
+      </section>
+    </div>}
+    {selectedOpportunity && <div className="worker-drawer-backdrop" role="presentation" onClick={() => setReviewId(null)}>
+      <section className="worker-drawer" role="dialog" aria-modal="true" aria-labelledby="worker-review-title" onClick={event => event.stopPropagation()}>
+        <header><span className="worker-eyebrow">PROSPECT REVIEW</span><button type="button" onClick={() => setReviewId(null)} aria-label="关闭"><Icon name="close" size={19}/></button></header>
+        <div className="worker-drawer-title"><span className="worker-service-icon"><Icon name="people" size={22}/></span>
+          <h2 id="worker-review-title">人工核实客户线索</h2><p>仅记录你的判断，第三方材料仍标记为尚未独立验证。</p>
+        </div>
+        <div className="worker-order-detail">
+          <div><small>企业</small><strong>{selectedOpportunity.name} · {selectedOpportunity.country}</strong></div>
+          <div><small>潜在匹配原因</small><p>{selectedOpportunity.fitReason}</p></div>
+          <div><small>原始来源</small><a href={selectedOpportunity.sourceUrl} target="_blank" rel="noopener noreferrer">{selectedOpportunity.sourceUrl}</a></div>
+          <label className="worker-review-notes">审核备注<textarea rows={4} maxLength={1000} value={reviewNotes} onChange={event => setReviewNotes(event.target.value)} placeholder="填写人工核查结论、客户定位或需要补充的信息" /></label>
+          <div className="worker-detail-actions">
+            <button type="button" disabled={busy || role !== 'admin' || !reviewNotes.trim()} className="worker-primary" onClick={() => void reviewOpportunity('qualified')}>人工判断为相关客户</button>
+            <button type="button" disabled={busy || role !== 'admin'} className="worker-secondary" onClick={() => void reviewOpportunity('rejected')}>标记为不匹配</button>
+          </div>
+          <p className="worker-review-footnote">本操作不会发送邮件、修改报价、授权第三方或创建订单。</p>
         </div>
       </section>
     </div>}

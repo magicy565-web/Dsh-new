@@ -11,6 +11,10 @@ The enterprise homepage `/workers` is an outcome/service-oriented layer. Existin
 | GET | `/api/worker-services` | Curated offers, verified host-registered adapter availability |
 | GET | `/api/worker-orders` | Single-workspace durable order list |
 | GET | `/api/worker-orders/:id` | Inspect exact order |
+| GET | `/api/worker-opportunities` | Durable enterprise leads imported only after accepted research |
+| GET | `/api/worker-opportunities/:id` | Inspect one attributed source record |
+| POST | `/api/worker-orders/:id/promote` | Admin: explicitly import indexed sourced prospects into enterprise pipeline |
+| POST | `/api/worker-opportunities/:id/review` | Admin: mark qualified/rejected and record human notes without outreach |
 | POST | `/api/worker-orders` | Authorized operator creates consent-bound draft |
 | POST | `/api/worker-orders/:id/approve` | Admin reviews scope, partner and budget |
 | POST | `/api/worker-orders/:id/dispatch` | Admin sends exact approved task to reviewed adapter |

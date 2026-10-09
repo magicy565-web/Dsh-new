@@ -101,9 +101,16 @@ test('authenticated official SDK client plugs into complete business order throu
   const calls = [];
   let remoteOrderId = null;
   const sdk = {
-    ClientFactoryOptions: { default: { transports: [{}] } },
+    JsonRpcTransportFactory: class {
+      constructor(options) { assert.equal(typeof options.fetchImpl, 'function'); this.protocolName = 'JSONRPC'; this.options = options; }
+    },
     ClientFactory: class {
-      constructor(options) { assert.equal(options.clientConfig.polling, true); }
+      constructor(options) {
+        assert.equal(options.clientConfig.polling, true);
+        assert.deepEqual(options.preferredTransports, ['JSONRPC']);
+        assert.equal(options.transports.length, 1);
+        assert.equal(options.transports[0].protocolName, 'JSONRPC');
+      }
       async createFromAgentCard(value) {
         assert.equal(value.name, card.name);
         return {

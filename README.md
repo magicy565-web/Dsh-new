@@ -9,7 +9,7 @@
 
 ## AI Worker 服务中心
 
-新入口 `/workers`（默认首页）提供标准增长服务、预算任务单、插件可用性、进度和成果验收。服务 API 使用单企业持久数据；未登记且核验第三方适配器时仅能保存待执行草稿，**不会真正委托，也不会生成模拟业绩**。涉及历史询盘等企业私有资料的服务尚不开放跨企业传送。参考 [AI Worker V1 开发说明](docs/AI-WORKER-V1.md) 和 [外部 A2A Worker 接入](docs/AI-WORKER-A2A-INTEGRATION.md)。
+新入口 `/workers`（默认首页）提供标准增长服务、预算任务单、插件可用性、进度和成果验收；人工验收的经销商名单可逐项转入企业商机池并进行人工资格判断。服务 API 使用单企业持久数据；未登记且核验第三方适配器时仅能保存待执行草稿，**不会真正委托，也不会生成模拟业绩**。涉及历史询盘等企业私有资料的服务尚不开放跨企业传送。参考 [AI Worker V1 开发说明](docs/AI-WORKER-V1.md)、[外部 A2A Worker 接入](docs/AI-WORKER-A2A-INTEGRATION.md) 和 [业务商机池](docs/AI-WORKER-OPPORTUNITY-PIPELINE.md)。
 
 这是开发候选功能，不代表生产集成、真实合作伙伴或收费执行已上线。
 

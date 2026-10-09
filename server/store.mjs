@@ -53,6 +53,7 @@ function validateState(state, version = STORE_VERSION) {
   for (const key of ['runs', 'artifacts']) validateCollection(state[key]);
   // Optional V2 additive collection; legacy stores acquire it on first Worker order.
   if (state.workerOrders !== undefined) validateCollection(state.workerOrders);
+  if (state.workerOpportunities !== undefined) validateCollection(state.workerOpportunities);
   if (!isObject(state.meta) || !Number.isSafeInteger(state.meta.sequence) || state.meta.sequence < 0 || !iso(state.meta.createdAt) || !iso(state.meta.updatedAt)) throw invalid();
   if (!isObject(state.capabilities) || state.capabilities.version !== 1) throw invalid();
   for (const key of capabilityCollections) validateCollection(state.capabilities[key]);
