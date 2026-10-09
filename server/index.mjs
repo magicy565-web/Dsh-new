@@ -15,6 +15,7 @@ import { createRunOutputService } from './run-output.mjs';
 import { createWorkspaceLibraryAdapter, WORKSPACE_LIBRARY_ADAPTER } from './workspace-library.mjs';
 import { createCapabilityService, CapabilityError } from './capabilities.mjs';
 import { createWorkerServiceDesk, WorkerDeskError } from './worker-desk.mjs';
+import { loadReviewedA2AWorkers } from './worker-a2a-host.mjs';
 import { AccessError, validateAccessConfig, createAccessControl, accessConfigFromEnvironment } from './access.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,10 +64,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let runtime, artifacts, capabilities, access, recovery, workerDesk;
   try {
     recovery = await readRecoveryStatus(store.directory, provider.kind);
-    workerDesk = createWorkerServiceDesk({ store, adapters: workerAdapters });
-    await workerDesk.recoverInterrupted();
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
+    workerDesk = createWorkerServiceDesk({ store, adapters: workerAdapters, artifacts });
+    await workerDesk.recoverInterrupted();
     capabilities = await createCapabilityService({ store, adapters: { ...connectorAdapters, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
   } catch (error) { await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
@@ -300,9 +301,25 @@ async function main() {
   const nativeProvider = process.env.DSH_PROVIDER || 'deepseek-official';
   const nativeOfficial = nativeProvider === 'deepseek-official';
   const provider = mode === 'harness' ? createHarnessProvider({ apiKey: (nativeOfficial ? process.env.DEEPSEEK_API_KEY : process.env.FASTAITOKEN_API_KEY) || '', nativeProvider, nativeProfile: process.env.DSH_PROFILE || 'sdk', nativeProtocol: process.env.DSH_PROTOCOL || (nativeOfficial ? 'deepseek-native' : ''), nativeBaseURL: process.env.DSH_BASE_URL || (nativeOfficial ? 'https://api.deepseek.com' : ''), nativeApiKeyEnv: process.env.DSH_API_KEY_ENV || (nativeOfficial ? 'DEEPSEEK_API_KEY' : ''), relayPatch: process.env.DSH_RELAY_PATCH || '', recoveryPatch: process.env.DSH_RECOVERY_PATCH || '', dshBin: process.env.DSH_BIN || '', profilePatch: process.env.DSH_REVIEWED_PATCH || '', nativeModel: process.env.DSH_MODEL || (nativeOfficial ? 'deepseek-v4-flash' : ''), nativeBridge: process.env.DSH_WORKSPACE_BRIDGE === '1', bridgePatch: process.env.DSH_WORKSPACE_BRIDGE_PATCH || '', dshHome, workspaceDirectory }) : mode === 'fastaitoken' ? createFastAITokenProvider({ apiKey: process.env.FASTAITOKEN_API_KEY || '', model: process.env.FASTAITOKEN_MODEL || '' }) : createDeepSeekProvider({ apiKey: process.env.DEEPSEEK_API_KEY || '' });
-  const app = await createApp({ dataDirectory, provider, access, allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [], maxConcurrentRuns: mode === 'harness' ? 1 : 3 });
-  try { await app.listen(port); } catch (error) { await app.close(); throw error; }
+  // No SDK, credentials, outbound requests or partner registration without a
+  // pinned, privately stored deployment catalog. Web clients cannot edit it.
+  const reviewedWorkers = await loadReviewedA2AWorkers({ environment: process.env });
+  let app;
+  try {
+    app = await createApp({ dataDirectory, provider, access,
+      workerAdapters: reviewedWorkers.adapters,
+      allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [],
+      maxConcurrentRuns: mode === 'harness' ? 1 : 3 });
+    await app.listen(port);
+  } catch (error) {
+    await Promise.allSettled([app?.close?.(), reviewedWorkers.close()]);
+    throw error;
+  }
   console.log(`Workspace server: http://127.0.0.1:${port} (${access.mode} access; ${mode}; ${provider.configured ? 'configured; not connection-tested' : 'setup required'})`);
-  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { app.close().then(() => process.exit(0)).catch(() => process.exit(1)); });
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+    Promise.allSettled([app.close(), reviewedWorkers.close()]).then(results => {
+      process.exit(results.every(result => result.status === 'fulfilled') ? 0 : 1);
+    });
+  });
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => { console.error(error.message); process.exitCode = 1; });

@@ -41,10 +41,11 @@ function jsonReceipt(task, orderId) {
   // summaries remain untrusted and cannot accidentally be auto-accepted.
   const receipt = candidates.find(x => x && typeof x === 'object' && !Array.isArray(x) &&
     x.schema === 'workspace.worker.delivery.v1' && x.orderId === orderId);
-  if (!receipt) return { deliverables: [], evidence: [], costCredits: undefined };
+  if (!receipt) return { deliverables: [], evidence: [], prospects: [], costCredits: undefined };
   return {
     deliverables: Array.isArray(receipt.deliverables) ? receipt.deliverables : [],
     evidence: Array.isArray(receipt.evidence) ? receipt.evidence : [],
+    prospects: Array.isArray(receipt.prospects) ? receipt.prospects : [],
     costCredits: receipt.costCredits,
   };
 }
@@ -102,7 +103,7 @@ export function createA2AWorkerAdapter({
       const result = status === 'completed' ? jsonReceipt(task, orderId) : null;
       return {
         jobId, orderId, status,
-        ...(result ? { deliverables: result.deliverables, evidence: result.evidence,
+        ...(result ? { deliverables: result.deliverables, evidence: result.evidence, prospects: result.prospects,
           ...(result.costCredits === undefined ? {} : { costCredits: result.costCredits }) } : {}),
       };
     },

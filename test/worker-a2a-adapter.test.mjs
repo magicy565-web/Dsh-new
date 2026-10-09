@@ -44,6 +44,7 @@ test('official A2A Task client is bridged into a durable, evidence-reviewed busi
           schema: 'workspace.worker.delivery.v1', orderId: expectedOrderId,
           costCredits: 4,
           deliverables: [{ name: 'Distributor shortlist', type: 'table', summary: 'Four sourced leads' }],
+          prospects: [{ name: 'A2A Partner Prospect', country: 'US', website: 'https://wholesaler.example.org', fitReason: 'Wholesale catalog match', sourceUrl: 'https://wholesaler.example.org/about' }],
           evidence: [{ title: 'Business website', url: 'https://example.com/buyer', detail: 'Sourced from public company site' }],
         } }] }],
       };

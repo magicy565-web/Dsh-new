@@ -165,3 +165,20 @@
  .worker-drawer{padding:18px 19px 26px}
  .worker-form-two{gap:9px}
 }
+
+.worker-receipt-download{display:flex;align-items:center;gap:10px;padding:13px 15px;margin-top:2px;background:#f0f7ff;border:1px solid #d7e6f7;border-radius:10px;color:#315fa3;text-decoration:none;font-size:12px;font-weight:640;overflow-wrap:anywhere}
+.worker-receipt-download svg:last-child{margin-left:auto}
+.worker-receipt-download:hover{background:#e5f0fd}
+
+.worker-prospect-section{display:flex;flex-direction:column;gap:12px;border-top:1px solid #edf0f3;margin-top:8px;padding-top:12px}
+.worker-prospect-section>h3{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.worker-prospect-section>h3 span{font-size:10px;color:#78899c;font-weight:500}
+.worker-prospect-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.worker-prospect{display:flex;flex-direction:column;gap:8px;border:1px solid #e4eaf3;background:#fbfcff;border-radius:11px;padding:13px}
+.worker-prospect>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.worker-prospect>div:first-child strong{font-size:12px;color:#263c57}
+.worker-prospect>div:first-child small{font-size:11px;color:#8695aa}
+.worker-prospect p{line-height:1.65;color:#536276;font-size:11px}
+.worker-prospect-links{display:flex;flex-wrap:wrap;gap:16px}
+.worker-prospect-links a{display:inline-flex;gap:5px;align-items:center;color:#3266b2;font-size:11px;text-decoration:none}
+.worker-prospect-links a:hover{text-decoration:underline}

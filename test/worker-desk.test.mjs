@@ -60,6 +60,7 @@ test('reviewed worker accepts exact approved task and yields a human-reviewed ou
     async get(jobId) { return {
       jobId, status: 'completed', costCredits: 4,
       deliverables: [{ name: 'Distributor shortlist', type: 'table', summary: 'Five sourced business records' }],
+      prospects: [{ name: 'Verified Fixture', country: 'US', website: 'https://buyer.example.org', fitReason: 'Relevant wholesale product categories', sourceUrl: 'https://buyer.example.org/about' }],
       evidence: [{ title: 'Example public source', url: 'https://example.com/company', detail: 'Public information only' }],
     }; },
   });
@@ -123,4 +124,37 @@ test('requesting cancellation never claims external stop without acknowledgement
   const later = await desk.refresh(order.id);
   assert.equal(later.order.status, 'cancel_requested');
   assert.notEqual(later.order.status, 'cancelled');
+});
+
+
+test('buyer research cannot pass human acceptance with a summary but no actual prospects', async t => {
+  const adapter = readyAdapter({ async get(jobId) { return {
+    jobId, status: 'completed', costCredits: 2,
+    deliverables: [{ name: 'Claimed list', type: 'table', summary: '20 buyers found' }],
+    evidence: [{ title: 'A website', url: 'https://example.org/buyers', detail: 'Public site' }],
+    prospects: [],
+  }; } });
+  const { desk } = await harness(t, { partner: adapter });
+  const { order } = await desk.create(request('missing-buyers'), 'operator');
+  await desk.approve(order.id, 'admin', { confirmed: true, workerId: 'partner' });
+  await desk.dispatch(order.id);
+  assert.equal((await desk.refresh(order.id)).order.status, 'result_incomplete');
+  await assert.rejects(desk.accept(order.id, 'admin', { confirmed: true }), { code: 'INVALID_STATE' });
+});
+
+test('duplicated buyer company/domain is rejected instead of inflating lead counts', async t => {
+  const first = { name: 'Wholesale Fixture', country: 'USA', website: 'https://buyer.example.org',
+    fitReason: 'Relevant stock catalog', sourceUrl: 'https://buyer.example.org/about' };
+  const adapter = readyAdapter({ async get(jobId) { return {
+    jobId, status: 'completed', costCredits: 2,
+    deliverables: [{ name: 'Shortlist', type: 'table', summary: 'Two candidate records' }],
+    evidence: [{ title: 'Company profile', url: 'https://buyer.example.org/about', detail: 'Public' }],
+    prospects: [first, { ...first, sourceUrl: 'https://buyer.example.org/contact' }],
+  }; } });
+  const { desk } = await harness(t, { partner: adapter });
+  const { order } = await desk.create(request('duplicate-buyers'), 'operator');
+  await desk.approve(order.id, 'admin', { confirmed: true, workerId: 'partner' });
+  await desk.dispatch(order.id);
+  await assert.rejects(desk.refresh(order.id), { code: 'INVALID_WORKER_RESULT' });
+  assert.equal(desk.get(order.id).status, 'running');
 });

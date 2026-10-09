@@ -100,7 +100,35 @@ const cleanDeliverables = items => {
   });
 };
 
-export function createWorkerServiceDesk({ store, adapters = {} }) {
+const cleanProspects = items => {
+  if (items === undefined) return [];
+  if (!Array.isArray(items) || items.length > 100) fail(502, 'INVALID_WORKER_RESULT', 'Worker returned an invalid prospect collection.');
+  const seen = new Set();
+  return items.map(item => {
+    if (!keysOnly(item, ['name', 'country', 'website', 'fitReason', 'sourceUrl']))
+      fail(502, 'INVALID_WORKER_RESULT', 'Prospect contains unsupported fields.');
+    const name = safeText(item.name, 'prospect.name', 180);
+    const country = safeText(item.country, 'prospect.country', 100);
+    const fitReason = safeText(item.fitReason, 'prospect.fitReason', 600);
+    const https = (value, field) => {
+      if (typeof value !== 'string' || value.length > 2048) fail(502, 'INVALID_WORKER_RESULT', field + ' must use HTTPS.');
+      let url;
+      try { url = new URL(value); } catch { fail(502, 'INVALID_WORKER_RESULT', field + ' must use HTTPS.'); }
+      if (url.protocol !== 'https:' || url.username || url.password || !url.hostname ||
+          url.hostname === 'localhost' || /^[0-9.]+$/.test(url.hostname) || url.hostname.includes(':'))
+        fail(502, 'INVALID_WORKER_RESULT', field + ' must use a public HTTPS domain.');
+      return url.toString();
+    };
+    const website = https(item.website, 'prospect.website');
+    const sourceUrl = https(item.sourceUrl, 'prospect.sourceUrl');
+    const key = name.toLocaleLowerCase() + '|' + new URL(website).hostname.toLowerCase();
+    if (seen.has(key)) fail(502, 'INVALID_WORKER_RESULT', 'Duplicate prospects are not accepted.');
+    seen.add(key);
+    return { name, country, website, fitReason, sourceUrl, independentlyVerified: false };
+  });
+};
+
+export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null }) {
   if (typeof store?.read !== 'function' || typeof store?.update !== 'function') throw new TypeError('Worker desk needs the existing durable workspace store.');
   const adapterMap = new Map();
   for (const [id, adapter] of Object.entries(adapters)) {
@@ -239,6 +267,7 @@ export function createWorkerServiceDesk({ store, adapters = {} }) {
       if (!identifier(snapshot.jobId) || (order.remoteJobId && snapshot.jobId !== order.remoteJobId) || (snapshot.orderId !== undefined && snapshot.orderId !== order.id)) fail(502, 'WORKER_JOB_MISMATCH', 'Worker status does not match the approved service order and remote job.');
       const report = snapshot.status === 'completed' ? {
         deliverables: cleanDeliverables(snapshot.deliverables), evidence: cleanEvidence(snapshot.evidence),
+        prospects: order.serviceId === 'buyer-discovery' ? cleanProspects(snapshot.prospects) : [],
         independentlyVerified: false, reportedAt: now(),
       } : null;
       const cost = snapshot.costCredits === undefined ? null : snapshot.costCredits;
@@ -251,7 +280,7 @@ export function createWorkerServiceDesk({ store, adapters = {} }) {
         if (cost !== null && cost > current.budgetCredits) {
           current.status = 'budget_dispute'; current.error = { code: 'BUDGET_EXCEEDED', message: 'The Worker reported costs above the approved limit. Suspend settlement and investigate.' };
         } else if (snapshot.status === 'completed') {
-          current.status = report.deliverables.length && report.evidence.length ? 'review_required' : 'result_incomplete';
+          current.status = report.deliverables.length && report.evidence.length && (current.serviceId !== 'buyer-discovery' || report.prospects.length > 0) ? 'review_required' : 'result_incomplete';
           current.workerReport = report;
         } else if (snapshot.status === 'cancelled') current.status = 'cancelled';
         else if (snapshot.status === 'failed') current.status = 'failed';
@@ -261,13 +290,45 @@ export function createWorkerServiceDesk({ store, adapters = {} }) {
         return { order: current };
       });
     },
-    accept(id, actor, input) {
+    async accept(id, actor, input) {
       if (!keysOnly(input, ['confirmed']) || input.confirmed !== true) fail(400, 'CONFIRMATION_REQUIRED', 'Review the delivery and confirm acceptance.');
+      const checked = get(id);
+      if (checked.status !== 'review_required' || !checked.workerReport?.deliverables?.length || !checked.workerReport?.evidence?.length)
+        fail(409, 'INVALID_STATE', 'A reviewable delivery with evidence is required before acceptance.');
+      let deliveryArtifactId = null;
+      if (artifacts) {
+        // Store a bounded, inert JSON *receipt*. Never download/execute remote
+        // files or treat worker-originated claims as independently verified.
+        const content = JSON.stringify({
+          schema: 'workspace.worker.accepted-receipt.v1',
+          orderId: checked.id, serviceId: checked.serviceId, serviceTitle: checked.serviceTitle,
+          product: checked.product, market: checked.market, objective: checked.objective,
+          workerId: checked.workerId, remoteJobId: checked.remoteJobId,
+          approvedBudgetCredits: checked.budgetCredits,
+          workerReportedCredits: checked.reportedCostCredits,
+          externalClaimsIndependentlyVerified: false,
+          workerReport: checked.workerReport,
+        }, null, 2);
+        const result = await artifacts.create({
+          filename: 'AI-Worker-' + checked.id + '.json',
+          title: 'AI Worker Delivery · ' + checked.serviceTitle,
+          description: 'User-reviewed external Worker claims, not independently verified business results.',
+          content, requestId: 'worker-delivery-' + checked.id,
+          metadata: { workerOrderId: checked.id, externalClaimsIndependentlyVerified: false },
+        }, {
+          check: state => {
+            const current = requireOrder(state, id);
+            if (current.status !== 'review_required') fail(409, 'INVALID_STATE', 'The work order changed before artifact publication.');
+          },
+        });
+        deliveryArtifactId = result.artifact.id;
+      }
       return update(state => {
         const order = requireOrder(state, id);
         if (order.status !== 'review_required' || !order.workerReport?.deliverables?.length || !order.workerReport?.evidence?.length)
-          fail(409, 'INVALID_STATE', 'A reviewable delivery with evidence is required before acceptance.');
+          fail(409, 'INVALID_STATE', 'The work order changed before final acceptance.');
         order.status = 'accepted'; order.acceptedBy = actor; order.acceptedAt = now(); order.updatedAt = now();
+        order.deliveryArtifactId = deliveryArtifactId;
         return { order };
       });
     },

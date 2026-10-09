@@ -12,13 +12,15 @@ type Service = {
 };
 type Evidence = { title: string; url: string | null; detail: string };
 type Deliverable = { name: string; type: string; summary: string; sha256: string | null; url: string | null };
+type Prospect = { name: string; country: string; website: string; fitReason: string; sourceUrl: string; independentlyVerified: false };
 type Order = {
   id: string; serviceId: string; serviceTitle: string; product: string; market: string;
   objective: string; budgetCredits: number; deadlineAt: string; dataMode: 'public';
   status: string; workerId: string | null; remoteJobId: string | null;
   createdAt: string; updatedAt: string; error?: { code: string; message: string } | null;
-  workerReport?: { deliverables: Deliverable[]; evidence: Evidence[]; independentlyVerified: false } | null;
+  workerReport?: { deliverables: Deliverable[]; evidence: Evidence[]; prospects?: Prospect[]; independentlyVerified: false } | null;
   reportedCostCredits?: number | null;
+  deliveryArtifactId?: string | null;
 };
 type Role = 'admin' | 'operator' | 'viewer';
 const icons: Record<string, IconName> = {
@@ -145,7 +147,7 @@ export default function Workers({ role }: { role: Role }) {
       <div className="worker-breadcrumb"><span>WORKSPACE</span><span className="worker-breadcrumb-divider">/</span><strong>AI Worker</strong></div>
       <div className="worker-topbar-actions">
         <span className={'worker-provider-chip' + (availableWorkers > 0 ? ' has-workers' : '')}><i />
-          {!loaded ? '检查执行者连接…' : availableWorkers > 0 ? availableWorkers + ' 位可委托执行者' : '尚未接入执行者'}
+          {!loaded ? '检查执行者连接…' : availableWorkers > 0 ? availableWorkers + ' 位已登记执行者' : '尚未接入执行者'}
         </span>
         <span className="worker-profile-dot" title="企业工作空间">W</span>
       </div>
@@ -174,7 +176,7 @@ export default function Workers({ role }: { role: Role }) {
         <h3>{service.title}</h3><p>{service.description}</p>
         <div className="worker-service-outputs"><span>交付内容</span>{service.deliverables.slice(0, 2).map(item => <div key={item}><Icon name="check" size={13}/>{item}</div>)}</div>
         <div className="worker-service-bottom">
-          <span className={'worker-availability' + (service.executable ? ' is-ready' : '')}><i/>{service.dataMode !== 'public' ? '需要私有数据通道' : service.executable ? service.workers.length + ' 位可用执行者' : '尚未连接执行者'}</span>
+          <span className={'worker-availability' + (service.executable ? ' is-ready' : '')}><i/>{service.dataMode !== 'public' ? '需要私有数据通道' : service.executable ? service.workers.length + ' 位已登记执行者' : '尚无已审核执行者'}</span>
           <button disabled={service.dataMode !== 'public' || role === 'viewer'} onClick={() => open(service)}>{service.dataMode === 'public' ? '创建任务单' : '待开放'}<Icon name="chevron" size={16}/></button>
         </div>
       </article>)}
@@ -222,9 +224,21 @@ export default function Workers({ role }: { role: Role }) {
           <div><small>任务目标</small><p>{selectedOrder.objective}</p></div>
           <div className="worker-detail-split"><div><small>授权上限</small><strong>{selectedOrder.budgetCredits} Credits</strong></div><div><small>截止时间</small><strong>{dateText(selectedOrder.deadlineAt)}</strong></div></div>
           <div className="worker-detail-split"><div><small>执行者</small><strong>{selectedOrder.workerId || '待分配'}</strong></div><div><small>真实回执</small><strong>{selectedOrder.remoteJobId || '尚未提交'}</strong></div></div>
-          {selectedOrder.error && <div className="worker-detail-warning"><Icon name="info" size={16}/>{selectedOrder.error.message}</div>}
+          {selectedOrder.deliveryArtifactId && <a className="worker-receipt-download" href={'/api/artifacts/' + encodeURIComponent(selectedOrder.deliveryArtifactId) + '/download'} download>
+            <Icon name="download" size={17}/>下载已验收交付记录 (JSON)<Icon name="chevron" size={14}/>
+          </a>}
+          {selectedOrder.error && <div className="worker-detail-warning"><Icon name="info" size={16}/>{selectedOrder.error.message}</div>
           {selectedOrder.workerReport && <div className="worker-delivery"><h3>交付成果 <span>待人工核验</span></h3>
             {selectedOrder.workerReport.deliverables.map((item, index) => <div className="worker-result" key={index}><Icon name="file" size={18}/><div><strong>{item.name}</strong><p>{item.summary}</p>{item.url && <a href={item.url} target="_blank" rel="noopener noreferrer">打开原始交付 <Icon name="external" size={12}/></a>}</div></div>)}
+            {!!selectedOrder.workerReport.prospects?.length && <div className="worker-prospect-section">
+              <h3>潜在经销商 <span>{selectedOrder.workerReport.prospects.length} 条待核实记录</span></h3>
+              <div className="worker-prospect-grid">{selectedOrder.workerReport.prospects.map((prospect, index) => <div className="worker-prospect" key={prospect.website + '-' + index}>
+                <div><strong>{prospect.name}</strong><small>{prospect.country}</small></div>
+                <p>{prospect.fitReason}</p>
+                <div className="worker-prospect-links"><a href={prospect.website} target="_blank" rel="noopener noreferrer"><Icon name="external" size={12}/>企业官网</a><a href={prospect.sourceUrl} target="_blank" rel="noopener noreferrer"><Icon name="file" size={12}/>原始来源</a></div>
+              </div>)}</div>
+              <small>这是第三方提供的候选名单，未经独立背调；不会自动添加客户、发送消息或生成订单。</small>
+            </div>}
             <h3>证据来源</h3>{selectedOrder.workerReport.evidence.map((item, index) => <div className="worker-evidence" key={index}><strong>{item.title}</strong><p>{item.detail}</p>{item.url && <a href={item.url} target="_blank" rel="noopener noreferrer">{item.url}</a>}</div>)}
             <small>执行者报告的数据并未经过平台独立验证。验收不等于线索一定转化为订单。</small></div>}
           <div className="worker-detail-actions">
