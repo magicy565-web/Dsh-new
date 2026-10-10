@@ -3,15 +3,17 @@ import type { FormEvent } from 'react';
 import { Icon } from '../icons';
 import type { Bootstrap, Goal, Run, Message, ActionProposal, Activity } from '../types';
 import { HarnessTag } from './FocusHome';
+import { GoalCommerceContext } from '../commerce/GoalCommerceContext';
 import './focus-v21.css';
 
 const display = (s: string) => ({ draft: '目标已保存 · 等待启动', running: '执行中', awaiting_approval: '等待你的审批', paused: '已暂停', review_required: '成果待验收', completed: '已验收', failed: '执行失败', blocked: '执行受阻', cancelled: '已取消' } as Record<string,string>)[s] || s;
 const activityLabel = (title:string) => ({ 'Goal created':'目标已创建','Goal started':'目标已开始执行','Goal paused':'执行已暂停','Goal completed':'已完成验收','Goal updated':'目标已更新','Text output ready for review':'成果等待验收'} as Record<string,string>)[title] || title;
 
-export function GoalFocus({ goal, runtime, runs, messages, activity, working, readOnly, onBack, onStart, onPause, onReview, onApproval, onReferences, onChannels, onRuntime, onFollowup }: {
+export function GoalFocus({ goal, runtime, runs, messages, activity, working, readOnly, revision, onBack, onStart, onPause, onReview, onApproval, onReferences, onChannels, onCommerceProject, onResearchOrder, onRuntime, onFollowup }: {
   goal: Goal; runtime?: Bootstrap['runtime']; runs: Run[]; messages: Message[]; activity: Activity[];
   working: boolean; readOnly: boolean; onBack: () => void; onStart: () => void; onPause: () => void; onReview: () => void;
   onApproval: (run: Run, proposal: ActionProposal) => void; onReferences: () => void; onChannels: () => void; onRuntime: () => void;
+  revision: number; onCommerceProject: (id: string) => void; onResearchOrder: (id: string) => void;
   onFollowup: (content: string) => Promise<boolean>;
 }) {
   const [reply, setReply] = useState('');
@@ -45,7 +47,8 @@ export function GoalFocus({ goal, runtime, runs, messages, activity, working, re
     <section className="ys21-current" aria-label="当前状态"><span className="ys21-eyebrow">下一步</span><h2>{goal.status==='draft'?(ready?'可以开始了':'等待连接 Harness'):goal.status==='running'?'AI 正在工作':goal.status==='review_required'?'等待你的判断':goal.status==='awaiting_approval'?'需要你批准':display(goal.status)}</h2><p>{caption}</p><button type="button" className="ys21-primary" disabled={working||readOnly||(goal.status==='awaiting_approval'&&!approvals.length)} onClick={mainAction}>{working?'正在提交…':action}<Icon name="arrow-right" size={19}/></button>
       {goal.status==='running'&&<button type="button" className="ys21-pause" onClick={onPause} disabled={working||readOnly}><Icon name="pause" size={16}/> 暂停执行</button>}
     </section>
-    <div className="ys21-scope"><button type="button" onClick={onReferences} aria-label="查看目标产品和文件版本"><Icon name="library" size={18}/><span>资料</span><Icon name="chevron" size={16}/></button><button type="button" onClick={onChannels} aria-label="查看目标渠道范围"><Icon name="channels" size={18}/><span>托管与渠道</span><Icon name="chevron" size={16}/></button></div>
+    <div className="ys21-scope"><button type="button" onClick={onReferences} aria-label="查看目标产品和文件版本"><Icon name="library" size={18}/><span>资料</span><Icon name="chevron" size={16}/></button><button type="button" onClick={() => { const detail = document.getElementById('ys22-commerce-details') as HTMLDetailsElement | null; if (detail) detail.open = true; document.getElementById('ys22-commerce-context')?.scrollIntoView({ behavior: 'auto', block: 'start' }); }} aria-label="查看目标渠道范围"><Icon name="channels" size={18}/><span>托管与渠道</span><Icon name="chevron" size={16}/></button></div>
+    <GoalCommerceContext key={goal.id} goalId={goal.id} revision={revision} onProject={onCommerceProject} onOrder={onResearchOrder} onBrowse={onChannels}/>
     {approvals.length>0&&<section className="ys21-section ys21-urgent"><div className="ys21-section-title"><Icon name="shield" size={19}/> 待确认</div>{approvals.map(({run,proposal})=><button type="button" key={proposal.id} className="ys21-approval" onClick={()=>onApproval(run,proposal)}><strong>{proposal.action}</strong><small>{proposal.resource}</small><Icon name="arrow-right" size={18}/></button>)}</section>}
     <section className="ys21-section" id="ys21-conversation"><div className="ys21-section-title"><Icon name="chat" size={19}/> 会话与交付</div>
       {messages.length===0&&<p className="ys21-hint">目标创建后的说明和真实 AI 回复会显示在这里。</p>}

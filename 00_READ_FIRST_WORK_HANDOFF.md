@@ -6,6 +6,12 @@ execution runtime and source tree.
 
 ## Latest Muse / commerce checkpoint
 
+V22 continuation: the existing goal conversation now reads its exact linked
+hosting snapshot, research order and order-evidence summary. It can open the
+precise project/order without losing the single-conversation UI. See
+[V22 goal/commerce continuation](docs/V22-GOAL-COMMERCE-CONTEXT.md) for the read
+contract, regression commands and Windows memory-fixture validation boundary.
+
 The current development branch integrates the Muse home and focused goal session,
 versioned enterprise product/company libraries, durable product hosting scopes,
 and the isolated Personal Muse REST gateway from PR #15 at `d1f7e27`.

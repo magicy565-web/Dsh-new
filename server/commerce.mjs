@@ -71,6 +71,20 @@ export function createCommerceService({ store, runtime, shopify, workerDesk, wor
         settlement: { status: 'not_configured', basis: 'reviewed_attributable_net_receipts', automaticCharge: false } };
     },
     list() { return { projects: rows(store.read()).map(view) }; },
+    forGoal(goalId) {
+      const state = store.read();
+      if (!state.goals.some(goal => goal.id === goalId)) fail(404, 'GOAL_NOT_FOUND', '目标不存在。');
+      // Only the saved relation grants context; similar titles are not a link.
+      const projects = rows(state).filter(project => project.researchGoalId === goalId).map(project => {
+        const current = view(project);
+        return { id: current.id, productId: current.productId, productRevision: current.productRevision,
+          productName: current.productName, publicDescription: current.publicDescription,
+          market: current.market, objective: current.objective, budget: current.budget,
+          durationDays: current.durationDays, validationOrderTarget: current.validationOrderTarget,
+          researchOrder: current.researchOrder, results: current.results, updatedAt: current.updatedAt };
+      });
+      return { goalId, projects };
+    },
     get(id) { return { project: view(required(store.read(), id)) }; },
     async create(body, actor) {
       actorRole(actor); fields(body, ['requestId', 'confirmed', 'productId', 'productRevision', 'publicDescription', 'market', 'objective', 'budget', 'durationDays', 'validationOrderTarget']); request(body);

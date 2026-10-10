@@ -28,7 +28,9 @@
     "test:provider-native-live": "node scripts/acceptance-native-provider.mjs",
     "test:offline-evidence": "node scripts/validate-local.mjs",
     "test:commerce": "node --test test/commerce.http.test.mjs",
-    "test:muse:browser": "npm run build && node test/muse-commerce.browser.mjs"
+    "test:muse:browser": "npm run build && node test/muse-commerce.browser.mjs",
+    "test:goal-context": "node --test test/goal-commerce.http.test.mjs",
+    "test:goal-context:browser": "npm run build && node test/goal-commerce.browser.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

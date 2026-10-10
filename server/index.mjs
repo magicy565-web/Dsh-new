@@ -214,6 +214,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
+        const goalCommerce = pathname.match(/^\/api\/goals\/([^/]+)\/commerce-context$/);
+        if (goalCommerce) return await respond(res, 200, commerce.forGoal(goalCommerce[1]));
         if (pathname === '/api/commerce-status') return await respond(res, 200, commerce.status());
         if (pathname === '/api/commerce-projects') return await respond(res, 200, commerce.list());
         const commerceRead = pathname.match(/^\/api\/commerce-projects\/([^/]+)$/);
