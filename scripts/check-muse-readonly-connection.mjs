@@ -21,7 +21,7 @@ export function validateMuseBaseUrl(value) {
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
       url.pathname !== '/api/muse-worker/v1' ||
       !url.hostname.includes('.') || url.port ||
-      /(^|\.)(localhost|local|invalid|example|test)$/.test(url.hostname) ||
+      /(^|\.)(localhost|local|invalid|test|example|example\.com|example\.org|example\.net)$/.test(url.hostname) ||
       /^(\d{1,3}\.){3}\d{1,3}$/.test(url.hostname) ||
       url.hostname.startsWith('[') || url.hostname.endsWith(']'))
     fail('MUSE_URL_UNVERIFIED');
