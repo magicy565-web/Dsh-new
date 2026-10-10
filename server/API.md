@@ -4,7 +4,7 @@ Node 24 ESM. The entrypoint serves frontend and API at loopback 127.0.0.1:8787. 
 
 ## 云端专家团队 API
 
-企业主入口 `/workers`，原增长任务入口 `/services`。后端新增 `GET /api/cloud-expert-catalog`、`GET|POST /api/cloud-experts`、`GET|PATCH /api/cloud-experts/:id`、`POST /api/cloud-experts/:id/delegate`、`GET|POST /api/cloud-teams`、`GET|PATCH /api/cloud-teams/:id` 与 `GET /api/cloud-teams/:id/plan`。所有配置写入只允许管理员，复用 Workspace 认证、CSRF、审计及持久单写者存储。Team plan 仅预览，不允许虚构并行执行。已绑定专家可使用现有 WorkerDesk 创建待独立审批任务。详见 `docs/CLOUD-WORKER-EXPERT-TEAMS.md`。
+企业主入口 `/workers`，原增长任务入口 `/services`。后端新增 `GET /api/cloud-expert-catalog`、`GET|POST /api/cloud-experts`、`GET|PATCH /api/cloud-experts/:id`、`POST /api/cloud-experts/:id/delegate`、`GET|POST /api/cloud-teams`、`GET|PATCH /api/cloud-teams/:id` 与 `GET /api/cloud-teams/:id/plan`、`POST /api/cloud-teams/:id/stage`（把团队成员的工作写入真正的待审批 Worker 任务单，校验总预算与单项上限；不自动派发）。所有配置写入只允许管理员，复用 Workspace 认证、CSRF、审计及持久单写者存储。Team plan 仅预览，不允许虚构并行执行。已绑定专家可使用现有 WorkerDesk 创建待独立审批任务。详见 `docs/CLOUD-WORKER-EXPERT-TEAMS.md`。
 
 ## AI Worker service desk (business delegation, V1 branch)
 

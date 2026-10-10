@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { EXPERT_BRIEFS, TEAM_BRIEFS } from './expert-library.mjs';
 
 /**
  * Enterprise expert definitions are staffed positions, NOT automatically
@@ -16,7 +17,7 @@ export const EXPERT_SKILLS = Object.freeze([
   { id: 'delivery-review', title: '成果与预算审查' },
 ]);
 const t = (id, name, title, category, summary, initials, accent, serviceIds, skills, result, methods) =>
-  ({ id, name, title, category, summary, initials, accent, serviceIds, skills, result, methods });
+  ({ id, name, title, category, summary, initials, accent, serviceIds, skills, result, methods, brief: EXPERT_BRIEFS[id] });
 export const EXPERT_TEMPLATES = Object.freeze([
   t('growth-lead', '增长总控专家', 'Team Lead', '管理', '把企业目标拆解为可验收的分工，监督预算、依赖和结果。', 'GL', 'violet', ['buyer-discovery', 'channel-validation'], ['market-analysis','delivery-review'], '项目计划与验收清单', ['澄清目标','拆分工作','汇总证据']),
   t('buyer-hunter', '海外渠道开发专家', 'Distributor Development', '市场', '面向批发商、进口商和经销商构建有来源证据的候选名单。', 'BD', 'blue', ['buyer-discovery'], ['web-research','buyer-screening','evidence-review'], '来源可追溯的买手名单', ['目标画像','公开搜索','匹配筛选']),
@@ -31,7 +32,7 @@ export const TEAM_TEMPLATES = Object.freeze([
   { id: 'overseas-growth', title: '海外增长专家团', category: '市场', summary: '市场机会、海外分销商和渠道验证协同推进。', members: ['growth-lead','buyer-hunter','market-analyst','channel-planner'] },
   { id: 'sales-conversion', title: '外贸销售增长团队', category: '销售', summary: '销售策略、买手资料与英文素材形成可验收交付。', members: ['growth-lead','buyer-hunter','sales-specialist','brand-designer'] },
   { id: 'brand-launch', title: '新品海外上市团队', category: '品牌', summary: '验证市场方向并制作海外销售页面和渠道素材。', members: ['growth-lead','market-analyst','brand-designer','commerce-tester'] },
-]);
+].map(team => ({ ...team, brief: TEAM_BRIEFS[team.id] })));
 const serviceIndex = new Map(EXPERT_TEMPLATES.map(x => [x.id,x]));
 const teamIndex = new Map(TEAM_TEMPLATES.map(x => [x.id,x]));
 const skillIds = new Set(EXPERT_SKILLS.map(x=>x.id));
@@ -45,7 +46,7 @@ export class CloudExpertError extends Error {
 }
 const fail=(status,code,message)=>{throw new CloudExpertError(status,code,message);};
 function text(value,label,max=700) {
-  if(typeof value !== 'string' || !value.trim() || value.length>max || /[\u0000-\u001f\u007f]/u.test(value))
+  if(typeof value !== 'string' || !value.trim() || value.length>max || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value))
     fail(400,'INVALID_INPUT',label+' must be meaningful bounded text.');
   return value.trim();
 }
@@ -199,6 +200,15 @@ export function createCloudExpertService({store,workerCatalog=()=>[],workerDesk=
         if(revision(input?.expectedRevision)!==current.revision)
           fail(409,'REVISION_CONFLICT','Team changed. Reload before updating.');
         const config=configureTeam(input,state,current);
+        if(current.workPlans?.length) {
+          const reserved=current.workPlans[0];
+          const maxTask=Math.max(...reserved.steps.map(stage=>stage.budgetCredits));
+          if(config.leadId!==current.leadId ||
+             JSON.stringify(config.memberIds)!==JSON.stringify(current.memberIds) ||
+             config.budgetCredits<reserved.reservedCredits ||
+             config.taskCeilingCredits<maxTask)
+            fail(409,'TEAM_RESERVATION_LOCKED','Team staff or reserved budget cannot be invalidated after reviewed task preparation.');
+        }
         Object.assign(current,config,{revision:current.revision+1,updatedAt:stamp(),configuredBy:actor});
         return {team:viewTeam(current)};
       });
@@ -220,11 +230,27 @@ export function createCloudExpertService({store,workerCatalog=()=>[],workerDesk=
       const ceiling=quota(input.budgetCredits,'Delegation ceiling',expert.maxCredits);
       if(!workerDesk || typeof workerDesk.create!=='function')
         fail(503,'WORKER_UNAVAILABLE','The service order platform is unavailable.');
+      // This is the actual public task handed to a reviewed executor, not a
+      // generic persona prompt. Include the selected expert's real process,
+      // required outputs and acceptance gates; do not include private memories
+      // or unreviewed enterprise files. The operator has approved each input.
+      const template=serviceIndex.get(expert.templateId);
+      const brief=template.brief;
+      const objective=[
+        '专家岗位：'+template.name,
+        '企业业务目标：'+text(input.objective,'Task goal',1200),
+        '具体执行方法：'+brief.steps.map((step,i)=>(i+1)+'. '+step.name+' — '+step.detail).join('；'),
+        '必须交付与验收：'+brief.deliverables.map(d=>d.name+'（'+d.format+'）：'+d.acceptance).join('；'),
+        '数据与行动边界：'+brief.boundaries.join('；'),
+        '所有外部联系、写入、费用及私有资料访问均须经过单独审批。',
+      ].join('\n');
+      if(objective.length>2500)
+        fail(400,'EXPERT_BRIEF_TOO_LONG','The business objective is too long to include the reviewed expert work specification.');
       const response=await workerDesk.create({
         serviceId:expert.serviceId,workerId:expert.workerId,
         product:text(input.product,'Product',240),
         market:text(input.market,'Market',100),
-        objective:text(input.objective,'Task goal',2500),
+        objective,
         budgetCredits:ceiling,deadlineAt:input.deadlineAt,
         publicDataConfirmed:true,requestId:input.requestId,
       },actor);
@@ -236,16 +262,121 @@ export function createCloudExpertService({store,workerCatalog=()=>[],workerDesk=
       });
       return {...response,expertId:id,dispatchRequiresAdminApproval:true};
     },
+    /**
+     * Prepare one real multi-expert Work Order batch per configured team.
+     * This is NOT a scheduler/DAG runner: it creates only draft orders using
+     * the pre-existing workerDesk, requiring independent admin approval for
+     * every dispatch. A durable reservation fences total team credits before
+     * any order is written. Replays use the same derived request identities.
+     */
+    async stageTeamWork(id,input,actor) {
+      if(!identity(id)||!identity(actor)||!only(input,['requestId','confirmed','publicDataConfirmed','product','market','stages'])||
+        !identity(input.requestId)||input.confirmed!==true||input.publicDataConfirmed!==true||
+        !Array.isArray(input.stages)||input.stages.length<2||input.stages.length>6)
+        fail(400,'INVALID_TEAM_STAGE','Review the exact team tasks and explicitly confirm public data scope.');
+      if(!workerDesk?.create) fail(503,'WORKER_UNAVAILABLE','Reviewed Worker order service is unavailable.');
+      const team=this.getTeam(id);
+      if(input.stages.length!==team.members.length)
+        fail(400,'INVALID_TEAM_STAGE','Every staffed expert must have one approved draft task.');
+      const product=text(input.product,'Shared public product',240);
+      const market=text(input.market,'Shared public market',100);
+      const memberMap=new Map(team.members.map(member=>[member.id,member]));
+      const included=new Set();
+      const jobs=input.stages.map((stage,index)=>{
+        if(!only(stage,['expertId','objective','budgetCredits','deadlineAt'])||
+          !identity(stage.expertId)||included.has(stage.expertId))
+          fail(400,'INVALID_TEAM_STAGE','Each listed team expert needs one distinct task.');
+        included.add(stage.expertId);
+        const specialist=memberMap.get(stage.expertId);
+        if(!specialist) fail(400,'EXPERT_OUT_OF_TEAM','Cannot assign work outside the reviewed team.');
+        if(!specialist.runtimeReady||!specialist.workerId||!specialist.serviceId)
+          fail(409,'WORKER_UNAVAILABLE',specialist.alias+' is missing a verified, budget-guarded executor.');
+        const budget=quota(stage.budgetCredits,'Team task budget',Math.min(team.taskCeilingCredits,specialist.maxCredits));
+        const service=workerCatalog().find(item=>item.id===specialist.serviceId);
+        if(service?.minimumCredits&&budget<service.minimumCredits)
+          fail(400,'INVALID_BUDGET','Team task budget is below this Worker service minimum.');
+        const objective=text(stage.objective,'Specialist task',1200);
+        const deadline=Date.parse(stage.deadlineAt);
+        if(typeof stage.deadlineAt!=='string'||!Number.isFinite(deadline)||
+          deadline<=Date.now()+60_000||deadline>Date.now()+90*86_400_000)
+          fail(400,'INVALID_DEADLINE','Each specialist task needs a reviewed deadline within 90 days.');
+        const stable='team-'+createHash('sha256').update(id+'|'+input.requestId+'|'+specialist.id).digest('hex').slice(0,48);
+        return {expertId:specialist.id,templateId:specialist.templateId,serviceId:specialist.serviceId,
+          workerId:specialist.workerId,objective,budgetCredits:budget,
+          deadlineAt:new Date(deadline).toISOString(),requestId:stable,
+          orderId:null,status:'pending_draft'};
+      });
+      if(included.size!==memberMap.size) fail(400,'INVALID_TEAM_STAGE','Every staffed team position must appear exactly once.');
+      const credits=jobs.reduce((sum,item)=>sum+item.budgetCredits,0);
+      if(credits>team.budgetCredits) fail(400,'TEAM_BUDGET_EXCEEDED','Selected specialist tasks exceed the reserved team project budget.');
+      const ident=fingerprint({teamId:id,actor,requestId:input.requestId,product,market,jobs,credits});
+      const reserved=await update(state=>{
+        const current=getTeam(state,id);
+        current.workPlans??=[];
+        if(current.workPlans.length) {
+          const previous=current.workPlans[0];
+          if(previous.requestId!==input.requestId||previous.fingerprint!==ident)
+            fail(409,'TEAM_ALREADY_STAGED','This team already has a reserved work batch. Use a new team for another approved project.');
+          return {plan:previous,duplicate:true};
+        }
+        const at=stamp();
+        const record={id:randomUUID(),requestId:input.requestId,fingerprint:ident,
+          status:'preparing',product,market,reservedCredits:credits,
+          steps:jobs,createdAt:at,updatedAt:at,createdBy:actor};
+        current.workPlans.push(record);
+        current.updatedAt=at;
+        return {plan:record,duplicate:false};
+      });
+      const planId=reserved.plan.id;
+      for(const [index,job] of jobs.entries()) {
+        const last=getTeam(store.read(),id).workPlans.find(x=>x.id===planId)?.steps[index];
+        if(last?.orderId) continue;
+        try {
+          const submitted=await this.delegateExpert(job.expertId,{
+            product,market,objective:job.objective,budgetCredits:job.budgetCredits,
+            deadlineAt:job.deadlineAt,publicDataConfirmed:true,requestId:job.requestId,
+          },actor);
+          await update(state=>{
+            const plan=getTeam(state,id).workPlans.find(p=>p.id===planId);
+            if(!plan) fail(409,'TEAM_PLAN_MISSING','Reserved team work is missing.');
+            const stage=plan.steps[index];
+            if(stage.orderId&&stage.orderId!==submitted.order.id)
+              fail(409,'TASK_IDENTITY_MISMATCH','The idempotent Worker task identity changed.');
+            stage.orderId=submitted.order.id;stage.status='awaiting_approval';
+            plan.updatedAt=stamp();
+          });
+        }catch(error){
+          await update(state=>{
+            const plan=getTeam(state,id).workPlans.find(p=>p.id===planId);
+            if(plan&&plan.status==='preparing') { plan.status='setup_blocked';plan.updatedAt=stamp(); }
+          });
+          throw error;
+        }
+      }
+      return update(state=>{
+        const plan=getTeam(state,id).workPlans.find(x=>x.id===planId);
+        if(!plan?.steps.every(x=>x.orderId)) fail(409,'TEAM_PLAN_INCOMPLETE','One or more Worker drafts are missing.');
+        plan.status='awaiting_approval';plan.updatedAt=stamp();
+        return {teamId:id,plan,duplicate:reserved.duplicate,
+          approvalRequired:true,externalWorkStarted:false};
+      });
+    },
     planTeam(id) {
       const team=viewTeam(getTeam(store.read(),id));
+      const brief=teamIndex.get(team.templateId)?.brief;
       const steps=team.members.map((member,index)=>{
         const template=serviceIndex.get(member.templateId);
+        const recommended=brief?.workflow.find(step=>step.role===member.templateId);
         return {order:index+1,expertId:member.id,role:index===0?'leader':'member',title:member.alias,
-          serviceId:member.serviceId,taskCeilingCredits:Math.min(member.maxCredits,team.taskCeilingCredits),
-          output:template.result,runnerStatus:member.runnerStatus,
-          approvalRequired:true};
+          specialist:template.name,serviceId:member.serviceId,
+          taskCeilingCredits:Math.min(member.maxCredits,team.taskCeilingCredits),
+          instructions:recommended?.task || template.methods.join('、'),
+          output:recommended?.output || template.result,
+          reviewCriteria:template.brief.deliverables[0].acceptance,
+          runnerStatus:member.runnerStatus,approvalRequired:true};
       });
       return {teamId:team.id,mission:team.mission,projectBudgetCredits:team.budgetCredits,
+        inputs:brief?.inputs||[],acceptance:brief?.acceptance||'逐项人工验收',
         runnable:false,planningOnly:true,steps,
         blockers:[
           ...steps.filter(x=>x.runnerStatus==='not_connected').map(x=>x.title+' 尚未绑定已审核云执行器'),

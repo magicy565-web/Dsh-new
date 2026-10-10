@@ -192,6 +192,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (method === 'POST' && expertDelegation) return await respond(res, 201, await cloudExperts.delegateExpert(expertDelegation[1], body, context.subject));
       if (method === 'POST' && pathname === '/api/cloud-experts') return await respond(res, 201, await cloudExperts.hire(body, context.subject));
       if (method === 'POST' && pathname === '/api/cloud-teams') return await respond(res, 201, await cloudExperts.formTeam(body, context.subject));
+      const teamStage = pathname.match(/^\/api\/cloud-teams\/([^/]+)\/stage$/);
+      if (teamStage && method === 'POST') return await respond(res, 201, await cloudExperts.stageTeamWork(teamStage[1], body, context.subject));
       const reconfigureExpert = pathname.match(/^\/api\/cloud-experts\/([^/]+)$/);
       if (method === 'PATCH' && reconfigureExpert) return await respond(res, 200, await cloudExperts.configure(reconfigureExpert[1], body, context.subject));
       const reconfigureTeam = pathname.match(/^\/api\/cloud-teams\/([^/]+)$/);

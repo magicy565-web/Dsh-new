@@ -63,13 +63,13 @@
 .ce-team-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:20px}
 .ce-team-index{font-size:9px;letter-spacing:.15em;color:#aaa9c9;font-weight:800}
 .ce-team-category,.ce-role-pill{font-size:10px;font-weight:620;color:#887cbb;background:#f1eefa;padding:5px 9px;border-radius:7px}
-.ce-team-card>strong{font-size:16px;font-weight:720;letter-spacing:-.03em}
+.ce-team-card>h3{font-size:16px;font-weight:720;letter-spacing:-.03em;margin:0}
 .ce-team-card>p{font-size:11px;color:#8995a7;line-height:1.8;margin:9px 0 16px;min-height:39px}
 .ce-team-face-list{display:flex;margin:2px 0 18px;padding-left:4px}
 .ce-team-face-list .ce-avatar{margin-left:-4px;border:2px solid white}
 .ce-team-end{display:flex;align-items:center;justify-content:space-between;padding-top:15px;border-top:1px solid #eef0f4;gap:6px}
 .ce-team-end small{font-size:10px;color:#9ca6b2}
-.ce-team-end>span{display:flex;align-items:center;gap:5px;color:#5e54c5;font-size:11px;font-weight:650}
+.ce-team-end>button{display:flex;align-items:center;gap:5px;color:#5e54c5;font-size:11px;font-weight:650}
 .ce-market{margin-top:45px}
 .ce-market-tabs{display:flex;gap:28px;border-bottom:1px solid #e4e7ed;align-items:center}
 .ce-market-tabs button{padding:0 3px 15px;font-size:13px;font-weight:600;color:#8d96a6;position:relative}
@@ -190,3 +190,124 @@
 @media(max-width:700px){.ce-page{padding:18px 16px 90px}.ce-topbar{padding-bottom:16px}.ce-top-actions{gap:5px}.ce-connector-status{font-size:10px;padding:7px 9px}.ce-hero{grid-template-columns:1fr;padding:36px 0 26px;min-height:0}.ce-hero-art{display:none}.ce-hero h1{font-size:36px}.ce-hero-text>p{font-size:13px}.ce-hero-buttons{margin-top:23px}.ce-metrics{justify-content:space-around}.ce-metrics>div{padding:16px 9px;min-width:0;gap:5px;flex-direction:column;flex:1}.ce-metrics strong{font-size:24px}.ce-metrics span{font-size:10px}.ce-section-title h2{font-size:20px!important}.ce-team-presets{grid-template-columns:1fr}.ce-team-card>p{min-height:0}.ce-team-top{margin-bottom:12px}.ce-market{margin-top:33px}.ce-market-tabs{gap:18px}.ce-market-heading{flex-direction:column;align-items:stretch}.ce-search{width:100%}.ce-expert-grid,.ce-hired-grid{grid-template-columns:1fr}.ce-expert-card{min-height:230px}.ce-expert-card>p{min-height:0}.ce-filters{gap:5px}.ce-filters button{padding:7px 9px}.ce-drawer{width:100%;height:100dvh}.ce-drawer-head{padding:16px 20px}.ce-drawer-body{padding:23px 20px}.ce-drawer-bottom{padding:13px 18px}.ce-team-members{gap:10px}.ce-myteam-foot{flex-wrap:wrap}.ce-primary,.ce-secondary{font-size:12px}.ce-section-title{align-items:end}}
 @media(max-width:390px){.ce-breadcrumb{font-size:10px;gap:5px}.ce-link-button{font-size:10px}.ce-connector-status{font-size:9px}.ce-drawer-bottom>span{max-width:110px}}
 @media(prefers-reduced-motion:reduce){.ce-page button,.ce-team-card,.ce-overlay{transition:none!important;animation:none!important}}
+
+
+/* Production expert identity system: original SVG drawings replace every
+   initials-based placeholder, with semantic role color and crisp scalable lines. */
+.expert-mark{display:inline-flex;justify-content:center;align-items:center;flex:0 0 auto;isolation:isolate;position:relative;border:1px solid #ffffffb8;box-shadow:inset 0 1px 2px #ffffffce,0 5px 15px #2839610a}
+.expert-mark svg{display:block;width:75%;height:75%;overflow:visible}
+.expert-mark-small{height:34px;width:34px;border-radius:11px}
+.expert-mark-medium{height:54px;width:54px;border-radius:17px}
+.expert-mark-large{height:80px;width:80px;border-radius:24px}
+.expert-mark-hero{height:98px;width:98px;border-radius:30px}
+.expert-purple{color:#7659c8;background:linear-gradient(155deg,#eee8ff,#d7cbfc)}
+.expert-blue{color:#4677c2;background:linear-gradient(155deg,#e3f0ff,#cddff9)}
+.expert-amber{color:#b07738;background:linear-gradient(155deg,#fff0d8,#f6dbaf)}
+.expert-cyan{color:#278c9f;background:linear-gradient(155deg,#dff6fb,#bfeaf0)}
+.expert-rose{color:#b85d77;background:linear-gradient(155deg,#ffebee,#f7cddc)}
+.expert-pink{color:#a554b8;background:linear-gradient(155deg,#f6e9ff,#eccaf4)}
+.expert-green{color:#498c6b;background:linear-gradient(155deg,#e6f9eb,#c8e9d2)}
+.expert-slate{color:#64768f;background:linear-gradient(155deg,#f2f5f9,#dfe6f0)}
+.expert-team-mark{display:inline-flex;align-items:center;padding-left:8px}
+.expert-team-mark .expert-mark{margin-left:-8px;border:2px solid white;box-shadow:0 3px 10px #24315e17}
+.expert-team-mark-compact .expert-mark{height:27px;width:27px}
+.ce-hero-avatar{box-shadow:none}
+.ce-hero-avatar .expert-mark{box-shadow:0 11px 24px #3432611b,inset 0 1px 3px #ffffffec}
+.ce-team-face-list{display:block;padding-left:0}
+.ce-team-card{min-height:274px}
+.ce-team-card>p{min-height:58px}
+.ce-team-outcomes{display:flex;flex-direction:column;gap:7px;margin-bottom:17px}
+.ce-team-outcomes>span{display:flex;align-items:center;gap:7px;color:#738098;font-size:11px;line-height:1.55}
+.ce-team-outcomes svg{color:#756ac6}
+.ce-expert-card{min-height:342px}
+.ce-expert-card>p{min-height:61px}
+.ce-expert-card .ce-real-output{display:flex;align-items:flex-start;gap:8px;margin:14px 0 5px;padding:11px 12px;border-radius:10px;background:#f8f9fe;border:1px solid #edf0f9}
+.ce-real-output>svg{margin-top:2px;color:#7d6bd8}
+.ce-real-output>span{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#303d57;font-weight:650}
+.ce-real-output b{font-size:10px;color:#9a9fb1;font-weight:550}
+.ce-card-foot{align-items:flex-end}
+.ce-card-foot .ce-template-status{font-size:10px;line-height:1.5;color:#9da9b8;max-width:50%}
+.ce-card-foot .ce-template-status.is-registered{color:#408b72}
+.ce-hired-outputs{display:flex;align-items:center;gap:7px;font-size:11px;line-height:1.65;color:#6878a0;padding:11px;background:#f6f7fc;border-radius:9px}
+.ce-hired-outputs>svg{color:#796cc1}
+.ce-profile-intent{font-size:13px!important;font-weight:630;color:#3f4762!important;margin-bottom:13px!important}
+.ce-expert-case{display:flex;gap:11px;background:#f4f5fd;border:1px solid #e8eafb;border-radius:11px;padding:13px 14px;margin-bottom:21px}
+.ce-expert-case>svg{color:#7365cd;margin-top:2px}
+.ce-expert-case>div{flex:1}
+.ce-expert-case strong{font-size:11px;color:#57509a}
+.ce-expert-case p{font-size:11px;color:#748199;line-height:1.75;margin-top:4px}
+.ce-expert-playbook{margin:0 0 23px}
+.ce-brief-heading{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-bottom:11px}
+.ce-brief-heading h3{font-size:13px!important;color:#34425d;font-weight:735!important}
+.ce-brief-heading span{font-size:10px;color:#99a4b6}
+.ce-brief-heading>svg{color:#7d70cf}
+.ce-brief-steps{display:grid;gap:10px}
+.ce-brief-step{display:flex;align-items:flex-start;gap:10px}
+.ce-brief-step-index{flex:0 0 28px;height:28px;border-radius:8px;background:#f0edff;display:grid;place-items:center;font-size:10px;font-weight:760;color:#7262c3}
+.ce-brief-step>div{flex:1;padding:1px 0 4px}
+.ce-brief-step strong{font-size:11px;color:#38455f;font-weight:650}
+.ce-brief-step p{font-size:11px;color:#7d899b;line-height:1.7;margin-top:4px}
+.ce-brief-deliverables{display:grid;gap:8px}
+.ce-brief-deliverable{background:#fafbfe;border:1px solid #e9edf5;border-radius:9px;padding:11px 12px}
+.ce-brief-deliverable>div{display:flex;align-items:center;gap:7px}
+.ce-brief-deliverable>div svg{color:#7482bf}
+.ce-brief-deliverable strong{font-size:11px;color:#3c4860;font-weight:650}
+.ce-brief-deliverable>div span{font-size:10px;color:#9ca6b6;margin-left:auto;text-align:right}
+.ce-brief-deliverable p{font-size:10px;line-height:1.6;color:#78879b;margin-top:6px}
+.ce-required-inputs{display:grid;gap:8px}
+.ce-required-inputs>span{display:flex;align-items:flex-start;gap:7px;color:#6d798f;font-size:11px;line-height:1.5}
+.ce-required-inputs svg{color:#719881;margin-top:2px}
+.ce-installed-tools{border:1px solid #e9edf4;border-radius:10px;padding:11px 12px;background:#fafbfe;display:grid;gap:9px}
+.ce-installed-tools>div:first-child,.ce-installed-tools>.ce-connector-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ce-installed-tools strong{font-size:11px;color:#4f5b72;font-weight:670}
+.ce-installed-tools button{font-size:10px;display:flex;align-items:center;gap:3px;color:#6754c0;font-weight:670}
+.ce-installed-tools>p{font-size:11px;color:#929fb2;line-height:1.7}
+.ce-installed-tools>div:first-child>span{font-size:10px;color:#9aa6b6}
+.ce-tool-need{display:flex;align-items:center;gap:8px;font-size:11px;color:#737f92;line-height:1.55}
+.ce-tool-need svg{color:#8e85c9}
+.ce-connector-heading{padding-top:12px;margin-top:4px;border-top:1px solid #e7e9f0}
+.ce-real-connector{display:flex;align-items:center;gap:8px;font-size:11px;color:#7d889a;min-width:0}
+.ce-real-connector svg{color:#878ba5}
+.ce-real-connector>span{flex:1;min-width:0;overflow-wrap:anywhere}
+.ce-real-connector small{font-size:10px;color:#a6afbd;text-align:right}
+.ce-real-connector small.ce-runtime-configured{color:#538d71}
+.ce-guardrails{display:grid;gap:7px}
+.ce-guardrails p{display:flex;gap:7px;align-items:flex-start;font-size:10px;color:#8d7782;line-height:1.6}
+.ce-guardrails svg{color:#b18f9a;margin-top:1px}
+.ce-team-playbook{border:1px solid #e8eaf3;border-radius:13px;padding:14px 14px 8px;margin-bottom:22px;background:#fbfcff}
+.ce-team-stage{display:flex;align-items:center;gap:10px;border-top:1px solid #eef0f5;padding:11px 0}
+.ce-team-stage>div{flex:1}
+.ce-team-stage strong{font-size:11px;color:#3f4b64}
+.ce-team-stage p{font-size:10px;line-height:1.6;color:#7b8699;margin:5px 0}
+.ce-team-stage small{font-size:10px;color:#6e68a6}
+.ce-team-acceptance{display:flex;align-items:flex-start;gap:8px;background:#f3f1ff;color:#7163bc;padding:10px;border-radius:9px;font-size:10px;line-height:1.65}
+.ce-team-acceptance svg{margin-top:2px}
+.ce-plan-review{font-size:10px;color:#74899b;display:flex;align-items:flex-start;gap:7px;line-height:1.55;margin:4px 0 9px}
+.ce-plan-review svg{color:#628d78;margin-top:2px}
+@media(max-width:700px){
+  .ce-hero .ce-hero-text{padding-right:0}
+  .ce-team-card{min-height:0}
+  .ce-team-card>p,.ce-expert-card>p{min-height:0}
+  .ce-expert-card{min-height:0}
+  .ce-expert-card .ce-real-output{margin-bottom:12px}
+  .ce-drawer-bottom{position:relative}
+  .ce-brief-deliverable>div{flex-wrap:wrap}
+  .ce-card-foot button{white-space:normal;text-align:right}
+}
+
+/* An actual governed team work-order staging screen, not a simulated activity feed. */
+.ce-stage-form{margin-top:22px;padding:16px;border:1px solid #e7e8f0;border-radius:13px;background:#fbfbff}
+.ce-stage-form .ce-brief-heading{margin-bottom:0}
+.ce-stage-budget{display:flex;align-items:center;gap:10px;background:#f3f1ff;color:#6756be;padding:11px 12px;border-radius:10px;font-size:11px}
+.ce-stage-task{border:1px solid #e9eaf1;border-radius:12px;padding:13px;display:flex;flex-direction:column;gap:13px;background:#fff}
+.ce-stage-task-head{display:flex;align-items:center;gap:11px}
+.ce-stage-task-head>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ce-stage-task-head strong{font-size:12px;color:#35425a}
+.ce-stage-task-head small{font-size:10px;color:#8996a7;line-height:1.6}
+.ce-stage-form>.ce-primary{width:100%}
+.ce-team-staged{display:flex;align-items:flex-start;gap:12px;background:#eff9f3;border:1px solid #d2efdf;padding:15px;margin-top:20px;border-radius:12px;color:#347b58}
+.ce-team-staged>div{flex:1}
+.ce-team-staged strong{font-size:12px}
+.ce-team-staged p{font-size:11px;line-height:1.7;margin:7px 0}
+.ce-team-staged button{display:flex;align-items:center;gap:5px;color:#367450;font-size:11px;font-weight:710;margin-top:6px}
+@media(max-width:700px){.ce-stage-form{padding:12px}.ce-stage-task{padding:11px}.ce-team-staged{padding:12px}}

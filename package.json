@@ -17,6 +17,8 @@
     "test": "node scripts/test-backend.mjs",
     "test:ui": "npm run build && node --test test/ui.dom.test.mjs",
     "test:browser": "npm run build && node test/ui.browser.mjs",
+    "test:experts": "node --test test/cloud-experts.test.mjs test/cloud-experts.http.test.mjs test/expert-content.test.mjs test/cloud-team-staging.test.mjs test/cloud-team-staging.http.test.mjs",
+    "test:experts:browser": "npm run build && node test/cloud-expert-experience.browser.mjs",
     "preview:offline": "npm run build && node scripts/export-preview.mjs",
     "test:all": "npm test && npm run test:ui",
     "test:recovery": "node --test test/recovery.test.mjs test/recovery-control.test.mjs test/native-recovery.test.mjs test/store.test.mjs test/store-migration.test.mjs",

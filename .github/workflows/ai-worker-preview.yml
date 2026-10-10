@@ -38,6 +38,8 @@ jobs:
         run: npm run test:browser
       - name: Enterprise opportunities desktop and mobile browser test
         run: node test/worker-opportunities.browser.mjs
+      - name: Real expert icon, role dossier and team work-order browser test
+        run: node test/cloud-expert-experience.browser.mjs
       - name: Upload visual evidence
         if: always()
         uses: actions/upload-artifact@v4

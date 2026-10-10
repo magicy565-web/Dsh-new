@@ -15,9 +15,17 @@ try {
  await mkdir('evidence/browser',{recursive:true});
  page.on('pageerror',error=>errors.push(error.message));
  await page.goto(base);await page.getByRole('heading',{name:/你的 AI 专家团队/}).waitFor();
- await page.getByRole('button',{name:'配置专家'}).first().click();
+ await page.locator('.ce-expert-card').nth(7).waitFor();
+ assert.equal(await page.locator('.ce-expert-card .expert-mark svg').count(),8, 'eight full vector expert icons replace letter placeholders');
+ assert.equal(await page.locator('.ce-team-card .expert-team-mark svg').count(),12, 'team cards show actual role icons');
+ assert.equal(await page.locator('.ce-expert-card .ce-real-output').count(),8, 'every expert offers a sourced work deliverable');
+ await page.getByRole('button',{name:/查看详情 · 配置专家/}).first().click();
  const expertDrawer=page.getByRole('dialog');
  await expertDrawer.getByRole('heading',{name:'增长总控专家'}).waitFor();
+ assert.equal(await expertDrawer.locator('.ce-brief-step').count(),3);
+ assert.equal(await expertDrawer.locator('.ce-brief-deliverable').count(),3);
+ await expertDrawer.getByText('没有已登记的执行连接器；实际工具调用和付费执行将被阻断。').waitFor();
+ await page.screenshot({path:'evidence/browser/00a-expert-complete-dossier.png'});
  await expertDrawer.locator('.ce-confirm input').check();
  await expertDrawer.getByRole('button',{name:'聘请并配置专家'}).click();
  await page.getByText('专家已加入企业团队。未绑定云执行器时不会自动执行任务。').waitFor();
