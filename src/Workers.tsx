@@ -308,7 +308,7 @@ export default function Workers({ role }: { role: Role }) {
           {selectedOrder.deliveryArtifactId && <a className="worker-receipt-download" href={'/api/artifacts/' + encodeURIComponent(selectedOrder.deliveryArtifactId) + '/download'} download>
             <Icon name="download" size={17}/>下载已验收交付记录 (JSON)<Icon name="chevron" size={14}/>
           </a>}
-          {selectedOrder.error && <div className="worker-detail-warning"><Icon name="info" size={16}/>{selectedOrder.error.message}</div>
+          {selectedOrder.error && <div className="worker-detail-warning"><Icon name="info" size={16}/>{selectedOrder.error.message}</div>}
           {selectedOrder.workerReport && <div className="worker-delivery"><h3>交付成果 <span>{selectedOrder.status === 'accepted' ? '已人工验收 · 未独立验证' : '待人工核验'}</span></h3>
             {selectedOrder.workerReport.deliverables.map((item, index) => <div className="worker-result" key={index}><Icon name="file" size={18}/><div><strong>{item.name}</strong><p>{item.summary}</p>{item.url && <a href={item.url} target="_blank" rel="noopener noreferrer">打开原始交付 <Icon name="external" size={12}/></a>}</div></div>)}
             {!!selectedOrder.workerReport.prospects?.length && <div className="worker-prospect-section">

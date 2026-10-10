@@ -51,7 +51,7 @@ export function createWorkerOpportunityService({ store, maxOpportunities = 5000 
      * sourceOrderId, the exact Worker row index and its original source URL.
      * Same company/website across orders is deduplicated, not relabeled.
      */
-    importFromOrder(orderId, input, actor) {
+    async importFromOrder(orderId, input, actor) {
       if (!hasId(orderId) || !hasId(actor) ||
           !only(input, ['indices', 'requestId', 'confirmed']) || input.confirmed !== true ||
           !hasId(input.requestId) || !Array.isArray(input.indices) ||
@@ -106,7 +106,7 @@ export function createWorkerOpportunityService({ store, maxOpportunities = 5000 
         return { importedIds, createdCount, duplicate: false };
       });
     },
-    review(id, input, actor) {
+    async review(id, input, actor) {
       if (!hasId(id) || !hasId(actor) ||
           !only(input, ['decision', 'notes', 'confirmed']) ||
           input.confirmed !== true || !['qualified', 'rejected'].includes(input.decision) ||

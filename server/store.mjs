@@ -2,22 +2,23 @@ import { promises as fs, constants } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 
-export const STORE_VERSION = 2;
-export const SUPPORTED_STORE_VERSIONS = Object.freeze([1, STORE_VERSION]);
+export const STORE_VERSION = 3;
+export const SUPPORTED_STORE_VERSIONS = Object.freeze([1, 2, STORE_VERSION]);
 export const defaultSettings = { name: 'Workspace', language: 'zh', model: 'deepseek-flash', maxGoalSteps: 3 };
 const baseCollections = ['conversations', 'messages', 'goals', 'activity', 'memories'];
 const capabilityCollections = ['skills', 'connectors', 'approvals', 'schedules', 'scheduleRuns', 'connectorRuns'];
 const unsafeKeys = new Set(['__proto__', 'prototype', 'constructor']);
 const storeError = (code, message, cause) => Object.assign(new Error(message, cause ? { cause } : undefined), { code });
 const invalid = () => storeError('WORKSPACE_DATA_INVALID', 'Unsupported or invalid workspace data; no data has been overwritten.');
-const migrationBackupName = 'workspace.v1.backup.json';
-const abandonedWriteName = /^workspace\.(?:json|v1\.backup\.json)\.[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.tmp$/u;
+const migrationBackupNames = Object.freeze({ 1: 'workspace.v1.backup.json', 2: 'workspace.v2.backup.json' });
+const abandonedWriteName = /^workspace\.(?:json|v[12]\.backup\.json)\.[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.tmp$/u;
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 const iso = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
 const freshCapabilities = () => ({ version: 1, ...Object.fromEntries(capabilityCollections.map(key => [key, []])) });
+const freshBusinessLibrary = time => ({ version: 1, company: { id: 'company', revision: 1, legalName: '', displayName: '', description: '', createdAt: time, updatedAt: time }, products: [], documents: [], operations: [], conversationReferences: [] });
 const fresh = () => {
   const time = new Date().toISOString();
-  return { version: STORE_VERSION, meta: { sequence: 0, createdAt: time, updatedAt: time }, ...Object.fromEntries([...baseCollections, 'runs', 'artifacts'].map(key => [key, []])), capabilities: freshCapabilities(), settings: { ...defaultSettings } };
+  return { version: STORE_VERSION, meta: { sequence: 0, createdAt: time, updatedAt: time }, ...Object.fromEntries([...baseCollections, 'runs', 'artifacts'].map(key => [key, []])), capabilities: freshCapabilities(), businessLibrary: freshBusinessLibrary(time), settings: { ...defaultSettings } };
 };
 
 /** Reject values that JSON would silently alter, and unsafe object keys at every depth. */
@@ -45,22 +46,31 @@ function validateCollection(collection) {
   }
 }
 
-function validateState(state, version = STORE_VERSION) {
+export function validateState(state, version = STORE_VERSION) {
   validateJson(state);
-  if (!isObject(state) || state.version !== version || !isObject(state.settings)) throw invalid();
+  if (!SUPPORTED_STORE_VERSIONS.includes(version) || !isObject(state) || state.version !== version || !isObject(state.settings)) throw invalid();
   for (const key of baseCollections) validateCollection(state[key]);
   if (version === 1) return;
   for (const key of ['runs', 'artifacts']) validateCollection(state[key]);
-  // Optional V2 additive collection; legacy stores acquire it on first Worker order.
-  if (state.workerOrders !== undefined) validateCollection(state.workerOrders);
-  if (state.workerOpportunities !== undefined) validateCollection(state.workerOpportunities);
-  if (state.cloudExperts !== undefined) validateCollection(state.cloudExperts);
-  if (state.cloudTeams !== undefined) validateCollection(state.cloudTeams);
-  if (state.dotTasks !== undefined) validateCollection(state.dotTasks);
-  if (state.dotLastSeenAt !== undefined && !iso(state.dotLastSeenAt)) throw invalid();
   if (!isObject(state.meta) || !Number.isSafeInteger(state.meta.sequence) || state.meta.sequence < 0 || !iso(state.meta.createdAt) || !iso(state.meta.updatedAt)) throw invalid();
   if (!isObject(state.capabilities) || state.capabilities.version !== 1) throw invalid();
   for (const key of capabilityCollections) validateCollection(state.capabilities[key]);
+  // Preserve mainline Worker, expert, and personal Dot records through v2 → v3.
+  for (const key of ['workerOrders', 'workerOpportunities', 'cloudExperts', 'cloudTeams', 'dotTasks', 'commerceProjects']) {
+    if (state[key] !== undefined) validateCollection(state[key]);
+  }
+  if (state.dotLastSeenAt !== undefined && !iso(state.dotLastSeenAt)) throw invalid();
+  if (version === 2) return;
+  const library = state.businessLibrary;
+  if (!isObject(library) || library.version !== 1 || !isObject(library.company)) throw invalid();
+  const company = library.company;
+  if (company.id !== 'company' || !Number.isSafeInteger(company.revision) || company.revision < 1 || !iso(company.createdAt) || !iso(company.updatedAt)) throw invalid();
+  for (const key of ['legalName', 'displayName', 'description']) if (typeof company[key] !== 'string') throw invalid();
+  for (const key of ['products', 'documents', 'operations']) validateCollection(library[key]);
+  if (Object.hasOwn(library, 'conversationReferences')) validateCollection(library.conversationReferences);
+  // V12 optional bridge receipt registry: legacy schema-v3 snapshots stay readable.
+  if (Object.hasOwn(state, 'workerDelegations')) validateCollection(state.workerDelegations);
+  for (const item of [...library.products, ...library.documents]) if (!/^[A-Za-z0-9_-]{1,128}$/u.test(item.id)) throw invalid();
 }
 
 /** A private, canonical directory whose final component cannot be a symlink. */
@@ -103,14 +113,14 @@ async function readPrivateFile(filename) {
   try { return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await handle.readFile()); } finally { await handle.close(); }
 }
 
-async function migrationBackupStatus(directory) {
-  const result = { file: migrationBackupName, status: 'absent', scope: 'pre-upgrade-workspace-state-only', rollback: 'new-directory-only' };
+async function migrationBackupStatus(directory, version) {
+  const result = { file: migrationBackupNames[version], status: 'absent', scope: 'pre-upgrade-workspace-state-only', rollback: 'new-directory-only' };
   let raw;
-  try { raw = await readPrivateFile(path.join(directory, migrationBackupName)); }
+  try { raw = await readPrivateFile(path.join(directory, result.file)); }
   catch (error) { return { ...result, status: error.code === 'ENOENT' ? 'absent' : 'unreadable' }; }
-  try { validateState(JSON.parse(raw), 1); }
+  try { validateState(JSON.parse(raw), version); }
   catch { return { ...result, status: 'invalid' }; }
-  return { ...result, status: 'verified-v1', sha256: createHash('sha256').update(raw).digest('hex') };
+  return { ...result, status: `verified-v${version}`, sha256: createHash('sha256').update(raw).digest('hex') };
 }
 
 /** Exclusive process lock. Ambiguous owners fail closed instead of risking split writers. */
@@ -160,7 +170,7 @@ export async function acquireWriterLock(directory, basename = 'workspace.lock') 
   };
 }
 
-/** Single-writer, serialized JSON transactions with atomic replacement and explicit v1 migration. */
+/** Single-writer, serialized JSON transactions with atomic replacement and explicit legacy migration. */
 export async function openStore(directory) {
   const root = await privateDirectory(directory);
   directory = root.directory;
@@ -178,12 +188,12 @@ export async function openStore(directory) {
   let poisoned = false;
   let phase = 'read';
   const startup = { action: null, sourceVersion: null, migrationBackup: null, abandonedWritesRemoved: 0, abandonedMigrationWritesRetained: 0 };
-  let backupStatus;
+  let backupStatuses;
   const warnings = [];
   const listeners = new Set();
 
-  async function prepareMigrationBackup(raw) {
-    const backup = path.join(directory, migrationBackupName);
+  async function prepareMigrationBackup(raw, version) {
+    const backup = path.join(directory, migrationBackupNames[version]);
     const temporary = `${backup}.${randomUUID()}.tmp`;
     let handle;
     async function reuseExisting() {
@@ -192,7 +202,7 @@ export async function openStore(directory) {
       catch (error) { if (error.code === 'ENOENT') return false; throw error; }
       try {
         const bytes = await existing.readFile();
-        if (!bytes.equals(Buffer.from(raw, 'utf8'))) throw storeError('WORKSPACE_MIGRATION_BACKUP_CONFLICT', 'The v1 migration backup could not be safely reused because it differs from workspace.json. Preserve both files and recover the validated v1 source in a new directory; no workspace data has been overwritten.');
+        if (!bytes.equals(Buffer.from(raw, 'utf8'))) throw storeError('WORKSPACE_MIGRATION_BACKUP_CONFLICT', `The v${version} migration backup could not be safely reused because it differs from workspace.json. Preserve both files and recover the validated v${version} source in a new directory; no workspace data has been overwritten.`);
         await existing.chmod(0o600); await existing.sync();
         return true;
       } finally { await existing.close(); }
@@ -211,7 +221,7 @@ export async function openStore(directory) {
       return 'created';
     } catch (error) {
       if (error.code === 'WORKSPACE_MIGRATION_BACKUP_CONFLICT') throw error;
-      throw storeError('WORKSPACE_MIGRATION_BACKUP_FAILED', 'The v1 migration backup could not be safely created or its durability confirmed. Preserve the data directory and retry after correcting the storage problem; no workspace data has been overwritten.', error);
+      throw storeError('WORKSPACE_MIGRATION_BACKUP_FAILED', `The v${version} migration backup could not be safely created or its durability confirmed. Preserve the data directory and retry after correcting the storage problem; no workspace data has been overwritten.`, error);
     } finally {
       if (handle) await handle.close().catch(() => {});
       await fs.unlink(temporary).catch(() => {});
@@ -250,7 +260,7 @@ export async function openStore(directory) {
     if (raw === undefined) {
       // A missing authoritative file plus migration/write evidence is not a
       // new workspace. Do not hide possible data loss behind an empty store.
-      if ((await fs.readdir(directory)).some(name => name === migrationBackupName || abandonedWriteName.test(name))) throw storeError('WORKSPACE_STATE_MISSING', 'workspace.json is missing but previous workspace write or migration files remain. Preserve this directory and recover into a new data directory; no data has been overwritten.');
+      if ((await fs.readdir(directory)).some(name => Object.values(migrationBackupNames).includes(name) || abandonedWriteName.test(name))) throw storeError('WORKSPACE_STATE_MISSING', 'workspace.json is missing but previous workspace write or migration files remain. Preserve this directory and recover into a new data directory; no data has been overwritten.');
       phase = 'initialize'; startup.action = 'created'; state = fresh(); await persist(state);
     }
     else {
@@ -259,31 +269,32 @@ export async function openStore(directory) {
       phase = 'validate';
       if (Number.isInteger(state?.version) && !SUPPORTED_STORE_VERSIONS.includes(state.version)) throw storeError('WORKSPACE_VERSION_UNSUPPORTED', `Workspace schema version ${state.version} is unsupported by this application (supported: ${SUPPORTED_STORE_VERSIONS.join(', ')}). Use a compatible application or restore a verified compatible backup into a new directory; no data has been overwritten.`);
       startup.sourceVersion = state?.version;
-      if (state?.version === 1) {
-        validateState(state, 1);
+      if ([1, 2].includes(state?.version)) {
+        validateState(state, state.version);
         const previous = state;
         state = { ...fresh(), ...previous, version: STORE_VERSION };
         validateState(state);
         phase = 'migration-backup';
-        startup.migrationBackup = await prepareMigrationBackup(raw);
+        startup.migrationBackup = await prepareMigrationBackup(raw, previous.version);
         phase = 'migration-commit';
         await persist(state);
         startup.action = 'migrated';
       } else { validateState(state); await fs.chmod(filename, 0o600); startup.action = 'opened'; }
     }
-    phase = 'diagnostics'; backupStatus = await migrationBackupStatus(directory);
-    if (['invalid', 'unreadable'].includes(backupStatus.status)) warnings.push({ code: 'WORKSPACE_MIGRATION_BACKUP_UNAVAILABLE', message: 'The pre-upgrade v1 backup cannot be verified. Current v2 data is valid; preserve both files and create a verified full backup before another upgrade. Do not use the v1 file for rollback.' });
+    phase = 'diagnostics'; backupStatuses = await Promise.all([1, 2].map(version => migrationBackupStatus(directory, version)));
+    for (const [index, backup] of backupStatuses.entries()) if (['invalid', 'unreadable'].includes(backup.status)) warnings.push({ code: 'WORKSPACE_MIGRATION_BACKUP_UNAVAILABLE', message: `The pre-upgrade v${index + 1} backup cannot be verified. Current v3 data is valid; preserve both files and create a verified full backup before another upgrade. Do not use that file for rollback.` });
     phase = 'cleanup';
     // Only our abandoned atomic-write names are eligible for cleanup.
     for (const name of await fs.readdir(directory)) if (abandonedWriteName.test(name)) {
       // If the final backup cannot be verified, a staging file may be the only
       // remaining pre-upgrade evidence. Leave it for offline inspection.
-      if (name.startsWith(`${migrationBackupName}.`) && backupStatus.status !== 'verified-v1') { startup.abandonedMigrationWritesRetained++; continue; }
+      const backupIndex = [1, 2].findIndex(version => name.startsWith(`${migrationBackupNames[version]}.`));
+      if (backupIndex !== -1 && backupStatuses[backupIndex].status !== `verified-v${backupIndex + 1}`) { startup.abandonedMigrationWritesRetained++; continue; }
       const item = path.join(directory, name); const info = await fs.lstat(item);
       if (info.isFile() || info.isSymbolicLink()) { await fs.unlink(item); startup.abandonedWritesRemoved++; }
     }
     if (startup.abandonedWritesRemoved) await syncDirectory(directory);
-    if (startup.abandonedMigrationWritesRetained) warnings.push({ code: 'WORKSPACE_MIGRATION_STAGING_RETAINED', message: 'Abandoned migration staging files were retained because no verified final v1 backup is available. Preserve them for offline inspection; they are not automatically trusted or restored.' });
+    if (startup.abandonedMigrationWritesRetained) warnings.push({ code: 'WORKSPACE_MIGRATION_STAGING_RETAINED', message: 'Abandoned migration staging files were retained because no verified final backup for their source version is available. Preserve them for offline inspection; they are not automatically trusted or restored.' });
   } catch (error) {
     error.phase = phase;
     try { await lock.release(); } catch { error.lockReleaseFailed = true; }
@@ -291,8 +302,14 @@ export async function openStore(directory) {
   }
   return {
     directory,
-    read: () => structuredClone(state),
-    diagnostics: () => structuredClone({ state: closed ? 'closed' : poisoned ? 'writes-stopped' : 'open', schemaVersion: STORE_VERSION, supportedVersions: [...SUPPORTED_STORE_VERSIONS], startup, migrationBackup: backupStatus, durability: poisoned ? 'uncertain' : 'confirmed', sequence: state.meta.sequence, warnings }),
+    read: () => {
+      const result = structuredClone(state);
+      // Earlier v3 snapshots remain valid without rewriting them on startup.
+      // The first reference edit creates this optional collection in its own transaction.
+      result.businessLibrary.conversationReferences ??= [];
+      return result;
+    },
+    diagnostics: () => structuredClone({ state: closed ? 'closed' : poisoned ? 'writes-stopped' : 'open', schemaVersion: STORE_VERSION, supportedVersions: [...SUPPORTED_STORE_VERSIONS], startup, migrationBackup: backupStatuses[0], migrationBackups: backupStatuses, durability: poisoned ? 'uncertain' : 'confirmed', sequence: state.meta.sequence, warnings }),
     subscribe(listener) {
       if (typeof listener !== 'function') throw new TypeError('Store listener must be a function.');
       if (closed) throw new Error('Workspace store is closed.');

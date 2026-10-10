@@ -3,6 +3,8 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { ApiError } from './runtime.mjs';
 import { acquireWriterLock, openPrivateFile, privateDirectory, syncDirectory, validateJson } from './store.mjs';
+import { isArtifactReferencedByLibrary } from './business-library.mjs';
+import { isBusinessLibraryArtifact } from './business-library-policy.mjs';
 
 export const ARTIFACT_MAX_BYTES = 5 * 1024 * 1024;
 export const ARTIFACT_TYPES = Object.freeze({ '.txt': 'text/plain', '.md': 'text/markdown', '.csv': 'text/csv', '.json': 'application/json', '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' });
@@ -42,6 +44,7 @@ function metadata(value) {
   if (!object(value)) fail('INVALID_INPUT', 'metadata must be a JSON object.');
   try { validateJson(value); } catch { fail('INVALID_INPUT', 'metadata must contain safe JSON values.'); }
   if (Buffer.byteLength(JSON.stringify(value)) > 16_384) fail('INVALID_INPUT', 'Artifact metadata must be at most 16 KiB.');
+  if (value.businessLibrary !== undefined && (!object(value.businessLibrary) || value.businessLibrary.visibility !== 'internal' || Object.keys(value.businessLibrary).some(key => key !== 'visibility'))) fail('INVALID_INPUT', 'Business library files must retain internal visibility.');
   return copy(value);
 }
 function sourceValues(body, current = {}) {
@@ -240,6 +243,7 @@ export async function createArtifactService({ store, directory, maxBytes = ARTIF
         bodyObject(body, updateFields);
         if (!Object.keys(body).some(key => key !== 'expectedRevision')) fail('INVALID_INPUT', 'Provide an artifact field to update.');
         const snapshot = store.read(); admission.check?.(snapshot); const original = required(snapshot, id);
+        if (body.metadata !== undefined && isBusinessLibraryArtifact(snapshot, original) && body.metadata?.businessLibrary?.visibility !== 'internal') fail('INVALID_INPUT', 'Internal library visibility cannot be removed from this file.');
         if (body.expectedRevision !== undefined && (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 1)) fail('INVALID_INPUT', 'expectedRevision must be a positive integer.');
         if (body.expectedRevision !== undefined && body.expectedRevision !== original.revision) fail('REVISION_CONFLICT', 'This artifact changed. Reload it before saving.', 409);
         const filename = body.filename === undefined ? original.filename : sanitizeArtifactFilename(body.filename);
@@ -263,6 +267,7 @@ export async function createArtifactService({ store, directory, maxBytes = ARTIF
           return await store.update(state => {
             admission.check?.(state);
             const current = required(state, id);
+            if (body.metadata !== undefined && isBusinessLibraryArtifact(state, current) && body.metadata?.businessLibrary?.visibility !== 'internal') fail('INVALID_INPUT', 'Internal library visibility cannot be removed from this file.');
             if (current.revision !== original.revision) fail('REVISION_CONFLICT', 'This artifact changed. Reload it before saving.', 409);
             checkSources(state, associations, changedSources); if (decoded) checkQuota(state, decoded.size);
             state.artifacts[state.artifacts.findIndex(item => item.id === id)] = artifact;
@@ -274,7 +279,7 @@ export async function createArtifactService({ store, directory, maxBytes = ARTIF
     delete(id) {
       return enqueue(async () => {
         const artifact = required(store.read(), id);
-        await store.update(state => { required(state, id); state.artifacts = state.artifacts.filter(item => item.id !== id); activity(state, 'artifact_deleted', artifact); });
+        await store.update(state => { required(state, id); if (isArtifactReferencedByLibrary(state, id)) fail('REFERENCED_ASSET', 'This file is used by a product image or a document version. All historical document versions retain their files.', 409); state.artifacts = state.artifacts.filter(item => item.id !== id); activity(state, 'artifact_deleted', artifact); });
         let pendingCleanup = false;
         for (const version of artifact.versions) { try { await removeBlob(path.join(directory, blobName(artifact, version))); } catch { pendingCleanup = true; } }
         try { await syncDirectory(directory); } catch { pendingCleanup = true; }

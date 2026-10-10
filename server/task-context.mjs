@@ -1,5 +1,6 @@
 import { ApiError } from './runtime.mjs';
 import { looksLikeCredential } from './security.mjs';
+import { isBusinessLibraryArtifact } from './business-library-policy.mjs';
 
 export const INPUT_CONTEXT_LIMITS = Object.freeze({ artifacts: 8, artifactCharacters: 32000, skills: 12, skillCharacters: 12000, memories: 20, memoryCharacters: 8000, connectorActions: 12 });
 export const emptyInputContext = () => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });
@@ -36,6 +37,7 @@ export async function prepareInputContext({ state, conversationId, inputContext,
   let artifactCharacters = 0, skillCharacters = 0, memoryCharacters = 0;
   for (const selected of selection.artifacts) {
     const artifact = (state.artifacts || []).find(item => item.id === selected.id);
+    if (isBusinessLibraryArtifact(state, artifact)) fail('BUSINESS_LIBRARY_PRIVATE', 'Enterprise library files cannot be sent to models or connectors.', 403);
     const version = artifact?.versions.find(item => item.version === selected.version);
     if (!version) fail('INPUT_ARTIFACT_MISSING', 'A selected file version no longer exists. Choose an available version.', 409);
     if (!textType(version.mimeType)) fail('INPUT_ARTIFACT_UNSUPPORTED', 'Only UTF-8 TXT, Markdown, CSV and JSON files can be model input. PDF and image parsing is not available.');
@@ -71,6 +73,7 @@ export async function prepareInputContext({ state, conversationId, inputContext,
 export function assertInputContextSnapshot(state, conversationId, snapshot) {
   if (!snapshot) return;
   for (const selected of snapshot.artifacts) {
+    if (isBusinessLibraryArtifact(state, selected.id)) fail('BUSINESS_LIBRARY_PRIVATE', 'Enterprise library files cannot be sent to models or connectors.', 403);
     const version = (state.artifacts || []).find(item => item.id === selected.id)?.versions.find(item => item.version === selected.version);
     if (!version || version.sha256 !== selected.sha256 || version.mimeType !== selected.mimeType || version.filename !== selected.filename) fail('INPUT_ARTIFACT_CHANGED', 'A selected file changed or was removed while preparing this run. Select it again.', 409);
   }

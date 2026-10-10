@@ -120,9 +120,9 @@ test('access: viewer reads but cannot mutate; operator domain writes exclude adm
   const f = await fixture(t), reader = await f.login('reader'), operator = await f.login('operator');
   assert.equal((await f.api('/api/bootstrap', { session: reader, subject: 'reader' })).status, 200);
   assert.equal((await f.api('/api/diagnostics', { session: reader, subject: 'reader' })).data.readOnly, true);
-  for (const route of ['/api/conversations', '/api/artifacts', '/api/approvals', '/api/session/unknown']) assert.equal((await f.api(route, { method: 'POST', body: {}, session: reader, subject: 'reader', headers: { 'X-Workspace-Role': 'admin' } })).data.error.code, 'ROLE_REQUIRED');
+  for (const route of ['/api/conversations', '/api/artifacts', '/api/approvals', '/api/library/products', '/api/commerce-projects', '/api/commerce-shopify/verify', '/api/session/unknown']) assert.equal((await f.api(route, { method: 'POST', body: {}, session: reader, subject: 'reader', headers: { 'X-Workspace-Role': 'admin' } })).data.error.code, 'ROLE_REQUIRED');
   assert.equal((await f.api('/api/conversations', { method: 'POST', body: {}, session: operator, subject: 'operator' })).status, 201);
-  for (const route of ['/api/skills', '/api/connectors', '/api/approvals', '/api/schedules', '/api/runs/any/action-decision']) assert.equal((await f.api(route, { method: 'POST', body: {}, session: operator, subject: 'operator' })).data.error.code, 'ROLE_REQUIRED');
+  for (const route of ['/api/skills', '/api/connectors', '/api/approvals', '/api/schedules', '/api/runs/any/action-decision', '/api/commerce-shopify/verify', '/api/commerce-projects/any/sync-orders']) assert.equal((await f.api(route, { method: 'POST', body: {}, session: operator, subject: 'operator' })).data.error.code, 'ROLE_REQUIRED');
   for (const route of ['/api/access/audit', '/api/access/sessions']) assert.equal((await f.api(route, { session: operator, subject: 'operator' })).data.error.code, 'ROLE_REQUIRED');
   assert.equal((await f.api('/api/settings', { method: 'PATCH', body: { name: 'deny' }, session: operator, subject: 'operator' })).data.error.code, 'ROLE_REQUIRED');
   assert.equal((await f.api('/api/session/logout', { method: 'POST', body: {}, session: reader, subject: 'reader' })).status, 200);

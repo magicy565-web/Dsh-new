@@ -11,6 +11,9 @@ import { createDeepSeekProvider } from './provider.mjs';
 import { createFastAITokenProvider } from './relay-provider.mjs';
 import { ApiError, createRuntime } from './runtime.mjs';
 import { createArtifactService } from './artifacts.mjs';
+import { createBusinessLibraryService } from './business-library.mjs';
+import { createShopifyClient } from './shopify.mjs';
+import { createCommerceService } from './commerce.mjs';
 import { createRunOutputService } from './run-output.mjs';
 import { createWorkspaceLibraryAdapter, WORKSPACE_LIBRARY_ADAPTER } from './workspace-library.mjs';
 import { createCapabilityService, CapabilityError } from './capabilities.mjs';
@@ -59,17 +62,18 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, businessLibrary, shopify, commerce;
   try {
     recovery = await readRecoveryStatus(store.directory, provider.kind);
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
+    businessLibrary = createBusinessLibraryService({ store, artifacts, clock: accessClock });
     dotAuth = dotWorkerConfig && createDotWorkerAuth({ tokenDigest: dotWorkerConfig.tokenDigest });
     if (dotWorkerConfig?.enabled === true && !dotAuth)
       throw new TypeError('A reviewed dot Worker cannot be enabled without a pinned plugin bearer token.');
@@ -88,8 +92,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     workerOpportunities = createWorkerOpportunityService({ store });
     cloudExperts = createCloudExpertService({ store, workerCatalog: () => workerDesk.catalog(), workerDesk });
     await workerDesk.recoverInterrupted();
-    capabilities = await createCapabilityService({ store, adapters: { ...connectorAdapters, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }) });
+    capabilities = await createCapabilityService({ store, adapters: { ...connectorAdapters, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
+    shopify = createShopifyClient({ environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock });
+    commerce = createCommerceService({ store, runtime, shopify, workerCatalog: () => workerDesk.catalog(), clock: accessClock });
   } catch (error) { await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const streams = new Set();
   let scheduler;
@@ -179,6 +185,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
+        if (pathname === '/api/commerce-status') return await respond(res, 200, commerce.status());
+        if (pathname === '/api/commerce-projects') return await respond(res, 200, commerce.list());
+        const commerceRead = pathname.match(/^\/api\/commerce-projects\/([^/]+)$/);
+        if (commerceRead) return await respond(res, 200, commerce.get(commerceRead[1]));
         if (pathname === '/api/diagnostics') return await respond(res, 200, diagnostics());
         if (pathname === '/api/health') {
           const storage = store.diagnostics(), durable = storage.durability === 'confirmed';
@@ -188,6 +198,19 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (pathname === '/api/access/sessions') return await respond(res, 200, access.listSessions());
         if (pathname === '/api/access/audit') return await respond(res, 200, access.listAudit({ after: Number(url.searchParams.get('after') || 0), limit: Number(url.searchParams.get('limit') || 100) }));
         if (pathname === '/api/events') return await streamChanges(req, res, context);
+        const conversationLibrary = pathname.match(/^\/api\/conversations\/([^/]+)\/library-references$/);
+        if (conversationLibrary) return await respond(res, 200, businessLibrary.getConversationReferences(conversationLibrary[1]));
+        if (pathname === '/api/library/company') return await respond(res, 200, businessLibrary.getCompany());
+        if (pathname === '/api/library/products' || pathname === '/api/library/documents') {
+          const query = Object.fromEntries(url.searchParams);
+          if ([...url.searchParams.keys()].length !== Object.keys(query).length) throw new ApiError(400, 'INVALID_INPUT', 'Duplicate library query parameters are not allowed.');
+          return await respond(res, 200, businessLibrary[pathname.endsWith('/products') ? 'listProducts' : 'listDocuments'](query));
+        }
+        const libraryResource = pathname.match(/^\/api\/library\/(products|documents|operations)\/([^/]+)(?:\/(readiness))?$/);
+        if (libraryResource) {
+          if (libraryResource[3] && libraryResource[1] !== 'products') throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
+          return await respond(res, 200, libraryResource[3] ? await businessLibrary.readiness(libraryResource[2]) : businessLibrary[{ products: 'getProduct', documents: 'getDocument', operations: 'getOperation' }[libraryResource[1]]](libraryResource[2]));
+        }
         if (pathname === '/api/runs') return await respond(res, 200, runtime.listRuns());
         if (pathname === '/api/artifacts') return await respond(res, 200, artifacts.list());
         if (pathname === '/api/cloud-expert-catalog') return await respond(res, 200, cloudExperts.catalog());
@@ -247,6 +270,23 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (!['POST', 'PATCH', 'DELETE'].includes(method)) throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
       const body = method === 'DELETE' ? {} : await readBody(req, /^\/api\/artifacts(?:\/[^/]+)?$/.test(pathname) ? 7_100_000 : 100_000);
       access.verifyBody(context, req.bodyBytes || Buffer.alloc(0));
+      if (method === 'POST' && pathname === '/api/commerce-shopify/verify') {
+        if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only administrators may verify a store authorization.');
+        if (Object.keys(body).some(key => key !== 'requestId') || body.requestId !== undefined && !/^[a-f0-9-]{36}$/u.test(body.requestId)) throw new ApiError(400, 'INVALID_INPUT', 'Shopify verification accepts only an optional request ID.');
+        return await respond(res, 200, { shopify: await shopify.verify() });
+      }
+      if (method === 'POST' && pathname === '/api/commerce-projects') return await respond(res, 201, await commerce.create(body, context));
+      const commerceAction = pathname.match(/^\/api\/commerce-projects\/([^/]+)\/(stage-research|sync-orders)$/);
+      if (method === 'POST' && commerceAction) return await respond(res, 200, await commerce[commerceAction[2] === 'stage-research' ? 'stageResearch' : 'syncOrders'](commerceAction[1], body, context));
+      const conversationLibraryWrite = pathname.match(/^\/api\/conversations\/([^/]+)\/library-references$/);
+      if (method === 'PATCH' && conversationLibraryWrite) return await respond(res, 200, await businessLibrary.updateConversationReferences(conversationLibraryWrite[1], body, context));
+      if (method === 'PATCH' && pathname === '/api/library/company') return await respond(res, 200, await businessLibrary.updateCompany(body, context));
+      if (method === 'POST' && ['/api/library/products', '/api/library/documents'].includes(pathname)) return await respond(res, 201, await businessLibrary[pathname.endsWith('/products') ? 'createProduct' : 'createDocument'](body, context));
+      const libraryWrite = pathname.match(/^\/api\/library\/(products|documents)\/([^/]+)(?:\/(versions)(?:\/([1-9][0-9]*)\/(reviews))?)?$/);
+      if (libraryWrite) {
+        if (method === 'PATCH' && !libraryWrite[3]) return await respond(res, 200, await businessLibrary[libraryWrite[1] === 'products' ? 'updateProduct' : 'updateDocument'](libraryWrite[2], body, context));
+        if (method === 'POST' && libraryWrite[1] === 'documents' && libraryWrite[3]) return await respond(res, 201, libraryWrite[5] ? await businessLibrary.reviewDocument(libraryWrite[2], Number(libraryWrite[4]), body, context) : await businessLibrary.appendDocumentVersion(libraryWrite[2], body, context));
+      }
       if (method === 'POST' && ['/api/session/login', '/api/session/logout'].includes(pathname)) {
         if (Object.keys(body).length) throw new ApiError(400, 'INVALID_INPUT', 'Session actions require an empty JSON object.');
         return await respond(res, 200, await access[pathname.endsWith('/login') ? 'login' : 'logout'](context, res));
@@ -350,7 +390,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, shopify, commerce, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');

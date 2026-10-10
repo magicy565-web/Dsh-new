@@ -63,7 +63,7 @@ test('native orchestration captures native bytes, quarantines durable queues and
   try {
     const address = await app.listen(0); const health = await (await fetch(`http://127.0.0.1:${address.port}/api/health`)).json();
     assert.equal(health.recovery.nativePathMatches, true); assert.equal(health.recovery.automaticWorkResumed, false);
-    assert.equal(health.storage.schemaVersion, 2); assert.equal(health.storage.durability, 'confirmed');
+    assert.equal(health.storage.schemaVersion, 3); assert.equal(health.storage.durability, 'confirmed');
   } finally { await app.close(); }
 });
 

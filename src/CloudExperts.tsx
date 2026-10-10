@@ -106,15 +106,15 @@ export default function CloudExperts({ role, onOpenServices, onManageTools }: { 
   const [stageTeam,setStageTeam] = useState<Team|null>(null);
   const [stagePublic,setStagePublic] = useState({product:'',market:'美国',confirmed:false});
   const [stageSpecs,setStageSpecs] = useState<Record<string,{objective:string;budget:string;deadline:string}>>({});
-  const stageRequestId = useRef(requestId());
+  const stageRequestId = useRef<string>(requestId());
   const [delegationTarget,setDelegationTarget] = useState<string|null>(null);
   const [taskDraft,setTaskDraft] = useState({product:'',market:'美国',objective:'',budget:'20',deadline:'',confirmed:false});
-  const delegationId = useRef(requestId());
+  const delegationId = useRef<string>(requestId());
   const [busy,setBusy] = useState(false);
   const [loaded,setLoaded] = useState(false);
   const [alert,setAlert] = useState<{text:string;error:boolean}|null>(null);
-  const hireId = useRef(requestId());
-  const teamId = useRef(requestId());
+  const hireId = useRef<string>(requestId());
+  const teamId = useRef<string>(requestId());
   const operator = role === 'admin';
 
   const load = useCallback(async () => {
@@ -548,8 +548,8 @@ export default function CloudExperts({ role, onOpenServices, onManageTools }: { 
           <p className="ce-profile-summary">{plan.mission}</p>
           <div className="ce-plan-budget"><Icon name="money" size={19}/><div><small>项目预算上限</small><strong>{plan.projectBudgetCredits} Credits</strong></div></div>
           <h3 className="ce-plan-heading">拟定分工</h3>
-          <div className="ce-plan-steps">{plan.steps.map(step=><div className="ce-plan-step" key={step.expertId}>
-            <span className="ce-step-index">{step.order}</span><div><div className="ce-plan-title"><strong>{step.title}</strong><small>{step.role==='leader'?'总控 / 整合交付':'专业执行'}</small></div>
+          <div className="ce-plan-steps">{plan.steps.map((step,index)=><div className="ce-plan-step" key={step.expertId}>
+            <span className="ce-step-index">{index+1}</span><div><div className="ce-plan-title"><strong>{step.title}</strong><small>{step.role==='leader'?'总控 / 整合交付':'专业执行'}</small></div>
             <p>{step.instructions}</p><p>交付：{step.output}</p>
             <div className="ce-plan-review"><Icon name="check" size={13}/>{step.reviewCriteria}</div>
             <span>{step.taskCeilingCredits} Credits 上限 · {step.runnerStatus==='registered'?'已登记执行器':'等待执行器'}</span></div>
@@ -567,7 +567,7 @@ export default function CloudExperts({ role, onOpenServices, onManageTools }: { 
               <label>共享公开产品<input required maxLength={240} value={stagePublic.product} onChange={e=>setStagePublic({...stagePublic,product:e.target.value})} placeholder="例如：印花粘胶面料"/></label>
               <label>目标国家 / 市场<input required maxLength={100} value={stagePublic.market} onChange={e=>setStagePublic({...stagePublic,market:e.target.value})}/></label>
               <div className="ce-stage-budget"><Icon name="money" size={17}/><strong>当前任务合计：{plan.steps.reduce((sum,step)=>sum+Number(stageSpecs[step.expertId]?.budget||0),0)} / {plan.projectBudgetCredits} Credits</strong></div>
-              {plan.steps.map(step=><div className="ce-stage-task" key={step.expertId}>
+              {plan.steps.map((step,index)=><div className="ce-stage-task" key={step.expertId}>
                 <div className="ce-stage-task-head"><Avatar role={stageTeam.members.find(m=>m.id===step.expertId)?.templateId||'growth-lead'} size="small"/>
                   <div><strong>{step.title}</strong><small>交付：{step.output}</small></div></div>
                 <label>本专家任务目标<textarea required rows={3} maxLength={1200}

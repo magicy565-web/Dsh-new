@@ -14,12 +14,12 @@ async function directory(t) {
 }
 const v1 = () => ({ version: 1, conversations: [{ id: 'conversation-1', title: '已有聊天' }], messages: [{ id: 'message-1', conversationId: 'conversation-1', content: 'Saved content' }], goals: [], activity: [], memories: [{ id: 'memory-1', content: 'Saved note', category: 'saved' }], settings: { name: 'My workspace', language: 'zh', model: 'deepseek-flash', maxGoalSteps: 3 }, customExtension: { preserved: true } });
 
-test('new v2 state is durable immediately and reads/results cannot mutate it', async t => {
+test('new v3 state is durable immediately and reads/results cannot mutate it', async t => {
   const dir = await directory(t); const store = await openStore(dir);
   assert.equal(store.read().version, STORE_VERSION); assert.equal(store.read().meta.sequence, 0);
   assert.deepEqual(store.read().runs, []); assert.deepEqual(store.read().artifacts, []);
   assert.equal(store.read().capabilities.version, 1);
-  assert.equal(JSON.parse(await fs.readFile(path.join(dir, 'workspace.json'), 'utf8')).version, 2);
+  assert.equal(JSON.parse(await fs.readFile(path.join(dir, 'workspace.json'), 'utf8')).version, 3);
   let retained;
   const result = await store.update(state => { retained = state; const item = { id: 'one', content: 'persisted' }; state.memories.push(item); return item; });
   result.content = 'mutated result'; retained.memories[0].content = 'mutated callback';
@@ -35,7 +35,7 @@ test('v1 migrates once with a byte-for-byte backup and preserves all existing re
   await fs.writeFile(path.join(dir, 'workspace.json'), raw);
   const store = await openStore(dir);
   const state = store.read();
-  assert.equal(state.version, 2); assert.deepEqual(state.memories, old.memories); assert.deepEqual(state.settings, old.settings); assert.deepEqual(state.customExtension, old.customExtension);
+  assert.equal(state.version, 3); assert.deepEqual(state.memories, old.memories); assert.deepEqual(state.settings, old.settings); assert.deepEqual(state.customExtension, old.customExtension);
   assert.equal(await fs.readFile(path.join(dir, 'workspace.v1.backup.json'), 'utf8'), raw);
   await store.update(next => { next.settings.name = 'New name'; }); await store.close();
   const reopened = await openStore(dir); t.after(() => reopened.close());
@@ -71,7 +71,7 @@ test('corrupt, unsupported and structurally invalid stores are preserved exactly
 test('invalid and asynchronous transactions roll back and do not poison the transaction queue', async t => {
   const dir = await directory(t); const store = await openStore(dir); t.after(() => store.close());
   const before = await fs.readFile(path.join(dir, 'workspace.json'), 'utf8');
-  for (const mutate of [state => { state.memories.push({ id: 'bad', value: undefined }); }, state => { state.meta = null; state.version = 3; }, state => { state.memories.push({ id: 'same' }, { id: 'same' }); }, state => { state.settings.nan = NaN; }, state => { state.settings.nested = new Date(); }, state => { state.settings.cycle = state; }, state => { state.settings.payload = JSON.parse('{"constructor":{}}'); }, state => { state.settings.name = 'discard'; throw new Error('Expected callback error'); }]) await assert.rejects(store.update(mutate));
+  for (const mutate of [state => { state.memories.push({ id: 'bad', value: undefined }); }, state => { state.meta = null; state.version = 4; }, state => { state.memories.push({ id: 'same' }, { id: 'same' }); }, state => { state.settings.nan = NaN; }, state => { state.settings.nested = new Date(); }, state => { state.settings.cycle = state; }, state => { state.settings.payload = JSON.parse('{"constructor":{}}'); }, state => { state.settings.name = 'discard'; throw new Error('Expected callback error'); }]) await assert.rejects(store.update(mutate));
   await assert.rejects(store.update(async state => { await Promise.resolve(); state.settings.name = 'async mutation'; }), /synchronous/);
   assert.equal(await fs.readFile(path.join(dir, 'workspace.json'), 'utf8'), before); assert.equal(store.read().meta.sequence, 0);
   await store.update(state => { state.settings.name = 'recovered'; }); assert.equal(store.read().settings.name, 'recovered');

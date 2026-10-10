@@ -4,13 +4,14 @@ import { createWorkspaceBridge, parseWorkspaceResponse, workspaceResponseInstruc
 import { CapabilityError, capabilityPayloadHash, goalDefinition } from './capabilities.mjs';
 import { randomUUID } from 'node:crypto';
 import { ProviderError, SUPPORTED_MODELS } from './provider.mjs';
+import { isBusinessLibraryArtifact } from './business-library-policy.mjs';
 
 export class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 const now = () => new Date().toISOString();
 const setupError = { code: 'SETUP_REQUIRED', message: 'Set DEEPSEEK_API_KEY in the server environment and restart to enable DeepSeek. Your work is saved.' };
-const blockedCodes = new Set(['SETUP_REQUIRED', 'NATIVE_RESUME_UNSUPPORTED', 'NATIVE_BRIDGE_REQUIRED', 'NATIVE_APPROVAL_UNSUPPORTED', 'NATIVE_POLICY_CHANGED', 'NATIVE_BRIDGE_ERROR', 'NATIVE_BRIDGE_PROTOCOL', 'WORKER_SETUP_REQUIRED', 'EXECUTION_SCOPE_CHANGED']);
+const blockedCodes = new Set(['SETUP_REQUIRED', 'NATIVE_RESUME_UNSUPPORTED', 'NATIVE_BRIDGE_REQUIRED', 'NATIVE_APPROVAL_UNSUPPORTED', 'NATIVE_POLICY_CHANGED', 'NATIVE_BRIDGE_ERROR', 'NATIVE_BRIDGE_PROTOCOL', 'WORKER_SETUP_REQUIRED', 'EXECUTION_SCOPE_CHANGED', 'BUSINESS_LIBRARY_PRIVATE']);
 const stoppedError = { code: 'INTERRUPTED', message: 'The server stopped during this request. Nothing was automatically retried. Resume or send a new request when ready.' };
 function required(state, collection, id) {
   const value = state[collection].find(item => item.id === id);
@@ -46,9 +47,17 @@ function safeError(error) {
   if (error instanceof ProviderError || error instanceof ApiError || error instanceof CapabilityError) return { code: error.code, message: error.message };
   return { code: 'RUNTIME_ERROR', message: 'This request could not finish. Your saved work is safe. Please retry.' };
 }
+function runUsesBusinessLibraryArtifact(state, run) {
+  return (run?.inputContextSnapshot?.artifacts || []).some(artifact => isBusinessLibraryArtifact(state, artifact.id))
+    || isBusinessLibraryArtifact(state, run?.outputArtifactId)
+    || (run?.proposals || []).some(proposal => isBusinessLibraryArtifact(state, proposal.receipt?.result?.artifactId)
+      || (proposal.resource?.startsWith('artifact:') && isBusinessLibraryArtifact(state, proposal.resource.slice('artifact:'.length))));
+}
 function contextMessages(state, conversationId, native = false, snapshot) {
   // Bound context independently of persistent history. Saved library outputs are not instructions.
-  const history = state.messages.filter(item => item.conversationId === conversationId && item.status === 'complete' && item.content).slice(-32);
+  const privateRunIds = new Set((state.runs || []).filter(run => runUsesBusinessLibraryArtifact(state, run)).map(run => run.id));
+  const history = state.messages.filter(item => item.conversationId === conversationId && item.status === 'complete' && item.content
+    && !privateRunIds.has(item.runId) && !isBusinessLibraryArtifact(state, item.artifactId)).slice(-32);
   let remaining = 48_000;
   const bounded = [];
   for (let i = history.length - 1; i >= 0 && remaining > 0; i -= 1) {
@@ -111,7 +120,13 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     limits: { maxGoalSteps: 8, maxOutputTokens: 1600, contextCharacters: 68000, providerTimeoutSeconds: native ? 180 : 60, goalTimeoutSeconds: goalTimeoutMs / 1000, maxConcurrentRuns },
   });
   function assertMemorySafe(content) { if (looksLikeCredential(content) || provider.containsCredential?.(content)) throw new ApiError(400, 'RAW_CREDENTIAL_REJECTED', 'Credentials cannot be stored in workspace memory. Use reviewed server-side environment references.'); validateMemory(content); }
-  function bootstrap() { return { ...store.read(), runtime: status() }; }
+  function bootstrap() {
+    const state = store.read();
+    const { businessLibrary: _businessLibrary, commerceProjects: _commerceProjects, ...snapshot } = state;
+    snapshot.artifacts = (state.artifacts || []).filter(artifact => !isBusinessLibraryArtifact(state, artifact));
+    snapshot.activity = (state.activity || []).filter(event => !isBusinessLibraryArtifact(state, event.artifactId));
+    return { ...snapshot, runtime: status() };
+  }
   function finishRun(state, runId, status, error = null) {
     const run = state.runs.find(item => item.id === runId);
     if (!run || !['running', 'queued', 'awaiting_approval'].includes(run.status)) return;
@@ -193,6 +208,8 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     return { ...(snapshot ? { inputContext: snapshot.selection, inputContextSnapshot: snapshot } : {}), connectorGrants: grants };
   }
   function runMessages(state, run) {
+    if (runUsesBusinessLibraryArtifact(state, run))
+      throw new ApiError(403, 'BUSINESS_LIBRARY_PRIVATE', 'Enterprise library files cannot be sent to models or connectors.');
     const base = contextMessages(state, run.conversationId, native, run.inputContextSnapshot);
     if (!native) return [...base, ...bridge.receiptMessages(run)];
     // Native continuation intentionally drops historical user turns. Place current

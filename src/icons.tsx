@@ -1,6 +1,27 @@
 import type { CSSProperties } from 'react';
-export type IconName = 'chat' | 'search' | 'activity' | 'ideas' | 'goals' | 'library' | 'settings' | 'menu' | 'plus' | 'close' | 'arrow' | 'chevron' | 'heart' | 'people' | 'money' | 'work' | 'palette' | 'laptop' | 'check' | 'clock' | 'shield' | 'fingerprint' | 'edit' | 'more' | 'copy' | 'bookmark' | 'trash' | 'pause' | 'play' | 'stop' | 'external' | 'refresh' | 'back' | 'file' | 'sparkle' | 'info' | 'download' | 'panel' | 'bolt' | 'gift' | 'microphone' | 'chats' | 'list';
+export type IconName = 'chat' | 'search' | 'activity' | 'ideas' | 'goals' | 'library' | 'settings' | 'menu' | 'plus' | 'close' | 'arrow' | 'chevron' | 'heart' | 'people' | 'money' | 'work' | 'palette' | 'laptop' | 'check' | 'clock' | 'shield' | 'fingerprint' | 'edit' | 'more' | 'copy' | 'bookmark' | 'trash' | 'pause' | 'play' | 'stop' | 'external' | 'refresh' | 'back' | 'file' | 'sparkle' | 'info' | 'download' | 'panel' | 'bolt' | 'gift' | 'microphone' | 'chats' | 'list' | 'arrow-right' | 'bell' | 'box' | 'building' | 'cart' | 'certificate' | 'channels' | 'checkmark' | 'filter' | 'flask' | 'globe' | 'handshake' | 'image' | 'link' | 'lock' | 'mail' | 'route' | 'store' | 'upload' | 'user' | 'warning';
 const paths: Record<IconName, React.ReactNode> = {
+  channels: <><circle cx="12" cy="12" r="3.4"/><path d="M12 5V3M12 21v-2M5 12H3M21 12h-2"/><path className="ys-icon-accent" d="M5.6 7A8.2 8.2 0 0 1 19 7M5 17a8.2 8.2 0 0 0 14 0"/></>,
+  cart: <><path d="M2.5 4h2.8l2.3 11.8a2 2 0 0 0 2 1.6H18"/><path className="ys-icon-accent" d="M6 7h15l-2 7H7.5"/><circle cx="10" cy="20.5" r=".8" fill="currentColor"/><circle cx="18" cy="20.5" r=".8" fill="currentColor"/></>,
+  store: <><path d="m4 3.5-1.2 5a3.1 3.1 0 0 0 6.2 0 3 3 0 0 0 6 0 3.1 3.1 0 0 0 6.2 0l-1.2-5Z"/><path d="M4.5 12.5V21h15v-8.5"/><path className="ys-icon-accent" d="M9 21v-6h6v6M9 3.5v5M15 3.5v5"/></>,
+  handshake: <><path d="m3 5 4-2 4 2M2 6l4 8-3 2-3-7M22 6l-4 8 3 2 3-7M6 14l7 6a2 2 0 0 0 2.4-2.7l-3.2-2.8M8.6 16.2l-1 1.3"/><path className="ys-icon-accent" d="m21 5-4-2-4 2-4.2 4a1.8 1.8 0 0 0 2.5 2.5l2.5-2L18 14M15.4 18.1l2.5-2.4"/></>,
+  route: <><circle cx="4.5" cy="18.5" r="2"/><path d="M6.5 18.5h8a4 4 0 0 0 0-8h-5a3 3 0 0 1 0-6h6"/><circle className="ys-icon-accent" cx="19" cy="4.5" r="2.5"/></>,
+  link: <><path d="m10 7 2.5-2.5a5 5 0 0 1 7 7L17 14M14 17l-2.5 2.5a5 5 0 0 1-7-7L7 10"/><path className="ys-icon-accent" d="m8.5 15.5 7-7"/></>,
+  upload: <><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/><path className="ys-icon-accent" d="M12 16V3m-5 5 5-5 5 5"/></>,
+  bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-2.5 7-2.5 8.5h17C20.5 16 18 16 18 9Z"/><path className="ys-icon-accent" d="M10 21h4M12 2v1"/></>,
+  user: <><circle cx="12" cy="7" r="3.7"/><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2Z"/></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="3"/><path className="ys-icon-accent" d="m3 7 9 6 9-6"/></>,
+  building: <><rect x="4" y="3" width="12" height="18" rx="2"/><path d="M16 9h4v12H4"/><path className="ys-icon-accent" d="M8 7h4M8 11h4M8 15h4M10 18v3"/></>,
+  certificate: <><path d="M13 20H5V3h14v9M8 7h8M8 11h4"/><circle className="ys-icon-accent" cx="17" cy="16" r="3"/><path className="ys-icon-accent" d="m15 18-1 4 3-1 3 1-1-4"/></>,
+  flask: <><path d="M8 3h8M10 3v6l-6 10a1.5 1.5 0 0 0 1.3 2h13.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path className="ys-icon-accent" d="M7 16h10M10 18h.01"/></>,
+  image: <><rect x="3" y="3" width="18" height="18" rx="3"/><circle className="ys-icon-accent" cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 3-4 6 6"/></>,
+  filter: <><path d="M3 6h18M3 12h18M3 18h18"/><path d="M8 4v4M16 10v4M10 16v4" stroke="var(--ys-surface,white)" strokeWidth="6"/><path className="ys-icon-accent" d="M8 4v4M16 10v4M10 16v4" strokeWidth="3"/></>,
+  lock: <><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path className="ys-icon-accent" d="M12 14v3"/></>,
+  warning: <><path d="m10.2 4.5-8 14A1.8 1.8 0 0 0 3.8 21h16.4a1.8 1.8 0 0 0 1.6-2.5l-8-14a2 2 0 0 0-3.6 0Z"/><path className="ys-icon-accent" d="M12 9v5M12 17.5v.1"/></>,
+  checkmark: <path d="m5.5 12 4.2 4.2 8.8-9"/>,
+  'arrow-right': <path d="M4 12h16m-6-6 6 6-6 6"/>,
+  globe: <><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><ellipse className="ys-icon-accent" cx="12" cy="12" rx="3.7" ry="8.6"/></>,
+  box: <><path d="m12 3 8.5 4.7v8.7L12 21l-8.5-4.6V7.7Z"/><path d="m3.5 7.7 8.5 4.7 8.5-4.7M12 12.4V21"/><path className="ys-icon-accent" d="m8 5.2 8.4 4.7v3.8"/></>,
   gift: <><path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14"/><path d="M12 7H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z"/></>,
   microphone: <><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11v1a6 6 0 0 0 12 0v-1M12 18v3M9 21h6"/></>,
   chats: <><path d="M21 10a8 8 0 0 1-8 8 9 9 0 0 1-3-.6L5 19l1.5-4.3A8 8 0 1 1 21 10Z"/><path d="M3 9a8 8 0 0 0 4 12l-5 1 1-5"/></>,
