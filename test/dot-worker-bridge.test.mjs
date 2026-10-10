@@ -165,3 +165,22 @@ test('dot cannot receive enterprise private RFQ data or unreviewed secret-bearin
   }),{code:'DOT_TASK_SCOPE_INVALID'});
   assert.equal(bridge.inbox().tasks.length,0);
 });
+
+test('Dot lease and heartbeat cannot extend beyond the approved business deadline',async t=>{
+  const {store,bridge}=await fixture(t);
+  const ref='dot-near-deadline';
+  await bridge.adapter.submit(task(ref));
+  const claimed=await bridge.claimTask({taskRef:ref,requestId:'deadline-first-claim'});
+  assert.equal(claimed.canExecute,true);
+  await store.update(state=>{
+    state.dotTasks.find(item=>item.id===ref).deadlineAt=new Date(Date.now()-1000).toISOString();
+  });
+  assert.equal(bridge.status(ref).canExecute,false);
+  assert.equal((await bridge.adapter.get(ref,ref)).status,'input_required');
+  await assert.rejects(bridge.heartbeat({
+    taskRef:ref,attemptId:claimed.attemptId,fence:claimed.fence,requestId:'expired-deadline-pulse',
+  }),{code:'DOT_LEASE_EXPIRED'});
+  await assert.rejects(bridge.claimTask({taskRef:ref,requestId:'deadline-first-claim'}),{
+    code:'DOT_TASK_UNAVAILABLE',
+  });
+});
