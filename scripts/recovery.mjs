@@ -80,6 +80,18 @@ function validateState(state, manifestFiles) {
   if (state?.version !== 2 || !Number.isSafeInteger(state.meta?.sequence) || !state.settings || !state.capabilities) failure('Only valid v2 workspace backups are supported.');
   for (const name of ['conversations', 'messages', 'goals', 'activity', 'memories', 'runs', 'artifacts']) if (!Array.isArray(state[name])) failure('Invalid workspace collection.');
   for (const name of ['skills', 'connectors', 'approvals', 'schedules', 'scheduleRuns', 'connectorRuns']) if (!Array.isArray(state.capabilities[name])) failure('Invalid workspace capability collection.');
+  // Optional external Worker collections must be well-formed before a backup is
+  // trusted for restore. State validation will run again on Workspace startup.
+  for (const name of ['workerOrders', 'dotTasks', 'museTasks']) {
+    if (state[name] === undefined) continue;
+    if (!Array.isArray(state[name])) failure('Invalid external Worker backup collection.');
+    const seen = new Set();
+    for (const task of state[name]) {
+      if (!task || typeof task.id !== 'string' || !task.id || task.id.length > 256 || seen.has(task.id))
+        failure('Invalid or duplicate external Worker identity in backup.');
+      seen.add(task.id);
+    }
+  }
   for (const artifact of state.artifacts) {
     if (!/^[a-f0-9-]{36}$/.test(artifact.id) || !Array.isArray(artifact.versions)) failure('Invalid artifact backup record.');
     for (const version of artifact.versions) {
