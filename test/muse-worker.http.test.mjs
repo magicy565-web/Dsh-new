@@ -167,8 +167,10 @@ test('Muse remains non-executable without reviewed external hard budget',async t
 
 test('Muse API authenticated read rate limit is enforced with MW_ error namespace',async t=>{
   const {call}=await setup(t);
-  const base='/api/muse-worker/v1/identity';
-  for(let i=0;i<120;i++) assert.equal((await call(base,'GET',undefined,museKey)).status,200);
+  // Unknown task status is intentionally side-effect-free; it still consumes
+  // the authenticated GET quota without 120 durable identity heartbeat writes.
+  const base='/api/muse-worker/v1/tasks/nonexistent/status';
+  for(let i=0;i<120;i++) assert.equal((await call(base,'GET',undefined,museKey)).status,404);
   const limited=await call(base,'GET',undefined,museKey);
   assert.equal(limited.status,429);
   assert.equal(limited.data.error.code,'MW_RATE_LIMIT');
