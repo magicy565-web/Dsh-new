@@ -169,8 +169,35 @@ export function quarantineRestoredState(state) {
   for (const schedule of result.capabilities.schedules) Object.assign(schedule, { enabled: false, status: 'disabled', consent: null, revision: (schedule.revision || 0) + 1, updatedAt: at });
   for (const approval of result.capabilities.approvals) if (['pending', 'approved'].includes(approval.status)) Object.assign(approval, { status: 'denied', decidedAt: at });
   for (const item of [...result.capabilities.skills, ...result.capabilities.connectors]) Object.assign(item, { enabled: false, revision: (item.revision || 0) + 1, updatedAt: at });
+
+  // Backup restoration must never revive outstanding delegations, even when
+  // the original cloud agent still has an apparently unexpired lease.
+  // Keep stable IDs and submission evidence for audit; revoke execution
+  // authority and invalidate the original fence before any new host starts.
+  for (const queueKey of ['dotTasks', 'museTasks']) {
+    for (const task of result[queueKey] || []) {
+      if (!['pending', 'claimed', 'blocked', 'cancel_requested'].includes(task.status)) continue;
+      task.status = 'blocked';
+      task.blockedReason = error.message;
+      task.leaseUntil = null;
+      task.fence = (Number.isSafeInteger(task.fence) ? task.fence : 0) + 1;
+      task.updatedAt = at;
+    }
+  }
+  for (const order of result.workerOrders || []) {
+    if (order.status === 'approved') {
+      order.status = 'draft';
+      order.approvedBy = null;
+      order.approvedAt = null;
+    } else if (['dispatching', 'queued', 'running', 'input_required', 'cancel_requested'].includes(order.status)) {
+      order.status = 'dispatch_uncertain';
+    } else if (order.status !== 'dispatch_uncertain') continue;
+    order.error = error;
+    order.updatedAt = at;
+  }
+
   result.meta = { ...result.meta, sequence: result.meta.sequence + 1, updatedAt: at };
-  result.activity.push({ id: randomUUID(), type: 'workspace_restored', title: 'Workspace restored with execution paused', detail: 'Queued work interrupted; schedules disabled and outstanding approvals invalidated. Review before restarting work.', createdAt: at });
+  result.activity.push({ id: randomUUID(), type: 'workspace_restored', title: 'Workspace restored with execution paused', detail: 'Queued work interrupted; external Worker leases revoked; schedules disabled and approvals invalidated. Review before restarting work.', createdAt: at });
   result.activity = result.activity.slice(-2000); return result;
 }
 export async function restoreBackup(backupDirectory, destination, { nativeAdapter } = {}) {
