@@ -2,6 +2,10 @@
 
 Node 24 ESM. The entrypoint serves frontend and API at loopback 127.0.0.1:8787. Explicit enterprise mode adds signed-ingress identity, browser sessions, roles and CSRF; it is one shared workspace, not a multi-tenant service. Read docs/DEPLOYMENT.md before any network deployment. Bodies are JSON objects; errors are `{error:{code,message}}`. No credential value, raw provider error, or arbitrary server path is included in safe errors.
 
+## 云端专家团队 API
+
+企业主入口 `/workers`，原增长任务入口 `/services`。后端新增 `GET /api/cloud-expert-catalog`、`GET|POST /api/cloud-experts`、`GET|PATCH /api/cloud-experts/:id`、`POST /api/cloud-experts/:id/delegate`、`GET|POST /api/cloud-teams`、`GET|PATCH /api/cloud-teams/:id` 与 `GET /api/cloud-teams/:id/plan`。所有配置写入只允许管理员，复用 Workspace 认证、CSRF、审计及持久单写者存储。Team plan 仅预览，不允许虚构并行执行。已绑定专家可使用现有 WorkerDesk 创建待独立审批任务。详见 `docs/CLOUD-WORKER-EXPERT-TEAMS.md`。
+
 ## AI Worker service desk (business delegation, V1 branch)
 
 The enterprise homepage `/workers` is an outcome/service-oriented layer. Existing conversation, goal, artifact and exact-action connector interfaces are retained. This new V1 does **not** add a live third-party executor by default.

@@ -12,7 +12,7 @@
 .worker-profile-dot{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#e9eff9;color:#5072aa;font-size:11px;font-weight:710}
 @media(max-width:620px){.worker-topbar{margin:-14px 0 21px;padding:4px 0 13px;min-height:44px}.worker-breadcrumb{font-size:9px;gap:8px}.worker-provider-chip{padding:7px 9px;font-size:9px}.worker-profile-dot{display:none}}
 
-.page-workers{max-width:none!important;padding:0!important;width:100%;overflow-y:auto!important;background:#f8f9fb}
+.page-services{max-width:none!important;padding:0!important;width:100%;overflow-y:auto!important;background:#f8f9fb}
 .worker-desk{max-width:1330px;padding:38px clamp(20px,4vw,54px) 58px;margin:0 auto;color:#161c2b;font-family:Inter,-apple-system,"Noto Sans SC",sans-serif}
 .worker-head{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:22px 0 40px;position:relative}
 .worker-kicker,.worker-eyebrow{font-size:10px;font-weight:760;letter-spacing:.16em;color:#657186}
