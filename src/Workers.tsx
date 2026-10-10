@@ -18,7 +18,7 @@ type Order = {
   objective: string; budgetCredits: number; deadlineAt: string; dataMode: 'public';
   status: string; workerId: string | null; remoteJobId: string | null;
   createdAt: string; updatedAt: string; error?: { code: string; message: string } | null;
-  workerReport?: { deliverables: Deliverable[]; evidence: Evidence[]; prospects?: Prospect[]; independentlyVerified: false } | null;
+  workerReport?: { deliverables: Deliverable[]; evidence: Evidence[]; prospects?: Prospect[]; evidenceNote?: string | null; independentlyVerified: false } | null;
   reportedCostCredits?: number | null;
   deliveryArtifactId?: string | null;
   opportunityImports?: { importedIds: string[]; createdCount: number; requestId: string; indices?: number[] }[];
@@ -31,7 +31,7 @@ const icons: Record<string, IconName> = {
   'sales-assets': 'file', 'rfq-recovery': 'activity',
 };
 const statuses: Record<string, string> = {
-  draft: '待分配', approved: '已授权', dispatching: '正在提交', queued: '待 Dot 领取',
+  draft: '待分配', approved: '已授权', dispatching: '正在提交', queued: '待 AI Worker 领取',
   dispatch_uncertain: '提交待核验', running: '执行中', input_required: '等待补充信息',
   cancel_requested: '取消待确认', cancelled: '已取消', review_required: '等待验收',
   result_incomplete: '成果不完整', budget_dispute: '预算异常',
@@ -310,6 +310,7 @@ export default function Workers({ role }: { role: Role }) {
           </a>}
           {selectedOrder.error && <div className="worker-detail-warning"><Icon name="info" size={16}/>{selectedOrder.error.message}</div>
           {selectedOrder.workerReport && <div className="worker-delivery"><h3>交付成果 <span>{selectedOrder.status === 'accepted' ? '已人工验收 · 未独立验证' : '待人工核验'}</span></h3>
+            {selectedOrder.workerReport.evidenceNote && <div className="worker-detail-warning"><Icon name="info" size={16}/>工具执行回执未独立核验：{selectedOrder.workerReport.evidenceNote}</div>}
             {selectedOrder.workerReport.deliverables.map((item, index) => <div className="worker-result" key={index}><Icon name="file" size={18}/><div><strong>{item.name}</strong><p>{item.summary}</p>{item.url && <a href={item.url} target="_blank" rel="noopener noreferrer">打开原始交付 <Icon name="external" size={12}/></a>}</div></div>)}
             {!!selectedOrder.workerReport.prospects?.length && <div className="worker-prospect-section">
               <h3>潜在经销商 <span>{selectedOrder.workerReport.prospects.length} 条待核实记录</span></h3>
