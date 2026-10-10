@@ -23,6 +23,19 @@ export function validateNativeMuseConfiguration(config, actor, operators) {
   return Object.freeze({ ...config });
 }
 
+export function validateNativeMuseReconciliationReview(review, status) {
+  const fields = ['version', 'action', 'requestId', 'expectedEpoch', 'configurationHash', 'callbackCandidateIds'];
+  if (!object(review) || Object.keys(review).some(key => !fields.includes(key)) ||
+      review.version !== 1 || review.action !== 'muse-reconcile' ||
+      typeof review.requestId !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(review.requestId) ||
+      !Array.isArray(review.callbackCandidateIds) || review.callbackCandidateIds.length !== 0 ||
+      !Number.isSafeInteger(review.expectedEpoch) || review.expectedEpoch < 0 ||
+      !/^[a-f0-9]{64}$/.test(review.configurationHash ?? '') || status?.phase !== 'paused' ||
+      review.expectedEpoch !== status.epoch || review.configurationHash !== status.configurationHash)
+    throw new MuseWorkerError(409, 'MW_RECONCILIATION_REVIEW', 'Review only the exact paused native mount; do not resume or change Dot authorization.');
+  return Object.freeze({ expectedEpoch: review.expectedEpoch, configurationHash: review.configurationHash });
+}
+
 /** A transport and business binding to the parent's guarded writer and actor.
  * The existing WorkerDesk implementation is reused once. This binding opens no
  * store, artifact service, listener, model client, scheduler or native Agent.

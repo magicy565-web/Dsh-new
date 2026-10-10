@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
-import { createNativeMuseBinding, validateNativeMuseConfiguration, quarantineNativeMuse } from '../server/muse-worker-native.mjs';
+import { createNativeMuseBinding, validateNativeMuseConfiguration, validateNativeMuseReconciliationReview, quarantineNativeMuse } from '../server/muse-worker-native.mjs';
 
 const actor = { subject: 'reviewed-owner', nativeAgentId: 'original-session' };
 const foreignActor = { subject: 'other-owner', nativeAgentId: 'other-original-session' };
@@ -226,4 +226,17 @@ test('native owner and session IDs keep their original syntax without widening p
   assert.equal(store.read().workerOrders.find(item => item.id === id).createdBy, nativeOwner.subject);
   assert.equal((await call(base + '/inbox')).body.tasks[0].taskRef, id);
   await assert.rejects(desk.create({ serviceId: 'buyer-discovery', requestId: 'invalid/public-id' }), { code: 'INVALID_INPUT' });
+});
+
+test('private reconciliation review only remounts an exact paused scope without Dot grants or resume authority', () => {
+  const status = { phase: 'paused', epoch: 7, configurationHash: hash('original-reviewed-native-scope') };
+  const review = { version: 1, action: 'muse-reconcile', requestId: 'operator-reviewed-stop',
+    expectedEpoch: status.epoch, configurationHash: status.configurationHash, callbackCandidateIds: [] };
+  assert.deepEqual(validateNativeMuseReconciliationReview(review, status),
+    { expectedEpoch: status.epoch, configurationHash: status.configurationHash });
+  for (const changed of [{ action: 'resume-empty' }, { bindings: [] }, { callbackCandidateIds: ['grant'] },
+    { connectionId: 'new-connection' }, { authorizationEpoch: 8 }, { expectedEpoch: 8 },
+    { configurationHash: hash('different-scope') }])
+    assert.throws(() => validateNativeMuseReconciliationReview({ ...review, ...changed }, status), { code: 'MW_RECONCILIATION_REVIEW' });
+  assert.throws(() => validateNativeMuseReconciliationReview(review, { ...status, phase: 'active' }), { code: 'MW_RECONCILIATION_REVIEW' });
 });

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { readBody, respond } from '../server/index.mjs';
-import { validateNativeMuseConfiguration } from '../server/muse-worker-native.mjs';
+import { validateNativeMuseConfiguration, validateNativeMuseReconciliationReview } from '../server/muse-worker-native.mjs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
 import { rename, unlink } from 'node:fs/promises';
@@ -146,7 +146,18 @@ export async function startNativeDotHost({ configuration, environment = process.
           if (JSON.stringify(await readPrivateJSON(filename)) === JSON.stringify(review)) await unlink(filename);
           return;
         }
-        const service = ctx.workspaceBusiness, current = await readPrivateJSON(environment.WORKSPACE_DOT_FILE);
+        const service = ctx.workspaceBusiness;
+        if (review.action === 'muse-reconcile') {
+          if (!museReview) throw Error('A private Muse reconciliation requires its original selected configuration.');
+          const exact = validateNativeMuseReconciliationReview(review, service.status());
+          await service.refreshMuseRest(exact);
+          await writePrivateNewFile(receiptFile, JSON.stringify({ requestId: review.requestId, reviewHash,
+            accepted: true, epoch: exact.expectedEpoch, configurationHash: exact.configurationHash,
+            action: 'muse-reconcile', executionResumed: false, nativeExecutionVerified: false }) + '\n');
+          if (JSON.stringify(await readPrivateJSON(filename)) === JSON.stringify(review)) await unlink(filename);
+          return;
+        }
+        const current = await readPrivateJSON(environment.WORKSPACE_DOT_FILE);
         const candidates = service.dot.view(config.dotOwnerSubject).callbackCandidates;
         const urls = review.callbackCandidateIds.map(id => { const candidate = candidates.find(c => c.id === id && c.expiresAt > Date.now());
           if (!candidate) throw Error('The reviewed callback candidate expired or changed.'); return candidate.url; });

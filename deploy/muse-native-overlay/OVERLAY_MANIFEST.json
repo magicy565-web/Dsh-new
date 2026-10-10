@@ -8,8 +8,8 @@
     {
       "path": "server/workspace-plugin-service.mjs",
       "beforeSha256": "9ce0ea124fa0ab0542d481eb1ca78689cd9a70dfcdb9f8fe02ab499ca79eb04b",
-      "afterSha256": "cbb3e38bc514ad5a4ce4d2ca449607ec5e1004bee31ea9b6b9961980cf50e80d",
-      "bytes": 37621
+      "afterSha256": "f54abbf320cf8c0e585c33ab3299f7fc3fe97f80af2431bf48c79dd939479e83",
+      "bytes": 37649
     },
     {
       "path": "server/workspace-plugin-frontend.mjs",
@@ -20,14 +20,14 @@
     {
       "path": "deploy/native-dot-host.mjs",
       "beforeSha256": "6849a01adc981920fc322c7ff39bda02dd3e53bbb7d575618f263c2befb85f0d",
-      "afterSha256": "4e89e1da777871e40ccf36d4ad02b3a391f5e0543cbb986084e4dc1333254930",
-      "bytes": 17561
+      "afterSha256": "c24f8330c951e0ab32cb2804f3caae11b12fe9a6b85458e248069a211fba4b9c",
+      "bytes": 18388
     },
     {
       "path": "server/muse-worker-native.mjs",
       "beforeSha256": null,
-      "afterSha256": "c964a3b82ad2a0cf063867c2cee33dc2988e93350f04dc366e8a590f5c09c1a0",
-      "bytes": 12175
+      "afterSha256": "3317dcb1c560c1ab731344d5333c5bde110f6e459e417892464e4cbd9476395a",
+      "bytes": 13265
     },
     {
       "path": "server/muse-worker-host.mjs",
@@ -62,23 +62,36 @@
     {
       "path": "test/muse-worker.native-binding.test.mjs",
       "beforeSha256": null,
-      "afterSha256": "5c809aa94a2753474faa6f9355047fc8f6c5e09ef3d1c26ef7e1b537f2c61e4f",
-      "bytes": 15744
+      "afterSha256": "0b31146919fdfb259cb04db3970061f9f5be098cac1b382b3d4fdd5bcf178ca3",
+      "bytes": 16917
     },
     {
       "path": "test/muse-worker.native-production.test.mjs",
       "beforeSha256": null,
-      "afterSha256": "10c648493dc2a1c08a2eb75bb0ce60ad370a8a92d4608a4ab390e991c81ba35d",
-      "bytes": 9497
+      "afterSha256": "23acbeea5dd046e72ed0963e49ee920dd1d658af048fa636390c4bb3df266625",
+      "bytes": 14309
     }
   ],
   "validation": {
-    "nodeVersion": "24.21.0",
-    "memoryNativeBindingTests": {
-      "pass": 8,
-      "fail": 0,
-      "skip": 0
+    "node": "24.21.0",
+    "nativeMemory": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
     },
-    "linuxDiskAndCordisVerified": false
+    "combinedRelated": {
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "overlapping": true
+    },
+    "linuxProductionIntegration": {
+      "written": true,
+      "syntaxChecked": true,
+      "executed": false
+    },
+    "cordisBootVerified": false,
+    "productionDeployed": false,
+    "genuineMuseVerified": false
   }
 }

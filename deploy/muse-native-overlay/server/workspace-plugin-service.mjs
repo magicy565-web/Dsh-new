@@ -490,7 +490,7 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
       reviewBindings: body => reviewDotBindings(body),
     }),
     pause: body => control('pause', body), resume: body => control('resume', body),
-    // Signed gateway semantics are unchanged. Muse remains native-only.
+    // Original signed native gateway semantics are unchanged; Muse REST has a separate fixed owner.
     gateway(request) {
       try { return run({ epoch: snapshot().epoch, active: true }, () => workers.gateway(request))
         .catch(() => Response.json({ error: { code: 'WORKSPACE_PLUGIN_SCOPE_CHANGED' } }, { status: 503 })); }

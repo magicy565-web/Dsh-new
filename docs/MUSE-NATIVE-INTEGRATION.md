@@ -43,9 +43,9 @@ withdraw and drain the old Muse binding before remounting the same configuration
 at the reviewed epoch. Cached handles then fail closed. Unfinished Muse tasks
 prevent scope resume until the original order is reconciled or stopped.
 
-Node 24.21.0 validation: eight memory native-boundary tests passed, zero failed or
+Node 24.21.0 validation: nine memory native-boundary tests passed, zero failed or
 skipped. A combined run with the existing host, contract, ingress and probe tests
-passed 34 tests, zero failed or skipped. These overlapping counts are not additive.
+passed 35 tests, zero failed or skipped. These overlapping counts are not additive.
 They test actual HTTP/bridge/WorkerDesk code with synthetic memory parent services;
 they are not Linux durability, Cordis boot, authenticated Muse or research evidence.
 Syntax checks passed for all three modified production modules.
@@ -55,3 +55,15 @@ and native Harness, shutdown/drain/rollback, original Dot/OAuth regression, narr
 HTTPS ingress and TLS, then independent Muse identity/inbox. Real execution still
 requires Secure Vault authorization, reviewed public scope, provider-side budget,
 and administrator approval. No actual Muse task has been executed or accepted.
+
+A paused Host can use the original private review file with action `muse-reconcile`,
+version 1, a stable requestId, exact expectedEpoch/configurationHash, and an empty
+callbackCandidateIds array. No other fields are allowed. This withdraws and drains
+the same Muse binding, then remounts its existing configuration only for read/cancel/
+original-attempt stop reconciliation. The mount remains paused, old cached handles
+stay revoked, and execution can resume only through a separate exact Host review
+after unfinished work has been stopped. It changes no Dot grants or callbacks.
+
+The Linux-only production test also checks actual disk-backed submission, manual
+acceptance, opportunity import, paused original-attempt stop and explicit resume.
+Its expanded flow is written and syntax checked, not yet executed on Linux.
