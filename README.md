@@ -17,6 +17,14 @@
 
 详见 [真正的 Dot MCP 连接指南](docs/DOT-MCP-CONNECTION.md)、[Dot 实际接入与验收说明](docs/DOT-XY-INTEGRATION.md)、[原始插件 11 项动作 OpenAPI](docs/dot-worker-openapi.json)。
 
+## Muse Personal Agent 接入（源码待验收）
+
+当前开发分支新增独立 `/api/muse-worker/v1` REST 网关，供个人 Muse 的 **Custom API Connector** 主动领取公开任务、续租、上传真实文件与提交审核结果。通过独立凭据、`museTasks` 队列和 Worker 身份检查与 ChatGPT Dot 隔离；不重建 DAG/WorkerDesk。
+
+**这不是远程唤醒个人 Muse 的 API。** Muse 侧当前仅有本地 Skill/CLI scaffold，尚无已核验的 HTTPS 主机、已完成的 Vault 注册、真实 Muse 任务或第三方可强制消费上限。默认 `WORKSPACE_MUSE_ENABLED=0`；禁用时可用独立授权凭据检查只读身份和空收件箱，不能领取或完成付费任务。工具回执无法取得时支持明确的 `evidenceNote`，绝不伪造回执或认定来源已独立核验。
+
+接口、所有 11 项路径、费用/权限上线门槛及联调步骤：[Muse Personal Worker REST 技术说明](docs/MUSE-PERSONAL-WORKER-REST.md)。
+
 ## 云端专家中心（主入口）
 
 当前专家市场包含 8 种独立 SVG 岗位图标（不使用字母头像或远程占位图），每位专家从统一后端目录返回完整作业规范：企业必需资料、研究方法、可编辑交付物、验收条件以及数据边界。配置界面读取当前 Workspace 已登记的 Skill 与 Connector 状态，并能打开现有权限管理页。参考 [真实图标总览](docs/expert-icons-sheet.svg) 和 [云端专家团队说明](docs/CLOUD-WORKER-EXPERT-TEAMS.md)。
