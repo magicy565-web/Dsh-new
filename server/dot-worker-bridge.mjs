@@ -281,8 +281,10 @@ export function createDotWorkerBridge({
     const hasEvidenceNote = agentKind === 'muse' && typeof evidenceNote === 'string' && evidenceNote.trim().length > 0;
     if(!id(requestId)||!Array.isArray(sources)||sources.length<1||sources.length>20 ||
        !Array.isArray(toolEvidence)||toolEvidence.length>20 ||
-       (toolEvidence.length === 0 && !hasEvidenceNote))
-      fail(400,'DOT_EVIDENCE_REQUIRED','Result requires sources and original tool receipts or a documented Muse evidence limitation.');
+       (toolEvidence.length === 0 && !hasEvidenceNote) ||
+       (agentKind === 'muse' && ((toolEvidence.length > 0 && hasEvidenceNote) ||
+         (evidenceNote !== undefined && !hasEvidenceNote))))
+      fail(400,'DOT_EVIDENCE_REQUIRED','Result requires exactly one evidence method: genuine tool receipts or a documented Muse evidence limitation.');
     const safeNote = hasEvidenceNote ? bounded(evidenceNote,'evidence note',2000) : null;
     const safeSummary=bounded(summary,'result summary',8000);
     const cleanSources=sources.map(publicURL);
