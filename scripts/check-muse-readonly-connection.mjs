@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Read-only acceptance probe for a deployed personal Muse Custom Connector.
- * No registration, no paid model calls, no task claims, no writes.
+ * No registration, paid model calls, claims, or task mutations. GET identity/inbox may persist handshake audit timestamps.
  * HTTPS-only, no redirects, bounded responses; never prints credentials.
  */
 import { fileURLToPath } from 'node:url';
