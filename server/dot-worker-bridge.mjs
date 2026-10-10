@@ -20,10 +20,12 @@ const bounded = (value, label, max = 1000) => {
     fail(400, 'INVALID_INPUT', label + ' must be bounded nonempty text.');
   return value.trim();
 };
-const job = (state, ref) => {
+const job = (state, ref, queueKey = 'dotTasks', workerId = null) => {
   if (!id(ref)) fail(400, 'INVALID_TASK_REF', 'A stable task reference is required.');
-  const found = (state.dotTasks || []).find(task => task.id === ref);
-  if (!found) fail(404, 'DOT_TASK_NOT_FOUND', 'Dot task reference was not found.');
+  const found = (state[queueKey] || []).find(task => task.id === ref);
+  // Every operation, including status/cancel/upload, must verify authenticated ownership.
+  if (!found || (workerId !== null && found.workerId !== workerId))
+    fail(404, 'DOT_TASK_NOT_FOUND', 'No task is assigned to this Worker identity.');
   return found;
 };
 const copy = data => structuredClone(data);
@@ -31,7 +33,8 @@ const copy = data => structuredClone(data);
 // downloaded bytes, contacts, raw prompts or private work materials.
 function event(state, task, action) {
   const at=now();
-  const record={id:randomUUID(),type:'dot_worker_'+action,title:'Dot Worker · '+action,
+  const kind = task.agentKind === 'muse' ? 'muse' : 'dot';
+  const record={id:randomUUID(),type:kind+'_worker_'+action,title:(kind === 'muse' ? 'Muse Worker' : 'Dot Worker')+' · '+action,
     detail:'Public order '+task.id,createdAt:at};
   task.events??=[];
   task.events.push({id:record.id,action,at,attemptId:task.attemptId,fence:task.fence});
@@ -67,17 +70,20 @@ const lease = (task, attemptId, fence, allowCancel = false) => {
 export function createDotWorkerBridge({
   store, artifacts, workerId = 'dot-xy', ownerId = 'xy',
   enabled = false, externalBudgetVerified = false, scopeReviewed = false,
-  services = PUBLIC_SERVICES,
+  services = PUBLIC_SERVICES, agentKind = 'dot',
 } = {}) {
   if (typeof store?.read !== 'function' || typeof store?.update !== 'function' ||
       typeof artifacts?.create !== 'function' || typeof artifacts?.download !== 'function' ||
-      !id(workerId) || !id(ownerId) || !Array.isArray(services) ||
+      !id(workerId) || !id(ownerId) || !['dot','muse'].includes(agentKind) || !Array.isArray(services) ||
       !services.length || services.some(name => !PUBLIC_SERVICES.includes(name)) ||
       new Set(services).size !== services.length)
     throw new TypeError('Dot bridge requires a durable store, artifact service and fixed public service scopes.');
   const approved = enabled === true && externalBudgetVerified === true && scopeReviewed === true;
-  const read = () => store.read().dotTasks || [];
-  const mutate = fn => store.update(state => { state.dotTasks ??= []; return fn(state); });
+  const queueKey = agentKind === 'muse' ? 'museTasks' : 'dotTasks';
+  const seenKey = agentKind === 'muse' ? 'museLastSeenAt' : 'dotLastSeenAt';
+  const lookup = (state, ref) => job(state, ref, queueKey, workerId);
+  const read = () => (store.read()[queueKey] || []).filter(item => item.workerId === workerId);
+  const mutate = fn => store.update(state => { state[queueKey] ??= []; return fn(state); });
   function taskSnapshot(task) {
     return { taskRef: task.id, orderId: task.orderId, serviceId: task.serviceId,
       status: task.status, attemptId: task.attemptId, fence: task.fence,
@@ -90,7 +96,7 @@ export function createDotWorkerBridge({
       fail(403, 'PRIVATE_DATA_FORBIDDEN', 'Only reviewed public data can reach a personal dot.');
   }
   const adapter = {
-    services: [...services], displayName: 'ChatGPT dot · ' + ownerId,
+    services: [...services], displayName: (agentKind === 'muse' ? 'Muse Personal · ' : 'ChatGPT dot · ') + ownerId,
     ready: approved, budgetEnforced: approved,
     async submit(input) {
       if (!approved) fail(409, 'DOT_NOT_APPROVED', 'Real dot identity, scope and enforceable budget must be reviewed first.');
@@ -105,33 +111,34 @@ export function createDotWorkerBridge({
         fail(400, 'DOT_TASK_SCOPE_INVALID', 'Only the exact approved public business order may be queued.');
       const taskData = {
         id: input.orderId, orderId: input.orderId, serviceId: input.serviceId, workerId,
+        ...(agentKind === 'muse' ? { agentKind: 'muse' } : {}),
         inputs: { ...input.inputs }, acceptance: [...input.acceptance], maxCredits: input.maxCredits,
         deadlineAt: input.deadlineAt, dataScope: 'public',
       };
       const fingerprint = sha256(JSON.stringify(taskData));
       return mutate(state => {
-        const previous = state.dotTasks.find(row => row.id === taskData.id);
+        const previous = state[queueKey].find(row => row.id === taskData.id);
         if (previous) {
           if (previous.fingerprint !== fingerprint) fail(409, 'DOT_IDEMPOTENCY_CONFLICT', 'The same task reference already belongs to different work.');
           return { jobId: previous.id, queued: previous.status === 'pending', duplicate: true };
         }
-        if (state.dotTasks.length >= 200) fail(409, 'DOT_QUEUE_LIMIT', 'The reviewed dot worker queue is full.');
+        if (state[queueKey].length >= 200) fail(409, 'DOT_QUEUE_LIMIT', 'The reviewed dot worker queue is full.');
         const at = now();
         const item={ ...taskData, fingerprint, status: 'pending', createdAt: at, updatedAt: at,
           attemptId: null, claimRequestId: null, fence: 0, leaseUntil: null,
           files: [], uploadReceipts: [], eventAcks: [], summary: null, sources: [],
           toolEvidence: [], blockedReason: null };
-        state.dotTasks.push(item);
+        state[queueKey].push(item);
         event(state,item,'queued');
         return { jobId: taskData.id, queued: true, duplicate: false };
       });
     },
     async get(jobId, orderId) {
-      const item = job(store.read(), jobId);
+      const item = lookup(store.read(), jobId);
       if (item.orderId !== orderId || item.workerId !== workerId) fail(409,'DOT_JOB_MISMATCH','Dot task does not match this exact Work Order.');
       const result = { jobId, orderId };
       if (item.status === 'submitted') {
-        const sourceEvidence = item.sources.map((url,i)=>({title:'Dot public source '+(i+1),url,detail:'Referenced by the dot; independently unverified.'}));
+        const sourceEvidence = item.sources.map((url,i)=>({title:(agentKind === 'muse' ? 'Muse' : 'Dot')+' public source '+(i+1),url,detail:'Referenced by the external Worker; independently unverified.'}));
         const manifest = item.files.filter(file => file.filename.toLowerCase().endsWith('.json'));
         let structured;
         for (const file of manifest) {
@@ -160,7 +167,7 @@ export function createDotWorkerBridge({
     },
     async cancel(jobId) {
       return mutate(state => {
-        const item = job(state,jobId);
+        const item = lookup(state,jobId);
         if (item.status === 'pending') {
           item.status = 'stopped'; item.updatedAt = now();event(state,item,'cancelled_before_claim');
           return { status:'cancelled' };
@@ -178,17 +185,19 @@ export function createDotWorkerBridge({
     },
   };
 
-  const identity = () => ({ workerId, dot: ownerId,
-    contract: 'workspace.dot.pull.v1', approved, connected: false,
+  const identity = () => ({ workerId,
+    ...(agentKind === 'muse' ? { muse: ownerId } : { dot: ownerId }),
+    contract: agentKind === 'muse' ? 'workspace.muse.pull.v1' : 'workspace.dot.pull.v1',
+    approved, connected: false,
     note: 'Identity and a stored task receipt do not verify that the dot is currently working.',
     allowedServices: [...services] });
 
-  const inbox = () => ({ workerId, tasks: (approved ? read() : []).filter(item=>item.status==='pending')
+  const inbox = () => ({ workerId, tasks: (approved ? read() : []).filter(item=>item.workerId===workerId && item.status==='pending')
     .map(item=>({ taskRef:item.id,serviceId:item.serviceId,deadlineAt:item.deadlineAt,status:'pending' })) });
 
   const readTask = taskRef => {
     if (!approved) fail(403,'DOT_NOT_APPROVED','The dot Worker scope or budget authorization has been revoked.');
-    const item = job(store.read(),taskRef); guardPayload(item);
+    const item = lookup(store.read(),taskRef); guardPayload(item);
     return { ...taskSnapshot(item), dataScope:'public', inputs:copy(item.inputs),
       acceptance:copy(item.acceptance), maxCredits:item.maxCredits, deadlineAt:item.deadlineAt,
       instructions:'Do not send messages or spend money. Use your authorized tools; submit genuine tool receipts and exact source URLs.' };
@@ -197,8 +206,8 @@ export function createDotWorkerBridge({
   async function claimTask({taskRef,requestId}) {
     if (!approved || !id(requestId)) fail(403,'DOT_NOT_APPROVED','A reviewed worker and stable claim request are required.');
     return mutate(state => {
-      const item = job(state,taskRef);guardPayload(item);
-      const active = state.dotTasks.find(x => x.id !== item.id &&
+      const item = lookup(state,taskRef);guardPayload(item);
+      const active = state[queueKey].find(x => x.workerId === workerId && x.id !== item.id &&
         ['claimed','blocked','cancel_requested'].includes(x.status) && x.attemptId);
       if (active) fail(409,'DOT_SLOT_BUSY','The one-dot single active attempt is occupied.');
       if (item.status === 'claimed' && item.claimRequestId === requestId &&
@@ -212,13 +221,13 @@ export function createDotWorkerBridge({
       return { ...taskSnapshot(item), claimed:true, duplicate:false };
     });
   }
-  const status = taskRef => taskSnapshot(job(store.read(),taskRef));
+  const status = taskRef => taskSnapshot(lookup(store.read(),taskRef));
 
   async function heartbeat({taskRef,attemptId,fence,requestId}) {
     if (!approved) fail(403,'DOT_NOT_APPROVED','The dot Worker is not currently authorized to execute.');
     if (!id(requestId)) fail(400,'INVALID_REQUEST_ID','Stable retry identity required.');
     return mutate(state => {
-      const item=job(state,taskRef);lease(item,attemptId,fence);
+      const item=lookup(state,taskRef);lease(item,attemptId,fence);
       if(item.lastHeartbeatRequestId===requestId)
         return { ...taskSnapshot(item), leaseUntil:item.lastHeartbeatReceiptUntil, duplicate:true };
       item.leaseUntil=new Date(Date.now()+leaseMs).toISOString();item.updatedAt=now();
@@ -238,22 +247,23 @@ export function createDotWorkerBridge({
     const bytes=Buffer.from(base64,'base64');
     if (bytes.length>maxUploadBytes || bytes.toString('base64')!==base64 || sha256(bytes)!==expected)
       fail(400,'INVALID_UPLOAD','Uploaded file exceeds 1 MiB or does not match its SHA-256.');
-    const initial=job(store.read(),taskRef);lease(initial,attemptId,fence);
+    const initial=lookup(store.read(),taskRef);lease(initial,attemptId,fence);
     const previous=initial.files.find(x=>x.uploadId===uploadId);
     if (previous) {
       if (previous.sha256!==expected || previous.filename!==filename) fail(409,'DOT_UPLOAD_CONFLICT','Upload ID was reused with different bytes.');
       return { uploadId, artifactId:previous.artifactId, sha256:expected, duplicate:true };
     }
-    const artifactRequest='dot-upload-'+sha256(taskRef+'|'+attemptId+'|'+uploadId);
+    const artifactRequest=agentKind+'-upload-'+sha256(taskRef+'|'+attemptId+'|'+uploadId);
     const saved=await artifacts.create({
-      filename,base64,title:'dot · '+filename,description:'Unverified file submitted by an invited external dot Worker.',
-      metadata:{ dotTaskRef:taskRef, dotWorkerId:workerId, externalClaimsVerified:false },
+      filename,base64,title:agentKind+' · '+filename,
+      description:'Unverified file submitted by an invited external Personal Agent.',
+      metadata:{ ...(agentKind==='muse' ? {museTaskRef:taskRef,museWorkerId:workerId} : {dotTaskRef:taskRef,dotWorkerId:workerId}), externalClaimsVerified:false },
       requestId:artifactRequest,
     },{
-      check:state=>lease(job(state,taskRef),attemptId,fence),
+      check:state=>lease(lookup(state,taskRef),attemptId,fence),
     });
     return mutate(state => {
-      const item=job(state,taskRef);lease(item,attemptId,fence);
+      const item=lookup(state,taskRef);lease(item,attemptId,fence);
       const prior=item.files.find(x=>x.uploadId===uploadId);
       if(prior) {
         if(prior.sha256!==expected || prior.filename!==filename)fail(409,'DOT_UPLOAD_CONFLICT','Upload ID conflict.');
@@ -265,22 +275,28 @@ export function createDotWorkerBridge({
       return {uploadId,artifactId:saved.artifact.id,sha256:expected,duplicate:false};
     });
   }
-  async function submitResult({taskRef,attemptId,fence,requestId,summary,sources,toolEvidence}) {
-    if (!approved) fail(403,'DOT_NOT_APPROVED','Dot authorization was revoked before this delivery.');
+  async function submitResult({taskRef,attemptId,fence,requestId,summary,sources,toolEvidence=[],evidenceNote}) {
+    if (!approved) fail(403,'DOT_NOT_APPROVED','Worker authorization was revoked before this delivery.');
+    const hasEvidenceNote = agentKind === 'muse' && typeof evidenceNote === 'string' && evidenceNote.trim().length > 0;
     if(!id(requestId)||!Array.isArray(sources)||sources.length<1||sources.length>20 ||
-       !Array.isArray(toolEvidence)||toolEvidence.length<1||toolEvidence.length>20)
-      fail(400,'DOT_EVIDENCE_REQUIRED','Result must contain sources and original tool receipt references.');
+       !Array.isArray(toolEvidence)||toolEvidence.length>20 ||
+       (toolEvidence.length === 0 && !hasEvidenceNote))
+      fail(400,'DOT_EVIDENCE_REQUIRED','Result requires sources and original tool receipts or a documented Muse evidence limitation.');
+    const safeNote = hasEvidenceNote ? bounded(evidenceNote,'evidence note',2000) : null;
     const safeSummary=bounded(summary,'result summary',8000);
     const cleanSources=sources.map(publicURL);
+    if (agentKind === 'muse' && cleanSources.some(u => /(^|\\.)example\\.(com|org|net)$|\\.invalid$/i.test(new URL(u).hostname)))
+      fail(400,'DOT_EVIDENCE_INVALID','Placeholder sources are not valid deliverable evidence.');
     const receipts=toolEvidence.map(x=>{
       if(!fields(x,['tool','receiptId'])||!id(x.tool)||!id(x.receiptId))
         fail(400,'DOT_EVIDENCE_INVALID','Tool receipts require a tool name and original receipt ID.');
       return {tool:x.tool,receiptId:x.receiptId};
     });
-    const payload={summary:safeSummary,sources:cleanSources,toolEvidence:receipts};
+    const payload={summary:safeSummary,sources:cleanSources,toolEvidence:receipts,
+      ...(agentKind === 'muse' ? { evidenceNote:safeNote } : {})};
     const contentHash=sha256(JSON.stringify(payload));
     return mutate(state => {
-      const item=job(state,taskRef);
+      const item=lookup(state,taskRef);
       if(item.status==='submitted' && item.submitRequestId===requestId) {
         if(item.submitHash!==contentHash)fail(409,'DOT_RESULT_CONFLICT','Result request ID was reused with different evidence.');
         return {taskRef,status:'submitted',duplicate:true,reviewRequired:true};
@@ -288,6 +304,7 @@ export function createDotWorkerBridge({
       lease(item,attemptId,fence);
       if(!item.files.length)fail(409,'DOT_FILE_REQUIRED','Upload at least one real file produced with native tools.');
       item.status='submitted';item.summary=safeSummary;item.sources=cleanSources;item.toolEvidence=receipts;
+      if (agentKind === 'muse') item.evidenceNote=safeNote;
       item.submitRequestId=requestId;item.submitHash=contentHash;item.updatedAt=now();
       event(state,item,'result_submitted');
       return {taskRef,status:'submitted',duplicate:false,reviewRequired:true,independentlyVerified:false};
@@ -297,7 +314,7 @@ export function createDotWorkerBridge({
     if(!id(requestId))fail(400,'INVALID_REQUEST_ID','Blocker needs stable request identity.');
     const detail=bounded(message,'blocker',2000);
     return mutate(state=>{
-      const item=job(state,taskRef);
+      const item=lookup(state,taskRef);
       if(item.status==='blocked'&&item.blockRequestId===requestId) {
         if(item.blockedReason!==detail)fail(409,'DOT_BLOCKER_CONFLICT','Blocker request ID was reused with different information.');
         return taskSnapshot(item);
@@ -311,7 +328,7 @@ export function createDotWorkerBridge({
   async function confirmStop({taskRef,attemptId,fence,requestId}) {
     if(!id(requestId)) fail(400,'INVALID_REQUEST_ID','Stop acknowledgement needs a stable identity.');
     return mutate(state=>{
-      const item=job(state,taskRef);lease(item,attemptId,fence,true);
+      const item=lookup(state,taskRef);lease(item,attemptId,fence,true);
       if(item.status==='stopped'&&item.stopRequestId===requestId)return taskSnapshot(item);
       if(item.status!=='cancel_requested')fail(409,'DOT_NOT_CANCELLED','Only an actual cancellation can be acknowledged.');
       item.status='stopped';item.stopRequestId=requestId;item.updatedAt=now();
@@ -322,7 +339,7 @@ export function createDotWorkerBridge({
   async function ackEvent({taskRef,eventId}) {
     if(!id(eventId))fail(400,'INVALID_EVENT','Stable event ID required.');
     return mutate(state=>{
-      const item=job(state,taskRef);
+      const item=lookup(state,taskRef);
       if(!item.eventAcks.includes(eventId)){
         if(item.eventAcks.length>=100)fail(409,'DOT_EVENT_LIMIT','Event acknowledgement limit reached.');
         item.eventAcks.push(eventId);item.updatedAt=now();
@@ -334,13 +351,13 @@ export function createDotWorkerBridge({
   return {
     adapter, identity, inbox, readTask, claimTask, status, heartbeat,
     uploadFile, submitResult, reportBlocked, confirmStop, ackEvent,
-    info:()=>({installed:true,approved,workerId,ownerId,onlineVerified:false,
+    info:()=>({installed:true,approved,workerId,ownerId,onlineVerified:false,kind:agentKind,
       pending:read().filter(x=>x.status==='pending').length,
       claimed:read().filter(x=>x.status==='claimed').length,
       completed:read().filter(x=>x.status==='submitted').length,
-      lastSeenAt:store.read().dotLastSeenAt||null,
+      lastSeenAt:store.read()[seenKey]||null,
     }),
-    adminTasks:()=>read().map(item=>({
+    adminTasks:()=>read().filter(item=>item.workerId===workerId).map(item=>({
       taskRef:item.id,serviceId:item.serviceId,status:item.status,
       createdAt:item.createdAt,updatedAt:item.updatedAt,deadlineAt:item.deadlineAt,
       leaseUntil:item.leaseUntil,attemptId:item.attemptId,fence:item.fence,
@@ -348,7 +365,7 @@ export function createDotWorkerBridge({
       events:copy(item.events||[]),independentlyVerified:false,
     })),
     async recordSeen(){
-      await mutate(state=>{state.dotLastSeenAt=now();});
+      await mutate(state=>{state[seenKey]=now();});
     },
   };
 }
