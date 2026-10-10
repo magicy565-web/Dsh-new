@@ -48,6 +48,16 @@ export function createMuseWorkerHandler({ bridge, tokenDigest, readBody, respond
     current.count++;
     windows.set(kind, current);
   }
+  // Enforce the published OpenAPI additionalProperties:false rule for each
+  // mutation. Unknown fields are rejected, not silently ignored by destructuring.
+  const acceptedFields = Object.freeze({
+    claim: ['requestId'],
+    heartbeat: ['attemptId', 'fence', 'requestId'],
+    'upload-file': ['attemptId', 'fence', 'uploadId', 'filename', 'base64', 'sha256'],
+    'submit-result': ['attemptId', 'fence', 'requestId', 'summary', 'sources', 'toolEvidence', 'evidenceNote'],
+    'report-blocked': ['attemptId', 'fence', 'requestId', 'message'],
+    'confirm-stop': ['attemptId', 'fence', 'requestId'],
+  });
   const base = '/api/muse-worker/v1';
   return async (req, res, pathname) => {
     try {
@@ -79,7 +89,9 @@ export function createMuseWorkerHandler({ bridge, tokenDigest, readBody, respond
       if (method !== 'POST' || !op || op === 'status')
         throw new MuseWorkerError(405, 'MW_METHOD_NOT_ALLOWED', 'Unsupported Worker action method.');
       const body = await readBody(req, op === 'upload-file' ? 1_600_000 : 30_000);
-      if (Object.hasOwn(body, 'taskRef')) throw new MuseWorkerError(400, 'MW_INPUT_INVALID', 'Task identity must come from the route, not the payload.');
+      const allowed = acceptedFields[op];
+      if (!allowed || Object.keys(body).some(key => !allowed.includes(key)))
+        throw new MuseWorkerError(400, 'MW_INPUT_INVALID', 'Unsupported field for this Muse Worker action.');
       const args = { ...body, taskRef };
       if (op === 'claim') return respond(res, 200, await bridge.claimTask(args));
       if (op === 'heartbeat') return respond(res, 200, await bridge.heartbeat(args));
