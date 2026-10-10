@@ -126,6 +126,11 @@ test('Muse REST rejects unknown fields and enforces the approved task deadline a
   const replay=await call(base+'/tasks/'+first+'/claim','POST',{requestId:'claim-004'},museKey);
   assert.equal(replay.status,409);
 
+  // Test-only server-side closure after validating the stale lease; otherwise
+  // the one-attempt slot intentionally prevents any second claim.
+  await app().store.update(state=>{
+    state.museTasks.find(task=>task.id===first).status='stopped';
+  });
   const second=await dispatch(call,'muse-personal-alpha','muse-pending-deadline-004');
   await app().store.update(state=>{
     state.museTasks.find(task=>task.id===second).deadlineAt=new Date(Date.now()-1000).toISOString();
