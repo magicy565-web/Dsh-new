@@ -94,6 +94,49 @@ test('Muse is separately authenticated, has its own task queue, and cannot view 
   assert.equal((await call('/api/dot-worker/v1/inbox','GET',undefined,dotKey)).data.tasks.length,1);
 });
 
+test('Muse REST rejects unknown fields and enforces the approved task deadline across heartbeats',async t=>{
+  const {call,app}=await setup(t);
+  const base='/api/muse-worker/v1';
+  const first=await dispatch(call,'muse-personal-alpha','muse-deadline-order-004');
+  const ignored=await call(base+'/tasks/'+first+'/claim','POST',
+    {requestId:'claim-004',workerId:'chatgpt-dot-xy'},museKey);
+  assert.equal(ignored.status,400);
+  assert.equal(ignored.data.error.code,'MW_INPUT_INVALID');
+  const claim=(await call(base+'/tasks/'+first+'/claim','POST',{requestId:'claim-004'},museKey)).data;
+  assert.equal(claim.claimed,true);
+  const invalidPulse=await call(base+'/tasks/'+first+'/heartbeat','POST',{
+    attemptId:claim.attemptId,fence:claim.fence,requestId:'heartbeat-004',extraPrivilege:true,
+  },museKey);
+  assert.equal(invalidPulse.status,400);
+  assert.equal(invalidPulse.data.error.code,'MW_INPUT_INVALID');
+
+  // Force a real expired deadline in the durable test store; the original
+  // server-issued attempt/fence must not restore execution authority.
+  await app().store.update(state=>{
+    const row=state.museTasks.find(task=>task.id===first);
+    row.deadlineAt=new Date(Date.now()-1000).toISOString();
+  });
+  const status=await call(base+'/tasks/'+first+'/status','GET',undefined,museKey);
+  assert.equal(status.data.canExecute,false);
+  const heartbeat=await call(base+'/tasks/'+first+'/heartbeat','POST',{
+    attemptId:claim.attemptId,fence:claim.fence,requestId:'heartbeat-expired-004',
+  },museKey);
+  assert.equal(heartbeat.status,409);
+  assert.equal(heartbeat.data.error.code,'MW_LEASE_EXPIRED');
+  const replay=await call(base+'/tasks/'+first+'/claim','POST',{requestId:'claim-004'},museKey);
+  assert.equal(replay.status,409);
+
+  const second=await dispatch(call,'muse-personal-alpha','muse-pending-deadline-004');
+  await app().store.update(state=>{
+    state.museTasks.find(task=>task.id===second).deadlineAt=new Date(Date.now()-1000).toISOString();
+  });
+  const inbox=await call(base+'/inbox','GET',undefined,museKey);
+  assert.equal(inbox.data.tasks.some(task=>task.taskRef===second),false);
+  const late=await call(base+'/tasks/'+second+'/claim','POST',{requestId:'late-claim-004'},museKey);
+  assert.equal(late.status,409);
+  assert.equal(late.data.error.code,'MW_DEADLINE_EXPIRED');
+});
+
 test('Muse can submit actual file bytes with sources and an explicit non-verifiable receipt note',async t=>{
   const {call}=await setup(t);
   const base='/api/muse-worker/v1';
@@ -119,6 +162,13 @@ test('Muse can submit actual file bytes with sources and an explicit non-verifia
   },museKey);
   assert.equal(mutuallyExclusive.status,400);
   assert.equal(mutuallyExclusive.data.error.code,'MW_EVIDENCE_REQUIRED');
+  const placeholder=await call(base+'/tasks/'+id+'/submit-result','POST',{
+    attemptId:claim.attemptId,fence:claim.fence,requestId:'muse-placeholder-02',
+    summary:'Unverified source fixture',sources:[doc],
+    toolEvidence:[],evidenceNote:'TODO',
+  },museKey);
+  assert.equal(placeholder.status,400);
+  assert.equal(placeholder.data.error.code,'MW_EVIDENCE_INVALID');
   const resultPayload={
     attemptId:claim.attemptId,fence:claim.fence,requestId:'muse-submit-02',
     summary:'Synthetic candidate, unit-test data only',sources:[doc],
