@@ -111,6 +111,14 @@ test('Muse can submit actual file bytes with sources and an explicit non-verifia
     filename:'buyers.json',base64:blob.toString('base64'),sha256:hash(blob),
   },museKey);
   assert.equal(upload.status,201);
+  const mutuallyExclusive=await call(base+'/tasks/'+id+'/submit-result','POST',{
+    attemptId:claim.attemptId,fence:claim.fence,requestId:'invalid-double-evidence',
+    summary:'Mixed evidence must be rejected',sources:[doc],
+    toolEvidence:[{tool:'search',receiptId:'real-only-if-proven'}],
+    evidenceNote:'Unverified tool evidence was also supplied.',
+  },museKey);
+  assert.equal(mutuallyExclusive.status,400);
+  assert.equal(mutuallyExclusive.data.error.code,'MW_EVIDENCE_REQUIRED');
   const resultPayload={
     attemptId:claim.attemptId,fence:claim.fence,requestId:'muse-submit-02',
     summary:'Synthetic candidate, unit-test data only',sources:[doc],
