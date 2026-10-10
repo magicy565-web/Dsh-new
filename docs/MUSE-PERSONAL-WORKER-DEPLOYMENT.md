@@ -2,6 +2,58 @@
 
 This guide is for a **single-tenant persistent Node 24 Workspace server**; it does not provision a VM, domain, credential, Vault connector or vendor spending cap. **Current status: not deployed.** This source feature remains in Draft PR #15 until source tests, identity, HTTPS and live acceptance are independently verified.
 
+## Attach to an existing host
+
+Use [the shared-services host factory](../server/muse-worker-host.mjs) when the
+existing host already owns storage, artifacts and the HTTP listener. Pass that
+host's actual `store` (`read`/serialized `update`) and artifact service
+(`create`/`download`), private Muse configuration and bounded Node HTTP helpers.
+The factory creates no store, artifact directory, listener, scheduler or model
+runtime. It returns `workerId`, `bridge`, `adapter`, `handle` and `close`.
+
+```js
+const muse = createMuseWorkerHost({
+  store, artifacts, config: museWorkerConfig,
+  workerAdapters, dotWorkerConfig, readBody, respond,
+});
+// Register before the existing WorkerDesk is constructed; do not create a
+// second desk or writer just to add the Muse route.
+const adapters = { ...workerAdapters, [muse.workerId]: muse.adapter };
+// In the existing Node HTTP request callback, before employee auth:
+if (await muse.handle(req, res, pathname)) return;
+// Existing employee/OAuth/MCP routes continue here.
+// On host disposal, before parent artifacts/storage are closed:
+await muse.close();
+```
+
+`handle` returns false for unrelated paths. The existing host must handle
+errors (including `MuseWorkerError`) with its safe JSON error and audit policy.
+A separate Muse HTTPS ingress must still deny unrelated paths: returning false
+is **not** an external hostname access policy. The factory rejects duplicate
+Worker IDs and the Dot token digest. Execution stays disabled until all three
+explicit enrollment/budget/scope flags are true.
+
+Closing immediately disables adapter readiness and new HTTP/adapter operations,
+then drains operations already admitted. It does not close parent services,
+cancel external execution, clear leases or submit another attempt. A host must
+withdraw its route/adapter before allowing a replacement mount; it must not
+mount two gateways for the same Worker concurrently (rate limits are per mount).
+
+This seam is integrated into the standalone `createApp()` in this branch.
+**It is not yet a production Cordis binding.** The older native plugin branch
+uses `personalWorkers` and actor-bound services, while this PR uses WorkerDesk
+orders plus `museTasks`. Sharing a directory alone cannot reconcile those
+contracts. Inspect the deployed business services, native authority and host
+lifecycle before mounting this factory; do not replace actor guards with a raw
+store handle or start a second Workspace process.
+
+Local Node 24.21.0 host/contract/probe checks: 18 passed. The seven new host tests
+use real HTTP, bridge and WorkerDesk code with explicitly in-memory parent
+services. They do not prove disk durability, Cordis compatibility or live Muse
+execution. On the Windows development host, the existing disk-backed HTTP and
+restore tests fail at directory `fsync` (`EPERM`); keep the storage checks intact
+and rerun them on the supported Linux deployment/build host.
+
 ## Public network boundary
 
 - Keep the Workspace backend listening on `127.0.0.1:8787`. Never bind the app directly to a public interface.

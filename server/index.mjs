@@ -20,7 +20,8 @@ import { createCloudExpertService, CloudExpertError } from './cloud-experts.mjs'
 import { loadReviewedA2AWorkers } from './worker-a2a-host.mjs';
 import { createDotWorkerBridge, createDotWorkerAuth, DotWorkerError } from './dot-worker-bridge.mjs';
 import { handleDotMcpHttp } from './dot-mcp-server.mjs';
-import { createMuseWorkerHandler, MuseWorkerError } from './muse-worker-api.mjs';
+import { MuseWorkerError } from './muse-worker-api.mjs';
+import { createMuseWorkerHost } from './muse-worker-host.mjs';
 import { AccessError, validateAccessConfig, createAccessControl, accessConfigFromEnvironment } from './access.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -66,7 +67,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHandler;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost;
   try {
     recovery = await readRecoveryStatus(store.directory, provider.kind);
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
@@ -84,28 +85,15 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     if (dotBridge && Object.hasOwn(workerAdapters, dotWorkerConfig.workerId || 'chatgpt-dot-xy'))
       throw new TypeError('A Dot Worker ID cannot overwrite another reviewed execution adapter.');
     if (museWorkerConfig) {
-      const museId = museWorkerConfig.workerId || 'muse-personal-owner';
-      if (Object.hasOwn(workerAdapters, museId) ||
-          (dotBridge && museId === (dotWorkerConfig.workerId || 'chatgpt-dot-xy')))
-        throw new TypeError('Muse and Dot worker identities must be distinct.');
-      if (dotWorkerConfig?.tokenDigest && museWorkerConfig.tokenDigest === dotWorkerConfig.tokenDigest)
-        throw new TypeError('Muse and Dot must never share a Bearer credential.');
-      museBridge = createDotWorkerBridge({
-        store, artifacts, agentKind: 'muse', workerId: museId,
-        ownerId: museWorkerConfig.ownerId || 'personal',
-        enabled: museWorkerConfig.enabled === true,
-        scopeReviewed: museWorkerConfig.scopeReviewed === true,
-        externalBudgetVerified: museWorkerConfig.externalBudgetVerified === true,
-      });
-      museHandler = createMuseWorkerHandler({
-        bridge: museBridge, tokenDigest: museWorkerConfig.tokenDigest, readBody, respond,
-      });
+      museHost = createMuseWorkerHost({ store, artifacts, config: museWorkerConfig,
+        workerAdapters, dotWorkerConfig, readBody, respond });
+      museBridge = museHost.bridge;
     }
     workerDesk = createWorkerServiceDesk({ store,
       adapters: {
         ...workerAdapters,
         ...(dotBridge ? { [dotWorkerConfig.workerId || 'chatgpt-dot-xy']: dotBridge.adapter } : {}),
-        ...(museBridge ? { [museWorkerConfig.workerId || 'muse-personal-owner']: museBridge.adapter } : {}),
+        ...(museHost ? { [museHost.workerId]: museHost.adapter } : {}),
       },
       artifacts });
     workerOpportunities = createWorkerOpportunityService({ store });
@@ -113,7 +101,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     await workerDesk.recoverInterrupted();
     capabilities = await createCapabilityService({ store, adapters: { ...connectorAdapters, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
-  } catch (error) { await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
+  } catch (error) { await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const streams = new Set();
   let scheduler;
   const schedulerState = { state: 'stopped', automaticTimer: false, intervalMs: schedulerIntervalMs, lastStartedAt: null, lastCompletedAt: null, lastError: null };
@@ -154,9 +142,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const method = req.method;
       // Muse is a separate, authenticated REST API; it does not share the Dot
       // worker credential, task queue or MCP plugin protocol.
-      if (pathname.startsWith('/api/muse-worker/')) {
-        if (!museHandler) throw new ApiError(404, 'MW_GATEWAY_UNAVAILABLE', 'Muse REST gateway is not configured on this host.');
-        return await museHandler(req, res, pathname);
+      if (pathname === '/api/muse-worker' || pathname.startsWith('/api/muse-worker/')) {
+        if (!museHost) throw new ApiError(404, 'MW_GATEWAY_UNAVAILABLE', 'Muse REST gateway is not configured on this host.');
+        await museHost.handle(req, res, pathname);
+        return;
       }
       // Real MCP Streamable HTTP endpoint for ChatGPT plugins. The REST
       // bridge below is deliberately NOT an MCP server. Both transports
@@ -385,7 +374,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, access, diagnostics,
+    server, runtime, store, artifacts, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');
@@ -405,7 +394,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         server.closeIdleConnections();
         try {
           // Signal both domains before waiting, so a connector cannot delay model cancellation.
-          const results = await Promise.allSettled([capabilities.close?.(), runtime.close()]);
+          const results = await Promise.allSettled([capabilities.close?.(), runtime.close(), museHost?.close()]);
           await artifacts.close?.();
           const failure = results.find(result => result.status === 'rejected');
           if (failure) throw failure.reason;
