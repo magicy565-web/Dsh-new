@@ -14,6 +14,11 @@ export class MuseWorkerError extends Error {
 }
 
 const asMuseError = error => {
+  // Preserve the host's safe JSON/body validation semantics under Muse's
+  // public error namespace, without exposing unexpected internal failures.
+  if (['JSON_REQUIRED', 'INVALID_JSON', 'BODY_TOO_LARGE'].includes(error?.code) &&
+      Number.isSafeInteger(error?.status))
+    return new MuseWorkerError(error.status, 'MW_' + error.code, error.message);
   if (!(error instanceof DotWorkerError)) return error;
   const suffix = error.code.replace(/^STALE_DOT_/, 'STALE_').replace(/^DOT_/, '');
   return new MuseWorkerError(error.status, 'MW_' + suffix,
