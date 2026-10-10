@@ -8,6 +8,8 @@ This is a **personal Muse-initiated pull connector**. It does not represent a Mu
 - worker ownership checks for **every** task lookup including status, cancellation and artifact mutations;
 - separate REST prefix `/api/muse-worker/v1`, not the Dot MCP endpoint `/mcp`.
 
+For the precise HTTPS path isolation, safe first handshake and rollback steps, see [Muse dedicated ingress / deployment guide](MUSE-PERSONAL-WORKER-DEPLOYMENT.md) and the GET-only probe `scripts/check-muse-readonly-connection.mjs`. Source-level HTTP tests are not a substitute for a live Muse connection. Restore-time quarantine is tested in `test/muse-worker.recovery.test.mjs`.
+
 ## Deployment / egress allowlist
 
 Run the persistent single-writer Node.js 24+ Workspace app on a reviewed private host with a proper TLS ingress. Expose **only** `/api/muse-worker/v1/*` to the Muse connector, not the enterprise administrator APIs. The Node server binds 127.0.0.1; do not expose it directly on a public interface. The hostname is **not known or validated**; no fake hostname should be supplied to Muse.
