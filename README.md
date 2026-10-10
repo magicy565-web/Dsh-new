@@ -13,7 +13,9 @@
 
 **当前连接没有通过真实握手**：本次对已存在的 `Workspace___xy` 插件身份与收件箱调用均返回内部错误，因而不宣称 dot 已在线执行。没有真实可审核的凭据、供应商可强制的预算限制与 TLS 部署时必须保持默认关闭。
 
-详见 [Dot 实际接入与验收说明](docs/DOT-XY-INTEGRATION.md)、[插件 11 项动作 OpenAPI](docs/dot-worker-openapi.json)。
+**现已补上真正的 MCP Streamable HTTP 服务端 `/mcp`**，兼容 2026-07-28 及 2025-11-25 任务调用；此前 `/api/dot-worker/v1` 是 REST 接口，不能直接充当 ChatGPT 插件服务器。新 MCP Endpoint 不会远程唤醒个人 dot，必须由 dot 的插件主动连接并领取任务。
+
+详见 [真正的 Dot MCP 连接指南](docs/DOT-MCP-CONNECTION.md)、[Dot 实际接入与验收说明](docs/DOT-XY-INTEGRATION.md)、[原始插件 11 项动作 OpenAPI](docs/dot-worker-openapi.json)。
 
 ## 云端专家中心（主入口）
 

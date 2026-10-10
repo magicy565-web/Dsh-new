@@ -19,6 +19,7 @@ import { createWorkerOpportunityService, WorkerOpportunityError } from './worker
 import { createCloudExpertService, CloudExpertError } from './cloud-experts.mjs';
 import { loadReviewedA2AWorkers } from './worker-a2a-host.mjs';
 import { createDotWorkerBridge, createDotWorkerAuth, DotWorkerError } from './dot-worker-bridge.mjs';
+import { handleDotMcpHttp } from './dot-mcp-server.mjs';
 import { AccessError, validateAccessConfig, createAccessControl, accessConfigFromEnvironment } from './access.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -128,6 +129,14 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const url = new URL(req.url, 'http://localhost');
       const pathname = url.pathname.replace(/\/$/, '') || '/';
       const method = req.method;
+      // Real MCP Streamable HTTP endpoint for ChatGPT plugins. The REST
+      // bridge below is deliberately NOT an MCP server. Both transports
+      // require the same reviewed private dot credential.
+      if (pathname === '/mcp' || pathname === '/api/dot-worker/mcp') {
+        if (!dotBridge || !dotAuth) throw new ApiError(404, 'DOT_BRIDGE_UNAVAILABLE', 'The private dot MCP gateway is not installed on this host.');
+        dotAuth(req);
+        return await handleDotMcpHttp(req, res, { bridge: dotBridge, readBody });
+      }
       // Personal ChatGPT dots are pull-based tool users, NOT public A2A
       // endpoints. A dedicated server-side bearer credential isolates the
       // dot's narrow public-data API from the enterprise browser session.
