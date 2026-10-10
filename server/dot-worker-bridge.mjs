@@ -285,7 +285,7 @@ export function createDotWorkerBridge({
     const safeNote = hasEvidenceNote ? bounded(evidenceNote,'evidence note',2000) : null;
     const safeSummary=bounded(summary,'result summary',8000);
     const cleanSources=sources.map(publicURL);
-    if (agentKind === 'muse' && cleanSources.some(u => /(^|\\.)example\\.(com|org|net)$|\\.invalid$/i.test(new URL(u).hostname)))
+    if (agentKind === 'muse' && cleanSources.some(u => /(^|\.)example\.(com|org|net)$|\.invalid$/i.test(new URL(u).hostname)))
       fail(400,'DOT_EVIDENCE_INVALID','Placeholder sources are not valid deliverable evidence.');
     const receipts=toolEvidence.map(x=>{
       if(!fields(x,['tool','receiptId'])||!id(x.tool)||!id(x.receiptId))
