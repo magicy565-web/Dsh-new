@@ -251,3 +251,32 @@ test('access: authenticated IdP return can load only the static shell, never cro
   assert.equal((await f.api('/', { headers, unsigned: true })).data.error.code, 'AUTH_REQUIRED');
   assert.equal((await f.api('/api/bootstrap', { headers, session: await f.login() })).data.error.code, 'ORIGIN_REJECTED');
 });
+
+test('enterprise hosting permits an email-identified operator to prepare public research but reserves dispatch and acceptance for admin', async t => {
+  const f = await fixture(t, { access: { members: [{ subject: 'admin', role: 'admin' }, { subject: 'operator@example.org', role: 'operator' }, { subject: 'reader', role: 'viewer' }] } });
+  const admin = await f.login('admin'), operator = await f.login('operator@example.org'), reader = await f.login('reader');
+  const post = (route, body, session) => f.api(route, { method: 'POST', body, session, subject: session.subject });
+  const product = await post('/api/library/products', { requestId: crypto.randomUUID(), name: 'Public textile fixture', description: 'Internal source facts' }, admin);
+  assert.equal(product.status, 201);
+  const project = await post('/api/commerce-projects', { requestId: crypto.randomUUID(), confirmed: true, productId: product.data.product.id,
+    productRevision: product.data.product.revision, publicDescription: 'Approved public textile facts', market: 'US', objective: 'Find public sourced distributors',
+    budget: { amount: '100', currency: 'USD' }, durationDays: 30, validationOrderTarget: 3 }, operator);
+  assert.equal(project.status, 201, JSON.stringify(project.data));
+  const route = `/api/commerce-projects/${project.data.project.id}/stage-worker-research`, body = { requestId: crypto.randomUUID(), confirmed: true,
+    serviceId: 'buyer-discovery', brief: 'Approved public research scope', budgetCredits: 5, deadlineAt: new Date(Date.now() + 7 * 86400000).toISOString() };
+  assert.equal((await post(route, body, reader)).data.error.code, 'ROLE_REQUIRED');
+  assert.equal((await f.api(route, { method: 'POST', body, subject: operator.subject, session: operator, headers: { 'X-CSRF-Token': '' } })).data.error.code, 'CSRF_REJECTED');
+  assert.equal(f.app.store.read().commerceProjects[0].researchOrderIntent, undefined);
+  const prepared = await post(route, body, operator);
+  assert.equal(prepared.status, 200, JSON.stringify(prepared.data));
+  const id = prepared.data.project.researchOrder.id;
+  assert.equal(f.app.store.read().workerOrders[0].createdBy, operator.subject);
+  for (const action of ['approve', 'dispatch', 'accept']) {
+    const denied = await post(`/api/worker-orders/${id}/${action}`, { confirmed: true }, operator);
+    assert.equal(denied.status, 403, action); assert.equal(denied.data.error.code, 'ROLE_REQUIRED');
+  }
+  assert.equal((await post('/api/commerce-shopify/verify', {}, operator)).status, 403);
+  assert.equal((await post(`/api/commerce-projects/${project.data.project.id}/sync-orders`, { requestId: crypto.randomUUID(), confirmed: true }, operator)).status, 403);
+  assert.equal((await f.api(`/api/commerce-projects/${project.data.project.id}`, { subject: 'reader', session: reader })).status, 200);
+  assert.equal(f.app.store.read().workerOrders[0].status, 'draft');
+});

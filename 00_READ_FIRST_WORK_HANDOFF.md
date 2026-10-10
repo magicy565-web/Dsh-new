@@ -7,16 +7,26 @@ execution runtime and source tree.
 ## Latest Muse / commerce checkpoint
 
 The current development branch integrates the Muse home and focused goal session,
-versioned enterprise product/company libraries and durable product hosting scopes.
+versioned enterprise product/company libraries, durable product hosting scopes,
+and the isolated Personal Muse REST gateway from PR #15 at `d1f7e27`.
+Hosted products prepare one existing WorkerDesk research draft, with explicit
+public scope, a separate credits ceiling and deadline. Approval, dispatch and
+acceptance remain separate administrator actions. The exact order is linked at
+`/services/:orderId`, with actual delivery and acceptance records.
 Shopify Admin GraphQL verifies actual store identity and scopes, and reads tagged
 order evidence; it does not publish, fulfill, spend or bill.
 Read [Muse / commerce implementation and limits](docs/MUSE-COMMERCE-WORKSPACE.md)
 before continuing this work. The default home is `/`; experts remain at `/workers`.
 
-Verified locally: official build; 343 backend tests passed, 6 native-build tests
-skipped, no failures; 19 DOM/HTTP regressions passed; 9 real Chromium business-flow
-checks passed. The six skipped tests and real native/cloud/Shopify deployment
-remain separate acceptance work. GitHub CI currently reports `startup_failure`
+Verified locally: official app build; 369 backend tests passed with the reviewed
+native source/diagnostic bundle present, zero skipped, no failures; 19 DOM/HTTP
+regressions passed; 11 real Chromium business-flow checks passed. The six formerly
+skipped native checks ran against actual native code and compiled public exports
+with keyless scripted model/tool fixtures. The official native Host aggregate
+still fails on a source-package Muse Worker test type error; diagnostic bundling
+does not certify a full production build. See [native verification](docs/NATIVE-KEYLESS-VERIFICATION.md).
+Real native profile/cloud/Shopify deployment remains separate acceptance work.
+GitHub CI currently reports `startup_failure`
 with no jobs started; local passing results do not imply CI passed.
 
 ## Run from source

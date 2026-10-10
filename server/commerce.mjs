@@ -45,16 +45,28 @@ export function summarizeOrders(project) {
     attribution: 'requires_review', settlement: 'terms_and_attribution_required', billableAmount: null };
 }
 
-export function createCommerceService({ store, runtime, shopify, workerCatalog = () => [], clock = Date.now } = {}) {
+export function createCommerceService({ store, runtime, shopify, workerDesk, workerCatalog = () => [], museConnection = () => null, clock = Date.now } = {}) {
   const at = () => new Date(clock()).toISOString();
   const locks = new Set();
-  const view = project => ({ ...project, results: summarizeOrders(project) });
+  const view = project => {
+    const order = (store.read().workerOrders || []).find(row => row.id === project.researchOrderId);
+    // Read the existing order, never infer delivery or sales from a goal title.
+    const researchOrder = order ? { id: order.id, serviceTitle: order.serviceTitle, status: order.status,
+      workerId: order.workerId, budgetCredits: order.budgetCredits, deadlineAt: order.deadlineAt,
+      reportedCostCredits: order.reportedCostCredits, deliveryArtifactId: order.deliveryArtifactId || null,
+      acceptedAt: order.acceptedAt || null, deliverableCount: order.workerReport?.deliverables?.length || 0,
+      evidenceCount: order.workerReport?.evidence?.length || 0, prospectCount: order.workerReport?.prospects?.length || 0,
+      independentlyVerified: false } : null;
+    const { researchOrderIntent, ...publicProject } = project;
+    return { ...publicProject, researchOrder, results: summarizeOrders(project) };
+  };
   const locked = async (id, operation) => { if (locks.has(id)) fail(409, 'COMMERCE_BUSY', '任务正在保存，请稍后重试。'); locks.add(id); try { return await operation(); } finally { locks.delete(id); } };
   return {
     status() {
       const status = runtime.status(), catalog = workerCatalog();
       return { harness: { kind: status.kind, configured: status.configured, native: status.kind === 'deepseek-harness', onlineVerified: false },
         shopify: shopify.status(), workers: { registeredServices: catalog.filter(row => row.workers?.length).length },
+        muse: museConnection() || { installed: false, approved: false, onlineVerified: false, lastSeenAt: null },
         cloudComputer: { status: 'not_connected', executionAvailable: false },
         settlement: { status: 'not_configured', basis: 'reviewed_attributable_net_receipts', automaticCharge: false } };
     },
@@ -80,11 +92,55 @@ export function createCommerceService({ store, runtime, shopify, workerCatalog =
         const time = at(), project = { id: randomUUID(), revision: 1, requestId: body.requestId, fingerprint,
           productId: product.id, productRevision: product.revision, productName: product.name, publicDescription,
           market, objective, budget: body.budget, durationDays, validationOrderTarget,
-          status: 'draft', researchGoalId: null, researchRequestId: null, shopifyConfigFingerprint: null,
+          status: 'draft', researchGoalId: null, researchRequestId: null, researchOrderId: null, shopifyConfigFingerprint: null,
           feeTerms: null, orderEvidence: null, orderSyncRequests: [], createdBy: actor.subject, createdAt: time, updatedAt: time };
         state.commerceProjects.push(project);
         state.activity.push({ id: randomUUID(), type: 'commerce_project_created', title: '产品托管任务已保存', detail: product.name, createdAt: time });
         return { project: view(project), duplicate: false };
+      });
+    },
+    async stageWorkerResearch(id, body, actor) {
+      actorRole(actor); fields(body, ['requestId', 'confirmed', 'serviceId', 'brief', 'budgetCredits', 'deadlineAt']); request(body);
+      if (!['buyer-discovery', 'channel-validation'].includes(body.serviceId)) fail(400, 'INVALID_INPUT', '请选择海外分销商开发或渠道验证。');
+      const service = workerCatalog().find(row => row.id === body.serviceId);
+      if (!service || !workerDesk) fail(503, 'WORKER_DESK_UNAVAILABLE', '业务委托服务尚未准备好。');
+      const brief = text(body.brief, '可公开共享的研究说明', 2000);
+      integer(body.budgetCredits, '委托额度', service.minimumCredits, 10000);
+      if (typeof body.deadlineAt !== 'string' || !Number.isFinite(Date.parse(body.deadlineAt))) fail(400, 'INVALID_DEADLINE', '请填写有效的交付截止时间。');
+      const deadlineAt = new Date(body.deadlineAt).toISOString();
+      const scope = { serviceId: body.serviceId, brief, budgetCredits: body.budgetCredits, deadlineAt };
+      const fingerprint = hash({ actor: actor.subject, scope });
+      return locked(id, async () => {
+        let project = required(store.read(), id);
+        if (project.researchOrderIntent && project.researchOrderIntent.fingerprint !== fingerprint)
+          fail(409, 'IDEMPOTENCY_CONFLICT', '研究委托已按原范围准备，请查看原任务单。');
+        if (project.researchOrderId) return { project: view(project), duplicate: true };
+        if (!project.researchOrderIntent) {
+          if (Date.parse(deadlineAt) <= Date.now() + 60000 || Date.parse(deadlineAt) > Date.now() + 90 * 86400000)
+            fail(400, 'INVALID_DEADLINE', '交付截止时间须在未来 90 天内。');
+          await store.update(state => {
+            const item = required(state, id);
+            item.researchOrderIntent = { fingerprint, actor: actor.subject, scope, createdAt: at() };
+            item.updatedAt = at();
+          });
+          project = required(store.read(), id);
+        }
+        const intent = project.researchOrderIntent, requestId = `commerce_${id}_worker_research`;
+        const input = { serviceId: intent.scope.serviceId, product: project.productName, market: project.market,
+          objective: `${intent.scope.brief}\n执行范围：仅研究公开资料，交付原始来源、候选分销商或渠道验证建议。对外联系、发布、投放、订单操作与结算需要独立授权。禁止编造客户、订单或销售结果。`,
+          budgetCredits: intent.scope.budgetCredits, deadlineAt: intent.scope.deadlineAt, requestId, publicDataConfirmed: true };
+        // An order may already exist after a crash. Re-link it even after its
+        // deadline, without approving, dispatching, or creating another order.
+        let order = workerDesk.list().find(row => row.requestId === requestId && row.createdBy === intent.actor);
+        if (order && order.requestFingerprint !== hash({ serviceId: input.serviceId, product: input.product, market: input.market,
+          objective: input.objective, budgetCredits: input.budgetCredits, deadlineAt: input.deadlineAt, workerId: null, actor: intent.actor }))
+          fail(409, 'WORKER_SCOPE_MISMATCH', '原任务单范围发生冲突，需要管理员核对。');
+        const duplicate = !!order;
+        if (!order) order = (await workerDesk.create(input, intent.actor)).order;
+        return store.update(state => {
+          const item = required(state, id); item.researchOrderId = order.id; item.revision++; item.updatedAt = at();
+          return { project: view(item), duplicate };
+        });
       });
     },
     async stageResearch(id, body, actor) {

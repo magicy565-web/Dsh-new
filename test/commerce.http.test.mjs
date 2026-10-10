@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { createApp } from '../server/index.mjs';
 import { createShopifyClient } from '../server/shopify.mjs';
 import { normalizeShopifyOrder } from '../server/commerce.mjs';
@@ -19,11 +19,12 @@ async function fixture(t, options = {}) {
   let handler = options.handler || (() => response(info));
   const opts = { dataDirectory: dir, accessClock: () => Date.parse('2026-10-10T12:00:00Z'), provider: { kind: 'synthetic-model-fixture', configured: false },
     capabilityEnvironment: options.configured === false ? {} : { WORKSPACE_SHOPIFY_SHOP_DOMAIN: SHOP, WORKSPACE_SHOPIFY_ADMIN_TOKEN: TOKEN },
-    shopifyFetch: async (url, input) => { calls.push({ url, headers: input.headers, redirect: input.redirect, body: JSON.parse(input.body) }); return handler(url, input); } };
+    shopifyFetch: async (url, input) => { calls.push({ url, headers: input.headers, redirect: input.redirect, body: JSON.parse(input.body) }); return handler(url, input); },
+    ...(options.museWorkerConfig ? { museWorkerConfig: options.museWorkerConfig } : {}) };
   let app = await createApp(opts), address = await app.listen(0);
   t.after(async () => { await app.close(); await rm(dir, { recursive: true, force: true }); });
-  const api = async (route, method = 'GET', body) => {
-    const r = await fetch(`http://127.0.0.1:${address.port}/api${route}`, { method, ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) });
+  const api = async (route, method = 'GET', body, credential) => {
+    const r = await fetch(`http://127.0.0.1:${address.port}/api${route}`, { method, headers: { ...(credential ? { Authorization: `Bearer ${credential}` } : {}), ...(body === undefined ? {} : { 'content-type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     return { status: r.status, body: await r.json() };
   };
   const product = async (extra = {}) => { const saved = await api('/library/products', 'POST', { requestId: randomUUID(), name: 'Enterprise textile', description: 'PRIVATE original description', ...extra }); assert.equal(saved.status, 201, JSON.stringify(saved.body)); return saved.body.product; };
@@ -207,4 +208,95 @@ test('v2 upgrade preserves mainline Worker, expert, Dot and custom records while
   for (const key of ['workerOrders', 'workerOpportunities', 'cloudExperts', 'cloudTeams', 'dotTasks']) assert.equal(f.app.store.read()[key][0].preserved, true);
   assert.equal(f.app.store.read().dotLastSeenAt, saved.dotLastSeenAt);
   assert.equal(f.app.store.read().customExtension.preserved, true);
+});
+
+const researchScope = (extra = {}) => ({ requestId: randomUUID(), confirmed: true, serviceId: 'buyer-discovery',
+  brief: 'Approved public textile facts. Find sourced overseas distributors.', budgetCredits: 5,
+  deadlineAt: new Date(Date.now() + 7 * 86400000).toISOString(), ...extra });
+
+test('hosted research creates one unassigned Worker draft, shares only reviewed scope and requires separate approval', async t => {
+  const f = await fixture(t), { result } = await f.project(await f.product()), id = result.body.project.id, body = researchScope();
+  const first = await f.api(`/commerce-projects/${id}/stage-worker-research`, 'POST', body);
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  const orderId = first.body.project.researchOrder.id;
+  assert.equal(first.body.project.researchOrder.status, 'draft');
+  assert.equal(first.body.project.researchOrder.workerId, null);
+  assert.equal(first.body.project.researchOrder.budgetCredits, 5);
+  assert.equal(first.body.project.researchOrderIntent, undefined);
+  assert.equal(f.app.store.read().goals.length, 0);
+  assert.equal(f.app.store.read().runs.length, 0);
+  assert.equal(f.calls.length, 0);
+  const saved = (await f.api(`/worker-orders/${orderId}`)).body.order;
+  assert.match(saved.objective, /Approved public textile facts/);
+  assert.doesNotMatch(JSON.stringify(saved), /PRIVATE|synthetic-server-only|100\.00/);
+  assert.equal((await f.api(`/worker-orders/${orderId}/approve`, 'POST', { confirmed: true })).body.error.code, 'WORKER_UNAVAILABLE');
+  assert.equal((await f.api(`/worker-orders/${orderId}/dispatch`, 'POST', {})).status, 409);
+  await f.restart();
+  const replay = await f.api(`/commerce-projects/${id}/stage-worker-research`, 'POST', { ...body, requestId: randomUUID() });
+  assert.equal(replay.body.duplicate, true);
+  assert.equal(replay.body.project.researchOrder.id, orderId);
+  assert.equal(f.app.store.read().workerOrders.length, 1);
+  assert.equal((await f.api(`/commerce-projects/${id}/stage-worker-research`, 'POST', { ...body, budgetCredits: 10 })).body.error.code, 'IDEMPOTENCY_CONFLICT');
+});
+
+test('invalid research scope never persists an intent; crash recovery repairs an existing order without dispatch or duplicate', async t => {
+  const f = await fixture(t), { result } = await f.project(await f.product()), id = result.body.project.id;
+  for (const extra of [{ serviceId: 'rfq-recovery' }, { brief: 'a'.repeat(2001) }, { budgetCredits: 4 },
+    { deadlineAt: 'bad' }, { deadlineAt: '2020-01-01T12:00:00Z' }, { confirmed: false }, { workerId: 'unreviewed' }]) {
+    assert.equal((await f.api(`/commerce-projects/${id}/stage-worker-research`, 'POST', researchScope(extra))).status, 400);
+    assert.equal(f.app.store.read().commerceProjects[0].researchOrderIntent, undefined);
+  }
+  const body = researchScope(), first = await f.api(`/commerce-projects/${id}/stage-worker-research`, 'POST', body);
+  const orderId = first.body.project.researchOrder.id;
+  await f.app.store.update(state => { state.commerceProjects[0].researchOrderId = null; });
+  await f.restart();
+  const repaired = await f.api(`/commerce-projects/${id}/stage-worker-research`, 'POST', body);
+  assert.equal(repaired.status, 200, JSON.stringify(repaired.body));
+  assert.equal(repaired.body.project.researchOrder.id, orderId);
+  assert.equal(f.app.store.read().workerOrders.length, 1);
+  assert.equal(f.app.store.read().workerOrders[0].status, 'draft');
+  assert.equal(f.app.store.read().museTasks, undefined);
+});
+
+test('hosted product follows authenticated Muse claim, sourced file delivery, refresh, human acceptance and restart', async t => {
+  const key = 'synthetic-muse-hosted-commerce-credential', digest = value => createHash('sha256').update(value).digest('hex');
+  const f = await fixture(t, { museWorkerConfig: { workerId: 'muse-commerce-fixture', ownerId: 'synthetic-owner', tokenDigest: digest(key),
+    enabled: true, scopeReviewed: true, externalBudgetVerified: true } });
+  let status = (await f.api('/commerce-status')).body;
+  assert.equal(status.muse.installed, true); assert.equal(status.muse.approved, true);
+  assert.equal(status.muse.onlineVerified, false); assert.equal(status.muse.lastSeenAt, null);
+  await f.api('/muse-worker/v1/identity', 'GET', undefined, key);
+  status = (await f.api('/commerce-status')).body;
+  assert.ok(status.muse.lastSeenAt); assert.equal(status.muse.onlineVerified, false);
+  const { result } = await f.project(await f.product()), projectId = result.body.project.id;
+  const prepared = await f.api(`/commerce-projects/${projectId}/stage-worker-research`, 'POST', researchScope());
+  assert.equal(prepared.status, 200, JSON.stringify(prepared.body));
+  const orderId = prepared.body.project.researchOrder.id, base = `/muse-worker/v1/tasks/${orderId}`;
+  assert.equal((await f.api('/muse-worker/v1/inbox', 'GET', undefined, key)).body.tasks.length, 0);
+  await f.api(`/worker-orders/${orderId}/approve`, 'POST', { confirmed: true, workerId: 'muse-commerce-fixture' });
+  await f.api(`/worker-orders/${orderId}/dispatch`, 'POST', {});
+  assert.equal((await f.api(`/commerce-projects/${projectId}`)).body.project.researchOrder.status, 'queued');
+  const claim = (await f.api(`${base}/claim`, 'POST', { requestId: 'commerce-claim' }, key)).body;
+  await f.restart();
+  assert.equal((await f.api(`${base}/status`, 'GET', undefined, key)).body.attemptId, claim.attemptId);
+  const source = 'https://www.loc.gov/about/', bytes = Buffer.from(JSON.stringify({ schema: 'workspace.worker.delivery.v1', orderId,
+    deliverables: [{ name: 'Synthetic protocol report', type: 'table', summary: 'Local fixture only; no buyer discovery was performed' }],
+    evidence: [{ title: 'Public source fixture', url: source, detail: 'Schema verification only' }],
+    prospects: [{ name: 'Synthetic Test Prospect', country: 'United States', website: 'https://www.loc.gov', sourceUrl: source, fitReason: 'Unit fixture only' }] }));
+  assert.equal((await f.api(`${base}/upload-file`, 'POST', { attemptId: claim.attemptId, fence: claim.fence, uploadId: 'commerce-upload',
+    filename: 'commerce-fixture.json', base64: bytes.toString('base64'), sha256: digest(bytes) }, key)).status, 201);
+  assert.equal((await f.api(`${base}/submit-result`, 'POST', { attemptId: claim.attemptId, fence: claim.fence, requestId: 'commerce-result',
+    summary: 'Fixture only', sources: [source], toolEvidence: [], evidenceNote: 'Synthetic protocol test; no external research or independent tool verification.' }, key)).status, 200);
+  await f.api(`/worker-orders/${orderId}/refresh`, 'POST', {});
+  const review = (await f.api(`/commerce-projects/${projectId}`)).body.project.researchOrder;
+  assert.equal(review.status, 'review_required'); assert.equal(review.prospectCount, 1); assert.equal(review.deliverableCount, 1);
+  assert.equal(review.independentlyVerified, false); assert.equal(review.deliveryArtifactId, null);
+  const accepted = await f.api(`/worker-orders/${orderId}/accept`, 'POST', { confirmed: true });
+  assert.equal(accepted.status, 200, JSON.stringify(accepted.body));
+  await f.restart();
+  const project = (await f.api(`/commerce-projects/${projectId}`)).body.project;
+  assert.equal(project.researchOrder.status, 'accepted'); assert.ok(project.researchOrder.deliveryArtifactId);
+  assert.ok(project.researchOrder.acceptedAt); assert.equal(project.researchOrder.independentlyVerified, false);
+  assert.equal(project.results.observedAt, null); assert.equal(project.results.billableAmount, null);
+  assert.equal(f.calls.length, 0); assert.equal(f.app.store.read().runs.length, 0);
 });

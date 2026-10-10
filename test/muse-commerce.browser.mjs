@@ -88,6 +88,36 @@ try {
   await capture(page, '07-hosting-results-mobile');
   checks.push('Hosting confirms public facts, budget and target while unconfigured Shopify has no fake results.');
 
+  await page.getByRole('button', { name: '准备研究委托', exact: true }).click();
+  await page.getByLabel('可公开共享的委托说明', { exact: true }).fill('轻量防风夹克；寻找美国户外用品分销商，并提供公开原始来源。');
+  await page.getByRole('button', { name: '工作', exact: true }).click();
+  await page.getByRole('dialog', { name: '离开未保存的内容' }).waitFor();
+  await page.getByRole('button', { name: '继续编辑', exact: true }).click();
+  assert.match(await page.getByLabel('可公开共享的委托说明').inputValue(), /公开原始来源/);
+  await noOverflow(page); await capture(page, '08-research-scope-mobile');
+  await page.locator('.commerce-research-order input[type=checkbox]').check();
+  await page.getByRole('button', { name: '保存研究任务单', exact: true }).click();
+  await page.getByRole('button', { name: '查看与审核任务单', exact: true }).waitFor();
+  assert.equal(app.store.read().workerOrders.length, 1);
+  const orderId = app.store.read().workerOrders[0].id;
+  assert.equal(app.store.read().workerOrders[0].status, 'draft');
+  assert.equal(app.store.read().workerOrders[0].workerId, null);
+  await noOverflow(page); await capture(page, '09-research-linked-mobile');
+  checks.push('Hosting prepares one public research order and protects the unsaved scope before navigation; no automatic dispatch occurs.');
+  await page.getByRole('button', { name: '查看与审核任务单', exact: true }).click();
+  await page.getByRole('dialog', { name: '海外经销商开发' }).waitFor();
+  assert.ok(page.url().includes(orderId));
+  assert.match(await page.getByRole('dialog', { name: '海外经销商开发' }).innerText(), /尚未提交/);
+  await noOverflow(page); await capture(page, '10-worker-order-mobile');
+  await page.reload(); await optionalFonts(page);
+  await page.getByRole('dialog', { name: '海外经销商开发' }).waitFor();
+  assert.equal(app.store.read().workerOrders.length, 1);
+  await page.getByRole('dialog', { name: '海外经销商开发' }).getByRole('button', { name: '关闭', exact: true }).click();
+  assert.ok(!page.url().includes(orderId));
+  checks.push('The exact Worker order opens from hosting and survives a deep-link reload; closing clears its route.');
+  await page.getByRole('button', { name: '产品托管', exact: true }).click();
+  await page.getByRole('button', { name: /轻量户外夹克.*美国/ }).click();
+
   await page.getByRole('button', { name: '创建研究目标', exact: true }).click();
   await page.getByRole('heading', { name: '轻量户外夹克 · 美国验证', exact: true }).waitFor();
   assert.equal(app.store.read().goals.length, 1);

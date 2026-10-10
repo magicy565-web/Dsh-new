@@ -56,10 +56,11 @@ export function validateState(state, version = STORE_VERSION) {
   if (!isObject(state.capabilities) || state.capabilities.version !== 1) throw invalid();
   for (const key of capabilityCollections) validateCollection(state.capabilities[key]);
   // Preserve mainline Worker, expert, and personal Dot records through v2 → v3.
-  for (const key of ['workerOrders', 'workerOpportunities', 'cloudExperts', 'cloudTeams', 'dotTasks', 'commerceProjects']) {
+  for (const key of ['workerOrders', 'workerOpportunities', 'cloudExperts', 'cloudTeams', 'dotTasks', 'museTasks', 'commerceProjects']) {
     if (state[key] !== undefined) validateCollection(state[key]);
   }
   if (state.dotLastSeenAt !== undefined && !iso(state.dotLastSeenAt)) throw invalid();
+  if (state.museLastSeenAt !== undefined && !iso(state.museLastSeenAt)) throw invalid();
   if (version === 2) return;
   const library = state.businessLibrary;
   if (!isObject(library) || library.version !== 1 || !isObject(library.company)) throw invalid();

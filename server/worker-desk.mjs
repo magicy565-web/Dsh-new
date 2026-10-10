@@ -39,6 +39,9 @@ export const WORKER_SERVICES = Object.freeze([
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const keysOnly = (v, keys) => isObject(v) && Object.keys(v).every(k => keys.includes(k));
 const identifier = value => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/.test(value);
+// Enterprise subjects use the identity ingress contract, including email and
+// provider-qualified IDs. Worker and request IDs keep their narrower syntax.
+const principal = value => typeof value === 'string' && /^[A-Za-z0-9._@:+|/-]{1,128}$/.test(value);
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const now = () => new Date().toISOString();
 
@@ -174,7 +177,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
       const service = findService(input.serviceId);
       if (!service) fail(404, 'SERVICE_NOT_FOUND', 'Choose a published service.');
       if (service.dataMode !== 'public') fail(409, 'PRIVATE_GATEWAY_REQUIRED', 'Private enterprise data cannot be delegated until an isolated, reviewed gateway is ready.');
-      if (!identifier(actor) || !identifier(input.requestId)) fail(400, 'INVALID_INPUT', 'Stable actor and request identities are required.');
+      if (!principal(actor) || !identifier(input.requestId)) fail(400, 'INVALID_INPUT', 'Stable actor and request identities are required.');
       const product = safeText(input.product, 'product', 240);
       const market = safeText(input.market, 'market', 100);
       const objective = safeText(input.objective, 'objective', 2500);
@@ -269,6 +272,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         deliverables: cleanDeliverables(snapshot.deliverables), evidence: cleanEvidence(snapshot.evidence),
         prospects: order.serviceId === 'buyer-discovery' ? cleanProspects(snapshot.prospects) : [],
         independentlyVerified: false, reportedAt: now(),
+        evidenceNote: typeof snapshot.evidenceNote === 'string' ? snapshot.evidenceNote.slice(0, 2000) : null,
       } : null;
       const cost = snapshot.costCredits === undefined ? null : snapshot.costCredits;
       if (cost !== null && (!Number.isSafeInteger(cost) || cost < 0)) fail(502, 'INVALID_WORKER_RESULT', 'Worker reported an invalid credit count.');

@@ -48,18 +48,29 @@ WORKSPACE_SHOPIFY_ADMIN_TOKEN=<authorized Admin API token>
 | `GET /api/commerce-projects[/id]` | 登录后读取已保存任务 |
 | `POST /api/commerce-projects` | 管理员或操作员确认并保存范围 |
 | `POST /api/commerce-projects/:id/stage-research` | 管理员或操作员创建一个草稿目标 |
+| `POST /api/commerce-projects/:id/stage-worker-research` | 确认公开说明、credits 上限和截止时间，创建现有 Worker 平台的一份草稿委托 |
 | `POST /api/commerce-shopify/verify` | 管理员验证真实店铺身份和权限 |
 | `POST /api/commerce-projects/:id/sync-orders` | 管理员确认并读取一页本任务订单 |
 
 企业访问模式沿用现有身份、会话与 CSRF 校验。只读成员不能写入，操作员不能验证店铺或读取授权订单。
 
+## 产品与个人 Muse 的真实任务关联
+
+已整合个人 Muse PR #15 的提交 `d1f7e271598228846422471e2c2cc5f4c2343798`：11 个独立 Bearer REST 操作、独立任务队列、文件与来源交付、15 分钟租约、截止时间与停止确认、恢复隔离。接口文档见 [个人 Muse REST](MUSE-PERSONAL-WORKER-REST.md)。这些接口复用既有 WorkerDesk，不远程启动个人 Muse 对话，也不引入新的工作流引擎。
+
+托管产品可以选择海外经销商开发或渠道验证，确认最多 2,000 字的公开研究说明、独立 credits 额度和截止日期。仅产品名称、市场与这段说明进入外部委托，内部文档、完整供货价格和经营预算不会隐含外发。Credits 不换算为经营预算货币。
+
+任务单默认未分配、未授权、未派发。管理员在既有任务页面选择已审核且具备硬支出上限的 Worker 后，分别批准和派发。托管任务显示实际订单状态、来源数量、候选客户与验收文件，可直达 `/services/:orderId`，刷新保留同一任务。准备意图先落盘，进程中断后重试关联原订单，不能自动重复委托。
+
+Muse 的接口配置、执行范围审核和最近访问时间分别展示，访问接口不会显示在线执行成功。过期截止时间不能用心跳续期；恢复备份会暂停 Muse/Dot 外部工作并失效旧尝试，不自动重放。上传研究结果与人工验收不会变成销售订单、已独立验证客户或可结算金额。
+
 ## 距离自动经营闭环还需要什么
 
 | 能力 | 当前状态 | 下一阶段交付 |
 | --- | --- | --- |
-| DeepSeek Harness / Agent Runtime | 原有真实 SDK 适配保留，Muse 根据配置拦截启动 | 在目标主机打包原生 CLI、配置执行档案，完成真实运行和工具回执验收 |
+| DeepSeek Harness / Agent Runtime | 真实 SDK 适配及原生会话/工具/恢复检查已验证，详见无费用记录 | 修复正式 Host 构建问题，在目标主机配置执行档案并验收真实模型运行 |
 | 云电脑 | 尚无云电脑创建、控制和会话恢复服务 | 接入实际远程执行环境与授权账户，绑定持久任务和日志 |
-| 海外分销 | 可以创建有来源要求的研究目标和云专家任务单 | 实际检索、候选客户核验、经授权的联系与询盘闭环 |
+| 海外分销 | 产品直接关联研究目标或 Muse/Worker 委托，展示实际交付与验收记录 | 实际检索、候选客户核验、经授权的联系与询盘闭环 |
 | Shopify 上架与履约 | 店铺验证和只读订单证据已实现 | 产品草稿、准确发布审批、库存/履约服务接入和幂等写操作 |
 | 按经营结果付费 | 订单证据与归因状态可见 | 确认收入/毛利基准、成本、退款窗口、归因和费率，再实现账单 |
 
@@ -81,12 +92,14 @@ npm run test:muse:browser
 
 Linux 验收机没有中文字体时，可用 `QA_FONT_DIR` 指向本机安装的 `@fontsource/noto-sans-sc` 包，测试通过本地拦截加载字体；这不是应用依赖。`CHROMIUM_PATH` 可指定本机浏览器。默认使用浏览器沙箱；隔离测试环境可用 `CHROMIUM_NO_SANDBOX=1` 显式关闭。
 
-本轮正式构建通过；后端 349 项测试中 343 通过、6 项原生构建相关测试跳过、0 失败；DOM 与真实 HTTP 的 19 项回归全部通过；实际 Chromium 浏览器的 9 项流程检查通过。原生构建的跳过项与真实部署仍需单独验收。
+应用正式构建通过，DOM 与真实 HTTP 的 19 项回归通过，实际 Chromium 的 11 项流程检查通过。原生源码及诊断构建可用时，原来跳过的六项检查已全部运行通过。准确构建范围与正式原生构建问题见 [原生无费用验证记录](NATIVE-KEYLESS-VERIFICATION.md)；后端最终计数见仓库交接文件。没有真实店铺调用、外发、模型支出或部署。
 
 浏览器结果见 [VERIFICATION.json](screenshots/muse-commerce/VERIFICATION.json)，界面如下：
 
 ![Muse 手机首页](screenshots/muse-commerce/01-home-mobile.png)
 ![托管产品的订单证据](screenshots/muse-commerce/07-hosting-results-mobile.png)
 ![Muse 目标会话](screenshots/muse-commerce/05-goal-mobile.png)
+![公开研究委托](screenshots/muse-commerce/08-research-scope-mobile.png)
+![关联的真实任务单](screenshots/muse-commerce/10-worker-order-mobile.png)
 
 Shopify 官方接口依据：[订单查询](https://shopify.dev/docs/api/admin-graphql/2026-10/queries/orders)、[Order 字段与权限](https://shopify.dev/docs/api/admin-graphql/2026-10/objects/Order)、[当前应用授权](https://shopify.dev/docs/api/admin-graphql/2026-10/queries/currentAppInstallation)。

@@ -18,7 +18,7 @@ type Order = {
   objective: string; budgetCredits: number; deadlineAt: string; dataMode: 'public';
   status: string; workerId: string | null; remoteJobId: string | null;
   createdAt: string; updatedAt: string; error?: { code: string; message: string } | null;
-  workerReport?: { deliverables: Deliverable[]; evidence: Evidence[]; prospects?: Prospect[]; independentlyVerified: false } | null;
+  workerReport?: { deliverables: Deliverable[]; evidence: Evidence[]; prospects?: Prospect[]; evidenceNote?: string | null; independentlyVerified: false } | null;
   reportedCostCredits?: number | null;
   deliveryArtifactId?: string | null;
   opportunityImports?: { importedIds: string[]; createdCount: number; requestId: string; indices?: number[] }[];
@@ -31,7 +31,7 @@ const icons: Record<string, IconName> = {
   'sales-assets': 'file', 'rfq-recovery': 'activity',
 };
 const statuses: Record<string, string> = {
-  draft: '待分配', approved: '已授权', dispatching: '正在提交', queued: '待 Dot 领取',
+  draft: '待分配', approved: '已授权', dispatching: '正在提交', queued: '待 AI Worker 领取',
   dispatch_uncertain: '提交待核验', running: '执行中', input_required: '等待补充信息',
   cancel_requested: '取消待确认', cancelled: '已取消', review_required: '等待验收',
   result_incomplete: '成果不完整', budget_dispute: '预算异常',
@@ -47,7 +47,7 @@ const serviceSteps = [
   { title: '验证交付价值', detail: '来源证据、人工验收和费用记录', icon: 'check' as IconName },
 ];
 
-export default function Workers({ role }: { role: Role }) {
+export default function Workers({ role, orderId, onOpenOrder }: { role: Role; orderId?: string; onOpenOrder?: (id?: string) => void }) {
   const [services, setServices] = useState<Service[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -55,7 +55,9 @@ export default function Workers({ role }: { role: Role }) {
   const [reviewNotes, setReviewNotes] = useState('');
   const [chosenProspects, setChosenProspects] = useState<number[]>([]);
   const [selection, setSelection] = useState<string | null>(null);
-  const [focused, setFocused] = useState<string | null>(null);
+  const [focused, setFocused] = useState<string | null>(orderId || null);
+  useEffect(() => { setFocused(orderId || null); }, [orderId]);
+  const focusOrder = useCallback((id: string | null) => { setFocused(id); onOpenOrder?.(id || undefined); }, [onOpenOrder]);
   const [product, setProduct] = useState('');
   const [market, setMarket] = useState('美国');
   const [objective, setObjective] = useState('');
@@ -113,7 +115,7 @@ export default function Workers({ role }: { role: Role }) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSelection(null);
-        setFocused(null);
+        focusOrder(null);
         setReviewId(null);
       }
     };
@@ -122,7 +124,7 @@ export default function Workers({ role }: { role: Role }) {
       document.body.style.overflow = before;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [selection, focused, reviewId]);
+  }, [selection, focused, reviewId, focusOrder]);
   const summary = useMemo(() => ({
     working: orders.filter(order => ['queued', 'running', 'input_required', 'cancel_requested'].includes(order.status)).length,
     review: orders.filter(order => ['review_required', 'result_incomplete'].includes(order.status)).length,
@@ -153,7 +155,7 @@ export default function Workers({ role }: { role: Role }) {
         budgetCredits: Number(budget), deadlineAt, requestId: retryId.current,
         publicDataConfirmed: confirmedPublic, ...(workerId ? { workerId } : {}),
       });
-      await load(); resetDraft(); setFocused(result.order.id);
+      await load(); resetDraft(); focusOrder(result.order.id);
       setNotice({ text: '任务单已保存。只有管理员明确批准后，才能调用外部 Worker。', error: false });
     } catch (error) { setNotice({ text: errorText(error), error: true }); }
     finally { setBusy(false); }
@@ -250,7 +252,7 @@ export default function Workers({ role }: { role: Role }) {
     <div className="worker-section-heading order-head"><div><span className="worker-eyebrow">WORK ORDERS</span><h2>我的工作委托</h2><p>查看真实进度、执行回执和可验收成果。</p></div><button className="worker-reload" onClick={() => void load().catch(error => setNotice({ text: errorText(error), error: true }))}><Icon name="refresh" size={16}/>刷新</button></div>
     <section className="worker-orders" aria-label="任务单">
       {!loaded ? <div className="worker-empty"><span><Icon name="refresh" size={26}/></span><strong>正在加载任务记录</strong><p>从企业 Workspace API 读取实时状态。</p></div> : orders.length === 0 ? <div className="worker-empty"><span><Icon name="work" size={28}/></span><strong>还没有委托任务</strong><p>先选择一项增长服务，填写简短业务需求。</p></div> :
-        [...orders].reverse().map(order => <button className={'worker-order-row' + (focused === order.id ? ' is-focused' : '')} key={order.id} onClick={() => { setFocused(order.id); setSelection(null); }}>
+        [...orders].reverse().map(order => <button className={'worker-order-row' + (focused === order.id ? ' is-focused' : '')} key={order.id} onClick={() => { focusOrder(order.id); setSelection(null); }}>
           <span className="worker-order-mark"><Icon name={icons[order.serviceId] || 'work'} size={20}/></span>
           <span className="worker-order-main"><strong>{order.serviceTitle}</strong><small>{order.product} · {order.market} · {dateText(order.updatedAt)}</small></span>
           <span className={'worker-state worker-state-' + order.status}>{statuses[order.status] || order.status}</span>
@@ -295,9 +297,9 @@ export default function Workers({ role }: { role: Role }) {
       </section>
     </div>}
 
-    {selectedOrder && <div className="worker-drawer-backdrop" role="presentation" onClick={() => setFocused(null)}>
+    {selectedOrder && <div className="worker-drawer-backdrop" role="presentation" onClick={() => focusOrder(null)}>
       <section className="worker-drawer" role="dialog" aria-modal="true" aria-labelledby="worker-order-title" onClick={event => event.stopPropagation()}>
-        <header><span className="worker-eyebrow">SERVICE DELIVERY</span><button type="button" onClick={() => setFocused(null)} aria-label="关闭"><Icon name="close" size={19}/></button></header>
+        <header><span className="worker-eyebrow">SERVICE DELIVERY</span><button type="button" onClick={() => focusOrder(null)} aria-label="关闭"><Icon name="close" size={19}/></button></header>
         <div className="worker-drawer-title"><span className="worker-service-icon"><Icon name={icons[selectedOrder.serviceId] || 'work'} size={22}/></span>
           <h2 id="worker-order-title">{selectedOrder.serviceTitle}</h2><span className={'worker-state worker-state-' + selectedOrder.status}>{statuses[selectedOrder.status] || selectedOrder.status}</span></div>
         <div className="worker-order-detail">
@@ -310,6 +312,7 @@ export default function Workers({ role }: { role: Role }) {
           </a>}
           {selectedOrder.error && <div className="worker-detail-warning"><Icon name="info" size={16}/>{selectedOrder.error.message}</div>}
           {selectedOrder.workerReport && <div className="worker-delivery"><h3>交付成果 <span>{selectedOrder.status === 'accepted' ? '已人工验收 · 未独立验证' : '待人工核验'}</span></h3>
+            {selectedOrder.workerReport.evidenceNote && <div className="worker-detail-warning"><Icon name="info" size={16}/>工具执行回执未独立核验：{selectedOrder.workerReport.evidenceNote}</div>}
             {selectedOrder.workerReport.deliverables.map((item, index) => <div className="worker-result" key={index}><Icon name="file" size={18}/><div><strong>{item.name}</strong><p>{item.summary}</p>{item.url && <a href={item.url} target="_blank" rel="noopener noreferrer">打开原始交付 <Icon name="external" size={12}/></a>}</div></div>)}
             {!!selectedOrder.workerReport.prospects?.length && <div className="worker-prospect-section">
               <h3>潜在经销商 <span>{selectedOrder.workerReport.prospects.length} 条待核实记录</span></h3>
