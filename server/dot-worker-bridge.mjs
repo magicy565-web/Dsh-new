@@ -291,8 +291,8 @@ export function createDotWorkerBridge({
       fail(400,'DOT_EVIDENCE_REQUIRED','Result requires exactly one evidence method: genuine tool receipts or a documented Muse evidence limitation.');
     const safeNote = hasEvidenceNote ? bounded(evidenceNote,'evidence note',2000) : null;
     if (agentKind === 'muse' && safeNote && (
-      /^(?:todo|tbd|n\\/?a|none|placeholder|test|fake|dummy|sample|example|xxx|\\?+)$/i.test(safeNote) ||
-      /<[^>]{1,120}>|\\$\\{[^}]{1,120}\\}/.test(safeNote)))
+      /^(?:todo|tbd|n\/?a|none|placeholder|test|fake|dummy|sample|example|xxx|\?+)$/i.test(safeNote) ||
+      /<[^>]{1,120}>|\$\{[^}]{1,120}\}/.test(safeNote)))
       fail(400,'DOT_EVIDENCE_INVALID','Muse evidence notes must describe a real limitation, not a placeholder.');
     const safeSummary=bounded(summary,'result summary',8000);
     const cleanSources=sources.map(publicURL);
