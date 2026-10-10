@@ -1,0 +1,17 @@
+name: Workspace CI bootstrap probe
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ci-bootstrap-probe.yml"
+  push:
+    paths:
+      - ".github/workflows/ci-bootstrap-probe.yml"
+permissions:
+  contents: read
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Confirm job scheduler and runner
+        run: echo "GitHub Actions job initialized; no repo data or credentials accessed"
