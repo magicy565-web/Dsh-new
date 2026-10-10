@@ -57,7 +57,8 @@ const lease = (task, attemptId, fence, allowCancel = false) => {
   if (!id(attemptId) || !Number.isSafeInteger(fence) || fence < 1 ||
       task.attemptId !== attemptId || task.fence !== fence)
     fail(409, 'STALE_DOT_LEASE', 'The original Dot attempt fence does not match.');
-  if (!allowCancel && (task.status !== 'claimed' || Date.parse(task.leaseUntil) <= Date.now()))
+  if (!allowCancel && (task.status !== 'claimed' || Date.parse(task.leaseUntil) <= Date.now() ||
+      Date.parse(task.deadlineAt) <= Date.now()))
     fail(409, 'DOT_LEASE_EXPIRED', 'Dot execution authority is expired, stopped or revoked.');
 };
 
@@ -88,7 +89,8 @@ export function createDotWorkerBridge({
     return { taskRef: task.id, orderId: task.orderId, serviceId: task.serviceId,
       status: task.status, attemptId: task.attemptId, fence: task.fence,
       leaseUntil: task.leaseUntil, cancellationRequested: task.status === 'cancel_requested',
-      canExecute: approved && task.status === 'claimed' && Date.parse(task.leaseUntil) > Date.now(),
+      canExecute: approved && task.status === 'claimed' && Date.parse(task.leaseUntil) > Date.now() &&
+        Date.parse(task.deadlineAt) > Date.now(),
       deliverySubmitted: task.status === 'submitted', updatedAt: task.updatedAt };
   }
   function guardPayload(task) {
@@ -161,7 +163,8 @@ export function createDotWorkerBridge({
       }
       if (item.status === 'stopped') return { ...result, status: 'cancelled' };
       if (!approved) return { ...result, status: 'input_required' };
-      if (item.status === 'blocked' || (item.status === 'claimed' && Date.parse(item.leaseUntil) <= Date.now()))
+      if (item.status === 'blocked' || (item.status === 'claimed' &&
+          (Date.parse(item.leaseUntil) <= Date.now() || Date.parse(item.deadlineAt) <= Date.now())))
         return { ...result, status: 'input_required' };
       if (item.status === 'pending') return { ...result, status: 'queued' };
       return { ...result, status: 'working' };
@@ -194,6 +197,7 @@ export function createDotWorkerBridge({
     allowedServices: [...services] });
 
   const inbox = () => ({ workerId, tasks: (approved ? read() : []).filter(item=>item.workerId===workerId && item.status==='pending')
+    .filter(item => Date.parse(item.deadlineAt) > Date.now())
     .map(item=>({ taskRef:item.id,serviceId:item.serviceId,deadlineAt:item.deadlineAt,status:'pending' })) });
 
   const readTask = taskRef => {
@@ -212,12 +216,12 @@ export function createDotWorkerBridge({
         ['claimed','blocked','cancel_requested'].includes(x.status) && x.attemptId);
       if (active) fail(409,'DOT_SLOT_BUSY','The one-dot single active attempt is occupied.');
       if (item.status === 'claimed' && item.claimRequestId === requestId &&
-          Date.parse(item.leaseUntil) > Date.now())
+          Date.parse(item.leaseUntil) > Date.now() && Date.parse(item.deadlineAt) > Date.now())
         return { ...taskSnapshot(item), claimed:true, duplicate:true };
       if (item.status !== 'pending') fail(409,'DOT_TASK_UNAVAILABLE','This task cannot be claimed or restarted.');
       if (Date.parse(item.deadlineAt) <= Date.now()) fail(409,'DOT_DEADLINE_EXPIRED','This business order has expired.');
       item.attemptId = randomUUID();item.claimRequestId=requestId;
-      item.fence += 1;item.leaseUntil=new Date(Date.now()+leaseMs).toISOString();
+      item.fence += 1;item.leaseUntil=new Date(Math.min(Date.now()+leaseMs, Date.parse(item.deadlineAt))).toISOString();
       item.status='claimed';item.updatedAt=now();event(state,item,'claimed');
       return { ...taskSnapshot(item), claimed:true, duplicate:false };
     });
@@ -231,7 +235,7 @@ export function createDotWorkerBridge({
       const item=lookup(state,taskRef);lease(item,attemptId,fence);
       if(item.lastHeartbeatRequestId===requestId)
         return { ...taskSnapshot(item), leaseUntil:item.lastHeartbeatReceiptUntil, duplicate:true };
-      item.leaseUntil=new Date(Date.now()+leaseMs).toISOString();item.updatedAt=now();
+      item.leaseUntil=new Date(Math.min(Date.now()+leaseMs, Date.parse(item.deadlineAt))).toISOString();item.updatedAt=now();
       item.lastHeartbeatRequestId=requestId;item.lastHeartbeatReceiptUntil=item.leaseUntil;
       return { ...taskSnapshot(item), duplicate:false };
     });
@@ -286,6 +290,10 @@ export function createDotWorkerBridge({
          (evidenceNote !== undefined && !hasEvidenceNote))))
       fail(400,'DOT_EVIDENCE_REQUIRED','Result requires exactly one evidence method: genuine tool receipts or a documented Muse evidence limitation.');
     const safeNote = hasEvidenceNote ? bounded(evidenceNote,'evidence note',2000) : null;
+    if (agentKind === 'muse' && safeNote && (
+      /^(?:todo|tbd|n\\/?a|none|placeholder|test|fake|dummy|sample|example|xxx|\\?+)$/i.test(safeNote) ||
+      /<[^>]{1,120}>|\\$\\{[^}]{1,120}\\}/.test(safeNote)))
+      fail(400,'DOT_EVIDENCE_INVALID','Muse evidence notes must describe a real limitation, not a placeholder.');
     const safeSummary=bounded(summary,'result summary',8000);
     const cleanSources=sources.map(publicURL);
     if (agentKind === 'muse' && cleanSources.some(u => /(^|\.)example\.(com|org|net)$|\.invalid$/i.test(new URL(u).hostname)))
