@@ -58,6 +58,8 @@ function validateState(state, version = STORE_VERSION) {
   if (state.cloudTeams !== undefined) validateCollection(state.cloudTeams);
   if (state.dotTasks !== undefined) validateCollection(state.dotTasks);
   if (state.dotLastSeenAt !== undefined && !iso(state.dotLastSeenAt)) throw invalid();
+  if (state.museTasks !== undefined) validateCollection(state.museTasks);
+  if (state.museLastSeenAt !== undefined && !iso(state.museLastSeenAt)) throw invalid();
   if (!isObject(state.meta) || !Number.isSafeInteger(state.meta.sequence) || state.meta.sequence < 0 || !iso(state.meta.createdAt) || !iso(state.meta.updatedAt)) throw invalid();
   if (!isObject(state.capabilities) || state.capabilities.version !== 1) throw invalid();
   for (const key of capabilityCollections) validateCollection(state.capabilities[key]);
