@@ -63,7 +63,7 @@ const requireOrder = (state, id) => {
   if (!item) fail(404, 'ORDER_NOT_FOUND', 'Delegated service order was not found.');
   return item;
 };
-const allowedStates = new Set(['working', 'input_required', 'completed', 'failed', 'cancelled']);
+const allowedStates = new Set(['queued', 'working', 'input_required', 'completed', 'failed', 'cancelled']);
 const cleanEvidence = items => {
   if (!Array.isArray(items) || items.length > 50) fail(502, 'INVALID_WORKER_RESULT', 'Worker returned an invalid evidence list.');
   return items.map(item => {
@@ -239,7 +239,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         return update(state => {
           const current = requireOrder(state, id);
           current.remoteJobId = response.jobId;
-          current.status = 'running'; current.updatedAt = now(); current.error = null;
+          current.status = response.queued === true ? 'queued' : 'running'; current.updatedAt = now(); current.error = null;
           return { order: current };
         });
       } catch {
@@ -255,7 +255,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
     },
     async refresh(id) {
       const order = get(id), adapter = adapterMap.get(order.workerId);
-      if (!['running', 'cancel_requested', 'dispatch_uncertain', 'input_required'].includes(order.status)) fail(409, 'INVALID_STATE', 'Only an active or uncertain Worker order can be checked.');
+      if (!['queued', 'running', 'cancel_requested', 'dispatch_uncertain', 'input_required'].includes(order.status)) fail(409, 'INVALID_STATE', 'Only an active or uncertain Worker order can be checked.');
       if (!adapter?.get) fail(503, 'WORKER_UNAVAILABLE', 'Worker status adapter is unavailable.');
       let snapshot;
       if (!order.remoteJobId) {
@@ -274,7 +274,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
       if (cost !== null && (!Number.isSafeInteger(cost) || cost < 0)) fail(502, 'INVALID_WORKER_RESULT', 'Worker reported an invalid credit count.');
       return update(state => {
         const current = requireOrder(state, id);
-        if (!['running', 'cancel_requested', 'dispatch_uncertain', 'input_required'].includes(current.status)) fail(409, 'INVALID_STATE', 'Order changed during status retrieval.');
+        if (!['queued', 'running', 'cancel_requested', 'dispatch_uncertain', 'input_required'].includes(current.status)) fail(409, 'INVALID_STATE', 'Order changed during status retrieval.');
         current.remoteJobId ??= snapshot.jobId;
         if (cost !== null) current.reportedCostCredits = cost;
         if (cost !== null && cost > current.budgetCredits) {
@@ -285,6 +285,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         } else if (snapshot.status === 'cancelled') current.status = 'cancelled';
         else if (snapshot.status === 'failed') current.status = 'failed';
         else if (snapshot.status === 'input_required') current.status = 'input_required';
+        else if (snapshot.status === 'queued') current.status = 'queued';
         else current.status = current.status === 'cancel_requested' ? 'cancel_requested' : 'running';
         current.updatedAt = now();
         return { order: current };
@@ -338,7 +339,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         const current = requireOrder(state, id); if (!['draft', 'approved'].includes(current.status)) fail(409, 'INVALID_STATE', 'Order status changed.');
         current.status = 'cancelled'; current.updatedAt = now(); return { order: current };
       });
-      if (!['running', 'input_required', 'cancel_requested'].includes(order.status)) fail(409, 'INVALID_STATE', 'This order cannot be cancelled through the standard route.');
+      if (!['queued', 'running', 'input_required', 'cancel_requested'].includes(order.status)) fail(409, 'INVALID_STATE', 'This order cannot be cancelled through the standard route.');
       await update(state => { const current = requireOrder(state, id); current.status = 'cancel_requested'; current.updatedAt = now(); });
       const adapter = adapterMap.get(order.workerId);
       if (!adapter?.cancel || !order.remoteJobId) fail(503, 'CANCEL_UNCONFIRMED', 'Cancellation remains requested until the verified Worker acknowledges it.');

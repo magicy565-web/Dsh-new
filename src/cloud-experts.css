@@ -311,3 +311,21 @@
 .ce-team-staged p{font-size:11px;line-height:1.7;margin:7px 0}
 .ce-team-staged button{display:flex;align-items:center;gap:5px;color:#367450;font-size:11px;font-weight:710;margin-top:6px}
 @media(max-width:700px){.ce-stage-form{padding:12px}.ce-stage-task{padding:11px}.ce-team-staged{padding:12px}}
+
+/* A truthful dot worker connector panel, populated exclusively by Workspace API. */
+.ce-dot-connection{display:flex;align-items:center;gap:17px;background:#fff;border:1px solid #e5eaf3;border-radius:16px;margin-top:18px;padding:20px 22px;box-shadow:0 5px 20px #15223b06}
+.ce-dot-glyph{display:grid;place-items:center;flex:0 0 45px;width:45px;height:45px;border-radius:14px;color:#685bc7;background:linear-gradient(140deg,#eae9fc,#e2e9f9)}
+.ce-dot-content{flex:1;min-width:0}
+.ce-dot-title{display:flex;align-items:center;flex-wrap:wrap;gap:11px}
+.ce-dot-title strong{font-size:14px;font-weight:760;color:#2e3850}
+.ce-dot-state{display:inline-flex;align-items:center;gap:7px;background:#f3f4f7;color:#8c96a5;border-radius:999px;padding:6px 10px;font-size:10px}
+.ce-dot-state i{display:block;width:6px;height:6px;border-radius:50%;background:#b4c0cb}
+.ce-dot-registered{background:#edf8f3;color:#398367}
+.ce-dot-registered i{background:#61ad87}
+.ce-dot-content>p{font-size:11px;color:#8491a4;line-height:1.7;margin:8px 0}
+.ce-dot-metrics{display:flex;flex-wrap:wrap;gap:13px;font-size:10px;color:#9da8b6}
+.ce-dot-metrics b{color:#475a80;font-variant-numeric:tabular-nums}
+.ce-dot-action{font-size:11px;font-weight:650;display:inline-flex;align-items:center;gap:5px;border:1px solid #dddff0;padding:10px 12px;border-radius:9px;color:#6452bc;background:#fbfaff}
+.ce-dot-action:hover{background:#f0edff}
+@media(max-width:850px){.ce-dot-connection{align-items:flex-start;flex-wrap:wrap;padding:16px}.ce-dot-action{margin-left:60px}}
+@media(max-width:520px){.ce-dot-connection{gap:10px}.ce-dot-glyph{width:37px;height:37px;flex-basis:37px}.ce-dot-action{margin-left:47px}.ce-dot-metrics{gap:8px}}

@@ -31,7 +31,7 @@ const icons: Record<string, IconName> = {
   'sales-assets': 'file', 'rfq-recovery': 'activity',
 };
 const statuses: Record<string, string> = {
-  draft: '待分配', approved: '已授权', dispatching: '正在提交',
+  draft: '待分配', approved: '已授权', dispatching: '正在提交', queued: '待 Dot 领取',
   dispatch_uncertain: '提交待核验', running: '执行中', input_required: '等待补充信息',
   cancel_requested: '取消待确认', cancelled: '已取消', review_required: '等待验收',
   result_incomplete: '成果不完整', budget_dispute: '预算异常',
@@ -40,7 +40,7 @@ const statuses: Record<string, string> = {
 const dateText = (value: string) => new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 const sampleDate = () => { const date = new Date(); date.setDate(date.getDate() + 7); return date.toISOString().slice(0, 10); };
 const errorText = (value: unknown) => value instanceof Error ? value.message : '操作未完成，请检查连接状态';
-const liveStatuses = new Set(['running', 'dispatch_uncertain', 'cancel_requested', 'input_required']);
+const liveStatuses = new Set(['queued', 'running', 'dispatch_uncertain', 'cancel_requested', 'input_required']);
 const serviceSteps = [
   { title: '明确工作成果', detail: '选择业务场景和验收标准', icon: 'work' as IconName },
   { title: '分配专业 Worker', detail: '只使用审核过的插件和执行者', icon: 'shield' as IconName },
@@ -124,7 +124,7 @@ export default function Workers({ role }: { role: Role }) {
     };
   }, [selection, focused, reviewId]);
   const summary = useMemo(() => ({
-    working: orders.filter(order => ['running', 'input_required', 'cancel_requested'].includes(order.status)).length,
+    working: orders.filter(order => ['queued', 'running', 'input_required', 'cancel_requested'].includes(order.status)).length,
     review: orders.filter(order => ['review_required', 'result_incomplete'].includes(order.status)).length,
     accepted: orders.filter(order => order.status === 'accepted').length,
   }), [orders]);
@@ -166,7 +166,7 @@ export default function Workers({ role }: { role: Role }) {
       await load();
       const actionLabels: Record<string, string> = {
         approve: '已锁定工作范围与预算，尚未执行外部任务',
-        dispatch: '执行者已确认接单，正在等待真实进度',
+        dispatch: '任务已提交给受控 Worker 队列；等待领取后才开始真实执行',
         refresh: '已从 Worker 获取状态；结果仍需要人工验收',
         accept: '已人工验收本次交付',
         cancel: '已记录取消请求；运行中任务必须等待执行者确认',
@@ -339,7 +339,7 @@ export default function Workers({ role }: { role: Role }) {
             {selectedOrder.status === 'accepted' && selectedOrder.serviceId === 'buyer-discovery' && role === 'admin' && !!selectedOrder.workerReport?.prospects?.length && <button type="button" className="worker-primary" disabled={busy || chosenProspects.length === 0 || allPromoted} onClick={() => void promote(selectedOrder)}>
               <Icon name="people" size={17}/> {allPromoted ? '所有客户已导入' : '导入已选 ' + chosenProspects.length + ' 条客户线索'}
             </button>}
-            {['draft', 'approved', 'running', 'input_required', 'cancel_requested'].includes(selectedOrder.status) && role === 'admin' &&
+            {['draft', 'approved', 'queued', 'running', 'input_required', 'cancel_requested'].includes(selectedOrder.status) && role === 'admin' &&
               <button type="button" className="worker-secondary" disabled={busy} onClick={() => void action(selectedOrder.id, 'cancel')}>取消这次委托</button>}
           </div>
         </div>

@@ -18,6 +18,7 @@ import { createWorkerServiceDesk, WorkerDeskError } from './worker-desk.mjs';
 import { createWorkerOpportunityService, WorkerOpportunityError } from './worker-opportunities.mjs';
 import { createCloudExpertService, CloudExpertError } from './cloud-experts.mjs';
 import { loadReviewedA2AWorkers } from './worker-a2a-host.mjs';
+import { createDotWorkerBridge, createDotWorkerAuth, DotWorkerError } from './dot-worker-bridge.mjs';
 import { AccessError, validateAccessConfig, createAccessControl, accessConfigFromEnvironment } from './access.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,18 +58,32 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth;
   try {
     recovery = await readRecoveryStatus(store.directory, provider.kind);
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
-    workerDesk = createWorkerServiceDesk({ store, adapters: workerAdapters, artifacts });
+    dotAuth = dotWorkerConfig && createDotWorkerAuth({ tokenDigest: dotWorkerConfig.tokenDigest });
+    if (dotWorkerConfig?.enabled === true && !dotAuth)
+      throw new TypeError('A reviewed dot Worker cannot be enabled without a pinned plugin bearer token.');
+    dotBridge = dotWorkerConfig ? createDotWorkerBridge({
+      store, artifacts, workerId: dotWorkerConfig.workerId || 'chatgpt-dot-xy',
+      ownerId: dotWorkerConfig.ownerId || 'xy',
+      enabled: dotWorkerConfig.enabled === true,
+      externalBudgetVerified: dotWorkerConfig.externalBudgetVerified === true,
+      scopeReviewed: dotWorkerConfig.scopeReviewed === true,
+    }) : null;
+    if (dotBridge && Object.hasOwn(workerAdapters, dotWorkerConfig.workerId || 'chatgpt-dot-xy'))
+      throw new TypeError('A Dot Worker ID cannot overwrite another reviewed execution adapter.');
+    workerDesk = createWorkerServiceDesk({ store,
+      adapters: { ...workerAdapters, ...(dotBridge ? { [dotWorkerConfig.workerId || 'chatgpt-dot-xy']: dotBridge.adapter } : {}) },
+      artifacts });
     workerOpportunities = createWorkerOpportunityService({ store });
     cloudExperts = createCloudExpertService({ store, workerCatalog: () => workerDesk.catalog(), workerDesk });
     await workerDesk.recoverInterrupted();
@@ -113,6 +128,42 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const url = new URL(req.url, 'http://localhost');
       const pathname = url.pathname.replace(/\/$/, '') || '/';
       const method = req.method;
+      // Personal ChatGPT dots are pull-based tool users, NOT public A2A
+      // endpoints. A dedicated server-side bearer credential isolates the
+      // dot's narrow public-data API from the enterprise browser session.
+      if (pathname.startsWith('/api/dot-worker/')) {
+        if (!dotBridge || !dotAuth) throw new ApiError(404, 'DOT_BRIDGE_UNAVAILABLE', 'The Dot plugin gateway is disabled on this server.');
+        dotAuth(req);
+        const base = '/api/dot-worker/v1';
+        if (pathname === base+'/identity' && method === 'GET') {
+          await dotBridge.recordSeen();
+          return await respond(res, 200, dotBridge.identity());
+        }
+        if (pathname === base+'/inbox' && method === 'GET') {
+          await dotBridge.recordSeen();
+          return await respond(res, 200, dotBridge.inbox());
+        }
+        const event = pathname.match(/^\/api\/dot-worker\/v1\/tasks\/([^/]+)\/events\/([^/]+)\/ack$/);
+        if (event && method === 'POST')
+          return await respond(res, 200, await dotBridge.ackEvent({taskRef:event[1],eventId:event[2]}));
+        const match = pathname.match(/^\/api\/dot-worker\/v1\/tasks\/([^/]+)(?:\/(claim|status|heartbeat|upload-file|submit-result|report-blocked|confirm-stop))?$/);
+        if (match) {
+          const [, taskRef, op] = match;
+          if (method === 'GET' && !op) return await respond(res, 200, dotBridge.readTask(taskRef));
+          if (method === 'GET' && op === 'status') return await respond(res, 200, dotBridge.status(taskRef));
+          if (method === 'POST') {
+            const data = await readBody(req, op === 'upload-file' ? 1_600_000 : 30_000);
+            const payload = { ...data, taskRef };
+            if (op === 'claim') return await respond(res, 200, await dotBridge.claimTask(payload));
+            if (op === 'heartbeat') return await respond(res, 200, await dotBridge.heartbeat(payload));
+            if (op === 'upload-file') return await respond(res, 201, await dotBridge.uploadFile(payload));
+            if (op === 'submit-result') return await respond(res, 200, await dotBridge.submitResult(payload));
+            if (op === 'report-blocked') return await respond(res, 200, await dotBridge.reportBlocked(payload));
+            if (op === 'confirm-stop') return await respond(res, 200, await dotBridge.confirmStop(payload));
+          }
+        }
+        throw new ApiError(404, 'DOT_ROUTE_NOT_FOUND', 'Only the reviewed dot Worker task methods are accepted.');
+      }
       const context = await access.begin(req, res, pathname);
       if (!pathname.startsWith('/api/')) {
         if (method !== 'GET' && method !== 'HEAD') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
@@ -137,6 +188,11 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (oneCloudExpert) return await respond(res, 200, { expert: cloudExperts.getExpert(oneCloudExpert[1]) });
         const oneCloudTeam = pathname.match(/^\/api\/cloud-teams\/([^/]+)(?:\/(plan))?$/);
         if (oneCloudTeam) return await respond(res, 200, oneCloudTeam[2] ? { plan: cloudExperts.planTeam(oneCloudTeam[1]) } : { team: cloudExperts.getTeam(oneCloudTeam[1]) });
+        if (pathname === '/api/dot-worker-connection/tasks') {
+          if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only enterprise administrators can inspect Dot lease/audit records.');
+          return await respond(res, 200, { tasks: dotBridge ? dotBridge.adminTasks() : [] });
+        }
+        if (pathname === '/api/dot-worker-connection') return await respond(res, 200, dotBridge ? dotBridge.info() : { installed:false, approved:false, ownerId:'xy', onlineVerified:false });
         if (pathname === '/api/worker-services') return await respond(res, 200, { services: workerDesk.catalog() });
         if (pathname === '/api/worker-orders') return await respond(res, 200, { orders: workerDesk.list() });
         if (pathname === '/api/worker-opportunities') return await respond(res, 200, { opportunities: workerOpportunities.list() });
@@ -268,7 +324,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
     } catch (error) {
-      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof CloudExpertError || error instanceof AccessError;
+      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof CloudExpertError || error instanceof DotWorkerError || error instanceof AccessError;
       try {
         if (!res.accessFinish) await access.recordDenial(error);
         if (!res.headersSent) await respond(res, safe ? error.status : 500, { error: { code: safe ? error.code : 'INTERNAL_ERROR', message: safe ? error.message : 'The server could not complete this action. Please retry.' } });
@@ -285,7 +341,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, capabilities, workerDesk, workerOpportunities, cloudExperts, access, diagnostics,
+    server, runtime, store, artifacts, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');
@@ -338,10 +394,23 @@ async function main() {
   // No SDK, credentials, outbound requests or partner registration without a
   // pinned, privately stored deployment catalog. Web clients cannot edit it.
   const reviewedWorkers = await loadReviewedA2AWorkers({ environment: process.env });
+  // The official dot product has no verified inbound task API. Instead,
+  // a reviewed ChatGPT plugin can pull scoped public work from this host.
+  if (process.env.WORKSPACE_DOT_ENABLED === '1' && !process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256)
+    throw new Error('WORKSPACE_DOT_ENABLED requires a server-side pinned dot plugin token hash.');
+  const dotWorkerConfig = process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256 ? {
+    workerId: process.env.WORKSPACE_DOT_WORKER_ID || 'chatgpt-dot-xy',
+    ownerId: process.env.WORKSPACE_DOT_OWNER_ID || 'xy',
+    tokenDigest: process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256,
+    enabled: process.env.WORKSPACE_DOT_ENABLED === '1',
+    scopeReviewed: process.env.WORKSPACE_DOT_SCOPE_REVIEWED === '1',
+    externalBudgetVerified: process.env.WORKSPACE_DOT_EXTERNAL_BUDGET_VERIFIED === '1',
+  } : null;
   let app;
   try {
     app = await createApp({ dataDirectory, provider, access,
       workerAdapters: reviewedWorkers.adapters,
+      dotWorkerConfig,
       allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [],
       maxConcurrentRuns: mode === 'harness' ? 1 : 3 });
     await app.listen(port);

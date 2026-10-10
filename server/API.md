@@ -6,7 +6,17 @@ Node 24 ESM. The entrypoint serves frontend and API at loopback 127.0.0.1:8787. 
 
 企业主入口 `/workers`，原增长任务入口 `/services`。后端新增 `GET /api/cloud-expert-catalog`、`GET|POST /api/cloud-experts`、`GET|PATCH /api/cloud-experts/:id`、`POST /api/cloud-experts/:id/delegate`、`GET|POST /api/cloud-teams`、`GET|PATCH /api/cloud-teams/:id` 与 `GET /api/cloud-teams/:id/plan`、`POST /api/cloud-teams/:id/stage`（把团队成员的工作写入真正的待审批 Worker 任务单，校验总预算与单项上限；不自动派发）。所有配置写入只允许管理员，复用 Workspace 认证、CSRF、审计及持久单写者存储。Team plan 仅预览，不允许虚构并行执行。已绑定专家可使用现有 WorkerDesk 创建待独立审批任务。详见 `docs/CLOUD-WORKER-EXPERT-TEAMS.md`。
 
-## AI Worker service desk (business delegation, V1 branch)
+## ChatGPT dot xy · scoped plugin pull Worker
+
+Real host-only integration: `GET /api/dot-worker-connection` shows the audited worker's configured/pending/claimed/completed state without claiming that a dot is online. `GET /api/dot-worker-connection/tasks` returns lease and audit metadata for an enterprise administrator only.
+
+Dedicated authenticated plugin gateway: `/api/dot-worker/v1/identity`, `/inbox`, `/tasks/:taskRef`, `/tasks/:taskRef/status`, and the `POST` operations `claim`, `heartbeat`, `upload-file`, `submit-result`, `report-blocked`, `confirm-stop`, `events/:eventId/ack`. All paths are relative to `/api/dot-worker/v1`, require the host-approved server-side Bearer header (not a ChatGPT account credential) and never use browser sessions. Request and response schemas, idempotency, lease fences and evidence requirements are documented in [Dot Worker API](../docs/dot-worker-openapi.json).
+
+The Dot interface is *pull*, not inbound A2A. `dispatch` writes a durable `queued` task and does not assume dot actually started; real work requires a Dot plugin client to authenticate and claim it. Task claims are single-active, fenced and expire fail-closed. Reported evidence cannot bypass human review. Private RFQ delegation remains prohibited.
+
+**The real xy plugin identity/inbox tool calls currently return internal errors**; no live dot execution has been confirmed. This module is disabled by default and must not be marked production-ready without successful remote handshake, reviewed scopes, and a provider-enforced hard spending limit. See [integration guide](../docs/DOT-XY-INTEGRATION.md).
+
+## AI Worker service desk (business delegation)
 
 The enterprise homepage `/workers` is an outcome/service-oriented layer. Existing conversation, goal, artifact and exact-action connector interfaces are retained. This new V1 does **not** add a live third-party executor by default.
 

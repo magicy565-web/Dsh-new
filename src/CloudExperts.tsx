@@ -7,6 +7,11 @@ import { ExpertMark, ExpertTeamMark } from './expert-icons';
 import type { IconName } from './icons';
 
 type Role = 'admin' | 'operator' | 'viewer';
+type DotConnection = {
+  installed: boolean; approved: boolean; workerId?: string; ownerId: string;
+  pending?: number; claimed?: number; completed?: number;
+  lastSeenAt?: string | null; onlineVerified?: boolean;
+};
 type Skill = { id: string; title: string };
 type WorkerOption = { serviceId: string; workerId: string; name: string };
 type ExpertBrief = {
@@ -85,6 +90,7 @@ export default function CloudExperts({ role, onOpenServices, onManageTools }: { 
   const [catalog,setCatalog] = useState<Catalog>(emptyCatalog);
   const [hired,setHired] = useState<Hired[]>([]);
   const [teams,setTeams] = useState<Team[]>([]);
+  const [dotConnection,setDotConnection] = useState<DotConnection | null>(null);
   const [connectors,setConnectors] = useState<Connector[] | null>(null);
   const [installedSkills,setInstalledSkills] = useState<WorkspaceSkill[] | null>(null);
   const [tab,setTab] = useState<'market'|'mine'|'teams'>('market');
@@ -112,15 +118,16 @@ export default function CloudExperts({ role, onOpenServices, onManageTools }: { 
   const operator = role === 'admin';
 
   const load = useCallback(async () => {
-    const [available,experts,groups,tools,skills] = await Promise.all([
+    const [available,experts,groups,tools,skills,dot] = await Promise.all([
       api<Catalog>('/cloud-expert-catalog'),
       api<{experts:Hired[]}>('/cloud-experts'),
       api<{teams:Team[]}>('/cloud-teams'),
       api<{connectors:Connector[]}>('/connectors').then(x=>x.connectors).catch(()=>null),
       api<{skills:WorkspaceSkill[]}>('/skills').then(x=>x.skills).catch(()=>null),
+      api<DotConnection>('/dot-worker-connection').catch(()=>null),
     ]);
     setCatalog(available);setHired(experts.experts);setTeams(groups.teams);
-    setConnectors(tools);setInstalledSkills(skills);setLoaded(true);
+    setConnectors(tools);setInstalledSkills(skills);setDotConnection(dot);setLoaded(true);
   },[]);
   useEffect(()=>{
     let active=true;
@@ -319,6 +326,30 @@ export default function CloudExperts({ role, onOpenServices, onManageTools }: { 
       <div><Icon name="bolt" size={17}/><strong>{connected}</strong><span>已登记执行者</span></div>
       <p>岗位配置与云端执行分离。未连接的专家不会产生真实运行费用。</p>
     </div>
+
+    <section className="ce-dot-connection" aria-label="ChatGPT dot 云 Worker">
+      <div className="ce-dot-glyph"><Icon name="bolt" size={23}/></div>
+      <div className="ce-dot-content">
+        <div className="ce-dot-title"><strong>ChatGPT dot · xy</strong>
+          <span className={'ce-dot-state'+(dotConnection?.approved?' ce-dot-registered':'')}>
+            <i/>{!dotConnection ? '连接信息不可读取' :
+              !dotConnection.installed ? '尚未连接 Workspace 插件' :
+              !dotConnection.approved ? '待验证身份与预算' :
+              dotConnection.lastSeenAt ? '已配置 · 观察到插件握手' : '已配置 · 尚未观察到握手'}
+          </span>
+        </div>
+        <p>通过受控 Workspace 插件领取公开任务、执行云端研究并回传带原始证据的文件；不会模拟 dot 会话或复制 ChatGPT 凭据。</p>
+        <div className="ce-dot-metrics">
+          <span>等待领取 <b>{dotConnection?.pending ?? 0}</b></span>
+          <span>已领取 <b>{dotConnection?.claimed ?? 0}</b></span>
+          <span>已提交待验收 <b>{dotConnection?.completed ?? 0}</b></span>
+          {dotConnection?.lastSeenAt && <span>最近身份检查 {new Date(dotConnection.lastSeenAt).toLocaleString('zh-CN')}</span>}
+        </div>
+      </div>
+      <button className="ce-dot-action" type="button" onClick={() => { setTab('market');document.getElementById('ce-expert-catalog')?.scrollIntoView({behavior:'smooth'}); }}>
+        选择专家岗位 <Icon name="chevron" size={15}/>
+      </button>
+    </section>
 
     {alert && <div className={'ce-alert'+(alert.error?' error':'')} role={alert.error?'alert':'status'}><Icon name={alert.error?'info':'check'} size={18}/><span>{alert.text}</span><button type="button" onClick={()=>setAlert(null)} aria-label="关闭提示"><Icon name="close" size={16}/></button></div>}
 

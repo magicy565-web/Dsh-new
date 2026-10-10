@@ -7,6 +7,14 @@
 访问与会话保护、恢复/审计运维，以及真实 Harness 的中转适配；真实模型、
 实际托管环境、浏览器视觉验收和完整独立安全复核仍分别设门槛。
 
+## ChatGPT dot「xy」外部 Worker（仅受审核插件方式）
+
+已经加入受控的 Dot Pull Bridge：企业先批准公开研究任务，WorkerDesk 持久排队，个人 dot 通过专用 Workspace 插件领取任务、租约续期、上传真实文件与工具回执，最后由企业管理员验收。首页会显示 dot「xy」的登记/握手和排队状态，不会把尚未接单显示为执行中。
+
+**当前连接没有通过真实握手**：本次对已存在的 `Workspace___xy` 插件身份与收件箱调用均返回内部错误，因而不宣称 dot 已在线执行。没有真实可审核的凭据、供应商可强制的预算限制与 TLS 部署时必须保持默认关闭。
+
+详见 [Dot 实际接入与验收说明](docs/DOT-XY-INTEGRATION.md)、[插件 11 项动作 OpenAPI](docs/dot-worker-openapi.json)。
+
 ## 云端专家中心（主入口）
 
 当前专家市场包含 8 种独立 SVG 岗位图标（不使用字母头像或远程占位图），每位专家从统一后端目录返回完整作业规范：企业必需资料、研究方法、可编辑交付物、验收条件以及数据边界。配置界面读取当前 Workspace 已登记的 Skill 与 Connector 状态，并能打开现有权限管理页。参考 [真实图标总览](docs/expert-icons-sheet.svg) 和 [云端专家团队说明](docs/CLOUD-WORKER-EXPERT-TEAMS.md)。
