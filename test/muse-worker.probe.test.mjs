@@ -12,7 +12,7 @@ const mock = (identityOverride={},inboxOverride={}) => {
     calls.push({url,method:options.method,redirect:options.redirect,headers:options.headers});
     const body=url.endsWith('/identity')?{...identity,...identityOverride}:
       {workerId:'muse-personal-alpha',tasks:[],...inboxOverride};
-    return {status:200,headers:{get:()=>null},text:async()=>JSON.stringify(body)};
+    return Response.json(body);
   };
   return {fetcher,calls};
 };
@@ -66,12 +66,91 @@ test('identity mismatch and unexpectedly enabled Muse are not treated as handsha
 
 test('401 credentials, redirects and oversized responses fail closed',async()=>{
   const cases=[
-    [async()=>({status:401,headers:{get:()=>null},text:async()=>''}),'MUSE_UNAUTHORIZED'],
+    [async()=>new Response('',{status:401}),'MUSE_UNAUTHORIZED'],
     [async()=>{throw Error('Redirect is refused');},'MUSE_READ_FAILED'],
-    [async()=>({status:200,headers:{get:()=>null},text:async()=> 'a'.repeat(65_537)}),'MUSE_RESPONSE_TOO_LARGE'],
+    [async()=>new Response('a'.repeat(65_537)),'MUSE_RESPONSE_TOO_LARGE'],
   ];
   for(const [fetcher,code] of cases)
     await assert.rejects(probeMuseReadOnly({
       baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',fetcher,
     }),{code});
+});
+
+test('chunked oversized responses stop downloading and cancel before the inbox call',async()=>{
+  let reads=0, cancelled=false, calls=0;
+  const body=new ReadableStream({
+    pull(controller){
+      reads++;
+      // Deliberately unending: a post-download length check would never finish.
+      controller.enqueue(new Uint8Array(16_384).fill(97));
+    },
+    cancel(){cancelled=true;},
+  },{highWaterMark:0});
+  await assert.rejects(probeMuseReadOnly({
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    fetcher:async()=>{calls++;return new Response(body);},
+  }),{code:'MUSE_RESPONSE_TOO_LARGE'});
+  assert.equal(reads,5);
+  assert.equal(cancelled,true);
+  assert.equal(calls,1);
+  assert.equal(body.locked,false);
+});
+
+test('the response cap counts UTF-8 bytes and accepts the exact boundary',async()=>{
+  const prefix=JSON.stringify({...identity,muse:''});
+  const fixedBytes=Buffer.byteLength(prefix);
+  const makeBody=size=>JSON.stringify({...identity,muse:'a'.repeat(size-fixedBytes)});
+  for(const size of [65_536,65_537]){
+    const body=makeBody(size);
+    assert.equal(Buffer.byteLength(body),size);
+    const m=mock();
+    const options={baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+      fetcher:(url,opts)=>url.endsWith('/identity')?Promise.resolve(new Response(body)):m.fetcher(url,opts)};
+    if(size===65_536)assert.equal((await probeMuseReadOnly(options)).inboxCount,0);
+    else await assert.rejects(probeMuseReadOnly(options),{code:'MUSE_RESPONSE_TOO_LARGE'});
+  }
+  const unicodeBody=JSON.stringify({...identity,muse:'汉'.repeat(22_000)});
+  assert.ok(unicodeBody.length<65_536);
+  assert.ok(Buffer.byteLength(unicodeBody)>65_536);
+  await assert.rejects(probeMuseReadOnly({
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    fetcher:async()=>new Response(unicodeBody),
+  }),{code:'MUSE_RESPONSE_TOO_LARGE'});
+});
+
+test('an oversized declared body is cancelled without consuming any bytes',async()=>{
+  let reads=0,cancelled=false;
+  const body=new ReadableStream({
+    pull(){reads++;},cancel(){cancelled=true;},
+  },{highWaterMark:0});
+  await assert.rejects(probeMuseReadOnly({
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    fetcher:async()=>new Response(body,{headers:{'content-length':'65537'}}),
+  }),{code:'MUSE_RESPONSE_TOO_LARGE'});
+  assert.equal(reads,0);
+  assert.equal(cancelled,true);
+});
+
+test('split UTF-8 chunks decode correctly and malformed UTF-8 is rejected',async()=>{
+  const bytes=new TextEncoder().encode(JSON.stringify({...identity,muse:'个人 Muse'}));
+  const split=bytes.indexOf(228)+1;
+  const m=mock();
+  const result=await probeMuseReadOnly({
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    fetcher:(url,opts)=>{
+      if(!url.endsWith('/identity'))return m.fetcher(url,opts);
+      return Promise.resolve(new Response(new ReadableStream({start(controller){
+        controller.enqueue(bytes.slice(0,split));
+        controller.enqueue(bytes.slice(split));
+        controller.close();
+      }})));
+    },
+  });
+  assert.equal(result.workerId,identity.workerId);
+  const malformed=new Uint8Array([...new TextEncoder().encode('{"muse":"'),255,
+    ...new TextEncoder().encode('"}')]);
+  await assert.rejects(probeMuseReadOnly({
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    fetcher:async()=>new Response(malformed),
+  }),{code:'MUSE_RESPONSE_INVALID'});
 });

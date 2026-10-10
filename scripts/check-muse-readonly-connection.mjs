@@ -9,6 +9,7 @@ import path from 'node:path';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 const TOKEN = /^[A-Za-z0-9_-]{32,256}$/;
+const MAX_RESPONSE_BYTES = 65_536;
 export class MuseProbeError extends Error {
   constructor(code) { super(code); this.code = code; }
 }
@@ -38,10 +39,35 @@ async function requestJson(fetcher, url, token, signal) {
   } catch { fail('MUSE_READ_FAILED'); }
   if (!response || typeof response.status !== 'number') fail('MUSE_RESPONSE_INVALID');
   if (response.status !== 200) fail(response.status === 401 ? 'MUSE_UNAUTHORIZED' : 'MUSE_READ_FAILED');
-  if (Number(response.headers?.get?.('content-length') || 0) > 65_536) fail('MUSE_RESPONSE_TOO_LARGE');
-  let raw, parsed;
-  try { raw = await response.text(); if (raw.length > 65_536) fail('MUSE_RESPONSE_TOO_LARGE'); parsed = JSON.parse(raw); }
-  catch (error) { if (error instanceof MuseProbeError) throw error; fail('MUSE_RESPONSE_INVALID'); }
+  if (Number(response.headers?.get?.('content-length') || 0) > MAX_RESPONSE_BYTES) {
+    try { await response.body?.cancel(); } catch { /* Preserve the safe error code. */ }
+    fail('MUSE_RESPONSE_TOO_LARGE');
+  }
+  // Count decoded transport bytes while downloading. Content-Length may be
+  // absent or refer to compressed bytes, and JS string length is not UTF-8 size.
+  if (typeof response.body?.getReader !== 'function') fail('MUSE_RESPONSE_INVALID');
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0, parsed;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_RESPONSE_BYTES) fail('MUSE_RESPONSE_TOO_LARGE');
+      if (value.byteLength) chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch (error) {
+    try { await reader.cancel(); } catch { /* Never expose response or credential details. */ }
+    if (error instanceof MuseProbeError) throw error;
+    fail('MUSE_RESPONSE_INVALID');
+  } finally {
+    reader.releaseLock();
+  }
   if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') fail('MUSE_RESPONSE_INVALID');
   return parsed;
 }
