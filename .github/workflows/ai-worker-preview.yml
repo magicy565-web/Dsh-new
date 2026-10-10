@@ -32,6 +32,8 @@ jobs:
         run: node --test test/worker-desk.test.mjs test/worker-desk.http.test.mjs test/worker-a2a-adapter.test.mjs test/worker-a2a-host.test.mjs test/worker-delivery-artifact.test.mjs test/worker-a2a-network.test.mjs test/worker-opportunities.test.mjs test/worker-opportunities.http.test.mjs
       - name: Dot Pull Worker and actual MCP 2026/2025 protocol tests
         run: node --test test/dot-worker-bridge.test.mjs test/dot-worker.http.test.mjs test/dot-mcp.test.mjs
+      - name: Muse Personal REST gateway and exact Skill contract
+        run: node --test test/muse-worker.contract.test.mjs test/muse-worker.http.test.mjs
       - name: Existing backend / DOM regression
         run: npm run test:all
       - name: Install Chromium
