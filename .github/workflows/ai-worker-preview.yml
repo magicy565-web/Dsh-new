@@ -33,7 +33,7 @@ jobs:
       - name: Dot Pull Worker and actual MCP 2026/2025 protocol tests
         run: node --test test/dot-worker-bridge.test.mjs test/dot-worker.http.test.mjs test/dot-mcp.test.mjs
       - name: Muse Personal REST gateway and exact Skill contract
-        run: node --test test/muse-worker.contract.test.mjs test/muse-worker.http.test.mjs test/muse-worker.recovery.test.mjs
+        run: node --test test/muse-worker.contract.test.mjs test/muse-worker.http.test.mjs test/muse-worker.recovery.test.mjs test/muse-worker.probe.test.mjs
       - name: Existing backend / DOM regression
         run: npm run test:all
       - name: Install Chromium
