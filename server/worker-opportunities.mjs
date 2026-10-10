@@ -39,8 +39,9 @@ const requireAcceptedBuyers = (state, orderId) => {
   return order;
 };
 
-export function createWorkerOpportunityService({ store, maxOpportunities = 5000 } = {}) {
+export function createWorkerOpportunityService({ store, maxOpportunities = 5000, validateActor = hasId } = {}) {
   if (typeof store?.read !== 'function' || typeof store?.update !== 'function') throw new TypeError('Worker opportunities require the existing durable Workspace store.');
+  if (typeof validateActor !== 'function') throw new TypeError('Opportunity actors require the trusted Host validator.');
   if (!Number.isSafeInteger(maxOpportunities) || maxOpportunities < 1) throw new TypeError('Invalid opportunity capacity.');
   const list = () => (store.read().workerOpportunities || []);
   const get = id => requireOpportunity(store.read(), id);
@@ -52,7 +53,7 @@ export function createWorkerOpportunityService({ store, maxOpportunities = 5000 
      * Same company/website across orders is deduplicated, not relabeled.
      */
     importFromOrder(orderId, input, actor) {
-      if (!hasId(orderId) || !hasId(actor) ||
+      if (!hasId(orderId) || !validateActor(actor) ||
           !only(input, ['indices', 'requestId', 'confirmed']) || input.confirmed !== true ||
           !hasId(input.requestId) || !Array.isArray(input.indices) ||
           !input.indices.length || input.indices.length > 100 ||
@@ -107,7 +108,7 @@ export function createWorkerOpportunityService({ store, maxOpportunities = 5000 
       });
     },
     review(id, input, actor) {
-      if (!hasId(id) || !hasId(actor) ||
+      if (!hasId(id) || !validateActor(actor) ||
           !only(input, ['decision', 'notes', 'confirmed']) ||
           input.confirmed !== true || !['qualified', 'rejected'].includes(input.decision) ||
           (input.decision === 'qualified' && (!input.notes || typeof input.notes !== 'string' || !input.notes.trim())) ||

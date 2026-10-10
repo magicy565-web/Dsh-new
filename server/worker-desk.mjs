@@ -128,8 +128,9 @@ const cleanProspects = items => {
   });
 };
 
-export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null }) {
+export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null, validateActor = identifier }) {
   if (typeof store?.read !== 'function' || typeof store?.update !== 'function') throw new TypeError('Worker desk needs the existing durable workspace store.');
+  if (typeof validateActor !== 'function') throw new TypeError('Worker actors require the trusted Host validator.');
   const adapterMap = new Map();
   for (const [id, adapter] of Object.entries(adapters)) {
     if (!identifier(id) || !keysOnly(adapter, ['services', 'ready', 'budgetEnforced', 'submit', 'get', 'cancel', 'reconcile', 'displayName', 'capabilities'])
@@ -174,7 +175,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
       const service = findService(input.serviceId);
       if (!service) fail(404, 'SERVICE_NOT_FOUND', 'Choose a published service.');
       if (service.dataMode !== 'public') fail(409, 'PRIVATE_GATEWAY_REQUIRED', 'Private enterprise data cannot be delegated until an isolated, reviewed gateway is ready.');
-      if (!identifier(actor) || !identifier(input.requestId)) fail(400, 'INVALID_INPUT', 'Stable actor and request identities are required.');
+      if (!validateActor(actor) || !identifier(input.requestId)) fail(400, 'INVALID_INPUT', 'Stable actor and request identities are required.');
       const product = safeText(input.product, 'product', 240);
       const market = safeText(input.market, 'market', 100);
       const objective = safeText(input.objective, 'objective', 2500);

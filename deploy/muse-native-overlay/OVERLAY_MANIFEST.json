@@ -1,0 +1,84 @@
+{
+  "format": "workspace.native-muse-overlay.v1",
+  "productionRelease": "/opt/workspace-dot/releases/7279e6346910b43fc879f5a99fd581be47a9a73f",
+  "reviewedModuleCommit": "c369a1dd241d3842a4ca033e731bddc257c3dc87",
+  "goLiveApprovedByUser": true,
+  "deployed": false,
+  "files": [
+    {
+      "path": "server/workspace-plugin-service.mjs",
+      "beforeSha256": "9ce0ea124fa0ab0542d481eb1ca78689cd9a70dfcdb9f8fe02ab499ca79eb04b",
+      "afterSha256": "cbb3e38bc514ad5a4ce4d2ca449607ec5e1004bee31ea9b6b9961980cf50e80d",
+      "bytes": 37621
+    },
+    {
+      "path": "server/workspace-plugin-frontend.mjs",
+      "beforeSha256": "83b92344496fb07cb5098af0b9aa3f8e3e87dbc3e860d0257e9b7223374d6a7e",
+      "afterSha256": "6ce4d67b9df2baafe22bbe260d380e90ce4ccdc31cbc8146e39cafa5014317e3",
+      "bytes": 20937
+    },
+    {
+      "path": "deploy/native-dot-host.mjs",
+      "beforeSha256": "6849a01adc981920fc322c7ff39bda02dd3e53bbb7d575618f263c2befb85f0d",
+      "afterSha256": "4e89e1da777871e40ccf36d4ad02b3a391f5e0543cbb986084e4dc1333254930",
+      "bytes": 17561
+    },
+    {
+      "path": "server/muse-worker-native.mjs",
+      "beforeSha256": null,
+      "afterSha256": "c964a3b82ad2a0cf063867c2cee33dc2988e93350f04dc366e8a590f5c09c1a0",
+      "bytes": 12175
+    },
+    {
+      "path": "server/muse-worker-host.mjs",
+      "beforeSha256": null,
+      "afterSha256": "408ccf78c247ee5fecdbd20943434f81c99f1d238aeadb4fb2f42921791e1593",
+      "bytes": 3201
+    },
+    {
+      "path": "server/muse-worker-api.mjs",
+      "beforeSha256": null,
+      "afterSha256": "d1e088ff958c12bf98da4f134ffa0c669755849b2fb3a1f9f709422868394854",
+      "bytes": 5966
+    },
+    {
+      "path": "server/dot-worker-bridge.mjs",
+      "beforeSha256": null,
+      "afterSha256": "b1101eb94f69f98d1f109c560ce7eacb31119fd8df108ca3c97f7e8a82f3af4e",
+      "bytes": 24167
+    },
+    {
+      "path": "server/worker-desk.mjs",
+      "beforeSha256": null,
+      "afterSha256": "0315c7d0641697d3a7d68d4b7dc7150d8c8840d46cf0a9984b6285c9e6b25824",
+      "bytes": 25230
+    },
+    {
+      "path": "server/worker-opportunities.mjs",
+      "beforeSha256": null,
+      "afterSha256": "f23268d4bb25e7d0ffa3e2b2fda8ae0a189bb4e2c4de8d3884b6431c567abb7a",
+      "bytes": 7682
+    },
+    {
+      "path": "test/muse-worker.native-binding.test.mjs",
+      "beforeSha256": null,
+      "afterSha256": "5c809aa94a2753474faa6f9355047fc8f6c5e09ef3d1c26ef7e1b537f2c61e4f",
+      "bytes": 15744
+    },
+    {
+      "path": "test/muse-worker.native-production.test.mjs",
+      "beforeSha256": null,
+      "afterSha256": "10c648493dc2a1c08a2eb75bb0ce60ad370a8a92d4608a4ab390e991c81ba35d",
+      "bytes": 9497
+    }
+  ],
+  "validation": {
+    "nodeVersion": "24.21.0",
+    "memoryNativeBindingTests": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 0
+    },
+    "linuxDiskAndCordisVerified": false
+  }
+}

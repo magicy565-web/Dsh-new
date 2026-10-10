@@ -1,0 +1,57 @@
+# Native Muse deployment candidate
+
+This is an overlay for the verified Huawei Cordis release at
+`/opt/workspace-dot/releases/7279e6346910b43fc879f5a99fd581be47a9a73f`.
+The directory name is not claimed to be its Git commit. It is not a replacement
+standalone application. Production has not been changed by this candidate.
+
+`OVERLAY_MANIFEST.json` records the exact original SHA256 for modified production
+files and candidate SHA256 for every payload. Reject any changed baseline or
+unexpected existing new module before applying the overlay to a fresh candidate
+directory. Do not apply directly to the running release or data directory.
+
+The production service, HTTP frontend and native Host entry were retrieved as raw
+bytes and verified against independently measured Git blob hashes. Their mixed
+newlines are preserved outside the changed anchors. Muse reuses the parent's
+guarded writer, artifact service, reviewed owner and Cordis lifetime. The WorkerDesk
+implementation from PR15 is reused once; the production release had no WorkerDesk
+module. No listener, writer, model runtime, native Agent or scheduler is created.
+
+The Host mounts Muse only when `WORKSPACE_MUSE_REST_FILE` points to an explicitly
+selected private configuration. Its schema is `{version:1, worker, actor}`;
+`actor` must exactly match one original `plugin.operators` entry. `worker` permits
+only `workerId`, `ownerId`, `tokenDigest`, `enabled`, `scopeReviewed`,
+`externalBudgetVerified`. Use a separate reviewed Muse digest and leave the three
+execution gates false for the first identity/inbox handshake. The actual bearer
+belongs in Muse Secure Vault, not this package or a chat message.
+
+The trusted local HTTPS proxy must forward the exact original Workspace Host to
+the existing backend and expose only `/api/muse-worker/v1/` on the Muse hostname.
+Employee APIs retain original ingress assertions, sessions, roles and body checks.
+Muse business orders/acceptance/import require the reviewed administrator and fixed
+native actor. A Muse bearer cannot enter those employee routes.
+
+Uploads and accepted receipts use the artifact service's native `workerOwner`
+admission, plus fixed owner metadata. Shared editing cannot forge reserved Muse
+ownership or upload/receipt request identities. The production
+`worker-artifact-access.mjs` was retrieved and confirms immutable `workerOwner`
+controls ownership. Editable metadata alone cannot authorize a download.
+
+Lifecycle changes expire the original Muse lease without changing attempt IDs,
+fences or remote receipts. They do not replay work. Explicit trusted Host reviews
+withdraw and drain the old Muse binding before remounting the same configuration
+at the reviewed epoch. Cached handles then fail closed. Unfinished Muse tasks
+prevent scope resume until the original order is reconciled or stopped.
+
+Node 24.21.0 validation: eight memory native-boundary tests passed, zero failed or
+skipped. A combined run with the existing host, contract, ingress and probe tests
+passed 34 tests, zero failed or skipped. These overlapping counts are not additive.
+They test actual HTTP/bridge/WorkerDesk code with synthetic memory parent services;
+they are not Linux durability, Cordis boot, authenticated Muse or research evidence.
+Syntax checks passed for all three modified production modules.
+
+Required deployment checks: isolated Linux tests using actual production source
+and native Harness, shutdown/drain/rollback, original Dot/OAuth regression, narrow
+HTTPS ingress and TLS, then independent Muse identity/inbox. Real execution still
+requires Secure Vault authorization, reviewed public scope, provider-side budget,
+and administrator approval. No actual Muse task has been executed or accepted.
