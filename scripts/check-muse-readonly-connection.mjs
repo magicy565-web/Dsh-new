@@ -5,6 +5,7 @@
  * HTTPS-only, no redirects, bounded responses; never prints credentials.
  */
 import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 const TOKEN = /^[A-Za-z0-9_-]{32,256}$/;
@@ -73,7 +74,7 @@ export async function probeMuseReadOnly({ baseUrl, token, expectedWorkerId,
   });
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === fileURLToPath(new URL('file://' + process.argv[1]))) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   try {
     const result = await probeMuseReadOnly({
       baseUrl: process.env.WORKSPACE_MUSE_PROBE_URL,
