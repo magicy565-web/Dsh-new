@@ -20,6 +20,7 @@ import { createCloudExpertService, CloudExpertError } from './cloud-experts.mjs'
 import { loadReviewedA2AWorkers } from './worker-a2a-host.mjs';
 import { createDotWorkerBridge, createDotWorkerAuth, DotWorkerError } from './dot-worker-bridge.mjs';
 import { handleDotMcpHttp } from './dot-mcp-server.mjs';
+import { createMuseWorkerHandler, MuseWorkerError } from './muse-worker-api.mjs';
 import { AccessError, validateAccessConfig, createAccessControl, accessConfigFromEnvironment } from './access.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -59,13 +60,13 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHandler;
   try {
     recovery = await readRecoveryStatus(store.directory, provider.kind);
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
@@ -82,8 +83,30 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     }) : null;
     if (dotBridge && Object.hasOwn(workerAdapters, dotWorkerConfig.workerId || 'chatgpt-dot-xy'))
       throw new TypeError('A Dot Worker ID cannot overwrite another reviewed execution adapter.');
+    if (museWorkerConfig) {
+      const museId = museWorkerConfig.workerId || 'muse-personal-owner';
+      if (Object.hasOwn(workerAdapters, museId) ||
+          (dotBridge && museId === (dotWorkerConfig.workerId || 'chatgpt-dot-xy')))
+        throw new TypeError('Muse and Dot worker identities must be distinct.');
+      if (dotWorkerConfig?.tokenDigest && museWorkerConfig.tokenDigest === dotWorkerConfig.tokenDigest)
+        throw new TypeError('Muse and Dot must never share a Bearer credential.');
+      museBridge = createDotWorkerBridge({
+        store, artifacts, agentKind: 'muse', workerId: museId,
+        ownerId: museWorkerConfig.ownerId || 'personal',
+        enabled: museWorkerConfig.enabled === true,
+        scopeReviewed: museWorkerConfig.scopeReviewed === true,
+        externalBudgetVerified: museWorkerConfig.externalBudgetVerified === true,
+      });
+      museHandler = createMuseWorkerHandler({
+        bridge: museBridge, tokenDigest: museWorkerConfig.tokenDigest, readBody, respond,
+      });
+    }
     workerDesk = createWorkerServiceDesk({ store,
-      adapters: { ...workerAdapters, ...(dotBridge ? { [dotWorkerConfig.workerId || 'chatgpt-dot-xy']: dotBridge.adapter } : {}) },
+      adapters: {
+        ...workerAdapters,
+        ...(dotBridge ? { [dotWorkerConfig.workerId || 'chatgpt-dot-xy']: dotBridge.adapter } : {}),
+        ...(museBridge ? { [museWorkerConfig.workerId || 'muse-personal-owner']: museBridge.adapter } : {}),
+      },
       artifacts });
     workerOpportunities = createWorkerOpportunityService({ store });
     cloudExperts = createCloudExpertService({ store, workerCatalog: () => workerDesk.catalog(), workerDesk });
@@ -129,6 +152,12 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const url = new URL(req.url, 'http://localhost');
       const pathname = url.pathname.replace(/\/$/, '') || '/';
       const method = req.method;
+      // Muse is a separate, authenticated REST API; it does not share the Dot
+      // worker credential, task queue or MCP plugin protocol.
+      if (pathname.startsWith('/api/muse-worker/')) {
+        if (!museHandler) throw new ApiError(404, 'MW_GATEWAY_UNAVAILABLE', 'Muse REST gateway is not configured on this host.');
+        return await museHandler(req, res, pathname);
+      }
       // Real MCP Streamable HTTP endpoint for ChatGPT plugins. The REST
       // bridge below is deliberately NOT an MCP server. Both transports
       // require the same reviewed private dot credential.
@@ -197,6 +226,12 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (oneCloudExpert) return await respond(res, 200, { expert: cloudExperts.getExpert(oneCloudExpert[1]) });
         const oneCloudTeam = pathname.match(/^\/api\/cloud-teams\/([^/]+)(?:\/(plan))?$/);
         if (oneCloudTeam) return await respond(res, 200, oneCloudTeam[2] ? { plan: cloudExperts.planTeam(oneCloudTeam[1]) } : { team: cloudExperts.getTeam(oneCloudTeam[1]) });
+        if (pathname === '/api/muse-worker-connection/tasks') {
+          if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only enterprise administrators can inspect Muse task lease/audit records.');
+          return await respond(res, 200, { tasks: museBridge ? museBridge.adminTasks() : [] });
+        }
+        if (pathname === '/api/muse-worker-connection')
+          return await respond(res, 200, museBridge ? museBridge.info() : { installed:false, approved:false, ownerId:null, onlineVerified:false });
         if (pathname === '/api/dot-worker-connection/tasks') {
           if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only enterprise administrators can inspect Dot lease/audit records.');
           return await respond(res, 200, { tasks: dotBridge ? dotBridge.adminTasks() : [] });
@@ -333,7 +368,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
     } catch (error) {
-      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof CloudExpertError || error instanceof DotWorkerError || error instanceof AccessError;
+      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof CloudExpertError || error instanceof DotWorkerError || error instanceof MuseWorkerError || error instanceof AccessError;
       try {
         if (!res.accessFinish) await access.recordDenial(error);
         if (!res.headersSent) await respond(res, safe ? error.status : 500, { error: { code: safe ? error.code : 'INTERNAL_ERROR', message: safe ? error.message : 'The server could not complete this action. Please retry.' } });
@@ -350,7 +385,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, access, diagnostics,
+    server, runtime, store, artifacts, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');
@@ -407,6 +442,16 @@ async function main() {
   // a reviewed ChatGPT plugin can pull scoped public work from this host.
   if (process.env.WORKSPACE_DOT_ENABLED === '1' && !process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256)
     throw new Error('WORKSPACE_DOT_ENABLED requires a server-side pinned dot plugin token hash.');
+  if (process.env.WORKSPACE_MUSE_ENABLED === '1' && !process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256)
+    throw new Error('WORKSPACE_MUSE_ENABLED requires a server-side pinned Muse token hash.');
+  const museWorkerConfig = process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256 ? {
+    workerId: process.env.WORKSPACE_MUSE_WORKER_ID || 'muse-personal-owner',
+    ownerId: process.env.WORKSPACE_MUSE_OWNER_ID || 'personal',
+    tokenDigest: process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256,
+    enabled: process.env.WORKSPACE_MUSE_ENABLED === '1',
+    scopeReviewed: process.env.WORKSPACE_MUSE_SCOPE_REVIEWED === '1',
+    externalBudgetVerified: process.env.WORKSPACE_MUSE_EXTERNAL_BUDGET_VERIFIED === '1',
+  } : null;
   const dotWorkerConfig = process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256 ? {
     workerId: process.env.WORKSPACE_DOT_WORKER_ID || 'chatgpt-dot-xy',
     ownerId: process.env.WORKSPACE_DOT_OWNER_ID || 'xy',
@@ -419,7 +464,7 @@ async function main() {
   try {
     app = await createApp({ dataDirectory, provider, access,
       workerAdapters: reviewedWorkers.adapters,
-      dotWorkerConfig,
+      dotWorkerConfig, museWorkerConfig,
       allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [],
       maxConcurrentRuns: mode === 'harness' ? 1 : 3 });
     await app.listen(port);
