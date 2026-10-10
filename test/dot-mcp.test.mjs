@@ -33,7 +33,9 @@ async function jsonRpc(base, message, options = {}) {
     headers['MCP-Protocol-Version'] = PROTOCOL;
     headers['Mcp-Method'] = message.method;
     if (message.method === 'tools/call') headers['Mcp-Name'] = message.params?.name;
-    message = { ...message, params: { ...message.params, _meta: meta } };
+    message = { ...message, params: { ...message.params, _meta: options.omitClientInfo
+      ? Object.fromEntries(Object.entries(meta).filter(([key]) => key !== 'io.modelcontextprotocol/clientInfo'))
+      : meta } };
   }
   Object.assign(headers, options.headers || {});
   const response = await fetch(base + (options.url || '/mcp'), {
@@ -65,8 +67,20 @@ test('real MCP 2026 discovery and eleven genuine plugins over authenticated Stre
   assert.equal(identity.body.result.structuredContent.approved, true);
   const inbox = await jsonRpc(base, toolCall('workspace_worker_inbox', {}));
   assert.deepEqual(inbox.body.result.structuredContent.tasks, []);
+  const connection = await (await fetch(base + '/api/dot-worker-connection')).json();
+  assert.ok(connection.lastSeenAt, 'Authenticated MCP identity and inbox calls must persist handshake');
 });
 
+test('modern client omits optional clientInfo without losing dot identity', async t => {
+  const { base } = await start(t);
+  const discovery = await jsonRpc(base, rpc('server/discover', 21), { omitClientInfo: true });
+  assert.equal(discovery.status, 200);
+  const inbox = await jsonRpc(base, toolCall('workspace_worker_inbox', {}, 22), { omitClientInfo: true });
+  assert.equal(inbox.status, 200);
+  assert.deepEqual(inbox.body.result.structuredContent.tasks, []);
+  const connection = await (await fetch(base + '/api/dot-worker-connection')).json();
+  assert.ok(connection.lastSeenAt);
+});
 test('legacy initialized MCP client can enumerate and call tools without a fake tokenless API', async t => {
   const { base } = await start(t);
   const init = await jsonRpc(base, rpc('initialize', 1, {

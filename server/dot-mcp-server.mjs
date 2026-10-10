@@ -38,8 +38,8 @@ export async function callDotMcpTool(bridge, name, input = {}) {
   if (!args) throw new DotWorkerError(404, 'MCP_TOOL_NOT_FOUND', 'This tool is not part of the reviewed Dot plugin.');
   // Explicit closed mapping. No URLs, arbitrary tool names, or executable code.
   switch (name) {
-    case 'workspace_worker_identity': return bridge.identity();
-    case 'workspace_worker_inbox': return bridge.inbox();
+    case 'workspace_worker_identity': { const result = bridge.identity(); await bridge.recordSeen(); return result; }
+    case 'workspace_worker_inbox': { const result = bridge.inbox(); await bridge.recordSeen(); return result; }
     case 'workspace_worker_read_task': return bridge.readTask(args.taskRef);
     case 'workspace_worker_claim_task': return bridge.claimTask(args);
     case 'workspace_worker_status': return bridge.status(args.taskRef);
@@ -93,7 +93,8 @@ function transportVersion(req, message) {
   const name = req.headers['mcp-name'];
   if (version !== MODERN_MCP_VERSION ||
       meta?.['io.modelcontextprotocol/protocolVersion'] !== MODERN_MCP_VERSION ||
-      !jsonObject(meta?.['io.modelcontextprotocol/clientInfo']) ||
+      (meta?.['io.modelcontextprotocol/clientInfo'] !== undefined &&
+       !jsonObject(meta['io.modelcontextprotocol/clientInfo'])) ||
       !jsonObject(meta?.['io.modelcontextprotocol/clientCapabilities']) ||
       mirrored !== message.method ||
       (message.method === 'tools/call' ? name !== message.params?.name : name !== undefined)) {
