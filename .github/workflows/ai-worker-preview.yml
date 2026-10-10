@@ -42,11 +42,15 @@ jobs:
         run: node test/worker-opportunities.browser.mjs
       - name: Real expert icon, role dossier and team work-order browser test
         run: node test/cloud-expert-experience.browser.mjs
+      - name: Muse, enterprise libraries and product hosting browser flow
+        run: node test/muse-commerce.browser.mjs
       - name: Upload visual evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ai-worker-browser-evidence
-          path: evidence/browser/
+          path: |
+            evidence/browser/
+            docs/screenshots/muse-commerce/
           if-no-files-found: warn
           retention-days: 7

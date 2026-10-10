@@ -1,7 +1,23 @@
 # Workspace Agent: repository handoff
 
 This is the `0.5.0-rc.2` development candidate. It is not production-ready.
-Preserve the chat-first product, guarded execution runtime and source tree.
+Preserve the Muse goal-first home, existing chat and expert flows, guarded
+execution runtime and source tree.
+
+## Latest Muse / commerce checkpoint
+
+The current development branch integrates the Muse home and focused goal session,
+versioned enterprise product/company libraries and durable product hosting scopes.
+Shopify Admin GraphQL verifies actual store identity and scopes, and reads tagged
+order evidence; it does not publish, fulfill, spend or bill.
+Read [Muse / commerce implementation and limits](docs/MUSE-COMMERCE-WORKSPACE.md)
+before continuing this work. The default home is `/`; experts remain at `/workers`.
+
+Verified locally: official build; 343 backend tests passed, 6 native-build tests
+skipped, no failures; 19 DOM/HTTP regressions passed; 9 real Chromium business-flow
+checks passed. The six skipped tests and real native/cloud/Shopify deployment
+remain separate acceptance work. GitHub CI currently reports `startup_failure`
+with no jobs started; local passing results do not imply CI passed.
 
 ## Run from source
 
@@ -43,7 +59,7 @@ approval. Model text must not approve itself, enlarge capabilities, configure
 credentials or execute arbitrary code. Preserve cancel, retry, stale-response,
 permission and recovery fences. The application is not an official Muse product.
 
-## Final checkpoint verification
+## Historical checkpoint verification
 
 Checkpoint: 2026-10-04, before GitHub source publication.
 
