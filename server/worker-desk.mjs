@@ -278,6 +278,14 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         if (!['queued', 'running', 'cancel_requested', 'dispatch_uncertain', 'input_required'].includes(current.status)) fail(409, 'INVALID_STATE', 'Order changed during status retrieval.');
         current.remoteJobId ??= snapshot.jobId;
         if (cost !== null) current.reportedCostCredits = cost;
+        // A late result or queue response cannot undo an operator's stop request.
+        // Preserve the cancellation until this exact remote job acknowledges it.
+        if (current.status === 'cancel_requested' && snapshot.status !== 'cancelled') {
+          if (cost !== null && cost > current.budgetCredits)
+            current.error = { code: 'BUDGET_EXCEEDED', message: 'The Worker reported costs above the approved limit. Suspend settlement and investigate.' };
+          current.updatedAt = now();
+          return { order: current };
+        }
         if (cost !== null && cost > current.budgetCredits) {
           current.status = 'budget_dispute'; current.error = { code: 'BUDGET_EXCEEDED', message: 'The Worker reported costs above the approved limit. Suspend settlement and investigate.' };
         } else if (snapshot.status === 'completed') {

@@ -45,10 +45,10 @@ test('hiring a cloud expert persists settings but does not start an unverified r
   const again = await service.hire(hire('buyer-hunter','buyer-hire'), 'admin');
   assert.equal(again.duplicate,true);
   assert.equal(again.expert.id,draft.expert.id);
-  await assert.rejects(service.hire(hire('buyer-hunter','buyer-hire',{ alias:'different' }), 'admin'), { code:'IDEMPOTENCY_CONFLICT' });
-  await assert.rejects(service.hire(hire('buyer-hunter','no-consent',{ publicDataConfirmed:false }), 'admin'), { code:'EXPLICIT_CONFIRMATION_REQUIRED' });
-  await assert.rejects(service.hire(hire('rfq-analyst','private',{serviceId:'rfq-recovery'}), 'admin'), { code:'SERVICE_SCOPE_INVALID' });
-  await assert.rejects(service.hire(hire('buyer-hunter','unsafe',{credentials:'secret'}), 'admin'), { code:'INVALID_INPUT' });
+  await assert.rejects(async () => service.hire(hire('buyer-hunter','buyer-hire',{ alias:'different' }), 'admin'), { code:'IDEMPOTENCY_CONFLICT' });
+  await assert.rejects(async () => service.hire(hire('buyer-hunter','no-consent',{ publicDataConfirmed:false }), 'admin'), { code:'EXPLICIT_CONFIRMATION_REQUIRED' });
+  await assert.rejects(async () => service.hire(hire('rfq-analyst','private',{serviceId:'rfq-recovery'}), 'admin'), { code:'SERVICE_SCOPE_INVALID' });
+  await assert.rejects(async () => service.hire(hire('buyer-hunter','unsafe',{credentials:'secret'}), 'admin'), { code:'INVALID_INPUT' });
 });
 test('only reviewed registered task executors can be bound; revision guard prevents stale overwrite', async t => {
   const { service } = await setup(t);
@@ -56,7 +56,7 @@ test('only reviewed registered task executors can be bound; revision guard preve
     serviceId:'buyer-discovery',workerId:'reviewed-worker',skills:['buyer-screening'],
   }), 'admin');
   assert.equal(created.expert.runtimeReady,true);
-  await assert.rejects(service.configure(created.expert.id,{
+  await assert.rejects(async () => service.configure(created.expert.id,{
     workerId:'unreviewed-agent', expectedRevision:1,
   },'admin'),{code:'WORKER_UNAVAILABLE'});
   const updated = await service.configure(created.expert.id,{
@@ -65,7 +65,7 @@ test('only reviewed registered task executors can be bound; revision guard preve
   },'admin');
   assert.equal(updated.expert.maxCredits,17);
   assert.equal(updated.expert.revision,2);
-  await assert.rejects(service.configure(created.expert.id,{
+  await assert.rejects(async () => service.configure(created.expert.id,{
     maxCredits:6, expectedRevision:1,
   },'admin'), {code:'REVISION_CONFLICT'});
 });
@@ -96,8 +96,8 @@ test('expert teams require two distinct configured positions, budget bounds and 
   },'admin');
   assert.equal(edited.team.name,'US wholesale growth');
   assert.equal(edited.team.revision,2);
-  await assert.rejects(service.configureTeam(created.team.id,{expectedRevision:1,budgetCredits:120},'admin'),{code:'REVISION_CONFLICT'});
-  await assert.rejects(service.formTeam({
+  await assert.rejects(async () => service.configureTeam(created.team.id,{expectedRevision:1,budgetCredits:120},'admin'),{code:'REVISION_CONFLICT'});
+  await assert.rejects(async () => service.formTeam({
     requestId:'bad-budget',templateId:'overseas-growth',name:'Invalid team',
     mission:'Research outside markets',leadId:lead.id,memberIds:[buyer.id],
     budgetCredits:10,taskCeilingCredits:30,
@@ -105,9 +105,9 @@ test('expert teams require two distinct configured positions, budget bounds and 
 });
 test('client cannot pass arbitrary connector URLs, credentials or private tool entitlements', async t=>{
   const { service }=await setup(t);
-  await assert.rejects(service.hire(hire('buyer-hunter','url',{endpoint:'https://evil.example'}),'admin'),{code:'INVALID_INPUT'});
-  await assert.rejects(service.hire(hire('buyer-hunter','forbidden',{skills:['send-email']}),'admin'),{code:'SKILL_SCOPE_INVALID'});
-  await assert.rejects(service.hire(hire('buyer-hunter','unauthorized',{workerId:'my-personal-dot'}),'admin'),{code:'WORKER_UNAVAILABLE'});
+  await assert.rejects(async () => service.hire(hire('buyer-hunter','url',{endpoint:'https://evil.example'}),'admin'),{code:'INVALID_INPUT'});
+  await assert.rejects(async () => service.hire(hire('buyer-hunter','forbidden',{skills:['send-email']}),'admin'),{code:'SKILL_SCOPE_INVALID'});
+  await assert.rejects(async () => service.hire(hire('buyer-hunter','unauthorized',{workerId:'my-personal-dot'}),'admin'),{code:'WORKER_UNAVAILABLE'});
 });
 
 
@@ -134,10 +134,10 @@ test('a staffed expert delegates only to the existing reviewed work-order interf
   assert.equal(submitted.input.publicDataConfirmed,true);
   assert.deepEqual(Object.keys(submitted.input).sort(),['budgetCredits','deadlineAt','market','objective','product','publicDataConfirmed','requestId','serviceId','workerId']);
   assert.equal(store.read().cloudExperts[0].delegations[0].orderId,'real-draft-order');
-  await assert.rejects(service.delegateExpert(bound.id,{...payload,budgetCredits:21},'admin'),{code:'INVALID_BUDGET'});
-  await assert.rejects(service.delegateExpert(bound.id,{...payload,privateFile:'/etc/secrets'},'admin'),{code:'INVALID_DELEGATION'});
+  await assert.rejects(async () => service.delegateExpert(bound.id,{...payload,budgetCredits:21},'admin'),{code:'INVALID_BUDGET'});
+  await assert.rejects(async () => service.delegateExpert(bound.id,{...payload,privateFile:'/etc/secrets'},'admin'),{code:'INVALID_DELEGATION'});
   const unbound=(await service.hire(hire('market-analyst','unbound',{
     serviceId:'channel-validation',workerId:null,
   }),'admin')).expert;
-  await assert.rejects(service.delegateExpert(unbound.id,payload,'admin'),{code:'WORKER_UNAVAILABLE'});
+  await assert.rejects(async () => service.delegateExpert(unbound.id,payload,'admin'),{code:'WORKER_UNAVAILABLE'});
 });

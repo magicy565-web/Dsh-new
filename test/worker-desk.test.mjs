@@ -142,6 +142,28 @@ test('buyer research cannot pass human acceptance with a summary but no actual p
   await assert.rejects(desk.accept(order.id, 'admin', { confirmed: true }), { code: 'INVALID_STATE' });
 });
 
+test('a queued or completed remote response cannot revoke a pending cancellation', async t => {
+  let remoteState='queued';
+  const {desk}=await harness(t,{partner:readyAdapter({async get(jobId) {return {
+    jobId,status:remoteState,
+    deliverables:[{name:'Synthetic report',type:'table',summary:'Local fixture only'}],
+    evidence:[{title:'Fixture source',url:'https://www.loc.gov/about/',detail:'No research was performed'}],
+    prospects:[{name:'Synthetic candidate',country:'US',website:'https://www.loc.gov',
+      sourceUrl:'https://www.loc.gov/about/',fitReason:'Local test row only'}],
+  };}})});
+  const {order}=await desk.create(request('cancel-late-result'),'operator');
+  await desk.approve(order.id,'admin',{confirmed:true,workerId:'partner'});
+  await desk.dispatch(order.id);
+  await desk.cancel(order.id);
+  for(const state of ['queued','completed','input_required']) {
+    remoteState=state;
+    assert.equal((await desk.refresh(order.id)).order.status,'cancel_requested');
+    await assert.rejects(desk.accept(order.id,'admin',{confirmed:true}),{code:'INVALID_STATE'});
+  }
+  remoteState='cancelled';
+  assert.equal((await desk.refresh(order.id)).order.status,'cancelled');
+});
+
 test('duplicated buyer company/domain is rejected instead of inflating lead counts', async t => {
   const first = { name: 'Wholesale Fixture', country: 'USA', website: 'https://buyer.example.org',
     fitReason: 'Relevant stock catalog', sourceUrl: 'https://buyer.example.org/about' };

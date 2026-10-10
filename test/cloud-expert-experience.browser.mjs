@@ -45,7 +45,7 @@ try{
     leadId:lead.id,memberIds:[buyer.id],budgetCredits:50,taskCeilingCredits:20,
     requestId:'browser-create-team',
   });
-  browser=await chromium.launch({headless:true,chromiumSandbox:true,
+  browser=await chromium.launch({headless:true,chromiumSandbox:process.env.CHROMIUM_NO_SANDBOX!=='1',
     ...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
   const page=await browser.newPage({viewport:{width:1340,height:900}});
   page.on('pageerror',e=>javascriptErrors.push(e.message));

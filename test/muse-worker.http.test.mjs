@@ -228,6 +228,100 @@ test('Muse remains non-executable without reviewed external hard budget',async t
   assert.equal((await call(base+'/tasks/missing/claim','POST',{requestId:'not-authorized'},museKey)).status,403);
 });
 
+test('Muse cancellation after submission remains requested until the original attempt acknowledges stop',async t=>{
+  const {call}=await setup(t);
+  const base='/api/muse-worker/v1';
+  const id=await dispatch(call,'muse-personal-alpha','muse-submit-cancel-005');
+  const attempt=(await call(base+'/tasks/'+id+'/claim','POST',{requestId:'claim-submit-cancel-005'},museKey)).data;
+  const bytes=Buffer.from(JSON.stringify(report(id)));
+  assert.equal((await call(base+'/tasks/'+id+'/upload-file','POST',{
+    attemptId:attempt.attemptId,fence:attempt.fence,uploadId:'cancel-upload-005',
+    filename:'synthetic-candidates.json',base64:bytes.toString('base64'),sha256:hash(bytes),
+  },museKey)).status,201);
+  assert.equal((await call(base+'/tasks/'+id+'/submit-result','POST',{
+    attemptId:attempt.attemptId,fence:attempt.fence,requestId:'submit-cancel-005',
+    summary:'Synthetic test data; no research was performed.',sources:[doc],
+    evidenceNote:'Local HTTP fixture only; there is no real Muse execution or tool receipt.',
+  },museKey)).status,200);
+  assert.equal((await call('/api/worker-orders/'+id+'/cancel','POST',{})).data.order.status,'cancel_requested');
+  const status=(await call(base+'/tasks/'+id+'/status','GET',undefined,museKey)).data;
+  assert.equal(status.cancellationRequested,true);
+  assert.equal(status.canExecute,false);
+  assert.equal((await call('/api/worker-orders/'+id+'/refresh','POST',{})).data.order.status,'cancel_requested');
+  assert.equal((await call(base+'/tasks/'+id+'/confirm-stop','POST',{
+    attemptId:attempt.attemptId,fence:attempt.fence,requestId:'stop-after-submit-005',
+  },museKey)).data.status,'stopped');
+  assert.equal((await call('/api/worker-orders/'+id+'/refresh','POST',{})).data.order.status,'cancelled');
+});
+
+test('Muse malformed persisted lease or deadline cannot authorize a heartbeat or file upload',async t=>{
+  const {call,app}=await setup(t);
+  const base='/api/muse-worker/v1';
+  const id=await dispatch(call,'muse-personal-alpha','muse-corrupt-lease-006');
+  const attempt=(await call(base+'/tasks/'+id+'/claim','POST',{requestId:'claim-corrupt-006'},museKey)).data;
+  for(const field of ['leaseUntil','deadlineAt']) {
+    await app().store.update(state=>{
+      const task=state.museTasks.find(item=>item.id===id);
+      task.leaseUntil=new Date(Date.now()+60_000).toISOString();
+      task.deadlineAt=new Date(Date.now()+3600_000).toISOString();
+      task[field]='invalid-persisted-date';
+    });
+    assert.equal((await call(base+'/tasks/'+id+'/status','GET',undefined,museKey)).data.canExecute,false);
+    const heartbeat=await call(base+'/tasks/'+id+'/heartbeat','POST',{
+      attemptId:attempt.attemptId,fence:attempt.fence,requestId:'corrupt-heartbeat-'+field,
+    },museKey);
+    assert.equal(heartbeat.status,409);
+    assert.equal(heartbeat.data.error.code,'MW_LEASE_EXPIRED');
+    const bytes=Buffer.from('Synthetic test file');
+    assert.equal((await call(base+'/tasks/'+id+'/upload-file','POST',{
+      attemptId:attempt.attemptId,fence:attempt.fence,uploadId:'corrupt-upload-'+field,
+      filename:'fixture.txt',base64:bytes.toString('base64'),sha256:hash(bytes),
+    },museKey)).status,409);
+  }
+  assert.equal(app().store.read().museTasks.find(item=>item.id===id).files.length,0);
+});
+
+test('local synthetic 20-row Muse delivery requires approval and acceptance before durable opportunity import',async t=>{
+  const {call,restart}=await setup(t);
+  const base='/api/muse-worker/v1';
+  const id=await dispatch(call,'muse-personal-alpha','muse-20-fixture-007');
+  const attempt=(await call(base+'/tasks/'+id+'/claim','POST',{requestId:'claim-20-007'},museKey)).data;
+  assert.equal((await call(base+'/tasks/'+id+'/heartbeat','POST',{
+    attemptId:attempt.attemptId,fence:attempt.fence,requestId:'heartbeat-20-007',
+  },museKey)).status,200);
+  const fixture=report(id);
+  fixture.prospects=Array.from({length:20},(_,index)=>({
+    ...fixture.prospects[0],name:'Synthetic candidate '+(index+1),
+    fitReason:'Only a local test row; not a sourced distributor or commercial opportunity.',
+  }));
+  const bytes=Buffer.from(JSON.stringify(fixture));
+  const payload={attemptId:attempt.attemptId,fence:attempt.fence,uploadId:'upload-20-007',
+    filename:'synthetic-20-candidates.json',base64:bytes.toString('base64'),sha256:hash(bytes)};
+  assert.equal((await call(base+'/tasks/'+id+'/upload-file','POST',payload,museKey)).status,201);
+  assert.equal((await call(base+'/tasks/'+id+'/upload-file','POST',payload,museKey)).data.duplicate,true);
+  assert.equal((await call(base+'/tasks/'+id+'/submit-result','POST',{
+    attemptId:attempt.attemptId,fence:attempt.fence,requestId:'submit-20-007',
+    summary:'20 synthetic rows for local protocol verification only. No real Muse or research.',
+    sources:[doc],evidenceNote:'These are test fixtures; there is no native Muse tool execution or receipt.',
+  },museKey)).status,200);
+  const refreshed=await call('/api/worker-orders/'+id+'/refresh','POST',{});
+  assert.equal(refreshed.data.order.status,'review_required');
+  assert.equal(refreshed.data.order.workerReport.prospects.length,20);
+  const importPayload={indices:Array.from({length:20},(_,index)=>index),requestId:'import-20-007',confirmed:true};
+  assert.equal((await call('/api/worker-orders/'+id+'/promote','POST',importPayload)).status,409);
+  const accepted=await call('/api/worker-orders/'+id+'/accept','POST',{confirmed:true});
+  assert.equal(accepted.data.order.status,'accepted');
+  assert.ok(accepted.data.order.deliveryArtifactId);
+  const promoted=await call('/api/worker-orders/'+id+'/promote','POST',importPayload);
+  assert.equal(promoted.status,200);
+  assert.equal(promoted.data.createdCount,20);
+  await restart();
+  assert.equal((await call('/api/worker-orders/'+id+'/promote','POST',importPayload)).data.duplicate,true);
+  const pool=await call('/api/worker-opportunities');
+  assert.equal(pool.data.opportunities.length,20);
+  assert.ok(pool.data.opportunities.every(row=>row.verification==='external_unverified'));
+});
+
 test('Muse API authenticated read rate limit is enforced with MW_ error namespace',async t=>{
   const {call}=await setup(t);
   // Unknown task status is intentionally side-effect-free; it still consumes

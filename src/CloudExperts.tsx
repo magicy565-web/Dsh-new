@@ -35,7 +35,7 @@ type Hired = {
   id: string; templateId: string; alias: string; mission: string; serviceId: string | null;
   workerId: string | null; skills: string[]; maxCredits: number; revision: number;
   runnerStatus: 'registered' | 'not_connected'; runtimeReady: boolean;
-  template: ExpertTemplate; createdAt: string;
+  template: Omit<ExpertTemplate, 'workerOptions'>; createdAt: string;
 };
 type Team = {
   id: string; templateId: string; name: string; mission: string; leadId: string;
@@ -47,7 +47,7 @@ type Team = {
 };
 type Plan = {
   teamId: string; mission: string; runnable: false; planningOnly: boolean; projectBudgetCredits: number;
-  steps: { expertId: string; role: string; title: string; serviceId: string | null; output: string;
+  steps: { order: number; expertId: string; role: string; title: string; serviceId: string | null; output: string;
     instructions: string; reviewCriteria: string;
     taskCeilingCredits: number; runnerStatus: string; approvalRequired: true }[];
   inputs: string[]; acceptance: string; blockers: string[];
@@ -106,7 +106,7 @@ export default function CloudExperts({ role, onOpenServices, onManageTools }: { 
   const [stageTeam,setStageTeam] = useState<Team|null>(null);
   const [stagePublic,setStagePublic] = useState({product:'',market:'美国',confirmed:false});
   const [stageSpecs,setStageSpecs] = useState<Record<string,{objective:string;budget:string;deadline:string}>>({});
-  const stageRequestId = useRef(requestId());
+  const stageRequestId = useRef<string>(requestId());
   const [delegationTarget,setDelegationTarget] = useState<string|null>(null);
   const [taskDraft,setTaskDraft] = useState({product:'',market:'美国',objective:'',budget:'20',deadline:'',confirmed:false});
   const delegationId = useRef(requestId());
@@ -141,7 +141,7 @@ export default function CloudExperts({ role, onOpenServices, onManageTools }: { 
   const connected = hired.filter(x=>x.runtimeReady).length;
   const categories = ['全部',...new Set(catalog.experts.map(x=>x.category))];
   const editing = editingExpert ? hired.find(x=>x.id===editingExpert) : undefined;
-  const currentTemplate = catalog.experts.find(x=>x.id===selectedTemplate) || editing?.template;
+  const currentTemplate = catalog.experts.find(x=>x.id===(selectedTemplate || editing?.templateId));
   const alreadyHired = new Set(hired.map(x=>x.templateId));
   const selectedTeamTemplate = teamDraft && catalog.teams.find(x=>x.id===teamDraft.templateId);
   const activeTeam = teamEditing && teams.find(x=>x.id===teamEditing);

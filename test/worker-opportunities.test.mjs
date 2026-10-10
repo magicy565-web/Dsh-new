@@ -68,9 +68,9 @@ test('accepted sourced prospects become durable enterprise opportunities only on
   assert.equal(replay.duplicate, true);
   assert.deepEqual(replay.importedIds, result.importedIds);
   assert.equal(opportunities.list().length, 2);
-  await assert.rejects(opportunities.importFromOrder(order.id, { ...input, indices: [1] }, 'admin'), { code: 'IDEMPOTENCY_CONFLICT' });
-  await assert.rejects(opportunities.importFromOrder(order.id, { ...input, requestId: 'invalid-index', indices: [5] }, 'admin'), { code: 'INVALID_IMPORT' });
-  await assert.rejects(opportunities.importFromOrder(order.id, { ...input, requestId: 'repeated-indices', indices: [0, 0] }, 'admin'), { code: 'INVALID_IMPORT' });
+  await assert.rejects(async () => opportunities.importFromOrder(order.id, { ...input, indices: [1] }, 'admin'), { code: 'IDEMPOTENCY_CONFLICT' });
+  await assert.rejects(async () => opportunities.importFromOrder(order.id, { ...input, requestId: 'invalid-index', indices: [5] }, 'admin'), { code: 'INVALID_IMPORT' });
+  await assert.rejects(async () => opportunities.importFromOrder(order.id, { ...input, requestId: 'repeated-indices', indices: [0, 0] }, 'admin'), { code: 'INVALID_IMPORT' });
   assert.equal(store.read().workerOrders[0].opportunityImports.length, 1);
 });
 
@@ -79,15 +79,15 @@ test('manual lead qualification never implies outbound permission or independent
   const order = await acceptOrder(desk, 'research-002');
   const imported = await opportunities.importFromOrder(order.id, { indices: [0], requestId: 'promote-002', confirmed: true }, 'admin');
   const id = imported.importedIds[0];
-  await assert.rejects(opportunities.review(id, { decision: 'qualified', confirmed: true }, 'admin'), { code: 'INVALID_REVIEW' });
+  await assert.rejects(async () => opportunities.review(id, { decision: 'qualified', confirmed: true }, 'admin'), { code: 'INVALID_REVIEW' });
   const { opportunity } = await opportunities.review(id, { decision: 'qualified', notes: 'Catalog matches product; need independent verification', confirmed: true }, 'admin');
   assert.equal(opportunity.status, 'qualified');
   assert.equal(opportunity.verification, 'human_reviewed_external_claim');
   assert.equal(opportunity.reviewedBy, 'admin');
   assert.equal(opportunity.reviewNotes, 'Catalog matches product; need independent verification');
   assert.equal(opportunity.outreachApproved, undefined);
-  await assert.rejects(opportunities.review(id, { decision: 'rejected', confirmed: true }, 'admin'), { code: 'OPPORTUNITY_ALREADY_REVIEWED' });
-  await assert.rejects(opportunities.review(id, { decision: 'qualified', notes: 'ok', confirmed: false }, 'admin'), { code: 'INVALID_REVIEW' });
+  await assert.rejects(async () => opportunities.review(id, { decision: 'rejected', confirmed: true }, 'admin'), { code: 'OPPORTUNITY_ALREADY_REVIEWED' });
+  await assert.rejects(async () => opportunities.review(id, { decision: 'qualified', notes: 'ok', confirmed: false }, 'admin'), { code: 'INVALID_REVIEW' });
 });
 
 test('duplicate company/domain from a second accepted Worker order reuses one business record', async t => {
@@ -111,7 +111,7 @@ test('unaccepted, unpersisted and out-of-scope orders cannot publish customer op
       workerReport: { prospects }, deliveryArtifactId: 'not-a-real-artifact',
     }];
   });
-  await assert.rejects(opportunities.importFromOrder(draftId,
+  await assert.rejects(async () => opportunities.importFromOrder(draftId,
     { indices: [0], requestId: 'cannot-import', confirmed: true }, 'admin'), { code: 'DELIVERY_NOT_ACCEPTED' });
   assert.equal(opportunities.list().length, 0);
 });

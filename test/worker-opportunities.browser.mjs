@@ -51,10 +51,11 @@ try {
   await post('/api/worker-orders/' + order.id + '/dispatch');
   await post('/api/worker-orders/' + order.id + '/refresh');
   await post('/api/worker-orders/' + order.id + '/accept', { confirmed: true });
-  browser = await chromium.launch({ headless: true, chromiumSandbox: true });
+  browser = await chromium.launch({ headless: true, chromiumSandbox: process.env.CHROMIUM_NO_SANDBOX !== '1',
+    ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
   const page = await browser.newPage({ viewport: { width: 1260, height: 900 } });
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(base + '/workers');
+  await page.goto(base + '/services');
   await page.getByRole('heading', { name: '企业商机池' }).waitFor();
   await page.locator('.worker-order-row').first().click();
   const drawer = page.getByRole('dialog');
@@ -63,13 +64,14 @@ try {
   assert.equal(await choices.count(), 2);
   await choices.nth(1).uncheck();
   await drawer.getByRole('button', { name: '导入已选 1 条客户线索' }).click();
+  await drawer.getByText('已导入商机池').first().waitFor();
   const imported = await (await fetch(base + '/api/worker-opportunities')).json();
   assert.equal(imported.opportunities.length, 1, 'Only the selected prospect was promoted');
   assert.equal(imported.opportunities[0].name, prospect.name);
   assert.equal(imported.opportunities[0].sourceProspectIndex, 0);
-  await drawer.getByText('已导入商机池').first().waitFor();
   assert.equal(await drawer.locator('.worker-prospect-pick input').count(), 1, 'Only the remaining buyer can be selected');
   await drawer.getByRole('button', { name: '导入已选 1 条客户线索' }).click();
+  await drawer.getByRole('button', { name: '所有客户已导入' }).waitFor();
   const afterSecond = await (await fetch(base + '/api/worker-opportunities')).json();
   assert.equal(afterSecond.opportunities.length, 2, 'A separate approved partial batch can be imported');
   await page.keyboard.press('Escape');

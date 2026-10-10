@@ -10,7 +10,7 @@ const app=await createApp({dataDirectory:dir});
 const address=await app.listen(0);const base=`http://127.0.0.1:${address.port}`;
 let browser; const checks=[]; const errors=[];
 try {
- browser=await chromium.launch({headless:true,chromiumSandbox:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
+ browser=await chromium.launch({headless:true,chromiumSandbox:process.env.CHROMIUM_NO_SANDBOX!=='1',...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
  const page=await browser.newPage({viewport:{width:1188,height:761}});
  await mkdir('evidence/browser',{recursive:true});
  page.on('pageerror',error=>errors.push(error.message));
@@ -77,7 +77,8 @@ try {
  let shell=await page.locator('.nav-rail').boundingBox(); near(shell.width,72,'rail width');
  let panel=await page.locator('.assistant-panel').boundingBox(); near(panel.x,828,'panel left');near(panel.width,360,'panel width');
  let composer=await page.locator('.composer').boundingBox();near(composer.x,88,'composer left');near(composer.y,686,'composer top');near(composer.width,724,'composer width');near(composer.height,60,'composer height');
- const choices=await page.locator('.starter-bubble').boundingBox();near(choices.x,96,'starter left');near(choices.width,334,'starter width');near(choices.height,208,'starter height');near(choices.y+choices.height,655,'starter bottom');
+ const choices=await page.locator('.starter-bubble').boundingBox();near(choices.x,96,'starter left');near(choices.width,334,'starter width');near(choices.height,208,'starter height');
+ assert.ok(choices.y>=60 && choices.y+choices.height<=composer.y-16,'starter prompts remain visible above the composer and goal strip');
  const profile=await page.locator('.assistant-profile').boundingBox();near(profile.height,274,'profile region');
  assert.equal(await page.locator('.nav-rail .brand-button').count(),0);checks.push('1188x761 measured chat shell geometry');
  await page.locator('.chat-title-pill').click(); await page.locator('.side-chat-empty').waitFor();

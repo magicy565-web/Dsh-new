@@ -5,6 +5,8 @@ const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const fields = (v, keys) => object(v) && Object.keys(v).every(key => keys.includes(key));
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const now = () => new Date().toISOString();
+const futureDate = value => typeof value === 'string' && Number.isFinite(Date.parse(value)) && Date.parse(value) > Date.now();
+const activeLease = task => task.status === 'claimed' && futureDate(task.leaseUntil) && futureDate(task.deadlineAt);
 const leaseMs = 15 * 60_000;
 const maxUploadBytes = 1024 * 1024;
 const formats = new Set(['.json', '.md', '.txt', '.csv']);
@@ -57,8 +59,7 @@ const lease = (task, attemptId, fence, allowCancel = false) => {
   if (!id(attemptId) || !Number.isSafeInteger(fence) || fence < 1 ||
       task.attemptId !== attemptId || task.fence !== fence)
     fail(409, 'STALE_DOT_LEASE', 'The original Dot attempt fence does not match.');
-  if (!allowCancel && (task.status !== 'claimed' || Date.parse(task.leaseUntil) <= Date.now() ||
-      Date.parse(task.deadlineAt) <= Date.now()))
+  if (!allowCancel && !activeLease(task))
     fail(409, 'DOT_LEASE_EXPIRED', 'Dot execution authority is expired, stopped or revoked.');
 };
 
@@ -89,8 +90,7 @@ export function createDotWorkerBridge({
     return { taskRef: task.id, orderId: task.orderId, serviceId: task.serviceId,
       status: task.status, attemptId: task.attemptId, fence: task.fence,
       leaseUntil: task.leaseUntil, cancellationRequested: task.status === 'cancel_requested',
-      canExecute: approved && task.status === 'claimed' && Date.parse(task.leaseUntil) > Date.now() &&
-        Date.parse(task.deadlineAt) > Date.now(),
+      canExecute: approved && activeLease(task),
       deliverySubmitted: task.status === 'submitted', updatedAt: task.updatedAt };
   }
   function guardPayload(task) {
@@ -163,8 +163,7 @@ export function createDotWorkerBridge({
       }
       if (item.status === 'stopped') return { ...result, status: 'cancelled' };
       if (!approved) return { ...result, status: 'input_required' };
-      if (item.status === 'blocked' || (item.status === 'claimed' &&
-          (Date.parse(item.leaseUntil) <= Date.now() || Date.parse(item.deadlineAt) <= Date.now())))
+      if (item.status === 'blocked' || (item.status === 'claimed' && !activeLease(item)))
         return { ...result, status: 'input_required' };
       if (item.status === 'pending') return { ...result, status: 'queued' };
       return { ...result, status: 'working' };
@@ -176,7 +175,6 @@ export function createDotWorkerBridge({
           item.status = 'stopped'; item.updatedAt = now();event(state,item,'cancelled_before_claim');
           return { status:'cancelled' };
         }
-        if (item.status === 'submitted') return { status: 'cancel_requested' };
         if (!['stopped','cancel_requested'].includes(item.status)) item.status = 'cancel_requested';
         item.updatedAt = now();event(state,item,'cancel_requested');
         return { status:item.status === 'stopped' ? 'cancelled':'cancel_requested' };
@@ -215,11 +213,10 @@ export function createDotWorkerBridge({
       const active = state[queueKey].find(x => x.workerId === workerId && x.id !== item.id &&
         ['claimed','blocked','cancel_requested'].includes(x.status) && x.attemptId);
       if (active) fail(409,'DOT_SLOT_BUSY','The one-dot single active attempt is occupied.');
-      if (item.status === 'claimed' && item.claimRequestId === requestId &&
-          Date.parse(item.leaseUntil) > Date.now() && Date.parse(item.deadlineAt) > Date.now())
+      if (item.claimRequestId === requestId && activeLease(item))
         return { ...taskSnapshot(item), claimed:true, duplicate:true };
       if (item.status !== 'pending') fail(409,'DOT_TASK_UNAVAILABLE','This task cannot be claimed or restarted.');
-      if (Date.parse(item.deadlineAt) <= Date.now()) fail(409,'DOT_DEADLINE_EXPIRED','This business order has expired.');
+      if (!futureDate(item.deadlineAt)) fail(409,'DOT_DEADLINE_EXPIRED','This business order has expired or has an invalid deadline.');
       item.attemptId = randomUUID();item.claimRequestId=requestId;
       item.fence += 1;item.leaseUntil=new Date(Math.min(Date.now()+leaseMs, Date.parse(item.deadlineAt))).toISOString();
       item.status='claimed';item.updatedAt=now();event(state,item,'claimed');
