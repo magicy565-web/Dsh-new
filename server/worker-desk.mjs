@@ -269,6 +269,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         deliverables: cleanDeliverables(snapshot.deliverables), evidence: cleanEvidence(snapshot.evidence),
         prospects: order.serviceId === 'buyer-discovery' ? cleanProspects(snapshot.prospects) : [],
         independentlyVerified: false, reportedAt: now(),
+        evidenceNote: typeof snapshot.evidenceNote === 'string' ? snapshot.evidenceNote.slice(0, 2000) : null,
       } : null;
       const cost = snapshot.costCredits === undefined ? null : snapshot.costCredits;
       if (cost !== null && (!Number.isSafeInteger(cost) || cost < 0)) fail(502, 'INVALID_WORKER_RESULT', 'Worker reported an invalid credit count.');
