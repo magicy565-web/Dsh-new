@@ -156,6 +156,7 @@ export function createDotWorkerBridge({
           }] : []),
           evidence: structured?.evidence || sourceEvidence,
           prospects: structured?.prospects || [],
+          ...(agentKind === 'muse' ? { evidenceNote: item.evidenceNote || null } : {}),
         };
       }
       if (item.status === 'stopped') return { ...result, status: 'cancelled' };
