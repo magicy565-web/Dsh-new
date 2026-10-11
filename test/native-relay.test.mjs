@@ -140,6 +140,8 @@ createInterface({input:process.stdin}).on('line',line=>{
 
 const sourceRoot = process.env.DSH_TEST_SOURCE_ROOT || fileURLToPath(new URL('../../muse-development/deepseek-harness-enterprise/', import.meta.url));
 const sourceLoader = path.join(sourceRoot, 'node_modules/tsx/dist/esm/index.mjs');
+// Packaged native releases retain the source-resolution facade, not a root project.
+const sourceTsconfig = path.join(sourceRoot, existsSync(path.join(sourceRoot, 'tsconfig.base.json')) ? 'tsconfig.base.json' : 'tsconfig.json');
 test('native relay: real native SDK server, llm-pi-ai stream/tool loop and JSONL resume use the selected route',
   { skip: !existsSync(sourceLoader), timeout: 30_000 }, async t => {
     const home = await mkdtemp(path.join(tmpdir(), 'workspace-relay-source-home-'));
@@ -148,7 +150,7 @@ test('native relay: real native SDK server, llm-pi-ai stream/tool loop and JSONL
       ['--import', sourceLoader, fileURLToPath(new URL('./fixtures/native-relay-source.mjs', import.meta.url)), sourceRoot,
         fileURLToPath(new URL('../', import.meta.url))],
       { env: { PATH: process.env.PATH, HOME: home, FASTAITOKEN_API_KEY: fixtureKey,
-        TSX_TSCONFIG_PATH: path.join(sourceRoot, 'tsconfig.json') }, timeout: 25_000 });
+        TSX_TSCONFIG_PATH: sourceTsconfig }, timeout: 25_000 });
     assert.match(stdout, /Real native relay routing, streamed tool loop and JSONL resume fixture passed/);
     assert.ok(!(stdout + stderr).includes(fixtureKey));
   });

@@ -112,10 +112,10 @@
       "skipped": 0
     },
     "linuxBackend": {
-      "passed": 361,
-      "failed": 3,
-      "skipped": 3,
-      "reason": "Selected production Harness source omits SDK server and agent-loop testkit. No source fixture failure is treated as passing."
+      "passed": 367,
+      "failed": 0,
+      "skipped": 0,
+      "source": "Deployed Muse Harness tree, including SDK server, testkit and built exports; source fixtures select tsconfig.base.json."
     },
     "originalDotHarness": {
       "passed": 1,

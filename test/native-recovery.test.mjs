@@ -22,13 +22,15 @@ test('native recovery rejects incomplete, source-path and unreviewed runtime dep
 
 const sourceRoot = process.env.DSH_TEST_SOURCE_ROOT || fileURLToPath(new URL('../../muse-development/deepseek-harness-enterprise/', import.meta.url));
 const sourceLoader = path.join(sourceRoot, 'node_modules/tsx/dist/esm/index.mjs');
+// Packaged native releases retain the source-resolution facade, not a root project.
+const sourceTsconfig = path.join(sourceRoot, existsSync(path.join(sourceRoot, 'tsconfig.base.json')) ? 'tsconfig.base.json' : 'tsconfig.json');
 test('native recovery uses real JSONL and native tool history; old work never replays after restore',
   { skip: !existsSync(sourceLoader), timeout: 60_000 }, async t => {
     const home = await mkdtemp(path.join(tmpdir(), 'workspace-native-recovery-home-'));
     t.after(() => rm(home, { recursive: true, force: true }));
     const { stdout, stderr } = await promisify(execFile)(process.execPath,
       ['--import', sourceLoader, fileURLToPath(new URL('./fixtures/native-recovery-source.mjs', import.meta.url)), sourceRoot, fileURLToPath(new URL('../', import.meta.url))],
-      { env: { PATH: process.env.PATH, HOME: home, TSX_TSCONFIG_PATH: path.join(sourceRoot, 'tsconfig.json') }, timeout: 55_000 });
+      { env: { PATH: process.env.PATH, HOME: home, TSX_TSCONFIG_PATH: sourceTsconfig }, timeout: 55_000 });
     assert.match(stdout, /Real native backup, immutable-source migration, restrictive quarantine and no-replay recovery fixture passed/);
     assert.ok(!(stdout + stderr).includes('fixture-secret-never-copied'));
   });

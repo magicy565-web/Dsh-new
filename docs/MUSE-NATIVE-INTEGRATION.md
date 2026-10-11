@@ -75,11 +75,13 @@ request. The native Worker ID is a lowercase UUID, preserving the original
 immutable artifact owner schema; incompatible IDs fail before a write.
 
 TypeScript and Vite build pass. Linux DOM tests pass 19/19 after waiting for the
-actual enterprise settings input instead of the earlier loading modal. Full
-backend run: 361 passed, 3 failed, 3 skipped. Its three source fixture failures
-refer to SDK server and agent-loop testkit modules omitted from the deployed
-Harness subset; three built-export tests are unavailable. This is not a full
-backend pass and not real Muse execution/acceptance.
+actual enterprise settings input instead of the earlier loading modal. The latest
+full backend run passes 367/367 with zero failures or skips. It uses the deployed
+Muse Harness tree, which includes the SDK server, agent-loop testkit and built
+public exports missing from the smaller Dot tree. Source fixtures select the
+existing `tsconfig.base.json` resolution facade, falling back to `tsconfig.json`
+for older source layouts. See [the source intake and Linux evidence](MUSE-LINUX-SOURCE-VALIDATION-2026-10-11.md).
+These are isolated fixture checks, not real Muse execution or acceptance.
 
 The deployed base path is `https://workspace.cnsubscribe.xyz/api/muse-worker/v1`.
 Only this prefix has a dedicated proxy to the original backend; employee routes

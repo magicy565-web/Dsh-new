@@ -272,6 +272,8 @@ test('fixture: launch-policy fingerprint fences modified profiles and never expo
 
 const sourceRoot = process.env.DSH_TEST_SOURCE_ROOT || fileURLToPath(new URL('../../muse-development/deepseek-harness-enterprise/', import.meta.url));
 const sourceLoader = path.join(sourceRoot, 'node_modules/tsx/dist/esm/index.mjs');
+// Packaged native releases retain the source-resolution facade, not a root project.
+const sourceTsconfig = path.join(sourceRoot, existsSync(path.join(sourceRoot, 'tsconfig.base.json')) ? 'tsconfig.base.json' : 'tsconfig.json');
 test('real source with scripted model fixture: native AgentLoop and JSONL preserve session across restart',
   { skip: !existsSync(sourceLoader), timeout: 30_000 }, async t => {
     const dir = await mkdtemp(path.join(tmpdir(), 'workspace-source-fixture-'));
@@ -325,7 +327,7 @@ try {
 } finally { await f?.bridge.close(); await f?.ctx.fiber.dispose(); await rm(root,{recursive:true,force:true}); }`);
     const { stdout } = await promisify(execFile)(process.execPath,
       ['--import', sourceLoader, script, sourceRoot, fileURLToPath(new URL('../server/native-bridge.mjs', import.meta.url))],
-      { env: { PATH: process.env.PATH, HOME: dir, TSX_TSCONFIG_PATH: path.join(sourceRoot, 'tsconfig.json') }, timeout: 25_000 });
+      { env: { PATH: process.env.PATH, HOME: dir, TSX_TSCONFIG_PATH: sourceTsconfig }, timeout: 25_000 });
     assert.match(stdout, /Real native AgentLoop \+ JSONL restart fixture passed/);
   });
 
