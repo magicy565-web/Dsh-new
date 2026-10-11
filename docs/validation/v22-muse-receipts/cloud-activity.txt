@@ -1,0 +1,15 @@
+✔ queued/draft Muse never masks a live fenced Dot, independent of array order (1.959523ms)
+✔ live Muse precedes queued Dot and deterministic selection survives reversed arrays (0.196236ms)
+✔ missing, malformed, stale or conflicting attempt/lease/deadline evidence never animates (0.297389ms)
+✔ blocked/cancel/uncertain and unclosed outcomes remain attention ahead of the queue (0.231549ms)
+✔ Muse file URLs fail closed for malformed IDs, versions, hashes and filenames (0.333122ms)
+✔ legacy text remains readable; malformed or cross-session receipt metadata cannot make links (0.254403ms)
+✔ invalid receipt hashes or acceptance dates do not invent delivery or acceptance (0.838553ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 84.056875

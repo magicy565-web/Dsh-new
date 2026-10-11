@@ -60,7 +60,7 @@ try {
   assert.equal(await page.locator('.control-spirit.is-working').count(),0);
   assert.equal(await page.locator('.cloud-progress [data-active=true]').count(),0);
   checks.push('Queued delegation is visible but never represented as execution.');
-  job.state='running'; job.claimedAt=Date.now();
+  job.state='running'; job.claimedAt=Date.now(); job.attemptId='original-attempt'; job.fence=1; job.leaseUntil=new Date(Date.now()+60000).toISOString(); job.deadlineAt=new Date(Date.now()+3600000).toISOString();
   await page.getByRole('heading',{name:'执行中',exact:true}).waitFor();
   assert.equal(await page.locator('.control-spirit.is-working').count(),1);
   assert.equal(await page.locator('.cloud-progress [data-reached=true]').count(),2);
@@ -146,7 +146,7 @@ try {
   }
   if (!gateway) { sessionExpired=true; await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor(); await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click(); await page.getByTestId('v22-cloud-control').waitFor(); assert.equal(classicLoginVisits,1); assert.equal(loginVisits,0); checks.push('Unconfigured deployments retain the original session login API.'); }
   assert.deepEqual(errors,[]);
-  const result={result:'passed',nativeHost:native,checks,errors,proof:'deployed API contract fixtures; not live Worker execution',deployment:false};
+  const result={result:'passed',nativeModeFixture:native,originalNativeHarnessHost:false,checks,errors,proof:'local API contract fixtures; not live Worker execution',deployment:false};
   await writeFile(output+'/CLOUD-CONTRACT-VERIFICATION.json',JSON.stringify(result,null,2));
   console.log(JSON.stringify(result,null,2));
 } finally { await browser?.close(); await app?.close(); await rm(directory,{recursive:true,force:true}); }

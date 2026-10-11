@@ -1,0 +1,41 @@
+{
+  "result": "passed",
+  "checks": [
+    "Queued and draft Muse cannot mask a Dot with original attempt/fence and future lease/deadline.",
+    "One central running spirit retains a visible entry for blocked and cancellation tasks.",
+    "Expired Dot lease stops animation and remains actionable ahead of draft Muse.",
+    "Live Muse outranks queued Dot; a passed Muse deadline stops the working animation.",
+    "Original history keeps text and one receipt attachment; a real HTTP click downloads exact bytes/SHA/name using the original ID/version/hash.",
+    "A slow attachment download survives routine bootstrap/task polling without being unmounted or aborted.",
+    "401/403/404/503/network errors and changed bytes or hash headers produce visible retryable errors and no download.",
+    "Retry succeeds for the same attachment after the file response recovers.",
+    "Reload preserves the original persisted message and exact attachment download.",
+    "Restart of the local application fixture retains one original message and correct file bytes; this does not verify Native Harness reconciliation.",
+    "Read-only viewer cannot initiate an attachment download.",
+    "Missing owner-authorized Muse task view keeps legacy receipt text without granting a file link.",
+    "A changed Worker or missing authorized receipt file list cannot grant historical attachment access.",
+    "Built V22 history and attachments fit 320px, 390px and desktop viewports without horizontal overflow."
+  ],
+  "errors": [],
+  "writes": [],
+  "downloads": 5,
+  "fileRequests": [
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+    "/api/muse-worker-files/original-file?version=1&sha256=b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1"
+  ],
+  "fileSha256": "b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1",
+  "deployment": false,
+  "proof": "built V22 UI + persisted local application + synthetic HTTP file fixture; NOT original Native Harness or real Muse execution"
+}

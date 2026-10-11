@@ -1,0 +1,76 @@
+{
+  "baseCommit": "321fd920a42523db8b1ae241f97748b0536c78d8",
+  "backendReferenceCommit": "2ac171e4da46e44e0095fe9907c2f8b1339a56cb",
+  "originalNativeHarnessExecuted": false,
+  "realMuseCloudExecution": false,
+  "deployment": false,
+  "sourceFiles": [
+    {
+      "path": "src/experience/CloudControl.tsx",
+      "bytes": 20300,
+      "sha256": "e1ae5e3b4df75371466deb6fe9b562cd4cbeb29a8c009180d17de8b5a570c8d4"
+    },
+    {
+      "path": "src/experience/MuseFiles.tsx",
+      "bytes": 6249,
+      "sha256": "a60c43e96baca8771cca02d988f9eac17045b82a8480bf3b5bcd508b20909b3b"
+    },
+    {
+      "path": "src/experience/cloudActivity.ts",
+      "bytes": 3485,
+      "sha256": "e2dbdf477d51b06b476a4df31a8e7ddb4682677ccc00d3632dce1dfb2f6e2a85"
+    },
+    {
+      "path": "src/experience/museControl.ts",
+      "bytes": 6571,
+      "sha256": "7997a4888319352ce39558ba18c36f1a10a1a793b2ad14e6ca7e2d9bd32b01cc"
+    },
+    {
+      "path": "src/types.ts",
+      "bytes": 7231,
+      "sha256": "e8ac375478145ecc1c24c7fd2d4b9a3008eb2def8b1dae1d2d266a96423e391f"
+    },
+    {
+      "path": "test/cloud-activity.test.mjs",
+      "bytes": 6716,
+      "sha256": "7f1dfcd397ae91457efea1b21fa3d2aef6720950dd400b718d13093055d42d5f"
+    },
+    {
+      "path": "test/muse-receipts.browser.mjs",
+      "bytes": 16655,
+      "sha256": "48c8b2812cbb32518d0f524cdca18354c948307294ca9a9c935911e1774471bb"
+    },
+    {
+      "path": "test/cloud-control.browser.mjs",
+      "bytes": 15791,
+      "sha256": "ca70e6fd8c1e83186f8d76e0575a4eeb8186e337ea22503b0b3e5fdff25c8fed"
+    },
+    {
+      "path": "test/ui.dom.test.mjs",
+      "bytes": 74367,
+      "sha256": "862c96c2db932c74f0f94dcc42b1ed303d622efedc20553b42e43651782f2752"
+    },
+    {
+      "path": "package.json",
+      "bytes": 2897,
+      "sha256": "2aee2b67a253816c9a0144cbf9acf1419fab8e7002969a3371a63a865d520369"
+    }
+  ],
+  "buildFiles": [
+    {
+      "path": "dist/assets/index-8KfcrHLD.js",
+      "bytes": 494307,
+      "sha256": "bf3c205be6050eb9a1352974a238f883bd229af427eb17f29e569bcd4f384209"
+    },
+    {
+      "path": "dist/assets/index-CQzcOONs.css",
+      "bytes": 206041,
+      "sha256": "80f55da322f9a2d286f0517224c5a0fec049a3f3c51ec82b26d9d746be52ef11"
+    },
+    {
+      "path": "dist/index.html",
+      "bytes": 541,
+      "sha256": "b20d2abb0764f8eab53eafd1b19cc6b98aaf729534a824076dc8cc253f739f54"
+    }
+  ]
+}

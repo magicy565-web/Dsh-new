@@ -1,0 +1,22 @@
+{
+  "result": "passed",
+  "nativeModeFixture": true,
+  "originalNativeHarnessHost": false,
+  "checks": [
+    "Root, chat and exact conversation URLs all use one centered control without legacy side panels.",
+    "Queued delegation is visible but never represented as execution.",
+    "Polling real-shaped Worker state activates the avatar and claimed milestone.",
+    "Original conversation history opens inside the control drawer rather than reverting to the old chat layout.",
+    "Stop targets the original job, reuses request ID after lost response, and awaits acknowledgement.",
+    "Returned artifact uses original id/version; explicit review binds completion hash.",
+    "Dispatch requires exact public-scope confirmation and binds the selected original conversation.",
+    "Read failure retains last tasks, stops task animation and blocks writes until recovery.",
+    "Cloud layout fits phone and desktop without horizontal overflow.",
+    "Backend-only session expiry uses the existing signed login API without another external redirect.",
+    "Failed inner login consumes its one-use continuation; reload cannot loop login or replay business writes.",
+    "Gateway reauthentication preserves same-account route, public draft and original uncertain request; never auto-replays or restores another account draft."
+  ],
+  "errors": [],
+  "proof": "local API contract fixtures; not live Worker execution",
+  "deployment": false
+}

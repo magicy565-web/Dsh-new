@@ -48,7 +48,7 @@ test('production UI: navigation, interrupted goal intake, guarded chat, search, 
   const assets = await readdir(resolve('dist/assets')); const script = await readFile(resolve('dist/assets', assets.find(file => /^index-.*\.js$/.test(file))), 'utf8');
   const api = await fixture(); const errors = [];
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: `${api.base}/chat`, runScripts: 'outside-only', pretendToBeVisual: true });
-  const { window } = dom; window.fetch = api.fetch; window.AbortController = AbortController; window.scrollTo = () => {}; window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {} }); window.addEventListener('error', event => errors.push(event.error?.message || event.message));
+  const { window } = dom; window.fetch = api.fetch; window.AbortController = AbortController; window.scrollTo = () => {}; window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }); window.addEventListener('error', event => errors.push(event.error?.message || event.message));
   window.eval(script); const { document, button, aria, click, input, escape } = controls(window);
   try {
     await waitFor(() => document.querySelector('.intro-bubble'), 'empty conversation');
@@ -103,7 +103,9 @@ test('production UI: navigation, interrupted goal intake, guarded chat, search, 
     click(aria('编辑目标')); await waitFor(() => document.querySelector('.goal-edit-form'), 'goal edit'); input(document.querySelector('.goal-edit-form input'), '每天专注学习'); input(document.querySelector('.goal-edit-form textarea'), '把计划拆成每天三十分钟的学习任务。'); click(button('保存目标'));
     await waitFor(() => api.state.goals[0].title === '每天专注学习' && !document.querySelector('.goal-edit-form'), 'goal edit persists');
     click(button('开始推进')); await waitFor(() => api.state.goals[0].status === 'blocked', 'unconfigured goal is blocked');
-    escape(); await waitFor(() => !document.querySelector('.goal-detail'), 'goal Escape dismissal'); assert.equal(window.location.pathname, `/goals/${api.state.goals[0].id}`); await click(aria('返回工作')); await waitFor(() => document.querySelector('.goal-list-item'), 'return to saved goal list');
+    escape(); await waitFor(() => !document.querySelector('.goal-detail'), 'goal Escape dismissal'); assert.equal(window.location.pathname, `/goals/${api.state.goals[0].id}`);
+    await click(aria('返回工作')); await waitFor(() => document.querySelector('.master-control'), 'V22 return to central control'); assert.equal(window.location.pathname, '/home');
+    await click(aria('目标')); await waitFor(() => document.querySelector('.goal-list-item'), 'navigate back to saved goal list');
     // Enable the explicitly injected test provider and run the real goal lifecycle.
     api.provider.configured = true;
     await api.fetch(`/api/goals/${api.state.goals[0].id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resume' }) });
