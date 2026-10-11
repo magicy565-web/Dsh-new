@@ -3,7 +3,7 @@
 This is an overlay for the verified Huawei Cordis release at
 `/opt/workspace-dot/releases/7279e6346910b43fc879f5a99fd581be47a9a73f`.
 The directory name is not claimed to be its Git commit. It is not a replacement
-standalone application. Production has not been changed by this candidate.
+standalone application. The backend code overlay is active; genuine Muse authorization and task acceptance remain pending. The original frontend and native Harness are preserved.
 
 `OVERLAY_MANIFEST.json` records the exact original SHA256 for modified production
 files and candidate SHA256 for every payload. Reject any changed baseline or
@@ -26,7 +26,7 @@ execution gates false for the first identity/inbox handshake. The actual bearer
 belongs in Muse Secure Vault, not this package or a chat message.
 
 The trusted local HTTPS proxy must forward the exact original Workspace Host to
-the existing backend and expose only `/api/muse-worker/v1/` on the Muse hostname.
+the existing backend and expose only `/api/muse-worker/v1/` on the reviewed HTTPS origin.
 Employee APIs retain original ingress assertions, sessions, roles and body checks.
 Muse business orders/acceptance/import require the reviewed administrator and fixed
 native actor. A Muse bearer cannot enter those employee routes.
@@ -47,7 +47,7 @@ Node 24.21.0 validation: nine memory native-boundary tests passed, zero failed o
 skipped. A combined run with the existing host, contract, ingress and probe tests
 passed 35 tests, zero failed or skipped. These overlapping counts are not additive.
 They test actual HTTP/bridge/WorkerDesk code with synthetic memory parent services;
-they are not Linux durability, Cordis boot, authenticated Muse or research evidence.
+they are historical memory-only results. The Linux checks below cover durability and Cordis boot; none are authenticated Muse or research evidence.
 Syntax checks passed for all three modified production modules.
 
 Required deployment checks: isolated Linux tests using actual production source
@@ -80,3 +80,22 @@ backend run: 361 passed, 3 failed, 3 skipped. Its three source fixture failures
 refer to SDK server and agent-loop testkit modules omitted from the deployed
 Harness subset; three built-export tests are unavailable. This is not a full
 backend pass and not real Muse execution/acceptance.
+
+The deployed base path is `https://workspace.cnsubscribe.xyz/api/muse-worker/v1`.
+Only this prefix has a dedicated proxy to the original backend; employee routes
+retain the original gateway. Public TLS verification succeeds and identity returns
+`404 MW_GATEWAY_UNAVAILABLE` because no independent Muse credential/configuration
+has been issued yet. The Host remains paused with execution disabled.
+
+The original production Dot/Harness test also passes against the candidate under
+synthetic isolated identities, including shared Worker slot, original Session
+return, OAuth MCP file return, idempotency and pause fencing. Real old-connector
+OAuth refresh is a separate recovery activity; its invalid_grant is not reported
+as resolved by this fixture. The identity service was not restarted.
+
+Private predeployment backup has SQLite integrity `ok`. The first code switch
+was automatically reverted when copied vendor directory traversal blocked the
+service account. Directory permissions were repaired, all candidate modules were
+imported as the actual service user, and the second switch passed. Code rollback
+removes only the backend drop-in and restores ingress configuration; preserve
+current workspace data, OAuth, leases and tasks.

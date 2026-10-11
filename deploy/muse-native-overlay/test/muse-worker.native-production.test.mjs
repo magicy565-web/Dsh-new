@@ -36,7 +36,7 @@ test('Linux native service and employee ingress preserve owner, approval, files 
   const workerConfiguration = { enabled: true, admissions: [{ id: 'original-native-fixture-grant',
     subject: actor.subject, provider: 'muse', agentId: 'original-native-fixture-worker', providerOwnerId: 'original-native-fixture-owner',
     protocolFingerprint: digest('native-protocol-fixture'), admission: 'invited', transport: 'muse-native', expiresAt: Date.now() + 86400_000 }] };
-  const museConfig = { workerId: 'independent-rest-fixture-worker', ownerId: 'personal-fixture-owner', tokenDigest: digest(key),
+  const museConfig = { workerId: 'df28413e-de75-4b18-93dc-c72e2a44d6bc', ownerId: 'personal-fixture-owner', tokenDigest: digest(key),
     enabled: false, scopeReviewed: false, externalBudgetVerified: false };
   async function mount(config) {
     service = await openWorkspacePluginService({ config: pluginConfig, workerConfiguration });
@@ -113,7 +113,7 @@ test('Linux native service and employee ingress preserve owner, approval, files 
     prospects: [{ name: 'Synthetic Linux Company', country: 'US', website: 'https://www.loc.gov',
       sourceUrl: 'https://www.loc.gov/about/', fitReason: 'Synthetic fixture; no research result.' }] }));
   const uploaded = await request(base + '/tasks/' + id + '/upload-file', 'POST', { ...attempt, uploadId: 'disk-file',
-    filename: 'fixture.txt', base64: bytes.toString('base64'), sha256: digest(bytes) }, { museBearer: key });
+    filename: 'fixture.json', base64: bytes.toString('base64'), sha256: digest(bytes) }, { museBearer: key });
   assert.equal(uploaded.status, 201);
   const saved = JSON.parse(await readFile(path.join(directory, 'workspace.json'), 'utf8'));
   const artifact = saved.artifacts.find(item => item.id === uploaded.body.artifactId);

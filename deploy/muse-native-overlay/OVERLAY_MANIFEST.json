@@ -3,7 +3,7 @@
   "productionRelease": "/opt/workspace-dot/releases/7279e6346910b43fc879f5a99fd581be47a9a73f",
   "reviewedModuleCommit": "c369a1dd241d3842a4ca033e731bddc257c3dc87",
   "goLiveApprovedByUser": true,
-  "deployed": false,
+  "deployed": true,
   "files": [
     {
       "path": "server/workspace-plugin-service.mjs",
@@ -26,8 +26,8 @@
     {
       "path": "server/muse-worker-native.mjs",
       "beforeSha256": null,
-      "afterSha256": "3317dcb1c560c1ab731344d5333c5bde110f6e459e417892464e4cbd9476395a",
-      "bytes": 13265
+      "afterSha256": "f3e70be669e473167f1c1bec526812f053fa6e51d46d4c5a2455f33118705b36",
+      "bytes": 13494
     },
     {
       "path": "server/muse-worker-host.mjs",
@@ -62,14 +62,20 @@
     {
       "path": "test/muse-worker.native-binding.test.mjs",
       "beforeSha256": null,
-      "afterSha256": "0b31146919fdfb259cb04db3970061f9f5be098cac1b382b3d4fdd5bcf178ca3",
-      "bytes": 16917
+      "afterSha256": "e7a4dee7b52e069da1b4fa66ed8ab0997adc63a32a5ae08713f992a800f6f08c",
+      "bytes": 17094
     },
     {
       "path": "test/muse-worker.native-production.test.mjs",
       "beforeSha256": null,
-      "afterSha256": "23acbeea5dd046e72ed0963e49ee920dd1d658af048fa636390c4bb3df266625",
-      "bytes": 14309
+      "afterSha256": "8dcd184bc73108d383ec3dcee4877d1a03453f0d06cde13d535d88615089fcf7",
+      "bytes": 14315
+    },
+    {
+      "path": "test/muse-worker.native-host.production.test.mjs",
+      "beforeSha256": null,
+      "afterSha256": "65f472b147469ed9a16f685992a65075c30307365108bbdc9ad5b29de3433508",
+      "bytes": 4372
     }
   ],
   "validation": {
@@ -88,10 +94,44 @@
     "linuxProductionIntegration": {
       "written": true,
       "syntaxChecked": true,
-      "executed": false
+      "executed": true
     },
-    "cordisBootVerified": false,
-    "productionDeployed": false,
-    "genuineMuseVerified": false
+    "cordisBootVerified": true,
+    "productionDeployed": true,
+    "genuineMuseVerified": false,
+    "linuxNative": {
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "productionDataUsed": false,
+      "paidModelRequests": 0
+    },
+    "linuxDom": {
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0
+    },
+    "linuxBackend": {
+      "passed": 361,
+      "failed": 3,
+      "skipped": 3,
+      "reason": "Selected production Harness source omits SDK server and agent-loop testkit. No source fixture failure is treated as passing."
+    },
+    "originalDotHarness": {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "synthetic": true
+    },
+    "serviceUserModuleImportVerified": true
+  },
+  "validatedModuleCommit": "4e4246ffe3b380c5762f648e5692379e4eedcafd",
+  "activation": {
+    "backendCodeOnly": true,
+    "museConfigured": false,
+    "museAcceptingOrders": false,
+    "httpsBase": "https://workspace.cnsubscribe.xyz/api/muse-worker/v1",
+    "tlsVerified": true,
+    "productionRelease": "/opt/workspace-dot/releases/muse-native-20261011-1023"
   }
 }
