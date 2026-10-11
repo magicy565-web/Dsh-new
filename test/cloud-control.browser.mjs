@@ -12,7 +12,7 @@ const native = process.env.NATIVE_CLOUD === '1';
 const gateway = process.env.TEST_GATEWAY_LOGIN === '1';
 const checks = [], errors = [], writes = [];
 try {
-  app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, provider: { kind:'deepseek-harness', configured:false, complete() { throw Error('No provider calls allowed'); } } });
+  app = await createApp({ ...(process.env.CONTROL_STATIC_DIRECTORY ? { staticDirectory: process.env.CONTROL_STATIC_DIRECTORY } : {}), dataDirectory: directory, capabilityEnvironment: {}, provider: { kind:'deepseek-harness', configured:false, complete() { throw Error('No provider calls allowed'); } } });
   const address = await app.listen(0), base = 'http://127.0.0.1:' + address.port;
   await app.runtime.createConversation({ title: '原云端任务会话' });
   const conversationId = app.store.read().conversations[0].id;

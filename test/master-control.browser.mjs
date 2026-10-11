@@ -28,7 +28,7 @@ const until = async (condition, label) => {
   while (!condition()) { if (Date.now() > end) throw Error('Timed out: ' + label); await new Promise(resolve => setTimeout(resolve, 30)); }
 };
 try {
-  app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, provider });
+  app = await createApp({ ...(process.env.CONTROL_STATIC_DIRECTORY ? { staticDirectory: process.env.CONTROL_STATIC_DIRECTORY } : {}), dataDirectory: directory, capabilityEnvironment: {}, provider });
   const address = await app.listen(0), base = `http://127.0.0.1:${address.port}`;
   const api = async (route, method, body) => {
     const response = await fetch(base + '/api' + route, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
