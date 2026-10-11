@@ -1,0 +1,126 @@
+{
+  "schema": "workspace.muse.conversation-validation.v1",
+  "recordedAt": "2026-10-11T17:41:07.160Z",
+  "repository": "magicy565-web/workspace-agent",
+  "baseline": "2ac171e4da46e44e0095fe9907c2f8b1339a56cb",
+  "originalTree": "6574190f0c56fdb55f9b3badb5171905075f1a82",
+  "branch": "codex/muse-conversation-delegation-20261012",
+  "node": "v24.21.0",
+  "platform": "win32",
+  "arch": "x64",
+  "testIsolation": "none",
+  "contract": {
+    "passed": 34,
+    "failed": 0,
+    "skipped": 0,
+    "evidence": "contract-tests.txt",
+    "realDiskDurability": false,
+    "originalHarnessBoot": false,
+    "realMuseExecution": false
+  },
+  "originalDiskRegression": {
+    "tests": 18,
+    "passed": 1,
+    "failed": 17,
+    "exitCode": 1,
+    "reason": "Original openStore directory fsync EPERM",
+    "evidence": "original-disk-regressions.txt"
+  },
+  "originalStoreProbe": {
+    "exitCode": 1,
+    "passed": false,
+    "reason": "EPERM fsync",
+    "evidence": "original-store-probe.txt"
+  },
+  "originalOverlaySession": {
+    "exitCode": 1,
+    "passed": false,
+    "reason": "ERR_MODULE_NOT_FOUND: original overlay muse-worker-host.mjs not assembled",
+    "evidence": "original-overlay-session-test.txt"
+  },
+  "syntax": {
+    "checkedFiles": 13,
+    "passed": true
+  },
+  "overlayByteParity": true,
+  "limitations": [
+    "Synthetic serialized copy-on-write memory writer; JSON remount does not prove disk restart",
+    "Synthetic Cordis/SDK routing dependencies; original relay error helper fixture only",
+    "Original Harness archive and manifest absent; no original Host boot",
+    "No official Muse connector/scheduled run/subscription identity evidence",
+    "PR25 control plane read only; no new journal/event/MCP registration",
+    "No deployment/environment switch/credentials/purchase/merge"
+  ],
+  "changedSourceSha256": [
+    {
+      "path": "server/worker-desk.mjs",
+      "sha256": "ff3b564517b3d5054181531a77889e2c1ade7f5b73172364c9dea938faa9e415"
+    },
+    {
+      "path": "server/muse-conversation-delegation.mjs",
+      "sha256": "87cf0ce52614e2ea95a797d7415dbf5b851f0261ab495da89da27571ece3ad09"
+    },
+    {
+      "path": "server/muse-worker-native.mjs",
+      "sha256": "2b60dfafd8724b001a6c4652a45c75799ffcf409b9b122e68b13a19e10ba9d0a"
+    },
+    {
+      "path": "server/muse-worker-session.mjs",
+      "sha256": "4c836346aa1b22c8dceb1fb9e4cc24d7a412c0487c0ad47fac51e653f037b8af"
+    },
+    {
+      "path": "deploy/muse-native-overlay/server/muse-conversation-delegation.mjs",
+      "sha256": "87cf0ce52614e2ea95a797d7415dbf5b851f0261ab495da89da27571ece3ad09"
+    },
+    {
+      "path": "deploy/muse-native-overlay/server/muse-worker-native.mjs",
+      "sha256": "2b60dfafd8724b001a6c4652a45c75799ffcf409b9b122e68b13a19e10ba9d0a"
+    },
+    {
+      "path": "deploy/muse-native-overlay/server/muse-worker-session.mjs",
+      "sha256": "4c836346aa1b22c8dceb1fb9e4cc24d7a412c0487c0ad47fac51e653f037b8af"
+    },
+    {
+      "path": "deploy/muse-native-overlay/server/workspace-plugin-service.mjs",
+      "sha256": "fd0877873495b375bef50b09c31acc2bef5850f87f72bf84fbd3030af27db2e3"
+    },
+    {
+      "path": "deploy/muse-native-overlay/server/workspace-native-plugin.mjs",
+      "sha256": "b406fa3f760b434b1e1898a907f3d3905a0beb17751f6b3a14fcb56e0a0c736e"
+    },
+    {
+      "path": "test/fixtures/muse-conversation.mjs",
+      "sha256": "f5835c5e99f4ea612d8b4d184d81bd90616543f8f22d1bc04cc299e50e90293a"
+    },
+    {
+      "path": "test/muse-conversation-delegation.test.mjs",
+      "sha256": "5903c0a565777bd6686de5fa0c064e3aa85dfd69e08c7a11cb2d0d3473a73ec8"
+    },
+    {
+      "path": "test/muse-conversation-host.test.mjs",
+      "sha256": "498f285ad122088cd80675d88fe8c6f970e776461c39c288747a070d93e65c8b"
+    },
+    {
+      "path": "scripts/check-muse-store-durability.mjs",
+      "sha256": "64aecb7bdf557c77cf1ada0cd3600b5ed4f8d8036f51549ef11c384c0ff32bab"
+    }
+  ],
+  "evidenceSha256": [
+    {
+      "path": "contract-tests.txt",
+      "sha256": "8ecb1bbce24da9af0ff5cf717cd2aab7fd9eb18d6c4eb0f0030a9c2bd7a90a0c"
+    },
+    {
+      "path": "original-disk-regressions.txt",
+      "sha256": "1dbe2d0ef5368cfa2f950a8263b8551af2150a49cf1a0738c725f2b9af8d8009"
+    },
+    {
+      "path": "original-overlay-session-test.txt",
+      "sha256": "70cf972ea2bcdc30c28e73d642e12e3a3075fbc2ba03cf5115f5a54a8dff61e8"
+    },
+    {
+      "path": "original-store-probe.txt",
+      "sha256": "0438cd2c50b289d0fed14af394f8ee7548a612dd5b202763de373a74d40221ca"
+    }
+  ]
+}

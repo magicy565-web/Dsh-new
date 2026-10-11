@@ -1,0 +1,317 @@
+鉁?dot authentication is off without a reviewed hash and rejects non-worker/browser credentials (1.1036ms)
+鉁?dot queue, atomic one-attempt claim, upload, sources, tool receipt and reviewable structured result (4.755ms)
+鉁?one unfinished personal dot attempt is enforced; expiry never triggers a new attempt (2.2524ms)
+鉁?a claimed task cancellation is not successful until the original dot confirms stop (2.1963ms)
+鉁?disabled dot worker is not advertised as executable even when files and plugin are present (2.1002ms)
+鉁?revoking the dot invitation blocks continued execution even with a previously valid lease (2.0972ms)
+鉁?dot cannot receive enterprise private RFQ data or unreviewed secret-bearing payloads (1.9812ms)
+鉁?Dot lease and heartbeat cannot extend beyond the approved business deadline (2.0474ms)
+鉁?a restored snapshot fences out prior Muse and Dot leases and pauses all worker orders (5.1027ms)
+鉁?worker service catalog is honest when no external executor is enrolled (2.1027ms)
+鉁?durable idempotency and strict external data scope (2.235ms)
+鉁?reviewed worker accepts exact approved task and yields a human-reviewed outcome (2.0771ms)
+鉁?dispatch network uncertainty never re-submits work automatically (1.982ms)
+鉁?worker cost over approved cap blocks acceptance regardless of delivery claims (1.9465ms)
+鉁?requesting cancellation never claims external stop without acknowledgement (1.9556ms)
+鉁?buyer research cannot pass human acceptance with a summary but no actual prospects (1.9216ms)
+鉁?a queued or completed remote response cannot revoke a pending cancellation (1.9515ms)
+鉁?duplicated buyer company/domain is rejected instead of inflating lead counts (1.9304ms)
+鈩?tests 18
+鈩?suites 0
+鈩?pass 1
+鈩?fail 17
+鈩?cancelled 0
+鈩?skipped 0
+鈩?todo 0
+鈩?duration_ms 87.1888
+
+鉁?failing tests:
+
+test at test\dot-worker-bridge.test.mjs:45:1
+鉁?dot queue, atomic one-attempt claim, upload, sources, tool receipt and reviewable structured result (4.755ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async fixture (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:21:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:46:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\dot-worker-bridge.test.mjs:97:1
+鉁?one unfinished personal dot attempt is enforced; expiry never triggers a new attempt (2.2524ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async fixture (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:21:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:98:24)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\dot-worker-bridge.test.mjs:114:1
+鉁?a claimed task cancellation is not successful until the original dot confirms stop (2.1963ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async fixture (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:21:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:115:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\dot-worker-bridge.test.mjs:128:1
+鉁?disabled dot worker is not advertised as executable even when files and plugin are present (2.1002ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async fixture (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:21:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:129:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\dot-worker-bridge.test.mjs:137:1
+鉁?revoking the dot invitation blocks continued execution even with a previously valid lease (2.0972ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async fixture (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:21:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:138:34)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\dot-worker-bridge.test.mjs:158:1
+鉁?dot cannot receive enterprise private RFQ data or unreviewed secret-bearing payloads (1.9812ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async fixture (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:21:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:159:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\dot-worker-bridge.test.mjs:169:1
+鉁?Dot lease and heartbeat cannot extend beyond the approved business deadline (2.0474ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async fixture (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:21:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/dot-worker-bridge.test.mjs:170:24)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\muse-worker.recovery.test.mjs:18:1
+鉁?a restored snapshot fences out prior Muse and Dot leases and pauses all worker orders (5.1027ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async createApp (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/index.mjs:69:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/muse-worker.recovery.test.mjs:30:11)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:28:1
+鉁?worker service catalog is honest when no external executor is enrolled (2.1027ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:29:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:43:1
+鉁?durable idempotency and strict external data scope (2.235ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:44:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:56:1
+鉁?reviewed worker accepts exact approved task and yields a human-reviewed outcome (2.0771ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:67:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:87:1
+鉁?dispatch network uncertainty never re-submits work automatically (1.982ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:92:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:102:1
+鉁?worker cost over approved cap blocks acceptance regardless of delivery claims (1.9465ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:107:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:116:1
+鉁?requesting cancellation never claims external stop without acknowledgement (1.9556ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:118:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:130:1
+鉁?buyer research cannot pass human acceptance with a summary but no actual prospects (1.9216ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:137:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:145:1
+鉁?a queued or completed remote response cannot revoke a pending cancellation (1.9515ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:147:16)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }
+
+test at test\worker-desk.test.mjs:167:1
+鉁?duplicated buyer company/domain is rejected instead of inflating lead counts (1.9304ms)
+  Error: EPERM: operation not permitted, fsync
+      at async fsync (node:internal/fs/promises:1546:10)
+      at async fsCall (node:internal/fs/promises:1118:12)
+      at async syncDirectory (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:88:9)
+      at async acquireWriterLock (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:157:3)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:174:16)
+      at async harness (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:11:17)
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/worker-desk.test.mjs:176:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'fsync'
+  }

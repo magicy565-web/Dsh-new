@@ -57,7 +57,7 @@ export function createWorkspaceNativePlugin({ nativeResults = [], dot, museSessi
         return async () => { active = false; clearInterval(timer); await pending; };
       }, 'workspace-muse: preserve original Session receipts before business authority unload');
     }
-    if (attached.service?.dot.enabled) {
+    if (attached.service?.dot.enabled || attached.service?.muse.enabled) {
       ctx.provide('workspaceDotHost', Object.freeze({
         // Private Host reviews may refresh scope handles without resuming any
         // personal Worker connection, editing Goals or changing OAuth bindings.
@@ -89,6 +89,13 @@ export function createWorkspaceNativePlugin({ nativeResults = [], dot, museSessi
           return { lifecycle: attached.service.status(), connection: resumed };
         },
         submitQuestion(actor, body) {
+          if (body?.provider === 'muse') {
+            if (!config.operators.some(o => o.subject === actor.subject && o.nativeAgentId === actor.nativeAgentId))
+              throw Error('The authenticated user has no original Muse conversation.');
+            // Prepare a local reviewable order only. Existing administrator
+            // WorkerDesk routes retain explicit approval and dispatch authority.
+            return attached.service.muse.bindConversation(actor).prepare(body);
+          }
           const binding = bindings.get(actor.nativeAgentId);
           if (!config.operators.some(o => o.subject === actor.subject && o.nativeAgentId === actor.nativeAgentId) || !binding) throw Error('The authenticated user has no original native Session binding.');
           return binding.submitQuestion(body);
@@ -114,7 +121,7 @@ export function createWorkspaceNativePlugin({ nativeResults = [], dot, museSessi
           return current;
         },
       }));
-      await ctx.effect(async () => {
+      if (attached.service.dot.enabled) await ctx.effect(async () => {
         await attached.service.dot.start();
         let active = true, pending;
         const tick = () => {

@@ -52,7 +52,9 @@ export function createMuseSessionProjection({ store, artifacts, actor, workerId,
   const belongs = order => order?.createdBy === actor.subject && order.workerId === workerId;
   function taskFor(state, order) {
     const tasks = (state.museTasks ?? []).filter(t => t.orderId === order.id && t.workerId === workerId);
-    if (tasks.length > 1 || tasks.length && (tasks[0].id !== order.remoteJobId || tasks[0].id !== order.id))
+    if (tasks.length > 1 || tasks.length && (tasks[0].id !== order.id ||
+        order.remoteJobId !== null && tasks[0].id !== order.remoteJobId ||
+        order.remoteJobId === null && !['dispatching', 'dispatch_uncertain'].includes(order.status)))
       fail('The original Muse order and task reference disagree.');
     return tasks[0];
   }
@@ -104,6 +106,7 @@ export function createMuseSessionProjection({ store, artifacts, actor, workerId,
         workerId, taskRef: task?.id ?? null, status: order.status, executionStatus: task?.status ?? null,
         attemptId: task?.attemptId ?? null, fence: task?.fence ?? 0, leaseUntil: task?.leaseUntil ?? null,
         createdAt: order.createdAt, updatedAt: order.updatedAt, deadlineAt: order.deadlineAt,
+        taskUpdatedAt: task?.updatedAt ?? null,
         serviceId: order.serviceId, product: order.product, market: order.market, objective: order.objective,
         budgetCredits: order.budgetCredits, summary: task?.summary ?? '', receipt, receiptHash,
         returnedHash: saved?.receiptHash ?? null, acceptedAt: order.acceptedAt ?? null, independentlyVerified: false };

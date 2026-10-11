@@ -2,6 +2,7 @@ import path from 'node:path';
 import { createNativeMuseBinding, quarantineNativeMuse } from './muse-worker-native.mjs';
 import { MuseWorkerError } from './muse-worker-api.mjs';
 import { validateMuseSessionReceipts } from './muse-worker-session.mjs';
+import { validateMuseConversationDelegations } from './muse-conversation-delegation.mjs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { openStore } from './store.mjs';
 import { createArtifactService } from './artifacts.mjs';
@@ -97,6 +98,7 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
   };
   try {
     const initial = store.read(); validateLifecycle(initial.workspacePlugin, config.scopeId);
+    validateMuseConversationDelegations(initial, { operators: config.operators });
     validateWorkspaceDotTasks(initial.workspaceDotTasks);
     validateMuseSessionReceipts(initial.workspaceMuseSessionReceipts, { operators: config.operators, orders: initial.workerOrders ?? [],
       messages: initial.messages, conversations: initial.conversations });
@@ -480,6 +482,10 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
       bindDesk(actor) {
         if (!museRest) throw new MuseWorkerError(503, 'MW_GATEWAY_UNAVAILABLE', 'The original Muse binding is unavailable.');
         return museRest.bindDesk(actor);
+      },
+      bindConversation(actor) {
+        if (!museRest) throw new MuseWorkerError(503, "MW_GATEWAY_UNAVAILABLE", "The original Muse binding is unavailable.");
+        return museRest.bindConversation(actor);
       },
       bindSession(actor) {
         if (!museRest) throw new MuseWorkerError(503, 'MW_GATEWAY_UNAVAILABLE', 'The original Muse binding is unavailable.');

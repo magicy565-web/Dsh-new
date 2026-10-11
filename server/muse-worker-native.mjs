@@ -2,6 +2,8 @@ import { createMuseWorkerHost } from './muse-worker-host.mjs';
 import { createWorkerServiceDesk, WorkerDeskError } from './worker-desk.mjs';
 import { createWorkerOpportunityService, WorkerOpportunityError } from './worker-opportunities.mjs';
 import { MuseWorkerError } from './muse-worker-api.mjs';
+import { createMuseSessionProjection } from './muse-worker-session.mjs';
+import { createMuseConversationDelegation, validateMuseConversationDelegations } from './muse-conversation-delegation.mjs';
 
 const id = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value);
 // Original native owner/session identifiers allow @ and /; Worker API IDs keep
@@ -57,11 +59,17 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
   store = { read: () => parentStore.read(),
     update(callback) {
       return parentStore.update(state => {
+        validateMuseConversationDelegations(state);
         const originalEvents = new Set((state.activity ?? []).map(item => item.id));
+        const originalOrders = new Set((state.workerOrders ?? []).map(item => item.id));
         const result = callback(state);
         if (result?.then) throw new TypeError('Muse bridge transactions must remain synchronous.');
         for (const event of state.activity ?? []) if (!originalEvents.has(event.id) && event.type?.startsWith('muse_worker_'))
           event.workerOwner = { subject: actor.subject, nativeAgentId: actor.nativeAgentId };
+        for (const order of state.workerOrders ?? []) if (!originalOrders.has(order.id) &&
+          order.createdBy === actor.subject && order.workerId === config.workerId)
+          order.museSession = { ...actor, workerId: config.workerId };
+        validateMuseConversationDelegations(state);
         return result;
       });
     },
@@ -83,16 +91,21 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
         },
       });
     },
-    download(artifactId) {
+    download(artifactId, options = {}) {
       if (!owned(store.read().artifacts?.find(item => item.id === artifactId)))
         throw new MuseWorkerError(404, 'MW_FILE_NOT_FOUND', 'This file is not owned by this Muse binding.');
-      return artifacts.download(artifactId);
+      // Worker uploads and accepted receipts are immutable first versions.
+      // The existing bridge also parses structured reports through this path.
+      return artifacts.download(artifactId, { version: 1, ...options });
     },
   };
   const host = createMuseWorkerHost({ store, artifacts: boundArtifacts, config,
     dotWorkerConfig, readBody, respond });
   const desk = createWorkerServiceDesk({ store, artifacts: boundArtifacts,
     adapters: { [host.workerId]: host.adapter }, validateActor: nativeId });
+  const session = createMuseSessionProjection({ store, artifacts: boundArtifacts, actor,
+    workerId: host.workerId, ownedArtifact: owned });
+  const conversation = createMuseConversationDelegation({ store, desk, session, actor, workerId: host.workerId, operators });
   function scoped(callback, active = false) {
     if (stopped) throw new MuseWorkerError(503, 'MW_GATEWAY_CLOSED', 'The Muse binding is unloading.');
     return run(callback, { active });
@@ -129,8 +142,10 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
     // Even reads must execute within the same pinned native lifecycle.
     return Object.freeze({
       catalog: () => scoped(() => desk.catalog()),
-      list: () => scoped(() => desk.list().filter(belongs)),
-      get: id => scoped(() => order(id)),
+      list: () => scoped(() => desk.list().filter(belongs).map(item => item.museConversation ?
+        { ...item, conversationDelegation: conversation.get(item.id) } : item)),
+      get: id => scoped(() => { const item = order(id); return item.museConversation ?
+        { ...item, conversationDelegation: conversation.get(id) } : item; }),
       tasks: () => scoped(() => host.bridge.adminTasks()),
       info: () => scoped(() => host.bridge.info()),
       create: input => scoped(() => {
@@ -142,11 +157,15 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
         order(id);
         if (input?.workerId !== undefined && input.workerId !== host.workerId)
           throw new WorkerDeskError(409, 'WORKER_UNAVAILABLE', 'Use the reviewed Muse Worker.');
+        if (order(id).museConversation) return conversation.approve(id, input).then(result => ({ ...result, order: order(id) }));
         return desk.approve(id, actor.subject, { ...input, workerId: host.workerId });
       }, true),
-      dispatch: id => scoped(() => { order(id); return desk.dispatch(id); }, true),
+      dispatch: id => scoped(() => { const current = order(id);
+        return current.museConversation ? conversation.dispatch(id, { confirmed: true, expectedReviewHash: current.museConversation.reviewHash })
+          .then(result => ({ ...result, order: order(id) })) : desk.dispatch(id); }, true),
       refresh: id => scoped(() => { order(id); return desk.refresh(id); }),
-      accept: (id, input) => scoped(() => { order(id); return desk.accept(id, actor.subject, input); }),
+      accept: (id, input) => scoped(() => { const current = order(id);
+        return current.museConversation ? conversation.accept(id, input).then(result => ({ ...result, order: order(id) })) : desk.accept(id, actor.subject, input); }),
       cancel: id => scoped(() => { order(id); return desk.cancel(id); }),
       opportunities: () => scoped(() => opportunities.list().filter(item => {
         try { return belongs(desk.get(item.sourceOrderId)); } catch { return false; }
@@ -173,7 +192,29 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
     if (['GET', 'HEAD', 'DELETE'].includes(req.method) && (Number(req.headers['content-length'] ?? 0) !== 0 || req.headers['transfer-encoding']))
       throw new MuseWorkerError(400, 'MW_BODY_NOT_ALLOWED', 'This method does not accept a body.');
   }
-  return Object.freeze({ workerId: host.workerId, bindDesk,
+  function bindSession(requestActor) {
+    if (requestActor?.subject !== actor.subject || requestActor.nativeAgentId !== actor.nativeAgentId)
+      throw new WorkerDeskError(403, 'MUSE_OWNER_REQUIRED', 'This operator has no reviewed Muse Session binding.');
+    return Object.freeze({
+      view: () => scoped(() => session.view()),
+      download: reference => scoped(() => session.download(reference)),
+      acknowledge: (orderId, receiptHash) => scoped(() => session.acknowledge(orderId, receiptHash)),
+      messageId: orderId => session.messageId(orderId),
+      refreshSubmitted: () => scoped(async () => {
+        for (const item of session.view()) if (item.executionStatus === 'submitted' && !item.receipt &&
+          ['queued', 'running', 'dispatch_uncertain', 'input_required'].includes(item.status)) {
+          await desk.refresh(item.orderId);
+        }
+      }),
+    });
+  }
+  function bindConversation(requestActor) {
+    if (requestActor?.subject !== actor.subject || requestActor.nativeAgentId !== actor.nativeAgentId)
+      throw new WorkerDeskError(403, 'MUSE_OWNER_REQUIRED', 'Use the original reviewed Muse conversation.');
+    return Object.freeze(Object.fromEntries(Object.entries(conversation).map(([name, method]) =>
+      [name, (...args) => scoped(() => method(...args), ['prepare', 'approve', 'dispatch'].includes(name))])));
+  }
+  return Object.freeze({ workerId: host.workerId, bindDesk, bindSession, bindConversation,
     initialize: () => scoped(() => {
       if (desk.list().some(item => item.status === 'dispatching' && !belongs(item)))
         throw new WorkerDeskError(409, 'MUSE_RECOVERY_OWNER_REQUIRED', 'Review the original WorkerDesk owner before recovering unrelated orders.');

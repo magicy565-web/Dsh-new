@@ -1,0 +1,42 @@
+鉁?bundled production MCP schemas match the reviewed 11-action REST tool contract (2.5175ms)
+鉁?runtime MCP module is self-contained and does not depend on nonpackaged documentation files (0.3768ms)
+鉁?explicit Muse draft maps once to original conversation, then explicit approval queues one original order (6.9779ms)
+鉁?natural text, private scope, arbitrary Worker, foreign Session and stale review cannot dispatch (0.9776ms)
+鉁?requestId conflicts and one unfinished original delegation are enforced transactionally (1.4287ms)
+鉁?copy-on-write failure publishes neither an order nor a message and is not converted to success (0.4407ms)
+鉁?lost dispatch persistence reconciles the same original order, without a replacement task or job ID (2.3238ms)
+鉁?claimed, expired lease, cancellation and late submit retain attempt and fence (5.8713ms)
+鉁?result ready, native durable return and enterprise acceptance are distinct; exact file bytes survive JSON remount (7.8059ms)
+鉁?order scope or original conversation corruption invalidates old approvals without repair or replay (0.7013ms)
+鉁?a cached bound conversation cannot prepare work after native pause or detach (0.2761ms)
+鉁?an exact retry after the deadline returns its original queued order and cannot restart expired work (1.5154ms)
+鉁?original conversation Host prepares Muse with no Dot connection, without dispatch or starting a timer (1.1797ms)
+鉁?original Dot submissions retain their binding and cannot fall through to a Muse order (0.9119ms)
+鉁?Muse contract is the exact independently scoped 11-operation REST API (0.2628ms)
+鉁?Muse Skill limits must match the published server contract (0.2113ms)
+鉁?Every Muse operation uses the dedicated bearer and no unreviewed private RFQ route (0.133ms)
+鉁?native binding requires reviewed exact owner and explicit boolean gates before any write (0.3341ms)
+鉁?REST uses parent native actor and rejects Host, browser credentials and duplicate headers (28.0894ms)
+鉁?fixed Muse owner cannot inspect or mutate another WorkerDesk order (10.0968ms)
+鉁?parent pause blocks admission and captured epoch revocation blocks cached REST and business handles (11.0484ms)
+鉁?owned upload, manual acceptance and opportunity import retain owner and preserve foreign data (14.7521ms)
+鉁?disabled approval gates allow identity and empty inbox without admitting an order (11.3053ms)
+鉁?native restart quarantine expires the original lease without replacing the attempt or receipt (13.8416ms)
+鉁?native owner and session IDs keep their original syntax without widening public task IDs (11.5957ms)
+鉁?private reconciliation review only remounts an exact paused scope without Dot grants or resume authority (0.5134ms)
+鉁?the Muse host probe performs only two scoped GET calls, never a claim or upload (3.1397ms)
+鉁?read-only probe refuses placeholder, local, or mismatched API host before any network (0.2928ms)
+鉁?identity mismatch and unexpectedly enabled Muse are not treated as handshake success (0.5439ms)
+鉁?401 credentials, redirects and oversized responses fail closed (0.4782ms)
+鉁?chunked oversized responses stop downloading and cancel before the inbox call (0.5646ms)
+鉁?the response cap counts UTF-8 bytes and accepts the exact boundary (0.792ms)
+鉁?an oversized declared body is cancelled without consuming any bytes (0.3674ms)
+鉁?split UTF-8 chunks decode correctly and malformed UTF-8 is rejected (0.4288ms)
+鈩?tests 34
+鈩?suites 0
+鈩?pass 34
+鈩?fail 0
+鈩?cancelled 0
+鈩?skipped 0
+鈩?todo 0
+鈩?duration_ms 180.3431

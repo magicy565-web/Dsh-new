@@ -1,0 +1,28 @@
+鉁?deploy\muse-native-overlay\test\muse-worker.session.test.mjs (0.3496ms)
+鈩?tests 1
+鈩?suites 0
+鈩?pass 0
+鈩?fail 1
+鈩?cancelled 0
+鈩?skipped 0
+鈩?todo 0
+鈩?duration_ms 22.8276
+
+鉁?failing tests:
+
+test at deploy\muse-native-overlay\test\muse-worker.session.test.mjs:1:1
+鉁?deploy\muse-native-overlay\test\muse-worker.session.test.mjs (0.3496ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\Administrator\Documents\Codex\2026-10-12\task-2\workspace\deploy\muse-native-overlay\server\muse-worker-host.mjs' imported from C:\Users\Administrator\Documents\Codex\2026-10-12\task-2\workspace\deploy\muse-native-overlay\server\muse-worker-native.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33)
+      at ModuleJob.link (node:internal/modules/esm/module_job:381:17) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/deploy/muse-native-overlay/server/muse-worker-host.mjs'
+  }

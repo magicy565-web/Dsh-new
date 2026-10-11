@@ -169,7 +169,9 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         return { recovered };
       });
     },
-    async create(input, actor) {
+    async create(input, actor, { attach } = {}) {
+      if (attach !== undefined && typeof attach !== "function") throw new TypeError("Only a trusted synchronous order mapping hook is allowed.");
+      const map = (state, order, duplicate) => { if (attach?.(state, order, duplicate)?.then) throw new TypeError("Order mapping must stay inside the synchronous durable transaction."); };
       if (!keysOnly(input, ['serviceId', 'product', 'market', 'objective', 'budgetCredits', 'deadlineAt', 'requestId', 'publicDataConfirmed', 'workerId']))
         fail(400, 'INVALID_INPUT', 'Unrecognized delegation fields.');
       const service = findService(input.serviceId);
@@ -191,6 +193,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         const existing = state.workerOrders.find(item => item.requestId === input.requestId && item.createdBy === actor);
         if (existing) {
           if (existing.requestFingerprint !== fingerprint) fail(409, 'IDEMPOTENCY_CONFLICT', 'The same request ID cannot be reused for different order contents.');
+          map(state, existing, true);
           return { order: existing, duplicate: true };
         }
         if (state.workerOrders.length >= 1000) fail(409, 'ORDER_LIMIT', 'Service order limit reached; archive with a reviewed retention policy.');
@@ -203,7 +206,7 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
           approvedBy: null, approvedAt: null, remoteJobId: null, workerReport: null,
           reportedCostCredits: null, acceptedBy: null, acceptedAt: null, error: null,
         };
-        state.workerOrders.push(order); return { order, duplicate: false };
+        state.workerOrders.push(order); map(state, order, false); return { order, duplicate: false };
       });
     },
     approve(id, actor, input) {
