@@ -36,7 +36,8 @@
     "preview:control": "npm run build && node --experimental-test-module-mocks --import ./test/fixtures/goal-commerce-memory-preload.mjs test/preview-master-control.mjs",
     "test:control:cloud": "npm run build && node test/cloud-control.browser.mjs",
     "test:control:activity": "node --test test/cloud-activity.test.mjs",
-    "test:control:muse": "npm run build && npm run test:control:activity && node test/muse-control.browser.mjs && node test/muse-receipts.browser.mjs"
+    "test:control:muse": "npm run build && npm run test:control:activity && node test/muse-control.browser.mjs && node test/muse-receipts.browser.mjs",
+    "test:conversation:ui": "npm run build && node --test --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

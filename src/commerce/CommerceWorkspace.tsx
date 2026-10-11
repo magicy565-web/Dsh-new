@@ -3,6 +3,7 @@ import { Icon } from '../icons';
 import { Field, Notice, pid, stamp, useDirty, useRead, useWrite, WriteNotice } from '../library/common';
 import type { Product, ListResult } from '../library/types';
 import type { CommerceProject, CommerceStatus } from './types';
+import SupplyNetworkPanel from './SupplyNetworkPanel';
 import './commerce.css';
 
 type Props = { id?: string; readOnly: boolean; isAdmin: boolean; onNavigate: (id?: string) => void; onLibrary: () => void; onGoal: (id: string) => void; onOrder: (id: string) => void; onDirty: (dirty: boolean) => void; onRefresh: () => Promise<void> };
@@ -10,9 +11,9 @@ const stateLabel = (status: string) => ({ draft: '等待研究', research_prepar
 export default function CommerceWorkspace(props: Props) {
   const status = useRead<CommerceStatus>('/commerce-status');
   return <div className="commerce-workspace">
-    <header className="commerce-heading"><span className="eyebrow">让产品在海外得到真实验证</span><h1>产品托管</h1><p>从产品和供货资料出发，寻找分销机会，用订单验证市场。</p></header>
-    <ConnectionCard status={status} isAdmin={props.isAdmin}/>
-    {props.id === 'new' ? <ProjectForm {...props}/> : props.id ? <ProjectDetail {...props} id={props.id} connection={status.value?.shopify}/> : <ProjectList {...props}/>}
+    <header className="commerce-heading"><h1>产品与供货资料</h1><p>可在业务对话中使用的企业资源。</p></header>
+    {props.id && <ConnectionCard status={status} isAdmin={props.isAdmin}/>}
+    {props.id === 'new' ? <ProjectForm {...props}/> : props.id ? <ProjectDetail {...props} id={props.id} connection={status.value?.shopify}/> : <SupplyNetworkPanel readOnly={props.readOnly} isAdmin={props.isAdmin} shopify={status.value?.shopify} onDirty={props.onDirty}/>}
   </div>;
 }
 function ConnectionCard({ status, isAdmin }: { status: ReturnType<typeof useRead<CommerceStatus>>; isAdmin: boolean }) {
@@ -50,7 +51,7 @@ function ProjectForm({ readOnly, onNavigate, onLibrary, onDirty }: Props) {
     if (result) { onDirty(false); onNavigate(result.project.id); }
   }
   return <section><button type="button" className="bl-back" onClick={() => onNavigate()}><Icon name="back" size={18}/>托管任务</button><h2>托管一个产品</h2><Notice error={products.error} retry={products.retry}/>
-    {products.loading ? <p role="status">读取产品库…</p> : !products.error && !options.length ? <div className="commerce-empty"><h3>先保存企业自有产品</h3><p>公开参考样本不能作为本企业库存或供货承诺。</p><button type="button" className="secondary-button" onClick={onLibrary}>打开产品库</button></div> : <form className="commerce-form" onSubmit={event => { event.preventDefault(); void save(); }}>
+    {products.loading ? <p role="status">读取产品库…</p> : !products.error && !options.length ? <div className="commerce-empty"><h3>先保存企业自有产品</h3><p>公开参考样本不能作为本企业库存或供货承诺。</p><button type="button" className="secondary-button" onClick={() => onLibrary()}>打开产品库</button></div> : <form className="commerce-form" onSubmit={event => { event.preventDefault(); void save(); }}>
       <fieldset disabled={readOnly || writer.busy || writer.uncertain}>
         <Field label="企业产品"><select required value={productId} onChange={event => { const product = options.find(item => item.id === event.target.value); setProductId(event.target.value); setDescription(product?.description || ''); setConfirmed(false); }}><option value="">选择已保存的产品</option>{options.map(product => <option key={product.id} value={product.id}>{product.name} · 修订 {product.revision}</option>)}</select></Field>
         <Field label="可以共享给 Agent 的产品介绍"><textarea required value={description} maxLength={8000} rows={4} onChange={event => { setDescription(event.target.value); setConfirmed(false); }}/></Field>

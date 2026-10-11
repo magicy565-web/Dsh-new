@@ -1,0 +1,19 @@
+/* Integrate original conversation components; retain existing Workspace assets. */
+body{min-width:320px}
+.conversation-workspace .main-content{min-width:0}
+.conversation-workspace .brand-button{flex-shrink:0}
+.conversation-workspace .message-scroll{overflow-x:hidden}
+.conversation-workspace .message-content pre{max-width:100%;overflow:auto}
+.conversation-workspace .conversation-run{margin:12px auto;max-width:760px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.conversation-run>summary,.conversation-task-list>summary{cursor:pointer;padding:12px 14px;font-size:13px}
+.conversation-task-controls{min-width:0}
+.conversation-order-body{padding:0 14px 14px;overflow-wrap:anywhere}.conversation-order-body p{padding:6px 0}.conversation-public-scope{border:0;padding:0;min-width:0}.conversation-public-scope input,.conversation-public-scope textarea,.conversation-public-scope select{max-width:100%}
+.conversation-task-list{margin:6px 0;border:1px solid var(--line);border-radius:12px;max-height:36dvh;overflow:auto}
+.conversation-task-list>button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:12px 14px;text-align:left;border-top:1px solid var(--line);gap:12px}
+.conversation-task-list>button span{min-width:0}.conversation-task-list strong,.conversation-task-list small{display:block;overflow-wrap:anywhere}.conversation-task-list small{font-size:12px;color:var(--text-secondary);margin-top:5px}.conversation-task-list p{font-size:12px;padding:10px 14px}
+.conversation-workspace .conversation-command{width:100%;margin:0}.conversation-workspace .conversation-command textarea{min-width:0}
+.conversation-workspace .chat-library-references{margin:0 0 8px}.conversation-workspace .chat-library-ref-items{max-height:100px;overflow:auto}
+.conversation-workspace .activity-date{font-size:12px;color:var(--text-secondary);margin:12px 0 5px}
+.assistant-drawer-shade{display:none}
+@media(max-width:1099px){.conversation-workspace .assistant-panel{display:flex;position:fixed;inset:12px 12px 12px auto;width:min(340px,calc(100vw - 24px));z-index:70;border:1px solid var(--line);border-radius:20px;background:var(--surface);box-shadow:var(--shadow)}.conversation-workspace .assistant-drawer-shade{display:block;position:fixed;inset:0;background:#22222235;z-index:65}.conversation-workspace .main-content{width:100%;flex:1}.conversation-workspace .conversation-sidebar{max-width:calc(100vw - 24px)}}
+@media(max-width:760px){.conversation-workspace .assistant-panel{bottom:76px}.conversation-workspace .composer-region{min-width:0}.conversation-workspace .composer textarea,.conversation-workspace .conversation-command textarea{font-size:16px}.conversation-workspace .chat-library-ref-items{max-height:84px}.conversation-workspace .header-actions{gap:4px}.conversation-workspace .message-bubble{overflow-wrap:anywhere}.conversation-workspace .control-sheet{width:100%;max-height:calc(100dvh - 36px)}}

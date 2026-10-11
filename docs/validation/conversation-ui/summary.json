@@ -1,0 +1,57 @@
+{
+  "reviewedAtUtc": "2026-10-11T21:24:59Z",
+  "host": "TT041",
+  "node": "24.19.0",
+  "storage": "temporary original NTFS Store",
+  "backendHead": "1a669dc81e6e3dab6fa11d3fbf0afbced08f8c39",
+  "backendTree": "cdb91b1f2c86991fbf055860c63fdf356d4ae2fb",
+  "typecheck": {
+    "command": "node node_modules/typescript/bin/tsc --noEmit",
+    "exitCode": 0,
+    "verifiedToolSession": 52199,
+    "diagnostics": []
+  },
+  "evidence": [
+    {
+      "path": "conversation-ui.tap.txt",
+      "bytes": 3495,
+      "sha256": "5b30fdffec2ec582652c8702b928c40ef2f42397420726196bf537e4d7f40629",
+      "tests": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "path": "original-v22-ui.tap.txt",
+      "bytes": 5572,
+      "sha256": "b485ddbe0c06e07bac561a41036fe208048b396b6dd53b9aa931136c9232b150",
+      "tests": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "path": "original-disk-mcp.tap.txt",
+      "bytes": 999,
+      "sha256": "6034c8d0f5174164138fcc1abe346bf43fb9dcc4c66e96e3f8672836c2aecda2",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "path": "production-build.txt",
+      "bytes": 366,
+      "sha256": "900b213cbb9d8d2d494c7844d0bf7a3edce53d7096bb10abb35972896cccc697"
+    }
+  ],
+  "originalHostBoot": false,
+  "genuineMuseExecution": false,
+  "accountWakeAccepted": false,
+  "mobileVisualAccepted": false,
+  "nativeSessionSender": "offline original fixture",
+  "nativeBootstrapAndSessionTransport": "explicit offline fixture",
+  "ordinaryHttpAndMcp": "original implementation",
+  "productionOperations": 0,
+  "note": "Original 3 selected UI tests are included in the complete 19, and are not added again. PR28 backend 94/95 and PR30 historical 14/14 are not this run."
+}
