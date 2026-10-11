@@ -1,5 +1,7 @@
 {
   "result": "passed",
+  "nativeModeFixture": false,
+  "originalNativeHarnessHost": false,
   "checks": [
     "Root, chat and exact conversation URLs all use one centered control without legacy side panels.",
     "Queued delegation is visible but never represented as execution.",
@@ -14,8 +16,5 @@
   ],
   "errors": [],
   "proof": "local API contract fixtures; not live Worker execution",
-  "deployment": false,
-  "nativeModeFixture": false,
-  "originalNativeHarnessHost": false,
-  "classificationNote": "Corrected fixture classification only; scenario assertions and recorded successful run are unchanged."
+  "deployment": false
 }

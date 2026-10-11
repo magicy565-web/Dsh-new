@@ -19,6 +19,8 @@ The central control selects valid active work before queued/draft work, independ
 
 Blocking, cancellation, uncertain and unreviewed results retain their labels and a visible count/entry while another task runs. Pending native cancelled/expired outcomes still require their existing close operation. The original conversation scope, single spirit and write guards remain. Reconnect and other-attention controls occupy the existing dock hint position so the phone input dock does not intercept their clicks.
 
+PR22's follow-up fixes closed native failures remaining in the attention count and outranking queued/preparing work. The genuine PR15 `workspace-dot-host.mjs:123` close contract requires confirmation of the original returned unsuccessful receipt before `tasks.close`; `workspace-dot-history-review.mjs:68` requires its matching `closedHash` and original requester. The frontend already maps that native close acknowledgement. Only native failed jobs with `closedHash` leave attention; their failed state and history remain visible. Unclosed failures, non-native failures, cancellation requests and existing returned cancelled/expired close requirements retain their behavior. The new regression first failed against `36e0b45` before the fix (8 passed / 1 failed), then all nine state tests passed.
+
 An unchanged receipt stays mounted across routine bootstrap polling. This is covered by a slow download lasting longer than the poll interval.
 
 ## Local verification
@@ -29,10 +31,10 @@ Environment: Node `24.19.0`, TypeScript `6.0.3`, Vite `8.0.16`, Playwright `1.61
 | --- | --- | --- |
 | `npm run typecheck` / `npm run build` | Passed | TypeScript and default production bundle |
 | `VITE_WORKSPACE_LOGIN_PATH=/auth/login` Vite build | Passed | Existing gateway login build, separate output directory |
-| `node --test test/cloud-activity.test.mjs` | 7 passed, 0 failed, 0 skipped | State selection, stale/malformed evidence, strict references and historical metadata |
+| `node --test test/cloud-activity.test.mjs` | 9 passed, 0 failed, 0 skipped | State selection, native failure closure/cancel/expiry boundaries, stale/malformed evidence, strict references and historical metadata |
 | `node --test test/ui.dom.test.mjs` | 19 passed, 0 failed, 0 skipped | Production React bundle and local HTTP/persistence; jsdom rendering |
 | `test/muse-control.browser.mjs` | 12 checks passed | Built UI with explicit Muse/Dot API fixtures |
-| `test/muse-receipts.browser.mjs` | 14 checks passed, 5 exact downloads, no business writes or page errors | Built UI, persisted local application and real loopback HTTP file responses; synthetic API/authorization/results |
+| `test/muse-receipts.browser.mjs` | 17 checks passed, 5 exact downloads, no business writes or page errors | Built UI, native-shaped closure/queue fixtures, persisted local application and real loopback HTTP file responses; synthetic API/authorization/results |
 | `test/cloud-control.browser.mjs`, standard mode | 10 checks passed | Existing standard API fixtures |
 | Same browser test, native mode | 10 checks passed | Native-shaped API fixtures; no original Harness host |
 | Same browser test, native + gateway mode | 12 checks passed | Native-shaped API fixtures and simulated gateway login |
@@ -41,7 +43,7 @@ Counts are reported separately because scenarios overlap. This is not a cumulati
 
 The DOM suite's old `matchMedia` fixture was updated to provide the event API used by V22. Its old back-navigation expectation was corrected to assert the existing return to `/home` central control, then explicitly navigate to the saved goal list. Product navigation was not changed.
 
-Screenshots and per-scenario JSON are in `docs/screenshots/muse-receipts/`. They show actual Chromium rendering at 320×568, 390×844 and 1440×900, with synthetic fixture content clearly identified. `mixed-running-phone-fixture.png` shows one live central spirit and two actionable attention tasks; `receipt-390-fixture.png` and `receipt-320-fixture.png` show the original-history attachment and invalid-record handling. Download bytes have SHA256 `b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1`.
+Screenshots and per-scenario JSON are in `docs/screenshots/muse-receipts/`. They show actual Chromium rendering at 320×568, 390×844 and 1440×900, with synthetic fixture content clearly identified. `mixed-running-phone-fixture.png` shows one live central spirit and two actionable attention tasks; `closed-failed-queued-phone-fixture.png` shows queued work after a closed failure, and `unclosed-failed-phone-fixture.png` shows the unclosed failure still requiring attention. `receipt-390-fixture.png` and `receipt-320-fixture.png` show the original-history attachment and invalid-record handling. Download bytes have SHA256 `b9ec14818af5d8d189cfe827df79cd565161afc950c900ae0caf3e5e2681b8f1`.
 
 Reproduce focused checks with Node 24+ and an installed Playwright browser:
 
@@ -62,4 +64,4 @@ NATIVE_CLOUD=1 TEST_GATEWAY_LOGIN=1 CONTROL_STATIC_DIRECTORY=/tmp/workspace-v22-
 4. After the user reported server recovery, a credential-free public check at `2026-10-11T06:30:45Z` failed here before reaching production: direct DNS returned `Temporary failure in name resolution`; proxy-based HTTPS GETs to `/` and the known `/api/session` endpoint returned CONNECT 403 and origin HTTP code 000. No origin TLS/HTTP response was obtained. This says nothing definitive about whether the server is running. The parent's earlier MCP `-32603` result is not attributed to a guessed cause. At `06:36 UTC` the parent reported a successful genuine original Worker identity call with the original binding preserved and `nativeExecutorAttested=false`; this task did not independently repeat that call or claim a task. Network investigation then stopped. The older automation binding still requires separate handling by its authorized owner.
 5. Real original-session delivery, genuine Muse research/file acceptance and independent OAuth refresh/rotation verification remain pending. This task made no production changes, payments, new credentials, permission expansion, plugin/OAuth/MCP subscription changes, main changes, force pushes or deployments.
 
-The development commit includes `[skip ci]` so this handoff relies on the recorded local validation and does not request a new hosted CI run. The new PR is Draft and targets the existing PR21 candidate branch.
+The development commits include `[skip ci]` so this handoff relies on the recorded local validation and does not request new hosted CI runs. PR22 remains Draft and targets the unchanged PR21 candidate branch. At the previous `36e0b45` head, the parent's read-only review found zero check runs, statuses and workflows; that is no CI execution, not a CI pass. The follow-up source package supersedes that head's package and replaces the same Library item with optimistic version checking.

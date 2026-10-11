@@ -17,8 +17,8 @@
     },
     {
       "path": "src/experience/cloudActivity.ts",
-      "bytes": 3485,
-      "sha256": "e2dbdf477d51b06b476a4df31a8e7ddb4682677ccc00d3632dce1dfb2f6e2a85"
+      "bytes": 3569,
+      "sha256": "c18193b346200a4a3458e6b7c2fa6761c2b9c4ae7842650fc9e6624127c7cbe4"
     },
     {
       "path": "src/experience/museControl.ts",
@@ -32,13 +32,13 @@
     },
     {
       "path": "test/cloud-activity.test.mjs",
-      "bytes": 6716,
-      "sha256": "7f1dfcd397ae91457efea1b21fa3d2aef6720950dd400b718d13093055d42d5f"
+      "bytes": 9180,
+      "sha256": "4391fa1c74c71eb06e0419e43bdedf7f5f10ad49d6ca9f2907f420577c59f5b1"
     },
     {
       "path": "test/muse-receipts.browser.mjs",
-      "bytes": 16655,
-      "sha256": "48c8b2812cbb32518d0f524cdca18354c948307294ca9a9c935911e1774471bb"
+      "bytes": 19579,
+      "sha256": "a52476c692d96b185c1da7212cd749ad9d6b7b16dabeddf11ca85a6e143ae048"
     },
     {
       "path": "test/cloud-control.browser.mjs",
@@ -58,19 +58,55 @@
   ],
   "buildFiles": [
     {
-      "path": "dist/assets/index-8KfcrHLD.js",
-      "bytes": 494307,
-      "sha256": "bf3c205be6050eb9a1352974a238f883bd229af427eb17f29e569bcd4f384209"
-    },
-    {
       "path": "dist/assets/index-CQzcOONs.css",
       "bytes": 206041,
       "sha256": "80f55da322f9a2d286f0517224c5a0fec049a3f3c51ec82b26d9d746be52ef11"
     },
     {
+      "path": "dist/assets/index-Z7EI3TbW.js",
+      "bytes": 494357,
+      "sha256": "b52ed099ded2ea7464dde8802d314970e6c40df14642f97048688d0a29a22846"
+    },
+    {
       "path": "dist/index.html",
       "bytes": 541,
-      "sha256": "b20d2abb0764f8eab53eafd1b19cc6b98aaf729534a824076dc8cc253f739f54"
+      "sha256": "4b7c4a4e1f4a785f8b8cfda458997626013d5e08782a3eb36ffae74a1da86f99"
+    }
+  ],
+  "followUp": {
+    "previousHead": "36e0b45a2a75d4a2e30f6b81dcb85bd5a0375319",
+    "scope": "closed native failed tasks leave attention after the existing close acknowledgement",
+    "validatedAt": "2026-10-11T06:49:33.005675+00:00",
+    "regressionBeforeFix": {
+      "passed": 8,
+      "failed": 1,
+      "expectedFailure": "closed native failed task wrongly required attention"
+    },
+    "localChecks": {
+      "activityTests": 9,
+      "domTests": 19,
+      "museBrowserChecks": 12,
+      "receiptBrowserChecks": 17,
+      "exactDownloads": 5,
+      "standardCloudBrowserChecks": 10,
+      "nativeFixtureBrowserChecks": 10,
+      "nativeGatewayFixtureBrowserChecks": 12,
+      "typecheck": "passed",
+      "defaultBuild": "passed",
+      "gatewayBuild": "passed"
+    },
+    "hostedCIPassClaimed": false
+  },
+  "followUpScreenshots": [
+    {
+      "path": "docs/screenshots/muse-receipts/closed-failed-queued-phone-fixture.png",
+      "bytes": 79846,
+      "sha256": "10b39303c14b7dafe5fe59f1aeae571342df39f1d114adfac6b28ab6666b50cc"
+    },
+    {
+      "path": "docs/screenshots/muse-receipts/unclosed-failed-phone-fixture.png",
+      "bytes": 77439,
+      "sha256": "636429f6a4c9c6e69f3e43c6761049a09e53825bcbcd4b51d309aed6b4e47444"
     }
   ]
 }

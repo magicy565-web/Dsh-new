@@ -48,7 +48,7 @@ try {
   const snapshot = () => ({ enabled: true, canDelegate: true, worker: { id: 'original-dot-worker', connection: {
     id: 'original-connection', provider: 'dot', authenticatedRecently: true } }, delegations: [dot, ...others],
     dotTasks: [dot, ...others].map(job => ({ requestId: 'request-' + job.id, nativeAgentId: conversationId, jobId: job.id,
-      prompt: job.prompt, state: job.state, receiptHash: job.receiptHash, returnedHash: job.returnedHash, acceptedHash: job.acceptedHash, receipt: null })),
+      prompt: job.prompt, state: job.state, receiptHash: job.receiptHash, returnedHash: job.returnedHash, acceptedHash: job.acceptedHash, closedHash: job.closedHash, receipt: null })),
     ...(exposeMuse ? { museTasks: [task] } : {}) });
 
   // A real loopback response exercises fetch/download bytes. Its ownership and
@@ -107,6 +107,39 @@ try {
   await page.getByRole('button', { name: '另有 2 项待处理', exact: true }).click();
   await page.getByText(/等待停止确认/).waitFor(); await page.getByText(/执行受阻/).waitFor();
   checks.push('One central running spirit retains a visible entry for blocked and cancellation tasks.');
+  const liveDot = { ...dot };
+  for (const state of ['failed', 'cancelled', 'expired']) {
+    const outcome = { ...liveDot, id: 'terminal-' + state, state, prompt: state + ' · 原生关闭夹具',
+      receiptHash: hash(state), returnedHash: hash(state), closedHash: hash(state), updatedAt: future() };
+    others = [outcome];
+    for (const pending of ['queued', 'preparing']) {
+      dot = { ...liveDot, state: pending, prompt: 'Dot 待执行 · 关闭回执夹具', updatedAt: new Date(Date.now() + 1000).toISOString() };
+      await open(); await page.getByRole('heading', { name: pending === 'queued' ? '等待领取' : '准备中', exact: true }).waitFor();
+      assert.match(await page.locator('.control-presence').innerText(), /Dot 待执行/);
+      assert.equal(await page.getByRole('button', { name: /另有 .* 项待处理/ }).count(), 0);
+      assert.equal(await page.locator('.control-spirit.is-working').count(), 0);
+      assert.equal(await page.locator('.control-spirit.is-attention').count(), 0);
+      if (state === 'failed' && pending === 'queued') await page.screenshot({ path: output + '/closed-failed-queued-phone-fixture.png' });
+    }
+    await page.getByRole('button', { name: '任务 · 3', exact: true }).click();
+    await page.getByRole('button', { name: new RegExp(state + ' · 原生关闭夹具') }).click();
+    await page.getByText(({ failed: '执行失败', cancelled: '已停止', expired: '已过期' })[state], { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '确认结束此任务', exact: true }).count(), 0);
+    delete outcome.closedHash; dot.state = 'queued';
+    await open(); await page.getByRole('heading', { name: ({ failed: '执行失败', cancelled: '已停止', expired: '已过期' })[state], exact: true }).waitFor();
+    assert.equal(await page.locator('.control-spirit.is-attention').count(), 1);
+    if (state === 'failed') await page.screenshot({ path: output + '/unclosed-failed-phone-fixture.png' });
+    await page.getByRole('button', { name: '查看云端任务进度', exact: true }).click();
+    await page.getByRole('button', { name: '确认结束此任务', exact: true }).waitFor();
+    dot = { ...liveDot, leaseUntil: future() };
+    await open(); await page.getByRole('heading', { name: '执行中', exact: true }).waitFor();
+    await page.getByRole('button', { name: '另有 1 项待处理', exact: true }).waitFor();
+    outcome.closedHash = outcome.receiptHash;
+    await open(); await page.getByRole('heading', { name: '执行中', exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: /另有 .* 项待处理/ }).count(), 0);
+    checks.push('Native ' + state + ' closure releases queued/preparing work and attention counts, preserves terminal history, and only unclosed returned outcomes expose the existing close action.');
+  }
+  dot = { ...liveDot };
   others = []; dot.leaseUntil = new Date(Date.now() - 1).toISOString();
   await open(); await page.getByRole('heading', { name: '执行凭据待核对', exact: true }).waitFor();
   assert.equal(await page.locator('.control-spirit.is-working').count(), 0);

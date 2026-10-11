@@ -50,6 +50,38 @@ test('blocked/cancel/uncertain and unclosed outcomes remain attention ahead of t
   assert.equal(jobNeedsAttention({ ...dot, state: 'cancelled', nativeRequestId: 'original-request', returnedHash: sha, closedHash: sha }, now), false);
   assert.equal(cloudJobState({ ...dot, state: 'return_pending' }, now).active, false);
 });
+test('closed native failures release central selection and attention counts without hiding failed history', () => {
+  const failed = { ...dot, state: 'failed', nativeRequestId: 'original-request', receiptHash: sha, returnedHash: sha, updatedAt: iso(now + 100) };
+  const closed = { ...failed, closedHash: sha };
+  assert.equal(jobNeedsAttention(failed, now), true);
+  assert.equal(jobNeedsAttention(closed, now), false);
+  assert.equal(cloudJobState(closed, now).state, 'failed');
+  assert.equal(cloudJobState(closed, now).label, '执行失败');
+  for (const pending of [{ ...dot, state: 'queued' }, { ...dot, state: 'preparing' }, muse('draft')]) {
+    for (const jobs of [[pending, failed], [failed, pending]]) assert.equal(selectCurrentJob(jobs, now), failed);
+    for (const jobs of [[pending, closed], [closed, pending]]) {
+      assert.equal(selectCurrentJob(jobs, now), pending);
+      assert.equal(jobs.filter(job => jobNeedsAttention(job, now)).length, 0);
+    }
+  }
+  const live = { ...dot, id: 'another-live-task' };
+  assert.equal([live, closed].filter(job => job !== live && jobNeedsAttention(job, now)).length, 0);
+  assert.equal([live, failed].filter(job => job !== live && jobNeedsAttention(job, now)).length, 1);
+  assert.equal(jobNeedsAttention({ ...closed, nativeRequestId: undefined }, now), true, 'Non-native failures retain their existing review behavior');
+  assert.equal(jobNeedsAttention({ ...failed, returnedHash: null }, now), true, 'A failed task awaiting its receipt is still actionable');
+});
+test('native cancelled/expired receipts require closure only after return; cancel requests stay actionable', () => {
+  for (const state of ['cancelled', 'expired']) {
+    const outcome = { ...dot, state, nativeRequestId: 'original-request', receiptHash: sha };
+    assert.equal(jobNeedsAttention(outcome, now), false);
+    assert.equal(jobNeedsAttention({ ...outcome, returnedHash: sha }, now), true);
+    assert.equal(jobNeedsAttention({ ...outcome, returnedHash: sha, closedHash: sha }, now), false);
+    assert.equal(jobNeedsAttention({ ...outcome, returnedHash: sha, nativeRequestId: undefined }, now), false);
+    const queued = { ...dot, state: 'queued' };
+    assert.equal(selectCurrentJob([{ ...outcome, returnedHash: sha, closedHash: sha }, queued], now), queued);
+  }
+  assert.equal(jobNeedsAttention({ ...dot, state: 'cancel_requested', nativeRequestId: 'original-request', returnedHash: sha, closedHash: sha }, now), true);
+});
 test('Muse file URLs fail closed for malformed IDs, versions, hashes and filenames', () => {
   const file = { id: 'original-file', version: 1, sha256: sha, filename: 'result.csv' };
   assert.equal(museFileUrl(file), '/api/muse-worker-files/original-file?version=1&sha256=' + sha);

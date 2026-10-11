@@ -3,6 +3,9 @@
   "checks": [
     "Queued and draft Muse cannot mask a Dot with original attempt/fence and future lease/deadline.",
     "One central running spirit retains a visible entry for blocked and cancellation tasks.",
+    "Native failed closure releases queued/preparing work and attention counts, preserves terminal history, and only unclosed returned outcomes expose the existing close action.",
+    "Native cancelled closure releases queued/preparing work and attention counts, preserves terminal history, and only unclosed returned outcomes expose the existing close action.",
+    "Native expired closure releases queued/preparing work and attention counts, preserves terminal history, and only unclosed returned outcomes expose the existing close action.",
     "Expired Dot lease stops animation and remains actionable ahead of draft Muse.",
     "Live Muse outranks queued Dot; a passed Muse deadline stops the working animation.",
     "Original history keeps text and one receipt attachment; a real HTTP click downloads exact bytes/SHA/name using the original ID/version/hash.",

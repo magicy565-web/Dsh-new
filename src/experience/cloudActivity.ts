@@ -26,7 +26,9 @@ export function cloudJobState(job: CloudJob, now: number) {
     active, stage: job.state === 'succeeded' ? 3 : job.state === 'return_pending' ? 2 : claimed ? 1 : 0 };
 }
 export function jobNeedsAttention(job: CloudJob, now: number) {
-  return ['blocked', 'uncertain', 'failed', 'cancel_requested'].includes(cloudJobState(job, now).state)
+  const state = cloudJobState(job, now).state;
+  return ['blocked', 'uncertain', 'cancel_requested'].includes(state)
+    || state === 'failed' && (!job.nativeRequestId || !job.closedHash)
     || job.state === 'succeeded' && job.businessAcceptance === 'not_reviewed'
     || !!job.nativeRequestId && ['cancelled', 'expired'].includes(job.state) && !!job.returnedHash && !job.closedHash;
 }

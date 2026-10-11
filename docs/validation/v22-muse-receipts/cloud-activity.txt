@@ -1,15 +1,17 @@
-✔ queued/draft Muse never masks a live fenced Dot, independent of array order (1.959523ms)
-✔ live Muse precedes queued Dot and deterministic selection survives reversed arrays (0.196236ms)
-✔ missing, malformed, stale or conflicting attempt/lease/deadline evidence never animates (0.297389ms)
-✔ blocked/cancel/uncertain and unclosed outcomes remain attention ahead of the queue (0.231549ms)
-✔ Muse file URLs fail closed for malformed IDs, versions, hashes and filenames (0.333122ms)
-✔ legacy text remains readable; malformed or cross-session receipt metadata cannot make links (0.254403ms)
-✔ invalid receipt hashes or acceptance dates do not invent delivery or acceptance (0.838553ms)
-ℹ tests 7
+✔ queued/draft Muse never masks a live fenced Dot, independent of array order (2.121267ms)
+✔ live Muse precedes queued Dot and deterministic selection survives reversed arrays (0.224298ms)
+✔ missing, malformed, stale or conflicting attempt/lease/deadline evidence never animates (0.298931ms)
+✔ blocked/cancel/uncertain and unclosed outcomes remain attention ahead of the queue (0.237698ms)
+✔ closed native failures release central selection and attention counts without hiding failed history (1.047068ms)
+✔ native cancelled/expired receipts require closure only after return; cancel requests stay actionable (0.171288ms)
+✔ Muse file URLs fail closed for malformed IDs, versions, hashes and filenames (0.357338ms)
+✔ legacy text remains readable; malformed or cross-session receipt metadata cannot make links (0.277969ms)
+✔ invalid receipt hashes or acceptance dates do not invent delivery or acceptance (0.300573ms)
+ℹ tests 9
 ℹ suites 0
-ℹ pass 7
+ℹ pass 9
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 84.056875
+ℹ duration_ms 96.187028

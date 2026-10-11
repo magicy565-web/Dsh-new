@@ -1,22 +1,22 @@
-✔ production UI: navigation, interrupted goal intake, guarded chat, search, settings, notes and review (2377.833075ms)
-✔ production UI: real pending approvals are visible and approve/deny never execute an action (147.376824ms)
-✔ management UI: instruction registry, connector configuration, exact approvals and schedule gates use real HTTP (654.857165ms)
-✔ management UI: file bytes, versions, safe preview, optimistic conflict and memory scope controls (474.167136ms)
-✔ enterprise UI: explicit identity login, CSRF mutation, expiry erases workspace and logout revokes session (2128.922544ms)
-✔ enterprise UI: viewer cannot submit chat, settings, skill or artifact mutations (101.322305ms)
-✔ management UI: transport failure preserves editor, late mutation cannot undo navigation, blocked runs can explicitly retry (266.67842ms)
-✔ management UI: lost create response retries the same idempotency key without duplicate registry entries (175.582508ms)
-✔ relay UI: only the server-approved gpt-6-sol model is offered, no configuration fallback or live request (114.557928ms)
-✔ diagnostics UI: GET-only contract distinguishes configured, packaged fixture evidence and live acceptance (114.828572ms)
-✔ diagnostics UI: outages, stale snapshots, reconnect, duplicate refresh and interrupted navigation are honest (277.292828ms)
-✔ diagnostics UI: instance restart accepts lower store sequence and late old process responses cannot roll back state (4107.252679ms)
-✔ diagnostics UI: hung GET reads have bounded deadlines, recoverable controls and one bootstrap in flight (577.339784ms)
-✔ diagnostics UI: passed fixtures and successful provider return still do not claim current-deployment live verification (157.471274ms)
-✔ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (2239.018113ms)
-✔ conversation context UI: stale reviewed skill fails closed and remains editable without sending a model request (121.509682ms)
-✔ conversation execution UI: inline exact approval, duplicate-click guard, receipt and real output artifact (4067.945105ms)
-✔ draft goal UI follows its conversation file selection when started after intake (202.497107ms)
-✔ template schedule UI makes fresh goal mode explicit, bounds standing approval and never auto-enables (234.584404ms)
+✔ production UI: navigation, interrupted goal intake, guarded chat, search, settings, notes and review (2378.540572ms)
+✔ production UI: real pending approvals are visible and approve/deny never execute an action (173.034766ms)
+✔ management UI: instruction registry, connector configuration, exact approvals and schedule gates use real HTTP (700.921662ms)
+✔ management UI: file bytes, versions, safe preview, optimistic conflict and memory scope controls (541.455537ms)
+✔ enterprise UI: explicit identity login, CSRF mutation, expiry erases workspace and logout revokes session (2150.475078ms)
+✔ enterprise UI: viewer cannot submit chat, settings, skill or artifact mutations (123.316327ms)
+✔ management UI: transport failure preserves editor, late mutation cannot undo navigation, blocked runs can explicitly retry (262.876025ms)
+✔ management UI: lost create response retries the same idempotency key without duplicate registry entries (175.968579ms)
+✔ relay UI: only the server-approved gpt-6-sol model is offered, no configuration fallback or live request (88.201266ms)
+✔ diagnostics UI: GET-only contract distinguishes configured, packaged fixture evidence and live acceptance (113.520182ms)
+✔ diagnostics UI: outages, stale snapshots, reconnect, duplicate refresh and interrupted navigation are honest (266.699527ms)
+✔ diagnostics UI: instance restart accepts lower store sequence and late old process responses cannot roll back state (4099.03658ms)
+✔ diagnostics UI: hung GET reads have bounded deadlines, recoverable controls and one bootstrap in flight (561.678458ms)
+✔ diagnostics UI: passed fixtures and successful provider return still do not claim current-deployment live verification (216.407486ms)
+✔ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (2193.615683ms)
+✔ conversation context UI: stale reviewed skill fails closed and remains editable without sending a model request (127.722934ms)
+✔ conversation execution UI: inline exact approval, duplicate-click guard, receipt and real output artifact (4057.211465ms)
+✔ draft goal UI follows its conversation file selection when started after intake (188.518213ms)
+✔ template schedule UI makes fresh goal mode explicit, bounds standing approval and never auto-enables (192.183812ms)
 ℹ tests 19
 ℹ suites 0
 ℹ pass 19
@@ -24,4 +24,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 19102.015176
+ℹ duration_ms 19215.272265
