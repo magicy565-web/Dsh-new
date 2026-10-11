@@ -14,13 +14,14 @@ const terminal = new Set(['succeeded', 'failed', 'cancelled', 'expired']);
 const stateLabels: Record<string, string> = { queued: '等待领取', leased: '已领取', running: '执行中', return_pending: '回传中', succeeded: '成果已回传', blocked: '执行受阻', uncertain: '等待核实', cancel_requested: '等待停止确认', cancelled: '已停止', failed: '执行失败', expired: '已过期' };
 
 /** Same-origin adapter for the deployed personal Worker API. Never infers execution from login. */
-export function CloudControl({ data, readOnly, onDirty, onSettings, onConversation }: { data: Bootstrap; readOnly: boolean; onDirty: (dirty: boolean) => void; onSettings: () => void; onConversation: (id?: string) => void }) {
+export function CloudControl({ data, routeConversationId, readOnly, onDirty, onSettings, onCreateConversation }: { data: Bootstrap; routeConversationId?: string; readOnly: boolean; onDirty: (dirty: boolean) => void; onSettings: () => void; onCreateConversation: () => Promise<{ id: string } | undefined> }) {
   const [view, setView] = useState<WorkerView | null>(null);
   const [error, setError] = useState('');
   const [draft, setDraft] = useState('');
-  const [sheet, setSheet] = useState<'tasks' | 'detail' | 'send' | 'connection' | null>(null);
+  const [sheet, setSheet] = useState<'tasks' | 'detail' | 'send' | 'connection' | 'conversation' | null>(null);
   const [selectedId, setSelectedId] = useState<string>();
-  const [conversationId, setConversationId] = useState(data.conversations[0]?.id || '');
+  const [conversationId, setConversationId] = useState(routeConversationId || data.conversations[0]?.id || '');
+  useEffect(() => { if (routeConversationId) setConversationId(routeConversationId); }, [routeConversationId]);
   const [confirmed, setConfirmed] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [readAt, setReadAt] = useState(0);
@@ -61,7 +62,8 @@ export function CloudControl({ data, readOnly, onDirty, onSettings, onConversati
   }, [refresh]);
   const stale = !!error || !!readAt && clock - readAt > 12000;
   const jobs = [...(view?.delegations || [])].reverse();
-  const current = jobs.find(job => !terminal.has(job.state)) || jobs.find(job => job.state === 'succeeded' && job.businessAcceptance === 'not_reviewed') || jobs[0];
+  const scopedJobs = routeConversationId ? jobs.filter(job => job.conversationId === routeConversationId) : jobs;
+  const current = scopedJobs.find(job => !terminal.has(job.state)) || scopedJobs.find(job => job.state === 'succeeded' && job.businessAcceptance === 'not_reviewed') || scopedJobs[0];
   const selected = jobs.find(job => job.id === selectedId) || current;
   const connection = view?.worker?.connection;
   const running = !!current && ['leased', 'running', 'return_pending'].includes(current.state);
@@ -94,20 +96,21 @@ export function CloudControl({ data, readOnly, onDirty, onSettings, onConversati
     <div className="control-dock"><div className="control-dock-top"><button onClick={() => setSheet('tasks')} disabled={frozen}><Icon name="list" size={15}/>任务 · {jobs.length}</button><span>{connection?.pausedAt ? '连接已暂停' : !view?.canDelegate ? '等待执行通道就绪' : jobs.some(job => !terminal.has(job.state)) ? '当前任务结束后可继续委托' : '公开任务 · 额外付费 0'}</span></div>
       <form className="control-command" onSubmit={event => { event.preventDefault(); if (draft.trim() && canSend) { setConfirmed(false); setSheet('send'); } }}><textarea aria-label="云端任务指令" placeholder="接下来，做点什么？" value={draft} onChange={event => setDraft(event.target.value)} disabled={readOnly || frozen} maxLength={6000}/><button aria-label="准备云端委托" disabled={!canSend || !draft.trim()}><Icon name="arrow" size={19}/></button></form>
     </div>
-    {sheet && <Modal className="control-sheet" title={sheet === 'tasks' ? '云端任务' : sheet === 'send' ? '确认云端委托' : sheet === 'connection' ? '云端连接' : '任务进度'} onClose={close}>
-      <h2>{sheet === 'tasks' ? '云端任务' : sheet === 'send' ? '确认云端委托' : sheet === 'connection' ? '云端连接' : '任务进度'}</h2>
+    {sheet && <Modal className="control-sheet" title={sheet === 'tasks' ? '云端任务' : sheet === 'send' ? '确认云端委托' : sheet === 'connection' ? '云端连接' : sheet === 'conversation' ? '原会话记录' : '任务进度'} onClose={close}>
+      <h2>{sheet === 'tasks' ? '云端任务' : sheet === 'send' ? '确认云端委托' : sheet === 'connection' ? '云端连接' : sheet === 'conversation' ? '原会话记录' : '任务进度'}</h2>
       {sheet === 'tasks' && <div className="control-task-list">{jobs.length ? jobs.map(job => <button key={job.id} onClick={() => { setSelectedId(job.id); setSheet('detail'); }}><span><strong>{job.prompt.slice(0, 60)}</strong><small>{job.businessAcceptance === 'accepted' ? '已验收' : stateLabels[job.state] || job.state} · {job.files?.length || 0} 个文件</small></span><Icon name="chevron" size={16}/></button>) : <p className="control-empty">云端还没有任务</p>}</div>}
       {sheet === 'detail' && selected && <>
         <p className="cloud-prompt">{selected.prompt}</p><p className="control-detail-state">{stateLabels[selected.state] || selected.state}</p>
         {selected.id === current?.id && delivery && <p className="control-input-note">{delivery.dotReceivedAt ? 'xy 已确认收到事件' : delivery.httpReceivedAt ? '事件已送达，等待 xy 确认' : '等待事件送达'}</p>}
         <p className="cloud-result">{selected.resultSummary || selected.blocker?.message || (selected.state === 'queued' ? '尚未领取，不代表已经执行。' : '等待执行端回传记录。')}</p>
         {(selected.files || []).map(file => <a className="cloud-file" key={file.id} href={'/api/artifacts/' + encodeURIComponent(file.id) + '/download?version=' + file.version} download><Icon name="file" size={18}/>{file.filename || '任务文件'}<span>下载</span></a>)}
-        {selected.conversationId && <button className="control-secondary" disabled={frozen} onClick={() => onConversation(selected.conversationId)}>打开原任务会话</button>}
+        {selected.conversationId && <button className="control-secondary" disabled={frozen} onClick={() => setSheet('conversation')}>查看原会话记录</button>}
         {selected.state === 'succeeded' && selected.businessAcceptance === 'not_reviewed' && selected.completionHash && <div className="control-actions"><button className="control-primary" disabled={!mayWrite} onClick={() => startAction('review', { jobId: selected.id, completionHash: selected.completionHash, decision: 'accepted' })}>确认验收这份成果</button><button className="control-secondary" disabled={!mayWrite} onClick={() => startAction('review', { jobId: selected.id, completionHash: selected.completionHash, decision: 'rejected' })}>拒绝这份成果</button></div>}
         {!terminal.has(selected.state) && selected.transport !== 'muse-native' && selected.state !== 'cancel_requested' && <div className="control-cancel">{cancelConfirm ? <><p>请求停止当前任务，执行端确认后才显示已停止。</p><button disabled={!mayWrite || selected.reconciliationRequired} onClick={() => startAction('cancel', { jobId: selected.id })}>确认请求停止</button></> : <button disabled={!mayWrite || selected.reconciliationRequired} onClick={() => setCancelConfirm(true)}>停止任务</button>}</div>}
       </>}
-      {sheet === 'send' && <><p className="cloud-prompt">{draft}</p><label className="cloud-confirm">任务归属会话<select aria-label="任务归属会话" value={conversationId} onChange={event => setConversationId(event.target.value)} disabled={frozen}><option value="">选择原会话</option>{data.conversations.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>{!data.conversations.length && <button className="control-secondary" onClick={() => onConversation()}>先创建任务会话</button>}<label className="cloud-confirm"><input type="checkbox" checked={confirmed} disabled={frozen} onChange={event => setConfirmed(event.target.checked)}/>我确认仅包含公开资料，委托 xy 执行并回传文件；额外付费为 0。</label><button className="control-primary" disabled={!canSend || !confirmed || !conversationId} onClick={() => startAction('delegate', { prompt: draft.trim(), confirmed: true, dataScope: 'public-only', conversationId })}>确认委托 xy</button></>}
+      {sheet === 'send' && <><p className="cloud-prompt">{draft}</p><label className="cloud-confirm">任务归属会话<select aria-label="任务归属会话" value={conversationId} onChange={event => setConversationId(event.target.value)} disabled={frozen}><option value="">选择原会话</option>{data.conversations.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>{!data.conversations.length && <button className="control-secondary" disabled={!mayWrite} onClick={async () => { const created = await onCreateConversation(); if (created) setConversationId(created.id); }}>创建任务会话</button>}<label className="cloud-confirm"><input type="checkbox" checked={confirmed} disabled={frozen} onChange={event => setConfirmed(event.target.checked)}/>我确认仅包含公开资料，委托 xy 执行并回传文件；额外付费为 0。</label><button className="control-primary" disabled={!canSend || !confirmed || !conversationId} onClick={() => startAction('delegate', { prompt: draft.trim(), confirmed: true, dataScope: 'public-only', conversationId })}>确认委托 xy</button></>}
       {sheet === 'connection' && <><p className="cloud-result">{stale ? error || '任务状态已过期' : connection?.authenticatedRecently ? '已收到原 Worker 的近期认证请求。' : '等待原 Worker 的近期认证请求。'}</p><p className="control-input-note">连接成功、事件送达、任务领取和成果验收分别显示，不互相替代。</p><button className="control-secondary" onClick={() => void refresh()}>刷新连接状态</button><button className="control-secondary" disabled={frozen} onClick={onSettings}>项目连接设置</button></>}
+      {sheet === 'conversation' && <><button className="control-back" disabled={frozen} onClick={() => setSheet('detail')}>返回任务</button><div className="cloud-conversation">{data.messages.filter(message => message.conversationId === (selected?.conversationId || conversationId)).map(message => <article key={message.id}><small>{message.role === 'user' ? '你' : message.role === 'assistant' ? '助手' : '系统'}</small><p>{message.content || (message.status === 'pending' ? '等待回复' : '暂无文本')}</p></article>)}</div></>}
       {writer.error && <div className="control-error" role="alert">{writer.error}{writer.uncertain && <button disabled={writer.busy || stale} onClick={() => { if (pending.current) void write(pending.current.action, pending.current.body); }}>重试原请求</button>}</div>}
     </Modal>}
   </section>;

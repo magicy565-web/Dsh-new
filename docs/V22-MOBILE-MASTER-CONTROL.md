@@ -133,3 +133,8 @@ explicit fixtures. Those checks are UI/contract regression only, not live task
 or deployment acceptance. Release the frontend with the original backend owner,
 preserving authentication, data, Worker identity and lease state. Confirm the
 original job/file IDs in the live UI before claiming integration is delivered.
+
+Cloud entry coverage: /, /chat and /chat/:conversationId use the same central
+control. Deep links preserve the selected conversation and its task state.
+Original messages open in a drawer instead of switching to a legacy three-column
+chat. Regression checks cover all three entries and the history drawer.

@@ -31,6 +31,19 @@ try {
     if (dropWrite) { dropWrite=false; await route.abort('failed'); } else await route.fulfill({json:view});
   });
   await mkdir(output,{recursive:true});
+  for (const pathname of ['/', '/chat', '/chat/' + conversationId]) {
+    await page.goto(base + pathname);
+    await page.getByTestId('v22-cloud-control').waitFor();
+    assert.equal(await page.locator('.assistant-panel').count(), 0);
+    assert.equal(await page.locator('.conversation-sidebar').count(), 0);
+    assert.equal(await page.locator('.chat-header').count(), 0);
+    assert.equal(await page.locator('.nav-rail').isVisible(), false);
+    assert.equal(await page.locator('.control-spirit').count(), 1);
+  }
+  checks.push('Root, chat and exact conversation URLs all use one centered control without legacy side panels.');
+  await page.setViewportSize({width:1440,height:900});
+  await page.screenshot({path:output+'/cloud-chat-desktop-contract.png'});
+  await page.setViewportSize({width:390,height:844});
   await page.goto(base);
   await page.getByRole('heading',{name:'等待领取',exact:true}).waitFor();
   assert.equal(await page.locator('.control-spirit.is-working').count(),0);
@@ -43,6 +56,11 @@ try {
   await page.screenshot({path:output+'/cloud-contract-running.png'});
   checks.push('Polling real-shaped Worker state activates the avatar and claimed milestone.');
   await page.getByRole('button',{name:'查看云端任务进度'}).click();
+  await page.getByRole('button',{name:'查看原会话记录',exact:true}).click();
+  await page.getByRole('dialog',{name:'原会话记录',exact:true}).waitFor();
+  assert.equal(await page.locator('.chat-header').count(),0);
+  await page.getByRole('button',{name:'返回任务',exact:true}).click();
+  checks.push('Original conversation history opens inside the control drawer rather than reverting to the old chat layout.');
   await page.getByRole('button',{name:'停止任务',exact:true}).click();
   dropWrite=true;
   await page.getByRole('button',{name:'确认请求停止',exact:true}).click();
