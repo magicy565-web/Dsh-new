@@ -6,6 +6,7 @@ import { openWorkspacePluginService } from './workspace-plugin-service.mjs';
 import { createNativeDotBinding } from './workspace-dot-host.mjs';
 import { pluginFields, pluginFail } from './workspace-plugin-config.mjs';
 import { inspectReviewedDotHistory, resumeReviewedDotHistory } from './workspace-dot-history-review.mjs';
+import { createMuseSessionRelay } from './workspace-muse-session-host.mjs';
 
 export { name, inject, configurationSchema } from './workspace-plugin.mjs';
 
@@ -16,7 +17,7 @@ export const apply = createWorkspaceNativePlugin().apply;
  * @param options - Host-owned result readers for the reviewed original Muse instances.
  * @returns Native plugin using the existing Workspace business service and scoped Tools.
  */
-export function createWorkspaceNativePlugin({ nativeResults = [], dot } = {}) {
+export function createWorkspaceNativePlugin({ nativeResults = [], dot, museSessionActor } = {}) {
   const nativeInstaller = createNativeToolInstaller({ defineTool, validateJsonSchemaValue });
   const bindings = new Map();
   let service;
@@ -36,10 +37,26 @@ export function createWorkspaceNativePlugin({ nativeResults = [], dot } = {}) {
       return service;
     },
   });
-  return { ...plugin, ...(dot?.configuration?.enabled === true ? { inject: [...plugin.inject, 'goals', 'sessions'] } : {}), async apply(ctx, config) {
+  return { ...plugin, ...(dot?.configuration?.enabled === true || museSessionActor ? { inject: [...plugin.inject, 'goals', 'sessions'] } : {}), async apply(ctx, config) {
+    if (museSessionActor && !config.operators.some(actor => actor.subject === museSessionActor.subject && actor.nativeAgentId === museSessionActor.nativeAgentId))
+      throw Error('Muse result return needs its original reviewed native owner.');
     if (dot?.configuration?.enabled === true) dot = { ...dot, operators: config.operators };
     const attached = await plugin.apply(ctx, config);
     if (attached.service) ctx.provide('workspaceBusiness', attached.service);
+    if (attached.service && museSessionActor) {
+      const relay = createMuseSessionRelay({ ctx, service: attached.service, actor: museSessionActor });
+      ctx.provide('workspaceMuseSessionHost', relay);
+      await ctx.effect(() => {
+        let active = true, pending;
+        const tick = () => {
+          if (!active || pending || !attached.service.muse.enabled) return;
+          pending = relay.reconcile().catch(() => { /* Keep the same result for explicit reconciliation; never retry execution. */ })
+            .finally(() => { pending = undefined; });
+        };
+        const timer = setInterval(tick, 1200); timer.unref(); tick();
+        return async () => { active = false; clearInterval(timer); await pending; };
+      }, 'workspace-muse: preserve original Session receipts before business authority unload');
+    }
     if (attached.service?.dot.enabled) {
       ctx.provide('workspaceDotHost', Object.freeze({
         // Private Host reviews may refresh scope handles without resuming any

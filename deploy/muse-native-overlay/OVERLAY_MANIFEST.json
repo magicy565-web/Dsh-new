@@ -1,33 +1,33 @@
 {
   "format": "workspace.native-muse-overlay.v2",
   "productionRelease": "/opt/workspace-dot/releases/7279e6346910b43fc879f5a99fd581be47a9a73f",
-  "reviewedModuleCommit": "2ad9efc50130e2dbb3d0198c568b6acca2f28774",
+  "reviewedModuleCommit": "1ebd5cc481bda29c63d599545c019a88157b05c3",
   "goLiveApprovedByUser": true,
   "deployed": false,
   "files": [
     {
       "path": "server/workspace-plugin-service.mjs",
       "beforeSha256": "9ce0ea124fa0ab0542d481eb1ca78689cd9a70dfcdb9f8fe02ab499ca79eb04b",
-      "afterSha256": "f54abbf320cf8c0e585c33ab3299f7fc3fe97f80af2431bf48c79dd939479e83",
-      "bytes": 37649
+      "afterSha256": "76d9463a33dd70f5c9d165a67861ef248ebd155a0d61b4347715c6a509be6113",
+      "bytes": 38140
     },
     {
       "path": "server/workspace-plugin-frontend.mjs",
       "beforeSha256": "83b92344496fb07cb5098af0b9aa3f8e3e87dbc3e860d0257e9b7223374d6a7e",
-      "afterSha256": "6ce4d67b9df2baafe22bbe260d380e90ce4ccdc31cbc8146e39cafa5014317e3",
-      "bytes": 20937
+      "afterSha256": "cb0a0f337764fa04655e0c5f772729a8a4770c736a241bfd153a04bce704c2d4",
+      "bytes": 22277
     },
     {
       "path": "deploy/native-dot-host.mjs",
       "beforeSha256": "6849a01adc981920fc322c7ff39bda02dd3e53bbb7d575618f263c2befb85f0d",
-      "afterSha256": "83fe29548bba63bca4fd3a35970538cce3995080dc9d5dc5eadf7ac8b56ec110",
-      "bytes": 20958
+      "afterSha256": "2080c663155de1ecea0ec6bd4587ae4ba37b798b80535a1359725454167b6942",
+      "bytes": 20995
     },
     {
       "path": "server/muse-worker-native.mjs",
       "beforeSha256": null,
-      "afterSha256": "f3e70be669e473167f1c1bec526812f053fa6e51d46d4c5a2455f33118705b36",
-      "bytes": 13494
+      "afterSha256": "488351989cc5e66e3a10ffc123930c1123cfda54f14c043136381cafaa71c800",
+      "bytes": 15145
     },
     {
       "path": "server/muse-worker-host.mjs",
@@ -80,8 +80,8 @@
     {
       "path": "server/workspace-native-plugin.mjs",
       "beforeSha256": "d77a6db7422ef01e76ebec3f2195ae751e8237fdca980aeb08bd884a3b9661a9",
-      "afterSha256": "d54d5b3f0be91e0c7dc015321fa1d61f31c2091d2501d1548ef25f40097d85a5",
-      "bytes": 8331
+      "afterSha256": "27b21c7e9755555e8ab0da853d20dd1577da247e697ef800ca8b63a4fd78649a",
+      "bytes": 9544
     },
     {
       "path": "server/muse-worker-private-review.mjs",
@@ -112,6 +112,30 @@
       "beforeSha256": null,
       "afterSha256": "8e399e1bac4605b6ee5c614e200db1600b6370cad05a676a4954dc88226580b1",
       "bytes": 11614
+    },
+    {
+      "path": "server/muse-worker-session.mjs",
+      "beforeSha256": null,
+      "afterSha256": "fc9a1c2d401f6eea5c4834716978e9b84c77e59727f5f5f6e991b7c7cf5d522a",
+      "bytes": 12186
+    },
+    {
+      "path": "server/workspace-muse-session-host.mjs",
+      "beforeSha256": null,
+      "afterSha256": "a857f44ff1f1235d22a58f7327d469fa0c3d1b6647824d6273cff56c22ceaba1",
+      "bytes": 3072
+    },
+    {
+      "path": "test/muse-worker.session.test.mjs",
+      "beforeSha256": null,
+      "afterSha256": "b7638e0f79a1c1c68628c3905cd26102b6b1ea0b1515d2e572902ee7fd3a61a3",
+      "bytes": 16751
+    },
+    {
+      "path": "test/muse-worker.session-native.test.mjs",
+      "beforeSha256": null,
+      "afterSha256": "49c1c0a8392eda146c1ab550f4d2809a127923482fec79ac9b9126c1133784b7",
+      "bytes": 11704
     }
   ],
   "validation": {
@@ -162,7 +186,7 @@
     "serviceUserModuleImportVerified": true
   },
   "validatedModuleCommit": "4e4246ffe3b380c5762f648e5692379e4eedcafd",
-  "activation": "Final candidate; exact current history inspection and private recovery still required.",
+  "activation": "22-file candidate, not deployed. Cloud resource restoration and current exact private reviews are required.",
   "linuxValidation": {
     "nativeCombinedPass": 54,
     "nativeCombinedFail": 0,
@@ -173,6 +197,16 @@
       "active-pending"
     ],
     "synthetic": true,
-    "paidModelCalls": 0
+    "paidModelCalls": 0,
+    "scope": "Earlier 18-file candidate; new Session increment still requires Linux validation."
+  },
+  "windowsSessionValidation": {
+    "passed": 64,
+    "failed": 0,
+    "skipped": 0,
+    "independentlyRepeatedByRoot": true,
+    "originalHarnessSource": true,
+    "synthetic": true,
+    "externalModelCalls": 0
   }
 }

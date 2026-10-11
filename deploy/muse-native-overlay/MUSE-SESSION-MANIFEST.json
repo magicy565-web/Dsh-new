@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "status": "isolated-candidate-not-deployed",
+  "baseline": "native-muse-dot-final-1ebd5cc",
+  "baselineBeforeHashesIndependentlyMatchPeerFreeze": true,
+  "productionFiles": 7,
+  "newTests": 2,
+  "files": [
+    {
+      "path": "server/muse-worker-session.mjs",
+      "kind": "production",
+      "beforeSha256": null,
+      "afterSha256": "fc9a1c2d401f6eea5c4834716978e9b84c77e59727f5f5f6e991b7c7cf5d522a",
+      "bytes": 12186
+    },
+    {
+      "path": "server/workspace-muse-session-host.mjs",
+      "kind": "production",
+      "beforeSha256": null,
+      "afterSha256": "a857f44ff1f1235d22a58f7327d469fa0c3d1b6647824d6273cff56c22ceaba1",
+      "bytes": 3072
+    },
+    {
+      "path": "server/muse-worker-native.mjs",
+      "kind": "production",
+      "beforeSha256": "f3e70be669e473167f1c1bec526812f053fa6e51d46d4c5a2455f33118705b36",
+      "afterSha256": "488351989cc5e66e3a10ffc123930c1123cfda54f14c043136381cafaa71c800",
+      "bytes": 15145
+    },
+    {
+      "path": "server/workspace-plugin-service.mjs",
+      "kind": "production",
+      "beforeSha256": "f54abbf320cf8c0e585c33ab3299f7fc3fe97f80af2431bf48c79dd939479e83",
+      "afterSha256": "76d9463a33dd70f5c9d165a67861ef248ebd155a0d61b4347715c6a509be6113",
+      "bytes": 38140
+    },
+    {
+      "path": "server/workspace-native-plugin.mjs",
+      "kind": "production",
+      "beforeSha256": "d54d5b3f0be91e0c7dc015321fa1d61f31c2091d2501d1548ef25f40097d85a5",
+      "afterSha256": "27b21c7e9755555e8ab0da853d20dd1577da247e697ef800ca8b63a4fd78649a",
+      "bytes": 9544
+    },
+    {
+      "path": "server/workspace-plugin-frontend.mjs",
+      "kind": "production",
+      "beforeSha256": "6ce4d67b9df2baafe22bbe260d380e90ce4ccdc31cbc8146e39cafa5014317e3",
+      "afterSha256": "cb0a0f337764fa04655e0c5f772729a8a4770c736a241bfd153a04bce704c2d4",
+      "bytes": 22277
+    },
+    {
+      "path": "deploy/native-dot-host.mjs",
+      "kind": "production",
+      "beforeSha256": "83fe29548bba63bca4fd3a35970538cce3995080dc9d5dc5eadf7ac8b56ec110",
+      "afterSha256": "2080c663155de1ecea0ec6bd4587ae4ba37b798b80535a1359725454167b6942",
+      "bytes": 20995
+    },
+    {
+      "path": "test/muse-worker.session.test.mjs",
+      "kind": "test",
+      "beforeSha256": null,
+      "afterSha256": "b7638e0f79a1c1c68628c3905cd26102b6b1ea0b1515d2e572902ee7fd3a61a3",
+      "bytes": 16751
+    },
+    {
+      "path": "test/muse-worker.session-native.test.mjs",
+      "kind": "test",
+      "beforeSha256": null,
+      "afterSha256": "49c1c0a8392eda146c1ab550f4d2809a127923482fec79ac9b9126c1133784b7",
+      "bytes": 11704
+    }
+  ],
+  "tests": {
+    "platform": "win32",
+    "node": "24.21.0",
+    "passed": 64,
+    "skipped": 0,
+    "fixtureIdentityAndResults": true,
+    "originalHarnessSource": true,
+    "realProductionExecutionVerified": false,
+    "logSha256": "a89f5b392c810131ae1184763b8d1d9c367572c92765ebdebcdd8a03700f8518"
+  },
+  "pending": [
+    "Linux native production regressions",
+    "Cloud account resource restoration",
+    "Original OAuth refresh/rotation evidence",
+    "Original public Dot task and authorized Muse product research",
+    "Same original Session and shared UI production acceptance"
+  ]
+}

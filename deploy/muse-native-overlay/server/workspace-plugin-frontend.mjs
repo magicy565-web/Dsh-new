@@ -36,9 +36,15 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
     try { return service.bindNativeResults(actor); }
     catch (error) { if (error.code === 'WORKSPACE_NATIVE_RESULT_BINDING_REQUIRED') return null; throw error; }
   }
-  async function view(actor) {
+  function museSession(actor) {
+    if (!service.muse?.enabled) return null;
+    try { return service.muse.bindSession(actor); }
+    catch (error) { if (error.code === 'MUSE_OWNER_REQUIRED') return null; throw error; }
+  }
+  async function view(actor, administrator = false) {
     return { ...await service.bindActor(actor).view(), nativeResultsAvailable: Boolean(resultHandle(actor)),
       ...(service.dot?.enabled ? { dotEvents: service.dot.view(actor.subject), dotTasks: await service.bindDotTasks(actor).view() } : {}),
+      ...(administrator && museSession(actor) ? { museTasks: await museSession(actor).view() } : {}),
       ...await service.bindNativeTasks(actor).catalog() };
   }
   async function handle(req, res) {
@@ -100,7 +106,7 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
         }
         throw new ApiError(404, 'NOT_FOUND', 'Muse business route not found.');
       }
-      if (/^\/api\/(?:artifacts|cloud-worker\/files)(?:\/|$)/.test(pathname)) completeFileRequest = fileRequests.admit(res);
+      if (/^\/api\/(?:artifacts|cloud-worker\/files|muse-worker-files)(?:\/|$)/.test(pathname)) completeFileRequest = fileRequests.admit(res);
       if (req.method === 'GET' && pathname === '/api/cloud-worker/tasks') return await respond(res, 200, { tasks: await service.bindDotTasks(actor).view() });
       if (dotHost && req.method === 'POST' && pathname === '/api/cloud-worker/accept') {
         const body = await readBody(req); access.verifyBody(context, req.bodyBytes);
@@ -129,7 +135,19 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
           'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Content-SHA256': output.sha256 });
         return res.end(output.bytes);
       }
-      if (req.method === 'GET' && pathname === '/api/personal-worker') return await respond(res, 200, await view(actor));
+      const museFile = pathname.match(/^\/api\/muse-worker-files\/([^/]+)$/);
+      if (museFile && req.method === 'GET') {
+        if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Use the reviewed Muse owner.');
+        const session = museSession(actor);
+        if (!session) throw new ApiError(404, 'NOT_FOUND', 'The owned Muse file was not found.');
+        const output = await session.download({ artifactId: museFile[1], version: Number(url.searchParams.get('version')), sha256: url.searchParams.get('sha256') });
+        await res.accessFinish?.(200);
+        res.writeHead(200, { 'Content-Type': output.mimeType, 'Content-Length': output.bytes.length,
+          'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(output.filename)}`,
+          'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Content-SHA256': output.sha256 });
+        return res.end(output.bytes);
+      }
+      if (req.method === 'GET' && pathname === '/api/personal-worker') return await respond(res, 200, await view(actor, context.role === 'admin'));
       const file = pathname.match(/^\/api\/artifacts\/([^/]+)\/(download|open|content)$/);
       if (file && req.method === 'GET') {
         const refs = (await worker.view()).delegations.flatMap(j => j.files);

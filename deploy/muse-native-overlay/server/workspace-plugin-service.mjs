@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { createNativeMuseBinding, quarantineNativeMuse } from './muse-worker-native.mjs';
 import { MuseWorkerError } from './muse-worker-api.mjs';
+import { validateMuseSessionReceipts } from './muse-worker-session.mjs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { openStore } from './store.mjs';
 import { createArtifactService } from './artifacts.mjs';
@@ -97,6 +98,8 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
   try {
     const initial = store.read(); validateLifecycle(initial.workspacePlugin, config.scopeId);
     validateWorkspaceDotTasks(initial.workspaceDotTasks);
+    validateMuseSessionReceipts(initial.workspaceMuseSessionReceipts, { operators: config.operators, orders: initial.workerOrders ?? [],
+      messages: initial.messages, conversations: initial.conversations });
     recovery = await readRecoveryStatus(config.dataDirectory, 'deepseek-harness');
     if (initial.personalWorkers) validateWorkerState(initial.personalWorkers);
     artifacts = await createArtifactService({ store: guardedStore, directory: path.join(config.dataDirectory, 'artifacts'), maxPendingOperations: config.maxPendingOperations });
@@ -477,6 +480,10 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
       bindDesk(actor) {
         if (!museRest) throw new MuseWorkerError(503, 'MW_GATEWAY_UNAVAILABLE', 'The original Muse binding is unavailable.');
         return museRest.bindDesk(actor);
+      },
+      bindSession(actor) {
+        if (!museRest) throw new MuseWorkerError(503, 'MW_GATEWAY_UNAVAILABLE', 'The original Muse binding is unavailable.');
+        return museRest.bindSession(actor);
       },
     }),
     dot: Object.freeze({

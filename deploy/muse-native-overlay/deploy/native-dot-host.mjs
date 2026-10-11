@@ -105,7 +105,7 @@ export async function startNativeDotHost({ configuration, environment = process.
       } catch (error) { for (const handle of handles.reverse()) await handle.dispose(); throw error; }
     }, 'retain the original cloud user Sessions');
   } };
-  const plugin = createWorkspaceNativePlugin({ dot: { configuration: dotConfig, ownerSubject: config.dotOwnerSubject,
+  const plugin = createWorkspaceNativePlugin({ museSessionActor: museReview?.actor, dot: { configuration: dotConfig, ownerSubject: config.dotOwnerSubject,
     transport: dotTransport, authorizePublicTask: admittedNativePublicQuestion } });
   builtins.business = { ...plugin, inject: [...plugin.inject, 'workspaceCloudSessionOwners'] };
   builtins.enrollment = { name: 'workspace-cloud-initial-enrollment', inject: ['workspaceBusiness', 'workspaceDotHost'], async apply(ctx) {
