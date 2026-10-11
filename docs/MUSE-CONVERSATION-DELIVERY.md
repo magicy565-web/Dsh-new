@@ -1,5 +1,9 @@
 # TT041 Muse 原会话后端交付与验证
 
+> Windows storage continuation supersedes the original Windows fsync blocker described below. See [current storage delivery](WINDOWS-STORAGE-DURABILITY.md) and [current validation](validation/muse-conversation/windows-storage-summary.json). The remainder of this document preserves the original PR26 head `9e92fe31` delivery snapshot.
+
+Current evidence: Dot/Muse/Worker contracts and original disk regressions: 55/55, no skips. Storage/migration/recovery: 73 pass, 1 existing POSIX permission failure, 2 existing Windows symlink skips out of 76. Final targeted tests: 16/16, 0 failed, 0 skipped. Actual Store commit/reopen succeeds on TT041 NTFS outside the child-process restriction. The ordinary task sandbox accurately returns unsupported before creating state or locks. Full original Harness, private Windows ACL and real PersonalMuse wake-up/execution remain unverified.
+
 独立 worktree：`C:\Users\Administrator\Documents\Codex\2026-10-12\task-2\workspace`。
 独立 Git object store：同任务目录 `.repo`。分支 `codex/muse-conversation-delegation-20261012`。
 从授权 GitHub Connector 读取全部 216 个 PR15 文件（2,455,951 bytes），逐项核对 blob SHA，

@@ -22,7 +22,7 @@ async function syncTree(directory) {
   for (const item of await fs.readdir(directory, { withFileTypes: true })) {
     const filename = path.join(directory, item.name);
     if (item.isDirectory()) await syncTree(filename);
-    else { await fs.chmod(filename, 0o600); const handle = await fs.open(filename, 'r'); try { await handle.sync(); } finally { await handle.close(); } }
+    else { await fs.chmod(filename, 0o600); const handle = await openPrivateFile(filename, { writable: process.platform === 'win32' }); try { await handle.sync(); } finally { await handle.close(); } }
   }
   await syncDirectory(directory);
 }

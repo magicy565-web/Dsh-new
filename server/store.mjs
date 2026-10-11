@@ -1,6 +1,7 @@
 import { promises as fs, constants } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { assertWindowsDirectoryVolume } from './windows-volume.mjs';
 
 export const STORE_VERSION = 2;
 export const SUPPORTED_STORE_VERSIONS = Object.freeze([1, STORE_VERSION]);
@@ -84,15 +85,30 @@ export async function privateDirectory(directory) {
 }
 
 export async function syncDirectory(directory) {
-  const handle = await fs.open(directory, 'r');
-  try { await handle.sync(); } finally { await handle.close(); }
+  const before = await fs.lstat(directory);
+  if (!before.isDirectory() || before.isSymbolicLink()) throw new Error('Unsafe workspace directory for durability sync.');
+  if (process.platform === 'win32') await assertWindowsDirectoryVolume(directory, before);
+  // Node/libuv calls FlushFileBuffers on Windows, which requires write access.
+  // POSIX retains its read-only directory handle. Never ignore a flush failure.
+  const flags = (process.platform === 'win32' ? constants.O_RDWR : constants.O_RDONLY) | (constants.O_NOFOLLOW || 0);
+  const handle = await fs.open(directory, flags);
+  let failure;
+  try {
+    const actual = await handle.stat();
+    const current = await fs.lstat(directory);
+    if (!actual.isDirectory() || current.isSymbolicLink() || !current.isDirectory() || actual.dev !== before.dev || actual.ino !== before.ino || current.dev !== actual.dev || current.ino !== actual.ino) throw new Error('The workspace directory changed while being synced.');
+    await handle.sync();
+  } catch (error) { failure = error; }
+  try { await handle.close(); } catch (error) { if (failure) failure.closeError = error; else failure = error; }
+  if (failure) throw failure;
 }
 
 /** Opens regular, single-link files only; never follows a final-component symlink. */
-export async function openPrivateFile(filename) {
+export async function openPrivateFile(filename, { writable = false } = {}) {
+  if (typeof writable !== 'boolean') throw new TypeError('Private file write access must be explicit.');
   const before = await fs.lstat(filename);
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) throw new Error('Unsafe workspace file. Symbolic links and hard links are not supported.');
-  const handle = await fs.open(filename, constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
+  const handle = await fs.open(filename, (writable ? constants.O_RDWR : constants.O_RDONLY) | (constants.O_NOFOLLOW || 0));
   try {
     const actual = await handle.stat();
     if (!actual.isFile() || actual.nlink !== 1 || actual.dev !== before.dev || actual.ino !== before.ino) throw new Error('The workspace file changed while being opened.');
@@ -117,6 +133,13 @@ async function migrationBackupStatus(directory) {
 
 /** Exclusive process lock. Ambiguous owners fail closed instead of risking split writers. */
 export async function acquireWriterLock(directory, basename = 'workspace.lock') {
+  // Establish the metadata-flush capability before creating or recovering any
+  // lock. Unsupported storage must preserve existing ownership evidence.
+  try { await syncDirectory(directory); }
+  catch (cause) {
+    if (cause.code === 'WORKSPACE_DURABILITY_UNSUPPORTED') throw cause;
+    throw storeError('WORKSPACE_DURABILITY_UNSUPPORTED', 'Directory durability preflight failed. Existing data and writer locks have not been changed.', cause);
+  }
   const lockname = path.join(directory, basename);
   const recoveryName = `${lockname}.recovery`;
   const token = randomUUID();
@@ -158,7 +181,7 @@ export async function acquireWriterLock(directory, basename = 'workspace.lock') 
   return {
     token,
     async verify() { const value = await readOwner(); if (value?.token !== token || value.pid !== process.pid) throw new Error('The workspace writer lock changed. No further writes are permitted.'); },
-    async release() { const value = await readOwner(); if (value?.token === token && value.pid === process.pid) { await fs.unlink(lockname); await syncDirectory(directory); } },
+    async release() { const value = await readOwner(); if (value?.token === token && value.pid === process.pid) { await syncDirectory(directory); await fs.unlink(lockname); await syncDirectory(directory); } },
   };
 }
 
@@ -190,7 +213,7 @@ export async function openStore(directory) {
     let handle;
     async function reuseExisting() {
       let existing;
-      try { existing = await openPrivateFile(backup); }
+      try { existing = await openPrivateFile(backup, { writable: process.platform === 'win32' }); }
       catch (error) { if (error.code === 'ENOENT') return false; throw error; }
       try {
         const bytes = await existing.readFile();

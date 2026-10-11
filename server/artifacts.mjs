@@ -109,6 +109,7 @@ function validateRecord(artifact) {
     if (!idPattern.test(artifact.id) || !Array.isArray(artifact.versions) || !artifact.versions.length || !Number.isSafeInteger(artifact.revision) || artifact.revision < artifact.versions.length || artifact.versions.length > 100 || artifact.currentVersion !== artifact.versions.length) throw new Error();
     if (sanitizeArtifactFilename(artifact.filename) !== artifact.filename) throw new Error();
     boundedString(artifact.title, 'title', 200); boundedString(artifact.description, 'description', 4000, true); metadata(artifact.metadata); sourceValues(artifact);
+    if (artifact.workerOwner !== undefined) workerOwner(artifact.workerOwner);
     if (![artifact.createdAt, artifact.updatedAt].every(value => typeof value === 'string' && Number.isFinite(Date.parse(value)))) throw new Error();
     if (artifact.requestId !== null && typeof artifact.requestId !== 'string' || !/^[a-f0-9]{64}$/u.test(artifact.requestFingerprint)) throw new Error();
     artifact.versions.forEach((version, index) => {
@@ -118,6 +119,15 @@ function validateRecord(artifact) {
     const latest = artifact.versions.at(-1);
     if (artifact.size !== latest.size || artifact.sha256 !== latest.sha256 || artifact.mimeType !== latest.mimeType || ARTIFACT_TYPES[path.extname(artifact.filename).toLowerCase()] !== artifact.mimeType) throw new Error();
   } catch { throw new Error('Invalid artifact metadata; no files have been changed.'); }
+}
+// Trusted Host admission only. The public artifact body still rejects this
+// field; ownership is committed with the first version, never in a second write.
+function workerOwner(value) {
+  if (!object(value) || Object.keys(value).length !== 2 ||
+      typeof value.subject !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$/u.test(value.subject) ||
+      ['__proto__', 'constructor', 'prototype'].includes(value.subject) || !idPattern.test(value.workerId))
+    fail('INVALID_INPUT', 'A trusted Worker owner requires an exact subject and Worker UUID.');
+  return copy(value);
 }
 function activity(state, type, artifact) {
   state.activity.push({ id: randomUUID(), type, title: type === 'artifact_deleted' ? 'Artifact deleted' : type === 'artifact_created' ? 'Artifact saved' : 'Artifact updated', detail: artifact.filename, artifactId: artifact.id, createdAt: new Date().toISOString() });
@@ -207,12 +217,13 @@ export async function createArtifactService({ store, directory, maxBytes = ARTIF
     get(id) { return { artifact: required(store.read(), id) }; },
     create(body, admission = {}) {
       if (admission.check !== undefined && typeof admission.check !== 'function') throw new TypeError('Artifact admission check must be a function.');
+      const owner = admission.workerOwner === undefined ? undefined : workerOwner(admission.workerOwner);
       return enqueue(async () => {
         bodyObject(body, createFields);
         const filename = sanitizeArtifactFilename(body.filename);
         const decoded = decodeContent(body, filename, maxBytes);
         const associations = sourceValues(body);
-        const info = { filename, title: body.title === undefined ? filename : boundedString(body.title, 'title', 200), description: body.description === undefined ? '' : boundedString(body.description, 'description', 4000, true), metadata: body.metadata === undefined ? {} : metadata(body.metadata), ...associations };
+        const info = { filename, title: body.title === undefined ? filename : boundedString(body.title, 'title', 200), description: body.description === undefined ? '' : boundedString(body.description, 'description', 4000, true), metadata: body.metadata === undefined ? {} : metadata(body.metadata), ...associations, ...(owner ? { workerOwner: owner } : {}) };
         const requestId = body.requestId === undefined ? null : boundedString(body.requestId, 'requestId', 128);
         const requestFingerprint = hash(canonical({ ...info, sha256: decoded.sha256, mimeType: decoded.mimeType }));
         const snapshot = store.read();

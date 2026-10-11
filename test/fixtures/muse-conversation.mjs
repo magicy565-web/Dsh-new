@@ -3,6 +3,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { createNativeMuseBinding } from '../../server/muse-worker-native.mjs';
 import fs from 'node:fs';
+import { openStore } from '../../server/store.mjs';
+import { createArtifactService } from '../../server/artifacts.mjs';
 // Original relay bytes with only its unavailable Harness error helper stubbed.
 const relaySource = fs.readFileSync(new URL('../../deploy/muse-native-overlay/server/workspace-muse-session-host.mjs', import.meta.url), 'utf8');
 const relayImport = 'import { pluginFail } from ' + String.fromCharCode(39) + './workspace-plugin-config.mjs' + String.fromCharCode(39) + ';';
@@ -13,18 +15,31 @@ export const hash = value => createHash('sha256').update(value).digest('hex');
 const key = 'memory-contract-key-not-a-credential-0123456789';
 export const workerId = 'cf4a108c-8051-48bb-9bd2-b8e5a10a1db1';
 
-// Synthetic serialized copy-on-write writer and native Session. JSON remounts
-// verify protocol recovery only; they do not prove fsync/ACL or original Harness.
-export async function museConversationFixture(t) {
+// The default writer is synthetic; diskDirectory uses the original Store and
+// Artifact service. Both modes retain a synthetic native Session/Muse sender.
+export async function museConversationFixture(t, { diskDirectory } = {}) {
   let state = { workerOrders: [], artifacts: [], activity: [], messages: [], conversations: [] };
   let queue = Promise.resolve(), epoch = 1, active = true, failure, flush = true, binding;
   const context = new AsyncLocalStorage(), blobs = new Map(), events = [];
+  let diskStore, diskArtifacts;
+  async function openDisk() {
+    diskStore = await openStore(diskDirectory);
+    diskArtifacts = await createArtifactService({ store: diskStore });
+  }
+  if (diskDirectory) await openDisk();
   function check() {
     const token = context.getStore();
     if (!token || token.epoch !== epoch) throw Object.assign(Error('Revoked parent epoch'), { code: 'WORKSPACE_PLUGIN_STALE' });
     if (token.active && !active) throw Object.assign(Error('Paused parent'), { code: 'WORKSPACE_PLUGIN_PAUSED' });
   }
-  const store = { read: () => structuredClone(state), update(callback) {
+  const store = diskDirectory ? { read: () => diskStore.read(), update(callback) {
+    check(); const token = context.getStore();
+    return diskStore.update(next => context.run(token, () => {
+      check(); const result = callback(next);
+      if (failure?.when(next)) { const error = failure.error; failure = undefined; throw error; }
+      return result;
+    }));
+  } } : { read: () => structuredClone(state), update(callback) {
     check(); const token = context.getStore();
     const pending = queue.then(() => context.run(token, () => {
       check(); const next = structuredClone(state), result = callback(next);
@@ -32,7 +47,8 @@ export async function museConversationFixture(t) {
       state = next; return structuredClone(result);
     })); queue = pending.catch(() => {}); return pending;
   } };
-  const artifacts = { async create(input, options) {
+  const artifacts = diskDirectory ? { create(input, options) { check(); return diskArtifacts.create(input, options); },
+    download(id, options) { check(); return diskArtifacts.download(id, options); } } : { async create(input, options) {
     check(); const bytes = input.base64 === undefined ? Buffer.from(input.content) : Buffer.from(input.base64, 'base64');
     let item;
     await store.update(next => {
@@ -60,7 +76,7 @@ export async function museConversationFixture(t) {
       respond(res, status, body) { res.status = status; res.body = body; } });
   }
   binding = mount();
-  t.after(() => binding.close());
+  t.after(async () => { await binding.close(); if (diskDirectory) { await diskArtifacts.close(); await diskStore.close(); } });
   async function call(taskId, operation, body) {
     const pathname = '/api/muse-worker/v1/tasks/' + taskId + '/' + operation;
     const req = Readable.from([Buffer.from(JSON.stringify(body))]);
@@ -99,8 +115,14 @@ export async function museConversationFixture(t) {
   }
   return { store, input, call, deliver, approveAndDispatch, relay, events, blobs,
     api: () => binding.bindConversation(actor), desk: () => binding.bindDesk(actor), binding: () => binding,
-    change(fn) { fn(state); }, pause() { active = false; }, failFlush(value) { flush = !value; },
+    change(fn) { return diskDirectory ? diskStore.update(fn) : fn(state); }, pause() { active = false; }, failFlush(value) { flush = !value; },
+    diskDiagnostics: () => diskStore?.diagnostics(),
     failNext(when, error = Object.assign(Error('Fixture persistence failure'), { code: 'EPERM' })) { failure = { when, error }; },
-    async restart() { await binding.close(); state = JSON.parse(JSON.stringify(state)); epoch++; binding = mount(); await binding.initialize(); },
+    async restart() {
+      await binding.close();
+      if (diskDirectory) { await diskArtifacts.close(); await diskStore.close(); await openDisk(); }
+      else state = JSON.parse(JSON.stringify(state));
+      epoch++; binding = mount(); await binding.initialize();
+    },
   };
 }

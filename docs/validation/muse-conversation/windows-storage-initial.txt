@@ -1,0 +1,202 @@
+鉁?UTF-8 artifacts and metadata reload durably, with private files and SHA-256 provenance (3686.3208ms)
+鉁?content revisions retain immutable bytes and metadata edits support optimistic concurrency (3440.2341ms)
+鉁?source association validation is strict, while deleting sources preserves historical artifacts (3439.0478ms)
+鉁?safe filename normalization never uses supplied names as filesystem paths (3310.7087ms)
+鉁?uploads enforce byte-size bounds, canonical encoding, UTF-8, safe JSON input and allowed MIME types (3429.5004ms)
+鉁?base64 binary artifacts round-trip only through explicit inert byte downloads (3390.3627ms)
+鉁?byte quotas and artifact-count bounds include all retained versions (3300.0681ms)
+鉁?idempotent upload retries do not create duplicate files and conflicting requests fail (3253.0894ms)
+锕?symlink and hard-link artifact bytes cannot leak external content (0.1741ms) # Creating symlinks needs additional Windows privileges.
+鉁?symlink directories, root replacement and second artifact writers are refused (3261.2595ms)
+鉁?same-size corruption and missing blobs report integrity errors without erasing metadata (3310.2132ms)
+鉁?restart recovers unreferenced and interrupted files, preserving referenced corruption and unrelated files (3577.3019ms)
+鉁?failed metadata commits clean newly written blobs and cannot invent stored artifacts (3238.7844ms)
+鉁?deletion removes every version and survives reload without resurrection (3450.8733ms)
+鉁?close drains uploads and forbids new artifact operations (3194.7729ms)
+鉁?unsafe persisted artifact metadata is rejected before orphan cleanup can delete files (3482.7076ms)
+鉁?service limit configuration cannot bypass upload safety ceiling (3536.8829ms)
+鉁?content version limit is bounded and preserves all previous versions (4027.0602ms)
+鉁?directory flush uses required access, verifies identity, and preserves contents (1607.1474ms)
+鉁?volume query is fixed, bounded, read-only and never substitutes success for unverified storage (9.8025ms)
+鉁?unsupported preflight retains exact original state, writer and recovery locks (1574.552ms)
+鈻?pre-rename sync, close and rename errors retain old state, cursor, lock and observers
+  鉁?file-sync (1637.9963ms)
+  鉁?file-close (1584.303ms)
+  鉁?rename (1603.2822ms)
+鉁?pre-rename sync, close and rename errors retain old state, cursor, lock and observers (4826.4217ms)
+鈻?post-rename flush and close failures stop writes and never emit durable receipts
+  鉁?directory-sync (1641.7954ms)
+  鉁?directory-close (1534.04ms)
+  鉁?sync-and-close (1600.1066ms)
+鉁?post-rename flush and close failures stop writes and never emit durable receipts (4776.6142ms)
+鉁?directory identity and file hard-link checks remain enforced on Windows (1651.7674ms)
+鈻?migration survives process exits at every publication boundary without exposing a partial backup
+  鉁?partial-backup-write (3609.1611ms)
+  鉁?synced-backup-stage (3499.5603ms)
+  鉁?published-backup (3632.3066ms)
+  鉁?before-state-publish (3394.7666ms)
+  鉁?published-state (3528.2001ms)
+鉁?migration survives process exits at every publication boundary without exposing a partial backup (17665.0426ms)
+鈻?backup I/O failures retain v1; uncertain migration commit is distinct and safe to reopen
+  鉁?failed-backup-write (3398.1726ms)
+  鉁?failed-backup-directory-sync (3452.4298ms)
+  鉁?failed-state-directory-sync (3785.4695ms)
+鉁?backup I/O failures retain v1; uncertain migration commit is distinct and safe to reopen (10636.7298ms)
+鉁?legacy partial backup blocks migration with actionable diagnostics and preserves every byte (1592.7017ms)
+鉁?validated legacy source can be upgraded in a fresh destination without altering the blocked source (3219.3407ms)
+鉁?exact existing backup is synced, reused and made private before migration (1565.6938ms)
+鉁?startup distinguishes unknown schema from invalid data without changing either (1668.0245ms)
+鈻?missing authoritative state with write evidence fails closed instead of creating an empty workspace
+  鉁?workspace.v1.backup.json (1720.754ms)
+  鉁?workspace.json.3ec8d052-46e6-4864-bc9c-e12f4ed12e55.tmp (1589.3401ms)
+  鉁?workspace.v1.backup.json.d9cdf5ef-7124-4a93-ba25-460748b66866.tmp (1672.2599ms)
+鉁?missing authoritative state with write evidence fails closed instead of creating an empty workspace (4983.0605ms)
+鈻?incomplete restore marker blocks startup before a writer lock is created
+  鉁?file (3.8376ms)
+  鉁?directory (3.5802ms)
+鉁?incomplete restore marker blocks startup before a writer lock is created (7.7895ms)
+鉁?startup diagnostics are detached and report unusable rollback backup without blocking valid v2 (1786.2721ms)
+鉁?migration staging evidence is retained when a valid v2 store has no usable final backup (1909.4889ms)
+鉁?uncertain transaction durability is visible and prevents subsequent writes (1739.8287ms)
+鉁?new v2 state is durable immediately and reads/results cannot mutate it (1670.9425ms)
+鉁?v1 migrates once with a byte-for-byte backup and preserves all existing records (1743.7287ms)
+鉁?a conflicting migration backup is never replaced and original v1 remains intact (1681.4289ms)
+鉁?corrupt, unsupported and structurally invalid stores are preserved exactly (2003.7785ms)
+鉁?invalid and asynchronous transactions roll back and do not poison the transaction queue (1751.8736ms)
+鉁?concurrent transactions are serialized and subscribers only receive durable committed cursors (1671.7081ms)
+鉁?close drains accepted transactions, refuses new writes, and is idempotent (1705.3675ms)
+鉁?single writer lock and concurrent recovery of a dead process cannot admit two writers (2048.2831ms)
+鉁?malformed and ambiguous recovery locks fail closed (1726.3208ms)
+锕?symlink and hard-link workspace files and symlink directories are refused (0.196ms) # Creating local symlinks requires additional Windows privileges.
+鉁?out-of-band corruption and stolen locks cannot be overwritten by an open store (1766.9896ms)
+鉁?private permissions and bounded-name orphan cleanup survive restart (1636.1198ms)
+鈩?tests 66
+鈩?suites 0
+鈩?pass 57
+鈩?fail 7
+鈩?cancelled 0
+鈩?skipped 2
+鈩?todo 0
+鈩?duration_ms 138990.5814
+
+鉁?failing tests:
+
+test at test\store-durability.test.mjs:132:1
+鉁?directory identity and file hard-link checks remain enforced on Windows (1651.7674ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/store-durability.test.mjs:137:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /directory changed/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at test\store-migration.test.mjs:79:143
+鉁?published-backup (3632.3066ms)
+  Error: The v1 migration backup could not be safely created or its durability confirmed. Preserve the data directory and retry after correcting the storage problem; no workspace data has been overwritten.
+      at storeError (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:12:60)
+      at prepareMigrationBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:238:13)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:292:35)
+      ... 4 lines matching cause stack trace ...
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'WORKSPACE_MIGRATION_BACKUP_FAILED',
+    phase: 'migration-backup',
+    [cause]: Error: EPERM: operation not permitted, fsync
+        at async fsync (node:internal/fs/promises:1546:10)
+        at async fsCall (node:internal/fs/promises:1118:12)
+        at async reuseExisting (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:220:38)
+        at async prepareMigrationBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:226:11)
+        at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:292:35)
+        at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/store-migration.test.mjs:88:19)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/store-migration.test.mjs:79:135)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+      errno: -4048,
+      code: 'EPERM',
+      syscall: 'fsync'
+    }
+  }
+
+test at test\store-migration.test.mjs:79:143
+鉁?before-state-publish (3394.7666ms)
+  Error: The v1 migration backup could not be safely created or its durability confirmed. Preserve the data directory and retry after correcting the storage problem; no workspace data has been overwritten.
+      at storeError (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:12:60)
+      at prepareMigrationBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:238:13)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:292:35)
+      ... 4 lines matching cause stack trace ...
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'WORKSPACE_MIGRATION_BACKUP_FAILED',
+    phase: 'migration-backup',
+    [cause]: Error: EPERM: operation not permitted, fsync
+        at async fsync (node:internal/fs/promises:1546:10)
+        at async fsCall (node:internal/fs/promises:1118:12)
+        at async reuseExisting (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:220:38)
+        at async prepareMigrationBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:226:11)
+        at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:292:35)
+        at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/store-migration.test.mjs:88:19)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/store-migration.test.mjs:79:135)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+      errno: -4048,
+      code: 'EPERM',
+      syscall: 'fsync'
+    }
+  }
+
+test at test\store-migration.test.mjs:107:119
+鉁?failed-backup-directory-sync (3452.4298ms)
+  Error: The v1 migration backup could not be safely created or its durability confirmed. Preserve the data directory and retry after correcting the storage problem; no workspace data has been overwritten.
+      at storeError (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:12:60)
+      at prepareMigrationBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:238:13)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:292:35)
+      ... 4 lines matching cause stack trace ...
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'WORKSPACE_MIGRATION_BACKUP_FAILED',
+    phase: 'migration-backup',
+    [cause]: Error: EPERM: operation not permitted, fsync
+        at async fsync (node:internal/fs/promises:1546:10)
+        at async fsCall (node:internal/fs/promises:1118:12)
+        at async reuseExisting (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:220:38)
+        at async prepareMigrationBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:226:11)
+        at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:292:35)
+        at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/store-migration.test.mjs:119:19)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/store-migration.test.mjs:107:111)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+      errno: -4048,
+      code: 'EPERM',
+      syscall: 'fsync'
+    }
+  }
+
+test at test\store-migration.test.mjs:157:1
+鉁?exact existing backup is synced, reused and made private before migration (1565.6938ms)
+  Error: The v1 migration backup could not be safely created or its durability confirmed. Preserve the data directory and retry after correcting the storage problem; no workspace data has been overwritten.
+      at storeError (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:12:60)
+      at prepareMigrationBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:238:13)
+      at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:292:35)
+      ... 2 lines matching cause stack trace ...
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'WORKSPACE_MIGRATION_BACKUP_FAILED',
+    phase: 'migration-backup',
+    [cause]: Error: EPERM: operation not permitted, fsync
+        at async fsync (node:internal/fs/promises:1546:10)
+        at async fsCall (node:internal/fs/promises:1118:12)
+        at async reuseExisting (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:220:38)
+        at async prepareMigrationBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:226:11)
+        at async openStore (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/store.mjs:292:35)
+        at async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/store-migration.test.mjs:160:17)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+      errno: -4048,
+      code: 'EPERM',
+      syscall: 'fsync'
+    }
+  }

@@ -1,0 +1,168 @@
+TAP version 13
+# Subtest: dot authentication is off without a reviewed hash and rejects non-worker/browser credentials
+ok 1 - dot authentication is off without a reviewed hash and rejects non-worker/browser credentials
+  ---
+  duration_ms: 1.2002
+  type: 'test'
+  ...
+# Subtest: dot queue, atomic one-attempt claim, upload, sources, tool receipt and reviewable structured result
+ok 2 - dot queue, atomic one-attempt claim, upload, sources, tool receipt and reviewable structured result
+  ---
+  duration_ms: 3702.077
+  type: 'test'
+  ...
+# Subtest: one unfinished personal dot attempt is enforced; expiry never triggers a new attempt
+ok 3 - one unfinished personal dot attempt is enforced; expiry never triggers a new attempt
+  ---
+  duration_ms: 3440.4194
+  type: 'test'
+  ...
+# Subtest: a claimed task cancellation is not successful until the original dot confirms stop
+ok 4 - a claimed task cancellation is not successful until the original dot confirms stop
+  ---
+  duration_ms: 3421.1288
+  type: 'test'
+  ...
+# Subtest: disabled dot worker is not advertised as executable even when files and plugin are present
+ok 5 - disabled dot worker is not advertised as executable even when files and plugin are present
+  ---
+  duration_ms: 3769.0415
+  type: 'test'
+  ...
+# Subtest: revoking the dot invitation blocks continued execution even with a previously valid lease
+ok 6 - revoking the dot invitation blocks continued execution even with a previously valid lease
+  ---
+  duration_ms: 3385.8339
+  type: 'test'
+  ...
+# Subtest: dot cannot receive enterprise private RFQ data or unreviewed secret-bearing payloads
+ok 7 - dot cannot receive enterprise private RFQ data or unreviewed secret-bearing payloads
+  ---
+  duration_ms: 3564.7106
+  type: 'test'
+  ...
+# Subtest: Dot lease and heartbeat cannot extend beyond the approved business deadline
+ok 8 - Dot lease and heartbeat cannot extend beyond the approved business deadline
+  ---
+  duration_ms: 3382.8821
+  type: 'test'
+  ...
+# Subtest: original disk store reloads one delegation and task; exact receipt file survives reopening
+not ok 9 - original disk store reloads one delegation and task; exact receipt file survives reopening
+  ---
+  duration_ms: 3358.4894
+  type: 'test'
+  location: 'C:\\Users\\Administrator\\Documents\\Codex\\2026-10-12\\task-2\\workspace\\test\\muse-conversation.disk.test.mjs:17:1'
+  failureType: 'testCodeFailure'
+  error: 'This file is not owned by this Muse binding.'
+  code: 'MW_FILE_NOT_FOUND'
+  stack: |-
+    Object.download (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/muse-worker-native.mjs:96:15)
+    Object.get (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/dot-worker-bridge.mjs:147:41)
+    file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/server/muse-worker-host.mjs:41:64
+  ...
+# Subtest: disk restart retains original uncertain dispatch ID, cancellation, expired lease and late-result rejection
+not ok 10 - disk restart retains original uncertain dispatch ID, cancellation, expired lease and late-result rejection
+  ---
+  duration_ms: 3232.7665
+  type: 'test'
+  location: 'C:\\Users\\Administrator\\Documents\\Codex\\2026-10-12\\task-2\\workspace\\test\\muse-conversation.disk.test.mjs:46:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'reconciliation_required'
+    - 'lease_expired'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'lease_expired'
+  actual: 'reconciliation_required'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/muse-conversation.disk.test.mjs:56:29)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a restored snapshot fences out prior Muse and Dot leases and pauses all worker orders
+not ok 11 - a restored snapshot fences out prior Muse and Dot leases and pauses all worker orders
+  ---
+  duration_ms: 3426.0039
+  type: 'test'
+  location: 'C:\\Users\\Administrator\\Documents\\Codex\\2026-10-12\\task-2\\workspace\\test\\muse-worker.recovery.test.mjs:18:1'
+  failureType: 'testCodeFailure'
+  error: 'EPERM: operation not permitted, fsync'
+  code: 'EPERM'
+  stack: |-
+    async fsync (node:internal/fs/promises:1546:10)
+    async fsCall (node:internal/fs/promises:1118:12)
+    async syncTree (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/scripts/recovery.mjs:25:96)
+    async createBackup (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/scripts/recovery.mjs:145:5)
+    async TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/workspace/test/muse-worker.recovery.test.mjs:46:16)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: worker service catalog is honest when no external executor is enrolled
+ok 12 - worker service catalog is honest when no external executor is enrolled
+  ---
+  duration_ms: 1716.0145
+  type: 'test'
+  ...
+# Subtest: durable idempotency and strict external data scope
+ok 13 - durable idempotency and strict external data scope
+  ---
+  duration_ms: 1694.9025
+  type: 'test'
+  ...
+# Subtest: reviewed worker accepts exact approved task and yields a human-reviewed outcome
+ok 14 - reviewed worker accepts exact approved task and yields a human-reviewed outcome
+  ---
+  duration_ms: 1585.8242
+  type: 'test'
+  ...
+# Subtest: dispatch network uncertainty never re-submits work automatically
+ok 15 - dispatch network uncertainty never re-submits work automatically
+  ---
+  duration_ms: 1735.4232
+  type: 'test'
+  ...
+# Subtest: worker cost over approved cap blocks acceptance regardless of delivery claims
+ok 16 - worker cost over approved cap blocks acceptance regardless of delivery claims
+  ---
+  duration_ms: 1680.0382
+  type: 'test'
+  ...
+# Subtest: requesting cancellation never claims external stop without acknowledgement
+ok 17 - requesting cancellation never claims external stop without acknowledgement
+  ---
+  duration_ms: 1681.1032
+  type: 'test'
+  ...
+# Subtest: buyer research cannot pass human acceptance with a summary but no actual prospects
+ok 18 - buyer research cannot pass human acceptance with a summary but no actual prospects
+  ---
+  duration_ms: 1652.4926
+  type: 'test'
+  ...
+# Subtest: a queued or completed remote response cannot revoke a pending cancellation
+ok 19 - a queued or completed remote response cannot revoke a pending cancellation
+  ---
+  duration_ms: 1639.4997
+  type: 'test'
+  ...
+# Subtest: duplicated buyer company/domain is rejected instead of inflating lead counts
+ok 20 - duplicated buyer company/domain is rejected instead of inflating lead counts
+  ---
+  duration_ms: 1977.8854
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 17
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 50180.612

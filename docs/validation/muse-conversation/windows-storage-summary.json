@@ -1,0 +1,238 @@
+{
+  "schema": "workspace.windows-storage-validation.v1",
+  "recordedAt": "2026-10-11T18:21:51.925Z",
+  "repository": "magicy565-web/workspace-agent",
+  "branch": "codex/muse-conversation-delegation-20261012",
+  "sourceParentCommit": "9e92fe31dad89677d36932ef7f623a784aec278b",
+  "node": "v24.21.0",
+  "platform": "win32",
+  "arch": "x64",
+  "fileSystem": "local fixed NTFS",
+  "testIsolation": "none",
+  "groups": {
+    "contractsAndOriginalDisk": {
+      "evidence": "windows-muse-disk-tests.txt",
+      "tests": 55,
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0
+    },
+    "storageMigrationRecovery": {
+      "evidence": "windows-storage-tests.txt",
+      "tests": 76,
+      "passed": 73,
+      "failed": 1,
+      "skipped": 2
+    },
+    "finalTargeted": {
+      "evidence": "windows-targeted-tests.txt",
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "hostStoreProbe": {
+    "kind": "original-workspace-store",
+    "passed": true,
+    "node": "v24.21.0",
+    "platform": "win32",
+    "directory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-12\\task-2\\workspace\\.data\\muse-durability-probe-XjzIbW",
+    "diagnostics": {
+      "state": "open",
+      "schemaVersion": 2,
+      "supportedVersions": [
+        1,
+        2
+      ],
+      "startup": {
+        "action": "created",
+        "sourceVersion": null,
+        "migrationBackup": null,
+        "abandonedWritesRemoved": 0,
+        "abandonedMigrationWritesRetained": 0
+      },
+      "migrationBackup": {
+        "file": "workspace.v1.backup.json",
+        "status": "absent",
+        "scope": "pre-upgrade-workspace-state-only",
+        "rollback": "new-directory-only"
+      },
+      "durability": "confirmed",
+      "sequence": 1,
+      "warnings": []
+    },
+    "reloadedSequence": 1
+  },
+  "sandboxStoreProbe": {
+    "kind": "original-workspace-store",
+    "passed": false,
+    "node": "v24.21.0",
+    "platform": "win32",
+    "arch": "x64",
+    "directory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-12\\task-2\\workspace\\.data\\muse-durability-probe-JocwCW",
+    "code": "WORKSPACE_DURABILITY_UNSUPPORTED",
+    "message": "Local NTFS directory durability could not be verified.",
+    "cause": {
+      "code": "EPERM",
+      "errno": -4048,
+      "syscall": "spawn",
+      "message": "spawn EPERM"
+    },
+    "preservedNames": []
+  },
+  "directoryComparison": {
+    "sandbox": {
+      "node": "v24.21.0",
+      "platform": "win32",
+      "directory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-12\\task-2\\workspace",
+      "statfsType": 0,
+      "results": [
+        {
+          "mode": "r",
+          "sync": false,
+          "code": "EPERM",
+          "errno": -4048,
+          "syscall": "fsync",
+          "message": "EPERM: operation not permitted, fsync"
+        },
+        {
+          "mode": "r+",
+          "sync": true
+        }
+      ]
+    },
+    "host": {
+      "node": "v24.21.0",
+      "platform": "win32",
+      "directory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-12\\task-2\\workspace",
+      "statfsType": 0,
+      "results": [
+        {
+          "mode": "r",
+          "sync": false,
+          "code": "EPERM",
+          "errno": -4048,
+          "syscall": "fsync",
+          "message": "EPERM: operation not permitted, fsync"
+        },
+        {
+          "mode": "r+",
+          "sync": true
+        }
+      ]
+    }
+  },
+  "syntax": {
+    "passed": true,
+    "checkedFiles": 10
+  },
+  "remainingBlockers": [
+    "Original recovery-control native overlay POSIX mode assertion fails on Windows (0666 versus 0600); no ACL or test bypass applied",
+    "Two pre-existing Windows symlink privilege skips retained; new hard-link and directory identity tests have no skips",
+    "Full original Harness/overlay assembly and actual private Windows ACL validation remain unverified",
+    "Native Session/Muse execution and wake-up remain synthetic/unverified",
+    "Read-only Windows volume query is blocked by normal task child-process sandbox; fail-closed unsupported preserves state and locks",
+    "No Linux verification, deployment, credentials, schedules, subscriptions, purchases or merges"
+  ],
+  "changedSourceSha256": [
+    {
+      "path": "server/store.mjs",
+      "sha256": "f7bb8eb49dad0c8cc7c1ddf37f050268bcb350a65f77a20c1da3f74340d5e476"
+    },
+    {
+      "path": "server/artifacts.mjs",
+      "sha256": "5dae5b648a3ce362371d7ca10c989abe4fe4d1df9f1091aa5363c2e7525d56c3"
+    },
+    {
+      "path": "server/windows-volume.mjs",
+      "sha256": "bacd5d48bc18507b23defe8a5bf745c6834cfc173c9ff986e0a8c4df17b1d1eb"
+    },
+    {
+      "path": "server/windows-volume-query.mjs",
+      "sha256": "c31372b0e863181d6eeee56e797c454b213bbe0ae20446993e1d70108b96d6e2"
+    },
+    {
+      "path": "scripts/recovery.mjs",
+      "sha256": "4405c2367b72cd9c9efc6fdca806ade78b0e25fc251221ef9931f604299303b5"
+    },
+    {
+      "path": "scripts/check-muse-store-durability.mjs",
+      "sha256": "50a532924788dff042f3913d86fb39de361e83bb8ebc993e71d7e3544a91f7be"
+    },
+    {
+      "path": "scripts/check-windows-directory-sync.mjs",
+      "sha256": "67b3b7962fa68618cb1d27b46f776c3eecb1d8794ba59ebd2e36e5250d7499fb"
+    },
+    {
+      "path": "test/store-durability.test.mjs",
+      "sha256": "27a12e274e81a8370a743c0b2de3dd8d6b59148ac78559b9df43c0735b482fde"
+    },
+    {
+      "path": "test/muse-conversation.disk.test.mjs",
+      "sha256": "70f3a6f0469d97ec15f1522b61b1dc04b714fb88922133df7d09ac99f6f788aa"
+    },
+    {
+      "path": "test/fixtures/muse-conversation.mjs",
+      "sha256": "ce19d9a8b23e7998ec1e14125562669d3932a78c56eba87371eec4a87bfc9591"
+    }
+  ],
+  "evidenceSha256": [
+    {
+      "path": "contract-tests.txt",
+      "sha256": "02d54a767f457166dae396dec8723a5123a09e5baf6610129c9db0148bc2de7c"
+    },
+    {
+      "path": "original-disk-regressions.txt",
+      "sha256": "1dbe2d0ef5368cfa2f950a8263b8551af2150a49cf1a0738c725f2b9af8d8009"
+    },
+    {
+      "path": "original-overlay-session-test.txt",
+      "sha256": "70cf972ea2bcdc30c28e73d642e12e3a3075fbc2ba03cf5115f5a54a8dff61e8"
+    },
+    {
+      "path": "original-store-probe.txt",
+      "sha256": "0438cd2c50b289d0fed14af394f8ee7548a612dd5b202763de373a74d40221ca"
+    },
+    {
+      "path": "windows-directory-host.txt",
+      "sha256": "44123875a4d8c5853af857316360f247b8e1c52711f0f714718c3d1d1bef4f16"
+    },
+    {
+      "path": "windows-directory-sandbox.txt",
+      "sha256": "44123875a4d8c5853af857316360f247b8e1c52711f0f714718c3d1d1bef4f16"
+    },
+    {
+      "path": "windows-muse-disk-initial.txt",
+      "sha256": "3b49fbc97daa8d5b739f388aa32576aaa2dd1aee1b5a3b726c1cf8e46bc82956"
+    },
+    {
+      "path": "windows-muse-disk-tests.txt",
+      "sha256": "d64495e0b88aa5d340b7af1181dadbf8a27b41a57f58e1696f47600a1ca3c7c1"
+    },
+    {
+      "path": "windows-storage-initial.txt",
+      "sha256": "97323c94f5d69b8bdaca92bad95f551d20b31ebd332c3340bc6484676363bfc1"
+    },
+    {
+      "path": "windows-storage-tests.txt",
+      "sha256": "62c021a45a9405a2d4721229847b226f91f73bafb52987d27fb479b0be5145e3"
+    },
+    {
+      "path": "windows-store-host.txt",
+      "sha256": "2bae0d15a59888e25d42449e26a0349da844a5e7436dc8206aec5d16d84be823"
+    },
+    {
+      "path": "windows-store-sandbox.txt",
+      "sha256": "a813b84dd2d733142b05b3f187df24f8d72cb1000f769c702bd5b639480895e5"
+    },
+    {
+      "path": "windows-syntax-check.txt",
+      "sha256": "1be598b701d87364c67427b7346a01a1f35bc5ebf1cf8a957664bf6563f43f56"
+    },
+    {
+      "path": "windows-targeted-tests.txt",
+      "sha256": "be417b0404852d878a6c45e69e6d962609d635459d7cb480f6b18b10a855b52d"
+    }
+  ]
+}

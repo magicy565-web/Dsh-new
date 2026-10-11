@@ -122,5 +122,7 @@
       "path": "original-store-probe.txt",
       "sha256": "0438cd2c50b289d0fed14af394f8ee7548a612dd5b202763de373a74d40221ca"
     }
-  ]
+  ],
+  "historicalSnapshot": true,
+  "supersededBy": "windows-storage-summary.json"
 }
