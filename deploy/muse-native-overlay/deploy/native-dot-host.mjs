@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { readBody, respond } from '../server/index.mjs';
 import { validateNativeMuseConfiguration, validateNativeMuseReconciliationReview } from '../server/muse-worker-native.mjs';
+import { applyPrivateMuseReview } from '../server/muse-worker-private-review.mjs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
 import { rename, unlink } from 'node:fs/promises';
@@ -135,7 +136,7 @@ export async function startNativeDotHost({ configuration, environment = process.
         if (!filename) return;
         let review;
         try { review = await readPrivateJSON(filename); } catch (error) { if (error.code === 'ENOENT') return; throw error; }
-        pluginFields(review, ['version', 'requestId', 'expectedEpoch', 'configurationHash', 'callbackCandidateIds', 'bindings', 'action', 'connectionId', 'authorizationEpoch']);
+        pluginFields(review, ['version', 'requestId', 'expectedEpoch', 'configurationHash', 'callbackCandidateIds', 'bindings', 'action', 'connectionId', 'authorizationEpoch', 'workerId', 'confirmed', 'order', 'extraCostLimitUsd', 'orderId', 'reportSha256']);
         if (review.version !== 1 || !/^[A-Za-z0-9_-]{1,100}$/.test(review.requestId) || !Array.isArray(review.callbackCandidateIds)) throw Error('Invalid private Host review.');
         const reviewHash = createHash('sha256').update(JSON.stringify(review)).digest('hex');
         const receiptFile = path.join(path.dirname(filename), `native-review-${review.requestId}.result.json`);
@@ -147,6 +148,16 @@ export async function startNativeDotHost({ configuration, environment = process.
           return;
         }
         const service = ctx.workspaceBusiness;
+        if (['muse-activate', 'muse-order-start', 'muse-order-refresh', 'muse-order-accept', 'muse-order-cancel'].includes(review.action)) {
+          if (!museReview) throw Error('A private Muse review requires its original selected configuration.');
+          const result = await applyPrivateMuseReview({ review, configuration: museReview, service,
+            refreshTools: exact => ctx.workspaceDotHost.refreshReviewedTools(exact) });
+          await writePrivateNewFile(receiptFile, JSON.stringify({ requestId: review.requestId, reviewHash,
+            accepted: true, ...result }) + '\n');
+          if (JSON.stringify(await readPrivateJSON(filename)) === JSON.stringify(review)) await unlink(filename);
+          return;
+        }
+        pluginFields(review, ['version', 'requestId', 'expectedEpoch', 'configurationHash', 'callbackCandidateIds', 'bindings', 'action', 'connectionId', 'authorizationEpoch']);
         if (review.action === 'muse-reconcile') {
           if (!museReview) throw Error('A private Muse reconciliation requires its original selected configuration.');
           const exact = validateNativeMuseReconciliationReview(review, service.status());

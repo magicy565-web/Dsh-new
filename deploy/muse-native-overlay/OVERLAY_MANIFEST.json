@@ -1,9 +1,9 @@
 {
-  "format": "workspace.native-muse-overlay.v1",
+  "format": "workspace.native-muse-overlay.v2",
   "productionRelease": "/opt/workspace-dot/releases/7279e6346910b43fc879f5a99fd581be47a9a73f",
-  "reviewedModuleCommit": "c369a1dd241d3842a4ca033e731bddc257c3dc87",
+  "reviewedModuleCommit": "f801088c5442f5ec2491ee744a2628eacbb2f3cc",
   "goLiveApprovedByUser": true,
-  "deployed": true,
+  "deployed": false,
   "files": [
     {
       "path": "server/workspace-plugin-service.mjs",
@@ -20,8 +20,8 @@
     {
       "path": "deploy/native-dot-host.mjs",
       "beforeSha256": "6849a01adc981920fc322c7ff39bda02dd3e53bbb7d575618f263c2befb85f0d",
-      "afterSha256": "c24f8330c951e0ab32cb2804f3caae11b12fe9a6b85458e248069a211fba4b9c",
-      "bytes": 18388
+      "afterSha256": "096cf10e5a4b8c0d6eac081cb49504de66a8aee00b904189ffabdbb197b0bd5a",
+      "bytes": 19470
     },
     {
       "path": "server/muse-worker-native.mjs",
@@ -74,8 +74,20 @@
     {
       "path": "test/muse-worker.native-host.production.test.mjs",
       "beforeSha256": null,
-      "afterSha256": "65f472b147469ed9a16f685992a65075c30307365108bbdc9ad5b29de3433508",
-      "bytes": 4372
+      "afterSha256": "920889b33c2fb0fbd4e4e9ef6ab61ce7dfc8b778385f712d37d9c7ca8020fe94",
+      "bytes": 10150
+    },
+    {
+      "path": "server/workspace-native-plugin.mjs",
+      "beforeSha256": "d77a6db7422ef01e76ebec3f2195ae751e8237fdca980aeb08bd884a3b9661a9",
+      "afterSha256": "b1a66e9d498b5d6db99ddbd56acbaaf88a206b0168ebb861f82c3b295f6a5ed7",
+      "bytes": 7510
+    },
+    {
+      "path": "server/muse-worker-private-review.mjs",
+      "beforeSha256": null,
+      "afterSha256": "978b2aac389b5f55439d221470214cef2c3c87cfc6722dc9bf3633e498bd13ce",
+      "bytes": 5841
     }
   ],
   "validation": {
@@ -112,10 +124,10 @@
       "skipped": 0
     },
     "linuxBackend": {
-      "passed": 367,
-      "failed": 0,
-      "skipped": 0,
-      "source": "Deployed Muse Harness tree, including SDK server, testkit and built exports; source fixtures select tsconfig.base.json."
+      "passed": 361,
+      "failed": 3,
+      "skipped": 3,
+      "reason": "Selected production Harness source omits SDK server and agent-loop testkit. No source fixture failure is treated as passing."
     },
     "originalDotHarness": {
       "passed": 1,
@@ -126,12 +138,13 @@
     "serviceUserModuleImportVerified": true
   },
   "validatedModuleCommit": "4e4246ffe3b380c5762f648e5692379e4eedcafd",
-  "activation": {
-    "backendCodeOnly": true,
-    "museConfigured": false,
-    "museAcceptingOrders": false,
-    "httpsBase": "https://workspace.cnsubscribe.xyz/api/muse-worker/v1",
-    "tlsVerified": true,
-    "productionRelease": "/opt/workspace-dot/releases/muse-native-20261011-1023"
+  "activation": "Candidate only. Production gates remain false until a separate exact private Host review.",
+  "linuxValidation": {
+    "nativePass": 11,
+    "nativeFail": 0,
+    "nativeSkip": 0,
+    "originalDotPass": 1,
+    "synthetic": true,
+    "paidModelCalls": 0
   }
 }
