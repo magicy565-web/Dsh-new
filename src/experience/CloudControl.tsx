@@ -14,21 +14,25 @@ const terminal = new Set(['succeeded', 'failed', 'cancelled', 'expired']);
 const stateLabels: Record<string, string> = { preparing: '准备中', queued: '等待领取', leased: '已领取', running: '执行中', return_pending: '回传中', succeeded: '成果已回传', blocked: '执行受阻', uncertain: '等待核实', cancel_requested: '等待停止确认', cancelled: '已停止', failed: '执行失败', expired: '已过期' };
 
 /** Same-origin adapter for the deployed personal Worker API. Never infers execution from login. */
-export function CloudControl({ data, routeConversationId, readOnly, onDirty, onSettings, onCreateConversation }: { data: Bootstrap; routeConversationId?: string; readOnly: boolean; onDirty: (dirty: boolean) => void; onSettings: () => void; onCreateConversation: () => Promise<{ id: string } | undefined> }) {
+export function CloudControl({ data, routeConversationId, ownerKey, readOnly, onDirty, onSettings, onCreateConversation }: { data: Bootstrap; routeConversationId?: string; ownerKey: string; readOnly: boolean; onDirty: (dirty: boolean) => void; onSettings: () => void; onCreateConversation: () => Promise<{ id: string } | undefined> }) {
   const native = data.runtime.cloudDot === true;
   const [view, setView] = useState<WorkerView | null>(null);
   const [error, setError] = useState('');
-  const [draft, setDraft] = useState('');
+  const storageKey = 'workspace.control.' + ownerKey;
+  const [restoredDraft] = useState(() => { try { return JSON.parse(sessionStorage.getItem(storageKey + '.draft') || 'null') as { text?: string; conversationId?: string } | null; } catch { return null; } });
+  const [draft, setDraft] = useState(typeof restoredDraft?.text === 'string' ? restoredDraft.text : '');
   const [sheet, setSheet] = useState<'tasks' | 'detail' | 'send' | 'connection' | 'conversation' | null>(null);
   const [selectedId, setSelectedId] = useState<string>();
-  const [conversationId, setConversationId] = useState(routeConversationId || data.conversations[0]?.id || '');
+  const [conversationId, setConversationId] = useState(routeConversationId || (data.conversations.some(item => item.id === restoredDraft?.conversationId) ? restoredDraft!.conversationId : '') || data.conversations[0]?.id || '');
   useEffect(() => { if (routeConversationId) setConversationId(routeConversationId); }, [routeConversationId]);
   const [confirmed, setConfirmed] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [readAt, setReadAt] = useState(0);
   const [clock, setClock] = useState(Date.now());
   const alive = useRef(true), reading = useRef(false);
-  const writer = useWrite();
+  const writer = useWrite(storageKey + '.pending');
+  useEffect(() => { try { sessionStorage.setItem(storageKey + '.draft', JSON.stringify({ text: draft, conversationId })); } catch { /* Draft still remains in memory. */ } }, [draft, conversationId, storageKey]);
+  useEffect(() => { if (writer.uncertain) setSheet(previous => previous || 'connection'); }, [writer.uncertain]);
   const screen = useRef<HTMLElement>(null);
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -92,6 +96,12 @@ export function CloudControl({ data, routeConversationId, readOnly, onDirty, onS
     const result = await writer.write<WorkerView>(endpoint, 'POST', payload, originalRequestId);
     if (result) { pending.current = null; if (!native) { setView(result); setReadAt(Date.now()); } if (saved.action === 'delegate') { setDraft(''); setConfirmed(false); setSheet(null); } setCancelConfirm(false); void refresh(); }
   }
+  async function retryOriginal() {
+    if (readOnly || stale || !view || writer.busy) return;
+    const original = writer.pendingRequest;
+    const result = await writer.retry<WorkerView>();
+    if (result) { pending.current = null; if (original?.path.endsWith('/messages') || original?.path.endsWith('/delegate')) { setDraft(''); setConfirmed(false); } setCancelConfirm(false); setSheet(null); void refresh(); }
+  }
   function startAction(action: string, body: Record<string, unknown>) { if (!writer.uncertain) pending.current = null; void write(action, body); }
   return <section ref={screen} className="master-control cloud-control" data-testid="v22-cloud-control">
     <header className="control-header"><span className="control-wordmark">Workspace<span>主控</span></span><button className="control-cloud-status" onClick={() => setSheet('connection')} disabled={frozen}><span className={'control-dot ' + (connection?.authenticatedRecently && !stale ? 'state-completed' : '')}/>{stale ? '连接中断' : '云端 xy'}</button></header>
@@ -122,7 +132,7 @@ export function CloudControl({ data, routeConversationId, readOnly, onDirty, onS
       {sheet === 'send' && <><p className="cloud-prompt">{draft}</p><label className="cloud-confirm">任务归属会话<select aria-label="任务归属会话" value={conversationId} onChange={event => setConversationId(event.target.value)} disabled={frozen}><option value="">选择原会话</option>{data.conversations.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>{!data.conversations.length && <button className="control-secondary" disabled={!mayWrite} onClick={async () => { const created = await onCreateConversation(); if (created) setConversationId(created.id); }}>创建任务会话</button>}<label className="cloud-confirm"><input type="checkbox" checked={confirmed} disabled={frozen} onChange={event => setConfirmed(event.target.checked)}/>我确认仅包含公开资料，委托 xy 执行并回传文件；额外付费为 0。</label><button className="control-primary" disabled={!canSend || !confirmed || !conversationId} onClick={() => startAction('delegate', { prompt: draft.trim(), confirmed: true, dataScope: 'public-only', conversationId })}>确认委托 xy</button></>}
       {sheet === 'connection' && <><p className="cloud-result">{stale ? error || '任务状态已过期' : connection?.authenticatedRecently ? '已收到原 Worker 的近期认证请求。' : '等待原 Worker 的近期认证请求。'}</p><p className="control-input-note">连接成功、事件送达、任务领取和成果验收分别显示，不互相替代。</p><button className="control-secondary" onClick={() => void refresh()}>刷新连接状态</button><button className="control-secondary" disabled={frozen} onClick={onSettings}>项目连接设置</button></>}
       {sheet === 'conversation' && <><button className="control-back" disabled={frozen} onClick={() => setSheet('detail')}>返回任务</button><div className="cloud-conversation">{data.messages.filter(message => message.conversationId === (selected?.conversationId || conversationId)).map(message => <article key={message.id}><small>{message.role === 'user' ? '你' : message.role === 'assistant' ? '助手' : '系统'}</small><p>{message.content || (message.status === 'pending' ? '等待回复' : '暂无文本')}</p></article>)}</div></>}
-      {writer.error && <div className="control-error" role="alert">{writer.error}{writer.uncertain && <button disabled={writer.busy || stale} onClick={() => { if (pending.current) void write(pending.current.action, pending.current.body); }}>重试原请求</button>}</div>}
+      {writer.error && <div className="control-error" role="alert">{writer.error}{writer.uncertain && <button disabled={readOnly || !view || writer.busy || stale} onClick={() => void retryOriginal()}>重试原请求</button>}</div>}
     </Modal>}
   </section>;
 }

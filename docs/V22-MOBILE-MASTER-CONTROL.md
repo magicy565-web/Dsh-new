@@ -142,3 +142,7 @@ chat. Regression checks cover all three entries and the history drawer.
 
 ### Native Host production compatibility
 Production uses runtime.cloudDot (without dotIntegration); paused cloudWorkerReady still renders the control and preserves tasks. Native task rows come from personal-worker.dotTasks. Submit through the original conversation messages endpoint; cancel/accept/close bind the original task requestId and receiptHash. Downloads bind native artifact id, version and SHA256. No unsupported SSE connection is opened for the native Host. Execution controls remain unavailable when the Host is paused.
+
+
+### Enterprise login continuation
+Build the existing gateway deployment with VITE_WORKSPACE_LOGIN_PATH=/auth/login. Unconfigured deployments continue using the existing session login API. The configured path must be a same-origin absolute path (no protocol-relative URL or query). Reauthentication restores a validated route only for the original workspace/user. Cloud drafts and uncertain POST requests are kept in scoped sessionStorage, without credentials; restored writes require an explicit original-request retry and are never auto-sent. Another account cannot restore the prior account draft or route. This is tab-session persistence, not server-side durable task storage.

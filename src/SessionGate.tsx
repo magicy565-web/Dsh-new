@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import App from './App';
 import { loadSession, loginSession, logoutSession } from './api';
 import type { Session } from './api';
+import { acceptSessionNavigation, configuredLoginPath, forgetSessionNavigation, rememberLoginReturn } from './sessionNavigation';
 import { Orb } from './icons';
 
 export default function SessionGate() {
@@ -10,20 +11,20 @@ export default function SessionGate() {
   const check = useCallback(async () => {
     if (lock.current) return;
     lock.current = true; const current = ++generation.current; setLoading(true); setError('');
-    try { const value = await loadSession(); if (current === generation.current) { setSession(value); setExpired(false); } }
+    try { const value = await loadSession(); if (current === generation.current) { acceptSessionNavigation(value); setSession(value); setExpired(false); } }
     catch (cause) { if (current === generation.current) setError(cause instanceof Error ? cause.message : '无法验证访问状态'); }
     finally { lock.current = false; if (current === generation.current) setLoading(false); }
   }, []);
   useEffect(() => { void check(); const required = () => { generation.current++; setSession(null); setExpired(true); setLoading(false); }; window.addEventListener('workspace-session-required', required); return () => { window.removeEventListener('workspace-session-required', required); }; }, [check]);
   async function login() {
     if (lock.current) return; lock.current = true; setBusy(true); setError('');
-    try { const result = await loginSession(); setSession(result); setExpired(false); }
+    try { const loginPath = configuredLoginPath(); if (loginPath) { rememberLoginReturn(); window.location.assign(loginPath); return; } const result = await loginSession(); acceptSessionNavigation(result); setSession(result); setExpired(false); }
     catch (cause) { setError(cause instanceof Error ? cause.message : '登录未完成'); }
     finally { lock.current = false; setBusy(false); }
   }
   async function logout() {
     if (lock.current) return; lock.current = true; setBusy(true);
-    try { await logoutSession(); generation.current++; setSession(previous => previous ? { ...previous, authenticated: false, user: null, csrfToken: null } : null); setExpired(false); setError(''); }
+    try { await logoutSession(); forgetSessionNavigation(); generation.current++; setSession(previous => previous ? { ...previous, authenticated: false, user: null, csrfToken: null } : null); setExpired(false); setError(''); }
     catch (cause) { setError(cause instanceof Error ? cause.message : '退出登录未完成'); throw cause; }
     finally { lock.current = false; setBusy(false); }
   }

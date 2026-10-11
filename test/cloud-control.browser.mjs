@@ -9,6 +9,7 @@ const directory = await mkdtemp(path.join(tmpdir(), 'cloud-control-contract-'));
 const output = process.env.CONTROL_QA_OUTPUT || 'docs/screenshots/cloud-control';
 let app, browser;
 const native = process.env.NATIVE_CLOUD === '1';
+const gateway = process.env.TEST_GATEWAY_LOGIN === '1';
 const checks = [], errors = [], writes = [];
 try {
   app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, provider: { kind:'deepseek-harness', configured:false, complete() { throw Error('No provider calls allowed'); } } });
@@ -17,14 +18,17 @@ try {
   const conversationId = app.store.read().conversations[0].id;
   let job = { id:'original-task', prompt:'公开计算任务', state:'queued', conversationId, transport:'workspace-pull', files:[], businessAcceptance:'not_reviewed' };
   let view = { enabled:true, canDelegate:true, worker:{ id:'original-worker', connection:{ id:'original-connection', provider:'dot', authenticatedRecently:true, pausedAt:null } }, delegations:[job] };
-  let failRead = false, dropWrite = false, hostPaused = native;
+  let failRead = false, dropWrite = false, hostPaused = native, sessionExpired = false, differentOwner = false, loginVisits = 0, classicLoginVisits = 0;
   const nativeRequest = 'goal-original-native-request';
   const snapshot = () => ({...view, ...(native ? {dotTasks: [{ requestId:nativeRequest, nativeAgentId:conversationId, jobId:job.id, prompt:job.prompt, state:job.state, receiptHash:job.completionHash ? 'exact-native-receipt' : null, returnedHash:job.completionHash ? 'exact-native-receipt' : null, acceptedHash:job.businessAcceptance === 'accepted' ? 'exact-native-receipt' : undefined, receipt:job.completionHash ? {summary:job.resultSummary,files:job.files,completionHash:job.completionHash} : null }]} : {})});
   browser = await chromium.launch({ headless:true, ...(process.env.CHROMIUM_PATH ? { executablePath:process.env.CHROMIUM_PATH } : {}) });
   const page = await browser.newPage({ viewport:{width:390,height:844}, reducedMotion:'no-preference' });
   page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/api/session', async route => { const response=await route.fetch(); const session=await response.json(); await route.fulfill({response,json:{...session,authenticated:!sessionExpired,user:sessionExpired ? null : {...session.user,id:differentOwner ? 'another-account' : session.user.id}}}); });
+  await page.route('**/api/session/login', async route => { classicLoginVisits++; assert.equal(gateway,false); sessionExpired=false; const response=await route.fetch(); await route.fulfill({response}); });
+  await page.route('**/auth/login', async route => { loginVisits++; sessionExpired=false; await route.fulfill({status:302,headers:{location:base+'/'}}); });
   await page.route('**/api/bootstrap', async route => { const response = await route.fetch(); const bootstrap = await response.json(); await route.fulfill({response,json: native ? {...bootstrap,dotIntegration:undefined,runtime:{...bootstrap.runtime,cloudDot:true,cloudWorkerReady:!hostPaused,provider:'original-dot'}} : {...bootstrap,dotIntegration:{enabled:true}}}); });
-  await page.route('**/api/personal-worker', route => failRead ? route.fulfill({status:503,json:{error:'测试断线'}}) : route.fulfill({json:snapshot()}));
+  await page.route('**/api/personal-worker', route => sessionExpired ? route.fulfill({status:401,json:{code:'AUTH_REQUIRED',error:'Sign in through the configured employee identity service.'}}) : failRead ? route.fulfill({status:503,json:{error:'测试断线'}}) : route.fulfill({json:snapshot()}));
   const handleWrite = async route => {
     const body=route.request().postDataJSON(), path=new URL(route.request().url()).pathname, operation=path.split('/').at(-1), action=operation === 'messages' ? 'delegate' : operation === 'accept' ? 'review' : operation;
     writes.push({action,body,path});
@@ -72,11 +76,16 @@ try {
   dropWrite=true;
   await page.getByRole('button',{name:'确认请求停止',exact:true}).click();
   await page.getByRole('button',{name:'重试原请求',exact:true}).waitFor();
+  const beforeRetry = writes.length;
+  if (gateway) { sessionExpired=true; await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor(); await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click(); } else await page.reload();
+  await page.getByRole('button',{name:'重试原请求',exact:true}).waitFor();
+  assert.equal(writes.length,beforeRetry,'Authentication/reload must not replay writes');
   await page.getByRole('button',{name:'重试原请求',exact:true}).click();
   await page.getByRole('heading',{name:'等待停止确认',exact:true}).waitFor();
   assert.deepEqual(writes[0],writes[1]);
   assert.equal(native ? writes[0].body.requestId : writes[0].body.jobId, native ? nativeRequest : 'original-task');
   checks.push('Stop targets the original job, reuses request ID after lost response, and awaits acknowledgement.');
+  await page.getByRole('button',{name:'查看云端任务进度'}).click();
   job.state='succeeded'; job.completionHash='exact-completion'; job.resultSummary='实际任务返回字段的测试夹具';
   job.files=[{id:'returned-artifact',version:1,sha256:'a'.repeat(64),filename:'result.csv'}];
   await page.getByRole('button',{name:'确认验收这份成果',exact:true}).waitFor();
@@ -105,6 +114,26 @@ try {
   checks.push('Read failure retains last tasks, stops task animation and blocks writes until recovery.');
   for (const [width,height] of [[320,568],[390,844],[1440,900]]) { await page.setViewportSize({width,height});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)); }
   checks.push('Cloud layout fits phone and desktop without horizontal overflow.');
+  if (gateway) {
+    await page.goto(base+'/chat/'+conversationId);
+    await page.getByRole('textbox',{name:'云端任务指令'}).fill('保留公开任务草稿');
+    const beforeLogin=writes.length; sessionExpired=true;
+    await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor();
+    await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click();
+    await page.getByTestId('v22-cloud-control').waitFor();
+    assert.equal(new URL(page.url()).pathname,'/chat/'+conversationId);
+    assert.equal(await page.getByRole('textbox',{name:'云端任务指令'}).inputValue(),'保留公开任务草稿');
+    assert.equal(writes.length,beforeLogin); assert.equal(loginVisits,2);
+    sessionExpired=true; differentOwner=true;
+    await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor();
+    await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click();
+    await page.getByTestId('v22-cloud-control').waitFor();
+    assert.equal(new URL(page.url()).pathname,'/');
+    assert.equal(await page.getByRole('textbox',{name:'云端任务指令'}).inputValue(),'');
+    assert.equal(writes.length,beforeLogin);
+    checks.push('Gateway reauthentication preserves same-account route, public draft and original uncertain request; never auto-replays or restores another account draft.');
+  }
+  if (!gateway) { sessionExpired=true; await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor(); await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click(); await page.getByTestId('v22-cloud-control').waitFor(); assert.equal(classicLoginVisits,1); assert.equal(loginVisits,0); checks.push('Unconfigured deployments retain the original session login API.'); }
   assert.deepEqual(errors,[]);
   const result={result:'passed',nativeHost:native,checks,errors,proof:'deployed API contract fixtures; not live Worker execution',deployment:false};
   await writeFile(output+'/CLOUD-CONTRACT-VERIFICATION.json',JSON.stringify(result,null,2));

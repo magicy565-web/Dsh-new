@@ -18,19 +18,26 @@ export function useRead<T>(path: string | null, reloadKey: number = 0) {
 
 // A failed connection leaves an unknown commit. Freeze that exact request until
 // it succeeds or the server gives a definite rejection; never silently mint a new ID.
-export function useWrite() {
-  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [conflict, setConflict] = useState(false), [uncertain, setUncertain] = useState(false);
-  const lock = useRef(false), alive = useRef(true), pending = useRef<{ path: string; method: string; body: Record<string, unknown> } | null>(null);
+type PendingWrite = { path: string; method: string; body: Record<string, unknown> };
+function readPendingWrite(key?: string): PendingWrite | null {
+  if (!key) return null;
+  try { const item = JSON.parse(sessionStorage.getItem(key) || 'null'); return item && typeof item.path === 'string' && /^\/(personal-worker|cloud-worker|conversations)\//.test(item.path) && item.method === 'POST' && item.body && typeof item.body.requestId === 'string' ? item : null; } catch { return null; }
+}
+export function useWrite(persistenceKey?: string) {
+  const [restored] = useState(() => readPendingWrite(persistenceKey));
+  const [busy, setBusy] = useState(false), [error, setError] = useState(restored ? '上次请求结果尚未确认，请重试原请求核对结果。' : ''), [conflict, setConflict] = useState(false), [uncertain, setUncertain] = useState(!!restored);
+  const lock = useRef(false), alive = useRef(true), pending = useRef<PendingWrite | null>(restored);
+  function persist(value: PendingWrite | null) { if (persistenceKey) { try { if (value) sessionStorage.setItem(persistenceKey, JSON.stringify(value)); else sessionStorage.removeItem(persistenceKey); } catch { /* In-memory retry remains available if storage is blocked. */ } } }
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   async function write<T>(path: string, method: string, body: Record<string, unknown>, originalRequestId?: string): Promise<T | undefined> {
     if (lock.current) return;
     const attempt = pending.current || { path, method, body: { ...body, requestId: originalRequestId ?? requestId() } };
-    pending.current = attempt; lock.current = true; setBusy(true); setError(''); setConflict(false);
-    try { const result = await api<T>(attempt.path, attempt.method, attempt.body); pending.current = null; if (alive.current) setUncertain(false); return alive.current ? result : undefined; }
-    catch (cause) { if (!alive.current) return; const unknown = cause instanceof ApiError && (cause.status === 0 || cause.code === 'INVALID_RESPONSE'); setUncertain(unknown); if (!unknown) pending.current = null; setConflict(cause instanceof ApiError && cause.code === 'REVISION_CONFLICT'); setError(unknown ? '未收到保存结果，服务器可能已经保存。输入已保留；请重试原请求以确认结果。' : cause instanceof Error ? cause.message : '保存未完成'); }
+    pending.current = attempt; persist(attempt); lock.current = true; setBusy(true); setError(''); setConflict(false);
+    try { const result = await api<T>(attempt.path, attempt.method, attempt.body); pending.current = null; persist(null); if (alive.current) setUncertain(false); return alive.current ? result : undefined; }
+    catch (cause) { if (!alive.current) return; const unknown = cause instanceof ApiError && (cause.status === 0 || cause.code === 'INVALID_RESPONSE'); setUncertain(unknown); if (!unknown) { pending.current = null; persist(null); } setConflict(cause instanceof ApiError && cause.code === 'REVISION_CONFLICT'); setError(unknown ? '未收到保存结果，服务器可能已经保存。输入已保留；请重试原请求以确认结果。' : cause instanceof Error ? cause.message : '保存未完成'); }
     finally { lock.current = false; if (alive.current) setBusy(false); }
   }
-  return { busy, error, conflict, uncertain, write, clear: () => { setError(''); setConflict(false); } };
+  return { busy, error, conflict, uncertain, write, pendingRequest: pending.current, retry: <T,>() => pending.current ? write<T>(pending.current.path, pending.current.method, pending.current.body) : Promise.resolve(undefined), clear: () => { setError(''); setConflict(false); } };
 }
 export function WriteNotice({ writer, onReload }: { writer: ReturnType<typeof useWrite>; onReload?: () => void }) { return <><Notice error={writer.error} />{writer.conflict && <p className="bl-help">服务端已有新修订，你的输入没有被覆盖。{onReload && <button type="button" className="text-button" onClick={onReload}>放弃本地输入并读取最新版本</button>}</p>}{writer.uncertain && <p className="bl-help">确认结果前暂时锁定编辑。再次点击保存会使用相同请求 ID 和内容。</p>}</>; }
 export function useDirty(dirty: boolean, onDirty: (dirty: boolean) => void) { useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]); }
