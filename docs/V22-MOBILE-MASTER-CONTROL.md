@@ -138,3 +138,7 @@ Cloud entry coverage: /, /chat and /chat/:conversationId use the same central
 control. Deep links preserve the selected conversation and its task state.
 Original messages open in a drawer instead of switching to a legacy three-column
 chat. Regression checks cover all three entries and the history drawer.
+
+
+### Native Host production compatibility
+Production uses runtime.cloudDot (without dotIntegration); paused cloudWorkerReady still renders the control and preserves tasks. Native task rows come from personal-worker.dotTasks. Submit through the original conversation messages endpoint; cancel/accept/close bind the original task requestId and receiptHash. Downloads bind native artifact id, version and SHA256. No unsupported SSE connection is opened for the native Host. Execution controls remain unavailable when the Host is paused.

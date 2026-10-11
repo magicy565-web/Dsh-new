@@ -90,7 +90,7 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
   const navigationRevision = useRef(0);
   const currentDialog = useRef(dialog); currentDialog.current = dialog;
   const pendingSendRef = useRef<{ conversationId: string; content: string; requestId: string; contextKey: string } | null>(null);
-  const cloudControlRoute = !!data?.dotIntegration?.enabled && ['home', 'chat'].includes(route.page);
+  const cloudControlRoute = !!(data?.dotIntegration?.enabled || data?.runtime.cloudDot) && ['home', 'chat'].includes(route.page);
   const settings = data?.settings || defaultSettings;
   const conversations = useMemo(() => sortNewest(data?.conversations || []), [data?.conversations]);
   const selectedConversation = conversations.find(c => c.id === route.id);

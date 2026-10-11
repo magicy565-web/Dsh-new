@@ -8,13 +8,14 @@ import type { SpiritState } from './ControlSpirit';
 import type { Bootstrap } from '../types';
 
 type FileRef = { id: string; version: number; sha256: string; filename?: string };
-type Job = { id: string; prompt: string; state: string; conversationId?: string; transport?: string; claimedAt?: number; completedAt?: number; resultSummary?: string; files?: FileRef[]; completionHash?: string; businessAcceptance?: string; reconciliationRequired?: boolean; blocker?: { message?: string }; toolEvidence?: unknown };
-type WorkerView = { enabled: boolean; canDelegate: boolean; worker: null | { id: string; connection: null | { id: string; provider: string; authenticatedRecently: boolean; pausedAt?: number | null; drainingAt?: number | null } }; delegations: Job[]; dotEvents?: { deliveries: { taskRef: string; status: string; httpReceivedAt?: number; dotReceivedAt?: number }[] } };
+type Job = { id: string; prompt: string; state: string; conversationId?: string; transport?: string; claimedAt?: number; completedAt?: number; resultSummary?: string; files?: FileRef[]; completionHash?: string; businessAcceptance?: string; reconciliationRequired?: boolean; blocker?: { message?: string }; toolEvidence?: unknown; nativeRequestId?: string; receiptHash?: string | null; returnedHash?: string | null; closedHash?: string; dispatched?: boolean };
+type WorkerView = { enabled: boolean; canDelegate: boolean; worker: null | { id: string; connection: null | { id: string; provider: string; authenticatedRecently: boolean; pausedAt?: number | null; drainingAt?: number | null } }; delegations: Job[]; dotTasks?: { requestId: string; nativeAgentId: string; jobId: string | null; prompt: string; state: string; receiptHash: string | null; returnedHash: string | null; acceptedHash?: string; closedHash?: string; receipt: null | { summary: string; files: FileRef[]; completionHash: string | null } }[]; dotEvents?: { deliveries: { taskRef: string; status: string; httpReceivedAt?: number; dotReceivedAt?: number }[] } };
 const terminal = new Set(['succeeded', 'failed', 'cancelled', 'expired']);
-const stateLabels: Record<string, string> = { queued: '等待领取', leased: '已领取', running: '执行中', return_pending: '回传中', succeeded: '成果已回传', blocked: '执行受阻', uncertain: '等待核实', cancel_requested: '等待停止确认', cancelled: '已停止', failed: '执行失败', expired: '已过期' };
+const stateLabels: Record<string, string> = { preparing: '准备中', queued: '等待领取', leased: '已领取', running: '执行中', return_pending: '回传中', succeeded: '成果已回传', blocked: '执行受阻', uncertain: '等待核实', cancel_requested: '等待停止确认', cancelled: '已停止', failed: '执行失败', expired: '已过期' };
 
 /** Same-origin adapter for the deployed personal Worker API. Never infers execution from login. */
 export function CloudControl({ data, routeConversationId, readOnly, onDirty, onSettings, onCreateConversation }: { data: Bootstrap; routeConversationId?: string; readOnly: boolean; onDirty: (dirty: boolean) => void; onSettings: () => void; onCreateConversation: () => Promise<{ id: string } | undefined> }) {
+  const native = data.runtime.cloudDot === true;
   const [view, setView] = useState<WorkerView | null>(null);
   const [error, setError] = useState('');
   const [draft, setDraft] = useState('');
@@ -46,20 +47,24 @@ export function CloudControl({ data, routeConversationId, readOnly, onDirty, onS
     reading.current = true;
     try {
       const result = await api<WorkerView>('/personal-worker');
-      if (!Array.isArray(result.delegations) || typeof result.enabled !== 'boolean') throw Error('线上任务接口不兼容');
+      if (!Array.isArray(result.delegations) || typeof result.enabled !== 'boolean' || (native && !Array.isArray(result.dotTasks))) throw Error('线上任务接口不兼容');
+      if (native) result.delegations = result.dotTasks!.map(task => {
+        const original = result.delegations.find(job => job.id === task.jobId);
+        return { ...original, id: task.jobId || task.requestId, nativeRequestId: task.requestId, dispatched: !!task.jobId, conversationId: task.nativeAgentId, prompt: task.prompt, state: task.state, files: task.receipt?.files || [], resultSummary: task.receipt?.summary, completionHash: task.receipt?.completionHash || undefined, receiptHash: task.receiptHash, returnedHash: task.returnedHash, closedHash: task.closedHash, businessAcceptance: task.acceptedHash ? 'accepted' : 'not_reviewed' };
+      });
       if (alive.current) { setView(result); setError(''); setReadAt(Date.now()); }
     } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : '无法读取云端任务'); }
     finally { reading.current = false; }
-  }, []);
+  }, [native]);
   useEffect(() => {
     alive.current = true; void refresh();
     const timer = window.setInterval(() => { setClock(Date.now()); if (!document.hidden) void refresh(); }, 3000);
     const visibility = () => { setClock(Date.now()); if (!document.hidden) void refresh(); };
-    const events = new EventSource('/api/events');
-    events.addEventListener('change', refresh);
+    const events = native ? null : new EventSource('/api/events');
+    events?.addEventListener('change', refresh);
     document.addEventListener('visibilitychange', visibility);
-    return () => { alive.current = false; clearInterval(timer); events.close(); document.removeEventListener('visibilitychange', visibility); };
-  }, [refresh]);
+    return () => { alive.current = false; clearInterval(timer); events?.close(); document.removeEventListener('visibilitychange', visibility); };
+  }, [refresh, native]);
   const stale = !!error || !!readAt && clock - readAt > 12000;
   const jobs = [...(view?.delegations || [])].reverse();
   const scopedJobs = routeConversationId ? jobs.filter(job => job.conversationId === routeConversationId) : jobs;
@@ -72,15 +77,20 @@ export function CloudControl({ data, routeConversationId, readOnly, onDirty, onS
   const headline = stale ? '连接中断' : !view ? '正在连接云端' : current && !terminal.has(current.state) ? stateLabels[current.state] || '等待核实' : needsAttention ? '成果待你验收' : '我在这里';
   const delivery = view?.dotEvents?.deliveries.filter(item => item.taskRef === current?.id).at(-1);
   const mayWrite = !readOnly && !stale && !!view && !frozen;
-  const canSend = mayWrite && view?.canDelegate && !connection?.pausedAt && !connection?.drainingAt && !jobs.some(job => !terminal.has(job.state));
-  const stage = !current ? -1 : current.state === 'succeeded' ? 3 : current.state === 'return_pending' ? 2 : current.claimedAt ? 1 : 0;
+  const canSend = mayWrite && view?.canDelegate && (!native || data.runtime.cloudWorkerReady === true) && !connection?.pausedAt && !connection?.drainingAt && !jobs.some(job => !terminal.has(job.state) || native && !job.closedHash && job.businessAcceptance !== 'accepted');
+  const stage = !current ? -1 : current.state === 'succeeded' ? 3 : current.state === 'return_pending' ? 2 : current.claimedAt || ['leased', 'running'].includes(current.state) ? 1 : 0;
   function close() { if (!frozen) { setSheet(null); setCancelConfirm(false); writer.clear(); } }
   async function write(action: string, body: Record<string, unknown>) {
     if (readOnly || stale || writer.busy) return;
     pending.current ||= { action, body };
     const saved = pending.current;
-    const result = await writer.write<WorkerView>('/personal-worker/' + saved.action, 'POST', saved.body);
-    if (result) { pending.current = null; setView(result); setReadAt(Date.now()); if (saved.action === 'delegate') { setDraft(''); setConfirmed(false); setSheet(null); } setCancelConfirm(false); void refresh(); }
+    let endpoint = '/personal-worker/' + saved.action, payload = saved.body, originalRequestId: string | undefined;
+    if (native) {
+      if (saved.action === 'delegate') { endpoint = '/conversations/' + encodeURIComponent(String(saved.body.conversationId)) + '/messages'; payload = { content: saved.body.prompt, confirmed: true, dataScope: 'public-only' }; }
+      else { endpoint = '/cloud-worker/' + (saved.action === 'review' ? 'accept' : saved.action); originalRequestId = String(saved.body.nativeRequestId); payload = { confirmed: true, ...(saved.action !== 'cancel' ? { receiptHash: saved.body.receiptHash } : {}) }; }
+    }
+    const result = await writer.write<WorkerView>(endpoint, 'POST', payload, originalRequestId);
+    if (result) { pending.current = null; if (!native) { setView(result); setReadAt(Date.now()); } if (saved.action === 'delegate') { setDraft(''); setConfirmed(false); setSheet(null); } setCancelConfirm(false); void refresh(); }
   }
   function startAction(action: string, body: Record<string, unknown>) { if (!writer.uncertain) pending.current = null; void write(action, body); }
   return <section ref={screen} className="master-control cloud-control" data-testid="v22-cloud-control">
@@ -93,7 +103,7 @@ export function CloudControl({ data, routeConversationId, readOnly, onDirty, onS
       </button>}
       {stale && <button className="control-task-peek" onClick={() => void refresh()}>重新连接</button>}
     </div>
-    <div className="control-dock"><div className="control-dock-top"><button onClick={() => setSheet('tasks')} disabled={frozen}><Icon name="list" size={15}/>任务 · {jobs.length}</button><span>{connection?.pausedAt ? '连接已暂停' : !view?.canDelegate ? '等待执行通道就绪' : jobs.some(job => !terminal.has(job.state)) ? '当前任务结束后可继续委托' : '公开任务 · 额外付费 0'}</span></div>
+    <div className="control-dock"><div className="control-dock-top"><button onClick={() => setSheet('tasks')} disabled={frozen}><Icon name="list" size={15}/>任务 · {jobs.length}</button><span>{connection?.pausedAt ? '连接已暂停' : !view?.canDelegate || native && !data.runtime.cloudWorkerReady ? '等待执行通道就绪' : jobs.some(job => !terminal.has(job.state)) ? '当前任务结束后可继续委托' : '公开任务 · 额外付费 0'}</span></div>
       <form className="control-command" onSubmit={event => { event.preventDefault(); if (draft.trim() && canSend) { setConfirmed(false); setSheet('send'); } }}><textarea aria-label="云端任务指令" placeholder="接下来，做点什么？" value={draft} onChange={event => setDraft(event.target.value)} disabled={readOnly || frozen} maxLength={6000}/><button aria-label="准备云端委托" disabled={!canSend || !draft.trim()}><Icon name="arrow" size={19}/></button></form>
     </div>
     {sheet && <Modal className="control-sheet" title={sheet === 'tasks' ? '云端任务' : sheet === 'send' ? '确认云端委托' : sheet === 'connection' ? '云端连接' : sheet === 'conversation' ? '原会话记录' : '任务进度'} onClose={close}>
@@ -103,10 +113,11 @@ export function CloudControl({ data, routeConversationId, readOnly, onDirty, onS
         <p className="cloud-prompt">{selected.prompt}</p><p className="control-detail-state">{stateLabels[selected.state] || selected.state}</p>
         {selected.id === current?.id && delivery && <p className="control-input-note">{delivery.dotReceivedAt ? 'xy 已确认收到事件' : delivery.httpReceivedAt ? '事件已送达，等待 xy 确认' : '等待事件送达'}</p>}
         <p className="cloud-result">{selected.resultSummary || selected.blocker?.message || (selected.state === 'queued' ? '尚未领取，不代表已经执行。' : '等待执行端回传记录。')}</p>
-        {(selected.files || []).map(file => <a className="cloud-file" key={file.id} href={'/api/artifacts/' + encodeURIComponent(file.id) + '/download?version=' + file.version} download><Icon name="file" size={18}/>{file.filename || '任务文件'}<span>下载</span></a>)}
+        {(selected.files || []).map(file => <a className="cloud-file" key={file.id} href={native ? '/api/cloud-worker/files/' + encodeURIComponent(file.id) + '?version=' + file.version + '&sha256=' + encodeURIComponent(file.sha256) : '/api/artifacts/' + encodeURIComponent(file.id) + '/download?version=' + file.version} download><Icon name="file" size={18}/>{file.filename || data.artifacts?.find(item => item.id === file.id)?.filename || '任务文件'}<span>下载</span></a>)}
         {selected.conversationId && <button className="control-secondary" disabled={frozen} onClick={() => setSheet('conversation')}>查看原会话记录</button>}
-        {selected.state === 'succeeded' && selected.businessAcceptance === 'not_reviewed' && selected.completionHash && <div className="control-actions"><button className="control-primary" disabled={!mayWrite} onClick={() => startAction('review', { jobId: selected.id, completionHash: selected.completionHash, decision: 'accepted' })}>确认验收这份成果</button><button className="control-secondary" disabled={!mayWrite} onClick={() => startAction('review', { jobId: selected.id, completionHash: selected.completionHash, decision: 'rejected' })}>拒绝这份成果</button></div>}
-        {!terminal.has(selected.state) && selected.transport !== 'muse-native' && selected.state !== 'cancel_requested' && <div className="control-cancel">{cancelConfirm ? <><p>请求停止当前任务，执行端确认后才显示已停止。</p><button disabled={!mayWrite || selected.reconciliationRequired} onClick={() => startAction('cancel', { jobId: selected.id })}>确认请求停止</button></> : <button disabled={!mayWrite || selected.reconciliationRequired} onClick={() => setCancelConfirm(true)}>停止任务</button>}</div>}
+        {selected.state === 'succeeded' && selected.businessAcceptance === 'not_reviewed' && selected.completionHash && (!native || !!selected.returnedHash) && <div className="control-actions"><button className="control-primary" disabled={!mayWrite} onClick={() => startAction('review', { jobId: selected.id, completionHash: selected.completionHash, decision: 'accepted', ...(native ? { nativeRequestId: selected.nativeRequestId, receiptHash: selected.receiptHash } : {}) })}>确认验收这份成果</button>{!native && <button className="control-secondary" disabled={!mayWrite} onClick={() => startAction('review', { jobId: selected.id, completionHash: selected.completionHash, decision: 'rejected' })}>拒绝这份成果</button>}</div>}
+        {!terminal.has(selected.state) && (!native || selected.dispatched) && selected.transport !== 'muse-native' && selected.state !== 'cancel_requested' && <div className="control-cancel">{cancelConfirm ? <><p>请求停止当前任务，执行端确认后才显示已停止。</p><button disabled={!mayWrite || selected.reconciliationRequired} onClick={() => startAction('cancel', { jobId: selected.id, ...(native ? { nativeRequestId: selected.nativeRequestId } : {}) })}>确认请求停止</button></> : <button disabled={!mayWrite || selected.reconciliationRequired} onClick={() => setCancelConfirm(true)}>停止任务</button>}</div>}
+        {native && ['failed', 'cancelled', 'expired'].includes(selected.state) && selected.returnedHash && !selected.closedHash && <button className="control-secondary" disabled={!mayWrite} onClick={() => startAction('close', { nativeRequestId: selected.nativeRequestId, receiptHash: selected.receiptHash })}>确认结束此任务</button>}
       </>}
       {sheet === 'send' && <><p className="cloud-prompt">{draft}</p><label className="cloud-confirm">任务归属会话<select aria-label="任务归属会话" value={conversationId} onChange={event => setConversationId(event.target.value)} disabled={frozen}><option value="">选择原会话</option>{data.conversations.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>{!data.conversations.length && <button className="control-secondary" disabled={!mayWrite} onClick={async () => { const created = await onCreateConversation(); if (created) setConversationId(created.id); }}>创建任务会话</button>}<label className="cloud-confirm"><input type="checkbox" checked={confirmed} disabled={frozen} onChange={event => setConfirmed(event.target.checked)}/>我确认仅包含公开资料，委托 xy 执行并回传文件；额外付费为 0。</label><button className="control-primary" disabled={!canSend || !confirmed || !conversationId} onClick={() => startAction('delegate', { prompt: draft.trim(), confirmed: true, dataScope: 'public-only', conversationId })}>确认委托 xy</button></>}
       {sheet === 'connection' && <><p className="cloud-result">{stale ? error || '任务状态已过期' : connection?.authenticatedRecently ? '已收到原 Worker 的近期认证请求。' : '等待原 Worker 的近期认证请求。'}</p><p className="control-input-note">连接成功、事件送达、任务领取和成果验收分别显示，不互相替代。</p><button className="control-secondary" onClick={() => void refresh()}>刷新连接状态</button><button className="control-secondary" disabled={frozen} onClick={onSettings}>项目连接设置</button></>}

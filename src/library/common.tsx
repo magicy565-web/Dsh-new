@@ -22,9 +22,9 @@ export function useWrite() {
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [conflict, setConflict] = useState(false), [uncertain, setUncertain] = useState(false);
   const lock = useRef(false), alive = useRef(true), pending = useRef<{ path: string; method: string; body: Record<string, unknown> } | null>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  async function write<T>(path: string, method: string, body: Record<string, unknown>): Promise<T | undefined> {
+  async function write<T>(path: string, method: string, body: Record<string, unknown>, originalRequestId?: string): Promise<T | undefined> {
     if (lock.current) return;
-    const attempt = pending.current || { path, method, body: { ...body, requestId: requestId() } };
+    const attempt = pending.current || { path, method, body: { ...body, requestId: originalRequestId ?? requestId() } };
     pending.current = attempt; lock.current = true; setBusy(true); setError(''); setConflict(false);
     try { const result = await api<T>(attempt.path, attempt.method, attempt.body); pending.current = null; if (alive.current) setUncertain(false); return alive.current ? result : undefined; }
     catch (cause) { if (!alive.current) return; const unknown = cause instanceof ApiError && (cause.status === 0 || cause.code === 'INVALID_RESPONSE'); setUncertain(unknown); if (!unknown) pending.current = null; setConflict(cause instanceof ApiError && cause.code === 'REVISION_CONFLICT'); setError(unknown ? '未收到保存结果，服务器可能已经保存。输入已保留；请重试原请求以确认结果。' : cause instanceof Error ? cause.message : '保存未完成'); }

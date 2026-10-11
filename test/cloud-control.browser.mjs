@@ -8,6 +8,7 @@ import { createApp } from '../server/index.mjs';
 const directory = await mkdtemp(path.join(tmpdir(), 'cloud-control-contract-'));
 const output = process.env.CONTROL_QA_OUTPUT || 'docs/screenshots/cloud-control';
 let app, browser;
+const native = process.env.NATIVE_CLOUD === '1';
 const checks = [], errors = [], writes = [];
 try {
   app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, provider: { kind:'deepseek-harness', configured:false, complete() { throw Error('No provider calls allowed'); } } });
@@ -16,20 +17,25 @@ try {
   const conversationId = app.store.read().conversations[0].id;
   let job = { id:'original-task', prompt:'公开计算任务', state:'queued', conversationId, transport:'workspace-pull', files:[], businessAcceptance:'not_reviewed' };
   let view = { enabled:true, canDelegate:true, worker:{ id:'original-worker', connection:{ id:'original-connection', provider:'dot', authenticatedRecently:true, pausedAt:null } }, delegations:[job] };
-  let failRead = false, dropWrite = false;
+  let failRead = false, dropWrite = false, hostPaused = native;
+  const nativeRequest = 'goal-original-native-request';
+  const snapshot = () => ({...view, ...(native ? {dotTasks: [{ requestId:nativeRequest, nativeAgentId:conversationId, jobId:job.id, prompt:job.prompt, state:job.state, receiptHash:job.completionHash ? 'exact-native-receipt' : null, returnedHash:job.completionHash ? 'exact-native-receipt' : null, acceptedHash:job.businessAcceptance === 'accepted' ? 'exact-native-receipt' : undefined, receipt:job.completionHash ? {summary:job.resultSummary,files:job.files,completionHash:job.completionHash} : null }]} : {})});
   browser = await chromium.launch({ headless:true, ...(process.env.CHROMIUM_PATH ? { executablePath:process.env.CHROMIUM_PATH } : {}) });
   const page = await browser.newPage({ viewport:{width:390,height:844}, reducedMotion:'no-preference' });
   page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/api/bootstrap', async route => { const response = await route.fetch(); await route.fulfill({response,json:{...await response.json(),dotIntegration:{enabled:true}}}); });
-  await page.route('**/api/personal-worker', route => failRead ? route.fulfill({status:503,json:{error:'测试断线'}}) : route.fulfill({json:view}));
-  await page.route('**/api/personal-worker/*', async route => {
-    const body=route.request().postDataJSON(), action=new URL(route.request().url()).pathname.split('/').at(-1);
-    writes.push({action,body});
+  await page.route('**/api/bootstrap', async route => { const response = await route.fetch(); const bootstrap = await response.json(); await route.fulfill({response,json: native ? {...bootstrap,dotIntegration:undefined,runtime:{...bootstrap.runtime,cloudDot:true,cloudWorkerReady:!hostPaused,provider:'original-dot'}} : {...bootstrap,dotIntegration:{enabled:true}}}); });
+  await page.route('**/api/personal-worker', route => failRead ? route.fulfill({status:503,json:{error:'测试断线'}}) : route.fulfill({json:snapshot()}));
+  const handleWrite = async route => {
+    const body=route.request().postDataJSON(), path=new URL(route.request().url()).pathname, operation=path.split('/').at(-1), action=operation === 'messages' ? 'delegate' : operation === 'accept' ? 'review' : operation;
+    writes.push({action,body,path});
+    if (native && ['cancel','review'].includes(action)) assert.equal(body.requestId,nativeRequest);
     if (action === 'cancel') job.state='cancel_requested';
-    if (action === 'review') job.businessAcceptance=body.decision;
-    if (action === 'delegate') { job={...job,id:'next-task',prompt:body.prompt,state:'queued',files:[],businessAcceptance:'not_reviewed'};view.delegations=[job]; }
-    if (dropWrite) { dropWrite=false; await route.abort('failed'); } else await route.fulfill({json:view});
-  });
+    if (action === 'review') job.businessAcceptance=native ? 'accepted' : body.decision;
+    if (action === 'delegate') { job={...job,id:'next-task',prompt:body.content || body.prompt,state:'queued',files:[],businessAcceptance:'not_reviewed'};view.delegations=[job]; }
+    if (dropWrite) { dropWrite=false; await route.abort('failed'); } else await route.fulfill({json:native ? {tasks:snapshot().dotTasks} : view});
+  };
+  await page.route('**/api/personal-worker/*', handleWrite);
+  if (native) { await page.route('**/api/cloud-worker/*', handleWrite); await page.route('**/api/conversations/*/messages', handleWrite); }
   await mkdir(output,{recursive:true});
   for (const pathname of ['/', '/chat', '/chat/' + conversationId]) {
     await page.goto(base + pathname);
@@ -40,6 +46,7 @@ try {
     assert.equal(await page.locator('.nav-rail').isVisible(), false);
     assert.equal(await page.locator('.control-spirit').count(), 1);
   }
+  if (native) { await page.getByRole('textbox',{name:'云端任务指令'}).fill('公开检查'); assert.equal(await page.getByRole('button',{name:'准备云端委托'}).isDisabled(),true); await page.getByRole('textbox',{name:'云端任务指令'}).fill(''); hostPaused=false; }
   checks.push('Root, chat and exact conversation URLs all use one centered control without legacy side panels.');
   await page.setViewportSize({width:1440,height:900});
   await page.screenshot({path:output+'/cloud-chat-desktop-contract.png'});
@@ -68,15 +75,15 @@ try {
   await page.getByRole('button',{name:'重试原请求',exact:true}).click();
   await page.getByRole('heading',{name:'等待停止确认',exact:true}).waitFor();
   assert.deepEqual(writes[0],writes[1]);
-  assert.equal(writes[0].body.jobId,'original-task');
+  assert.equal(native ? writes[0].body.requestId : writes[0].body.jobId, native ? nativeRequest : 'original-task');
   checks.push('Stop targets the original job, reuses request ID after lost response, and awaits acknowledgement.');
   job.state='succeeded'; job.completionHash='exact-completion'; job.resultSummary='实际任务返回字段的测试夹具';
   job.files=[{id:'returned-artifact',version:1,sha256:'a'.repeat(64),filename:'result.csv'}];
   await page.getByRole('button',{name:'确认验收这份成果',exact:true}).waitFor();
-  assert.equal(await page.getByRole('link',{name:/result.csv/}).getAttribute('href'),'/api/artifacts/returned-artifact/download?version=1');
+  assert.equal(await page.getByRole('link',{name:/result.csv/}).getAttribute('href'),native ? '/api/cloud-worker/files/returned-artifact?version=1&sha256='+'a'.repeat(64) : '/api/artifacts/returned-artifact/download?version=1');
   await page.getByRole('button',{name:'确认验收这份成果',exact:true}).click();
   await page.getByRole('button',{name:'确认验收这份成果',exact:true}).waitFor({state:'hidden'});
-  assert.equal(writes.at(-1).body.completionHash,'exact-completion');
+  assert.equal(native ? writes.at(-1).body.receiptHash : writes.at(-1).body.completionHash, native ? 'exact-native-receipt' : 'exact-completion');
   checks.push('Returned artifact uses original id/version; explicit review binds completion hash.');
   await page.getByRole('button',{name:'关闭弹窗',exact:true}).click();
   await page.getByRole('textbox',{name:'云端任务指令'}).fill('核对公开数字');
@@ -85,7 +92,7 @@ try {
   await page.getByRole('checkbox').check();
   await page.getByRole('button',{name:'确认委托 xy',exact:true}).click();
   await page.getByRole('heading',{name:'等待领取',exact:true}).waitFor();
-  assert.equal(writes.at(-1).body.conversationId,conversationId);
+  if (native) assert.equal(writes.at(-1).path,'/api/conversations/'+conversationId+'/messages'); else assert.equal(writes.at(-1).body.conversationId,conversationId);
   assert.equal(writes.at(-1).body.confirmed,true);
   assert.equal(writes.at(-1).body.dataScope,'public-only');
   checks.push('Dispatch requires exact public-scope confirmation and binds the selected original conversation.');
@@ -99,7 +106,7 @@ try {
   for (const [width,height] of [[320,568],[390,844],[1440,900]]) { await page.setViewportSize({width,height});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)); }
   checks.push('Cloud layout fits phone and desktop without horizontal overflow.');
   assert.deepEqual(errors,[]);
-  const result={result:'passed',checks,errors,proof:'deployed API contract fixtures; not live Worker execution',deployment:false};
+  const result={result:'passed',nativeHost:native,checks,errors,proof:'deployed API contract fixtures; not live Worker execution',deployment:false};
   await writeFile(output+'/CLOUD-CONTRACT-VERIFICATION.json',JSON.stringify(result,null,2));
   console.log(JSON.stringify(result,null,2));
 } finally { await browser?.close(); await app?.close(); await rm(directory,{recursive:true,force:true}); }
