@@ -66,4 +66,17 @@ after unfinished work has been stopped. It changes no Dot grants or callbacks.
 
 The Linux-only production test also checks actual disk-backed submission, manual
 acceptance, opportunity import, paused original-attempt stop and explicit resume.
-Its expanded flow is written and syntax checked, not yet executed on Linux.
+Its expanded flow now passes on Linux with synthetic fixture inputs.
+
+Linux validation on the verified ECS: 11 native binding, real durable service and
+original Cordis boot tests pass with zero failures/skips. They use isolated
+fixture identities/storage, gates false for the Host handshake and no paid model
+request. The native Worker ID is a lowercase UUID, preserving the original
+immutable artifact owner schema; incompatible IDs fail before a write.
+
+TypeScript and Vite build pass. Linux DOM tests pass 19/19 after waiting for the
+actual enterprise settings input instead of the earlier loading modal. Full
+backend run: 361 passed, 3 failed, 3 skipped. Its three source fixture failures
+refer to SDK server and agent-loop testkit modules omitted from the deployed
+Harness subset; three built-export tests are unavailable. This is not a full
+backend pass and not real Muse execution/acceptance.

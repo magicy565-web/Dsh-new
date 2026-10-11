@@ -9,7 +9,7 @@ const actor = { subject: 'reviewed-owner', nativeAgentId: 'original-session' };
 const foreignActor = { subject: 'other-owner', nativeAgentId: 'other-original-session' };
 const key = 'native-binding-fixture-key_01234567890123456789';
 const hash = value => createHash('sha256').update(value).digest('hex');
-const config = { workerId: 'muse-rest-fixture', ownerId: 'personal-muse-fixture', tokenDigest: hash(key),
+const config = { workerId: 'e1bba9e0-d61f-4c56-9332-a128fcf68ad5', ownerId: 'personal-muse-fixture', tokenDigest: hash(key),
   enabled: true, scopeReviewed: true, externalBudgetVerified: true };
 const base = '/api/muse-worker/v1';
 
@@ -108,6 +108,7 @@ test('native binding requires reviewed exact owner and explicit boolean gates be
     expectedHost: 'workspace.native-fixture.test', readBody, respond };
   assert.throws(() => createNativeMuseBinding({ ...options, actor: foreignActor }), /explicit reviewed native owner/);
   assert.throws(() => validateNativeMuseConfiguration({ ...config, enabled: 'true' }, actor, [actor]), /boolean gates/);
+  assert.throws(() => validateNativeMuseConfiguration({ ...config, workerId: 'non-native-worker-name' }, actor, [actor]), /explicit reviewed native owner/);
   const nativeOwner = { subject: 'owner@native.test', nativeAgentId: 'original/session' };
   assert.equal(validateNativeMuseConfiguration(config, nativeOwner, [nativeOwner]).workerId, config.workerId);
   assert.throws(() => createNativeMuseBinding({ ...options, config: { ...config, unexpected: true } }), /explicit reviewed/);

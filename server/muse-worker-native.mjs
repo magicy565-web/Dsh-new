@@ -8,13 +8,15 @@ const id = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,
 // their independently specified, narrower contract above.
 const nativeId = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$/.test(value) &&
   !['__proto__', 'constructor', 'prototype'].includes(value);
+// Preserve the original durable artifact owner schema: Worker IDs are UUIDs.
+const nativeWorkerId = value => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const loopback = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 const publicConfigurationFields = ['workerId', 'ownerId', 'tokenDigest', 'enabled', 'scopeReviewed', 'externalBudgetVerified'];
 
 export function validateNativeMuseConfiguration(config, actor, operators) {
   if (!object(config) || Object.keys(config).some(key => !publicConfigurationFields.includes(key)) ||
-      !id(config.workerId) || !id(config.ownerId) || !/^[a-f0-9]{64}$/.test(config.tokenDigest ?? '') ||
+      !nativeWorkerId(config.workerId) || !id(config.ownerId) || !/^[a-f0-9]{64}$/.test(config.tokenDigest ?? '') ||
       !['enabled', 'scopeReviewed', 'externalBudgetVerified'].every(key => typeof config[key] === 'boolean') ||
       !object(actor) || Object.keys(actor).some(key => !['subject', 'nativeAgentId'].includes(key)) ||
       !nativeId(actor.subject) || !nativeId(actor.nativeAgentId) || !Array.isArray(operators) ||

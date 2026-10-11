@@ -278,7 +278,7 @@ test('enterprise UI: explicit identity login, CSRF mutation, expiry erases works
     const login = button('使用企业身份继续'); login.click(); login.click();
     await waitFor(() => document.querySelector('.app-shell'), 'enterprise session mounts workspace');
     assert.equal(api.requests.filter(r => r.path === '/api/session/login').length, 1); assert.equal(api.requests.find(r => r.path === '/api/session/login').headers['X-Workspace-Login'], '1');
-    await click(aria('设置')); await waitFor(() => document.querySelector('.settings-modal'), 'enterprise settings');
+    await click(aria('设置')); await waitFor(() => document.querySelector('.settings-modal input'), 'enterprise settings loaded');
     await input(document.querySelector('.settings-modal input'), 'Shared fixture'); await click(button('保存设置'));
     await waitFor(() => api.state.settings.name === 'Shared fixture' && !document.querySelector('.settings-modal'), 'authenticated mutation succeeded');
     assert.ok(api.requests.find(r => r.path === '/api/settings' && r.method === 'PATCH').headers['X-CSRF-Token']);
