@@ -1,6 +1,6 @@
 {
   "schema": "workspace.muse.conversation-validation.v1",
-  "recordedAt": "2026-10-11T17:41:07.160Z",
+  "recordedAt": "2026-10-11T17:48:28.232Z",
   "repository": "magicy565-web/workspace-agent",
   "baseline": "2ac171e4da46e44e0095fe9907c2f8b1339a56cb",
   "originalTree": "6574190f0c56fdb55f9b3badb5171905075f1a82",
@@ -62,7 +62,7 @@
     },
     {
       "path": "server/muse-worker-native.mjs",
-      "sha256": "2b60dfafd8724b001a6c4652a45c75799ffcf409b9b122e68b13a19e10ba9d0a"
+      "sha256": "cb13ece7abc3dbeb3a27e0cb294f52347c5488656011981f210d645ae5933b51"
     },
     {
       "path": "server/muse-worker-session.mjs",
@@ -74,7 +74,7 @@
     },
     {
       "path": "deploy/muse-native-overlay/server/muse-worker-native.mjs",
-      "sha256": "2b60dfafd8724b001a6c4652a45c75799ffcf409b9b122e68b13a19e10ba9d0a"
+      "sha256": "cb13ece7abc3dbeb3a27e0cb294f52347c5488656011981f210d645ae5933b51"
     },
     {
       "path": "deploy/muse-native-overlay/server/muse-worker-session.mjs",
@@ -82,11 +82,11 @@
     },
     {
       "path": "deploy/muse-native-overlay/server/workspace-plugin-service.mjs",
-      "sha256": "fd0877873495b375bef50b09c31acc2bef5850f87f72bf84fbd3030af27db2e3"
+      "sha256": "a1295a2bbe91b3743135290ab7b8d67930cf7771edbe3bbf4c2a6d2bcaf360f7"
     },
     {
       "path": "deploy/muse-native-overlay/server/workspace-native-plugin.mjs",
-      "sha256": "b406fa3f760b434b1e1898a907f3d3905a0beb17751f6b3a14fcb56e0a0c736e"
+      "sha256": "6467491b941d0bb21c9d2bf02cd8ca2da09baccb145ca82c2becdfed73ba489d"
     },
     {
       "path": "test/fixtures/muse-conversation.mjs",
