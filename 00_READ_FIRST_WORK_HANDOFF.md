@@ -4,6 +4,14 @@ This is the `0.5.0-rc.2` development candidate. It is not production-ready.
 Preserve the Muse goal-first home, existing chat and expert flows, guarded
 execution runtime and source tree.
 
+## Cloud integration correction
+
+The deployed site uses personal Worker delegations, whereas the first V22 home
+only read local goals. CloudControl now selects the existing same-origin Worker
+contract when dotIntegration.enabled is present. It must be released with the
+original backend deployment; local previews and fixture tests are not deployment
+or live execution evidence. See the cloud integration section in the UI document.
+
 ## Latest mobile master control checkpoint
 
 The home screen is now a centered animated companion with a minimal command input

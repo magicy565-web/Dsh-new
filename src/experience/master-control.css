@@ -77,3 +77,20 @@ body:has(.master-control){min-width:320px}
 @keyframes spirit-blink{0%,40%,44%,72%,76%,100%{transform:scaleY(1)}42%,74%{transform:scaleY(.08)}}
 @keyframes spirit-hand-drift{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(9deg)}}
 @keyframes spirit-wave{0%,48%,100%{transform:rotate(0deg)}58%,74%{transform:rotate(-65deg)}66%,82%{transform:rotate(-25deg)}}
+
+.control-cloud-status{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;color:#718198;font-size:12px}
+.cloud-progress{display:flex;gap:0;width:260px;margin-top:23px;background:none;border:0;padding:0}
+.cloud-progress>span{flex:1;position:relative;color:#a2adbc;font-size:10px}
+.cloud-progress i{display:block;width:7px;height:7px;border-radius:50%;background:#e1e8f2;margin:0 auto 8px}
+.cloud-progress small{font-size:10px}
+.cloud-progress>span+span:before{content:'';position:absolute;height:1px;width:calc(100% - 15px);background:#e1e8f2;left:calc(-50% + 7px);top:3px}
+.cloud-progress [data-reached=true]{color:#587ca9}.cloud-progress [data-reached=true] i,.cloud-progress [data-reached=true]:before{background:#8bb7e9}
+.cloud-progress [data-active=true] i{background:#488bed;animation:cloud-progress-pulse 1.7s ease-in-out infinite}
+.cloud-prompt{font-size:14px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 20px}
+.cloud-result{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#5e6f85;font-size:13px;margin:20px 0}
+.cloud-file{display:flex;gap:10px;align-items:center;padding:16px 0;border-bottom:1px solid #edf1f7;font-size:13px;overflow-wrap:anywhere}.cloud-file span{margin-left:auto;white-space:nowrap;color:#3974e7}
+.cloud-confirm{display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.7;margin:20px 0}.cloud-confirm input{width:18px;height:18px;flex-shrink:0}.cloud-confirm select{min-width:0;max-width:70%;padding:10px;border:1px solid #e1e8f2;border-radius:10px}
+@keyframes cloud-progress-pulse{50%{box-shadow:0 0 0 6px #488bed15;transform:scale(1.25)}}
+@media(max-height:640px){.cloud-control .cloud-progress{margin-top:10px}}
+
+.master-control[data-keyboard=true] .cloud-progress{display:none}

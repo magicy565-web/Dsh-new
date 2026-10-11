@@ -17,7 +17,7 @@ export type Run = { goalMode?: 'resume' | 'template'; sourceGoalId?: string; pre
 export type ArtifactVersion = { version: number; filename: string; mimeType: string; size: number; sha256: string; createdAt: string };
 export type Artifact = { id: string; title: string; filename: string; description: string; mimeType: string; size: number; sha256: string; currentVersion: number; revision: number; versions: ArtifactVersion[]; sourceGoalId?: string | null; sourceConversationId?: string | null; sourceRunId?: string | null; createdAt: string; updatedAt: string };
 export type Capabilities = { skills?: Skill[]; connectors?: Connector[]; approvals?: Approval[]; schedules?: Schedule[]; scheduleRuns?: Run[]; connectorRuns?: Run[]; scheduler?: { dispatchConfigured: boolean; automaticTimer: boolean; minimumIntervalSeconds: number }; supported?: Record<string, unknown> };
-export type Bootstrap = { diagnostics?: Diagnostics; meta?: { sequence?: number }; conversations: Conversation[]; messages: Message[]; goals: Goal[]; activity: Activity[]; settings: Settings; memories: Memory[]; runtime: Runtime; capabilities?: Capabilities; runs?: Run[]; artifacts?: Artifact[] };
+export type Bootstrap = { dotIntegration?: { enabled: boolean }; diagnostics?: Diagnostics; meta?: { sequence?: number }; conversations: Conversation[]; messages: Message[]; goals: Goal[]; activity: Activity[]; settings: Settings; memories: Memory[]; runtime: Runtime; capabilities?: Capabilities; runs?: Run[]; artifacts?: Artifact[] };
 
 export type Diagnostics = {
   schemaVersion: 1; instanceId: string; startedAt: string; observedAt: string; staleAfterMs: number; readOnly: true; externalCalls: false;

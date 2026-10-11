@@ -107,3 +107,29 @@ This opt-in test preview uses memory storage and scripted 12-second responses.
 Its header says “本地交互预览”. The printed localhost address is only for reviewing
 the interaction; it contains sample tasks, loses state at shutdown and must never
 be used as the production server entrypoint. Real startup remains `npm start`.
+
+## Existing cloud Worker integration
+
+When the authenticated bootstrap advertises dotIntegration.enabled, home now uses
+CloudControl against the existing same-origin /api/personal-worker API, instead
+of presenting local Harness goals as cloud Worker delegations. SSE change notices
+and a bounded three-second polling fallback refresh the original Worker state.
+Queued, leased/running, return_pending and succeeded are distinct visible nodes;
+unreceived, unclaimed, stale and uncertain work cannot show an executing pulse.
+
+Public task submission requires an explicit checkbox and an existing conversation.
+Cancel binds the exact job ID; completion review binds its completionHash. Returned
+file links retain the original artifact ID and version. Unknown writes retain their
+original request ID through useWrite. No MCP credentials or new backend are added.
+
+On 2026-10-11 the actual workspace.cnsubscribe.xyz browser session showed the old
+chat UI, two historical jobs and four files. Separate read-only Workspace — xy
+identity/inbox calls succeeded, but identity reported nativeExecutorAttested=false
+and inbox was empty. These observations do not prove a new task can execute.
+The live site had not received this UI at this checkpoint.
+
+test/cloud-control.browser.mjs checks the deployed Worker API contract using
+explicit fixtures. Those checks are UI/contract regression only, not live task
+or deployment acceptance. Release the frontend with the original backend owner,
+preserving authentication, data, Worker identity and lease state. Confirm the
+original job/file IDs in the live UI before claiming integration is delivered.
