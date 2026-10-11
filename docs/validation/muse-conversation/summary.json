@@ -1,6 +1,6 @@
 {
   "schema": "workspace.muse.conversation-validation.v1",
-  "recordedAt": "2026-10-11T17:48:28.232Z",
+  "recordedAt": "2026-10-11T17:54:38.054Z",
   "repository": "magicy565-web/workspace-agent",
   "baseline": "2ac171e4da46e44e0095fe9907c2f8b1339a56cb",
   "originalTree": "6574190f0c56fdb55f9b3badb5171905075f1a82",
@@ -10,7 +10,7 @@
   "arch": "x64",
   "testIsolation": "none",
   "contract": {
-    "passed": 34,
+    "passed": 35,
     "failed": 0,
     "skipped": 0,
     "evidence": "contract-tests.txt",
@@ -86,7 +86,7 @@
     },
     {
       "path": "deploy/muse-native-overlay/server/workspace-native-plugin.mjs",
-      "sha256": "6467491b941d0bb21c9d2bf02cd8ca2da09baccb145ca82c2becdfed73ba489d"
+      "sha256": "3d80259c3ca310f4f02726211c179a1fa4bd3c75f130d6ffe918e131fb535233"
     },
     {
       "path": "test/fixtures/muse-conversation.mjs",
@@ -98,7 +98,7 @@
     },
     {
       "path": "test/muse-conversation-host.test.mjs",
-      "sha256": "498f285ad122088cd80675d88fe8c6f970e776461c39c288747a070d93e65c8b"
+      "sha256": "0ca41a1c52fad16532824508673bebeb8ee6a3092d280b7b9e3a126a6cc94f5b"
     },
     {
       "path": "scripts/check-muse-store-durability.mjs",
@@ -108,7 +108,7 @@
   "evidenceSha256": [
     {
       "path": "contract-tests.txt",
-      "sha256": "8ecb1bbce24da9af0ff5cf717cd2aab7fd9eb18d6c4eb0f0030a9c2bd7a90a0c"
+      "sha256": "02d54a767f457166dae396dec8723a5123a09e5baf6610129c9db0148bc2de7c"
     },
     {
       "path": "original-disk-regressions.txt",

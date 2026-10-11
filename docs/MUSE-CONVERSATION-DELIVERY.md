@@ -54,7 +54,7 @@ Node `24.21.0`（现有 Codex bundle）；Windows `win32/x64`。
 node --test --test-isolation=none test/muse-conversation-delegation.test.mjs test/muse-conversation-host.test.mjs test/muse-worker.native-binding.test.mjs test/muse-worker.contract.test.mjs test/dot-mcp-contract.test.mjs test/muse-worker.probe.test.mjs
 ```
 
-34/34 通过，零跳过：两次/并发相同消息一单；只 draft 不自动派单；原 Dot 分流；
+35/35 通过，零跳过：两次/并发相同消息一单；只 draft 不自动派单；原 Dot 分流；
 无 Dot 的 Muse 入口；范围/原会话拒绝；丢失派单持久确认后核对同一 task；
 领取/租约/截止/取消/迟到；原 Session flush 失败与重连去重；成果返回与验收分开；
 下载准确 ID/version/SHA bytes；原 lifecycle 与 Worker 边界、原 REST/OpenAPI 和只读 probe。

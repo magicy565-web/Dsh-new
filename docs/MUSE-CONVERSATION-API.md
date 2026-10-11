@@ -9,7 +9,8 @@
 
 原 BFF 为 `deploy/muse-native-overlay/server/workspace-plugin-frontend.mjs`；本任务未修改它。
 原 Host `workspaceDotHost.submitQuestion` 显式分流 `provider: "muse"`，只准备待审批订单。
-没有 provider 的消息继续走原 Dot。Muse 单独启用时也提供该原 Host 入口，不启动 Dot timer。
+没有 provider 的消息继续走原 Dot。已明确配置原 museSessionActor 时，即使原 REST 后置挂载，
+也保留该 Host 入口；挂载前拒绝提交。Muse 单独启用不启动 Dot timer。
 客户端不得提供 subject、Worker ID、任意 URL、工具或凭据；Host 从原认证及固定绑定取身份。
 微信小程序可消费相同 JSON，需统一集成任务接合适的原认证入口；本任务未放宽现有 admin 门禁。
 

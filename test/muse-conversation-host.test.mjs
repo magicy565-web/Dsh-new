@@ -5,7 +5,7 @@ import { museConversationFixture, actor } from './fixtures/muse-conversation.mjs
 
 // Load original plugin routing with explicitly synthetic Cordis/SDK dependencies.
 // This checks the actual Host routing and real WorkerDesk delegate, not Harness boot.
-function routing(service, { dot } = {}) {
+function routing(service, { dot, sessionActor } = {}) {
   let source = fs.readFileSync(new URL('../deploy/muse-native-overlay/server/workspace-native-plugin.mjs', import.meta.url), 'utf8');
   if (!source.includes('export function createWorkspaceNativePlugin')) throw Error('Native routing anchor changed');
   source = source.replace(/^import .*;\r?$/gm, '')
@@ -24,12 +24,12 @@ function routing(service, { dot } = {}) {
     pluginFields: () => {}, pluginFail: (code, message) => { throw Object.assign(Error(message), { code }); },
     inspectReviewedDotHistory: () => { throw Error('No history authority in this fixture'); },
     resumeReviewedDotHistory: () => { throw Error('No recovery authority in this fixture'); },
-    createMuseSessionRelay: () => { throw Error('Native result relay has its separate contract tests'); },
+    createMuseSessionRelay: () => { if (!sessionActor) throw Error('Native result relay has its separate contract tests'); return { reconcile: async () => {} }; },
   };
   const factory = new Function(...Object.keys(deps), source + '\nreturn createWorkspaceNativePlugin;')(...Object.values(deps));
   const provided = new Map(), effects = [];
   const ctx = { provide: (name, value) => provided.set(name, value), effect: async (callback, label) => { effects.push(label); } };
-  return { plugin: factory(dot ? { dot: { configuration: { enabled: true }, ownerSubject: actor.subject } } : {}), provided, effects, ctx };
+  return { plugin: factory({ ...(dot ? { dot: { configuration: { enabled: true }, ownerSubject: actor.subject } } : {}), ...(sessionActor ? { museSessionActor: sessionActor } : {}) }), provided, effects, ctx };
 }
 
 test('original conversation Host prepares Muse with no Dot connection, without dispatch or starting a timer', async t => {
@@ -58,4 +58,22 @@ test('original Dot submissions retain their binding and cannot fall through to a
   assert.equal(f.store.read().workerOrders.length, 0);
   await host.submitQuestion(actor, f.input('explicit-muse'));
   assert.equal(seen.length, 1); assert.equal(f.store.read().workerOrders.length, 1);
+});
+
+test('an explicitly reviewed original Muse Session keeps its Host entry through later REST attachment', async t => {
+  const f = await museConversationFixture(t); let enabled = false;
+  const service = { dot: { enabled: false }, muse: { get enabled() { return enabled; }, bindConversation(a) {
+    if (!enabled) throw Object.assign(Error('Original REST not attached'), { code: 'MW_GATEWAY_UNAVAILABLE' });
+    return f.binding().bindConversation(a);
+  } } };
+  const h = routing(service, { sessionActor: actor }); await h.plugin.apply(h.ctx, { operators: [actor] });
+  const host = h.provided.get('workspaceDotHost'); assert.ok(host);
+  const input = f.input('original-later-mount');
+  assert.throws(() => host.submitQuestion(actor, input), { code: 'MW_GATEWAY_UNAVAILABLE' });
+  assert.equal(f.store.read().workerOrders.length, 0);
+  enabled = true;
+  const result = await host.submitQuestion(actor, input);
+  assert.equal(result.delegation.phase, 'review_required');
+  assert.equal(f.store.read().workerOrders.length, 1); assert.equal(f.store.read().museTasks?.length ?? 0, 0);
+  assert.equal(h.effects.length, 1); assert.ok(h.effects[0].startsWith('workspace-muse:'));
 });

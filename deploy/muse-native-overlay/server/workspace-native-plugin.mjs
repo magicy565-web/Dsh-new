@@ -57,7 +57,7 @@ export function createWorkspaceNativePlugin({ nativeResults = [], dot, museSessi
         return async () => { active = false; clearInterval(timer); await pending; };
       }, 'workspace-muse: preserve original Session receipts before business authority unload');
     }
-    if (attached.service?.dot.enabled || attached.service?.muse.enabled) {
+    if (attached.service && (attached.service.dot.enabled || attached.service.muse.enabled || museSessionActor)) {
       ctx.provide('workspaceDotHost', Object.freeze({
         // Private Host reviews may refresh scope handles without resuming any
         // personal Worker connection, editing Goals or changing OAuth bindings.
