@@ -102,3 +102,6 @@ service account. Directory permissions were repaired, all candidate modules were
 imported as the actual service user, and the second switch passed. Code rollback
 removes only the backend drop-in and restores ingress configuration; preserve
 current workspace data, OAuth, leases and tasks.
+
+
+Final coordinated original-connection recovery: 18 manifest payloads. Independent Linux combined regression 54/54, zero failures/skips; three actual original Harness restart scenarios pass. See PRIVATE-DOT-HISTORY-REVIEW.md. These are isolated fixtures. Real Muse authentication reuses the saved vault credential after backend restart (identity/inbox HTTP200); real research and human acceptance remain separate. The IdP persistent-refresh policy is a separately verified overlay in deploy/oauth-auto-refresh-overlay, requiring one explicit new human Consent.

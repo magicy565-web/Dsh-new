@@ -136,7 +136,7 @@ export async function startNativeDotHost({ configuration, environment = process.
         if (!filename) return;
         let review;
         try { review = await readPrivateJSON(filename); } catch (error) { if (error.code === 'ENOENT') return; throw error; }
-        pluginFields(review, ['version', 'requestId', 'expectedEpoch', 'configurationHash', 'callbackCandidateIds', 'bindings', 'action', 'connectionId', 'authorizationEpoch', 'workerId', 'confirmed', 'order', 'extraCostLimitUsd', 'orderId', 'reportSha256']);
+        pluginFields(review, ['version', 'requestId', 'expectedEpoch', 'configurationHash', 'callbackCandidateIds', 'bindings', 'action', 'connectionId', 'authorizationEpoch', 'workerId', 'confirmed', 'order', 'extraCostLimitUsd', 'orderId', 'reportSha256', 'historyHash']);
         if (review.version !== 1 || !/^[A-Za-z0-9_-]{1,100}$/.test(review.requestId) || !Array.isArray(review.callbackCandidateIds)) throw Error('Invalid private Host review.');
         const reviewHash = createHash('sha256').update(JSON.stringify(review)).digest('hex');
         const receiptFile = path.join(path.dirname(filename), `native-review-${review.requestId}.result.json`);
@@ -157,7 +157,18 @@ export async function startNativeDotHost({ configuration, environment = process.
           if (JSON.stringify(await readPrivateJSON(filename)) === JSON.stringify(review)) await unlink(filename);
           return;
         }
-        pluginFields(review, ['version', 'requestId', 'expectedEpoch', 'configurationHash', 'callbackCandidateIds', 'bindings', 'action', 'connectionId', 'authorizationEpoch']);
+        pluginFields(review, ['version', 'requestId', 'expectedEpoch', 'configurationHash', 'callbackCandidateIds', 'bindings', 'action', 'connectionId', 'authorizationEpoch', 'historyHash']);
+        if (review.action === 'inspect-reviewed-history') {
+          if (review.bindings !== undefined || review.historyHash !== undefined || review.callbackCandidateIds.length)
+            throw Error('Read-only history inspection cannot change bindings or callbacks.');
+          const result = await ctx.workspaceDotHost.inspectReviewedHistory({ expectedEpoch: review.expectedEpoch,
+            configurationHash: review.configurationHash, requestId: review.requestId,
+            connectionId: review.connectionId, authorizationEpoch: review.authorizationEpoch });
+          await writePrivateNewFile(receiptFile, JSON.stringify({ requestId: review.requestId, reviewHash,
+            accepted: true, action: review.action, executionResumed: false, ...result }) + '\n');
+          if (JSON.stringify(await readPrivateJSON(filename)) === JSON.stringify(review)) await unlink(filename);
+          return;
+        }
         if (review.action === 'muse-reconcile') {
           if (!museReview) throw Error('A private Muse reconciliation requires its original selected configuration.');
           const exact = validateNativeMuseReconciliationReview(review, service.status());
@@ -172,12 +183,14 @@ export async function startNativeDotHost({ configuration, environment = process.
         const candidates = service.dot.view(config.dotOwnerSubject).callbackCandidates;
         const urls = review.callbackCandidateIds.map(id => { const candidate = candidates.find(c => c.id === id && c.expiresAt > Date.now());
           if (!candidate) throw Error('The reviewed callback candidate expired or changed.'); return candidate.url; });
-        if (review.action !== undefined && review.action !== 'resume-empty') throw Error('Unsupported private Host recovery action.');
+        if (review.action !== undefined && !['resume-empty', 'resume-reviewed-history'].includes(review.action)) throw Error('Unsupported private Host recovery action.');
         let bindings = review.bindings ?? current.bindings, expectedEpoch = review.expectedEpoch, configurationHash = review.configurationHash;
-        if (review.action === 'resume-empty') {
-          if (review.bindings !== undefined || review.callbackCandidateIds.length) throw Error('Empty-mount recovery does not authorize new bindings or callbacks.');
-          const resumed = await ctx.workspaceDotHost.resumeEmptyMount({ expectedEpoch, configurationHash, requestId: review.requestId,
-            connectionId: review.connectionId, authorizationEpoch: review.authorizationEpoch });
+        if (['resume-empty', 'resume-reviewed-history'].includes(review.action)) {
+          if (review.bindings !== undefined || review.callbackCandidateIds.length) throw Error('Original-connection recovery does not authorize new bindings or callbacks.');
+          const recover = review.action === 'resume-empty' ? ctx.workspaceDotHost.resumeEmptyMount : ctx.workspaceDotHost.resumeReviewedHistory;
+          const resumed = await recover({ expectedEpoch, configurationHash, requestId: review.requestId,
+            connectionId: review.connectionId, authorizationEpoch: review.authorizationEpoch,
+            ...(review.action === 'resume-reviewed-history' ? { historyHash: review.historyHash } : {}) });
           bindings = current.bindings.map(b => {
             if (b.subject !== config.dotOwnerSubject || b.connectionId !== resumed.connection.id || b.grantId !== resumed.connection.grantId) throw Error('Preserve the exact original owner and connection binding.');
             return { ...b, authorizationEpoch: resumed.connection.authorizationEpoch };

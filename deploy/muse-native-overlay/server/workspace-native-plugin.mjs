@@ -5,6 +5,7 @@ import { createNativeToolInstaller } from './workspace-native-tools.mjs';
 import { openWorkspacePluginService } from './workspace-plugin-service.mjs';
 import { createNativeDotBinding } from './workspace-dot-host.mjs';
 import { pluginFields, pluginFail } from './workspace-plugin-config.mjs';
+import { inspectReviewedDotHistory, resumeReviewedDotHistory } from './workspace-dot-history-review.mjs';
 
 export { name, inject, configurationSchema } from './workspace-plugin.mjs';
 
@@ -44,6 +45,15 @@ export function createWorkspaceNativePlugin({ nativeResults = [], dot } = {}) {
         // Private Host reviews may refresh scope handles without resuming any
         // personal Worker connection, editing Goals or changing OAuth bindings.
         refreshReviewedTools: review => attached.refreshTools(review),
+        async inspectReviewedHistory(review) {
+          const { historyHash, summary } = await inspectReviewedDotHistory({ ctx, service: attached.service, operators: config.operators,
+            ownerSubject: dot.ownerSubject, authorizePublicTask: dot.authorizePublicTask, review });
+          return { historyHash, summary };
+        },
+        resumeReviewedHistory(review) {
+          return resumeReviewedDotHistory({ ctx, service: attached.service, operators: config.operators,
+            ownerSubject: dot.ownerSubject, authorizePublicTask: dot.authorizePublicTask, review });
+        },
         async resumeEmptyMount(review) {
           // Operator recovery only. Never reachable by browser or model Tools.
           pluginFields(review, ['expectedEpoch', 'configurationHash', 'requestId', 'connectionId', 'authorizationEpoch']);

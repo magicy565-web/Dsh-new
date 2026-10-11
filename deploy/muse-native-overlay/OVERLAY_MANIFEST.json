@@ -1,7 +1,7 @@
 {
   "format": "workspace.native-muse-overlay.v2",
   "productionRelease": "/opt/workspace-dot/releases/7279e6346910b43fc879f5a99fd581be47a9a73f",
-  "reviewedModuleCommit": "f801088c5442f5ec2491ee744a2628eacbb2f3cc",
+  "reviewedModuleCommit": "2ad9efc50130e2dbb3d0198c568b6acca2f28774",
   "goLiveApprovedByUser": true,
   "deployed": false,
   "files": [
@@ -20,8 +20,8 @@
     {
       "path": "deploy/native-dot-host.mjs",
       "beforeSha256": "6849a01adc981920fc322c7ff39bda02dd3e53bbb7d575618f263c2befb85f0d",
-      "afterSha256": "096cf10e5a4b8c0d6eac081cb49504de66a8aee00b904189ffabdbb197b0bd5a",
-      "bytes": 19470
+      "afterSha256": "83fe29548bba63bca4fd3a35970538cce3995080dc9d5dc5eadf7ac8b56ec110",
+      "bytes": 20958
     },
     {
       "path": "server/muse-worker-native.mjs",
@@ -80,14 +80,38 @@
     {
       "path": "server/workspace-native-plugin.mjs",
       "beforeSha256": "d77a6db7422ef01e76ebec3f2195ae751e8237fdca980aeb08bd884a3b9661a9",
-      "afterSha256": "b1a66e9d498b5d6db99ddbd56acbaaf88a206b0168ebb861f82c3b295f6a5ed7",
-      "bytes": 7510
+      "afterSha256": "d54d5b3f0be91e0c7dc015321fa1d61f31c2091d2501d1548ef25f40097d85a5",
+      "bytes": 8331
     },
     {
       "path": "server/muse-worker-private-review.mjs",
       "beforeSha256": null,
       "afterSha256": "978b2aac389b5f55439d221470214cef2c3c87cfc6722dc9bf3633e498bd13ce",
       "bytes": 5841
+    },
+    {
+      "path": "server/workspace-dot-history-review.mjs",
+      "beforeSha256": null,
+      "afterSha256": "754ee1f9e680f614ab8f2e87d28b619ef227d8425e6065e1bf64e9cdca0c9761",
+      "bytes": 10003
+    },
+    {
+      "path": "server/workspace-dot-host.mjs",
+      "beforeSha256": "585f0f205bf80d3df18dee23687ac00b4c849b85b9c0a5a84c2947e5db2ddf12",
+      "afterSha256": "f8a6896433ab9b391e7e7f7db91eb36967d6d56a030edb06aa15457584d4e11e",
+      "bytes": 12100
+    },
+    {
+      "path": "test/workspace-dot-history-review.test.mjs",
+      "beforeSha256": null,
+      "afterSha256": "37a3cb36b1f8513d9c95223647733621244717be54115c44e9c15f5cb70275cb",
+      "bytes": 12168
+    },
+    {
+      "path": "test/fixtures/workspace-dot-history-native.mjs",
+      "beforeSha256": null,
+      "afterSha256": "8e399e1bac4605b6ee5c614e200db1600b6370cad05a676a4954dc88226580b1",
+      "bytes": 11614
     }
   ],
   "validation": {
@@ -138,12 +162,16 @@
     "serviceUserModuleImportVerified": true
   },
   "validatedModuleCommit": "4e4246ffe3b380c5762f648e5692379e4eedcafd",
-  "activation": "Candidate only. Production gates remain false until a separate exact private Host review.",
+  "activation": "Final candidate; exact current history inspection and private recovery still required.",
   "linuxValidation": {
-    "nativePass": 11,
-    "nativeFail": 0,
-    "nativeSkip": 0,
-    "originalDotPass": 1,
+    "nativeCombinedPass": 54,
+    "nativeCombinedFail": 0,
+    "nativeCombinedSkip": 0,
+    "actualHarnessScenarios": [
+      "settled",
+      "pending",
+      "active-pending"
+    ],
     "synthetic": true,
     "paidModelCalls": 0
   }
