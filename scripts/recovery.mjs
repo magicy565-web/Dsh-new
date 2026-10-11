@@ -4,11 +4,11 @@ import { promises as fs, constants } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
-import { acquireWriterLock, openPrivateFile, syncDirectory, validateJson } from '../server/store.mjs';
+import { acquireWriterLock, openPrivateFile, syncDirectory, validateJson, validateState as validateWorkspaceState } from '../server/store.mjs';
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const MAX_BYTES = 512 * 1024 * 1024, MAX_FILES = 120_000;
 const exclusions = new Set(['workspace.lock', 'workspace.lock.recovery', 'artifacts/artifacts.lock', 'artifacts/artifacts.lock.recovery']);
-const appPermitted = name => ['workspace.json', 'workspace.v1.backup.json', 'security/audit.jsonl', 'RECOVERY-REPORT.json'].includes(name) || /^artifacts\/[a-f0-9-]{36}\.v[1-9][0-9]*\.[a-f0-9]{64}\.blob$/.test(name);
+const appPermitted = name => ['workspace.json', 'workspace.v1.backup.json', 'workspace.v2.backup.json', 'security/audit.jsonl', 'RECOVERY-REPORT.json'].includes(name) || /^artifacts\/[a-f0-9-]{36}\.v[1-9][0-9]*\.[a-f0-9]{64}\.blob$/.test(name);
 const failure = message => { throw new Error(message); };
 const nativeSessionFile = name => /^harness\/sessions\/[^/]+\/[^/]+\/(?:session(?:\.v[1-9][0-9]*)?\.jsonl(?:\.zstd)?|session\.lock)$/.test(name);
 const safeRelative = name => typeof name === 'string' && name.length <= 4096 && !name.includes('\\') && !/[\u0000-\u001f\u007f]/.test(name) && name.split('/').every(part => part && part !== '.' && part !== '..');
@@ -76,22 +76,8 @@ async function walk(root, prefix = '') {
   return names.sort();
 }
 function validateState(state, manifestFiles) {
-  validateJson(state);
-  if (state?.version !== 2 || !Number.isSafeInteger(state.meta?.sequence) || !state.settings || !state.capabilities) failure('Only valid v2 workspace backups are supported.');
-  for (const name of ['conversations', 'messages', 'goals', 'activity', 'memories', 'runs', 'artifacts']) if (!Array.isArray(state[name])) failure('Invalid workspace collection.');
-  for (const name of ['skills', 'connectors', 'approvals', 'schedules', 'scheduleRuns', 'connectorRuns']) if (!Array.isArray(state.capabilities[name])) failure('Invalid workspace capability collection.');
-  // Optional external Worker collections must be well-formed before a backup is
-  // trusted for restore. State validation will run again on Workspace startup.
-  for (const name of ['workerOrders', 'dotTasks', 'museTasks']) {
-    if (state[name] === undefined) continue;
-    if (!Array.isArray(state[name])) failure('Invalid external Worker backup collection.');
-    const seen = new Set();
-    for (const task of state[name]) {
-      if (!task || typeof task.id !== 'string' || !task.id || task.id.length > 256 || seen.has(task.id))
-        failure('Invalid or duplicate external Worker identity in backup.');
-      seen.add(task.id);
-    }
-  }
+  if (![2, 3].includes(state?.version)) failure('Only valid v2 or v3 workspace backups are supported.');
+  validateWorkspaceState(state, state.version);
   for (const artifact of state.artifacts) {
     if (!/^[a-f0-9-]{36}$/.test(artifact.id) || !Array.isArray(artifact.versions)) failure('Invalid artifact backup record.');
     for (const version of artifact.versions) {
@@ -131,7 +117,7 @@ export async function createBackup(dataDirectory, destination, { native, nativeA
     for (const name of selected) { const value = await bytes(path.join(source, name), MAX_BYTES, metadata && attachmentHash(name)); total += value.length; if (total > MAX_BYTES) failure('Backup exceeds the 512 MiB recovery limit.'); payloads.push({ name, value }); }
     const state = JSON.parse(payloads.find(item => item.name === 'workspace.json').value.toString('utf8'));
     const summary = metadata ? await nativeInspection(source, metadata, state, nativeAdapter) : null;
-    const manifest = { format: 'workspace-offline-backup', version: metadata ? 2 : 1, createdAt: new Date().toISOString(), scope: metadata ? 'workspace-v2-native-jsonl-artifacts-access-audit' : 'workspace-v2-artifacts-access-audit', nativeRuntimeIncluded: Boolean(metadata), ...(metadata ? { native: { ...metadata, ...summary }, excludedFiles: excluded } : {}), files: payloads.map(({ name, value }) => ({ path: name, bytes: value.length, sha256: digest(value) })) };
+    const manifest = { format: 'workspace-offline-backup', version: metadata ? 2 : 1, createdAt: new Date().toISOString(), scope: metadata ? `workspace-v${state.version}-native-jsonl-artifacts-access-audit` : `workspace-v${state.version}-artifacts-access-audit`, nativeRuntimeIncluded: Boolean(metadata), ...(metadata ? { native: { ...metadata, ...summary }, excludedFiles: excluded } : {}), files: payloads.map(({ name, value }) => ({ path: name, bytes: value.length, sha256: digest(value) })) };
     validateState(state, manifest.files);
     await lock.verify(); created = await exclusiveDirectory(target);
     for (const item of payloads) await write(path.join(created, item.name), item.value);

@@ -26,7 +26,17 @@
     "test:release": "npm run test:all && python3 scripts/package-release.py --light && python3 scripts/check-release.py release/Workspace-Agent-v0.5.0-rc.2-App.zip",
     "check:launch": "node scripts/check-launch-gates.mjs",
     "test:provider-native-live": "node scripts/acceptance-native-provider.mjs",
-    "test:offline-evidence": "node scripts/validate-local.mjs"
+    "test:offline-evidence": "node scripts/validate-local.mjs",
+    "test:commerce": "node --test test/commerce.http.test.mjs",
+    "test:supply": "node --test test/supply-network.http.test.mjs",
+    "test:muse:browser": "npm run build && node test/muse-commerce.browser.mjs",
+    "test:goal-context": "node --test test/goal-commerce.http.test.mjs",
+    "test:goal-context:browser": "npm run build && node test/goal-commerce.browser.mjs",
+    "test:control:browser": "npm run build && node test/master-control.browser.mjs",
+    "preview:control": "npm run build && node --experimental-test-module-mocks --import ./test/fixtures/goal-commerce-memory-preload.mjs test/preview-master-control.mjs",
+    "test:control:cloud": "npm run build && node test/cloud-control.browser.mjs",
+    "test:control:activity": "node --test test/cloud-activity.test.mjs",
+    "test:control:muse": "npm run build && npm run test:control:activity && node test/muse-control.browser.mjs && node test/muse-receipts.browser.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

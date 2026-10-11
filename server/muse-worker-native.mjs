@@ -4,6 +4,7 @@ import { createWorkerOpportunityService, WorkerOpportunityError } from './worker
 import { MuseWorkerError } from './muse-worker-api.mjs';
 import { createMuseSessionProjection } from './muse-worker-session.mjs';
 import { createMuseConversationDelegation, validateMuseConversationDelegations } from './muse-conversation-delegation.mjs';
+import { createWorkspaceControlReader } from './dot-control-plane-host.mjs';
 
 const id = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value);
 // Original native owner/session identifiers allow @ and /; Worker API IDs keep
@@ -192,6 +193,21 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
     if (['GET', 'HEAD', 'DELETE'].includes(req.method) && (Number(req.headers['content-length'] ?? 0) !== 0 || req.headers['transfer-encoding']))
       throw new MuseWorkerError(400, 'MW_BODY_NOT_ALLOWED', 'This method does not accept a body.');
   }
+  // Trusted original Host read binding; no transport, reconciliation or new authority.
+  function bindControl(requestActor, scope) {
+    if (requestActor?.subject !== actor.subject || requestActor.nativeAgentId !== actor.nativeAgentId)
+      throw new WorkerDeskError(403, 'MUSE_OWNER_REQUIRED', 'Use the original reviewed Muse Session owner.');
+    if (!object(scope) || Object.keys(scope).some(key => !['workspaceId', 'policyVersion'].includes(key))
+      || !id(scope.workspaceId) || !id(scope.policyVersion))
+      throw new TypeError('Control scope must come from the original Host configuration.');
+    const principal = { workspaceId: scope.workspaceId, userId: actor.subject, policyVersion: scope.policyVersion,
+      grants: [{ sourceId: 'muse-host', scope: 'self', kinds: ['goal', 'order', 'task', 'attempt'] }] };
+    return createWorkspaceControlReader({ sourceId: 'muse-host',
+      readContext: () => scoped(() => ({ principal, binding: { actor, workerId: host.workerId } })),
+      readState: () => scoped(() => store.read()),
+      readMuseSession: () => scoped(() => session.view()),
+    });
+  }
   function bindSession(requestActor) {
     if (requestActor?.subject !== actor.subject || requestActor.nativeAgentId !== actor.nativeAgentId)
       throw new WorkerDeskError(403, 'MUSE_OWNER_REQUIRED', 'This operator has no reviewed Muse Session binding.');
@@ -214,7 +230,7 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
     return Object.freeze(Object.fromEntries(Object.entries(conversation).map(([name, method]) =>
       [name, (...args) => scoped(() => method(...args), ['prepare', 'approve', 'dispatch'].includes(name))])));
   }
-  return Object.freeze({ workerId: host.workerId, bindDesk, bindSession, bindConversation,
+  return Object.freeze({ workerId: host.workerId, bindDesk, bindSession, bindConversation, bindControl,
     initialize: () => scoped(() => {
       if (desk.list().some(item => item.status === 'dispatching' && !belongs(item)))
         throw new WorkerDeskError(409, 'MUSE_RECOVERY_OWNER_REQUIRED', 'Review the original WorkerDesk owner before recovering unrelated orders.');

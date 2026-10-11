@@ -1,7 +1,58 @@
 # Workspace Agent: repository handoff
 
 This is the `0.5.0-rc.2` development candidate. It is not production-ready.
-Preserve the chat-first product, guarded execution runtime and source tree.
+Preserve the Muse goal-first home, existing chat and expert flows, guarded
+execution runtime and source tree.
+
+## Cloud integration correction
+
+The deployed site uses personal Worker delegations, whereas the first V22 home
+only read local goals. CloudControl now selects the existing same-origin Worker
+contract when dotIntegration.enabled is present. It must be released with the
+original backend deployment; local previews and fixture tests are not deployment
+or live execution evidence. See the cloud integration section in the UI document.
+
+## Latest mobile master control checkpoint
+
+The home screen is now a centered animated companion with a minimal command input
+and on-demand task controls. The companion now has independent blinking, waving
+and body motion, real task-state expressions and a persisted animation toggle.
+It uses existing goal/conversation APIs, guarded
+approval/review routes and exact-request retries. See
+[mobile master control](docs/V22-MOBILE-MASTER-CONTROL.md) for behavior, preview
+and functional verification boundaries. The production native runtime and
+storage contracts are unchanged.
+
+## Latest Muse / commerce checkpoint
+
+V22 continuation: the existing goal conversation now reads its exact linked
+hosting snapshot, research order and order-evidence summary. It can open the
+precise project/order without losing the single-conversation UI. See
+[V22 goal/commerce continuation](docs/V22-GOAL-COMMERCE-CONTEXT.md) for the read
+contract, regression commands and Windows memory-fixture validation boundary.
+
+The current development branch integrates the Muse home and focused goal session,
+versioned enterprise product/company libraries, durable product hosting scopes,
+and the isolated Personal Muse REST gateway from PR #15 at `d1f7e27`.
+Hosted products prepare one existing WorkerDesk research draft, with explicit
+public scope, a separate credits ceiling and deadline. Approval, dispatch and
+acceptance remain separate administrator actions. The exact order is linked at
+`/services/:orderId`, with actual delivery and acceptance records.
+Shopify Admin GraphQL verifies actual store identity and scopes, and reads tagged
+order evidence; it does not publish, fulfill, spend or bill.
+Read [Muse / commerce implementation and limits](docs/MUSE-COMMERCE-WORKSPACE.md)
+before continuing this work. The default home is `/`; experts remain at `/workers`.
+
+Verified locally: official app build; 369 backend tests passed with the reviewed
+native source/diagnostic bundle present, zero skipped, no failures; 19 DOM/HTTP
+regressions passed; 11 real Chromium business-flow checks passed. The six formerly
+skipped native checks ran against actual native code and compiled public exports
+with keyless scripted model/tool fixtures. The official native Host aggregate
+still fails on a source-package Muse Worker test type error; diagnostic bundling
+does not certify a full production build. See [native verification](docs/NATIVE-KEYLESS-VERIFICATION.md).
+Real native profile/cloud/Shopify deployment remains separate acceptance work.
+GitHub CI currently reports `startup_failure`
+with no jobs started; local passing results do not imply CI passed.
 
 ## Run from source
 
@@ -43,7 +94,7 @@ approval. Model text must not approve itself, enlarge capabilities, configure
 credentials or execute arbitrary code. Preserve cancel, retry, stale-response,
 permission and recovery fences. The application is not an official Muse product.
 
-## Final checkpoint verification
+## Historical checkpoint verification
 
 Checkpoint: 2026-10-04, before GitHub source publication.
 

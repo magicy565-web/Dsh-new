@@ -1,0 +1,256 @@
+TAP version 13
+# Subtest: hosting binds the exact enterprise product revision, saves atomically and never invokes a model or Shopify
+ok 1 - hosting binds the exact enterprise product revision, saves atomically and never invokes a model or Shopify
+  ---
+  duration_ms: 3132.6112
+  type: 'test'
+  ...
+# Subtest: research staging reuses one real draft goal and exports only the specifically approved product facts
+ok 2 - research staging reuses one real draft goal and exports only the specifically approved product facts
+  ---
+  duration_ms: 2990.5393
+  type: 'test'
+  ...
+# Subtest: an interrupted research link is repaired using the same runtime goal request instead of creating a second goal
+ok 3 - an interrupted research link is repaired using the same runtime goal request instead of creating a second goal
+  ---
+  duration_ms: 3025.6723
+  type: 'test'
+  ...
+# Subtest: Shopify status distinguishes configuration and a real identity response; tokens and arbitrary endpoints stay server-side
+ok 4 - Shopify status distinguishes configuration and a real identity response; tokens and arbitrary endpoints stay server-side
+  ---
+  duration_ms: 2966.3752
+  type: 'test'
+  ...
+# Subtest: order evidence pages are durable and retry-safe; tests, cancellations, partial payment and refunds cannot inflate sales
+ok 5 - order evidence pages are durable and retry-safe; tests, cancellations, partial payment and refunds cannot inflate sales
+  ---
+  duration_ms: 2944.9466
+  type: 'test'
+  ...
+# Subtest: malformed, out-of-scope, unauthenticated, or unavailable store reads preserve previous evidence and never produce fake zero-sales results
+ok 6 - malformed, out-of-scope, unauthenticated, or unavailable store reads preserve previous evidence and never produce fake zero-sales results
+  ---
+  duration_ms: 5864.4286
+  type: 'test'
+  ...
+# Subtest: history windows, pagination loops, arbitrary hosts and currency mismatches fail closed
+ok 7 - history windows, pagination loops, arbitrary hosts and currency mismatches fail closed
+  ---
+  duration_ms: 0.9491
+  type: 'test'
+  ...
+# Subtest: a changed verified shop identity cannot merge into earlier order evidence even on the same configured domain
+ok 8 - a changed verified shop identity cannot merge into earlier order evidence even on the same configured domain
+  ---
+  duration_ms: 2995.757
+  type: 'test'
+  ...
+# Subtest: v2 upgrade preserves mainline Worker, expert, Dot and custom records while adding real libraries
+ok 9 - v2 upgrade preserves mainline Worker, expert, Dot and custom records while adding real libraries
+  ---
+  duration_ms: 2955.0531
+  type: 'test'
+  ...
+# Subtest: hosted research creates one unassigned Worker draft, shares only reviewed scope and requires separate approval
+ok 10 - hosted research creates one unassigned Worker draft, shares only reviewed scope and requires separate approval
+  ---
+  duration_ms: 3007.0196
+  type: 'test'
+  ...
+# Subtest: invalid research scope never persists an intent; crash recovery repairs an existing order without dispatch or duplicate
+ok 11 - invalid research scope never persists an intent; crash recovery repairs an existing order without dispatch or duplicate
+  ---
+  duration_ms: 2997.627
+  type: 'test'
+  ...
+# Subtest: hosted product follows authenticated Muse claim, sourced file delivery, refresh, human acceptance and restart
+ok 12 - hosted product follows authenticated Muse claim, sourced file delivery, refresh, human acceptance and restart
+  ---
+  duration_ms: 3093.793
+  type: 'test'
+  ...
+# Subtest: approved Workspace to dot-xy public research via the actual scoped worker routes
+ok 13 - approved Workspace to dot-xy public research via the actual scoped worker routes
+  ---
+  duration_ms: 3042.5868
+  type: 'test'
+  ...
+# Subtest: goal context follows exact stored links and exposes only the approved product snapshot
+ok 14 - goal context follows exact stored links and exposes only the approved product snapshot
+  ---
+  duration_ms: 3200.3544
+  type: 'test'
+  ...
+# Subtest: missing goals fail explicitly and are never interpreted as an empty valid scope
+ok 15 - missing goals fail explicitly and are never interpreted as an empty valid scope
+  ---
+  duration_ms: 3205.4271
+  type: 'test'
+  ...
+# Subtest: goal context retains the normal origin gate and exposes no write action
+ok 16 - goal context retains the normal origin gate and exposes no write action
+  ---
+  duration_ms: 3003.4427
+  type: 'test'
+  ...
+# Subtest: linked Worker order remains draft and is read afresh without dispatch or invented delivery
+ok 17 - linked Worker order remains draft and is read afresh without dispatch or invented delivery
+  ---
+  duration_ms: 2992.2361
+  type: 'test'
+  ...
+# Subtest: partial order evidence keeps currency totals separate and never creates billable revenue
+ok 18 - partial order evidence keeps currency totals separate and never creates billable revenue
+  ---
+  duration_ms: 2975.1019
+  type: 'test'
+  ...
+# Subtest: public retail reference cannot become supplier quotation, supply policy or hosted enterprise inventory
+ok 19 - public retail reference cannot become supplier quotation, supply policy or hosted enterprise inventory
+  ---
+  duration_ms: 1.6169
+  type: 'test'
+  ...
+# Subtest: SKU record is enterprise-local and rejects unimplemented supplier/Shopify mapping fields
+ok 20 - SKU record is enterprise-local and rejects unimplemented supplier/Shopify mapping fields
+  ---
+  duration_ms: 0.2788
+  type: 'test'
+  ...
+# Subtest: private enterprise assets stay inaccessible through the existing generic connector, even with a pinned version
+ok 21 - private enterprise assets stay inaccessible through the existing generic connector, even with a pinned version
+  ---
+  duration_ms: 0.4763
+  type: 'test'
+  ...
+# Subtest: existing Worker MCP has no procurement/file-lookup bypass and rejects injected private references before bridge access
+ok 22 - existing Worker MCP has no procurement/file-lookup bypass and rejects injected private references before bridge access
+  ---
+  duration_ms: 0.2213
+  type: 'test'
+  ...
+# Subtest: current product library remains draft-only and Shopify adapter exposes no publication operation
+ok 23 - current product library remains draft-only and Shopify adapter exposes no publication operation
+  ---
+  duration_ms: 0.1934
+  type: 'test'
+  ...
+# Subtest: existing connector execution rejects publication-shaped actions without an exact approval
+ok 24 - existing connector execution rejects publication-shaped actions without an exact approval
+  ---
+  duration_ms: 1.3269
+  type: 'test'
+  ...
+# Subtest: one exact connector approval cannot authorize another product revision, store, connector revision or repeated execution
+ok 25 - one exact connector approval cannot authorize another product revision, store, connector revision or repeated execution
+  ---
+  duration_ms: 1.6164
+  type: 'test'
+  ...
+# Subtest: hosting pins exact enterprise product revision and explicit public scope without reading private company facts
+ok 26 - hosting pins exact enterprise product revision and explicit public scope without reading private company facts
+  ---
+  duration_ms: 0.401
+  type: 'test'
+  ...
+# Subtest: accepted Worker task or completed Goal is not sales evidence, settlement or billable operating result
+ok 27 - accepted Worker task or completed Goal is not sales evidence, settlement or billable operating result
+  ---
+  duration_ms: 0.3195
+  type: 'test'
+  ...
+# Subtest: only recorded non-test paid/fulfilled net receipts count; partial sync and task results never imply attribution or profit
+ok 28 - only recorded non-test paid/fulfilled net receipts count; partial sync and task results never imply attribution or profit
+  ---
+  duration_ms: 0.2611
+  type: 'test'
+  ...
+# Subtest: integrated control reads original v3 disk delegation and exact returned receipt across reopening
+ok 29 - integrated control reads original v3 disk delegation and exact returned receipt across reopening
+  ---
+  duration_ms: 3358.7525
+  type: 'test'
+  ...
+# Subtest: Muse is separately authenticated, has its own task queue, and cannot view Dot tasks
+ok 30 - Muse is separately authenticated, has its own task queue, and cannot view Dot tasks
+  ---
+  duration_ms: 3633.8389
+  type: 'test'
+  ...
+# Subtest: Muse REST rejects unknown fields and enforces the approved task deadline across heartbeats
+ok 31 - Muse REST rejects unknown fields and enforces the approved task deadline across heartbeats
+  ---
+  duration_ms: 3378.1345
+  type: 'test'
+  ...
+# Subtest: Muse can submit actual file bytes with sources and an explicit non-verifiable receipt note
+ok 32 - Muse can submit actual file bytes with sources and an explicit non-verifiable receipt note
+  ---
+  duration_ms: 3266.821
+  type: 'test'
+  ...
+# Subtest: Muse cancellation requires actual stop acknowledgment; claim cannot silently migrate
+ok 33 - Muse cancellation requires actual stop acknowledgment; claim cannot silently migrate
+  ---
+  duration_ms: 3446.2086
+  type: 'test'
+  ...
+# Subtest: Muse remains non-executable without reviewed external hard budget
+ok 34 - Muse remains non-executable without reviewed external hard budget
+  ---
+  duration_ms: 3111.1962
+  type: 'test'
+  ...
+# Subtest: Muse cancellation after submission remains requested until the original attempt acknowledges stop
+ok 35 - Muse cancellation after submission remains requested until the original attempt acknowledges stop
+  ---
+  duration_ms: 3350.2785
+  type: 'test'
+  ...
+# Subtest: Muse malformed persisted lease or deadline cannot authorize a heartbeat or file upload
+ok 36 - Muse malformed persisted lease or deadline cannot authorize a heartbeat or file upload
+  ---
+  duration_ms: 3245.123
+  type: 'test'
+  ...
+# Subtest: local synthetic 20-row Muse delivery requires approval and acceptance before durable opportunity import
+ok 37 - local synthetic 20-row Muse delivery requires approval and acceptance before durable opportunity import
+  ---
+  duration_ms: 3352.4317
+  type: 'test'
+  ...
+# Subtest: Muse API authenticated read rate limit is enforced with MW_ error namespace
+ok 38 - Muse API authenticated read rate limit is enforced with MW_ error namespace
+  ---
+  duration_ms: 3256.0523
+  type: 'test'
+  ...
+# Subtest: Muse and Dot cannot reuse the same credential even if configured
+ok 39 - Muse and Dot cannot reuse the same credential even if configured
+  ---
+  duration_ms: 3082.649
+  type: 'test'
+  ...
+# Subtest: real local HTTP service desk creates durable drafts and cannot dispatch without reviewed worker
+ok 40 - real local HTTP service desk creates durable drafts and cannot dispatch without reviewed worker
+  ---
+  duration_ms: 3227.5648
+  type: 'test'
+  ...
+# Subtest: restart fences unacknowledged external dispatch instead of replaying partner calls
+ok 41 - restart fences unacknowledged external dispatch instead of replaying partner calls
+  ---
+  duration_ms: 3261.4274
+  type: 'test'
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 41
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 97448.0417

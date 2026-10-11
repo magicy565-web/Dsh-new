@@ -1,0 +1,18 @@
+
+> workspace-agent@0.5.0-rc.2 build
+> tsc --noEmit && vite build
+
+vite v8.0.16 building client environment for production...
+[2Ktransforming...✓ 56 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.54 kB │ gzip:   0.37 kB
+dist/assets/index-CQzcOONs.css  206.04 kB │ gzip:  42.15 kB
+dist/assets/index-Z7EI3TbW.js   494.35 kB │ gzip: 140.10 kB
+
+✓ built in 168ms
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

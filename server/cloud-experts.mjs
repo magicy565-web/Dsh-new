@@ -147,7 +147,7 @@ export function createCloudExpertService({store,workerCatalog=()=>[],workerDesk=
     teams(){return (store.read().cloudTeams||[]).map(viewTeam);},
     getExpert(id){return viewExpert(getExpert(store.read(),id));},
     getTeam(id){return viewTeam(getTeam(store.read(),id));},
-    hire(input,actor) {
+    async hire(input,actor) {
       if(!identity(actor)||!identity(input?.requestId)||input.publicDataConfirmed!==true)
         fail(400,'EXPLICIT_CONFIRMATION_REQUIRED','Stable request and confirmed public-only data boundary required.');
       const config=configureExpert(input,workerCatalog());

@@ -48,7 +48,7 @@ test('production UI: navigation, interrupted goal intake, guarded chat, search, 
   const assets = await readdir(resolve('dist/assets')); const script = await readFile(resolve('dist/assets', assets.find(file => /^index-.*\.js$/.test(file))), 'utf8');
   const api = await fixture(); const errors = [];
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: `${api.base}/chat`, runScripts: 'outside-only', pretendToBeVisual: true });
-  const { window } = dom; window.fetch = api.fetch; window.AbortController = AbortController; window.scrollTo = () => {}; window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {} }); window.addEventListener('error', event => errors.push(event.error?.message || event.message));
+  const { window } = dom; window.fetch = api.fetch; window.AbortController = AbortController; window.scrollTo = () => {}; window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }); window.addEventListener('error', event => errors.push(event.error?.message || event.message));
   window.eval(script); const { document, button, aria, click, input, escape } = controls(window);
   try {
     await waitFor(() => document.querySelector('.intro-bubble'), 'empty conversation');
@@ -93,29 +93,31 @@ test('production UI: navigation, interrupted goal intake, guarded chat, search, 
     click(aria('设置')); await waitFor(() => document.querySelector('.settings-modal'), 'settings modal'); const settingsInput = document.querySelector('.settings-modal input'); input(settingsInput, '小伴'); click(button('保存设置'));
     await waitFor(() => api.state.settings.name === '小伴' && !document.querySelector('.modal-backdrop'), 'settings persists');
     assert.equal(document.querySelector('input[type="password"]'), null, 'No credential entry');
-    click(aria('资料库')); await waitFor(() => button('新建笔记'), 'library'); click(button('新建笔记')); await waitFor(() => aria('笔记内容'), 'note editor'); input(aria('笔记内容'), '一个值得留下的想法'); click(button('保存'));
+    click(aria('资料库')); await waitFor(() => button('笔记与记忆'), 'library tabs'); await click(button('笔记与记忆')); await waitFor(() => button('新建笔记'), 'library'); click(button('新建笔记')); await waitFor(() => aria('笔记内容'), 'note editor'); input(aria('笔记内容'), '一个值得留下的想法'); click(button('保存'));
     await waitFor(() => api.state.memories.length === 1 && document.querySelector('.library-item'), 'saved note');
     click(button('查看与编辑')); await waitFor(() => aria('笔记内容'), 'edit saved note'); input(aria('笔记内容'), '一个更新后的想法'); click(button('保存'));
     await waitFor(() => api.state.memories[0].content === '一个更新后的想法' && !document.querySelector('.modal-backdrop'), 'note update');
     click(aria('删除笔记')); await waitFor(() => button('确认删除'), 'note delete confirmation'); click(button('保留')); await waitFor(() => !document.querySelector('.modal-backdrop'), 'cancel delete'); assert.equal(api.state.memories.length, 1);
     click(aria('删除笔记')); await waitFor(() => button('确认删除'), 'delete reopened'); click(button('确认删除')); await waitFor(() => api.state.memories.length === 0 && !document.querySelector('.library-item'), 'note delete');
-    click(aria('目标')); await waitFor(() => document.querySelector('.goal-list-item'), 'saved goal list'); window.history.back(); await waitFor(() => document.querySelector('.page-library'), 'browser history back'); window.history.forward(); await waitFor(() => document.querySelector('.goal-list-item'), 'browser history forward'); click(document.querySelector('.goal-list-item')); await waitFor(() => document.querySelector('.goal-detail'), 'goal detail');
+    click(aria('目标')); await waitFor(() => document.querySelector('.goal-list-item'), 'saved goal list'); window.history.back(); await waitFor(() => document.querySelector('.page-library'), 'browser history back'); window.history.forward(); await waitFor(() => document.querySelector('.goal-list-item'), 'browser history forward'); click(document.querySelector('.goal-list-item')); await waitFor(() => button('目标设置'), 'focused goal session'); await click(button('目标设置')); await waitFor(() => document.querySelector('.goal-detail'), 'goal detail');
     click(aria('编辑目标')); await waitFor(() => document.querySelector('.goal-edit-form'), 'goal edit'); input(document.querySelector('.goal-edit-form input'), '每天专注学习'); input(document.querySelector('.goal-edit-form textarea'), '把计划拆成每天三十分钟的学习任务。'); click(button('保存目标'));
     await waitFor(() => api.state.goals[0].title === '每天专注学习' && !document.querySelector('.goal-edit-form'), 'goal edit persists');
     click(button('开始推进')); await waitFor(() => api.state.goals[0].status === 'blocked', 'unconfigured goal is blocked');
-    escape(); await waitFor(() => !document.querySelector('.goal-detail'), 'goal Escape dismissal'); assert.equal(window.location.pathname, '/goals');
+    escape(); await waitFor(() => !document.querySelector('.goal-detail'), 'goal Escape dismissal'); assert.equal(window.location.pathname, `/goals/${api.state.goals[0].id}`);
+    await click(aria('返回工作')); await waitFor(() => document.querySelector('.master-control'), 'V22 return to central control'); assert.equal(window.location.pathname, '/home');
+    await click(aria('目标')); await waitFor(() => document.querySelector('.goal-list-item'), 'navigate back to saved goal list');
     // Enable the explicitly injected test provider and run the real goal lifecycle.
     api.provider.configured = true;
     await api.fetch(`/api/goals/${api.state.goals[0].id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resume' }) });
-    await waitFor(() => document.querySelector('.status-review_required'), 'review state polling'); click(document.querySelector('.goal-list-item')); await waitFor(() => button('标记已审核'), 'explicit review action'); click(button('标记已审核'));
+    await waitFor(() => document.querySelector('.status-review_required'), 'review state polling'); click(document.querySelector('.goal-list-item')); await waitFor(() => button('目标设置'), 'goal review session'); await click(button('目标设置')); await waitFor(() => button('标记已审核'), 'explicit review action'); click(button('标记已审核'));
     await waitFor(() => api.state.goals[0].status === 'completed' && document.querySelector('.goal-output')?.textContent.includes('已审核'), 'reviewed goal');
     assert.equal(errors.length, 0, `React/DOM errors: ${errors.join('; ')}`);
     const reloaded = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: `${api.base}/goals/${api.state.goals[0].id}`, runScripts: 'outside-only', pretendToBeVisual: true });
     try {
       reloaded.window.fetch = api.fetch; reloaded.window.AbortController = AbortController; reloaded.window.eval(script);
-      await waitFor(() => reloaded.window.document.querySelector('.goal-detail'), 'full reload restores goal route');
-      assert.equal(reloaded.window.document.querySelector('.goal-detail h1').textContent, '每天专注学习');
-      assert.ok(reloaded.window.document.querySelector('.goal-output').textContent.includes('已审核'));
+      await waitFor(() => reloaded.window.document.querySelector('.ys21-goal'), 'full reload restores goal route');
+      assert.equal(reloaded.window.document.querySelector('.ys21-goal-header h1').textContent, '每天专注学习');
+      assert.ok(reloaded.window.document.querySelector('.ys21-status').textContent.includes('已验收'));
       assert.equal(api.state.settings.name, '小伴');
       assert.equal(api.state.conversations[0].title, '专注学习');
     } finally { reloaded.window.close(); }
@@ -216,7 +218,7 @@ test('management UI: instruction registry, connector configuration, exact approv
 
 test('management UI: file bytes, versions, safe preview, optimistic conflict and memory scope controls', async () => {
   const api = await fixture(); const { conversation } = await post(api, '/conversations', { title: 'Scoped discussion' });
-  const ui = await renderWorkspace(api, '/library'); const { window, document, button, aria, click, input, escape } = ui;
+  const ui = await renderWorkspace(api, '/library/notes'); const { window, document, button, aria, click, input, escape } = ui;
   try {
     await waitFor(() => button('新建笔记'), 'library loaded'); await click(button('新建笔记')); await click(button('助手记忆')); await input(aria('笔记内容'), 'Only this discussion uses this preference.'); await input(aria('记忆范围'), conversation.id); await click(aria('启用此记忆')); await click(button('保存'));
     await waitFor(() => api.state.memories.length === 1 && document.querySelector('.library-item'), 'scoped memory saved');
@@ -241,7 +243,7 @@ test('management UI: file bytes, versions, safe preview, optimistic conflict and
     await waitFor(() => document.querySelector('.management-form [role=alert]')?.textContent.includes('不支持'), 'unsupported upload rejected'); assert.equal(api.state.artifacts.length, 1);
     await click(button('取消')); await click(button('删除')); await click(button('保留')); assert.equal(api.state.artifacts.length, 1);
     await click(button('删除')); await click(button('确认删除')); await waitFor(() => api.state.artifacts.length === 0 && !document.querySelector('.management-confirm'), 'artifact removed');
-    escape(); await waitFor(() => !document.querySelector('.management-modal'), 'close files'); assert.equal(window.location.pathname, '/library');
+    escape(); await waitFor(() => !document.querySelector('.management-modal'), 'close files'); assert.equal(window.location.pathname, '/library/notes');
     assert.deepEqual(ui.errors, []);
   } finally { window.close(); await api.close(); }
 });
@@ -601,7 +603,7 @@ test('draft goal UI follows its conversation file selection when started after i
     await waitFor(() => document.querySelector('.intro-bubble'), 'initial ready state'); await click(aria('目标')); await click(button('市场开发')); await waitFor(() => button('开始吧'), 'goal category'); await click(button('开始吧'));
     await waitFor(() => api.state.goals.length === 1 && document.querySelector('.chat-goal-strip'), 'draft goal intake'); assert.equal(calls.length, 0);
     await click(aria('选择任务输入')); await click(aria('使用文件 Goal source')); await click(button('保存任务输入')); await waitFor(() => !document.querySelector('.task-context-modal'), 'goal conversation context saved');
-    await click(document.querySelector('.chat-goal-strip button')); await waitFor(() => button('开始推进'), 'draft goal ready'); await click(button('开始推进'));
+    await click(document.querySelector('.chat-goal-strip button')); await waitFor(() => button('目标设置'), 'goal session'); await click(button('目标设置')); await waitFor(() => button('开始推进'), 'draft goal ready'); await click(button('开始推进'));
     await waitFor(() => api.state.goals[0].status === 'review_required', 'goal finishes based on selected file');
     assert.match(JSON.stringify(calls[0].messages), /GOAL_CONTEXT_SELECTED_AFTER_INTAKE/); assert.equal(api.state.runs[0].inputContextSnapshot.artifacts[0].id, file.id);
     assert.equal(ui.errors.length, 0, ui.errors.join('; '));

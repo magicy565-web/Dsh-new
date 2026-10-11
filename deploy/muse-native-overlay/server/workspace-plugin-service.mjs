@@ -487,6 +487,11 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
         if (!museRest) throw new MuseWorkerError(503, "MW_GATEWAY_UNAVAILABLE", "The original Muse binding is unavailable.");
         return museRest.bindConversation(actor);
       },
+      bindControl(actor) {
+        if (!museRest) throw new MuseWorkerError(503, 'MW_GATEWAY_UNAVAILABLE', 'The original Muse binding is unavailable.');
+        return museRest.bindControl(actor, { workspaceId: config.scopeId,
+          policyVersion: 'plugin-epoch-' + snapshot().epoch + '.' + fingerprint });
+      },
       bindSession(actor) {
         if (!museRest) throw new MuseWorkerError(503, 'MW_GATEWAY_UNAVAILABLE', 'The original Muse binding is unavailable.');
         return museRest.bindSession(actor);

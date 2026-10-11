@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: private supplier and listing cannot leak into read-only MCP until distinct explicit approvals
+ok 1 - private supplier and listing cannot leak into read-only MCP until distinct explicit approvals
+  ---
+  duration_ms: 3450.4556
+  type: 'test'
+  ...
+# Subtest: all supply writes enforce revision, request-id idempotency, schema and exact publication consent
+ok 2 - all supply writes enforce revision, request-id idempotency, schema and exact publication consent
+  ---
+  duration_ms: 3011.7496
+  type: 'test'
+  ...
+# Subtest: private MCP bearer is separate, disabled by default and has closed tool surfaces
+ok 3 - private MCP bearer is separate, disabled by default and has closed tool surfaces
+  ---
+  duration_ms: 6051.6893
+  type: 'test'
+  ...
+# Subtest: Shopify observed products are private store facts, not supplier IDs or export RFQs; duplicate request does not reread store
+ok 4 - Shopify observed products are private store facts, not supplier IDs or export RFQs; duplicate request does not reread store
+  ---
+  duration_ms: 3064.3435
+  type: 'test'
+  ...
+# Subtest: malformed Shopify product response cannot persist partial observations
+ok 5 - malformed Shopify product response cannot persist partial observations
+  ---
+  duration_ms: 3083.4107
+  type: 'test'
+  ...
+# Subtest: unpublishing a supplier cascades to offers and re-publishing does not accidentally resurrect them
+ok 6 - unpublishing a supplier cascades to offers and re-publishing does not accidentally resurrect them
+  ---
+  duration_ms: 3194.2663
+  type: 'test'
+  ...
+# Subtest: merchant featured offer and live price changes remain versioned declarations, not verified transactions
+ok 7 - merchant featured offer and live price changes remain versioned declarations, not verified transactions
+  ---
+  duration_ms: 3059.2182
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 25197.7003

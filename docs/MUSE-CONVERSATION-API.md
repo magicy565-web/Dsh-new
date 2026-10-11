@@ -1,5 +1,13 @@
 # Muse 原会话委派契约（TT041 后端候选）
 
+当前独立集成候选已接合 PR22 `78f15536`、PR25 `f662ac28` 与 PR26
+`b117b808`，并验证原 v3 Store 在本机 NTFS 的重启持久化。下文原基线说明是
+历史契约快照；当前接线、验证范围和 Supply V1 身份落盘阻点见
+[TT041-MANAGED-WORKSPACE-INTEGRATION.md](TT041-MANAGED-WORKSPACE-INTEGRATION.md)。
+Supply V1 已通过父任务授权的 Downloads 原始文件核验并局部接入；历史 Library
+身份落盘失败未被绕过。原供给 HTTP 测试已在当前 NTFS Store 上通过 7/7。
+真实 Harness/Muse 唤醒、Windows 私密 ACL 与 Linux 验收仍未完成。
+
 基线为 PR15 `2ac171e4da46e44e0095fe9907c2f8b1339a56cb`，不是 PR22 合并版。
 实现位于 `server/muse-conversation-delegation.mjs`，原插件 overlay 中有同字节副本。
 仅使用已有单一 Muse 的 `WorkerDesk -> adapter.submit -> museTasks -> Session receipt`。

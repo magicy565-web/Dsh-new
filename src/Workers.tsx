@@ -47,7 +47,7 @@ const serviceSteps = [
   { title: '验证交付价值', detail: '来源证据、人工验收和费用记录', icon: 'check' as IconName },
 ];
 
-export default function Workers({ role }: { role: Role }) {
+export default function Workers({ role, orderId, onOpenOrder }: { role: Role; orderId?: string; onOpenOrder?: (id?: string) => void }) {
   const [services, setServices] = useState<Service[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -55,7 +55,9 @@ export default function Workers({ role }: { role: Role }) {
   const [reviewNotes, setReviewNotes] = useState('');
   const [chosenProspects, setChosenProspects] = useState<number[]>([]);
   const [selection, setSelection] = useState<string | null>(null);
-  const [focused, setFocused] = useState<string | null>(null);
+  const [focused, setFocused] = useState<string | null>(orderId || null);
+  useEffect(() => { setFocused(orderId || null); }, [orderId]);
+  const focusOrder = useCallback((id: string | null) => { setFocused(id); onOpenOrder?.(id || undefined); }, [onOpenOrder]);
   const [product, setProduct] = useState('');
   const [market, setMarket] = useState('美国');
   const [objective, setObjective] = useState('');
@@ -113,7 +115,7 @@ export default function Workers({ role }: { role: Role }) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSelection(null);
-        setFocused(null);
+        focusOrder(null);
         setReviewId(null);
       }
     };
@@ -122,7 +124,7 @@ export default function Workers({ role }: { role: Role }) {
       document.body.style.overflow = before;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [selection, focused, reviewId]);
+  }, [selection, focused, reviewId, focusOrder]);
   const summary = useMemo(() => ({
     working: orders.filter(order => ['queued', 'running', 'input_required', 'cancel_requested'].includes(order.status)).length,
     review: orders.filter(order => ['review_required', 'result_incomplete'].includes(order.status)).length,
@@ -153,7 +155,7 @@ export default function Workers({ role }: { role: Role }) {
         budgetCredits: Number(budget), deadlineAt, requestId: retryId.current,
         publicDataConfirmed: confirmedPublic, ...(workerId ? { workerId } : {}),
       });
-      await load(); resetDraft(); setFocused(result.order.id);
+      await load(); resetDraft(); focusOrder(result.order.id);
       setNotice({ text: '任务单已保存。只有管理员明确批准后，才能调用外部 Worker。', error: false });
     } catch (error) { setNotice({ text: errorText(error), error: true }); }
     finally { setBusy(false); }
@@ -250,7 +252,7 @@ export default function Workers({ role }: { role: Role }) {
     <div className="worker-section-heading order-head"><div><span className="worker-eyebrow">WORK ORDERS</span><h2>我的工作委托</h2><p>查看真实进度、执行回执和可验收成果。</p></div><button className="worker-reload" onClick={() => void load().catch(error => setNotice({ text: errorText(error), error: true }))}><Icon name="refresh" size={16}/>刷新</button></div>
     <section className="worker-orders" aria-label="任务单">
       {!loaded ? <div className="worker-empty"><span><Icon name="refresh" size={26}/></span><strong>正在加载任务记录</strong><p>从企业 Workspace API 读取实时状态。</p></div> : orders.length === 0 ? <div className="worker-empty"><span><Icon name="work" size={28}/></span><strong>还没有委托任务</strong><p>先选择一项增长服务，填写简短业务需求。</p></div> :
-        [...orders].reverse().map(order => <button className={'worker-order-row' + (focused === order.id ? ' is-focused' : '')} key={order.id} onClick={() => { setFocused(order.id); setSelection(null); }}>
+        [...orders].reverse().map(order => <button className={'worker-order-row' + (focused === order.id ? ' is-focused' : '')} key={order.id} onClick={() => { focusOrder(order.id); setSelection(null); }}>
           <span className="worker-order-mark"><Icon name={icons[order.serviceId] || 'work'} size={20}/></span>
           <span className="worker-order-main"><strong>{order.serviceTitle}</strong><small>{order.product} · {order.market} · {dateText(order.updatedAt)}</small></span>
           <span className={'worker-state worker-state-' + order.status}>{statuses[order.status] || order.status}</span>
@@ -295,9 +297,9 @@ export default function Workers({ role }: { role: Role }) {
       </section>
     </div>}
 
-    {selectedOrder && <div className="worker-drawer-backdrop" role="presentation" onClick={() => setFocused(null)}>
+    {selectedOrder && <div className="worker-drawer-backdrop" role="presentation" onClick={() => focusOrder(null)}>
       <section className="worker-drawer" role="dialog" aria-modal="true" aria-labelledby="worker-order-title" onClick={event => event.stopPropagation()}>
-        <header><span className="worker-eyebrow">SERVICE DELIVERY</span><button type="button" onClick={() => setFocused(null)} aria-label="关闭"><Icon name="close" size={19}/></button></header>
+        <header><span className="worker-eyebrow">SERVICE DELIVERY</span><button type="button" onClick={() => focusOrder(null)} aria-label="关闭"><Icon name="close" size={19}/></button></header>
         <div className="worker-drawer-title"><span className="worker-service-icon"><Icon name={icons[selectedOrder.serviceId] || 'work'} size={22}/></span>
           <h2 id="worker-order-title">{selectedOrder.serviceTitle}</h2><span className={'worker-state worker-state-' + selectedOrder.status}>{statuses[selectedOrder.status] || selectedOrder.status}</span></div>
         <div className="worker-order-detail">

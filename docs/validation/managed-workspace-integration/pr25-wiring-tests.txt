@@ -1,0 +1,258 @@
+TAP version 13
+# Subtest: patched original Host reads original conversation draft/approval/queue without mutation or waking Muse
+ok 1 - patched original Host reads original conversation draft/approval/queue without mutation or waking Muse
+  ---
+  duration_ms: 14.8444
+  type: 'test'
+  ...
+# Subtest: original attempt/result/session return/enterprise acceptance remain distinct and read-only
+ok 2 - original attempt/result/session return/enterprise acceptance remain distinct and read-only
+  ---
+  duration_ms: 10.6128
+  type: 'test'
+  ...
+# Subtest: original cancellation rejects late result and preserves task/attempt without query repair
+ok 3 - original cancellation rejects late result and preserves task/attempt without query repair
+  ---
+  duration_ms: 3.169
+  type: 'test'
+  ...
+# Subtest: original owner fence and closed binding prevent cross-session or stale cached reads; remount retains original IDs
+ok 4 - original owner fence and closed binding prevent cross-session or stale cached reads; remount retains original IDs
+  ---
+  duration_ms: 1.7472
+  type: 'test'
+  ...
+# Subtest: corrupt original receipt fails unavailable without hiding, repairing or replaying the business message
+ok 5 - corrupt original receipt fails unavailable without hiding, repairing or replaying the business message
+  ---
+  duration_ms: 2.8619
+  type: 'test'
+  ...
+# Subtest: source wiring is anchored to current primary/overlay Host and forwards only original configured scope
+ok 6 - source wiring is anchored to current primary/overlay Host and forwards only original configured scope
+  ---
+  duration_ms: 0.9735
+  type: 'test'
+  ...
+# Subtest: lost original dispatch confirmation retains its task and uncertainty without query recovery or replacement
+ok 7 - lost original dispatch confirmation retains its task and uncertainty without query recovery or replacement
+  ---
+  duration_ms: 1.3307
+  type: 'test'
+  ...
+# Subtest: actual WorkerDesk and Dot bridge records preserve original order/request/worker and lease stages
+ok 8 - actual WorkerDesk and Dot bridge records preserve original order/request/worker and lease stages
+  ---
+  duration_ms: 1.8336
+  type: 'test'
+  ...
+# Subtest: actual cancellation and stop acknowledgment stay on the original attempt; query never polls or dispatches
+ok 9 - actual cancellation and stop acknowledgment stay on the original attempt; query never polls or dispatches
+  ---
+  duration_ms: 1.2511
+  type: 'test'
+  ...
+# Subtest: real runtime-created Goal/run shapes use recorded timestamps without assuming active counts prove a live attempt
+not ok 10 - real runtime-created Goal/run shapes use recorded timestamps without assuming active counts prove a live attempt
+  ---
+  duration_ms: 2.6821
+  type: 'test'
+  location: 'C:\\Users\\Administrator\\Documents\\Codex\\2026-10-12\\task-2\\integration-preview-b117-bac9\\test\\dot-control-host.test.mjs:70:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + '2026-10-11T18:36:47.414Z'
+    - '2026-10-11T18:36:47.413Z'
+                             ^
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '2026-10-11T18:36:47.413Z'
+  actual: '2026-10-11T18:36:47.414Z'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-12/task-2/integration-preview-b117-bac9/test/dot-control-host.test.mjs:83:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: orphan/foreign tasks cannot be adopted; a mismatched task binding is unknown and cannot become active
+ok 11 - orphan/foreign tasks cannot be adopted; a mismatched task binding is unknown and cannot become active
+  ---
+  duration_ms: 0.483
+  type: 'test'
+  ...
+# Subtest: legacy shared Goal records require the explicit existing workspace grant, never inferred private ownership
+ok 12 - legacy shared Goal records require the explicit existing workspace grant, never inferred private ownership
+  ---
+  duration_ms: 0.1248
+  type: 'test'
+  ...
+# Subtest: missing native metadata remains unknown ordering; no hash/read count is invented as persistent sequence
+ok 13 - missing native metadata remains unknown ordering; no hash/read count is invented as persistent sequence
+  ---
+  duration_ms: 0.1918
+  type: 'test'
+  ...
+# Subtest: unavailable/torn source is explicit and reconnect replay preserves its cursor rather than dropping events
+ok 14 - unavailable/torn source is explicit and reconnect replay preserves its cursor rather than dropping events
+  ---
+  duration_ms: 0.8892
+  type: 'test'
+  ...
+# Subtest: original authorization/epoch failure propagates and cannot produce cached or cross-owner data
+ok 15 - original authorization/epoch failure propagates and cannot produce cached or cross-owner data
+  ---
+  duration_ms: 0.1667
+  type: 'test'
+  ...
+# Subtest: original native owner/session syntax is preserved without renaming identities or widening task IDs
+ok 16 - original native owner/session syntax is preserved without renaming identities or widening task IDs
+  ---
+  duration_ms: 0.2076
+  type: 'test'
+  ...
+# Subtest: mismatched original conversation cannot certify completed Goal or accepted order; cancellation still wins
+ok 17 - mismatched original conversation cannot certify completed Goal or accepted order; cancellation still wins
+  ---
+  duration_ms: 0.2441
+  type: 'test'
+  ...
+# Subtest: private source is isolated across buyers and enterprises before metadata projection
+ok 18 - private source is isolated across buyers and enterprises before metadata projection
+  ---
+  duration_ms: 0.1535
+  type: 'test'
+  ...
+# Subtest: workspace sharing is explicit; private rows cannot widen source or tenant permission
+ok 19 - workspace sharing is explicit; private rows cannot widen source or tenant permission
+  ---
+  duration_ms: 0.1316
+  type: 'test'
+  ...
+# Subtest: self grants on shared legacy stores only expose explicitly owned private rows
+ok 20 - self grants on shared legacy stores only expose explicitly owned private rows
+  ---
+  duration_ms: 0.0845
+  type: 'test'
+  ...
+# Subtest: query is pure and allowlists away budgets, prices, prompts, receipts and blocker text
+ok 21 - query is pure and allowlists away budgets, prices, prompts, receipts and blocker text
+  ---
+  duration_ms: 0.149
+  type: 'test'
+  ...
+# Subtest: snapshot has source and fact update times; stale and invalid observation disable activity
+ok 22 - snapshot has source and fact update times; stale and invalid observation disable activity
+  ---
+  duration_ms: 0.2683
+  type: 'test'
+  ...
+# Subtest: draft, approval, dispatch, queue, claim, execution, blocker, return and acceptance stay separate
+ok 23 - draft, approval, dispatch, queue, claim, execution, blocker, return and acceptance stay separate
+  ---
+  duration_ms: 0.3343
+  type: 'test'
+  ...
+# Subtest: Muse parity with PR22: claim is not completed work, invalid lease is uncertain, cancellation wins
+ok 24 - Muse parity with PR22: claim is not completed work, invalid lease is uncertain, cancellation wins
+  ---
+  duration_ms: 0.267
+  type: 'test'
+  ...
+# Subtest: lease/fence/deadline consistency is required; persisted goal status requires its original live run
+ok 25 - lease/fence/deadline consistency is required; persisted goal status requires its original live run
+  ---
+  duration_ms: 0.3149
+  type: 'test'
+  ...
+# Subtest: original closed failure remains failed history and no longer requires attention
+ok 26 - original closed failure remains failed history and no longer requires attention
+  ---
+  duration_ms: 0.1751
+  type: 'test'
+  ...
+# Subtest: first observation establishes baseline; duplicates, out of order and heartbeat do not notify
+ok 27 - first observation establishes baseline; duplicates, out of order and heartbeat do not notify
+  ---
+  duration_ms: 0.3201
+  type: 'test'
+  ...
+# Subtest: duplicate source sequence cannot rewrite facts or fabricate notification progress
+ok 28 - duplicate source sequence cannot rewrite facts or fabricate notification progress
+  ---
+  duration_ms: 0.1198
+  type: 'test'
+  ...
+# Subtest: late higher-sequence callbacks never reopen cancelled, accepted or closed original records
+ok 29 - late higher-sequence callbacks never reopen cancelled, accepted or closed original records
+  ---
+  duration_ms: 0.3614
+  type: 'test'
+  ...
+# Subtest: incomplete/stale reads do not remove records; complete disappearance is not task completion
+ok 30 - incomplete/stale reads do not remove records; complete disappearance is not task completion
+  ---
+  duration_ms: 0.1573
+  type: 'test'
+  ...
+# Subtest: persistent JSON replay/ack survives process-like restart without a new task or notification ID
+ok 31 - persistent JSON replay/ack survives process-like restart without a new task or notification ID
+  ---
+  duration_ms: 8.5717
+  type: 'test'
+  ...
+# Subtest: replay validates actor/policy/epoch/cursor and reauthorizes each record; extra event data is stripped
+ok 32 - replay validates actor/policy/epoch/cursor and reauthorizes each record; extra event data is stripped
+  ---
+  duration_ms: 0.4348
+  type: 'test'
+  ...
+# Subtest: bounded replay preserves page cursor and signals a retained-history gap honestly
+ok 33 - bounded replay preserves page cursor and signals a retained-history gap honestly
+  ---
+  duration_ms: 0.3766
+  type: 'test'
+  ...
+# Subtest: source epoch changes and absent source ordering require explicit resync, never a guessed order
+ok 34 - source epoch changes and absent source ordering require explicit resync, never a guessed order
+  ---
+  duration_ms: 0.1986
+  type: 'test'
+  ...
+# Subtest: Goal advice states missing evidence, revision invalidation, budget and material requirements
+ok 35 - Goal advice states missing evidence, revision invalidation, budget and material requirements
+  ---
+  duration_ms: 0.5216
+  type: 'test'
+  ...
+# Subtest: Goal dependency evidence must be visible, fresh and business accepted; provider completion is insufficient
+ok 36 - Goal dependency evidence must be visible, fresh and business accepted; provider completion is insufficient
+  ---
+  duration_ms: 0.2623
+  type: 'test'
+  ...
+# Subtest: procurement profile delivery requires exact recipient, explicit scope and approval of the current profile version
+ok 37 - procurement profile delivery requires exact recipient, explicit scope and approval of the current profile version
+  ---
+  duration_ms: 0.208
+  type: 'test'
+  ...
+# Subtest: stale, expired, blocked, result review and cancellation advice never starts or resends work
+ok 38 - stale, expired, blocked, result review and cancellation advice never starts or resends work
+  ---
+  duration_ms: 0.1912
+  type: 'test'
+  ...
+1..38
+# tests 38
+# suites 0
+# pass 37
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 113.1253

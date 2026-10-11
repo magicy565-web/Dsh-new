@@ -1,0 +1,268 @@
+TAP version 13
+# Subtest: dot authentication is off without a reviewed hash and rejects non-worker/browser credentials
+ok 1 - dot authentication is off without a reviewed hash and rejects non-worker/browser credentials
+  ---
+  duration_ms: 1.1634
+  type: 'test'
+  ...
+# Subtest: dot queue, atomic one-attempt claim, upload, sources, tool receipt and reviewable structured result
+ok 2 - dot queue, atomic one-attempt claim, upload, sources, tool receipt and reviewable structured result
+  ---
+  duration_ms: 3317.215
+  type: 'test'
+  ...
+# Subtest: one unfinished personal dot attempt is enforced; expiry never triggers a new attempt
+ok 3 - one unfinished personal dot attempt is enforced; expiry never triggers a new attempt
+  ---
+  duration_ms: 3054.8268
+  type: 'test'
+  ...
+# Subtest: a claimed task cancellation is not successful until the original dot confirms stop
+ok 4 - a claimed task cancellation is not successful until the original dot confirms stop
+  ---
+  duration_ms: 3086.5638
+  type: 'test'
+  ...
+# Subtest: disabled dot worker is not advertised as executable even when files and plugin are present
+ok 5 - disabled dot worker is not advertised as executable even when files and plugin are present
+  ---
+  duration_ms: 3072.1339
+  type: 'test'
+  ...
+# Subtest: revoking the dot invitation blocks continued execution even with a previously valid lease
+ok 6 - revoking the dot invitation blocks continued execution even with a previously valid lease
+  ---
+  duration_ms: 3228.756
+  type: 'test'
+  ...
+# Subtest: dot cannot receive enterprise private RFQ data or unreviewed secret-bearing payloads
+ok 7 - dot cannot receive enterprise private RFQ data or unreviewed secret-bearing payloads
+  ---
+  duration_ms: 3013.6246
+  type: 'test'
+  ...
+# Subtest: Dot lease and heartbeat cannot extend beyond the approved business deadline
+ok 8 - Dot lease and heartbeat cannot extend beyond the approved business deadline
+  ---
+  duration_ms: 3003.0766
+  type: 'test'
+  ...
+# Subtest: explicit Muse draft maps once to original conversation, then explicit approval queues one original order
+ok 9 - explicit Muse draft maps once to original conversation, then explicit approval queues one original order
+  ---
+  duration_ms: 5.1918
+  type: 'test'
+  ...
+# Subtest: natural text, private scope, arbitrary Worker, foreign Session and stale review cannot dispatch
+ok 10 - natural text, private scope, arbitrary Worker, foreign Session and stale review cannot dispatch
+  ---
+  duration_ms: 0.8351
+  type: 'test'
+  ...
+# Subtest: requestId conflicts and one unfinished original delegation are enforced transactionally
+ok 11 - requestId conflicts and one unfinished original delegation are enforced transactionally
+  ---
+  duration_ms: 1.5242
+  type: 'test'
+  ...
+# Subtest: copy-on-write failure publishes neither an order nor a message and is not converted to success
+ok 12 - copy-on-write failure publishes neither an order nor a message and is not converted to success
+  ---
+  duration_ms: 0.4206
+  type: 'test'
+  ...
+# Subtest: lost dispatch persistence reconciles the same original order, without a replacement task or job ID
+ok 13 - lost dispatch persistence reconciles the same original order, without a replacement task or job ID
+  ---
+  duration_ms: 2.0885
+  type: 'test'
+  ...
+# Subtest: claimed, expired lease, cancellation and late submit retain attempt and fence
+ok 14 - claimed, expired lease, cancellation and late submit retain attempt and fence
+  ---
+  duration_ms: 5.4464
+  type: 'test'
+  ...
+# Subtest: result ready, native durable return and enterprise acceptance are distinct; exact file bytes survive JSON remount
+ok 15 - result ready, native durable return and enterprise acceptance are distinct; exact file bytes survive JSON remount
+  ---
+  duration_ms: 8.3188
+  type: 'test'
+  ...
+# Subtest: order scope or original conversation corruption invalidates old approvals without repair or replay
+ok 16 - order scope or original conversation corruption invalidates old approvals without repair or replay
+  ---
+  duration_ms: 0.8121
+  type: 'test'
+  ...
+# Subtest: a cached bound conversation cannot prepare work after native pause or detach
+ok 17 - a cached bound conversation cannot prepare work after native pause or detach
+  ---
+  duration_ms: 0.2446
+  type: 'test'
+  ...
+# Subtest: an exact retry after the deadline returns its original queued order and cannot restart expired work
+ok 18 - an exact retry after the deadline returns its original queued order and cannot restart expired work
+  ---
+  duration_ms: 1.501
+  type: 'test'
+  ...
+# Subtest: original conversation Host prepares Muse with no Dot connection, without dispatch or starting a timer
+ok 19 - original conversation Host prepares Muse with no Dot connection, without dispatch or starting a timer
+  ---
+  duration_ms: 1.4839
+  type: 'test'
+  ...
+# Subtest: original Dot submissions retain their binding and cannot fall through to a Muse order
+ok 20 - original Dot submissions retain their binding and cannot fall through to a Muse order
+  ---
+  duration_ms: 0.9796
+  type: 'test'
+  ...
+# Subtest: an explicitly reviewed original Muse Session keeps its Host entry through later REST attachment
+ok 21 - an explicitly reviewed original Muse Session keeps its Host entry through later REST attachment
+  ---
+  duration_ms: 0.6843
+  type: 'test'
+  ...
+# Subtest: original disk store reloads one delegation and task; exact receipt file survives reopening
+ok 22 - original disk store reloads one delegation and task; exact receipt file survives reopening
+  ---
+  duration_ms: 3098.6153
+  type: 'test'
+  ...
+# Subtest: disk restart retains original uncertain dispatch ID, cancellation, expired lease and late-result rejection
+ok 23 - disk restart retains original uncertain dispatch ID, cancellation, expired lease and late-result rejection
+  ---
+  duration_ms: 2995.1675
+  type: 'test'
+  ...
+# Subtest: Muse contract is the exact independently scoped 11-operation REST API
+ok 24 - Muse contract is the exact independently scoped 11-operation REST API
+  ---
+  duration_ms: 0.3041
+  type: 'test'
+  ...
+# Subtest: Muse Skill limits must match the published server contract
+ok 25 - Muse Skill limits must match the published server contract
+  ---
+  duration_ms: 0.1309
+  type: 'test'
+  ...
+# Subtest: Every Muse operation uses the dedicated bearer and no unreviewed private RFQ route
+ok 26 - Every Muse operation uses the dedicated bearer and no unreviewed private RFQ route
+  ---
+  duration_ms: 0.1825
+  type: 'test'
+  ...
+# Subtest: shared Muse mount keeps original routes and rejects Dot/browser credentials
+ok 27 - shared Muse mount keeps original routes and rejects Dot/browser credentials
+  ---
+  duration_ms: 47.4725
+  type: 'test'
+  ...
+# Subtest: host factory rejects missing services and identity/credential collisions before any write
+ok 28 - host factory rejects missing services and identity/credential collisions before any write
+  ---
+  duration_ms: 0.562
+  type: 'test'
+  ...
+# Subtest: unreviewed shared mount permits identity but cannot authorize a WorkerDesk order
+ok 29 - unreviewed shared mount permits identity but cannot authorize a WorkerDesk order
+  ---
+  duration_ms: 14.9692
+  type: 'test'
+  ...
+# Subtest: shared services carry an approved order through claim, file, submission and manual acceptance
+ok 30 - shared services carry an approved order through claim, file, submission and manual acceptance
+  ---
+  duration_ms: 17.0133
+  type: 'test'
+  ...
+# Subtest: unmount preserves the original attempt; remount cannot restart or clear cancellation
+ok 31 - unmount preserves the original attempt; remount cannot restart or clear cancellation
+  ---
+  duration_ms: 15.3431
+  type: 'test'
+  ...
+# Subtest: close fences new HTTP work synchronously and drains accepted parent writes
+ok 32 - close fences new HTTP work synchronously and drains accepted parent writes
+  ---
+  duration_ms: 0.2695
+  type: 'test'
+  ...
+# Subtest: close waits for accepted adapter dispatch and rejects a replacement submission
+ok 33 - close waits for accepted adapter dispatch and rejects a replacement submission
+  ---
+  duration_ms: 0.2005
+  type: 'test'
+  ...
+# Subtest: a restored snapshot fences out prior Muse and Dot leases and pauses all worker orders
+ok 34 - a restored snapshot fences out prior Muse and Dot leases and pauses all worker orders
+  ---
+  duration_ms: 9146.9021
+  type: 'test'
+  ...
+# Subtest: worker service catalog is honest when no external executor is enrolled
+ok 35 - worker service catalog is honest when no external executor is enrolled
+  ---
+  duration_ms: 1548.3463
+  type: 'test'
+  ...
+# Subtest: durable idempotency and strict external data scope
+ok 36 - durable idempotency and strict external data scope
+  ---
+  duration_ms: 1663.995
+  type: 'test'
+  ...
+# Subtest: reviewed worker accepts exact approved task and yields a human-reviewed outcome
+ok 37 - reviewed worker accepts exact approved task and yields a human-reviewed outcome
+  ---
+  duration_ms: 1630.9424
+  type: 'test'
+  ...
+# Subtest: dispatch network uncertainty never re-submits work automatically
+ok 38 - dispatch network uncertainty never re-submits work automatically
+  ---
+  duration_ms: 1573.3966
+  type: 'test'
+  ...
+# Subtest: worker cost over approved cap blocks acceptance regardless of delivery claims
+ok 39 - worker cost over approved cap blocks acceptance regardless of delivery claims
+  ---
+  duration_ms: 1545.2474
+  type: 'test'
+  ...
+# Subtest: requesting cancellation never claims external stop without acknowledgement
+ok 40 - requesting cancellation never claims external stop without acknowledgement
+  ---
+  duration_ms: 1584.394
+  type: 'test'
+  ...
+# Subtest: buyer research cannot pass human acceptance with a summary but no actual prospects
+ok 41 - buyer research cannot pass human acceptance with a summary but no actual prospects
+  ---
+  duration_ms: 1666.6133
+  type: 'test'
+  ...
+# Subtest: a queued or completed remote response cannot revoke a pending cancellation
+ok 42 - a queued or completed remote response cannot revoke a pending cancellation
+  ---
+  duration_ms: 1651.0267
+  type: 'test'
+  ...
+# Subtest: duplicated buyer company/domain is rejected instead of inflating lead counts
+ok 43 - duplicated buyer company/domain is rejected instead of inflating lead counts
+  ---
+  duration_ms: 1591.6826
+  type: 'test'
+  ...
+1..43
+# tests 43
+# suites 0
+# pass 43
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 51679.1963

@@ -1,0 +1,9 @@
+{
+  "checkedAtUTC": "2026-10-11T06:30:45.952539+00:00",
+  "host": "workspace.cnsubscribe.xyz",
+  "credentialsUsed": false,
+  "error": {
+    "type": "gaierror",
+    "message": "[Errno -3] Temporary failure in name resolution"
+  }
+}

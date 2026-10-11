@@ -81,12 +81,12 @@ test('migration survives process exits at every publication boundary without exp
     const result = interruptedOpen(dir, point);
     assert.equal(result.status, 73, result.stderr || result.stdout);
     const before = await fs.readFile(path.join(dir, 'workspace.json'), 'utf8');
-    assert.equal(JSON.parse(before).version, point === 'published-state' ? 2 : 1);
+    assert.equal(JSON.parse(before).version, point === 'published-state' ? 3 : 1);
     if (point !== 'published-state') assert.equal(before, raw);
     if (['partial-backup-write', 'synced-backup-stage'].includes(point)) await assert.rejects(fs.stat(path.join(dir, backupName)), { code: 'ENOENT' });
     else assert.equal(await fs.readFile(path.join(dir, backupName), 'utf8'), raw);
     const store = await openStore(dir);
-    assert.equal(store.read().version, 2);
+    assert.equal(store.read().version, 3);
     assert.deepEqual(store.read().messages, legacy().messages);
     assert.deepEqual(store.read().extension, legacy().extension);
     assert.equal(await fs.readFile(path.join(dir, backupName), 'utf8'), raw);
@@ -113,11 +113,11 @@ test('backup I/O failures retain v1; uncertain migration commit is distinct and 
     assert.equal(failure.code, uncertainCommit ? 'WORKSPACE_COMMIT_UNCERTAIN' : 'WORKSPACE_MIGRATION_BACKUP_FAILED');
     assert.equal(failure.phase, uncertainCommit ? 'migration-commit' : 'migration-backup');
     const current = await fs.readFile(path.join(dir, 'workspace.json'), 'utf8');
-    if (uncertainCommit) assert.equal(JSON.parse(current).version, 2);
+    if (uncertainCommit) assert.equal(JSON.parse(current).version, 3);
     else assert.equal(current, raw);
     await assert.rejects(fs.stat(path.join(dir, 'workspace.lock')), { code: 'ENOENT' });
     const store = await openStore(dir);
-    assert.equal(store.read().version, 2);
+    assert.equal(store.read().version, 3);
     assert.equal(await fs.readFile(path.join(dir, backupName), 'utf8'), raw);
     await store.close();
   });
@@ -166,14 +166,14 @@ test('exact existing backup is synced, reused and made private before migration'
 
 test('startup distinguishes unknown schema from invalid data without changing either', async t => {
   const dir = await directory(t);
-  for (const [version, code] of [[3, 'WORKSPACE_VERSION_UNSUPPORTED'], [0, 'WORKSPACE_VERSION_UNSUPPORTED'], ['2', 'WORKSPACE_DATA_INVALID']]) {
+  for (const [version, code] of [[4, 'WORKSPACE_VERSION_UNSUPPORTED'], [0, 'WORKSPACE_VERSION_UNSUPPORTED'], ['2', 'WORKSPACE_DATA_INVALID']]) {
     const raw = JSON.stringify({ ...legacy(), version });
     await fs.writeFile(path.join(dir, 'workspace.json'), raw);
     await assert.rejects(openStore(dir), error => { assert.equal(error.code, code); assert.equal(error.phase, 'validate'); return true; });
     assert.equal(await fs.readFile(path.join(dir, 'workspace.json'), 'utf8'), raw);
     assert.deepEqual(await fs.readdir(dir), ['workspace.json']);
   }
-  assert.deepEqual(SUPPORTED_STORE_VERSIONS, [1, 2]);
+  assert.deepEqual(SUPPORTED_STORE_VERSIONS, [1, 2, 3]);
 });
 
 test('missing authoritative state with write evidence fails closed instead of creating an empty workspace', async t => {
@@ -207,7 +207,7 @@ test('startup diagnostics are detached and report unusable rollback backup witho
   assert.equal(store.diagnostics().migrationBackup.status, 'absent');
   const view = store.diagnostics(); view.startup.action = 'wrong'; view.supportedVersions.push(9);
   assert.equal(store.diagnostics().startup.action, 'created');
-  assert.deepEqual(store.diagnostics().supportedVersions, [1, 2]);
+  assert.deepEqual(store.diagnostics().supportedVersions, [1, 2, 3]);
   await store.update(state => { state.settings.name = 'Retained v2 state'; });
   assert.equal(store.diagnostics().sequence, 1); await store.close();
   assert.equal(store.diagnostics().state, 'closed');

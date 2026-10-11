@@ -39,6 +39,9 @@ export const WORKER_SERVICES = Object.freeze([
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const keysOnly = (v, keys) => isObject(v) && Object.keys(v).every(k => keys.includes(k));
 const identifier = value => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/.test(value);
+// Enterprise subjects use the identity ingress contract, including email and
+// provider-qualified IDs. Worker and request IDs keep their narrower syntax.
+const principal = value => typeof value === 'string' && /^[A-Za-z0-9._@:+|/-]{1,128}$/.test(value);
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const now = () => new Date().toISOString();
 
@@ -128,7 +131,7 @@ const cleanProspects = items => {
   });
 };
 
-export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null, validateActor = identifier }) {
+export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null, validateActor = principal }) {
   if (typeof store?.read !== 'function' || typeof store?.update !== 'function') throw new TypeError('Worker desk needs the existing durable workspace store.');
   if (typeof validateActor !== 'function') throw new TypeError('Worker actors require the trusted Host validator.');
   const adapterMap = new Map();

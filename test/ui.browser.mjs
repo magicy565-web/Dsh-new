@@ -14,9 +14,8 @@ try {
  const page=await browser.newPage({viewport:{width:1188,height:761}});
  await mkdir('evidence/browser',{recursive:true});
  page.on('pageerror',error=>errors.push(error.message));
- await page.goto(base);await page.getByRole('heading',{name:/你的 AI 专家团队/}).waitFor();
- await page.getByRole('region',{name:'ChatGPT dot 云 Worker'}).waitFor();
- await page.getByText('尚未连接 Workspace 插件').waitFor();
+ await page.goto(base+'/workers');await page.getByRole('heading',{name:/你的 AI 专家团队/}).waitFor();
+ assert.equal(await page.getByRole('region',{name:'ChatGPT dot 云 Worker'}).count(),0,'unconfigured Dot bridge is not presented as an installed executor');
  await page.locator('.ce-expert-card').nth(7).waitFor();
  assert.equal(await page.locator('.ce-expert-card .expert-mark svg').count(),8, 'eight full vector expert icons replace letter placeholders');
  assert.equal(await page.locator('.ce-team-card .expert-team-mark svg').count(),12, 'team cards show actual role icons');
