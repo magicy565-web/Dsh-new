@@ -1,8 +1,8 @@
 # TT041 read-only control plane
 
-Exclusive changes: server/dot-control-plane.mjs, test/dot-control-plane.test.mjs,
-and this document. The frontend, server entrypoint, worker dispatch, store schema,
-original Dot authorization and callback subscriptions are unchanged.
+Exclusive changes are the two server/dot-control-plane*.mjs modules, their three
+tests, scripts/dot-control-wiring.mjs, this document and docs/patches/ artifacts.
+No common frontend, server entrypoint or task-2 dispatch file was edited.
 
 ## Verified baseline and reuse
 
@@ -13,6 +13,16 @@ was reused without another clone/download. Every blob, tree and original commit
 object was verified before the existing portable Git created the worktree.
 The original parent is an explicit shallow boundary. No synthetic history was used.
 PR22 and PR15 remain separate Draft PRs; neither was merged.
+
+The adapter contract is additionally pinned to task 2 PR26 commit
+9e92fe31dad89677d36932ef7f623a784aec278b, whose base is PR15
+2ac171e4da46e44e0095fe9907c2f8b1339a56cb. GitHub Connector supplied the exact
+12 original source/fixture dependency blobs; the supplemental test verifies
+each Git blob SHA before importing them. The manifest is in
+docs/patches/dot-control-host-wiring-source.json. This is a read-only source
+snapshot, separate from the PR22 worktree, not an integrated release checkout.
+PR26's latest routing change retains the reviewed Muse Session Host entry while
+REST is attached later. All 12 adapter-test dependency blobs match that commit.
 
 Source evidence:
 
@@ -43,6 +53,8 @@ These are importable functions, not new deployed HTTP/MCP endpoints:
 | replayControlEvents(journal,{principal,snapshot,epoch,after,limit}) | Bounded replay, current permission filtering and honest reset when history is unavailable. |
 | acknowledgeControlCursor(journal,{principal,consumerId,epoch,cursor}) | Monotonic application-consumption cursor, separate from HTTP receipt or business acceptance. |
 | recommendGoalSteps(snapshot,{facts,now}) | Evidence-referenced suggestions with executable:false, executed:false and requiresApproval:true. |
+| adaptWorkspaceControlSource({state,principal,binding,sourceId,observedAt,...}) | Maps existing WorkerDesk, original Dot/Muse tasks, Runtime Goals/runs and original Session receipts; never adopts orphan tasks. |
+| createWorkspaceControlReader({readContext,readState,readMuseSession,sourceId,now,maxAgeMs}) | Returns read/replay/suggestions through original read methods and rechecks original owner/lifecycle context on every call. |
 
 No DOM, localStorage, sessionStorage, proprietary runtime copy, DAG, scheduling
 engine or second writer is involved. Web, future mini-program and unified
@@ -86,7 +98,10 @@ source's actual last state change. Neither is a progress percentage or heartbeat
 A stale/unknown source cannot activate a task animation. Expired, inconsistent
 or missing lease/fence/deadline evidence yields unknown execution. A Goal needs
 its original matching live attempt; an order's reported state alone is not proof
-of active execution. Claimed and running remain different statuses.
+of active execution. Claimed and running remain different statuses. In the Muse
+projection, claimed.active means a valid held lease. It does not establish a
+model turn, wakeup or execution start. PR26 still reports wake.supported:false,
+wake.observed:false and executionStartedAt:null; the UI must preserve that fact.
 
 The aggregate intentionally excludes text, prices, budget values, supplier
 floors, customer profiles, prompts, raw blocker messages, complete receipts,
@@ -99,6 +114,82 @@ ordering:"unknown" and journal advancement fails CONTROL_ORDER_UNKNOWN.
 Do not synthesize sequence from wall time, read count, animation or login.
 An adapter exposing the original persistent event/version order must be verified
 with the real versioned Harness dependency before native replay is accepted.
+
+## Original Host mapping and reviewable wiring
+
+The adapter maps original workerOrders to orders and their exact associated
+dotTasks/museTasks to task records. Original orderId, requestId, Worker ID,
+native conversationId, taskRef, attemptId/fence and source timestamps are retained.
+Native owner/Session IDs preserve the original @ and / syntax; public task IDs
+retain their narrower syntax. It uses raw order status, not PR26's product phase:
+draft plus original conversation mapping is awaiting_approval; approved is
+awaiting_dispatch; claimed remains a lease; submitted is return_pending;
+exact original receipt/message acknowledgement is returned; original explicit
+acceptedAt is accepted. Pending past its deadline retains reported queued status
+and deadlineAt; the authorized PR26 detail reader exposes deadline_expired.
+The UI must retain this distinction without inventing a new terminal state.
+
+Conversation linkage checks the original owner, user-message content hash,
+request/review/order identity and Worker. Task linkage checks the original task
+ID, order, Worker, service, budget and deadline internally. Dispatch confirmation
+loss may leave remoteJobId:null while the original task exists; the adapter
+retains that exact task and dispatching/uncertain state without reconciliation.
+The supplied original Session view validates receipt, attempt, upload and file
+bindings. The adapter additionally checks the saved receipt and exact original
+business message before reporting returned. Missing/mismatched linkage becomes
+unknown; it cannot certify accepted/completed business dependencies. Cancellation
+remains dominant. Orphan/foreign tasks and receipts are not adopted.
+
+Runtime runs lack updatedAt in actual created records. The adapter reports the
+latest recorded updatedAt/finishedAt/startedAt/createdAt/event.createdAt and labels
+updatedAtOrigin:run-timestamps. A stored running run stays unknown unless the
+original Host supplies verifiedRunIds from the real runtime. Existing shared
+legacy Goals need an explicit workspace grant; native private bindings never
+infer ownership of an ownerless Goal. The native Dot bindDotTasks view is still
+an integration gap; this adapter's Dot task path consumes existing dotTasks.
+
+The reader rechecks original readContext, reads state, reads the original
+Session.view(), reads state again, then rechecks the context. Different state
+digests mark unavailable/CONTROL_HOST_SNAPSHOT_CHANGED. The digest is only a
+torn-read check, never an event cursor. Without an original persistent sequence,
+this is a best-effort current snapshot; it cannot establish intermediate event
+history. Private exception messages/paths are discarded. Original owner/epoch
+failures propagate; other read failures produce unavailable, complete:false
+and no records. Replay leaves the consumer cursor unchanged on unavailable,
+stale, incomplete or absent previously observed sources, so reconnect cannot
+silently skip unconsumed changes.
+
+docs/patches/dot-control-host-wiring.patch contains three exact source edits:
+
+1. Original primary native binding: bindControl(originalActor, hostScope).
+2. Original native overlay binding: the same scoped method.
+3. Original plugin service: service.muse.bindControl(originalActor), forwarding
+   config.scopeId and the existing plugin epoch/fingerprint as policyVersion.
+
+bindControl returns only read/replay/suggestions. It obtains identity from the
+already reviewed original native binding and reuses scoped(), store.read() and
+session.view(). No timer, write, dispatch, grant, HTTP endpoint or subscription
+is added. Suggestions facts must come from trusted existing Host records, never
+MCP arguments or a model's unsupported claims. An integration call is:
+
+```js
+const control = service.muse.bindControl(originalAuthenticatedActor);
+const snapshot = await control.read();
+// The existing authoritative writer persists journal/acks separately.
+const page = await control.replay(existingAuthorizedJournal, {epoch, after});
+```
+
+The patch was generated against verified PR26 blobs and passed Git apply --check
+against task 2's unchanged relevant source files. It was not applied there.
+The executable supplemental test applies the primary binding edit in memory,
+imports the actual original WorkerDesk/Muse/Session implementation and exercises
+its real record shapes using PR26's explicitly synthetic fixture.
+The overlay import ../../../server/dot-control-plane-host.mjs resolves inside
+this source repository. Production packaging must place/version these two new
+modules as a reviewed service-plugin dependency and resolve its import; the
+standalone overlay/full Harness is not boot-verified. Do not ship this patch as
+an already assembled deployment. PR22/PR26 source reconciliation, original
+authenticated BFF/MCP registration and event persistence remain coordinated work.
 
 ## Persistence and event integration
 
@@ -180,13 +271,30 @@ that a merchant received or replied.
 
 Bundled existing Node 24.21.0, Windows, no dependency installation:
 
-    node --test --test-isolation=none test/dot-control-plane.test.mjs
+    node --test --test-isolation=none test/dot-control-plane.test.mjs test/dot-control-host.test.mjs
 
-21 tests pass, zero failures/skips. They cover buyer/enterprise isolation,
+31 ordinary tests pass, zero failures/skips. They cover buyer/enterprise isolation,
 allowlisting, state/freshness, original V22 helper parity, lease/fence/deadline,
 closed failures, duplicate/older input, heartbeat suppression, cancellation and
 late results, partial reads, JSON restart/replay/ack, retention gaps, permission
 changes, evidence/approval invalidation and exact procurement sharing scope.
+The original WorkerDesk/Dot bridge/Runtime functions create the adapter's
+records under an explicit memory fixture, including cancellation and run times.
+
+For the supplemental fixed PR26 source test, set TT041_PR26_SOURCE to its
+read-only source snapshot, whose 12 Git blob hashes must match the manifest:
+
+    node --test --test-isolation=none test/dot-control-host.peer-contract.mjs
+
+7 supplemental tests pass, zero failures/skips; total 38. They execute the exact
+patched original native binding through PR26's original conversation fixture:
+draft/approval/queue, same attempt/fence, result return versus acceptance,
+cancellation/late result, closed binding/JSON remount, corrupt business receipt,
+uncertain original dispatch and strict source wiring. The fixture uses memory
+copy-on-write storage, memory artifact bytes, a synthetic Session and an explicit
+relay error-helper stub. No test starts a model turn. The supplemental file is
+explicitly selected; the ordinary suite neither needs external source nor skips
+these tests as if verified. Local evidence is docs/validation/dot-control-tests.txt.
 
 The default subprocess-isolated test runner hit spawn EPERM in this sandbox;
 Node's built-in test-isolation=none ran the same tests without a child process.
@@ -197,3 +305,9 @@ No full frontend build, original native Host, genuine Dot/Muse execution,
 production OAuth refresh/callback, deployment, provider billing or real
 buyer/merchant vertical flow was run. The existing PR22/PR15 source evidence and
 these passing fixtures must not be promoted into those acceptance claims.
+Task 2 PR26's fixed delivery reports 35 offline contracts passed, but 17 of 18
+original disk regressions failed at original syncDirectory/fsync EPERM and
+standalone overlay startup lacks its original muse-worker-host dependency.
+Those are supporting blocker reports, not tests this task reran or repaired.
+Native persistent source ordering/journal/outbox, original Dot view/wakeup and
+the buyer-to-named-merchant vertical remain unaccepted.

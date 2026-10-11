@@ -6,6 +6,8 @@
 const kinds = new Set(['goal', 'order', 'task', 'attempt']);
 const id = value => typeof value === 'string' && /^[a-z0-9][a-z0-9._:-]{0,199}$/i.test(value)
   && !['__proto__', 'constructor', 'prototype'].includes(value);
+const nativeId = value => typeof value === 'string' && /^[a-z0-9][a-z0-9_.:@/-]{0,127}$/i.test(value)
+  && !['__proto__', 'constructor', 'prototype'].includes(value);
 const sha = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const integer = value => Number.isSafeInteger(value) && value >= 0;
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -20,7 +22,7 @@ const bounded = (value, fallback, max) => integer(value) && value > 0 && value <
 
 /** Principal and grants must come from the original authenticated host, never a request body. */
 export function controlScopeKey(principal) {
-  if (!object(principal) || !id(principal.workspaceId) || !id(principal.userId)
+  if (!object(principal) || !id(principal.workspaceId) || !nativeId(principal.userId)
     || !id(principal.policyVersion) || !Array.isArray(principal.grants)) fail('CONTROL_SCOPE_REQUIRED');
   const grants = principal.grants.map(grant => {
     if (!object(grant) || !id(grant.sourceId) || !['self', 'workspace'].includes(grant.scope)
@@ -45,7 +47,9 @@ function visible(source, row, principal, kind) {
 function freshness(source, now, maxAgeMs) {
   const observed = time(source.observedAt), changed = time(source.updatedAt);
   const valid = Number.isFinite(observed) && observed <= now && Number.isFinite(changed) && changed <= observed;
-  return { state: !valid ? 'unknown' : now - observed >= maxAgeMs ? 'stale' : 'fresh',
+  return { state: source.availability === 'unavailable' || !valid ? 'unknown' : now - observed >= maxAgeMs ? 'stale' : 'fresh',
+    availability: source.availability === 'unavailable' ? 'unavailable' : source.availability === 'available' ? 'available' : 'unknown',
+    reason: id(source.reasonCode) ? source.reasonCode : null,
     observedAt: timestamp(source.observedAt), updatedAt: timestamp(source.updatedAt),
     expiresAt: valid ? new Date(observed + maxAgeMs).toISOString() : null };
 }
@@ -53,8 +57,8 @@ function freshness(source, now, maxAgeMs) {
 function lifecycle(row, kind, domain, source, now, freshnessState) {
   const raw = typeof row.status === 'string' ? row.status : row.state;
   const execution = row.executionStatus ?? (kind === 'task' ? row.state ?? raw : null);
-  const accepted = raw === 'accepted' && time(row.acceptedAt) <= now;
-  const delivered = sha(row.receiptHash) && row.returnedHash === row.receiptHash;
+  const accepted = row.reconciliationRequired !== true && raw === 'accepted' && time(row.acceptedAt) <= now;
+  const delivered = row.reconciliationRequired !== true && sha(row.receiptHash) && row.returnedHash === row.receiptHash;
   const nativeAccepted = delivered && row.acceptedHash === row.receiptHash;
   const closed = delivered && row.closedHash === row.receiptHash;
   const validFence = id(row.attemptId) && integer(row.fence) && row.fence > 0;
@@ -63,13 +67,15 @@ function lifecycle(row, kind, domain, source, now, freshnessState) {
   const leaseValid = validFence && consistentLease && lease > now && time(row.deadlineAt) > now;
   let status = 'unknown', active = false;
   const unknowns = [];
-  if (['cancelled', 'expired', 'failed', 'completed'].includes(raw)) status = raw;
+  if (['cancelled', 'expired', 'failed'].includes(raw)) status = raw;
   else if (time(row.cancelledAt) <= now) status = 'cancelled';
   else if (raw === 'cancel_requested' || execution === 'cancel_requested' || row.cancellationRequested === true) status = 'cancel_requested';
+  else if (row.reconciliationRequired === true) { status = 'unknown'; unknowns.push('original_binding'); }
+  else if (raw === 'completed') status = 'completed';
   else if (raw === 'accepted') { status = accepted ? 'accepted' : 'unknown'; if (!accepted) unknowns.push('acceptance_evidence'); }
   else if (nativeAccepted) status = 'accepted';
   else if (['blocked', 'input_required', 'result_incomplete', 'budget_dispute'].includes(raw) || execution === 'blocked') status = 'blocked';
-  else if (raw === 'dispatch_uncertain' || row.reconciliationRequired === true) status = 'unknown';
+  else if (raw === 'dispatch_uncertain') status = 'unknown';
   else if (delivered) status = 'returned';
   else if (raw === 'review_required') status = kind === 'order' || kind === 'goal' ? 'awaiting_acceptance' : 'return_pending';
   else if (raw === 'submitted' || execution === 'submitted' || raw === 'return_pending' || raw === 'succeeded') status = 'return_pending';
@@ -77,7 +83,7 @@ function lifecycle(row, kind, domain, source, now, freshnessState) {
     status = leaseValid ? 'claimed' : 'unknown'; active = leaseValid;
     if (!leaseValid) unknowns.push('execution_lease');
   } else if (raw === 'running' && kind === 'attempt' && domain === 'runtime') {
-    active = source.executionVerified === true && id(row.id) && time(row.startedAt) <= now;
+    active = (source.executionVerified === true || row.executionVerified === true) && id(row.id) && time(row.startedAt) <= now;
     status = active ? 'running' : 'unknown';
     if (!active) unknowns.push('runtime_execution');
   } else if (raw === 'running' && kind === 'task' && domain === 'dot') {
@@ -140,9 +146,14 @@ export function projectControlSnapshot({ principal, sources, now = Date.now(), m
       const state = lifecycle(row, row.kind, domain, source, now, fresh.state);
       if (!Number.isFinite(time(row.updatedAt)) || time(row.updatedAt) > time(source.observedAt)) {
         state.active = false; state.unknowns.push('record_updated_at');
-        if (['running', 'claimed'].includes(state.status)) state.status = 'unknown';
+        if (['running', 'claimed'].includes(state.status)) { state.status = 'unknown'; state.needsAttention = true; }
       }
+      const links = Object.fromEntries(['conversation', 'task', 'receipt'].map(name => [name,
+        ['verified', 'missing', 'mismatch', 'not_supported'].includes(row.linkage?.[name]) ? row.linkage[name] : 'not_supported']));
       records.push({ key, id: identifier, kind: row.kind, domain,
+        conversationId: nativeId(row.conversationId ?? row.nativeAgentId) ? row.conversationId ?? row.nativeAgentId : null,
+        requestId: id(row.requestId) ? row.requestId : null, workerId: id(row.workerId) ? row.workerId : null,
+        linkage: links,
         goalId: id(row.goalId) ? row.goalId : null, orderId: id(row.orderId) ? row.orderId : null,
         taskRef: id(row.taskRef) ? row.taskRef : null, attemptId: id(row.attemptId) ? row.attemptId : null,
         runId: id(row.runId) ? row.runId : null, fence: integer(row.fence) ? row.fence : null,
@@ -150,9 +161,12 @@ export function projectControlSnapshot({ principal, sources, now = Date.now(), m
         blockerCode: id(row.error?.code ?? row.lastError?.code ?? row.blocker?.code)
           ? row.error?.code ?? row.lastError?.code ?? row.blocker?.code : null,
         reportedStatus: id(row.status ?? row.state) ? row.status ?? row.state : 'unknown', ...state,
-        updatedAt: timestamp(row.updatedAt), deadlineAt: timestamp(row.deadlineAt),
+        updatedAt: timestamp(row.updatedAt), orderUpdatedAt: timestamp(row.orderUpdatedAt),
+        taskUpdatedAt: timestamp(row.taskUpdatedAt), updatedAtOrigin: id(row.updatedAtOrigin) ? row.updatedAtOrigin : null,
+        deadlineAt: timestamp(row.deadlineAt),
         source: { id: source.id, epoch: orderingKnown ? source.epoch : null, sequence: orderingKnown ? source.sequence : null },
-        freshness: fresh });
+        freshness: fresh,
+        origin: id(row.origin?.collection) && id(row.origin?.recordId) ? {collection:row.origin.collection,recordId:row.origin.recordId} : null });
     }
   }
   // A Goal's persisted "running" alone is not evidence of a live attempt.
@@ -244,6 +258,10 @@ export function replayControlEvents(journal, { principal, snapshot, epoch, after
   if (!integer(after)) fail('CONTROL_CURSOR_INVALID');
   if (epoch !== journal.epoch || after < journal.floor || after > journal.cursor)
     return { resetRequired: true, epoch: journal.epoch, cursor: journal.cursor, events: [] };
+  const sourceIds=new Set(snapshot.sources.map(source=>source.id));
+  if (snapshot.sources.some(source=>source.freshness.state!=='fresh' || source.complete!==true)
+    || Object.keys(journal.sources).some(sourceId=>!sourceIds.has(sourceId)))
+    return {resetRequired:false,unavailable:true,epoch:journal.epoch,cursor:after,events:[],hasMore:after<journal.cursor};
   limit = bounded(limit, 100, 1000);
   const page = journal.events.filter(event => event.cursor > after).slice(0, limit);
   const visibleKeys = new Set(snapshot.records.map(row => row.key));
