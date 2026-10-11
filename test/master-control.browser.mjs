@@ -36,7 +36,7 @@ try {
   };
   const findGoal = id => app.store.read().goals.find(goal => goal.id === id);
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, reducedMotion: 'no-preference' });
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
   page.on('pageerror', error => errors.push(error.message));
@@ -46,8 +46,23 @@ try {
   await page.goto(base);
   await page.getByRole('heading', { name: '我在这里', exact: true }).waitFor();
   assert.equal(await page.locator('.nav-rail').isVisible(), false);
-  assert.equal(await page.locator('.control-spirit img').evaluate(image => image.complete && image.naturalWidth > 0), true);
-  await page.screenshot({ path: `${output}/mobile-empty.png` });
+  assert.equal(await page.locator('.spirit-body').count(), 1);
+
+  const motionSamples = await page.evaluate(async () => {
+    const values = { body: [], eye: [], hand: [] };
+    const selectors = { body: '.control-spirit-float', eye: '.spirit-eye', hand: '.spirit-hand-right' };
+    const start = performance.now();
+    while (performance.now() - start < 5600) {
+      for (const key of Object.keys(values)) values[key].push(getComputedStyle(document.querySelector(selectors[key])).transform);
+      await new Promise(requestAnimationFrame);
+    }
+    return Object.fromEntries(Object.entries(values).map(([key, samples]) => [key, new Set(samples).size]));
+  });
+  for (const [part, count] of Object.entries(motionSamples)) assert.ok(count > 3, part + ' actually changes over time');
+  assert.equal(calls.length, 0, 'animation never dispatches a task');
+  await writeFile(output + '/MOTION-SAMPLES.json', JSON.stringify(motionSamples, null, 2));
+  checks.push('Real animation frames change body, eyes and hand independently without backend execution.');
+  await page.screenshot({ path: output + '/mobile-empty.png' });
   checks.push('Empty home has one centered animated sprite, no navigation wall, and no invented tasks.');
 
   await page.getByRole('textbox', { name: '主控指令' }).fill('研究美国市场');
@@ -153,8 +168,27 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('button', { name: '打开主控任务', exact: true }).evaluate(element => element === document.activeElement), true);
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.getByRole('button', { name: '开启精灵动画', exact: true }).waitFor();
   assert.equal(await page.locator('.control-spirit-float').evaluate(element => getComputedStyle(element).animationName), 'none');
+
+  await page.getByRole('button', { name: '开启精灵动画', exact: true }).click();
+  assert.equal(await page.locator('.control-spirit-float').evaluate(element => getComputedStyle(element).animationName), 'spirit-float');
+  await page.getByRole('button', { name: '暂停精灵动画', exact: true }).click();
+  await page.reload();
+  await page.getByRole('button', { name: '开启精灵动画', exact: true }).waitFor();
+  assert.equal(await page.locator('.control-spirit-float').evaluate(element => getComputedStyle(element).animationName), 'none');
+  await page.evaluate(() => localStorage.removeItem('workspace.control.motion'));
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.reload();
+  await page.getByRole('button', { name: '暂停精灵动画', exact: true }).waitFor();
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  assert.equal(await page.locator('.spirit-eye').first().evaluate(element => getComputedStyle(element).animationPlayState), 'paused');
+  await page.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
+  assert.equal(await page.locator('.spirit-eye').first().evaluate(element => getComputedStyle(element).animationPlayState), 'running');
+  checks.push('Explicit motion toggle overrides system reduction, persists pause after reload, and visibility events pause layers.');
   checks.push('Task drawer traps keyboard focus, restores the avatar trigger and respects reduced motion.');
 
   for (const [width, height] of [[320,568],[390,844],[430,932],[768,1024],[1440,900],[844,390]]) {

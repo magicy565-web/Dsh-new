@@ -7,7 +7,9 @@ execution runtime and source tree.
 ## Latest mobile master control checkpoint
 
 The home screen is now a centered animated companion with a minimal command input
-and on-demand task controls. It uses existing goal/conversation APIs, guarded
+and on-demand task controls. The companion now has independent blinking, waving
+and body motion, real task-state expressions and a persisted animation toggle.
+It uses existing goal/conversation APIs, guarded
 approval/review routes and exact-request retries. See
 [mobile master control](docs/V22-MOBILE-MASTER-CONTROL.md) for behavior, preview
 and functional verification boundaries. The production native runtime and

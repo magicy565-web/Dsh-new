@@ -28,9 +28,10 @@ permissions, silently dispatch Workers, perform Shopify operations or deploy.
 
 ## State, failures and accessibility
 
-The companion floats/breathes when idle, moves more actively while a real goal or
-associated conversation is running, and gives a gentle attention motion for
-approval, review or failure. No fabricated progress or task data appears in the
+The companion has independently animated body, eyes and hands: breathing, blinking
+and an occasional wave when idle; focused motion while a real goal or associated
+conversation runs; and a more frequent wave for approval, review or failure.
+Focusing the command input shifts its gaze toward the composer. No fabricated progress or task data appears in the
 production UI. Bootstrap failure or expiry freezes the active animation and
 disables writes while preserving the last snapshot with a stale-state message.
 
@@ -40,17 +41,22 @@ are rejected by the existing backend idempotency fence. Viewer controls remain
 read-only, with server access control unchanged.
 
 The existing Modal provides focus trapping, Escape handling and focus restoration.
-The avatar is a labelled button. Reduced motion disables animation; background
-tabs pause it. Image failure falls back to a lightweight CSS avatar. VisualViewport
+The avatar is a labelled button. System reduced motion disables animation by
+default. A separate 44px motion button lets the user explicitly enable or pause
+it, with the preference stored locally and usable even if storage is blocked.
+Background visibility events pause every layer. Offline/loading states remain
+still regardless of the motion preference. VisualViewport
 resize keeps the avatar and composer above the mobile keyboard. Safe areas and
 small/landscape viewports are handled without horizontal overflow.
 
 ## Asset
 
 `src/experience/assets/control-spirit.png` is an original transparent image made
-with built-in Image Gen. CSS animates the actual asset; no video, WebGL engine or
-third-party animation package is required. Its generation prompt is included in
-`docs/V22-CONTROL-SPIRIT-PROMPT.txt`.
+with built-in Image Gen and retained as the original visual reference. The current
+production companion is an articulated SVG/CSS interpretation in ControlSpirit.tsx,
+with separate body, eye and hand layers. It is not a raster sprite sheet or video.
+No animation dependency or per-frame React updates are required. The original
+generation prompt remains in `docs/V22-CONTROL-SPIRIT-PROMPT.txt`.
 
 ## Run and verify
 
@@ -84,6 +90,9 @@ node --experimental-test-module-mocks --import ./test/fixtures/goal-commerce-mem
 The main control suite covers the full goal lifecycle, follow-up run cancellation,
 exact approval rejection, committed-response loss/retry, stale data, viewer UI,
 keyboard focus, reduced motion and 320/390/430/768/1440/landscape layouts.
+It also samples actual transforms over 5.6 seconds for three independent layers,
+checks the explicit reduced-motion override and persisted pause preference, and
+simulates hidden/visible document events to verify background suspension.
 The soft-keyboard check simulates VisualViewport events; this is not physical
 iPhone/Android or Safari verification. Memory checks do not certify disk recovery,
 live native execution, SSO deployment or external connectors.

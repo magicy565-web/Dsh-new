@@ -11,14 +11,13 @@ body:has(.master-control){min-width:320px}
 .control-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-114px);width:min(100% - 40px,440px);display:flex;align-items:center;flex-direction:column;text-align:center}
 .control-spirit{position:relative;width:228px;height:228px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;isolation:isolate;padding:0;background:none}
 .control-spirit-float{position:absolute;left:calc(50% - 140px);top:calc(50% - 140px);width:280px;height:280px;display:block;animation:spirit-float 5.6s ease-in-out infinite;pointer-events:none}
-.control-spirit img{width:100%;height:100%;object-fit:contain;user-select:none;display:block}
-.control-spirit-fallback{position:absolute;inset:60px;display:grid;place-items:center;border-radius:48% 52% 45% 55%;background:radial-gradient(circle at 30% 25%,#eefaff,#8abbed);color:#345b8e;font-size:22px;letter-spacing:7px}
+
 .control-spirit-halo{position:absolute;inset:32px;border-radius:50%;background:#dbeeff4a;filter:blur(20px);z-index:-1;animation:spirit-breathe 5.6s ease-in-out infinite}
 .control-spirit-shadow{position:absolute;bottom:5px;left:35%;width:30%;height:9px;background:#b5cbe038;border-radius:50%;filter:blur(5px);animation:spirit-breathe 5.6s ease-in-out infinite}
 .control-spirit.is-working .control-spirit-float{animation:spirit-work 3s ease-in-out infinite}
 .control-spirit.is-attention .control-spirit-halo{background:#ffdc8b5c}.control-spirit.is-attention .control-spirit-float{animation:spirit-attention 4s ease-in-out infinite}
 .control-spirit.is-offline .control-spirit-float,.control-spirit.is-loading .control-spirit-float{animation:none;opacity:.65;filter:saturate(.4)}
-.control-spirit.is-offline .control-spirit-halo,.control-spirit.is-offline .control-spirit-shadow,.control-spirit[data-resting=true] *{animation-play-state:paused}
+.control-spirit.is-offline .control-spirit-halo,.control-spirit.is-offline .control-spirit-shadow,.control-spirit-stage[data-resting=true] *{animation-play-state:paused}
 .control-presence{margin-top:15px}.control-presence h1{font-size:21px;font-weight:550;letter-spacing:1px;line-height:1.5}.control-presence p{font-size:12px;color:#7a899d;margin:9px 0 0}
 .control-task-peek{display:flex;align-items:center;justify-content:center;gap:8px;max-width:100%;min-height:44px;margin-top:24px;font-size:12px;color:#61728d;border-radius:22px;padding:8px 14px;background:#fff9;border:1px solid #e8eef6}
 .control-task-peek>span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:260px}.control-task-peek>svg{flex-shrink:0}
@@ -47,4 +46,34 @@ body:has(.master-control){min-width:320px}
 @media(max-height:640px){.control-center{top:43%;transform:translate(-50%,-85px)}.control-spirit{width:170px;height:170px}.control-spirit-float{width:220px;height:220px;left:calc(50% - 110px);top:calc(50% - 110px)}.control-presence{margin-top:7px}.control-presence h1{font-size:18px}.control-task-peek{margin-top:12px}.control-dock-top{margin-bottom:4px}.control-header{padding-top:6px}.control-dock{bottom:12px}}
 @media(max-height:460px){.master-control-route>.main-content{overflow:auto}.master-control-route .page-content.page-home{min-height:460px}.master-control{min-height:460px}}
 .master-control[data-keyboard=true]{min-height:280px}.master-control[data-keyboard=true] .control-center{top:42%;transform:translate(-50%,-55px)}.master-control[data-keyboard=true] .control-spirit{width:110px;height:110px}.master-control[data-keyboard=true] .control-spirit-float{width:160px;height:160px;left:calc(50% - 80px);top:calc(50% - 80px)}.master-control[data-keyboard=true] .control-presence,.master-control[data-keyboard=true] .control-task-peek{display:none}.master-control[data-keyboard=true] .control-dock{bottom:8px}
-@media(prefers-reduced-motion:reduce){.master-control *, .control-sheet *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(prefers-reduced-motion:reduce){.master-control *:not(.control-spirit-stage[data-motion=on] *), .control-sheet *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Independent body, eye and hand layers; no JavaScript rendering loop. */
+.control-spirit-stage{position:relative;flex-shrink:0}
+.spirit-body{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 8px 7px #76a3d32a)}
+.spirit-hand{position:absolute;width:18.75%;height:25%;transform-origin:65% 30%;animation:spirit-hand-drift 5.6s ease-in-out infinite}
+.spirit-hand svg{width:100%;height:100%}
+.spirit-hand-left{left:13%;top:56%;transform-origin:80% 20%}
+.spirit-hand-right{right:10%;top:54%;transform-origin:20% 20%;animation-delay:-1.8s}
+.spirit-face{position:absolute;inset:0;transition:transform .45s ease}
+.spirit-eye{position:absolute;top:54%;width:5.1%;height:8.4%;border-radius:48%;background:linear-gradient(135deg,#2b4667,#142f50);box-shadow:inset 1px 1px 2px #fff5;animation:spirit-blink 5.2s infinite;transform-origin:center 60%}
+.spirit-eye-left{left:41%}.spirit-eye-right{left:64%}
+.spirit-eye i{position:absolute;top:15%;left:20%;width:28%;height:24%;border-radius:50%;background:#fff9}
+.spirit-smile{position:absolute;left:53%;top:64%;width:6%;height:3.5%;border:2px solid #42618c;border-top:0;border-radius:0 0 20px 20px;transition:transform .4s}
+.control-spirit.is-working .spirit-face{transform:translate(2px,3px)}
+.control-spirit.is-working .spirit-eye{animation-duration:3.7s}
+.control-spirit.is-working .spirit-hand{animation-duration:2.2s}
+.control-spirit.is-attention .spirit-hand-right{animation:spirit-wave 3.8s ease-in-out infinite}
+.control-spirit.is-attention .spirit-smile{transform:scale(1.1)}
+.control-spirit.is-idle .spirit-hand-right,.control-spirit.is-setup .spirit-hand-right{animation:spirit-wave 7s ease-in-out infinite}
+.control-spirit.is-offline .spirit-eye,.control-spirit.is-loading .spirit-eye{transform:scaleY(.45)}
+.control-spirit.is-offline *,.control-spirit.is-loading *{animation:none!important}
+.master-control:has(.control-command textarea:focus) .spirit-face{transform:translateY(6px)}
+.control-spirit:hover .spirit-face{transform:translateY(-2px)}
+.spirit-motion{position:absolute;right:0;bottom:0;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;color:#8c9db4;background:transparent;opacity:.7}
+.spirit-motion:hover,.spirit-motion:focus-visible{background:#edf3fb;opacity:1}
+.control-spirit-stage[data-motion=off] *{animation:none!important;transition:none!important}
+.control-spirit-stage[data-resting=true] *{animation-play-state:paused!important}
+@keyframes spirit-blink{0%,40%,44%,72%,76%,100%{transform:scaleY(1)}42%,74%{transform:scaleY(.08)}}
+@keyframes spirit-hand-drift{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(9deg)}}
+@keyframes spirit-wave{0%,48%,100%{transform:rotate(0deg)}58%,74%{transform:rotate(-65deg)}66%,82%{transform:rotate(-25deg)}}
