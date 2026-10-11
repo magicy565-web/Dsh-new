@@ -5,6 +5,7 @@ import { Field, Notice, stamp, useDirty, useRead } from '../library/common';
 import { MuseFiles } from './MuseFiles';
 import { cloudId, cloudSha } from './museControl';
 import { useMuseConversationCommand } from './useMuseConversationCommand';
+import { conversationApiPath } from '../conversationRoutes';
 
 type Delegation = { provider: 'muse'; conversationId: string; orderId: string; requestId: string; reviewHash: string;
   review: { serviceId: string; product: string; market: string; objective: string; budgetCredits: number; deadlineAt: string };
@@ -20,7 +21,7 @@ function valid(item: Delegation, conversationId: string) {
 }
 
 export function MuseConversation({ conversationId, scope, revision, readOnly, onDirty, onUpdated }: { conversationId: string; scope: string; revision: number; readOnly: boolean; onDirty: (value: boolean) => void; onUpdated: () => void }) {
-  const prefix = `/conversations/${encodeURIComponent(conversationId)}/muse-delegations`;
+  const prefix = conversationApiPath(conversationId, '/muse-delegations');
   const read = useRead<{ delegations: Delegation[] }>(prefix, revision), writer = useMuseConversationCommand(scope, conversationId);
   const [form, setForm] = useState(initial), [prepareOpen, setPrepareOpen] = useState(false), [publicConfirmed, setPublicConfirmed] = useState(false);
   const [action, setAction] = useState<{ operation: Operation; item: Delegation } | null>(null), [confirmed, setConfirmed] = useState(false);

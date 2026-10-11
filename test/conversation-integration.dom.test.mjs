@@ -63,6 +63,20 @@ test('conversation entry opens the actual latest conversation without creating o
   for (const label of ['工作', '产品托管', '云端专家', '业务任务']) assert.equal(aria(ui, label), null);
   assert.equal(ui.document.querySelector('.master-control'), null); assert.equal(ui.document.querySelector('.download-placeholder'), null);
   assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []);
+  assert.equal(ui.document.querySelectorAll('.conversation-spirit .control-spirit-stage').length, 1, 'existing central companion appears by default');
+});
+
+test('encoded slash/colon conversation routes retain the opaque ID for messages and each business API read', async t => {
+  const f = await fixture(t), id = 'original/session:alpha', now = new Date().toISOString();
+  // Explicit native-shaped record fixture, not a new real owner or binding.
+  await f.app.store.update(state => state.conversations.push({ id, title: 'Opaque ID fixture', status: 'idle', createdAt: now, updatedAt: now }));
+  const ui = await f.render('/chat/' + encodeURIComponent(id));
+  assert.equal(ui.document.querySelector('.chat-title-pill span').textContent, 'Opaque ID fixture');
+  for (const suffix of ['library-references', 'muse-delegations', 'procurement']) assert.ok(f.requests.some(item => item.path === `/api/conversations/${encodeURIComponent(id)}/${suffix}`));
+  assert.ok(!f.requests.some(item => item.path.includes('%252F'))); assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0);
+  const invalid = await f.render('/chat/%ZZ'); assert.ok(invalid.document.body.textContent.includes('会话地址无效'));
+  invalid.document.querySelector('.composer').dispatchEvent(new invalid.window.Event('submit', { bubbles: true, cancelable: true }));
+  assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []); assert.deepEqual(invalid.errors, []);
 });
 
 test('initial latest-conversation selection preserves an already opened original settings dialog', async t => {

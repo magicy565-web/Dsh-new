@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react';
 export type SpiritState = 'loading' | 'offline' | 'attention' | 'working' | 'idle' | 'setup';
 type Motion = 'system' | 'on' | 'off';
 const motionKey = 'workspace.control.motion';
-export function ControlSpirit({ state, onOpen }: { state: SpiritState; onOpen: () => void }) {
+export function ControlSpirit({ state, onOpen, label = '打开主控任务', opensDialog = true }: { state: SpiritState; onOpen: () => void; label?: string; opensDialog?: boolean }) {
   const id = useId().replace(/:/g, '');
   const [hidden, setHidden] = useState(document.hidden);
   const [reduced, setReduced] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -25,7 +25,7 @@ export function ControlSpirit({ state, onOpen }: { state: SpiritState; onOpen: (
     try { localStorage.setItem(motionKey, next); } catch { /* Still works without storage. */ }
   }
   return <div className="control-spirit-stage" data-motion={animated ? 'on' : 'off'} data-resting={hidden}>
-    <button type="button" className={`control-spirit is-${state}`} onClick={onOpen} aria-label="打开主控任务" aria-haspopup="dialog">
+    <button type="button" className={`control-spirit is-${state}`} onClick={onOpen} aria-label={label} aria-haspopup={opensDialog ? 'dialog' : undefined}>
     <span className="control-spirit-halo" aria-hidden="true" />
     <span className="control-spirit-float" aria-hidden="true">
       <svg className="spirit-body" viewBox="0 0 320 320" focusable="false">

@@ -1,0 +1,124 @@
+TAP version 13
+# Subtest: production UI: navigation, interrupted goal intake, guarded chat, search, settings, notes and review
+ok 1 - production UI: navigation, interrupted goal intake, guarded chat, search, settings, notes and review
+  ---
+  duration_ms: 7078.0484
+  type: 'test'
+  ...
+# Subtest: production UI: real pending approvals are visible and approve/deny never execute an action
+ok 2 - production UI: real pending approvals are visible and approve/deny never execute an action
+  ---
+  duration_ms: 3237.1435
+  type: 'test'
+  ...
+# Subtest: management UI: instruction registry, connector configuration, exact approvals and schedule gates use real HTTP
+ok 3 - management UI: instruction registry, connector configuration, exact approvals and schedule gates use real HTTP
+  ---
+  duration_ms: 4056.0693
+  type: 'test'
+  ...
+# Subtest: management UI: file bytes, versions, safe preview, optimistic conflict and memory scope controls
+ok 4 - management UI: file bytes, versions, safe preview, optimistic conflict and memory scope controls
+  ---
+  duration_ms: 3813.4971
+  type: 'test'
+  ...
+# Subtest: enterprise UI: explicit identity login, CSRF mutation, expiry erases workspace and logout revokes session
+ok 5 - enterprise UI: explicit identity login, CSRF mutation, expiry erases workspace and logout revokes session
+  ---
+  duration_ms: 6567.4321
+  type: 'test'
+  ...
+# Subtest: enterprise UI: viewer cannot submit chat, settings, skill or artifact mutations
+ok 6 - enterprise UI: viewer cannot submit chat, settings, skill or artifact mutations
+  ---
+  duration_ms: 4570.6021
+  type: 'test'
+  ...
+# Subtest: management UI: transport failure preserves editor, late mutation cannot undo navigation, blocked runs can explicitly retry
+ok 7 - management UI: transport failure preserves editor, late mutation cannot undo navigation, blocked runs can explicitly retry
+  ---
+  duration_ms: 3490.2062
+  type: 'test'
+  ...
+# Subtest: management UI: lost create response retries the same idempotency key without duplicate registry entries
+ok 8 - management UI: lost create response retries the same idempotency key without duplicate registry entries
+  ---
+  duration_ms: 3193.2116
+  type: 'test'
+  ...
+# Subtest: relay UI: only the server-approved gpt-6-sol model is offered, no configuration fallback or live request
+ok 9 - relay UI: only the server-approved gpt-6-sol model is offered, no configuration fallback or live request
+  ---
+  duration_ms: 2940.7992
+  type: 'test'
+  ...
+# Subtest: diagnostics UI: GET-only contract distinguishes configured, packaged fixture evidence and live acceptance
+ok 10 - diagnostics UI: GET-only contract distinguishes configured, packaged fixture evidence and live acceptance
+  ---
+  duration_ms: 3012.613
+  type: 'test'
+  ...
+# Subtest: diagnostics UI: outages, stale snapshots, reconnect, duplicate refresh and interrupted navigation are honest
+ok 11 - diagnostics UI: outages, stale snapshots, reconnect, duplicate refresh and interrupted navigation are honest
+  ---
+  duration_ms: 3116.4705
+  type: 'test'
+  ...
+# Subtest: diagnostics UI: instance restart accepts lower store sequence and late old process responses cannot roll back state
+ok 12 - diagnostics UI: instance restart accepts lower store sequence and late old process responses cannot roll back state
+  ---
+  duration_ms: 6946.9752
+  type: 'test'
+  ...
+# Subtest: diagnostics UI: hung GET reads have bounded deadlines, recoverable controls and one bootstrap in flight
+ok 13 - diagnostics UI: hung GET reads have bounded deadlines, recoverable controls and one bootstrap in flight
+  ---
+  duration_ms: 3489.2458
+  type: 'test'
+  ...
+# Subtest: diagnostics UI: passed fixtures and successful provider return still do not claim current-deployment live verification
+ok 14 - diagnostics UI: passed fixtures and successful provider return still do not claim current-deployment live verification
+  ---
+  duration_ms: 3071.1317
+  type: 'test'
+  ...
+# Subtest: conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run
+ok 15 - conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run
+  ---
+  duration_ms: 5267.3135
+  type: 'test'
+  ...
+# Subtest: conversation context UI: stale reviewed skill fails closed and remains editable without sending a model request
+ok 16 - conversation context UI: stale reviewed skill fails closed and remains editable without sending a model request
+  ---
+  duration_ms: 3152.3996
+  type: 'test'
+  ...
+# Subtest: conversation execution UI: inline exact approval, duplicate-click guard, receipt and real output artifact
+ok 17 - conversation execution UI: inline exact approval, duplicate-click guard, receipt and real output artifact
+  ---
+  duration_ms: 6991.6427
+  type: 'test'
+  ...
+# Subtest: draft goal UI follows its conversation file selection when started after intake
+ok 18 - draft goal UI follows its conversation file selection when started after intake
+  ---
+  duration_ms: 3123.9541
+  type: 'test'
+  ...
+# Subtest: template schedule UI makes fresh goal mode explicit, bounds standing approval and never auto-enables
+ok 19 - template schedule UI makes fresh goal mode explicit, bounds standing approval and never auto-enables
+  ---
+  duration_ms: 3262.8183
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 82002.0206

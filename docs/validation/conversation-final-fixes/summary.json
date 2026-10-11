@@ -1,0 +1,65 @@
+{
+  "baseLocalCommit": "44529de03603eeb0d6f11e9b0440bad3274ff094",
+  "baseRemoteCommit": "7b891844821803ec61aaf564fe5dfcb903d83a8f",
+  "node": "24.19.0",
+  "typecheck": {
+    "exitCode": 0,
+    "originalToolSession": 20840
+  },
+  "evidence": [
+    {
+      "file": "original-ui-run1.tap.txt",
+      "bytes": 5574,
+      "sha256": "36717b613ae1c946b1953987a48a980bcc3989f2415e73cc7464c5d2c0b173ac",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": 0
+    },
+    {
+      "file": "original-ui-run2.tap.txt",
+      "bytes": 5575,
+      "sha256": "a3bcc5241f4e115e76db9652f69e270d10ea117305df76b088ef97a42756386d",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": 0
+    },
+    {
+      "file": "conversation-ui.tap.txt",
+      "bytes": 4105,
+      "sha256": "02d4da0079e952404b5b0772a4358115fea49008c2307177b6f6857b97ab72a2",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": 0
+    },
+    {
+      "file": "routing.tap.txt",
+      "bytes": 567,
+      "sha256": "d6cc137b474c9312e0d3da73318d613744aee4466d85e2fad56858d957c88394",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": 0
+    },
+    {
+      "file": "build.txt",
+      "bytes": 366,
+      "sha256": "077264e793e87879a7ef18ff305a2209371cb50909abb845d4877cb7c10cdf2c"
+    }
+  ],
+  "fullSuiteRepeatsAreNotIndependentCases": true,
+  "originalNativeHostBoot": false,
+  "piRuntimeBoot": false,
+  "genuineMuse": false,
+  "mobileVisualAccepted": false,
+  "newPackageCreated": false,
+  "pending": [
+    "fixed Pi-agent/Pi-durable backend candidate",
+    "business API integration and owner/epoch acceptance",
+    "new target package under one explicit byte policy",
+    "real Muse/Connector and actual browser visual acceptance"
+  ],
+  "oldPackageExactRawGitClaimWithdrawn": true
+}

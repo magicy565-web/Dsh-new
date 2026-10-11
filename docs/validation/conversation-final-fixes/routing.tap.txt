@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: opaque conversation slash/colon IDs are decoded and encoded exactly once
+ok 1 - opaque conversation slash/colon IDs are decoded and encoded exactly once
+  ---
+  duration_ms: 0.9421
+  type: 'test'
+  ...
+# Subtest: malformed encoding and control bytes cannot become another conversation ID
+ok 2 - malformed encoding and control bytes cannot become another conversation ID
+  ---
+  duration_ms: 0.158
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 61.3196

@@ -36,7 +36,7 @@ export async function bundleRenderer(t, transport) {
     const { window } = dom; windows.push(window);
     Object.defineProperty(window, 'innerWidth', { value: width, writable: true });
     Object.defineProperty(window, 'crypto', { value: webcrypto });
-    window.TextEncoder = TextEncoder; window.AbortController = AbortController; window.scrollTo = () => {}; window.confirm = () => true;
+    window.TextEncoder = TextEncoder; window.TextDecoder = TextDecoder; window.AbortController = AbortController; window.scrollTo = () => {}; window.confirm = () => true;
     window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
     for (const [key, value] of storage) window.sessionStorage.setItem(key, value);
     const errors = []; window.addEventListener('error', event => errors.push(event.error?.message || event.message));

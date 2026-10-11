@@ -4,12 +4,20 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../server/index.mjs';
 import { resolve } from 'node:path';
-import { test } from 'node:test';
+import { test, afterEach } from 'node:test';
 import { JSDOM } from 'jsdom';
 import http from 'node:http';
 import { Readable } from 'node:stream';
 import { generateKeyPairSync } from 'node:crypto';
 import { signWorkspaceRequest } from '../server/auth-ingress.mjs';
+import { localHttpTransport } from './fixtures/local-http.mjs';
+
+const liveFixtures = new Set(), liveWindows = new Set();
+function manageWindow(window) { liveWindows.add(window); window.matchMedia ||= () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }); const close = window.close.bind(window); window.close = () => { liveWindows.delete(window); close(); }; return window; }
+afterEach(async () => {
+  for (const window of [...liveWindows]) window.close();
+  for (const fixture of [...liveFixtures]) await fixture.close();
+});
 
 // DOM/HTTP integration: production React bundle + real persisted local server.
 // Rendering is jsdom (not a visual browser); only the model provider is injected.
@@ -19,16 +27,20 @@ async function fixture(options = {}) {
   const requests = [];
   const provider = { configured: false, complete: async () => ({ content: JSON.stringify({ done: true, content: '测试提供方生成的学习计划：每天阅读一章。' }) }) };
   const app = await createApp({ dataDirectory: directory, provider, ...options });
+  let transport, closed = false;
+  const cleanup = { async close() { if (closed) return; closed = true; liveFixtures.delete(cleanup); if (transport) await transport.close(); try { await app.close(); } finally { assert.equal(resolve(directory, '..'), resolve(tmpdir())); assert.ok(directory.startsWith(join(tmpdir(), 'workspace-ui-dom-'))); await rm(directory, { recursive: true, force: true }); } } };
+  liveFixtures.add(cleanup);
   const address = await app.listen(0);
   const base = `http://127.0.0.1:${address.port}`;
+  transport = localHttpTransport(base);
   return {
     get state() { return app.runtime.bootstrap(); },
     requests, provider, base, app,
     async fetch(path, options = {}) {
       requests.push({ path, method: options.method || 'GET', body: options.body ? JSON.parse(options.body) : {} });
-      return fetch(new URL(path, base), options);
+      return transport.fetch(path, options);
     },
-    async close() { await app.close(); await rm(directory, { recursive: true, force: true }); }
+    close: cleanup.close
   };
 }
 async function waitFor(check, description) { for (let i = 0; i < 180; i++) { if (check()) return; await new Promise(r => setTimeout(r, 25)); } throw new Error(`Timed out: ${description}`); }
@@ -48,7 +60,7 @@ test('production UI: navigation, interrupted goal intake, guarded chat, search, 
   const assets = await readdir(resolve('dist/assets')); const script = await readFile(resolve('dist/assets', assets.find(file => /^index-.*\.js$/.test(file))), 'utf8');
   const api = await fixture(); const errors = [];
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: `${api.base}/chat`, runScripts: 'outside-only', pretendToBeVisual: true });
-  const { window } = dom; Object.defineProperty(window, 'innerWidth', { value: 1366 }); window.fetch = api.fetch; window.AbortController = AbortController; window.scrollTo = () => {}; window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }); window.addEventListener('error', event => errors.push(event.error?.message || event.message));
+  const window = manageWindow(dom.window); Object.defineProperty(window, 'innerWidth', { value: 1366 }); window.fetch = api.fetch; window.AbortController = AbortController; window.scrollTo = () => {}; window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }); window.addEventListener('error', event => errors.push(event.error?.message || event.message));
   window.eval(script); const { document, button, aria, click, input, escape } = controls(window);
   try {
     await waitFor(() => document.querySelector('.intro-bubble'), 'empty conversation');
@@ -116,7 +128,7 @@ test('production UI: navigation, interrupted goal intake, guarded chat, search, 
     assert.equal(errors.length, 0, `React/DOM errors: ${errors.join('; ')}`);
     const reloaded = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: `${api.base}/goals/${api.state.goals[0].id}`, runScripts: 'outside-only', pretendToBeVisual: true });
     try {
-      reloaded.window.fetch = api.fetch; reloaded.window.AbortController = AbortController; reloaded.window.eval(script);
+      manageWindow(reloaded.window); reloaded.window.fetch = api.fetch; reloaded.window.AbortController = AbortController; reloaded.window.eval(script);
       await waitFor(() => reloaded.window.document.querySelector('.ys21-goal'), 'full reload restores goal route');
       assert.equal(reloaded.window.document.querySelector('.ys21-goal-header h1').textContent, '每天专注学习');
       assert.ok(reloaded.window.document.querySelector('.ys21-status').textContent.includes('已验收'));
@@ -134,7 +146,7 @@ test('production UI: real pending approvals are visible and approve/deny never e
   const first = (await post(`/api/connectors/${connector.id}/approval`, { action: 'read', resource: 'document:fixture-one', payload: { query: 'VISIBLE_APPROVAL_PAYLOAD' } })).approval;
   const second = (await post(`/api/connectors/${connector.id}/approval`, { action: 'read', resource: 'document:fixture-two', payload: {} })).approval;
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: `${api.base}/chat`, runScripts: 'outside-only', pretendToBeVisual: true });
-  const { window } = dom; Object.defineProperty(window, 'innerWidth', { value: 1366 }); window.fetch = api.fetch; window.AbortController = AbortController; window.scrollTo = () => {};
+  const window = manageWindow(dom.window); Object.defineProperty(window, 'innerWidth', { value: 1366 }); window.fetch = api.fetch; window.AbortController = AbortController; window.scrollTo = () => {};
   window.eval(script); const { document, button, aria, click } = controls(window);
   try {
     await waitFor(() => aria('待确认'), 'approval panel tab'); click(aria('待确认'));
@@ -154,10 +166,12 @@ async function renderWorkspace(api, path = '/chat', configureWindow) {
   const script = await readFile(resolve('dist/assets', assets.find(file => /^index-.*\.js$/.test(file))), 'utf8');
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: `${api.base}${path}`, runScripts: 'outside-only', pretendToBeVisual: true });
   const errors = [];
+  manageWindow(dom.window);
   Object.defineProperty(dom.window, 'innerWidth', { value: 1366 }); dom.window.fetch = api.fetch; dom.window.AbortController = AbortController; dom.window.scrollTo = () => {}; dom.window.TextEncoder = TextEncoder;
   dom.window.addEventListener('error', event => errors.push(event.error?.message || event.message));
   configureWindow?.(dom.window);
   dom.window.eval(script);
+  await waitFor(() => dom.window.document.querySelector('.app-shell[aria-busy="false"]') || dom.window.document.querySelector('.session-gate button'), 'initial session, bootstrap and route selection settled');
   return { dom, window: dom.window, errors, ...controls(dom.window) };
 }
 async function post(api, path, body) { const response = await api.fetch(`/api${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const result = await response.json(); assert.ok(response.ok, JSON.stringify(result)); return result; }
@@ -213,7 +227,7 @@ test('management UI: instruction registry, connector configuration, exact approv
     await waitFor(() => api.state.capabilities.schedules[0].title === 'Revised schedule' && !document.querySelector('.management-form'), 'schedule edit'); assert.equal(api.state.capabilities.schedules[0].consent, null);
     await click(button('删除')); await click(button('保留')); assert.equal(api.state.capabilities.schedules.length, 1);
     await click(button('删除')); await click(button('确认删除')); await waitFor(() => api.state.capabilities.schedules.length === 0 && !document.querySelector('.management-confirm'), 'schedule removed');
-    escape(); await waitFor(() => !document.querySelector('.management-modal'), 'management Escape closes'); assert.equal(window.location.pathname, '/chat');
+    escape(); await waitFor(() => !document.querySelector('.management-modal'), 'management Escape closes'); assert.equal(window.location.pathname, `/chat/${goal.conversationId}`);
     assert.deepEqual(ui.errors, []);
   } finally { window.close(); await api.close(); }
 });
@@ -222,7 +236,7 @@ test('management UI: file bytes, versions, safe preview, optimistic conflict and
   const api = await fixture(); const { conversation } = await post(api, '/conversations', { title: 'Scoped discussion' });
   const ui = await renderWorkspace(api, '/library/notes'); const { window, document, button, aria, click, input, escape } = ui;
   try {
-    await waitFor(() => button('新建笔记'), 'library loaded'); await click(button('新建笔记')); await click(button('助手记忆')); await input(aria('笔记内容'), 'Only this discussion uses this preference.'); await input(aria('记忆范围'), conversation.id); await click(aria('启用此记忆')); await click(button('保存'));
+    await waitFor(() => button('新建笔记'), 'library loaded'); await click(button('新建笔记')); await click(button('助手记忆')); await input(aria('笔记内容'), 'Only this discussion uses this preference.'); await waitFor(() => [...aria('记忆范围').options].some(option => option.value === conversation.id), 'exact conversation scope option loaded'); await input(aria('记忆范围'), conversation.id); assert.equal(aria('记忆范围').value, conversation.id); await click(aria('启用此记忆')); await click(button('保存'));
     await waitFor(() => api.state.memories.length === 1 && document.querySelector('.library-item'), 'scoped memory saved');
     assert.equal(api.state.memories[0].enabled, false); assert.equal(api.state.memories[0].conversationId, conversation.id); assert.match(document.querySelector('.memory-scope-label').textContent, /已停用 · 仅聊天：Scoped discussion/);
     await click(button('查看与编辑')); assert.equal(aria('记忆范围').value, conversation.id); assert.equal(aria('启用此记忆').checked, false); await input(aria('记忆范围'), ''); await click(aria('启用此记忆')); await click(button('保存'));

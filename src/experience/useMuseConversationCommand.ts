@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api';
 import { cloudId, cloudSha } from './museControl';
+import { conversationApiPath } from '../conversationRoutes';
 
 type Operation = 'prepare' | 'approve' | 'dispatch' | 'refresh' | 'cancel' | 'accept';
 type Command = { operation: Operation; path: string; label: string; body: Record<string, unknown> };
@@ -17,7 +18,7 @@ function valid(command: Command, prefix: string, conversationId: string) {
 // Browser reconciliation only. The original Host owns every order, approval,
 // request, task and lease; this record is never an execution queue or authority.
 export function useMuseConversationCommand(scope: string, conversationId: string) {
-  const prefix = `/conversations/${encodeURIComponent(conversationId)}/muse-delegations`;
+  const prefix = conversationApiPath(conversationId, '/muse-delegations');
   const key = 'workspace.muse-conversation.pending.v1:' + encodeURIComponent(scope);
   const [pending, setPending] = useState<Command | null>(() => {
     try { const saved = JSON.parse(sessionStorage.getItem(key) || 'null'); return saved?.version === 1 && saved.scope === scope && valid(saved.command, prefix, conversationId) ? saved.command : null; } catch { return null; }

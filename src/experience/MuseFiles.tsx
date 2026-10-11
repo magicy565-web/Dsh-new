@@ -3,14 +3,18 @@ import { Icon } from '../icons';
 import { isMuseFile, museFileUrl, museMessageFiles } from './museControl';
 import type { CloudFile, MuseTask } from './museControl';
 import type { Message } from '../types';
+import { Modal } from '../Modal';
+import { SafeFilePreview } from '../library/common';
+import type { FilePreviewContent } from '../library/common';
 
 function MuseFile({ file }: { file: CloudFile }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false), [preview, setPreview] = useState<FilePreviewContent | null>(null);
+  const previewVisible = useRef(false);
   const controller = useRef<AbortController>();
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; controller.current?.abort(); }; }, []);
-  async function download(event: React.MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
+  async function read(mode: 'download' | 'preview') {
     if (controller.current) return;
     const request = new AbortController(); controller.current = request; setBusy(true); setError('');
     const timeout = window.setTimeout(() => request.abort(), 20000);
@@ -25,21 +29,35 @@ function MuseFile({ file }: { file: CloudFile }) {
       }
       const bytes = await response.arrayBuffer();
       const sha = await sha256(bytes);
-      if (sha !== file.sha256 || response.headers.has('X-Content-SHA256') && response.headers.get('X-Content-SHA256') !== file.sha256) throw Error('附件校验失败，下载内容与原回执不一致。');
+      if (sha !== file.sha256 || response.headers.has('X-Content-SHA256') && response.headers.get('X-Content-SHA256') !== file.sha256) throw Error('附件校验失败，读取内容与原回执不一致。');
       if (!alive.current) return;
       if (request.signal.aborted) throw Error('下载超时，请重试原附件。');
-      blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
-      const link = document.createElement('a'); link.href = blobUrl; link.download = file.filename || '任务文件';
-      document.body.appendChild(link); link.click(); link.remove();
+      if (mode === 'preview') {
+        if (!previewVisible.current) return;
+        if (bytes.byteLength > 5 * 1024 * 1024) throw Error('文件超过预览上限，请下载此版本查看。');
+        const type = response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() || '';
+        const text = ['text/plain', 'text/markdown', 'text/csv', 'application/json'].includes(type) || /\.(txt|md|csv|json)$/i.test(file.filename || '');
+        if (text) setPreview({ encoding: 'utf8', content: new TextDecoder('utf-8', { fatal: true }).decode(bytes), version: { mimeType: 'text/plain' } });
+        else if (['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(type)) { const data = new Uint8Array(bytes); let binary = ''; for (let i = 0; i < data.length; i += 16384) binary += String.fromCharCode(...data.subarray(i, i + 16384)); setPreview({ encoding: 'base64', content: btoa(binary), version: { mimeType: type } }); }
+        else setPreview(null);
+      } else {
+        blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+        const link = document.createElement('a'); link.href = blobUrl; link.download = file.filename || '任务文件';
+        document.body.appendChild(link); link.click(); link.remove();
+      }
     } catch (cause) {
-      if (alive.current) setError(request.signal.aborted ? '下载超时，请重试原附件。' : cause instanceof Error && cause.name !== 'TypeError' ? cause.message : '无法连接下载服务，请重试原附件。');
+      if (alive.current && (mode !== 'preview' || previewVisible.current)) setError(request.signal.aborted ? '读取超时，请重试原附件。' : cause instanceof Error && cause.name !== 'TypeError' ? cause.message : '无法读取此版本，请重试原附件。');
     } finally {
       clearTimeout(timeout); controller.current = undefined;
       if (blobUrl) { const url = blobUrl; window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
       if (alive.current) setBusy(false);
     }
   }
-  return <div><a className="cloud-file" href={museFileUrl(file)!} download aria-disabled={busy} onClick={event => void download(event)}><Icon name="file" size={18}/>{file.filename || '任务文件'}<span>{busy ? '正在校验…' : '下载'}</span></a>{error && <p className="control-input-note" role="alert">{error}</p>}</div>;
+  function openPreview() { if (busy) return; previewVisible.current = true; setPreviewOpen(true); setPreview(null); void read('preview'); }
+  function closePreview() { previewVisible.current = false; setPreviewOpen(false); controller.current?.abort(); }
+  return <div><a className="cloud-file" href={museFileUrl(file)!} download aria-disabled={busy} onClick={event => { event.preventDefault(); void read('download'); }}><Icon name="file" size={18}/>{file.filename || '任务文件'}<span>{busy ? '正在校验…' : '下载'}</span></a><button className="text-button" type="button" aria-label={`预览 ${file.filename || '任务文件'}`} disabled={busy} onClick={openPreview}>打开／预览</button>{error && !previewOpen && <p className="control-input-note" role="alert">{error}</p>}
+    {previewOpen && <Modal title={`附件 ${file.filename || '任务文件'}`} className="note-modal" onClose={closePreview}><h2>{file.filename || '任务文件'}</h2><p className="control-input-note">原附件 v{file.version} · SHA-256 {file.sha256}</p><section className="bl-preview">{busy ? <p role="status">正在校验并读取原附件…</p> : error ? <p role="alert">{error}</p> : <SafeFilePreview value={preview} alt={file.filename}/>}</section><div className="modal-actions"><button className="secondary-button" disabled={busy} onClick={() => void read('preview')}>重新读取此版本</button><button className="primary-button" disabled={busy} onClick={() => void read('download')}>下载此版本</button></div></Modal>}
+  </div>;
 }
 async function sha256(bytes: BufferSource) {
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), n => n.toString(16).padStart(2, '0')).join('');

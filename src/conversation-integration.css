@@ -7,6 +7,7 @@ body{min-width:320px}
 .conversation-workspace .conversation-run{margin:12px auto;max-width:760px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .conversation-run>summary,.conversation-task-list>summary{cursor:pointer;padding:12px 14px;font-size:13px}
 .conversation-task-controls{min-width:0}
+.conversation-spirit{display:flex;justify-content:center;flex-shrink:0}.conversation-spirit .control-spirit{width:140px;height:140px}.conversation-spirit .control-spirit-float{width:190px;height:190px;left:calc(50% - 95px);top:calc(50% - 95px)}
 .conversation-order-body{padding:0 14px 14px;overflow-wrap:anywhere}.conversation-order-body p{padding:6px 0}.conversation-public-scope{border:0;padding:0;min-width:0}.conversation-public-scope input,.conversation-public-scope textarea,.conversation-public-scope select{max-width:100%}
 .conversation-task-list{margin:6px 0;border:1px solid var(--line);border-radius:12px;max-height:36dvh;overflow:auto}
 .conversation-task-list>button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:12px 14px;text-align:left;border-top:1px solid var(--line);gap:12px}

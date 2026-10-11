@@ -12,7 +12,7 @@ async function fixture(t) {
   t.after(() => removeTemporaryDirectory(directory, 'workspace-native-conversation-ui-'));
   const now = new Date().toISOString();
   await native.change(state => { state.conversations = [{ ...actor, id: actor.nativeAgentId, title: 'Original native fixture', createdAt: now, updatedAt: now, status: 'idle' }]; state.messages = []; });
-  let losePrepare = false, readOverride, viewer = false;
+  let losePrepare = false, readOverride, viewer = false, fileFault;
   const prefix = `/api/conversations/${actor.nativeAgentId}/muse-delegations`;
   const renderer = await bundleRenderer(t, async (path, options) => {
     const method = options.method || 'GET', body = options.body ? JSON.parse(options.body) : undefined;
@@ -33,14 +33,15 @@ async function fixture(t) {
       try { return json(await native.api()[operation](id, body)); } catch (error) { return json({ code: error.code, error: error.message }, error.status || 409); }
     }
     if (path.startsWith('/api/muse-worker-files/')) {
+      if (fileFault === 'denied') return json({ error: 'Explicit client transport denial fixture' }, 403);
       const url = new URL(path, 'http://fixture.test'), id = url.pathname.split('/').at(-1);
       const item = (await native.api().list()).find(item => item.receipt?.files.some(file => file.id === id));
-      try { const result = await native.api().download(item?.orderId, { artifactId: id, version: Number(url.searchParams.get('version')), sha256: url.searchParams.get('sha256') }); return new Response(result.bytes); }
+      try { const result = await native.api().download(item?.orderId, { artifactId: id, version: Number(url.searchParams.get('version')), sha256: url.searchParams.get('sha256') }); return new Response(fileFault === 'tampered' ? Buffer.from('CORRUPTED_TRANSPORT_FIXTURE') : result.bytes); }
       catch (error) { return json({ code: error.code }, 404); }
     }
     return http.transport(path, options);
   });
-  return { native, http, ...renderer, prefix, loseNextPrepare() { losePrepare = true; }, setRead(value) { readOverride = value; }, viewer() { viewer = true; } };
+  return { native, http, ...renderer, prefix, loseNextPrepare() { losePrepare = true; }, setRead(value) { readOverride = value; }, viewer() { viewer = true; }, fileFault(value) { fileFault = value; } };
 }
 async function preparedUi(f) {
   const ui = await f.render(`/chat/${actor.nativeAgentId}`);
@@ -108,4 +109,26 @@ test('viewer and mismatched original conversation DTO fail closed without dispat
   const bad = await f.render(`/chat/${actor.nativeAgentId}`); await wait(() => bad.document.querySelector('.conversation-native').textContent.includes('格式不可核对'), 'mismatched DTO rejected');
   assert.equal(button(bad, '准备 Muse 委托'), undefined); assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.equal(f.http.modelCalls, 0);
   assert.deepEqual(viewer.errors, []); assert.deepEqual(bad.errors, []);
+});
+
+test('same-conversation attachment preview verifies exact original bytes, refuses corrupted/denied reads and preserves viewer guard', async t => {
+  const f = await fixture(t), item = await f.native.approveAndDispatch(f.native.input('preview-disk-request'));
+  const claim = (await f.native.call(item.orderId, 'claim', { requestId: 'preview-fixture-claim' })).body;
+  const file = await f.native.deliver(item.orderId, claim); await f.native.api().refresh(item.orderId); await f.native.relay.reconcile();
+  const ui = await f.render(`/chat/${actor.nativeAgentId}`);
+  const control = () => ui.document.querySelector('.conversation-native button[aria-label="预览 result.json"]');
+  await wait(() => control() && !control().disabled, 'original receipt preview control');
+  assert.equal(ui.document.querySelectorAll('.conversation-spirit .control-spirit-stage').length, 1);
+  f.fileFault('tampered'); await click(ui, control()); await wait(() => ui.document.querySelector('[role="dialog"] [role="alert"]')?.textContent.includes('校验失败'), 'corrupted transport bytes rejected');
+  assert.equal(ui.document.querySelector('[role="dialog"] pre'), null);
+  await click(ui, ui.document.querySelector('[role="dialog"] button[aria-label="关闭弹窗"]'));
+  f.fileFault('denied'); await click(ui, control()); await wait(() => ui.document.querySelector('[role="dialog"] [role="alert"]')?.textContent.includes('无权'), 'denied client transport rejected');
+  assert.equal(ui.document.querySelector('[role="dialog"] pre'), null);
+  await click(ui, ui.document.querySelector('[role="dialog"] button[aria-label="关闭弹窗"]'));
+  f.fileFault(undefined); await click(ui, control()); await wait(() => ui.document.querySelector('[role="dialog"] pre'), 'exact original content safely previewed');
+  assert.equal(ui.document.querySelector('[role="dialog"] pre').textContent, file.bytes.toString('utf8'));
+  assert.equal(ui.window.location.pathname, `/chat/${actor.nativeAgentId}`); assert.equal(ui.document.querySelector('[role="dialog"] script'), null);
+  assert.ok(f.requests.filter(item => item.path.startsWith('/api/muse-worker-files/')).every(item => item.path === `/api/muse-worker-files/${file.artifactId}?version=1&sha256=${hash(file.bytes)}`));
+  f.viewer(); const viewer = await f.render(`/chat/${actor.nativeAgentId}`); await wait(() => viewer.document.querySelector('.conversation-native [data-order-id]'), 'viewer can read order status');
+  assert.equal(viewer.document.querySelector('button[aria-label="预览 result.json"]'), null); assert.equal(f.http.modelCalls, 0); assert.deepEqual(ui.errors, []); assert.deepEqual(viewer.errors, []);
 });

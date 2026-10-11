@@ -48,8 +48,12 @@ export async function readUpload(file: File): Promise<Record<string, unknown>> {
   return { filename: file.name, title: file.name, base64, metadata: { businessLibrary: { visibility: 'internal' } }, requestId: requestId() };
 }
 export function assetFrom(artifact: Artifact): AssetRef { return { artifactId: artifact.id, version: artifact.currentVersion, sha256: artifact.sha256 }; }
+export type FilePreviewContent = { encoding: string; content: string; version: { mimeType: string } };
+export function SafeFilePreview({ value, alt = '资料图片' }: { value: FilePreviewContent | null; alt?: string }) {
+  return value?.encoding === 'utf8' ? <pre className="artifact-preview">{value.content.slice(0, 100000)}{value.content.length > 100000 ? '\n（预览前 100,000 字符，下载查看完整文件）' : ''}</pre> : value?.encoding === 'base64' && ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(value.version.mimeType) ? <img src={`data:${value.version.mimeType};base64,${value.content}`} alt={alt} /> : <p className="bl-help">PDF 与其他二进制文件仅支持下载，当前不提供页预览。</p>;
+}
 export function AssetPreview({ asset, alt = '资料图片' }: { asset: AssetRef; alt?: string }) {
   const read = useRead<{ encoding: string; content: string; version: { mimeType: string } }>(`/artifacts/${pid(asset.artifactId)}/content?version=${asset.version}`);
   const result = read.value;
-  return <section className="bl-preview">{read.loading ? <p role="status">正在校验并读取文件…</p> : read.error ? <Notice error={read.error} retry={read.retry} /> : result?.encoding === 'utf8' ? <pre>{result.content.slice(0, 100000)}{result.content.length > 100000 ? '\n（预览前 100,000 字符，下载查看完整文件）' : ''}</pre> : result?.version?.mimeType?.startsWith('image/') ? <img src={`data:${result.version.mimeType};base64,${result.content}`} alt={alt} /> : <p className="bl-help">PDF 与其他二进制文件仅支持下载，当前不提供页预览。</p>}<a className="bl-download" href={`/api/artifacts/${pid(asset.artifactId)}/download?version=${asset.version}`} download>下载此版本</a></section>;
+  return <section className="bl-preview">{read.loading ? <p role="status">正在校验并读取文件…</p> : read.error ? <Notice error={read.error} retry={read.retry} /> : <SafeFilePreview value={result} alt={alt}/>}<a className="bl-download" href={`/api/artifacts/${pid(asset.artifactId)}/download?version=${asset.version}`} download>下载此版本</a></section>;
 }

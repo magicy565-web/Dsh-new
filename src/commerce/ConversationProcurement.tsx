@@ -3,6 +3,7 @@ import { Modal } from '../Modal';
 import { Notice, stamp, useDirty, useRead } from '../library/common';
 import { useSupplyCommand } from './useSupplyCommand';
 import type { Message } from '../types';
+import { conversationApiPath } from '../conversationRoutes';
 
 type Inquiry = { id: string; revision: number; quantity: number; destination: string; notes: string; status: string;
   share: null | { status: string; reviewHash: string; snapshot: { recipient: { displayName: string }; listingId: string; listingRevision: number; productRef: { productId: string; revision: number; skuId: string; skuCode: string } } };
@@ -14,7 +15,7 @@ export function ProcurementMessage({ message }: { message: Message }) {
   return <><p>{data.kind === 'merchant_reply' ? '已提交原采购需求的商家回复。' : '采购需求已关联到本会话。'}</p>{data.kind === 'merchant_reply' && typeof data.content === 'string' && <p>{data.content}</p>}<p className="control-input-note">展开本会话采购需求查看当前共享状态与回复；此记录不会自动派发 Muse。</p></>;
 }
 export function ConversationProcurement({ conversationId, scope, revision, readOnly, onDirty, onUpdated }: { conversationId: string; scope: string; revision: number; readOnly: boolean; onDirty: (value: boolean) => void; onUpdated: () => void }) {
-  const current = useRead<{ inquiries: Inquiry[] }>(`/conversations/${encodeURIComponent(conversationId)}/procurement`, revision);
+  const current = useRead<{ inquiries: Inquiry[] }>(conversationApiPath(conversationId, '/procurement'), revision);
   const inbox = useRead<{ inquiries: Inquiry[] }>('/supply/inquiries', revision);
   const writer = useSupplyCommand('conversation-procurement:' + scope);
   const [selection, setSelection] = useState<{ kind: 'bind' | 'reply'; inquiry: Inquiry } | null>(null), [content, setContent] = useState(''), [confirmed, setConfirmed] = useState(false);
