@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: actual Store refuses REST admission while a native logical Worker is unfinished, including expiry/reopen
+ok 1 - actual Store refuses REST admission while a native logical Worker is unfinished, including expiry/reopen
+  ---
+  duration_ms: 5043.8716
+  type: 'test'
+  ...
+# Subtest: one persistent conversation: exact enterprise SKU, buyer consent, named merchant reply, original Muse receipt/file and acceptance
+ok 2 - one persistent conversation: exact enterprise SKU, buyer consent, named merchant reply, original Muse receipt/file and acceptance
+  ---
+  duration_ms: 3962.0152
+  type: 'test'
+  ...
+# Subtest: actual sourcing MCP persists private buyer requests, explicit exact merchant sharing, replies and revocation across restart
+ok 3 - actual sourcing MCP persists private buyer requests, explicit exact merchant sharing, replies and revocation across restart
+  ---
+  duration_ms: 3994.9241
+  type: 'test'
+  ...
+# Subtest: private supplier and listing cannot leak into read-only MCP until distinct explicit approvals
+ok 4 - private supplier and listing cannot leak into read-only MCP until distinct explicit approvals
+  ---
+  duration_ms: 3489.2982
+  type: 'test'
+  ...
+# Subtest: all supply writes enforce revision, request-id idempotency, schema and exact publication consent
+ok 5 - all supply writes enforce revision, request-id idempotency, schema and exact publication consent
+  ---
+  duration_ms: 3316.1012
+  type: 'test'
+  ...
+# Subtest: private MCP bearer is separate, disabled by default and has closed tool surfaces
+ok 6 - private MCP bearer is separate, disabled by default and has closed tool surfaces
+  ---
+  duration_ms: 6741.0663
+  type: 'test'
+  ...
+# Subtest: Shopify observed products are private store facts, not supplier IDs or export RFQs; duplicate request does not reread store
+ok 7 - Shopify observed products are private store facts, not supplier IDs or export RFQs; duplicate request does not reread store
+  ---
+  duration_ms: 3465.1926
+  type: 'test'
+  ...
+# Subtest: malformed Shopify product response cannot persist partial observations
+ok 8 - malformed Shopify product response cannot persist partial observations
+  ---
+  duration_ms: 3074.5723
+  type: 'test'
+  ...
+# Subtest: unpublishing a supplier cascades to offers and re-publishing does not accidentally resurrect them
+ok 9 - unpublishing a supplier cascades to offers and re-publishing does not accidentally resurrect them
+  ---
+  duration_ms: 3136.9087
+  type: 'test'
+  ...
+# Subtest: merchant featured offer and live price changes remain versioned declarations, not verified transactions
+ok 10 - merchant featured offer and live price changes remain versioned declarations, not verified transactions
+  ---
+  duration_ms: 3538.6591
+  type: 'test'
+  ...
+# Subtest: real DACL policy rejects null DACL, foreign grants/owner and inherit-only permissions
+ok 11 - real DACL policy rejects null DACL, foreign grants/owner and inherit-only permissions
+  ---
+  duration_ms: 0.2758
+  type: 'test'
+  ...
+# Subtest: Windows private storage narrows an empty object before bytes, reopens, and retains unsafe legacy data
+ok 12 - Windows private storage narrows an empty object before bytes, reopens, and retains unsafe legacy data
+  ---
+  duration_ms: 29.6479
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 39979.5832

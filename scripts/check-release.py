@@ -15,6 +15,7 @@ import urllib.request
 import zipfile
 
 archive = pathlib.Path(sys.argv[1]).resolve()
+application_overlay = '--application-overlay' in sys.argv[2:]
 with tempfile.TemporaryDirectory(prefix='workspace-release-check-') as folder:
     base = pathlib.Path(folder)
     with zipfile.ZipFile(archive) as package:
@@ -25,7 +26,11 @@ with tempfile.TemporaryDirectory(prefix='workspace-release-check-') as folder:
     root = base / 'Workspace-Agent'
     manifest = json.loads((root / 'RELEASE-MANIFEST.json').read_text())
     handoff = (root / '00_READ_FIRST_WORK_HANDOFF.md').read_text()
-    assert 'IN PROGRESS' not in handoff and 'Final checkpoint verification' in handoff
+    if application_overlay:
+        candidate_handoff = (root / 'docs/TT041-BACKEND-CANDIDATE.md').read_text()
+        assert 'launchReady:false' in candidate_handoff and 'Original Muse account execution: unverified' in candidate_handoff
+    else:
+        assert 'IN PROGRESS' not in handoff and 'Final checkpoint verification' in handoff
     assert (root / 'docs/BUSINESS-FLOW-AUDIT.md').is_file()
     for item in manifest['files']:
         if hashlib.sha256((root / item['path']).read_bytes()).hexdigest() != item['sha256']:
@@ -33,6 +38,14 @@ with tempfile.TemporaryDirectory(prefix='workspace-release-check-') as folder:
     assert not (root / 'node_modules').exists()
     assert not (root / '.env').exists()
     assert not (root / '.data').exists()
+    if application_overlay:
+        assert manifest['packageKind'] == 'application-and-original-host-overlay'
+        assert manifest['launchReady'] is False and manifest['nativeSourceArchiveVerified'] is False
+        assert manifest['externalDependencies'] and manifest['blockedGates']
+        checked = subprocess.run(['node', 'scripts/check-application-overlay.mjs'], cwd=root, capture_output=True, text=True, timeout=120)
+        if checked.returncode: raise RuntimeError(checked.stdout + checked.stderr)
+        print(checked.stdout.strip())
+        sys.exit(0)
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0)); port = sock.getsockname()[1]
     url = f'http://127.0.0.1:{port}'
@@ -73,7 +86,7 @@ with tempfile.TemporaryDirectory(prefix='workspace-release-check-') as folder:
         assert diagnostics['storage']['liveWriteProbe'] is False
         assert state['capabilities']['scheduler']['automaticTimer'] is True
         assert any(item['adapter'] == 'workspace-library' for item in state['capabilities']['adapterCatalog'])
-        assert state['version'] == 2 and not state['conversations'] and not state['capabilities']['connectors']
+        assert state['version'] == 3 and not state['conversations'] and not state['capabilities']['connectors']
         assert request('/', raw=True).startswith(b'<!doctype html>')
         conversation = request('/api/conversations', 'POST', {'title': 'Release startup fixture'})['conversation']
         sent = request(f'/api/conversations/{conversation["id"]}/messages', 'POST', {'content': 'No-model fixture', 'requestId': 'release-check'})

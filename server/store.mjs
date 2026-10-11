@@ -2,6 +2,8 @@ import { promises as fs, constants } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { assertWindowsDirectoryVolume } from './windows-volume.mjs';
+import { assertPrivateWindowsPath } from './windows-private-acl.mjs';
+import { validateMuseJointSlots } from './muse-worker-slot.mjs';
 
 export const STORE_VERSION = 3;
 export const SUPPORTED_STORE_VERSIONS = Object.freeze([1, 2, STORE_VERSION]);
@@ -60,6 +62,7 @@ export function validateState(state, version = STORE_VERSION) {
   for (const key of ['workerOrders', 'workerOpportunities', 'cloudExperts', 'cloudTeams', 'dotTasks', 'museTasks', 'commerceProjects']) {
     if (state[key] !== undefined) validateCollection(state[key]);
   }
+  validateMuseJointSlots(state);
   if (state.dotLastSeenAt !== undefined && !iso(state.dotLastSeenAt)) throw invalid();
   if (state.museLastSeenAt !== undefined && !iso(state.museLastSeenAt)) throw invalid();
   if (version === 2) return;
@@ -93,13 +96,15 @@ export async function privateDirectory(directory) {
   const info = await fs.lstat(requested);
   if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('The workspace directory must be a real private directory, not a symbolic link.');
   const canonical = await fs.realpath(requested);
-  await fs.chmod(canonical, 0o700);
+  if (process.platform === 'win32') await assertPrivateWindowsPath(canonical, { initializeEmpty: true });
+  else await fs.chmod(canonical, 0o700);
   const identity = await fs.stat(canonical);
   return {
     directory: canonical,
     async verify() {
       const current = await fs.lstat(canonical);
       if (!current.isDirectory() || current.isSymbolicLink() || current.dev !== identity.dev || current.ino !== identity.ino || await fs.realpath(requested) !== canonical) throw new Error('The workspace directory changed while in use. Restart only after inspecting the data directory.');
+      await assertPrivateWindowsPath(canonical);
     },
   };
 }
@@ -128,6 +133,7 @@ export async function openPrivateFile(filename, { writable = false } = {}) {
   if (typeof writable !== 'boolean') throw new TypeError('Private file write access must be explicit.');
   const before = await fs.lstat(filename);
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) throw new Error('Unsafe workspace file. Symbolic links and hard links are not supported.');
+  await assertPrivateWindowsPath(filename);
   const handle = await fs.open(filename, (writable ? constants.O_RDWR : constants.O_RDONLY) | (constants.O_NOFOLLOW || 0));
   try {
     const actual = await handle.stat();

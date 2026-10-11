@@ -4,7 +4,7 @@ import { promises as fs, constants } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
-import { acquireWriterLock, openPrivateFile, syncDirectory, validateJson, validateState as validateWorkspaceState } from '../server/store.mjs';
+import { privateDirectory, acquireWriterLock, openPrivateFile, syncDirectory, validateJson, validateState as validateWorkspaceState } from '../server/store.mjs';
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const MAX_BYTES = 512 * 1024 * 1024, MAX_FILES = 120_000;
 const exclusions = new Set(['workspace.lock', 'workspace.lock.recovery', 'artifacts/artifacts.lock', 'artifacts/artifacts.lock.recovery']);
@@ -91,6 +91,7 @@ async function exclusiveDirectory(directory) {
   const name = path.resolve(directory);
   await realDirectory(path.dirname(name));
   try { await fs.mkdir(name, { mode: 0o700 }); } catch (error) { if (error.code === 'EEXIST') failure('Destination already exists. Choose a new directory; nothing was overwritten.'); throw error; }
+  await privateDirectory(name);
   return name;
 }
 async function write(filename, content) { await fs.mkdir(path.dirname(filename), { recursive: true, mode: 0o700 }); const handle = await fs.open(filename, 'wx', 0o600); try { await handle.writeFile(content); await handle.sync(); } finally { await handle.close(); } }

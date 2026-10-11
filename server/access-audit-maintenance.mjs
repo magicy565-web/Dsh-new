@@ -25,9 +25,9 @@ export async function rotateAccessAudit({ dataDirectory, archiveFile, now = Date
     if (!before.sequence) throw new Error('There is no completed audit segment to rotate.');
     if (before.maxAssertionExpiresAt > now()) throw new Error(`Unexpired ingress assertions remain until ${new Date(before.maxAssertionExpiresAt).toISOString()}; stop the server and wait before rotating.`);
     const requestedParent = path.dirname(archiveFile);
-    await fs.mkdir(requestedParent, { recursive: true, mode: 0o700 });
+    await privateDirectory(requestedParent);
     const parentInfo = await fs.lstat(requestedParent);
-    if (!parentInfo.isDirectory() || parentInfo.isSymbolicLink() || (parentInfo.mode & 0o077)) throw new Error('Archive parent must be a private real directory (0700).');
+    if (!parentInfo.isDirectory() || parentInfo.isSymbolicLink() || process.platform !== 'win32' && (parentInfo.mode & 0o077)) throw new Error('Archive parent must be a private real directory.');
     const archiveParent = await fs.realpath(requestedParent);
     if (archiveParent === root.directory || archiveParent.startsWith(`${root.directory}${path.sep}`)) throw new Error('Audit archive must be outside the live data directory.');
     const archive = path.join(archiveParent, path.basename(archiveFile));

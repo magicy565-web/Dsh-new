@@ -4,7 +4,7 @@ import { readLocalVerification, operationalDiagnostics } from './diagnostics.mjs
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
-import { openStore } from './store.mjs';
+import { openStore, openPrivateFile } from './store.mjs';
 import { readRecoveryStatus } from './recovery-status.mjs';
 import { createHarnessProvider } from './harness-provider.mjs';
 import { createDeepSeekProvider } from './provider.mjs';
@@ -15,6 +15,8 @@ import { createBusinessLibraryService } from './business-library.mjs';
 import { createShopifyClient } from './shopify.mjs';
 import { createCommerceService } from './commerce.mjs';
 import { createSupplyNetworkService } from './supply-network.mjs';
+import { supplyHttp } from './supply-http.mjs';
+import { libraryHttp } from './library-http.mjs';
 import { createSourcingMcpAuth, handleSourcingMcpHttp } from './sourcing-mcp.mjs';
 import { createRunOutputService } from './run-output.mjs';
 import { createWorkspaceLibraryAdapter, WORKSPACE_LIBRARY_ADAPTER } from './workspace-library.mjs';
@@ -109,9 +111,15 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
     shopify = createShopifyClient({ environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock });
     commerce = createCommerceService({ store, runtime, shopify, workerDesk, workerCatalog: () => workerDesk.catalog(), museConnection: () => museBridge?.info(), clock: accessClock });
-    supply = createSupplyNetworkService({ store, clock: accessClock });
-    if (sourcingMcpConfig?.enabled && [dotWorkerConfig?.tokenDigest, museWorkerConfig?.tokenDigest].includes(sourcingMcpConfig.tokenDigest))
+    supply = createSupplyNetworkService({ store, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local',
+      merchantMember: subject => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(subject)) : subject === 'local-operator' });
+    const workerDigests = [dotWorkerConfig?.tokenDigest, museWorkerConfig?.tokenDigest].filter(Boolean);
+    const sourcingDigests = [sourcingMcpConfig?.tokenDigest, ...(sourcingMcpConfig?.principals || []).map(row => row.tokenDigest)].filter(Boolean);
+    if (sourcingMcpConfig?.enabled && sourcingDigests.some(value => workerDigests.includes(value)))
       throw new TypeError('Sourcing MCP may not reuse a Dot or Muse Worker credential.');
+    if ((sourcingMcpConfig?.principals || []).some(row => row.workspaceId !== (accessConfig.workspaceId || 'local') ||
+      (accessConfig.mode === 'enterprise' ? accessConfig.members.has(row.subject) : row.subject === 'local-operator')))
+      throw new TypeError('External procurement buyers require this workspace and a distinct subject from enterprise members.');
     sourcingMcpAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
   } catch (error) { await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const streams = new Set();
@@ -155,8 +163,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       // Independent read-only supply connector for the private pilot. It never
       // shares Dot/Muse credentials or permits public RFQ mutations.
       if (pathname === '/mcp/sourcing') {
-        sourcingMcpAuth(req);
-        return await handleSourcingMcpHttp(req, res, { supply, readBody });
+        const actor = sourcingMcpAuth(req);
+        return await handleSourcingMcpHttp(req, res, { supply, readBody, actor });
       }
       // Muse is a separate, authenticated REST API; it does not share the Dot
       // worker credential, task queue or MCP plugin protocol.
@@ -217,13 +225,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (method === 'GET') {
         const goalCommerce = pathname.match(/^\/api\/goals\/([^/]+)\/commerce-context$/);
         if (goalCommerce) return await respond(res, 200, commerce.forGoal(goalCommerce[1]));
-        if (pathname === '/api/supply/status') return await respond(res, 200, supply.status());
-        if (pathname === '/api/supply/suppliers') return await respond(res, 200, supply.suppliers());
-        if (pathname === '/api/supply/listings') return await respond(res, 200, supply.listings());
-        if (pathname === '/api/supply/inquiries') return await respond(res, 200, supply.inquiries());
-        if (pathname === '/api/supply/events') return await respond(res, 200, supply.events());
-        if (pathname === '/api/supply/shopify/observation') return await respond(res, 200, supply.shopifyObservation());
-        if (pathname === '/api/supply/public') return await respond(res, 200, supply.searchPublic({ query: url.searchParams.get('q') || '' }));
+        const supplyRead = await supplyHttp({ supply, method, pathname, query: Object.fromEntries(url.searchParams), actor: context });
+        if (supplyRead) return await respond(res, supplyRead.status, supplyRead.body);
         if (pathname === '/api/commerce-status') return await respond(res, 200, commerce.status());
         if (pathname === '/api/commerce-projects') return await respond(res, 200, commerce.list());
         const commerceRead = pathname.match(/^\/api\/commerce-projects\/([^/]+)$/);
@@ -237,18 +240,11 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (pathname === '/api/access/sessions') return await respond(res, 200, access.listSessions());
         if (pathname === '/api/access/audit') return await respond(res, 200, access.listAudit({ after: Number(url.searchParams.get('after') || 0), limit: Number(url.searchParams.get('limit') || 100) }));
         if (pathname === '/api/events') return await streamChanges(req, res, context);
-        const conversationLibrary = pathname.match(/^\/api\/conversations\/([^/]+)\/library-references$/);
-        if (conversationLibrary) return await respond(res, 200, businessLibrary.getConversationReferences(conversationLibrary[1]));
-        if (pathname === '/api/library/company') return await respond(res, 200, businessLibrary.getCompany());
-        if (pathname === '/api/library/products' || pathname === '/api/library/documents') {
+        if (pathname.startsWith('/api/library/') || /^\/api\/conversations\/[^/]+\/library-references$/.test(pathname)) {
           const query = Object.fromEntries(url.searchParams);
           if ([...url.searchParams.keys()].length !== Object.keys(query).length) throw new ApiError(400, 'INVALID_INPUT', 'Duplicate library query parameters are not allowed.');
-          return await respond(res, 200, businessLibrary[pathname.endsWith('/products') ? 'listProducts' : 'listDocuments'](query));
-        }
-        const libraryResource = pathname.match(/^\/api\/library\/(products|documents|operations)\/([^/]+)(?:\/(readiness))?$/);
-        if (libraryResource) {
-          if (libraryResource[3] && libraryResource[1] !== 'products') throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
-          return await respond(res, 200, libraryResource[3] ? await businessLibrary.readiness(libraryResource[2]) : businessLibrary[{ products: 'getProduct', documents: 'getDocument', operations: 'getOperation' }[libraryResource[1]]](libraryResource[2]));
+          const result = await libraryHttp({ library: businessLibrary, method, pathname, query, actor: context });
+          if (result) return await respond(res, result.status, result.body);
         }
         if (pathname === '/api/runs') return await respond(res, 200, runtime.listRuns());
         if (pathname === '/api/artifacts') return await respond(res, 200, artifacts.list());
@@ -315,15 +311,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (!['POST', 'PATCH', 'DELETE'].includes(method)) throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
       const body = method === 'DELETE' ? {} : await readBody(req, /^\/api\/artifacts(?:\/[^/]+)?$/.test(pathname) ? 7_100_000 : 100_000);
       access.verifyBody(context, req.bodyBytes || Buffer.alloc(0));
-      if (method === 'POST' && pathname === '/api/supply/suppliers') return await respond(res, 201, await supply.createSupplier(body, context));
-      if (method === 'POST' && pathname === '/api/supply/listings') return await respond(res, 201, await supply.createListing(body, context));
-      if (method === 'POST' && pathname === '/api/supply/inquiries') return await respond(res, 201, await supply.createInquiry(body, context));
-      const supplierPublish = pathname.match(/^\/api\/supply\/suppliers\/([^/]+)\/(publish|unpublish)$/);
-      if (method === 'POST' && supplierPublish) return await respond(res, 200, await supply[supplierPublish[2] === 'publish' ? 'publishSupplier' : 'unpublishSupplier'](supplierPublish[1], body, context));
-      const listingPublish = pathname.match(/^\/api\/supply\/listings\/([^/]+)\/(publish|unpublish)$/);
-      if (method === 'POST' && listingPublish) return await respond(res, 200, await supply[listingPublish[2] === 'publish' ? 'publishListing' : 'unpublishListing'](listingPublish[1], body, context));
-      const listingUpdate = pathname.match(/^\/api\/supply\/listings\/([^/]+)$/);
-      if (method === 'PATCH' && listingUpdate) return await respond(res, 200, await supply.updateListing(listingUpdate[1], body, context));
+      const supplyWrite = await supplyHttp({ supply, method, pathname, body, actor: context });
+      if (supplyWrite) return await respond(res, supplyWrite.status, supplyWrite.body);
       if (method === 'POST' && pathname === '/api/supply/shopify/observe') {
         if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Shopify product synchronization requires administrator access.');
         if (Object.keys(body).some(x => !['requestId', 'after'].includes(x)) || typeof body.requestId !== 'string' || body.after !== undefined && (typeof body.after !== 'string' || body.after.length > 2000)) throw new ApiError(400, 'INVALID_INPUT', 'Invalid Shopify catalog synchronization request.');
@@ -341,15 +330,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (method === 'POST' && pathname === '/api/commerce-projects') return await respond(res, 201, await commerce.create(body, context));
       const commerceAction = pathname.match(/^\/api\/commerce-projects\/([^/]+)\/(stage-research|stage-worker-research|sync-orders)$/);
       if (method === 'POST' && commerceAction) return await respond(res, 200, await commerce[{ 'stage-research': 'stageResearch', 'stage-worker-research': 'stageWorkerResearch', 'sync-orders': 'syncOrders' }[commerceAction[2]]](commerceAction[1], body, context));
-      const conversationLibraryWrite = pathname.match(/^\/api\/conversations\/([^/]+)\/library-references$/);
-      if (method === 'PATCH' && conversationLibraryWrite) return await respond(res, 200, await businessLibrary.updateConversationReferences(conversationLibraryWrite[1], body, context));
-      if (method === 'PATCH' && pathname === '/api/library/company') return await respond(res, 200, await businessLibrary.updateCompany(body, context));
-      if (method === 'POST' && ['/api/library/products', '/api/library/documents'].includes(pathname)) return await respond(res, 201, await businessLibrary[pathname.endsWith('/products') ? 'createProduct' : 'createDocument'](body, context));
-      const libraryWrite = pathname.match(/^\/api\/library\/(products|documents)\/([^/]+)(?:\/(versions)(?:\/([1-9][0-9]*)\/(reviews))?)?$/);
-      if (libraryWrite) {
-        if (method === 'PATCH' && !libraryWrite[3]) return await respond(res, 200, await businessLibrary[libraryWrite[1] === 'products' ? 'updateProduct' : 'updateDocument'](libraryWrite[2], body, context));
-        if (method === 'POST' && libraryWrite[1] === 'documents' && libraryWrite[3]) return await respond(res, 201, libraryWrite[5] ? await businessLibrary.reviewDocument(libraryWrite[2], Number(libraryWrite[4]), body, context) : await businessLibrary.appendDocumentVersion(libraryWrite[2], body, context));
-      }
+      const libraryWrite = await libraryHttp({ library: businessLibrary, method, pathname, body, actor: context });
+      if (libraryWrite) return await respond(res, libraryWrite.status, libraryWrite.body);
       if (method === 'POST' && ['/api/session/login', '/api/session/logout'].includes(pathname)) {
         if (Object.keys(body).length) throw new ApiError(400, 'INVALID_INPUT', 'Session actions require an empty JSON object.');
         return await respond(res, 200, await access[pathname.endsWith('/login') ? 'login' : 'logout'](context, res));
@@ -419,7 +401,11 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       let match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/(messages|cancel))?$/);
       if (match) {
         const [, id, resource] = match;
-        if (method === 'POST' && resource === 'messages') return await respond(res, 202, await runtime.sendMessage(id, body));
+        if (method === 'POST' && resource === 'messages') {
+          if (body.provider === 'muse') throw new ApiError(409, 'MW_NATIVE_CONVERSATION_REQUIRED', 'Muse requires its original reviewed native Host and conversation binding. No model run was started.');
+          if (body.provider !== undefined && !['builtin', 'deepseek'].includes(body.provider)) throw new ApiError(400, 'PROVIDER_NOT_AVAILABLE', 'Select an available explicitly configured provider.');
+          return await respond(res, 202, await runtime.sendMessage(id, body));
+        }
         if (method === 'POST' && resource === 'cancel') return await respond(res, 200, await runtime.cancelConversation(id));
         if (method === 'PATCH' && !resource) return await respond(res, 200, await runtime.updateConversation(id, body));
         if (method === 'DELETE' && !resource) return await respond(res, 200, await runtime.deleteConversation(id));
@@ -524,7 +510,16 @@ async function main() {
     enabled: process.env.WORKSPACE_SOURCING_MCP_ENABLED === '1',
     tokenDigest: process.env.WORKSPACE_SOURCING_MCP_TOKEN_SHA256 || '',
   };
-  if (sourcingMcpConfig.enabled && [process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256, process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256].includes(sourcingMcpConfig.tokenDigest))
+  if (process.env.WORKSPACE_SOURCING_MCP_PRINCIPALS_FILE) {
+    const filename = process.env.WORKSPACE_SOURCING_MCP_PRINCIPALS_FILE;
+    if (!path.isAbsolute(filename)) throw new Error('Procurement principal configuration requires an absolute private path.');
+    const handle = await openPrivateFile(filename, 'r');
+    try {
+      if ((await handle.stat()).size > 64_000) throw new Error('Procurement principal configuration is too large.');
+      sourcingMcpConfig.principals = JSON.parse(await handle.readFile('utf8'));
+    } finally { await handle.close(); }
+  }
+  if (sourcingMcpConfig.enabled && sourcingMcpConfig.tokenDigest && [process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256, process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256].filter(Boolean).includes(sourcingMcpConfig.tokenDigest))
     throw new Error('Sourcing MCP must use its own independent credential.');
   const dotWorkerConfig = process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256 ? {
     workerId: process.env.WORKSPACE_DOT_WORKER_ID || 'chatgpt-dot-xy',

@@ -16,7 +16,7 @@ const emptyHash = hash('');
 const cookieName = '__Host-workspace_session';
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const administrative = /^(?:\/api\/(settings|skills|connectors|approvals|schedules|access|commerce-shopify|worker-opportunities|cloud-experts|cloud-teams)(?:\/|$)|\/api\/runs\/[^/]+\/action-decision$|\/api\/worker-orders\/[^/]+\/promote$|\/api\/library\/documents\/[^/]+\/versions\/[^/]+\/reviews$)/;
-const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|library|commerce-projects|worker-orders)(?:\/|$)/;
+const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|library|commerce-projects|worker-orders|supply)(?:\/|$)/;
 const iso = value => new Date(value).toISOString();
 function routeLabel(pathname) {
   const parts = pathname.split('/');
@@ -64,7 +64,7 @@ async function readConfigFile(filename) {
   const handle = await openPrivateFile(filename);
   try {
     const stat = await handle.stat();
-    if (stat.size > 100_000 || (stat.mode & 0o022)) badConfig('configuration files must be bounded and not group/world writable.');
+    if (stat.size > 100_000 || process.platform !== 'win32' && (stat.mode & 0o022)) badConfig('configuration files must be bounded and not group/world writable.');
     return await handle.readFile('utf8');
   } finally { await handle.close(); }
 }
@@ -162,7 +162,7 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
   async function begin(req, res, pathname) {
     if (closing || (audit && !audit.healthy)) throw new AccessError(503, 'ACCESS_UNAVAILABLE', 'Access control is unavailable.');
     checkBoundary(req, pathname);
-    const context = { requestId: randomUUID(), method: req.method, route: routeLabel(pathname), subject: 'local-operator', role: 'admin', session: null, finished: false };
+    const context = { requestId: randomUUID(), method: req.method, route: routeLabel(pathname), workspaceId: enterprise ? config.workspaceId : 'local', subject: 'local-operator', role: 'admin', session: null, finished: false };
     if (!enterprise) return context;
     res.setHeader('Strict-Transport-Security', 'max-age=31536000');
     res.setHeader('Cache-Control', 'no-store');

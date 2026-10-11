@@ -21,7 +21,7 @@ const asMuseError = error => {
     return new MuseWorkerError(error.status, 'MW_' + error.code, error.message);
   if (!(error instanceof DotWorkerError)) return error;
   const suffix = error.code.replace(/^STALE_DOT_/, 'STALE_').replace(/^DOT_/, '');
-  return new MuseWorkerError(error.status, 'MW_' + suffix,
+  return new MuseWorkerError(error.status, error.code.startsWith('MW_') ? error.code : 'MW_' + suffix,
     error.message.replace(/\b[Dd]ot\b/g, 'Worker'));
 };
 

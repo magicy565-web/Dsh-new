@@ -17,6 +17,9 @@ import { createWorkspaceBusinessView } from './workspace-business-view.mjs';
 import { readRecoveryStatus } from './recovery-status.mjs';
 import { createWorkspaceRecords, ApiError } from './runtime.mjs';
 import { looksLikeCredential } from './security.mjs';
+import { assertMuseNativeSlot } from './muse-worker-slot.mjs';
+import { createSupplyNetworkService } from './supply-network.mjs';
+import { createBusinessLibraryService } from './business-library.mjs';
 import { normalizeWorkspacePluginConfig, pluginConfigurationHash, pluginFail, pluginId, pluginFields } from './workspace-plugin-config.mjs';
 
 const terminal = new Set(['succeeded', 'failed', 'cancelled', 'expired']);
@@ -216,6 +219,15 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
       deleteArtifact: id => run(token, () => artifacts.delete(id, { check: state => sharedArtifact(id, state) })),
     });
   }
+  function bindResources(actor, merchantMember) {
+    pluginFields(actor, ['subject', 'nativeAgentId']);
+    const token = Object.freeze({ ...actor, epoch: snapshot().epoch, active: false });
+    authorize(store.read(), token);
+    const library = createBusinessLibraryService({ store: guardedStore, artifacts, clock: now });
+    const supply = createSupplyNetworkService({ store: guardedStore, clock: now, workspaceId: config.scopeId, merchantMember });
+    const bind = service => Object.freeze(Object.fromEntries(Object.entries(service).map(([name, method]) => [name, (...args) => run(token, () => method(...args))])));
+    return Object.freeze({ workspaceId: config.scopeId, library: bind(library), supply: bind(supply) });
+  }
   /** Dispatch approval retains a durable intent before calling the native execution owner. */
   function bindNativeTasks(actor) {
     pluginFields(actor, ['subject', 'nativeAgentId']);
@@ -263,6 +275,7 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
           }
           authorize(state, token);
           const view = workers.view(actor.subject), connection = view.worker?.connection;
+          assertMuseNativeSlot(state, view.worker?.id);
           if (intents(state).some(i => !i.jobId) || view.delegations.some(j => !terminal.has(j.state))) {
             pluginFail('WORKSPACE_NATIVE_TASK_UNFINISHED', 'Keep the unfinished delegation or uncertain submission; do not dispatch a replacement.');
           }
@@ -390,7 +403,11 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
     if (match.length !== 1) pluginFail('WORKSPACE_PLUGIN_OWNER', 'The native projection does not belong to this owner and original Muse.');
     const reviewedBinding = structuredClone(binding);
     return Object.freeze({
-      admit: request => run(token, () => guardedStore.update(state => workers.admitNative(state, { ...request, binding: reviewedBinding }))),
+      admit: request => run(token, () => guardedStore.update(state => {
+        const worker = state.personalWorkers?.workers.find(row => row.subject === actor.subject);
+        assertMuseNativeSlot(state, worker?.id);
+        return workers.admitNative(state, { ...request, binding: reviewedBinding });
+      })),
       observe: observation => run(token, () => guardedStore.update(state => workers.observeNative(state, reviewedBinding, observation))),
       authenticate: () => run(token, () => workers.authenticateNative(reviewedBinding)),
     });
@@ -471,7 +488,7 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
     })();
     return closeResult;
   }
-  return Object.freeze({ enabled: true, status, bindActor, bindFrontend, bindNativeTasks, bindNativeProjection, bindNativeResults, bindDotTasks, close, whenClosed,
+  return Object.freeze({ enabled: true, status, bindActor, bindFrontend, bindResources, bindNativeTasks, bindNativeProjection, bindNativeResults, bindDotTasks, close, whenClosed,
     attachMuseRest, refreshMuseRest,
     muse: Object.freeze({
       get enabled() { return Boolean(museRest); },

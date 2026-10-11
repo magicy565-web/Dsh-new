@@ -8,6 +8,7 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]` : object(value) ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}` : JSON.stringify(value);
 const hash = value => createHash('sha256').update(typeof value === 'string' ? value : canonical(value)).digest('hex');
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u;
+const conversationId = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$/u.test(value) && !['__proto__', 'prototype', 'constructor'].includes(value);
 const productFields = ['companyId', 'name', 'description', 'category', 'status', 'skus', 'images', 'supply', 'documents', 'source'];
 const documentFields = ['companyId', 'title', 'slotKey', 'tags', 'status', 'source'];
 const slots = ['company', 'license', 'certificate', 'test_report', 'specification', 'supply_policy', 'other'];
@@ -169,7 +170,7 @@ function validatePersistedLibrary(state) {
   }
   for (const binding of array(lib.conversationReferences ?? [], 'stored conversation references', 1000)) {
     fields(binding, ['id', 'conversationId', 'revision', 'products', 'documents', 'updatedAt'], 'stored conversation reference');
-    id(binding.conversationId, 'conversationId'); integer(binding.revision, 'reference revision');
+    if (!conversationId(binding.conversationId)) fail('INVALID_INPUT', 'Invalid original conversation identity.'); integer(binding.revision, 'reference revision');
     if (binding.id !== binding.conversationId || !Number.isFinite(Date.parse(binding.updatedAt))) fail('INVALID_INPUT', 'Invalid stored conversation references.');
     referenceSelection({ products: binding.products, documents: binding.documents });
   }

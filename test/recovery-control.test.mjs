@@ -8,6 +8,7 @@ import { createBackup, verifyBackup, restoreBackup } from '../scripts/recovery.m
 import { createNativeStorageOverlay, readNativeStorageOverlay } from '../server/native-storage.mjs';
 import { generateNativeStorageOverlay } from '../scripts/generate-native-bridge.mjs';
 import { createHarnessProvider } from '../server/harness-provider.mjs';
+import { assertPrivateWindowsPath } from '../server/windows-private-acl.mjs';
 
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(tmpdir(), 'workspace-recovery-control-'));
@@ -99,7 +100,8 @@ test('reviewed native storage overlay contains durable roots, preserves launch o
   await generateNativeStorageOverlay({ dshHome, compression: 'zstd', outputPath });
   const overlay = createNativeStorageOverlay({ dshHome, compression: 'zstd' });
   assert.deepEqual(JSON.parse(await fs.readFile(outputPath)), overlay);
-  assert.equal((await fs.stat(outputPath)).mode & 0o777, 0o600);
+  if (process.platform === 'win32') await assertPrivateWindowsPath(outputPath);
+  else assert.equal((await fs.stat(outputPath)).mode & 0o777, 0o600);
   assert.deepEqual(readNativeStorageOverlay(outputPath, dshHome), { compression: 'zstd' });
   await assert.rejects(generateNativeStorageOverlay({ dshHome, compression: 'zstd', outputPath }), { code: 'EEXIST' });
   const dshBin = path.join(f.root, 'fixture.mjs'), profilePatch = path.join(f.root, 'profile.yml');

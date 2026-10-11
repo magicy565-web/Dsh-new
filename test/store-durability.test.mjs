@@ -4,13 +4,14 @@ import { promises as fs, constants } from 'node:fs';
 import childProcess from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
-import { openStore, syncDirectory } from '../server/store.mjs';
+import { openStore, syncDirectory, privateDirectory } from '../server/store.mjs';
 import { assertWindowsDirectoryVolume } from '../server/windows-volume.mjs';
 import { createArtifactService } from '../server/artifacts.mjs';
 
 async function directory(t) {
   const root = path.resolve(os.tmpdir());
   const dir = await fs.mkdtemp(path.join(root, 'workspace-durability-'));
+  await privateDirectory(dir);
   t.after(async () => {
     const target = path.resolve(dir);
     assert.equal(path.dirname(target), root);

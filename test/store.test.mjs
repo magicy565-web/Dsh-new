@@ -5,10 +5,11 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { openStore, STORE_VERSION } from '../server/store.mjs';
+import { openStore, STORE_VERSION, privateDirectory } from '../server/store.mjs';
 
 async function directory(t) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'workspace-store-v2-'));
+  await privateDirectory(dir);
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   return dir;
 }

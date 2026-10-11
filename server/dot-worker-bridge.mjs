@@ -1,4 +1,5 @@
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
+import { assertMuseRestSlot } from './muse-worker-slot.mjs';
 
 const id = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value);
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -119,6 +120,9 @@ export function createDotWorkerBridge({
       };
       const fingerprint = sha256(JSON.stringify(taskData));
       return mutate(state => {
+        if (agentKind === 'muse') {
+          try { assertMuseRestSlot(state, workerId, taskData.id); } catch (error) { fail(error.status, error.code, error.message); }
+        }
         const previous = state[queueKey].find(row => row.id === taskData.id);
         if (previous) {
           if (previous.fingerprint !== fingerprint) fail(409, 'DOT_IDEMPOTENCY_CONFLICT', 'The same task reference already belongs to different work.');
@@ -210,6 +214,9 @@ export function createDotWorkerBridge({
     if (!approved || !id(requestId)) fail(403,'DOT_NOT_APPROVED','A reviewed worker and stable claim request are required.');
     return mutate(state => {
       const item = lookup(state,taskRef);guardPayload(item);
+      if (agentKind === 'muse') {
+        try { assertMuseRestSlot(state, workerId, item.id); } catch (error) { fail(error.status, error.code, error.message); }
+      }
       const active = state[queueKey].find(x => x.workerId === workerId && x.id !== item.id &&
         ['claimed','blocked','cancel_requested'].includes(x.status) && x.attemptId);
       if (active) fail(409,'DOT_SLOT_BUSY','The one-dot single active attempt is occupied.');

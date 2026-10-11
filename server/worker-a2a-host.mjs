@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createA2AWorkerAdapter } from './worker-a2a-adapter.mjs';
+import { openPrivateFile } from './store.mjs';
 
 // Production inputs come solely from reviewed host configuration, never HTTP.
 // SDK and outbound network remain disabled unless all reviews/pins validate.
@@ -20,11 +21,13 @@ async function readPinnedJson(filename, expectedDigest, label) {
   const canonical = path.resolve(filename);
   const info = await fs.lstat(canonical);
   if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1 ||
-      (info.mode & 0o077) || info.size > 128 * 1024 || info.size === 0 ||
+      (process.platform !== 'win32' && (info.mode & 0o077)) || info.size > 128 * 1024 || info.size === 0 ||
       (await fs.realpath(canonical)) !== canonical) {
     throw error(label + ': only private, regular, single-link, pinned files are allowed.');
   }
-  const bytes = await fs.readFile(canonical);
+  const handle = await openPrivateFile(canonical);
+  let bytes;
+  try { bytes = await handle.readFile(); } finally { await handle.close(); }
   if (sha(bytes) !== expectedDigest) throw error(label + ': SHA-256 pin differs from reviewed file.');
   try { return JSON.parse(bytes.toString('utf8')); }
   catch { throw error(label + ': invalid JSON.'); }

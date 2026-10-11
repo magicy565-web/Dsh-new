@@ -1,0 +1,190 @@
+{
+  "schema": "workspace.original-host-integration-candidate.v1",
+  "applicationBaseCommit": "b4e59a99d3ea68e5e62e14d0b38384bab2fe4e7b",
+  "launchReady": false,
+  "deployed": false,
+  "currentProductionBaselineVerified": false,
+  "completeHarnessBootVerified": false,
+  "realMuseAccountExecutionVerified": false,
+  "originalRegistryAdmissionExecutedLocally": false,
+  "originalConnectorClientSha256": "0fb492b9e8860c850f7e236537a6df9b84fa84919655331ab1c62f70fc67888c",
+  "executionChannel": "/api/muse-worker/v1; existing workspace-api.py + Secure Vault/authd only",
+  "historicalManifests": "Other manifests are retained historical provenance, not approval or validation of this candidate.",
+  "requires": [
+    "review exact original Host source and imports before applying this overlay",
+    "existing Host Store single writer and actor/epoch fencing",
+    "actual original Muse account/Connector owner authorization and capability verification"
+  ],
+  "files": [
+    {
+      "path": "client/README.md",
+      "bytes": 1632,
+      "sha256": "c517df309cd24a31396c806883798822cb237eca22432cea8660db10553995e9"
+    },
+    {
+      "path": "client/workspace-api.py",
+      "bytes": 73627,
+      "sha256": "0fb492b9e8860c850f7e236537a6df9b84fa84919655331ab1c62f70fc67888c"
+    },
+    {
+      "path": "deploy/native-dot-host.mjs",
+      "bytes": 20995,
+      "sha256": "2080c663155de1ecea0ec6bd4587ae4ba37b798b80535a1359725454167b6942"
+    },
+    {
+      "path": "DOT-PATCH-MANIFEST.json",
+      "bytes": 2034,
+      "sha256": "f468b64ceaea52a7be4acabc74826b1fd976f8c037563f63e0a3a8b6d289211b"
+    },
+    {
+      "path": "MUSE-SESSION-MANIFEST.json",
+      "bytes": 3283,
+      "sha256": "1c52899e15cba2f9c6f70aa362b724516ad89e40b9badfeb65acde81cae81a9f"
+    },
+    {
+      "path": "MUSE-SESSION-REVIEW.md",
+      "bytes": 3624,
+      "sha256": "cd88e6cb626b718f3e37f0b8ac1e593c614f33902d562a40f9d5244771cd7371"
+    },
+    {
+      "path": "OVERLAY_MANIFEST.json",
+      "bytes": 7143,
+      "sha256": "1ebbfeb6f8e71236df40fd82e56692c1dd3dc5f51fa2b5818df6e402429e1bb1"
+    },
+    {
+      "path": "PRIVATE-DOT-HISTORY-REVIEW.md",
+      "bytes": 4998,
+      "sha256": "6600115a688a6d5fa13ee5c746086a35bb5fc7ed749495754a01657bdac79c6f"
+    },
+    {
+      "path": "PRIVATE-MUSE-REVIEW.md",
+      "bytes": 3609,
+      "sha256": "22e68f876bfe511e18db98846c487f37e43e3a44683eda51a8d7d77cbcd4f734"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2913,
+      "sha256": "f2d214a41d1eb05a594fd1e4ba40965bb61f880608668311b8c485c02f99580b"
+    },
+    {
+      "path": "server/business-library.mjs",
+      "bytes": 44364,
+      "sha256": "921b2fca8adff50ed6d9fb932552354b4f39e171d0f3a2cb6731b68e554650c8"
+    },
+    {
+      "path": "server/dot-worker-bridge.mjs",
+      "bytes": 24576,
+      "sha256": "e53da1987e63f005a6db1f4a1d80f4f5c79dd03757bc2e9a2228bcdcc65273c5"
+    },
+    {
+      "path": "server/library-http.mjs",
+      "bytes": 2386,
+      "sha256": "514708ec23f77999559edd2fb18134acf8f208b5a5b2a644bd61c2afd8b4c4f8"
+    },
+    {
+      "path": "server/muse-conversation-delegation.mjs",
+      "bytes": 14499,
+      "sha256": "87cf0ce52614e2ea95a797d7415dbf5b851f0261ab495da89da27571ece3ad09"
+    },
+    {
+      "path": "server/muse-worker-api.mjs",
+      "bytes": 6010,
+      "sha256": "7a2c47a5390f1dda43fca792f9fca64879c05128f9fb89c37fdaa62ca7bf41c7"
+    },
+    {
+      "path": "server/muse-worker-native.mjs",
+      "bytes": 17911,
+      "sha256": "7b28ab7cffa2988e629bec20368a522a4656364618fc3e10c1b9626ea6fcdf45"
+    },
+    {
+      "path": "server/muse-worker-private-review.mjs",
+      "bytes": 5841,
+      "sha256": "978b2aac389b5f55439d221470214cef2c3c87cfc6722dc9bf3633e498bd13ce"
+    },
+    {
+      "path": "server/muse-worker-session.mjs",
+      "bytes": 12375,
+      "sha256": "4c836346aa1b22c8dceb1fb9e4cc24d7a412c0487c0ad47fac51e653f037b8af"
+    },
+    {
+      "path": "server/muse-worker-slot.mjs",
+      "bytes": 2553,
+      "sha256": "cb77af4d6bbec64182e0462fa8ae39b6708c1f9ca7ee38295e79b02ca460ad15"
+    },
+    {
+      "path": "server/sourcing-mcp.mjs",
+      "bytes": 10056,
+      "sha256": "58d160f8c9b08bfb4e83fe65e5f571ca875fa2f45c27c944883108d88288e001"
+    },
+    {
+      "path": "server/supply-http.mjs",
+      "bytes": 2407,
+      "sha256": "cc91e9c0e19250ddc1315fa30e2725b1580727b8e33ac2c0633c69ba7c69b7df"
+    },
+    {
+      "path": "server/supply-network.mjs",
+      "bytes": 30443,
+      "sha256": "d45a276fb31fd0bc72d284eabc344a0987a5423623787eedbc39d9b703b9deed"
+    },
+    {
+      "path": "server/workspace-dot-history-review.mjs",
+      "bytes": 10003,
+      "sha256": "754ee1f9e680f614ab8f2e87d28b619ef227d8425e6065e1bf64e9cdca0c9761"
+    },
+    {
+      "path": "server/workspace-dot-host.mjs",
+      "bytes": 12100,
+      "sha256": "f8a6896433ab9b391e7e7f7db91eb36967d6d56a030edb06aa15457584d4e11e"
+    },
+    {
+      "path": "server/workspace-muse-session-host.mjs",
+      "bytes": 3072,
+      "sha256": "a857f44ff1f1235d22a58f7327d469fa0c3d1b6647824d6273cff56c22ceaba1"
+    },
+    {
+      "path": "server/workspace-native-plugin.mjs",
+      "bytes": 10016,
+      "sha256": "3d80259c3ca310f4f02726211c179a1fa4bd3c75f130d6ffe918e131fb535233"
+    },
+    {
+      "path": "server/workspace-plugin-frontend.mjs",
+      "bytes": 26850,
+      "sha256": "6a484b90937569ea84ea2308e3373ee8cac18a72380b3db7d819ba426b755e1d"
+    },
+    {
+      "path": "server/workspace-plugin-service.mjs",
+      "bytes": 39820,
+      "sha256": "f13c2b4c479f42bd0601c1bc0e133135f30c52908d295231ec88180fc8993345"
+    },
+    {
+      "path": "test/fixtures/workspace-dot-history-native.mjs",
+      "bytes": 11614,
+      "sha256": "8e399e1bac4605b6ee5c614e200db1600b6370cad05a676a4954dc88226580b1"
+    },
+    {
+      "path": "test/muse-worker.native-host.production.test.mjs",
+      "bytes": 10150,
+      "sha256": "920889b33c2fb0fbd4e4e9ef6ab61ce7dfc8b778385f712d37d9c7ca8020fe94"
+    },
+    {
+      "path": "test/muse-worker.native-production.test.mjs",
+      "bytes": 14315,
+      "sha256": "8dcd184bc73108d383ec3dcee4877d1a03453f0d06cde13d535d88615089fcf7"
+    },
+    {
+      "path": "test/muse-worker.session-native.test.mjs",
+      "bytes": 11704,
+      "sha256": "49c1c0a8392eda146c1ab550f4d2809a127923482fec79ac9b9126c1133784b7"
+    },
+    {
+      "path": "test/muse-worker.session.test.mjs",
+      "bytes": 16751,
+      "sha256": "b7638e0f79a1c1c68628c3905cd26102b6b1ea0b1515d2e572902ee7fd3a61a3"
+    },
+    {
+      "path": "test/workspace-dot-history-review.test.mjs",
+      "bytes": 12168,
+      "sha256": "37a3cb36b1f8513d9c95223647733621244717be54115c44e9c15f5cb70275cb"
+    }
+  ]
+}

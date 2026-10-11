@@ -1,9 +1,19 @@
 import path from 'node:path';
-import { writeFile } from 'node:fs/promises';
+import { open } from 'node:fs/promises';
+import { assertPrivateWindowsPath } from '../server/windows-private-acl.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createNativeRelayOverlay } from '../server/harness-provider.mjs';
 import { createNativeStorageOverlay } from '../server/native-storage.mjs';
 import { loadNativeBridgeDependencies } from '../server/native-bridge.mjs';
+
+async function writePrivateOverlay(filename, text) {
+  const handle = await open(filename, 'wx', 0o600);
+  try {
+    await assertPrivateWindowsPath(filename, { initializeEmpty: true });
+    await handle.writeFile(text);
+    await handle.sync();
+  } finally { await handle.close(); }
+}
 
 /** Return a reviewable overlay. Never launches a runtime or edits existing profiles. */
 export async function generateNativeBridgeOverlay({ sdkPackagePath, outputPath }) {
@@ -17,7 +27,7 @@ export async function generateNativeBridgeOverlay({ sdkPackagePath, outputPath }
     + `      name: ${JSON.stringify(bridge)}\n`
     + '      inject: [sdkAppStartup, loader, agents, sessionPersistence]\n'
     + `      config:\n        sdkPackagePath: ${JSON.stringify(sdkPackagePath)}\n`;
-  await writeFile(outputPath, text, { flag: 'wx', mode: 0o600 });
+  await writePrivateOverlay(outputPath, text);
   return { outputPath, bridgePath: bridge };
 }
 
@@ -27,7 +37,7 @@ export async function generateNativeRelayOverlay({ outputPath, ...route }) {
     throw new Error('Use an absolute, new .yml output path.');
   }
   const overlay = createNativeRelayOverlay(route);
-  await writeFile(outputPath, JSON.stringify(overlay, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+  await writePrivateOverlay(outputPath, JSON.stringify(overlay, null, 2) + '\n');
   return { outputPath, provider: route.nativeProvider, protocol: route.nativeProtocol, model: route.nativeModel };
 }
 
@@ -35,7 +45,7 @@ export async function generateNativeRelayOverlay({ outputPath, ...route }) {
 export async function generateNativeStorageOverlay({ dshHome, compression, outputPath }) {
   if (typeof outputPath !== 'string' || !path.isAbsolute(outputPath) || !/\.ya?ml$/.test(outputPath)) throw new Error('Use an absolute, new .yml output path.');
   const overlay = createNativeStorageOverlay({ dshHome, compression });
-  await writeFile(outputPath, JSON.stringify(overlay, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+  await writePrivateOverlay(outputPath, JSON.stringify(overlay, null, 2) + '\n');
   return { outputPath, compression };
 }
 

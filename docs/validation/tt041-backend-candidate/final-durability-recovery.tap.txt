@@ -1,0 +1,268 @@
+TAP version 13
+# Subtest: native orchestration captures native bytes, quarantines durable queues and resets every app capability
+ok 1 - native orchestration captures native bytes, quarantines durable queues and resets every app capability
+  ---
+  duration_ms: 34708.5158
+  type: 'test'
+  ...
+# Subtest: native restore remains unbootable throughout quarantine and a failed migration leaves original and snapshot unchanged
+ok 2 - native restore remains unbootable throughout quarantine and a failed migration leaves original and snapshot unchanged
+  ---
+  duration_ms: 17301.5332
+  type: 'test'
+  ...
+# Subtest: native backup refuses incompatible native data or live native ownership before publishing snapshot
+ok 3 - native backup refuses incompatible native data or live native ownership before publishing snapshot
+  ---
+  duration_ms: 3186.8477
+  type: 'test'
+  ...
+# Subtest: reviewed native storage overlay contains durable roots, preserves launch ownership and fingerprints exact bytes
+ok 4 - reviewed native storage overlay contains durable roots, preserves launch ownership and fingerprints exact bytes
+  ---
+  duration_ms: 8739.6081
+  type: 'test'
+  ...
+# Subtest: directory flush uses required access, verifies identity, and preserves contents
+ok 5 - directory flush uses required access, verifies identity, and preserves contents
+  ---
+  duration_ms: 1833.327
+  type: 'test'
+  ...
+# Subtest: volume query is fixed, bounded, read-only and never substitutes success for unverified storage
+ok 6 - volume query is fixed, bounded, read-only and never substitutes success for unverified storage
+  ---
+  duration_ms: 68.4533
+  type: 'test'
+  ...
+# Subtest: unsupported preflight retains exact original state, writer and recovery locks
+ok 7 - unsupported preflight retains exact original state, writer and recovery locks
+  ---
+  duration_ms: 1728.7761
+  type: 'test'
+  ...
+# Subtest: pre-rename sync, close and rename errors retain old state, cursor, lock and observers
+    # Subtest: file-sync
+    ok 1 - file-sync
+      ---
+      duration_ms: 1691.2152
+      type: 'test'
+      ...
+    # Subtest: file-close
+    ok 2 - file-close
+      ---
+      duration_ms: 1775.4913
+      type: 'test'
+      ...
+    # Subtest: rename
+    ok 3 - rename
+      ---
+      duration_ms: 2015.513
+      type: 'test'
+      ...
+    1..3
+ok 8 - pre-rename sync, close and rename errors retain old state, cursor, lock and observers
+  ---
+  duration_ms: 5483.0666
+  type: 'test'
+  ...
+# Subtest: post-rename flush and close failures stop writes and never emit durable receipts
+    # Subtest: directory-sync
+    ok 1 - directory-sync
+      ---
+      duration_ms: 1847.2004
+      type: 'test'
+      ...
+    # Subtest: directory-close
+    ok 2 - directory-close
+      ---
+      duration_ms: 1659.767
+      type: 'test'
+      ...
+    # Subtest: sync-and-close
+    ok 3 - sync-and-close
+      ---
+      duration_ms: 1566.0521
+      type: 'test'
+      ...
+    1..3
+ok 9 - post-rename flush and close failures stop writes and never emit durable receipts
+  ---
+  duration_ms: 5073.5638
+  type: 'test'
+  ...
+# Subtest: directory identity and file hard-link checks remain enforced on Windows
+ok 10 - directory identity and file hard-link checks remain enforced on Windows
+  ---
+  duration_ms: 1539.1142
+  type: 'test'
+  ...
+# Subtest: lost directory-sync permission during release preserves the original writer lock
+ok 11 - lost directory-sync permission during release preserves the original writer lock
+  ---
+  duration_ms: 1577.0497
+  type: 'test'
+  ...
+# Subtest: trusted artifact ownership persists atomically, is immutable across retries, and cannot come from the public body
+ok 12 - trusted artifact ownership persists atomically, is immutable across retries, and cannot come from the public body
+  ---
+  duration_ms: 3262.7483
+  type: 'test'
+  ...
+# Subtest: migration survives process exits at every publication boundary without exposing a partial backup
+    # Subtest: partial-backup-write
+    ok 1 - partial-backup-write
+      ---
+      duration_ms: 5708.0547
+      type: 'test'
+      ...
+    # Subtest: synced-backup-stage
+    ok 2 - synced-backup-stage
+      ---
+      duration_ms: 5383.5877
+      type: 'test'
+      ...
+    # Subtest: published-backup
+    ok 3 - published-backup
+      ---
+      duration_ms: 5332.0278
+      type: 'test'
+      ...
+    # Subtest: before-state-publish
+    ok 4 - before-state-publish
+      ---
+      duration_ms: 5154.897
+      type: 'test'
+      ...
+    # Subtest: published-state
+    ok 5 - published-state
+      ---
+      duration_ms: 5121.2157
+      type: 'test'
+      ...
+    1..5
+ok 13 - migration survives process exits at every publication boundary without exposing a partial backup
+  ---
+  duration_ms: 26700.7858
+  type: 'test'
+  ...
+# Subtest: backup I/O failures retain v1; uncertain migration commit is distinct and safe to reopen
+    # Subtest: failed-backup-write
+    ok 1 - failed-backup-write
+      ---
+      duration_ms: 5175.4179
+      type: 'test'
+      ...
+    # Subtest: failed-backup-directory-sync
+    ok 2 - failed-backup-directory-sync
+      ---
+      duration_ms: 5257.1447
+      type: 'test'
+      ...
+    # Subtest: failed-state-directory-sync
+    ok 3 - failed-state-directory-sync
+      ---
+      duration_ms: 5083.4326
+      type: 'test'
+      ...
+    1..3
+ok 14 - backup I/O failures retain v1; uncertain migration commit is distinct and safe to reopen
+  ---
+  duration_ms: 15516.563
+  type: 'test'
+  ...
+# Subtest: legacy partial backup blocks migration with actionable diagnostics and preserves every byte
+ok 15 - legacy partial backup blocks migration with actionable diagnostics and preserves every byte
+  ---
+  duration_ms: 1699.7875
+  type: 'test'
+  ...
+# Subtest: validated legacy source can be upgraded in a fresh destination without altering the blocked source
+ok 16 - validated legacy source can be upgraded in a fresh destination without altering the blocked source
+  ---
+  duration_ms: 3148.0468
+  type: 'test'
+  ...
+# Subtest: exact existing backup is synced, reused and made private before migration
+ok 17 - exact existing backup is synced, reused and made private before migration
+  ---
+  duration_ms: 1646.8038
+  type: 'test'
+  ...
+# Subtest: startup distinguishes unknown schema from invalid data without changing either
+ok 18 - startup distinguishes unknown schema from invalid data without changing either
+  ---
+  duration_ms: 1890.2536
+  type: 'test'
+  ...
+# Subtest: missing authoritative state with write evidence fails closed instead of creating an empty workspace
+    # Subtest: workspace.v1.backup.json
+    ok 1 - workspace.v1.backup.json
+      ---
+      duration_ms: 1623.4168
+      type: 'test'
+      ...
+    # Subtest: workspace.json.b7356896-b779-4086-a41b-bf40b4437384.tmp
+    ok 2 - workspace.json.b7356896-b779-4086-a41b-bf40b4437384.tmp
+      ---
+      duration_ms: 1838.4896
+      type: 'test'
+      ...
+    # Subtest: workspace.v1.backup.json.43df2850-f282-4e7f-a5a9-667443b17d60.tmp
+    ok 3 - workspace.v1.backup.json.43df2850-f282-4e7f-a5a9-667443b17d60.tmp
+      ---
+      duration_ms: 1631.7455
+      type: 'test'
+      ...
+    1..3
+ok 19 - missing authoritative state with write evidence fails closed instead of creating an empty workspace
+  ---
+  duration_ms: 5094.3789
+  type: 'test'
+  ...
+# Subtest: incomplete restore marker blocks startup before a writer lock is created
+    # Subtest: file
+    ok 1 - file
+      ---
+      duration_ms: 15.757
+      type: 'test'
+      ...
+    # Subtest: directory
+    ok 2 - directory
+      ---
+      duration_ms: 12.9397
+      type: 'test'
+      ...
+    1..2
+ok 20 - incomplete restore marker blocks startup before a writer lock is created
+  ---
+  duration_ms: 29.142
+  type: 'test'
+  ...
+# Subtest: startup diagnostics are detached and report unusable rollback backup without blocking valid v2
+ok 21 - startup diagnostics are detached and report unusable rollback backup without blocking valid v2
+  ---
+  duration_ms: 1649.2902
+  type: 'test'
+  ...
+# Subtest: migration staging evidence is retained when a valid v2 store has no usable final backup
+ok 22 - migration staging evidence is retained when a valid v2 store has no usable final backup
+  ---
+  duration_ms: 1660.3643
+  type: 'test'
+  ...
+# Subtest: uncertain transaction durability is visible and prevents subsequent writes
+ok 23 - uncertain transaction durability is visible and prevents subsequent writes
+  ---
+  duration_ms: 1675.6461
+  type: 'test'
+  ...
+1..23
+# tests 42
+# suites 0
+# pass 42
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 145335.563

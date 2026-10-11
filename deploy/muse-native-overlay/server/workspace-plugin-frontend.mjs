@@ -10,6 +10,9 @@ import { WorkerGatewayError, WORKER_BODY_LIMIT } from './personal-worker.mjs';
 import { CapabilityError } from './capabilities.mjs';
 import { FILE_BODY_MAX_BYTES, DEFAULT_FILE_LIMITS, validateFileLimits, createFileRequestGate } from './file-limits.mjs';
 import { pluginFields, pluginFail, WorkspacePluginError } from './workspace-plugin-config.mjs';
+import { supplyHttp } from './supply-http.mjs';
+import { libraryHttp } from './library-http.mjs';
+import { createSourcingMcpAuth, handleSourcingMcpHttp } from './sourcing-mcp.mjs';
 
 /** HTTP presentation of an existing business plugin; owns no business store or executor.
  * @param options - Existing service, reviewed owner bindings, access and frontend paths.
@@ -17,6 +20,7 @@ import { pluginFields, pluginFail, WorkspacePluginError } from './workspace-plug
  */
 export async function createWorkspacePluginFrontend({ service, operators, dataDirectory,
   dotHost,
+  sourcingMcpConfig = null, sourcingOwnerSubject,
   staticDirectory = fileURLToPath(new URL('../dist', import.meta.url)), access: accessOptions = {},
   maxConcurrentFileRequests = DEFAULT_FILE_LIMITS.maxConcurrentFileRequests }) {
   if (!service?.bindActor || !Array.isArray(operators) || !path.isAbsolute(dataDirectory)) {
@@ -24,7 +28,11 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
   }
   const fileLimits = validateFileLimits({ maxConcurrentFileRequests });
   const fileRequests = createFileRequestGate(fileLimits.maxConcurrentFileRequests);
-  const access = await createAccessControl({ config: validateAccessConfig(accessOptions), dataDirectory });
+  const accessConfig = validateAccessConfig(accessOptions);
+  const sourcingAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
+  const merchantMember = subject => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(subject)) : subject === 'local-operator';
+  if (sourcingMcpConfig?.enabled && (!merchantMember(sourcingOwnerSubject) || operators.filter(o => o.subject === sourcingOwnerSubject).length !== 1 || sourcingMcpConfig.principals?.some(p => operators.some(o => o.subject === p.subject) || accessConfig.members?.has(p.subject) || p.subject === 'local-operator'))) throw new Error('Procurement MCP requires a separate buyer identity and an explicitly reviewed original Host owner.');
+  const access = await createAccessControl({ config: accessConfig, dataDirectory });
   let stopping = false, closing;
   const pending = new Set();
   function owner(subject) {
@@ -52,6 +60,12 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
     try {
       if (stopping) throw new ApiError(503, 'WORKSPACE_FRONTEND_CLOSED', 'The plugin frontend is closing.');
       const url = new URL(req.url, 'http://localhost'), pathname = url.pathname;
+      if (pathname === '/mcp/sourcing') {
+        const principal = sourcingAuth(req);
+        const resources = service.bindResources(owner(sourcingOwnerSubject), merchantMember);
+        if (principal && principal.workspaceId !== resources.workspaceId) throw new ApiError(403, 'SUPPLY_WORKSPACE_REQUIRED', 'Use the reviewed procurement workspace binding.');
+        return await handleSourcingMcpHttp(req, res, { supply: resources.supply, readBody, actor: principal });
+      }
       if (pathname === '/api/muse-worker' || pathname.startsWith('/api/muse-worker/')) {
         if (!service.muse?.enabled) throw new MuseWorkerError(404, 'MW_GATEWAY_UNAVAILABLE', 'Muse REST is not configured on this native Host.');
         await service.muse.handle(req, res, pathname); return;
@@ -81,6 +95,43 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
       }
       const actor = owner(context.subject), worker = service.bindActor(actor), results = resultHandle(actor);
       const business = service.bindFrontend(actor);
+      if (pathname.startsWith('/api/supply/') || pathname.startsWith('/api/library/') || /^\/api\/conversations\/[^/]+\/(procurement|library-references)$/.test(pathname)) {
+        const resources = service.bindResources(actor, merchantMember), resourceActor = { ...context, ...actor, workspaceId: resources.workspaceId };
+        const body = ['POST', 'PATCH'].includes(req.method) ? await readBody(req, 100_000) : {};
+        if (['POST', 'PATCH'].includes(req.method)) access.verifyBody(context, req.bodyBytes);
+        const query = Object.fromEntries(url.searchParams);
+        if ([...url.searchParams.keys()].length !== Object.keys(query).length) throw new ApiError(400, 'INVALID_INPUT', 'Duplicate resource query parameters are not allowed.');
+        const result = await supplyHttp({ supply: resources.supply, method: req.method, pathname, query, body, actor: resourceActor })
+          || await libraryHttp({ library: resources.library, method: req.method, pathname, query, body, actor: resourceActor });
+        if (!result) throw new ApiError(404, 'NOT_FOUND', 'The owned resource API was not found.');
+        return await respond(res, result.status, result.body);
+      }
+      const museConversation = pathname.match(/^\/api\/conversations\/([^/]+)\/muse-delegations(?:\/([^/]+)(?:\/(approve|dispatch|refresh|cancel|accept))?)?$/);
+      if (museConversation) {
+        if (!service.muse?.enabled) throw new MuseWorkerError(409, 'MW_GATEWAY_UNAVAILABLE', 'Use the existing reviewed Muse binding on this original Host.');
+        if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only the reviewed owner may authorize or accept Muse work.');
+        if (museConversation[1] !== actor.nativeAgentId) pluginFail('WORKSPACE_PLUGIN_OWNER', 'Use the original owned business conversation.');
+        const delegation = service.muse.bindConversation(actor);
+        if (req.method === 'GET') return await respond(res, 200, museConversation[2] ? { delegation: await delegation.get(museConversation[2]) } : { delegations: await delegation.list() });
+        if (req.method === 'POST') {
+          const body = await readBody(req, 30_000); access.verifyBody(context, req.bodyBytes);
+          if (!museConversation[2]) return await respond(res, 201, await delegation.prepare(body));
+          if (museConversation[3]) return await respond(res, 200, await delegation[museConversation[3]](museConversation[2], body));
+        }
+        throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Use the original conversation delegation API.');
+      }
+      const museMessage = pathname.match(/^\/api\/conversations\/([^/]+)\/messages$/);
+      if (museMessage && req.method === 'POST') {
+        const body = await readBody(req); access.verifyBody(context, req.bodyBytes);
+        if (body.provider === 'muse') {
+          if (!service.muse?.enabled) throw new MuseWorkerError(409, 'MW_GATEWAY_UNAVAILABLE', 'Use the existing reviewed Muse binding on this original Host.');
+          if (context.role !== 'admin' || museMessage[1] !== actor.nativeAgentId) throw new ApiError(403, 'ROLE_REQUIRED', 'Use the original reviewed Muse owner and conversation.');
+          return await respond(res, 201, await service.muse.bindConversation(actor).prepare(body));
+        }
+        if (!dotHost) throw new ApiError(409, 'NATIVE_PROVIDER_REQUIRED', 'Select an available original execution provider explicitly.');
+        if (museMessage[1] !== actor.nativeAgentId) pluginFail('WORKSPACE_PLUGIN_OWNER', 'Use the original owned conversation.');
+        return await respond(res, 200, { task: await dotHost.submitQuestion(actor, body) });
+      }
       if (/^\/api\/(?:worker-services|worker-orders|worker-opportunities|muse-workers)(?:\/|$)/.test(pathname)) {
         if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only the reviewed administrator may authorize or accept Muse work.');
         if (!service.muse?.enabled) throw new MuseWorkerError(404, 'MW_GATEWAY_UNAVAILABLE', 'Muse REST is not configured on this native Host.');
@@ -119,12 +170,6 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
       if (dotHost && req.method === 'POST' && pathname === '/api/conversations') {
         const body = await readBody(req); access.verifyBody(context, req.bodyBytes); pluginFields(body, ['title']);
         return await respond(res, 200, { conversation: { id: actor.nativeAgentId, title: body.title || '和 xy 对话', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } });
-      }
-      const cloudQuestion = pathname.match(/^\/api\/conversations\/([^/]+)\/messages$/);
-      if (dotHost && cloudQuestion && req.method === 'POST') {
-        const body = await readBody(req); access.verifyBody(context, req.bodyBytes);
-        if (cloudQuestion[1] !== actor.nativeAgentId) pluginFail('WORKSPACE_PLUGIN_OWNER', 'This conversation belongs to a different original native Session.');
-        return await respond(res, 200, { task: await dotHost.submitQuestion(actor, body) });
       }
       const cloudFile = pathname.match(/^\/api\/cloud-worker\/files\/([^/]+)$/);
       if (cloudFile && req.method === 'GET') {

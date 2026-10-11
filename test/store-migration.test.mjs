@@ -5,13 +5,14 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { openStore, SUPPORTED_STORE_VERSIONS } from '../server/store.mjs';
+import { openStore, SUPPORTED_STORE_VERSIONS, privateDirectory } from '../server/store.mjs';
 
 const storeModule = new URL('../server/store.mjs', import.meta.url).href;
 const backupName = 'workspace.v1.backup.json';
 const legacy = () => ({ version: 1, conversations: [{ id: 'saved-chat', title: 'Saved conversation' }], messages: [{ id: 'saved-message', conversationId: 'saved-chat', content: '已有内容 🌱' }], goals: [], activity: [], memories: [], settings: { name: 'Existing workspace' }, extension: { untouched: true } });
 async function directory(t) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'workspace-migration-'));
+  await privateDirectory(dir);
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   return dir;
 }

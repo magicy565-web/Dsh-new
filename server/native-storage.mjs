@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
+import { assertPrivateWindowsPathSync } from './windows-private-acl.mjs';
 
 /** Pin supported native durable stores inside the private application data root. */
 export function createNativeStorageOverlay({ dshHome, compression }) {
@@ -17,6 +18,7 @@ export function createNativeStorageOverlay({ dshHome, compression }) {
 /** Accept only the narrow generated storage patch; deployment review is separate. */
 export function readNativeStorageOverlay(filename, dshHome) {
   try {
+    assertPrivateWindowsPathSync(filename);
     const content = readFileSync(filename, 'utf8');
     if (content.length > 32_768) throw new Error('Size limit');
     const value = JSON.parse(content), compression = value?.[0]?.config?.compression;

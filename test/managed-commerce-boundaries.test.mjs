@@ -15,9 +15,11 @@ import {callDotMcpTool,DOT_MCP_TOOLS} from '../server/dot-mcp-server.mjs';
 const provenance=JSON.parse(fs.readFileSync(new URL('../docs/validation/managed-commerce-sources.json',import.meta.url)));
 for(const row of provenance.boundaryFiles) {
   const bytes=Buffer.from(fs.readFileSync(new URL('../'+row.path,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
-  // The verified Supply V1 extends this one read-only adapter with catalog
-  // observation; the other seven reviewed original modules stay byte-identical.
-  const expected=row.path==='server/shopify.mjs'?'bb7bb5cacce3a5f48a08c23bcd814d0718788051':row.gitBlob;
+  // Verified Supply V1 adds read-only catalog observation; this candidate
+  // permits original native Session IDs in conversation library references.
+  // Pin those two reviewed deltas; all other source boundaries stay identical.
+  const expected=row.path==='server/shopify.mjs'?'bb7bb5cacce3a5f48a08c23bcd814d0718788051':
+    row.path==='server/business-library.mjs'?'e636d1bbc27b3808576fae5cc4a6efd54ffc81da':row.gitBlob;
   assert.equal(createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'),expected,
     'Reviewed original source differs: '+row.path);
 }
