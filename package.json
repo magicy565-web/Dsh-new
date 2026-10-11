@@ -30,7 +30,9 @@
     "test:commerce": "node --test test/commerce.http.test.mjs",
     "test:muse:browser": "npm run build && node test/muse-commerce.browser.mjs",
     "test:goal-context": "node --test test/goal-commerce.http.test.mjs",
-    "test:goal-context:browser": "npm run build && node test/goal-commerce.browser.mjs"
+    "test:goal-context:browser": "npm run build && node test/goal-commerce.browser.mjs",
+    "test:control:browser": "npm run build && node test/master-control.browser.mjs",
+    "preview:control": "npm run build && node --experimental-test-module-mocks --import ./test/fixtures/goal-commerce-memory-preload.mjs test/preview-master-control.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

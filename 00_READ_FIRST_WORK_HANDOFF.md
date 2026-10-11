@@ -4,6 +4,15 @@ This is the `0.5.0-rc.2` development candidate. It is not production-ready.
 Preserve the Muse goal-first home, existing chat and expert flows, guarded
 execution runtime and source tree.
 
+## Latest mobile master control checkpoint
+
+The home screen is now a centered animated companion with a minimal command input
+and on-demand task controls. It uses existing goal/conversation APIs, guarded
+approval/review routes and exact-request retries. See
+[mobile master control](docs/V22-MOBILE-MASTER-CONTROL.md) for behavior, preview
+and functional verification boundaries. The production native runtime and
+storage contracts are unchanged.
+
 ## Latest Muse / commerce checkpoint
 
 V22 continuation: the existing goal conversation now reads its exact linked

@@ -9,7 +9,7 @@ import { createApp } from '../server/index.mjs';
 const directory = await mkdtemp(path.join(tmpdir(), 'muse-commerce-browser-'));
 const app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, provider: { kind: 'deepseek-api', configured: false } });
 const address = await app.listen(0), base = `http://127.0.0.1:${address.port}`;
-const output = 'docs/screenshots/muse-commerce';
+const output = process.env.MUSE_QA_OUTPUT || 'docs/screenshots/muse-commerce';
 const checks = [], errors = [];
 let browser;
 async function capture(page, name) { await page.screenshot({ path: `${output}/${name}.png`, fullPage: true }); }
@@ -37,13 +37,14 @@ try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   page.on('pageerror', error => errors.push(error.message));
   await mkdir(output, { recursive: true });
-  await page.goto(base); await page.getByRole('heading', { name: /想把生意.*做到哪里？/ }).waitFor({ state: 'attached' });
-  await optionalFonts(page); await page.getByRole('heading', { name: /想把生意.*做到哪里？/ }).waitFor(); await noOverflow(page); await capture(page, '01-home-mobile');
-  assert.match(await page.locator('body').innerText(), /Harness 未启用/);
+  await page.goto(base); await page.getByTestId('v22-master-control').waitFor({ state: 'attached' });
+  await optionalFonts(page); await page.getByTestId('v22-master-control').waitFor(); await noOverflow(page); await capture(page, '01-home-mobile');
+  await page.getByRole('heading', { name: '等待连接', exact: true }).waitFor();
   assert.equal(app.store.read().goals.length, 0);
   checks.push('Mobile Muse home uses actual runtime readiness and has no fabricated goals.');
 
-  await page.getByRole('button', { name: '资料库', exact: true }).click();
+  await page.getByRole('button', { name: '打开工作空间菜单', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '企业与产品', exact: true }).click();
   await page.getByRole('button', { name: '企业资料', exact: true }).click();
   await page.getByLabel('企业名称', { exact: true }).fill('浏览器验收企业');
   await page.getByLabel('企业简介', { exact: true }).fill('仅用于本地 UI 验收的企业档案。');
@@ -140,14 +141,14 @@ try {
   checks.push('Existing eight-role expert marketplace remains available on the real /workers route.');
   for (const width of [320, 375, 430, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.getByRole('button', { name: '工作', exact: true }).click();
-    await page.getByRole('heading', { name: /想把生意.*做到哪里？/ }).waitFor();
+    await page.goto(base);
+    await page.getByTestId('v22-master-control').waitFor();
     await noOverflow(page);
   }
   await capture(page, '06-home-desktop');
   checks.push('Muse home has no horizontal overflow at 320, 375, 430 and 1440 pixels.');
   assert.deepEqual(errors, []);
-  const evidence = { result: 'passed', actualBrowser: true, browserVersion: browser.version(), checks, errors,
+  const evidence = { result: 'passed', storage: app.store.diagnostics().durability, actualBrowser: true, browserVersion: browser.version(), checks, errors,
     noModelCalls: true, noLiveShopifyCalls: true, noSpendOrExternalWrites: true };
   await writeFile(`${output}/VERIFICATION.json`, `${JSON.stringify(evidence, null, 2)}\n`);
   console.log(JSON.stringify(evidence, null, 2));
