@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import App from './App';
-import { loadSession, loginSession, logoutSession } from './api';
+import { ApiError, loadSession, loginSession, logoutSession } from './api';
 import type { Session } from './api';
-import { acceptSessionNavigation, configuredLoginPath, forgetSessionNavigation, rememberLoginReturn } from './sessionNavigation';
+import { acceptSessionNavigation, configuredLoginPath, consumeLoginContinuation, forgetSessionNavigation, rememberLoginReturn } from './sessionNavigation';
 import { Orb } from './icons';
 
 export default function SessionGate() {
@@ -11,15 +11,15 @@ export default function SessionGate() {
   const check = useCallback(async () => {
     if (lock.current) return;
     lock.current = true; const current = ++generation.current; setLoading(true); setError('');
-    try { const value = await loadSession(); if (current === generation.current) { acceptSessionNavigation(value); setSession(value); setExpired(false); } }
+    try { let value = await loadSession(); const continueLogin = consumeLoginContinuation(); if (!value.authenticated && configuredLoginPath() && continueLogin) value = await loginSession(); if (current === generation.current) { acceptSessionNavigation(value); setSession(value); setExpired(false); } }
     catch (cause) { if (current === generation.current) setError(cause instanceof Error ? cause.message : '无法验证访问状态'); }
     finally { lock.current = false; if (current === generation.current) setLoading(false); }
   }, []);
   useEffect(() => { void check(); const required = () => { generation.current++; setSession(null); setExpired(true); setLoading(false); }; window.addEventListener('workspace-session-required', required); return () => { window.removeEventListener('workspace-session-required', required); }; }, [check]);
   async function login() {
     if (lock.current) return; lock.current = true; setBusy(true); setError('');
-    try { const loginPath = configuredLoginPath(); if (loginPath) { rememberLoginReturn(); window.location.assign(loginPath); return; } const result = await loginSession(); acceptSessionNavigation(result); setSession(result); setExpired(false); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : '登录未完成'); }
+    try { const result = await loginSession(); acceptSessionNavigation(result); setSession(result); setExpired(false); }
+    catch (cause) { const loginPath = configuredLoginPath(); if (loginPath && cause instanceof ApiError && cause.status === 401) { rememberLoginReturn(); window.location.assign(loginPath); return; } setError(cause instanceof Error ? cause.message : '登录未完成'); }
     finally { lock.current = false; setBusy(false); }
   }
   async function logout() {

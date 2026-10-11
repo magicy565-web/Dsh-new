@@ -18,15 +18,15 @@ try {
   const conversationId = app.store.read().conversations[0].id;
   let job = { id:'original-task', prompt:'公开计算任务', state:'queued', conversationId, transport:'workspace-pull', files:[], businessAcceptance:'not_reviewed' };
   let view = { enabled:true, canDelegate:true, worker:{ id:'original-worker', connection:{ id:'original-connection', provider:'dot', authenticatedRecently:true, pausedAt:null } }, delegations:[job] };
-  let failRead = false, dropWrite = false, hostPaused = native, sessionExpired = false, differentOwner = false, loginVisits = 0, classicLoginVisits = 0;
+  let failRead = false, dropWrite = false, hostPaused = native, sessionExpired = false, gatewayExpired = false, rejectInnerLogin = false, differentOwner = false, loginVisits = 0, classicLoginVisits = 0;
   const nativeRequest = 'goal-original-native-request';
   const snapshot = () => ({...view, ...(native ? {dotTasks: [{ requestId:nativeRequest, nativeAgentId:conversationId, jobId:job.id, prompt:job.prompt, state:job.state, receiptHash:job.completionHash ? 'exact-native-receipt' : null, returnedHash:job.completionHash ? 'exact-native-receipt' : null, acceptedHash:job.businessAcceptance === 'accepted' ? 'exact-native-receipt' : undefined, receipt:job.completionHash ? {summary:job.resultSummary,files:job.files,completionHash:job.completionHash} : null }]} : {})});
   browser = await chromium.launch({ headless:true, ...(process.env.CHROMIUM_PATH ? { executablePath:process.env.CHROMIUM_PATH } : {}) });
   const page = await browser.newPage({ viewport:{width:390,height:844}, reducedMotion:'no-preference' });
   page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/api/session', async route => { const response=await route.fetch(); const session=await response.json(); await route.fulfill({response,json:{...session,authenticated:!sessionExpired,user:sessionExpired ? null : {...session.user,id:differentOwner ? 'another-account' : session.user.id}}}); });
-  await page.route('**/api/session/login', async route => { classicLoginVisits++; assert.equal(gateway,false); sessionExpired=false; const response=await route.fetch(); await route.fulfill({response}); });
-  await page.route('**/auth/login', async route => { loginVisits++; sessionExpired=false; await route.fulfill({status:302,headers:{location:base+'/'}}); });
+  await page.route('**/api/session', async route => { if (gatewayExpired) return route.fulfill({status:401,json:{code:'AUTH_REQUIRED',error:'Gateway session expired'}}); const response=await route.fetch(); const session=await response.json(); await route.fulfill({response,json:{...session,authenticated:!sessionExpired,user:sessionExpired ? null : {...session.user,id:differentOwner ? 'another-account' : session.user.id}}}); });
+  await page.route('**/api/session/login', async route => { classicLoginVisits++; assert.equal(route.request().headers()['x-workspace-login'],'1'); if (gatewayExpired) return route.fulfill({status:401,json:{code:'AUTH_REQUIRED',error:'Gateway session expired'}}); if (rejectInnerLogin) return route.fulfill({status:503,json:{error:'Inner session unavailable'}}); sessionExpired=false; const response=await route.fetch(); const session=await response.json(); await route.fulfill({response,json:{...session,user:{...session.user,id:differentOwner ? 'another-account' : session.user.id}}}); });
+  await page.route('**/auth/login', async route => { loginVisits++; gatewayExpired=false; await route.fulfill({status:302,headers:{location:base+'/'}}); });
   await page.route('**/api/bootstrap', async route => { const response = await route.fetch(); const bootstrap = await response.json(); await route.fulfill({response,json: native ? {...bootstrap,dotIntegration:undefined,runtime:{...bootstrap.runtime,cloudDot:true,cloudWorkerReady:!hostPaused,provider:'original-dot'}} : {...bootstrap,dotIntegration:{enabled:true}}}); });
   await page.route('**/api/personal-worker', route => sessionExpired ? route.fulfill({status:401,json:{code:'AUTH_REQUIRED',error:'Sign in through the configured employee identity service.'}}) : failRead ? route.fulfill({status:503,json:{error:'测试断线'}}) : route.fulfill({json:snapshot()}));
   const handleWrite = async route => {
@@ -77,7 +77,7 @@ try {
   await page.getByRole('button',{name:'确认请求停止',exact:true}).click();
   await page.getByRole('button',{name:'重试原请求',exact:true}).waitFor();
   const beforeRetry = writes.length;
-  if (gateway) { sessionExpired=true; await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor(); await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click(); } else await page.reload();
+  if (gateway) { sessionExpired=true; gatewayExpired=true; await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor(); await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click(); } else await page.reload();
   await page.getByRole('button',{name:'重试原请求',exact:true}).waitFor();
   assert.equal(writes.length,beforeRetry,'Authentication/reload must not replay writes');
   await page.getByRole('button',{name:'重试原请求',exact:true}).click();
@@ -117,20 +117,31 @@ try {
   if (gateway) {
     await page.goto(base+'/chat/'+conversationId);
     await page.getByRole('textbox',{name:'云端任务指令'}).fill('保留公开任务草稿');
-    const beforeLogin=writes.length; sessionExpired=true;
+    const beforeLogin=writes.length; sessionExpired=true; gatewayExpired=true;
     await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor();
     await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click();
     await page.getByTestId('v22-cloud-control').waitFor();
     assert.equal(new URL(page.url()).pathname,'/chat/'+conversationId);
     assert.equal(await page.getByRole('textbox',{name:'云端任务指令'}).inputValue(),'保留公开任务草稿');
     assert.equal(writes.length,beforeLogin); assert.equal(loginVisits,2);
-    sessionExpired=true; differentOwner=true;
+    sessionExpired=true; gatewayExpired=true; differentOwner=true;
     await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor();
     await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click();
     await page.getByTestId('v22-cloud-control').waitFor();
     assert.equal(new URL(page.url()).pathname,'/');
     assert.equal(await page.getByRole('textbox',{name:'云端任务指令'}).inputValue(),'');
     assert.equal(writes.length,beforeLogin);
+    assert.equal(classicLoginVisits,6,'Each external login uses one failed gateway request and one successful inner login');
+    sessionExpired=true; await page.reload(); await page.getByRole('heading',{name:'打开共享工作空间',exact:true}).waitFor();
+    await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click(); await page.getByTestId('v22-cloud-control').waitFor();
+    assert.equal(loginVisits,3); assert.equal(classicLoginVisits,7); assert.equal(writes.length,beforeLogin);
+    checks.push('Backend-only session expiry uses the existing signed login API without another external redirect.');
+    sessionExpired=true; gatewayExpired=true; rejectInnerLogin=true;
+    await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor(); await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click();
+    await page.getByRole('alert').filter({hasText:'Inner session unavailable'}).waitFor();
+    const failedAttempts=classicLoginVisits; await page.reload(); await page.getByRole('heading',{name:'打开共享工作空间',exact:true}).waitFor();
+    assert.equal(classicLoginVisits,failedAttempts); assert.equal(loginVisits,4); assert.equal(writes.length,beforeLogin);
+    checks.push('Failed inner login consumes its one-use continuation; reload cannot loop login or replay business writes.');
     checks.push('Gateway reauthentication preserves same-account route, public draft and original uncertain request; never auto-replays or restores another account draft.');
   }
   if (!gateway) { sessionExpired=true; await page.getByRole('heading',{name:'会话已失效',exact:true}).waitFor(); await page.getByRole('button',{name:'使用企业身份继续',exact:true}).click(); await page.getByTestId('v22-cloud-control').waitFor(); assert.equal(classicLoginVisits,1); assert.equal(loginVisits,0); checks.push('Unconfigured deployments retain the original session login API.'); }
