@@ -1,0 +1,19 @@
+{
+  "mode": "Compiled Page/Component + source WXML/WXSS in limited Chromium renderer; real signed local HTTP/Pi faux/Store/original Worker protocol; not WeChat engine/device/live Muse",
+  "backendSource": "96231bbff32c0bbb03329dd2b218e58a98f557d8",
+  "browserVersion": "151.0.7922.173",
+  "checks": [
+    "Two actual missing questions only",
+    "Three independent unchecked confirmations",
+    "Prepare creates one unapproved original order",
+    "Approve does not dispatch; separate dispatch creates one original task",
+    "Actual Worker receipt artifact ID and bytes verified by SHA",
+    "390/320px source rendering, no horizontal overflow"
+  ],
+  "modelCalls": 2,
+  "originalOrders": 1,
+  "originalTasks": 1,
+  "artifactId": "1cbbc26c-6e73-4bbf-a133-95a34faadddf",
+  "pageErrors": [],
+  "generatedAt": "2026-10-12T08:24:22.456Z"
+}

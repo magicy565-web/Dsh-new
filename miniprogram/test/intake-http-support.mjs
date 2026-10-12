@@ -53,7 +53,7 @@ export async function intakeFixture(t) {
   return { directory, platform, journal, requests, previews, client, faux, raw, get app() { return app; }, close,
     loseNext() { lost = true; }, corrupt(value = true) { corrupt = value; },
     respond(scope, quoteOverride) { faux.setResponses([() => { const request = requests.filter(item => item.method === 'POST' && (item.path.endsWith('/muse-drafts') || item.path.endsWith('/messages'))).at(-1); return propose(scope, request.body.requestId, quoteOverride || request.body.content); }]); },
-    async settle(client) { await until(async () => { const result = await client.museDrafts(actor.nativeAgentId); return result.drafts.at(-1)?.phase !== 'pending'; }); return (await client.museDrafts(actor.nativeAgentId)).drafts.at(-1); },
+    async settle(client) { await until(async () => { const result = await client.museDrafts(actor.nativeAgentId); return Boolean(result.drafts.length && result.drafts.at(-1).phase !== 'pending'); }); return (await client.museDrafts(actor.nativeAgentId)).drafts.at(-1); },
     async reopen() { await app.close(); app = await createApp({ ...options, provider: provider() }); await app.listen(port); session = null; assert.equal((await raw('/session/login', 'POST', {})).status, 200); },
     async deliver(orderId) {
       const claim = await raw(`/muse-worker/v1/tasks/${orderId}/claim`, 'POST', { requestId: randomUUID() }, true); assert.equal(claim.status, 200, JSON.stringify(claim.data));

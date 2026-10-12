@@ -1,0 +1,22 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.evaluate: SyntaxError: Unexpected token '}'
+    at new Function (<anonymous>)
+    at evaluate (eval at evaluate (:303:30), <anonymous>:6:43)
+    at value (eval at evaluate (:303:30), <anonymous>:7:94)
+    at children (eval at evaluate (:303:30), <anonymous>:11:79)
+    at element (eval at evaluate (:303:30), <anonymous>:53:5)
+    at children (eval at evaluate (:303:30), <anonymous>:20:14)
+    at element (eval at evaluate (:303:30), <anonymous>:53:5)
+    at eval (eval at evaluate (:303:30), <anonymous>:19:39)
+    at Array.forEach (<anonymous>)
+    at children (eval at evaluate (:303:30), <anonymous>:19:14)
+    at /workspace/wechat-client/miniprogram/test/intake-browser.mjs:20:312
+    at async shot (/workspace/wechat-client/miniprogram/test/intake-browser.mjs:28:29)
+    at async file:///workspace/wechat-client/miniprogram/test/intake-browser.mjs:33:185 {
+  log: []
+}
+
+Node.js v24.19.0

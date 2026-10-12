@@ -6,7 +6,7 @@ await ui.evaluate(({ wxml, css, spirit, componentWxml }) => {
   if (source.querySelector('parsererror')) throw Error(source.querySelector('parsererror').textContent);
   const style = document.createElement('style'); document.head.append(style);
   const evaluate = (expression, scope) => new Function('scope', 'with(scope) { return (' + expression + '); }')(scope);
-  const value = (text, scope) => { const full = text.match(/^{{([\s\S]+)}}$/); return full ? evaluate(full[1], scope) : text.replace(/{{([\s\S]+?)}}/g, (_, expression) => String(evaluate(expression, scope) ?? '')); };
+  const value = (text, scope) => { const full = text.match(/^{{([\s\S]+)}}$/); return full && !full[1].includes('}}') ? evaluate(full[1], scope) : text.replace(/{{([\s\S]+?)}}/g, (_, expression) => String(evaluate(expression, scope) ?? '')); };
   function children(nodes, scope, parent, prefix = '') {
     let previousIf = null;
     for (const node of nodes) {
