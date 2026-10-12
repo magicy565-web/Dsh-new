@@ -1,0 +1,21 @@
+✔ retired Supply component contract: saves supplier/product, edits, and recovers from original durable Store restart (499.317562ms)
+✔ retired Supply component contract: pins edit revision, preserves conflicting input across reload, and requires explicit new revision (170.960171ms)
+✔ retired Supply component contract: restores unknown committed command after refresh and retries exact request without duplicates (139.521129ms)
+✔ retired Supply component contract: reports unsaved edits and clears its dirty callback when unmounted (59.703122ms)
+✔ retired Supply component contract: exposes read failures, disables invalid writes, and reloads real data (110.039109ms)
+✔ retired Supply component contract: never adopts another role scope pending command or mutates through viewer controls (108.658053ms)
+✔ retired Supply component contract: publishes only after explicit confirmation of exact supplier and listing revision (110.499891ms)
+✔ current Library UI creates private product facts, edits an exact revision and restores durable internal data (277.626604ms)
+✔ current Library UI keeps the edited revision and typed input through conflicts until explicit reload (166.720152ms)
+✔ current Library UI retries an unknown commit in the same editor with its original request and no duplicate (102.083211ms)
+✔ current Library UI uses the original App dirty navigation and beforeunload guard (81.20142ms)
+✔ current Library UI refuses edits while the original product detail is unreadable and recovers from actual API retry (71.54182ms)
+✔ current Library UI preserves viewer read-only controls and never adopts another role Supply pending command (142.743275ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2898.192247
