@@ -27,6 +27,16 @@ export async function createPiMuseBinding({ store, artifacts, config, binding, d
   }
   return {
     actor, native,
+    ownsArtifact(item) { return item?.workerOwner?.workerId === native.workerId; },
+    filterBootstrap(snapshot, context) {
+      const result = { ...snapshot, artifacts: (snapshot.artifacts || []).filter(item => item.workerOwner?.workerId !== native.workerId) };
+      if (context.role !== 'admin' || context.subject !== actor.subject) {
+        for (const collection of ['conversations', 'messages', 'runs', 'memories']) result[collection] = (result[collection] || []).filter(item => (item.conversationId || item.id) !== actor.nativeAgentId);
+        for (const collection of ['workerOrders', 'museTasks']) result[collection] = (result[collection] || []).filter(item => item.workerId !== native.workerId);
+        delete result.workspaceMuseSessionReceipts;
+      }
+      return result;
+    },
     forActor(context) { return native.bindConversation(authorized(context)); },
     snapshot(context) {
       return context.role === 'admin' && context.subject === actor.subject

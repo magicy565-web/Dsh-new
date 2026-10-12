@@ -43,7 +43,7 @@ same-business-API transport fixtures, and the generated developer import folder.
 project.config.json uses touristappid; this is not an app registration. app.ts
 intentionally has no production baseUrl/loginBroker. A reviewed deployment must
 supply its existing HTTPS ingress and trusted WeChat-code-to-enterprise-identity
-login adapter. The client cannot invent memberships or sign ingress assertions.
+login adapter. The client verifies the actual server session and subject after the broker returns; broker-supplied role is not trusted. A missing service fails before acquiring a login code. The client cannot invent memberships or sign ingress assertions.
 Real AppID/account binding, server-domain allowlist, privacy declarations,
 login/code exchange, devices, subscriptions, review and publication remain
 user/operator actions. No credential, upload, deployment, payment or review was

@@ -17,7 +17,6 @@ export class WorkspaceClient {
   session: Session | null = null;
   private token = '';
   private pendingSend: { conversationId: string; body: Record<string, unknown> } | null = null;
-  private sequence = 0;
   constructor(private platform: Transport, private options: Options) {}
   private base() {
     const url = this.options.baseUrl;
@@ -44,11 +43,19 @@ export class WorkspaceClient {
   async initialize() { this.session = await this.request<Session>('/session'); return this.session; }
   async login() {
     if (!this.options.loginBroker) throw new ClientError('LOGIN_INTEGRATION_REQUIRED', '微信身份尚未接入企业授权；需要部署方绑定真实账号。');
+    this.base(); // No WeChat-code acquisition without a configured service.
     const code = await new Promise<string>((resolve, reject) => this.platform.login({ success: result => result.code ? resolve(result.code) : reject(new ClientError('LOGIN_REQUIRED', '微信登录未取得授权码。')), fail: () => reject(new ClientError('LOGIN_REQUIRED', '微信登录未完成。')) }));
     const result = await this.options.loginBroker(code);
     if (!/^[A-Za-z0-9_-]{43}$/.test(result.token) || !result.session.authenticated) throw new ClientError('LOGIN_REQUIRED', '企业授权未完成。');
-    this.token = result.token; this.session = result.session;
-    return this.session;
+    this.token = result.token;
+    try {
+      // The broker cannot grant a role. Verify the actual existing enterprise
+      // session through the same signed ingress before presenting login success.
+      const actual = await this.initialize();
+      if (!actual.authenticated || !actual.user || actual.user.id !== result.session.user?.id) throw new ClientError('LOGIN_IDENTITY_MISMATCH', '微信身份与实际企业会话未核对一致。');
+      this.session = actual;
+      return actual;
+    } catch (error) { this.token = ''; this.session = null; throw error; }
   }
   async bootstrap() { return this.request<Bootstrap & { museBinding?: { conversationId?: string } }>('/bootstrap'); }
   async mainConversation(snapshot: Bootstrap & { museBinding?: { conversationId?: string } }) {
@@ -58,7 +65,7 @@ export class WorkspaceClient {
     const result = await this.request<{ conversation: { id: string } }>('/conversations', 'POST', { title: '主会话' });
     return result.conversation.id;
   }
-  private requestId() { return `mini_${Date.now()}_${++this.sequence}_${Math.random().toString(36).slice(2, 14)}`; }
+  private requestId() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, letter => { const value = Math.floor(Math.random() * 16); return (letter === 'x' ? value : (value & 3) | 8).toString(16); }); }
   async send(conversationId: string, content: string, artifacts: FileReference[] = []) {
     if (!content.trim()) throw new ClientError('INPUT_REQUIRED', '说说你想完成的事。');
     if (this.pendingSend) throw new ClientError('RESULT_UNCERTAIN', '先核对上一条原请求的结果。');
@@ -89,7 +96,7 @@ export class WorkspaceClient {
     return { products: products.items, company: company.company, documents: documents.items };
   }
   references(id: string) { return this.request<{ libraryReferences: References }>(`/conversations/${encodeURIComponent(id)}/library-references`); }
-  saveReferences(value: References) { return this.request(`/conversations/${encodeURIComponent(value.conversationId)}/library-references`, 'POST', { products: value.products, documents: value.documents, expectedRevision: value.revision, requestId: this.requestId() }); }
+  saveReferences(value: References) { return this.request(`/conversations/${encodeURIComponent(value.conversationId)}/library-references`, 'POST', { references: { products: value.products, documents: value.documents }, expectedRevision: value.revision, requestId: this.requestId() }); }
   async upload(conversationId: string, filename: string, filePath: string, size: number) {
     const extension = filename.split('.').pop()?.toLowerCase() || '';
     if (!extensionTypes[extension] || size > 5 * 1024 * 1024) throw new ClientError('FILE_UNSUPPORTED', '请选择 5MiB 以内的图片、PDF、文本或表格文件。');

@@ -1,0 +1,27 @@
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (226.089668ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (75.917878ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (87.794599ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (0.711236ms)
+✔ official durable contract fixture: write appends without model execution and requestId deduplicates across reopen (93.674227ms)
+✔ official durable contract fixture: cancelling wait leaves work admitted; explicit conversation abort stops it (24.59233ms)
+✔ official durable contract fixture: only replay:safe tool execution restarts after close/reopen (208.843694ms)
+✔ DSH-free HTTP fixture: original Muse order/attempt/file/return protocol with explicit owner and no model/wake (330.485066ms)
+✔ DSH-free binding refuses missing original conversation instead of inventing another identity (49.534779ms)
+✔ actual SIGKILL fixture: recover pending Pi work and cached answer before business acknowledgment without duplicate admission (1154.47123ms)
+✔ real Pi package fixture: durable text execution, usage, persisted submission and business dedupe (159.943531ms)
+✔ real Pi package fixture: selected file tool uses original ID/version/SHA snapshot and cannot read ambient data (158.194225ms)
+✔ real Pi package fixture: user cancellation explicitly aborts durable work; reopen does not resume it (122.81053ms)
+✔ real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/submission (169.956136ms)
+✔ real Pi package fixture: default boot is DSH-free, private storage shares original exclusive writer and Muse never falls back (64.74976ms)
+✔ real Pi package fixture: connector proposal stops for original exact approval and explicit continuation (127.009873ms)
+✔ real Pi package fixture: unknown tools, unselected inputs and unselected connector proposals have no effects (171.903487ms)
+✔ real Pi package fixture: interrupted goal resumes its original reservation and reply without duplicating a step (73.681906ms)
+✔ real Pi package fixture: changed selected memory and execution scope block recovery without another model call (43.937622ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2513.200079

@@ -134,6 +134,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
       if (typeof replyId !== 'string' || !Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > 1600) fail('PI_NOT_ADMITTED', 'Pi requires an admitted reply and bounded output budget.');
       if (activeCalls.has(conversationId)) fail('RUNTIME_BUSY', 'This Pi conversation already has admitted work.');
       const state = await openConversation(conversationId);
+      if (activeCalls.has(conversationId)) fail('RUNTIME_BUSY', 'This Pi conversation already has admitted work.');
       const requestId = `${runId}:${replyId}`;
       const run = store.read().runs.find(value => value.id === runId);
       const scope = { runId, replyId, conversationId, executionHash: run?.executionHash, maxTokens, structured: json, snapshot: run?.inputContextSnapshot || null };

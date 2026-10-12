@@ -1,3 +1,21 @@
+# Workspace Agent · Pi 云端开发候选
+
+当前分支从已核实的 PR33 接续，包含 PR32 会话界面和 PR28 后台。默认主会话与中央精灵保持现有视觉；产品/企业资料按需关联，方案、具体审批、任务进度及真实文件在会话中处理。Pi-agent-core / pi-ai / pi-durable / chord 固定官方 1.1.0，durable 执行持久任务；Workspace 继续管理身份、权限、幂等、审批和文件，Muse/Dot 使用原连接器。
+
+```sh
+npm ci
+npm run build
+npm start
+# 微信客户端开发包，无账号上传/发布
+npm run build:mini
+```
+
+启动默认 `WORKSPACE_RUNTIME=pi`，无需 DSH 源码、CLI、Host 或补丁。模型凭据只使用现有服务端安全环境配置；无凭据可启动保存工作，模型状态明确为待配置。当前没有生产部署或真实 Muse 在线验收。请先阅读 [Pi 运行边界](docs/PI-RUNTIME.md)、[微信客户端与待验项](docs/WECHAT-CLIENT.md) 和 [恢复基线](docs/CLOUD-PI-RECOVERY.md)。源码包使用 `npm run package:pi`，逐文件哈希来自 Git 原始 blob 字节。
+
+以下保留的是历史候选文档；其中 DSH、商城/Shopify、专家首页与旧打包流程不是本 Pi 分支的新主线或上线授权。
+
+---
+
 > **2026-10-12 Agentic Supply V1 development overlay (not production)**
 >
 > This source snapshot extends the V22 archive with an isolated single-enterprise Supply Network pilot: supplier/listing records, reviewable publication, private Shopify catalog observation, read-only private Sourcing MCP and a mobile merchant panel. Muse/Dot production execution is **not** newly connected by this overlay. See [architecture](docs/WORKSPACE-AGENTIC-SUPPLY-V1.md), [five workstreams](docs/SUBAGENT-WORKSTREAMS.md) and [validation](docs/WORKSPACE-AGENTIC-SUPPLY-VALIDATION.md) and [live-connection acceptance](docs/MUSE-DOT-LIVE-ACCEPTANCE.md). The original V22 frontend build must be rebuilt on Node 24 with npm dependencies. Do not deploy the development overlay over the existing original Dot/Muse host without a source/lease/storage review.

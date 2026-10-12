@@ -1,5 +1,5 @@
 <view class="conversation">
-  <view class="companion"><image class="spirit" src="/assets/spirit.svg" mode="aspectFit"/><text class="muted">{{busy ? '正在处理你的目标' : '今天想完成什么？'}}</text></view>
+  <view class="companion"><image class="spirit" src="/assets/spirit.png" mode="aspectFit"/><text class="muted">{{busy ? '正在处理你的目标' : '今天想完成什么？'}}</text></view>
   <scroll-view class="transcript" scroll-y>
     <view wx:if="!messages.length" class="welcome">说说目标，附上必要的资料。方案、审批、进度和成果都留在这里。</view>
     <view wx:for="messages" wx:key="id" class="message {{item.role}}"><text selectable>{{item.status === 'pending' ? '正在处理…' : item.content}}</text><text wx:if="item.error" class="notice">{{item.error.message}}</text></view>

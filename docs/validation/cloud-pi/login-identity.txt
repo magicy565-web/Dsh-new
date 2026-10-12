@@ -1,0 +1,36 @@
+✔ access: enterprise configuration is explicit, HTTPS only, Ed25519 and bounded membership (3.571062ms)
+✔ access: native WeChat session transport retains signed ingress, membership, CSRF and revocation (83.228759ms)
+✔ access: default local mode remains usable and reports local session without creating cookies (16.759833ms)
+✔ access: static, API, SSE and downloads require ingress; forged identity headers never authenticate (29.680972ms)
+✔ access: host, origin, same-site hostile origin and missing mutation origin fail closed (29.640526ms)
+✔ access: bad signatures, unsupported JWT headers and wrong subject/workspace/audience fail closed (44.81475ms)
+✔ access: assertions bind method, raw path, query and exact body before domain mutations (34.256239ms)
+✔ access: one-time assertions reject concurrent replay and stay consumed after restart (27.207857ms)
+✔ access: login intent, secure cookie, session fixation resistance and CSRF are enforced (25.976294ms)
+✔ access: viewer reads but cannot mutate; operator domain writes exclude administration and forged roles (67.539961ms)
+✔ access: idle and absolute expiry are enforced; restart and logout revoke old cookies (66.112207ms)
+✔ access: admin revocation closes SSE and denies further API/download access (24.719062ms)
+✔ access: stream assertions expire and force ingress reauthentication (13.433901ms)
+✔ access: audit identifies actor, admission and outcome without plaintext content or bearer material (18.555639ms)
+✔ access: audit corruption blocks writes and corrupted startup never overwrites evidence (18.769052ms)
+✔ access: duplicate identity header rejects ambiguous proxy interpretations (22.472954ms)
+✔ access: readiness is authenticated and explicitly separates config from online validation (17.359609ms)
+✔ access: signed non-string replay IDs and digests cannot bypass replay identity (19.07232ms)
+✔ access: parallel logins cannot exceed per-subject session cap (26.416079ms)
+✔ access: delayed mutation rechecks session revocation after reading its signed body (26.475739ms)
+✔ access: delayed mutation rechecks assertion expiry after reading its signed body (18.198739ms)
+✔ access: authenticated IdP return can load only the static shell, never cross-site APIs (14.324118ms)
+✔ enterprise hosting permits an email-identified operator to prepare public research but reserves dispatch and acceptance for admin (50.736488ms)
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (148.664161ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (54.853946ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (55.617147ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (0.855384ms)
+✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (0.387957ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1234.273708

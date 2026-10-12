@@ -1,0 +1,20 @@
+✖ Supply Commerce UI saves supplier/product, edits, and recovers from original durable Store restart (5172.173583ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5718.998324
+
+✖ failing tests:
+
+test at test/supply-commerce-ui.dom.test.mjs:66:1
+✖ Supply Commerce UI saves supplier/product, edits, and recovers from original durable Store restart (5172.173583ms)
+  Error: Timed out: mounted original Commerce supply resource
+      at wait (file:///workspace/pi-baseline/test/supply-commerce-ui.dom.test.mjs:54:149)
+      at async Object.render (file:///workspace/pi-baseline/test/supply-commerce-ui.dom.test.mjs:43:5)
+      at async TestContext.<anonymous> (file:///workspace/pi-baseline/test/supply-commerce-ui.dom.test.mjs:67:36)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

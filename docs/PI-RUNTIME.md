@@ -38,6 +38,14 @@ are bounded by the original run reservation.
 
 Muse/Dot protocol modules and Secure Vault client remain original. Ordinary model
 messages requesting provider:muse reject rather than falling back to a model.
+An optional WORKSPACE_MUSE_ORIGINAL_BINDING_FILE attaches the exact existing
+actor/operators/expectedHost mapping through the original native factories; it
+requires the original owned conversation already present and never invents a
+replacement identity. Existing token digest, approval gates, lease/fence/Attempt,
+eleven Worker operations and Session receipt/file projection remain unchanged.
+Generic artifact APIs cannot bypass original Muse receipt ownership/version/SHA
+validation or edit its immutable files. Returning the verified business message
+is a write-only Session projection; there is no substitute agent.send or wake.
 The reviewed original Muse binding, account and production ingress remain a
 separate requirement; neither Pi nor a saved write receipt proves Muse started.
 Local faux-provider tests execute the real Pi packages, not a live model/account.

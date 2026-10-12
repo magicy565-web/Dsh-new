@@ -3,15 +3,19 @@
 import { promises as fs } from 'node:fs';
 import { sourceFingerprint } from './acceptance-provider.mjs';
 const fingerprint = await sourceFingerprint();
-const runtime = process.env.WORKSPACE_LAUNCH_RUNTIME || 'harness';
-if (!['harness', 'fastaitoken'].includes(runtime)) throw new Error('Choose the exact intended relay runtime for launch acceptance.');
+const runtime = process.env.WORKSPACE_LAUNCH_RUNTIME || 'pi';
+if (!['pi', 'harness', 'fastaitoken'].includes(runtime)) throw new Error('Choose the exact intended relay runtime for launch acceptance.');
 const gates = [];
 async function report(name, filename, validate) {
   try { const value = JSON.parse(await fs.readFile(filename, 'utf8')); const problems = validate(value); gates.push({ name, status: problems.length ? 'blocked' : 'passed', evidence: filename, problems }); }
   catch (error) { gates.push({ name, status: 'blocked', evidence: filename, problems: [error.code === 'ENOENT' ? 'Required evidence is absent' : 'Required evidence is unreadable or invalid'] }); }
 }
 const sourceProblem = value => value.sourceFingerprint === fingerprint ? [] : ['Evidence is not for the current source/build fingerprint'];
-if (runtime === 'fastaitoken') await report('authorized-selected-provider', 'evidence/live-provider.json', value => [...sourceProblem(value), ...(value.result === 'passed' ? [] : ['Real provider acceptance did not pass']), ...(value.evidenceKind === 'real-provider-fastaitoken' && value.model === 'gpt-6-sol' ? [] : ['Evidence does not establish the selected relay/model'])]);
+if (runtime === 'pi') {
+  await report('pi-selected-provider', 'evidence/live-pi-provider.json', value => [...sourceProblem(value), ...(value.result === 'passed' && value.evidenceKind === 'real-pi-durable-provider' && value.runtime === 'pi' && value.version === '1.1.0' && value.model === 'gpt-6-sol' ? [] : ['Authorized real Pi durable provider acceptance is absent'])]);
+  await report('original-muse-connector', 'evidence/live-muse-connector.json', value => [...sourceProblem(value), ...(value.result === 'passed' && value.originalIdentityVerified === true && value.realExecutionVerified === true && value.exactFileVerified === true ? [] : ['Original Muse identity/execution/file acceptance is absent; fixture receipts are not live evidence'])]);
+}
+else if (runtime === 'fastaitoken') await report('authorized-selected-provider', 'evidence/live-provider.json', value => [...sourceProblem(value), ...(value.result === 'passed' ? [] : ['Real provider acceptance did not pass']), ...(value.evidenceKind === 'real-provider-fastaitoken' && value.model === 'gpt-6-sol' ? [] : ['Evidence does not establish the selected relay/model'])]);
 else {
   await report('native-selected-provider', 'evidence/live-native-provider.json', value => [...sourceProblem(value), ...(value.result === 'passed' && value.evidenceKind === 'real-native-provider-fastaitoken' && value.acceptanceScope === 'native-text-session-lifecycle' && value.runtime === 'harness' && value.provider === 'fastaitoken' && value.model === 'gpt-6-sol' && value.cleanup === 'removed' && value.appCommandCount === 4 && value.lifecycle?.providerInstances === 2 && value.lifecycle?.confirmedProviderCloses === 2 && ['initialNativeMapping', 'duplicateIdempotency', 'sameProcessContinuation', 'persistentArtifact', 'persistedNativeResume', 'nativeEventReceipts', 'ownedProcessShutdown', 'cancellationAfterNativeAdmission', 'cancelledOwnedProcessShutdown'].every(check => value.checks?.[check] === true) ? [] : ['Real native selected-relay session-lifecycle acceptance is missing'])]);
   await report('native-reviewed-tool-profile', 'evidence/live-native-profile.json', value => [...sourceProblem(value), ...(value.result === 'passed' && value.evidenceKind === 'real-native-tool-profile' && value.model === 'gpt-6-sol' && value.nativeToolAcceptance === true && value.profilePermissionAcceptance === true && typeof value.permissionFingerprint === 'string' && /^[a-f0-9]{64}$/.test(value.permissionFingerprint) ? [] : ['Actual selected-profile tool and permission acceptance is missing; model text/session continuity does not establish it'])]);

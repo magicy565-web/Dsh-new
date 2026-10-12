@@ -94,3 +94,71 @@ test('real Pi package fixture: default boot is DSH-free, private storage shares 
   assert.equal(app.runtime.listRuns().runs.length, 0);
   assert.equal((await fs.stat(path.join(directory, 'pi'))).mode & 0o077, 0);
 });
+
+test('real Pi package fixture: connector proposal stops for original exact approval and explicit continuation', async t => {
+  const f = await fixture(t);
+  const saved = (await f.app.capabilities.createConnector({ name: 'Original local library', adapter: 'workspace-library', capabilities: ['create_file'] })).connector;
+  const connector = (await f.app.capabilities.updateConnector(saved.id, { enabled: true })).connector;
+  f.faux.setResponses([fauxAssistantMessage(fauxToolCall('workspace_propose_action', { content: 'Review exact local file creation', connectorId: connector.id, action: 'create_file', resource: 'library:new', payload: { filename: 'approved.md', content: '# Approved fixture bytes' } }), { stopReason: 'toolUse' })]);
+  const { result } = await chat(f, 'Create after review', { workspaceExecution: true, inputContext: { artifacts: [], skills: [], memoryIds: [], connectorActions: [{ connectorId: connector.id, action: 'create_file' }] } });
+  await until(() => f.app.runtime.getRun(result.run.id).run.status !== 'running');
+  let run = f.app.runtime.getRun(result.run.id).run;
+  assert.equal(run.status, 'awaiting_approval', JSON.stringify(run.error));
+  assert.equal(f.app.artifacts.list().artifacts.length, 0);
+  assert.equal(f.faux.state.callCount, 1);
+  const proposalId = run.proposals[0].id;
+  await assert.rejects(f.app.runtime.resumeRun(run.id, { proposalId }), { code: 'APPROVAL_REQUIRED' });
+  await f.app.runtime.resolveRunAction(run.id, { proposalId, decision: 'approved', confirmed: true });
+  assert.equal(f.app.artifacts.list().artifacts.length, 0);
+  f.faux.setResponses([fauxAssistantMessage(JSON.stringify({ done: true, content: 'Original adapter completed', artifact: { filename: 'delivery.txt', content: 'Pi fixture deliverable' } }))]);
+  await f.app.runtime.resumeRun(run.id, { proposalId, requestId: 'explicit-pi-continue' });
+  await until(() => f.app.runtime.getRun(run.id).run.status !== 'running');
+  run = f.app.runtime.getRun(run.id).run;
+  assert.equal(run.status, 'succeeded', JSON.stringify(run.error));
+  assert.equal(f.app.capabilities.listConnectorRuns().length, 1);
+  const reply = f.app.runtime.bootstrap().messages.find(value => value.id === run.assistantId);
+  assert.ok(reply.artifactReference.sha256);
+  const download = await f.app.artifacts.download(reply.artifactReference.id, { version: reply.artifactReference.version });
+  assert.equal(download.bytes.toString(), 'Pi fixture deliverable');
+});
+
+test('real Pi package fixture: unknown tools, unselected inputs and unselected connector proposals have no effects', async t => {
+  for (const call of [fauxToolCall('bash', { command: 'DO_NOT_RUN' }), fauxToolCall('workspace_input', { kind: 'artifact', id: 'not-selected' }), fauxToolCall('workspace_propose_action', { content: 'Must deny', connectorId: 'not-selected', action: 'write', resource: 'external:any', payload: {} })]) {
+    const f = await fixture(t, [fauxAssistantMessage(call, { stopReason: 'toolUse' }), (ctx) => { assert.equal(ctx.messages.at(-1).isError, true); return fauxAssistantMessage(JSON.stringify({ done: true, content: 'Permission denied fixture' })); }]);
+    const { result } = await chat(f, 'Permission fixture', { workspaceExecution: true });
+    await until(() => f.app.runtime.getRun(result.run.id).run.status !== 'running');
+    assert.equal(f.app.runtime.getRun(result.run.id).run.status, 'succeeded');
+    assert.equal(f.app.capabilities.listApprovals().length, 0);
+    assert.equal(f.app.capabilities.listConnectorRuns().length, 0);
+    assert.equal(f.app.artifacts.list().artifacts.length, 0);
+  }
+});
+
+test('real Pi package fixture: interrupted goal resumes its original reservation and reply without duplicating a step', async t => {
+  const f = await fixture(t, [async (_ctx, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }]);
+  const goal = (await f.app.runtime.createGoal({ title: 'Bounded durable fixture', maxSteps: 2 })).goal;
+  const started = await f.app.runtime.updateGoal(goal.id, { action: 'start' });
+  const runId = started.goal.runId;
+  await until(() => f.app.runtime.getRun(runId).run.piSubmissionId && f.faux.state.callCount === 1);
+  const before = f.app.runtime.getRun(runId).run;
+  await f.reopen();
+  f.faux.setResponses([fauxAssistantMessage(JSON.stringify({ done: true, content: 'Recovered goal fixture' }))]);
+  await f.app.runtime.retryRun(runId, { requestId: 'recover-goal-fixture' });
+  await until(() => f.app.runtime.getRun(runId).run.status !== 'running');
+  const run = f.app.runtime.getRun(runId).run;
+  assert.equal(run.status, 'succeeded', JSON.stringify(run.error));
+  assert.equal(run.assistantId, before.assistantId);
+  assert.equal(run.reservedOutputTokens, before.reservedOutputTokens);
+  assert.equal(f.app.runtime.bootstrap().goals[0].stepCount, 1);
+});
+
+test('real Pi package fixture: changed selected memory and execution scope block recovery without another model call', async t => {
+  const f = await fixture(t, [async (_ctx, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }]);
+  const memory = (await f.app.runtime.createMemory({ content: 'Original selected fixture' })).memory;
+  const { result } = await chat(f, 'Use selected note', { inputContext: { artifacts: [], skills: [], memoryIds: [memory.id], connectorActions: [] } });
+  await until(() => f.app.runtime.getRun(result.run.id).run.piSubmissionId);
+  await f.reopen();
+  await f.app.runtime.updateMemory(memory.id, { content: 'Changed fixture' });
+  await assert.rejects(f.app.runtime.retryRun(result.run.id, { requestId: 'must-block-recovery' }), { code: 'INPUT_MEMORY_CHANGED' });
+  assert.equal(f.faux.state.callCount, 1);
+});
