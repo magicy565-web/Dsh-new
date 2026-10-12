@@ -1,0 +1,16 @@
+{
+  "evidenceKind": "Actual compiled supplier Component + original WXML/WXSS in limited Chromium; actual backend preview core, not HTTP/Pi/Shopify/WeChat acceptance",
+  "backend": "0f12d2ac11eae48d490cdb639bbf3fe60dc3d4b7",
+  "chromium": "151.0.7922.173",
+  "checks": [
+    "Explicit retail facts display",
+    "Supply price absent from retail preview",
+    "Unobserved image unknown",
+    "Preview not publication",
+    "All preview checks initially empty",
+    "Exact selected fields emitted",
+    "320px no horizontal overflow"
+  ],
+  "pageErrors": [],
+  "generatedAt": "2026-10-12T10:36:36.052Z"
+}
