@@ -34,7 +34,7 @@ export async function createSupplierMonitoring({ store, runtime, capabilities, s
         if (!shopify.status().configured) supplierFail(409, 'SHOPIFY_SETUP_REQUIRED', 'The original authorized shop is not configured.');
         await shopify.verify();
         const product = await shopify.readProductPublication({ productId: monitor.scope.productId, signal: controller.signal });
-        if (monitor.scope.shopId && product.shopId !== monitor.scope.shopId || monitor.scope.variantIds.some(id => !product.variantIds.includes(id))) supplierFail(409, 'SHOPIFY_SCOPE_CHANGED', 'The original shop/product/variant binding changed.');
+        if ((monitor.boundShopId || monitor.scope.shopId) && product.shopId !== (monitor.boundShopId || monitor.scope.shopId) || monitor.scope.variantIds.some(id => !product.variantIds.includes(id))) supplierFail(409, 'SHOPIFY_SCOPE_CHANGED', 'The original shop/product/variant binding changed.');
         const orders = [], cursors = new Set(); let cursor = null;
         do {
           const page = await shopify.readProductOrders({ productId: monitor.scope.productId, from: record.from, to: record.to, after: cursor, signal: controller.signal });
@@ -45,7 +45,8 @@ export async function createSupplierMonitoring({ store, runtime, capabilities, s
         sample.sales = productCohortMetrics(orders, { productId: monitor.scope.productId, variantIds: monitor.scope.variantIds, from: record.from, to: record.to });
         sample.salesStatus = 'available'; sample.completePagination = true; sample.shopId = product.shopId;
       } catch (error) { sample.errors.push({ code: error.code || 'SUPPLIER_SOURCE_UNAVAILABLE' }); }
-      if (trafficAdapter && sample.shopId && !controller.signal.aborted) {
+      if (trafficAdapter && trafficAdapter.id !== monitor.scope.trafficAdapterId) sample.errors.push({ code: 'SUPPLIER_TRAFFIC_SCOPE_CHANGED' });
+      if (trafficAdapter && trafficAdapter.id === monitor.scope.trafficAdapterId && sample.shopId && !controller.signal.aborted) {
         try {
           const traffic = await trafficAdapter.readProductTraffic({ shopId: sample.shopId, productId: monitor.scope.productId, from: record.from, to: record.to, signal: controller.signal });
           if (traffic.productId !== monitor.scope.productId || traffic.shopId !== sample.shopId || traffic.attribution !== 'exact_product_id' || !iso(traffic.sampledAt) || !iso(traffic.coverage?.from) || !iso(traffic.coverage?.to) || traffic.coverage.from !== record.from || Date.parse(traffic.coverage.to) > Date.parse(record.to) || Date.parse(traffic.coverage.to) < Date.parse(record.from) || typeof traffic.complete !== 'boolean' || !Number.isSafeInteger(traffic.sessions) || traffic.sessions < 0 || traffic.dataLagSeconds !== null && (!Number.isFinite(traffic.dataLagSeconds) || traffic.dataLagSeconds < 0)) supplierFail(502, 'SUPPLIER_TRAFFIC_ATTRIBUTION_INVALID', 'Traffic needs authorized exact product identity, coverage and measured delay.');
@@ -60,6 +61,7 @@ export async function createSupplierMonitoring({ store, runtime, capabilities, s
         occurrence.status = 'complete'; occurrence.sample = sample; occurrence.finishedAt = now();
         const latest = current.latestSample;
         if (latest && (Date.parse(latest.coverage.to) > Date.parse(sample.coverage.to) || latest.coverage.to === sample.coverage.to && latest.checkOrdinal > sample.checkOrdinal)) return { sample: structuredClone(sample), summary: current.summary || null, monitorId: id, latestProjectionUnchanged: true };
+        if (sample.shopId) current.boundShopId ||= sample.shopId;
         current.latestSample = sample; current.status = sample.salesStatus === 'available' ? record.to === current.scope.endAt ? 'completed' : 'collecting' : 'blocked';
         const goal = state.goals.find(item => item.id === current.goalId);
         if (goal) { goal.status = current.status === 'completed' ? 'completed' : 'paused'; goal.output = JSON.stringify({ monitorId: current.id, salesStatus: sample.salesStatus, trafficStatus: sample.trafficStatus, sales: sample.sales, coverage: sample.coverage }); goal.updatedAt = now(); }

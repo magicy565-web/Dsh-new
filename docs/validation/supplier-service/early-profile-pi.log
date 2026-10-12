@@ -1,0 +1,21 @@
+✔ real Pi package fixture: durable text execution, usage, persisted submission and business dedupe (114.623644ms)
+✔ real Pi package fixture: selected file tool uses original ID/version/SHA snapshot and cannot read ambient data (88.0338ms)
+✔ real Pi package fixture: user cancellation explicitly aborts durable work; reopen does not resume it (101.090598ms)
+✔ real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/submission (111.398352ms)
+✔ real Pi package fixture: default boot is DSH-free, private storage shares original exclusive writer and Muse never falls back (66.318322ms)
+✔ real Pi package fixture: connector proposal stops for original exact approval and explicit continuation (86.802817ms)
+✔ real Pi package fixture: unknown tools, unselected inputs and unselected connector proposals have no effects (166.679057ms)
+✔ real Pi package fixture: interrupted goal resumes its original reservation and reply without duplicating a step (71.127407ms)
+✔ real Pi package fixture: changed selected memory and execution scope block recovery without another model call (47.42164ms)
+✔ supplier, recommended retail and consumer prices remain distinct; MOQ never becomes consumer pack quantity (1.376461ms)
+✔ explicit retail facts yield real escaped preview content while the original image is still private (0.565436ms)
+✔ unknown image availability is never treated as a usable image or permission to publish (0.849475ms)
+✔ invalid currency, unnamed image provenance, negative durations and credential URLs are rejected (0.313103ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1149.850004
