@@ -81,6 +81,21 @@ test('unquoted model suggestions stay outside order scope and stale clarificatio
   assert.equal((f.app.store.read().workerOrders || []).length, 0); assert.equal(f.faux.state.callCount, 1);
 });
 
+test('concurrent identical intake returns the same durable draft ID/run and changed scope rejects its old hash', async t => {
+  const f = await fixture(t), input = readyInput(); f.faux.setResponses([proposal(input.scope, input.requestId, input.content)]);
+  const body = { requestId: input.requestId, content: input.content };
+  const results = await Promise.all([f.call(f.path, 'POST', body), f.call(f.path, 'POST', body)]);
+  for (const result of results) assert.equal(result.status, 202, JSON.stringify(result.data));
+  assert.equal(results[0].data.draftId, results[1].data.draftId); assert.equal(results[0].data.run.id, results[1].data.run.id);
+  const old = await f.settled(results[0].data.draftId);
+  assert.equal(f.app.store.read().workspaceMuseDrafts.drafts.length, 1); assert.equal(f.faux.state.callCount, 1);
+  f.faux.setResponses([proposal(empty(), 'edit-original', 'Please change the scope')]);
+  assert.equal((await f.call(`${f.path}/${old.id}/messages`, 'POST', { requestId: 'edit-original', content: 'Please change the scope', expectedRevision: old.revision })).status, 202);
+  const revised = await f.settled(old.id); assert.equal(revised.revision, old.revision + 1);
+  assert.equal((await f.call(`${f.path}/${old.id}/prepare`, 'POST', confirm(old))).data.error.code, 'MUSE_DRAFT_STALE_SCOPE');
+  assert.equal((f.app.store.read().workerOrders || []).length, 0);
+});
+
 test('selected original product resolves locally for review, never enters Pi, and changed revision invalidates preparation', async t => {
   const f = await fixture(t), owner = { subject: actor.subject, role: 'admin' };
   const product = (await f.app.businessLibrary.createProduct({ requestId: randomUUID(), name: 'PRIVATE_REFERENCED_PRODUCT_MARKER' }, owner)).product;
