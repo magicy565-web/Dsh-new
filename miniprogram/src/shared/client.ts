@@ -8,7 +8,7 @@ import type { Inquiry } from './procurement';
 import { publicListingFields } from './supplier-view';
 import type { SupplierProfile, PublicListingField } from './supplier-view';
 import { validSupplier } from './supplier';
-import { validPublication } from './publication';
+import { validPublication, canReviewDraftRepair } from './publication';
 import type { PublicationOperation, PublicationState, PublicationResponse } from './publication';
 import type { SupplierService, SupplierMonitor, SupplierSummary } from './supplier';
 
@@ -331,6 +331,11 @@ export class WorkspaceClient {
     if(!confirmed||!service.preview||service.preview.phase!=='preview_ready'||service.preview.missingFields.length||!['draft','publish'].includes(action)||action==='publish'&&!/^gid:\/\/shopify\/Publication\/\d+$/.test(publicationId||'')||action==='draft'&&publicationId!==undefined)throw new ClientError('SUPPLIER_CONFIRMATION_REQUIRED','请审阅当前完整预览、明确草稿/图片传输或这一个精确渠道。');
     const body={requestId:this.requestId(),expectedRevision:service.revision,expectedPreviewHash:service.preview.previewHash,action,...(action==='publish'?{publicationId}:{}),confirmed:true};
     return this.commit({kind:'publication-review',conversationId,path:this.supplierPath(conversationId,service.id)+'/shopify-review',body,key:body.requestId,review:{title:'准备独立 Shopify 审批',detail:JSON.stringify({preview:service.preview,action,publicationId},null,2)}}) as Promise<PublicationResponse>;
+  }
+  async reviewDraftRepair(conversationId:string,service:SupplierService,original:PublicationOperation,expectedRemoteContentHash:string,approveObservedMedia:boolean,confirmed=false){
+    if(!confirmed||!validPublication(original,conversationId,service.id)||!canReviewDraftRepair(original)||service.revision!==original.scope.serviceRevision||service.preview?.phase!=='preview_ready'||service.preview.previewHash!==original.scope.previewHash||original.receipt?.remoteContentHash!==expectedRemoteContentHash||original.receipt.issues?.includes('media_identity_unconfirmed')&&!approveObservedMedia)throw new ClientError('SHOPIFY_REPAIR_RECONCILIATION_REQUIRED','请先只读核对准确原草稿，审阅远端哈希，并另行确认需要采用的观察媒体身份。');
+    const body={requestId:this.requestId(),expectedRevision:service.revision,expectedPreviewHash:service.preview.previewHash,action:'repair_draft',draftOperationId:original.id,expectedRemoteContentHash,approveObservedMedia,confirmed:true};
+    return this.commit({kind:'publication-review',conversationId,path:this.supplierPath(conversationId,service.id)+'/shopify-review',body,key:body.requestId,review:{title:'准备原草稿缺失步骤修复审批',detail:JSON.stringify({original,expectedRemoteContentHash,approveObservedMedia},null,2)}}) as Promise<PublicationResponse>;
   }
   async publicationAction(conversationId:string,serviceId:string,operation:PublicationOperation,action:'approved'|'denied'|'execute'|'reconcile',confirmed=false) {
     if(!confirmed||!validPublication(operation,conversationId,serviceId))throw new ClientError('SUPPLIER_CONFIRMATION_REQUIRED','请明确确认这一个原操作及 scope hash。');
