@@ -66,3 +66,12 @@ test('disabled ingress has no key, account or network startup; review cannot add
   assert.throws(f.gateway, { code: 'WECHAT_BINDING_REVIEW_REQUIRED' });
   assert.equal(f.calls, 0);
 });
+
+test('original verified wx login privately registers the exact native Session recipient and expiry/reopen do not fabricate opt-in authority',async t=>{
+  const f=await fixture(t);const login=await f.call('POST','/api/session/wechat',{code:'native-notification-binding-code'});assert.equal(login.status,200);
+  const actor={subject:'fixture-owner',workspaceId:'fixture-workspace',role:'admin'};
+  const bindings=f.app.supplierNotifications.nativeBindings(actor);assert.equal(bindings.length,1);assert.equal(bindings[0].appId,'wx0123456789abcdef');
+  assert.equal(JSON.stringify(bindings).includes('fixture_original_openid'),false);
+  assert.equal(f.app.store.read().workspaceSupplierServices?.monitors.some(row=>row.notificationSubscriptions?.length),undefined);
+  f.expire();assert.deepEqual(f.app.supplierNotifications.nativeBindings(actor),[]);await f.reopen();assert.deepEqual(f.app.supplierNotifications.nativeBindings(actor),[]);
+});

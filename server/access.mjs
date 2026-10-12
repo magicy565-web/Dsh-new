@@ -205,10 +205,15 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
     mode: config.mode, begin, sessionView,
     // Host-internal trusted ingress adapter only; no public identity endpoint.
     // Resolves the existing bearer, with original revocation/expiry/membership.
-    nativeSessionIdentity(token) {
+    nativeSessionIdentity(token, { includeSessionId = false } = {}) {
       if (!enterprise || closing || !audit?.healthy || typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
       const session = sessions.get(hash(token));
-      return live(session) ? { subject: session.subject, role: session.role } : null;
+      return live(session) ? { subject: session.subject, role: session.role, ...(includeSessionId ? { id: session.id } : {}) } : null;
+    },
+    nativeSessionById(id) {
+      if (!enterprise || closing || !audit?.healthy) return null;
+      const session = [...sessions.values()].find(row => row.id === id);
+      return live(session) ? { id: session.id, subject: session.subject, role: session.role, workspaceId: config.workspaceId, expiresAt: session.expiresAt } : null;
     },
     health() { return { mode: config.mode, audit: audit ? (audit.healthy ? 'healthy' : 'unavailable') : 'disabled-local-mode', sessions: enterprise ? 'ephemeral-revoked-on-restart' : 'local-operator', boundary: enterprise ? 'loopback-signed-ingress' : 'loopback-local' }; },
     verifyBody(context, bytes) {

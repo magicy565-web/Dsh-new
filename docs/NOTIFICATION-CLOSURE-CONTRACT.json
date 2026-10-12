@@ -1,0 +1,21 @@
+{
+  "schema":"workspace.notification-closure.v1",
+  "baseBackend":"622fbfb6e9d037e548c3ed1d10e5a34a82038da7",
+  "existingSummaryCompatible":true,
+  "phase":"Omitted phase keeps summary; phase:first_sample explicitly selects the separate first notification.",
+  "firstAction":"supplier.monitor.first_notification",
+  "firstStatusRoute":"GET /api/conversations/:cid/supplier-services/:sid/notification-first-status/:monitorId",
+  "sharedRoutes":"Existing notification-subscription-challenge/record/revoke, notification-review/decision/execute/cancel routes accept optional phase:first_sample.",
+  "firstReviewSource":"notification.source is derived from the first completed original check; use its revision/contentHash for existing expectedSummaryRevision/expectedSummaryHash field names.",
+  "independence":"First sample and summary have distinct outboxes/message identities/reviews/once-only opt-ins. No automatic extra popup, grant or send. Existing Connectors are not expanded automatically.",
+  "firstEnable":"First is blocked unless firstSampleWechat (or trusted test firstSampleAdapter) is separately configured/enabled and Connector declares its firstAction.",
+  "nativeBinding":"After ORIGINAL successful code2session+reviewed membership+original Session login, the server privately remembers AppID/OpenID under that live Session. Public recipientBindings contains only id/revision/AppID.",
+  "clientReport":"Challenge is Session/monitor/phase/AppID/template bound and single-use. Server verifies login/binding and records a fresh authenticated client report. It is NOT a signed or independently verified WeChat subscription credential.",
+  "authorityLevel":"authenticated_client_report",
+  "platformAuthorization":"unverified_until_send",
+  "platformFinal":"Actual WeChat rejection is failed, refusal43101 revokes matching active evidence; unknown retains reservation without retry. Acceptance is not device delivery/read/business acceptance.",
+  "bootstrap":"WORKSPACE_SUPPLIER_NOTIFICATION_CONFIG_FILE points to an existing absolute private JSON file: version1, wechat?, firstSampleWechat?, accessTokenFile?. Each adapter config supplies enabled/AppID/templateId/fields/page?/officialContractReviewed; mode is forced production.",
+  "tokenSnapshot":"Existing absolute private accessTokenFile JSON contains appId/accessToken/expiresAt (epoch milliseconds). Reader pins AppID and rereads existing rotations. No mint/refresh/OAuth/grant/write occurs.",
+  "realVerification":"Current official server pages remain inaccessible; officialContractReviewed defaults false. All current checks are local fixtures. No real token, grant, send, payment, deployment or seven-day acceptance.",
+  "frontend":"Actual user gesture invokes wx.requestSubscribeMessage for server-provided template, reports selected decision and challengeId under the original native Session. Summary actions remain unchanged."
+}

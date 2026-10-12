@@ -186,20 +186,20 @@ function notificationOptions() {
   };
   return fixture;
 }
-async function notificationFlow(f, monitor) {
+async function notificationFlow(f, monitor, phase = 'summary') {
   const { port } = await f.listen(), base = `http://127.0.0.1:${port}`, route = `/api/conversations/${f.main.id}/supplier-services/${f.service.id}`;
-  const post = async (suffix, body) => { const response = await fetch(base + route + suffix, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return { status: response.status, body: await response.json() }; };
-  const challenge = await post('/notification-subscription-challenge', { requestId: 'native-subscribe-challenge', monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, recipientBindingId: 'reviewed-owner-fixture', expectedBindingRevision: 1, confirmed: true });
+  const post = async (suffix, body) => { const response = await fetch(base + route + suffix, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...(phase === 'first_sample' ? { phase } : {}) }) }); return { status: response.status, body: await response.json() }; };
+  const challenge = await post('/notification-subscription-challenge', { requestId: `native-subscribe-challenge-${phase}`, monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, recipientBindingId: 'reviewed-owner-fixture', expectedBindingRevision: 1, confirmed: true });
   assert.equal(challenge.status, 200, JSON.stringify(challenge.body));
-  const recorded = await post('/notification-subscription-record', { requestId: 'native-subscribe-record', monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, challengeId: challenge.body.challengeId, decision: 'accept', confirmed: true });
+  const recorded = await post('/notification-subscription-record', { requestId: `native-subscribe-record-${phase}`, monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, challengeId: challenge.body.challengeId, decision: 'accept', confirmed: true });
   assert.equal(recorded.status, 200, JSON.stringify(recorded.body));
   await f.app.supplierNotifications.ensureConnector();
   await f.app.capabilities.updateConnector(f.app.capabilities.listConnectors().find(item => item.adapter === 'workspace-seven-day-notification').id, { enabled: true });
-  const final = f.bound().summary(f.main.id, f.service.id, monitor.id);
-  const review = await post('/notification-review', { requestId: 'notification-original-review', monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, recipientBindingId: recorded.body.recipientBindingId, expectedBindingRevision: 1, subscriptionId: recorded.body.subscriptionId, expectedSummaryRevision: final.revision, expectedSummaryHash: final.contentHash, confirmed: true });
+  const final = phase === 'first_sample' ? f.bound().notifications.snapshot(f.main.id, f.service.id, monitor.id, phase).notification.source : f.bound().summary(f.main.id, f.service.id, monitor.id);
+  const review = await post('/notification-review', { requestId: `notification-original-review-${phase}`, monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, recipientBindingId: recorded.body.recipientBindingId, expectedBindingRevision: 1, subscriptionId: recorded.body.subscriptionId, expectedSummaryRevision: final.revision, expectedSummaryHash: final.contentHash, confirmed: true });
   assert.equal(review.status, 200, JSON.stringify(review.body));
   const operation = review.body.notification.review; assert.equal(operation.status, 'pending_approval');
-  const command = { requestId: 'notification-original-execute', monitorId: monitor.id, operationId: operation.id, expectedScopeHash: operation.scopeHash, confirmed: true };
+  const command = { ...(phase === 'first_sample' ? { phase } : {}), requestId: `notification-original-execute-${phase}`, monitorId: monitor.id, operationId: operation.id, expectedScopeHash: operation.scopeHash, confirmed: true };
   return { post, route, base, operation, command, subscriptionId: recorded.body.subscriptionId };
 }
 
@@ -241,4 +241,32 @@ test('integrated unknown notification consumes original one-time reservation and
   const duplicate = await f.bound().notifications.executeNotification(f.main.id, f.service.id, flow.command);
   assert.equal(duplicate.duplicate, true); assert.equal(notification.posts, 1);
   assert.equal(f.app.store.read().workspaceSupplierServices.monitors[0].notificationSubscriptions[0].state, 'consumed');
+});
+
+test('explicit first-sample notification precedes seven days, has its own once-only approval/grant and never creates summary delivery', async t => {
+  const notification=notificationOptions(); notification.options.firstSampleWechat={...notification.options.wechat};
+  const f=await fixture(t,{notify:notification.options}); f.setTime('2026-10-12T10:00:00Z');
+  const {monitor}=await configure(f); const sampled=await f.bound().checkMonitor(f.main.id,f.service.id,input(monitor,'actual-first-sample-fixture'));
+  assert.equal(sampled.summary,null);
+  const flow=await notificationFlow(f,monitor,'first_sample');
+  const decided=await flow.post('/notification-decision',{...flow.command,requestId:'first-only-decision',decision:'approved'}); assert.equal(decided.status,200,JSON.stringify(decided.body));
+  const sent=await flow.post('/notification-execute',flow.command); assert.equal(sent.status,200,JSON.stringify(sent.body));
+  assert.equal(sent.body.notification.phase,'first_sample'); assert.equal(sent.body.notification.delivery.status,'platform_accepted');
+  assert.equal(notification.posts,1);
+  const original=f.app.store.read().workspaceSupplierServices.monitors[0];
+  assert.equal(original.summary,null); assert.equal(original.externalNotification,undefined);
+  assert.equal(original.notificationSubscriptions[0].state,'consumed');
+  assert.equal(original.notificationSubscriptions[0].summaryId,`supplier-first-sample-${monitor.id}`);
+  const duplicate=await flow.post('/notification-execute',flow.command); assert.equal(duplicate.body.duplicate,true); assert.equal(notification.posts,1);
+  await f.restart(); assert.equal(f.bound().notifications.snapshot(f.main.id,f.service.id,monitor.id,'first_sample').notification.delivery.status,'platform_accepted');
+  assert.equal(notification.posts,1);
+});
+
+test('first-sample configuration is independently disabled and a summary opt-in cannot authorize it', async t => {
+  const notification=notificationOptions(),f=await fixture(t,{notify:notification.options}),{monitor}=await configure(f);
+  await f.bound().checkMonitor(f.main.id,f.service.id,input(monitor,'summary-source-for-independent-flags'));
+  const first=f.bound().notifications.snapshot(f.main.id,f.service.id,monitor.id,'first_sample'); assert.equal(first.notification.status,'blocked');
+  assert.equal(notification.posts,0);
+  const response=await f.bound().notifications.challenge(f.main.id,f.service.id,{requestId:'disabled-first-popup',phase:'first_sample',monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,recipientBindingId:'reviewed-owner-fixture',expectedBindingRevision:1,confirmed:true});
+  assert.equal(response.status,'blocked'); assert.equal(f.app.store.read().workspaceSupplierServices.monitors[0].notificationSubscriptions,undefined);
 });
