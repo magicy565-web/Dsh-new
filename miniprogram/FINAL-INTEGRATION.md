@@ -49,3 +49,13 @@ The client now checks the requesting owner after local read, native download and
 Account-race, original supplier HTTP, lifecycle and owner MCP transport tests passed 37/37. Files use actual server-created IDs, exact versions and SHA values. All new file boundary cases reproduced failures before the added checks; only local enterprise members/storage/transports are exercised.
 
 The newer TUI Host patch `959c44dad9fa6855962f43429e865ec00029f36f` was integrated as `33d45de`. On that combination, mini plus original protocol tests passed 120/120, TUI tests 7/7 and real Pi PTY seven checks passed. The next producer handoff also changes original `server/wechat-ingress.mjs`; it will be integrated separately and the combined checks updated rather than claiming prior results apply to it.
+
+## Original ingress launcher / exact Muse handoff
+
+Consumed fixed `cc49bc9fd017710e2f948d0cdfa220c1a6a638a5` after `959c44d`; integrated as `7289e54`. The change exposes a host-internal original ingress launcher, not a new public login route or automatic login side effect, and creates a local public handoff only for an already approved/dispatched exact original order. It does not send the file or claim a task. Real production foreground mounting, browser SSO handoff and remote Muse remain unverified.
+
+On the actual `7289e54` combination: original builds passed; full backend 684 total, 677 passed, 7 original conditional skips, 0 failed; mini/original protocol 126/126; TUI 9/9; actual Pi PTY eight checks; original ingress/Muse regressions 7/7. The original Python consumer remains unchanged.
+
+The publication browser driver's first run completed all nine business assertions then failed during cleanup because `onUnload` clearing readiness triggered a queued render after the browser closed. The driver now drains its render queue before closing; notification cleanup has the same fix. Reentry verification clears only the fixture's local publication cache before waiting for the actual original server operation to be reread. Test assertions were retained. Retest exited 0 for publication and first-notification flows, with no page errors, one fixture publication and one fixture provider attempt respectively. They remain limited Chromium/native-callback/local HTTP evidence.
+
+Browser outputs now default to separate untracked runtime evidence directories (or an explicit output argument). Old tracked historical screenshots/checkpoint packages are preserved. Runtime records use the actual source HEAD instead of hard-coded historical backend IDs and label the one faux model call as synthetic. Final same-source screenshots will be rerun on the frozen committed source.

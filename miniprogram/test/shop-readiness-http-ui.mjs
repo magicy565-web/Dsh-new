@@ -3,10 +3,12 @@
 import assert from 'node:assert/strict';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {chromium} from 'playwright';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import {intakeFixture} from './intake-http-support.mjs';
 import {loadPage,until} from './support.mjs';
 import {installSourceRenderer} from './source-renderer.mjs';
-const out=new URL('../deliverables/readiness-checkpoint/',import.meta.url);mkdirSync(out,{recursive:true});
+const out=process.argv[2]?pathToFileURL(path.resolve(process.argv[2])+path.sep):new URL('../evidence/shop-readiness/browser/',import.meta.url);mkdirSync(out,{recursive:true});
 const domain='readiness-fixture.myshopify.com',info={shop:{id:'gid://shopify/Shop/9',name:'Local fixture',myshopifyDomain:domain,currencyCode:'USD'},currentAppInstallation:{accessScopes:[{handle:'read_products'}]}},state={calls:0,handler:async()=>new Response(JSON.stringify({data:info}))};
 const f=await intakeFixture(null,{capabilityEnvironment:{WORKSPACE_SHOPIFY_SHOP_DOMAIN:domain,WORKSPACE_SHOPIFY_ADMIN_TOKEN:'synthetic-server-only-readiness-token'},shopifyFetch:async()=>{state.calls++;return state.handler();}}),client=f.client(),{page}=loadPage(client,f.platform);page.onShow();await until(()=>page.data.authenticated&&page.data.supplierAvailable);await page.beginSupplier();
 const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']}),ui=await browser.newPage({viewport:{width:390,height:844}}),errors=[];ui.on('pageerror',e=>errors.push(e.message));
