@@ -9,7 +9,7 @@ import { createPiProvider } from '../server/pi-provider.mjs';
 import { createApp } from '../server/index.mjs';
 
 test('actual SIGKILL fixture: recover pending Pi work and cached answer before business acknowledgment without duplicate admission', async t => {
-  for (const mode of ['pending', 'answered']) {
+  for (const mode of ['pending', 'answered', 'metadata-gap']) {
     const directory = await fs.mkdtemp('/tmp/workspace-pi-kill-');
     const child = spawn(process.execPath, ['test/fixtures/pi-crash-child.mjs', directory, mode], { env: { PATH: process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
     const exited = once(child, 'exit');
@@ -27,6 +27,7 @@ test('actual SIGKILL fixture: recover pending Pi work and cached answer before b
     faux.setResponses(mode === 'pending' ? [fauxAssistantMessage('Recovered process-crash fixture')] : []);
     app = await createApp({ dataDirectory: directory, provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1' }) });
     assert.equal(app.runtime.getRun(ready.runId).run.status, 'interrupted');
+    if (mode === 'metadata-gap') assert.equal(app.runtime.getRun(ready.runId).run.piSubmissionId, undefined);
     assert.equal(faux.state.callCount, 0);
     await app.runtime.retryRun(ready.runId, { requestId: 'explicit-crash-recover' });
     for (let i = 0; i < 500 && app.runtime.getRun(ready.runId).run.status === 'running'; i++) await new Promise(resolve => setTimeout(resolve, 10));
