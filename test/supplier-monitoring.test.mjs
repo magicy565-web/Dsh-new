@@ -31,7 +31,7 @@ async function fixture(t, options = {}) {
     } else assert.fail('Unexpected Shopify operation; no write or ShopifyQL is permitted in this fixture');
     return new Response(JSON.stringify({ data }), { headers: { 'Content-Type': 'application/json', 'X-Shopify-API-Version': '2026-10' } });
   };
-  const config = { dataDirectory: directory, provider: { kind: 'fixture', configured: false, complete() { assert.fail('Monitoring cannot call a model'); } }, accessClock: () => time, capabilityEnvironment: { WORKSPACE_SHOPIFY_SHOP_DOMAIN: 'fixture-shop.myshopify.com', WORKSPACE_SHOPIFY_ADMIN_TOKEN: 'synthetic-api-fixture-only', ...(options.environment || {}) }, shopifyFetch: fetchImpl, supplierTrafficAdapter: options.trafficAdapter || null, supplierTrafficOptions: options.ga4 || null, dotWorkerConfig: options.dot || null, schedulerIntervalMs: 60000 };
+  const config = { dataDirectory: directory, provider: { kind: 'fixture', configured: false, complete() { assert.fail('Monitoring cannot call a model'); } }, accessClock: () => time, capabilityEnvironment: { WORKSPACE_SHOPIFY_SHOP_DOMAIN: 'fixture-shop.myshopify.com', WORKSPACE_SHOPIFY_ADMIN_TOKEN: 'synthetic-api-fixture-only', ...(options.environment || {}) }, shopifyFetch: fetchImpl, supplierTrafficAdapter: options.trafficAdapter || null, supplierTrafficOptions: options.ga4 || null, supplierNotificationOptions: options.notify || {}, dotWorkerConfig: options.dot || null, schedulerIntervalMs: 60000 };
   let app = await createApp(config);
   t.after(async () => { await app.close(); await fs.rm(directory, { recursive: true, force: true }); });
   const actor = { subject: 'local-operator', role: 'admin', workspaceId: 'local' };
@@ -130,7 +130,7 @@ function ga4Options() {
     fetchImpl: async (url, init) => {
       assert.match(url, /^https:\/\/analyticsdata\.googleapis\.com\/v1beta\/properties\/1234:(checkCompatibility|runReport)$/); fixture.calls++;
       const compatibility = { dimensionCompatibilities: ['itemId', 'hostName', 'dateHourMinute'].map(name => ({ dimensionMetadata: { apiName: name }, compatibility: 'COMPATIBLE' })), metricCompatibilities: [{ metricMetadata: { apiName: 'itemViewEvents' }, compatibility: 'COMPATIBLE' }] };
-      const value = url.endsWith(':checkCompatibility') ? compatibility : { dimensionHeaders: ['itemId', 'hostName', 'dateHourMinute'].map(name => ({ name })), metricHeaders: [{ name: 'itemViewEvents', type: 'TYPE_INTEGER' }], rowCount: 1,
+      const value = url.endsWith(':checkCompatibility') ? compatibility : { kind: 'analyticsData#runReport', dimensionHeaders: ['itemId', 'hostName', 'dateHourMinute'].map(name => ({ name })), metricHeaders: [{ name: 'itemViewEvents', type: 'TYPE_INTEGER' }], rowCount: 1,
         rows: [{ dimensionValues: ['whole-product-fixture-123', 'store.fixture.example', '202610131000'].map(value => ({ value })), metricValues: [{ value: fixture.count }] }], metadata: { timeZone: 'Etc/UTC' } };
       return new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
     },
@@ -171,4 +171,74 @@ test('missing/revoked GA4 authorization is null and a changed reviewed mapping c
   const changed = await f.bound().checkMonitor(f.main.id, f.service.id, input(monitor, 'ga4-changed-binding'));
   assert.equal(changed.sample.traffic, null); assert.ok(changed.sample.errors.some(item => item.code === 'SUPPLIER_TRAFFIC_SCOPE_CHANGED'));
   assert.equal(ga4.calls, 0);
+});
+
+function notificationOptions() {
+  const appId = 'wx0123456789abcdef', templateId = 'local-summary-template';
+  const fixture = { posts: 0, revoked: false, uncertain: false };
+  fixture.options = {
+    wechat: { enabled: true, appId, templateId, mode: 'fixture', fields: { thing1: 'title', phrase2: 'status', date3: 'endDate' },
+      getAccessToken: async () => ({ appId, accessToken: 'LOCAL_EXISTING_FIXTURE_TOKEN', expiresAt: Date.parse('2026-11-01T00:00:00Z') }),
+      fetchImpl: async (url, input) => { fixture.posts++; assert.equal(url.origin + url.pathname, 'https://api.weixin.qq.com/cgi-bin/message/subscribe/send'); const payload = JSON.parse(input.body); assert.equal(payload.touser, 'local_fixture_openid'); assert.deepEqual(Object.keys(payload.data).sort(), ['date3', 'phrase2', 'thing1']); assert.ok(!input.body.includes('retainedUnits')); if (fixture.uncertain) throw Error('Deliberate local response loss'); return new Response(JSON.stringify({ errcode: 0, errmsg: 'ok' }), { headers: { 'Content-Type': 'application/json' } }); },
+    },
+    resolveRecipient: async ({ actor, recipientBindingId }) => ({ id: recipientBindingId, revision: 1, workspaceId: actor.workspaceId, ownerSubject: actor.subject, recipientSubject: actor.subject, verified: true, appId, openid: 'local_fixture_openid', revoked: fixture.revoked }),
+    confirmSubscription: async ({ actor, challenge, decision }) => ({ verified: true, subject: actor.subject, workspaceId: actor.workspaceId, challengeId: challenge.id, decision, source: 'wx.requestSubscribeMessage', provenance: 'authenticated_wechat_client', evidenceKind: 'local_fixture', appId, templateId }),
+  };
+  return fixture;
+}
+async function notificationFlow(f, monitor) {
+  const { port } = await f.listen(), base = `http://127.0.0.1:${port}`, route = `/api/conversations/${f.main.id}/supplier-services/${f.service.id}`;
+  const post = async (suffix, body) => { const response = await fetch(base + route + suffix, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return { status: response.status, body: await response.json() }; };
+  const challenge = await post('/notification-subscription-challenge', { requestId: 'native-subscribe-challenge', monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, recipientBindingId: 'reviewed-owner-fixture', expectedBindingRevision: 1, confirmed: true });
+  assert.equal(challenge.status, 200, JSON.stringify(challenge.body));
+  const recorded = await post('/notification-subscription-record', { requestId: 'native-subscribe-record', monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, challengeId: challenge.body.challengeId, decision: 'accept', confirmed: true });
+  assert.equal(recorded.status, 200, JSON.stringify(recorded.body));
+  await f.app.supplierNotifications.ensureConnector();
+  await f.app.capabilities.updateConnector(f.app.capabilities.listConnectors().find(item => item.adapter === 'workspace-seven-day-notification').id, { enabled: true });
+  const final = f.bound().summary(f.main.id, f.service.id, monitor.id);
+  const review = await post('/notification-review', { requestId: 'notification-original-review', monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, recipientBindingId: recorded.body.recipientBindingId, expectedBindingRevision: 1, subscriptionId: recorded.body.subscriptionId, expectedSummaryRevision: final.revision, expectedSummaryHash: final.contentHash, confirmed: true });
+  assert.equal(review.status, 200, JSON.stringify(review.body));
+  const operation = review.body.notification.review; assert.equal(operation.status, 'pending_approval');
+  const command = { requestId: 'notification-original-execute', monitorId: monitor.id, operationId: operation.id, expectedScopeHash: operation.scopeHash, confirmed: true };
+  return { post, route, base, operation, command, subscriptionId: recorded.body.subscriptionId };
+}
+
+test('integrated actual HTTP notification requires original separate approval and preserves one fixture POST across corrections/reopen', async t => {
+  const notification = notificationOptions(), f = await fixture(t, { notify: notification.options }), { monitor } = await configure(f);
+  await f.bound().checkMonitor(f.main.id, f.service.id, input(monitor, 'notification-summary-original-check'));
+  const flow = await notificationFlow(f, monitor);
+  assert.equal(notification.posts, 0); assert.equal(f.app.capabilities.listConnectorRuns().length, 0);
+  const generic = await fetch(flow.base + `/api/approvals/${flow.operation.approvalId}/decision`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'approved', confirmed: true }) });
+  assert.equal(generic.status, 409);
+  const approved = await flow.post('/notification-decision', { ...flow.command, requestId: 'notification-original-decision', decision: 'approved' });
+  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+  const sent = await flow.post('/notification-execute', flow.command);
+  assert.equal(sent.status, 200, JSON.stringify(sent.body));
+  assert.equal(sent.body.notification.delivery.status, 'platform_accepted'); assert.equal(sent.body.notification.delivery.evidenceKind, 'local_fixture');
+  assert.equal(sent.body.notification.delivery.userRead, 'unknown'); assert.equal(notification.posts, 1);
+  assert.equal(f.app.capabilities.listConnectorRuns().length, 1);
+  f.rows([order(1, [line(1, 4, 3)], { refunds: [refund(1, 1, 1)] })]);
+  const correction = await f.bound().checkMonitor(f.main.id, f.service.id, input(monitor, 'notification-summary-correction'));
+  assert.equal(correction.summary.revision, 2);
+  const duplicate = await flow.post('/notification-execute', flow.command); assert.equal(duplicate.body.duplicate, true); assert.equal(notification.posts, 1);
+  assert.equal(duplicate.body.notification.delivery.summaryCorrectedAfterSubmission, true);
+  const dto = f.bound().monitors(f.main.id, f.service.id)[0]; assert.equal(dto.notificationSubscriptions, undefined); assert.equal(dto.notificationChallenges, undefined);
+  await f.restart();
+  const restored = f.bound().notifications.snapshot(f.main.id, f.service.id, monitor.id);
+  assert.equal(restored.notification.delivery.status, 'platform_accepted'); assert.equal(restored.notification.delivery.summaryCorrectedAfterSubmission, true); assert.equal(notification.posts, 1);
+});
+
+test('integrated unknown notification consumes original one-time reservation and cannot send on duplicate/reopen', async t => {
+  const notification = notificationOptions(), f = await fixture(t, { notify: notification.options }), { monitor } = await configure(f);
+  await f.bound().checkMonitor(f.main.id, f.service.id, input(monitor, 'unknown-summary-check'));
+  const flow = await notificationFlow(f, monitor);
+  await flow.post('/notification-decision', { ...flow.command, requestId: 'unknown-notification-decision', decision: 'approved' }); notification.uncertain = true;
+  const result = await flow.post('/notification-execute', flow.command);
+  assert.equal(result.body.notification.delivery.status, 'unknown'); assert.equal(result.body.notification.delivery.automaticRetry, false);
+  assert.equal(notification.posts, 1); await f.restart();
+  const restored = f.bound().notifications.snapshot(f.main.id, f.service.id, monitor.id);
+  assert.equal(restored.notification.delivery.status, 'unknown');
+  const duplicate = await f.bound().notifications.executeNotification(f.main.id, f.service.id, flow.command);
+  assert.equal(duplicate.duplicate, true); assert.equal(notification.posts, 1);
+  assert.equal(f.app.store.read().workspaceSupplierServices.monitors[0].notificationSubscriptions[0].state, 'consumed');
 });

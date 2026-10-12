@@ -5,6 +5,7 @@ import { createSupplierService, supplierServiceHttp } from './supplier-service.m
 import { SupplierServiceError } from './supplier-profile.mjs';
 import { createSupplierMonitoring } from './supplier-monitoring.mjs';
 import { createGa4ProductTrafficAdapter } from './product-traffic-ga4.mjs';
+import { createSupplierNotificationHost, SUPPLIER_MONITOR_NOTIFICATION_ADAPTER } from './supplier-notification-host.mjs';
 import { createShopifyPublicationAdapter, SUPPLIER_SHOPIFY_ADAPTER } from './shopify-publication.mjs';
 import { createSupplierPublication, supplierPublicationHttp } from './supplier-publication.mjs';
 import { createSupplierWorkerMcpExtension } from './supplier-mcp.mjs';
@@ -83,13 +84,13 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, publicationAdapter, supplierPublication;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, publicationAdapter, supplierPublication, supplierNotifications;
   try {
     await provider.initialize?.({ store });
     recovery = await readRecoveryStatus(store.directory, provider.kind);
@@ -126,17 +127,19 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     workerOpportunities = createWorkerOpportunityService({ store });
     cloudExperts = createCloudExpertService({ store, workerCatalog: () => workerDesk.catalog(), workerDesk });
     await workerDesk.recoverInterrupted();
-    if (Object.hasOwn(connectorAdapters, SUPPLIER_SHOPIFY_ADAPTER)) throw new TypeError('The original supplier Shopify adapter ID cannot be overwritten.');
+    if (Object.hasOwn(connectorAdapters, SUPPLIER_SHOPIFY_ADAPTER) || Object.hasOwn(connectorAdapters, SUPPLIER_MONITOR_NOTIFICATION_ADAPTER)) throw new TypeError('The original supplier Shopify adapter ID cannot be overwritten.');
+    supplierNotifications = createSupplierNotificationHost({ store, getCapabilities: () => capabilities, getSupplier: () => supplierService, options: supplierNotificationOptions, clock: accessClock, currentRole: subject => accessConfig.mode === 'enterprise' ? accessConfig.members.get(subject) : subject === 'local-operator' ? 'admin' : null });
     publicationAdapter = createShopifyPublicationAdapter({ store, environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock,
       readImage: (scope, ref) => supplierService.forActor({ subject: scope.subject, workspaceId: scope.workspaceId, role: scope.actorRole }).readImage(scope.conversationId, scope.serviceId, ref) });
-    capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [SUPPLIER_SHOPIFY_ADAPTER]: publicationAdapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
+    capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [SUPPLIER_SHOPIFY_ADAPTER]: publicationAdapter, [SUPPLIER_MONITOR_NOTIFICATION_ADAPTER]: supplierNotifications.adapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
     museDrafts = piMuse ? createMuseDraftService({ store, runtime, piMuse, artifacts, provider }) : null;
     shopify = createShopifyClient({ environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock });
-    supplierMonitoring = await createSupplierMonitoring({ store, runtime, capabilities, shopify, clock: accessClock, trafficAdapter: supplierTrafficAdapter || (supplierTrafficOptions ? createGa4ProductTrafficAdapter({ ...supplierTrafficOptions, clock: accessClock }) : null) });
-    supplierService = createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock: accessClock, monitoring: supplierMonitoring,
+    supplierMonitoring = await createSupplierMonitoring({ store, runtime, capabilities, shopify, clock: accessClock, notifications: supplierNotifications, authorizeOwner: (_state, monitor) => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(monitor.subject)) : monitor.subject === 'local-operator', trafficAdapter: supplierTrafficAdapter || (supplierTrafficOptions ? createGa4ProductTrafficAdapter({ ...supplierTrafficOptions, clock: accessClock }) : null) });
+    supplierService = createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock: accessClock, monitoring: supplierMonitoring, notifications: supplierNotifications,
       readMuseImage: async (actor, cid, ref) => { if (!piMuse || piMuse.snapshot(actor).conversationId !== cid) throw new SupplierServiceError(404, 'SUPPLIER_IMAGE_UNAVAILABLE', 'Use the original reviewed Muse owner and Session.'); piMuse.forActor(actor); const file = await piMuse.native.bindSession(piMuse.actor).download({ artifactId: ref.artifactId, version: ref.version, sha256: ref.sha256 }); return { ...file, version: { sha256: file.sha256 } }; } });
     supplierPublication = await createSupplierPublication({ store, capabilities, shopify, adapter: publicationAdapter, clock: accessClock });
+    await supplierNotifications.initialize();
     commerce = createCommerceService({ store, runtime, shopify, workerDesk, workerCatalog: () => workerDesk.catalog(), museConnection: () => museBridge?.info(), clock: accessClock });
     supply = createSupplyNetworkService({ store, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local',
       merchantMember: subject => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(subject)) : subject === 'local-operator' });
@@ -271,7 +274,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       if (method === 'GET') {
         if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, respond })) return;
-        if (await supplierServiceHttp({ service: supplierService, req, res, pathname, context, respond })) return;
+        if (await supplierServiceHttp({ service: supplierService, access, req, res, pathname, context, respond })) return;
         if (await draftHttp(req, res, pathname, context)) return;
         if (piMuse && await piMuse.businessHttp({ req, res, pathname, context, query: url.searchParams })) return;
         const goalCommerce = pathname.match(/^\/api\/goals\/([^/]+)\/commerce-context$/);
@@ -368,7 +371,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       musePrivacy.guardHttp(pathname, context, body);
       if (await draftHttp(req, res, pathname, context, body)) return;
       if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, body, respond })) return;
-      if (await supplierServiceHttp({ service: supplierService, req, res, pathname, context, body, respond })) return;
+      if (await supplierServiceHttp({ service: supplierService, access, req, res, pathname, context, body, respond })) return;
       const ownedFileMutation = pathname.match(/^\/api\/artifacts\/([^/]+)$/);
       if (ownedFileMutation && musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Original Muse receipt files are immutable and use the original binding.');
       const supplyWrite = await supplyHttp({ supply, method, pathname, body, actor: context });
@@ -502,7 +505,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, supplierService, supplierPublication, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, supplierService, supplierPublication, supplierNotifications, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');
