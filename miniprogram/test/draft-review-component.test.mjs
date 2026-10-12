@@ -11,21 +11,22 @@ function fixture() {
   Object.assign(component, options.methods);
   return { component, events, load(value) { options.properties.draft.observer.call(component, value); } };
 }
-const draft = () => ({ id: 'component-dto-fixture', conversationId: 'original-fixture', scopeVersion: 2, scopeHash: 'b'.repeat(64), phase: 'ready_for_review', scope: { product: 'Received product', budgetCredits: 5, deadlineAt: '2026-11-12T00:00:00.000Z' }, questions: [], suggestions: ['Model suggestion, not authorization'] });
-test('actual compiled review component emits no prepare without two explicit confirmations', () => {
+const draft = () => ({ id: 'component-dto-fixture', conversationId: 'original-fixture', revision: 2, draftHash: 'b'.repeat(64), phase: 'ready_for_review', scope: { product: 'Received product', budgetCredits: 5, deadlineAt: '2026-11-12T00:00:00.000Z' }, questions: [], suggestions: ['Model suggestion, not authorization'] });
+test('actual compiled review component emits no prepare without three explicit confirmations', () => {
   const f = fixture(); f.load(draft()); f.component.prepare(); assert.equal(f.events.length, 0);
-  f.component.consent({ detail: { value: ['terms'] } }); f.component.prepare(); assert.equal(f.events.length, 0);
-  f.component.consent({ detail: { value: ['terms', 'public'] } }); f.component.prepare(); assert.equal(f.events[0].name, 'prepare'); assert.equal(f.events[0].value.scopeHash, draft().scopeHash);
+  f.component.consent({ detail: { value: ['budget'] } }); f.component.prepare(); assert.equal(f.events.length, 0);
+  f.component.consent({ detail: { value: ['budget', 'public'] } }); f.component.prepare(); assert.equal(f.events.length, 0);
+  f.component.consent({ detail: { value: ['budget', 'deadline', 'public'] } }); f.component.prepare(); assert.equal(f.events[0].name, 'prepare'); assert.equal(f.events[0].value.draftHash, draft().draftHash);
   assert.equal('order' in f.events[0].value, false); assert.equal('budgetCredits' in f.events[0].value, false);
 });
-test('unchanged authoritative polling preserves review checks, changed scopeVersion resets them; edit/return never submit', () => {
-  const f = fixture(), value = draft(); f.load(value); f.component.consent({ detail: { value: ['terms', 'public'] } }); f.load(value); assert.equal(f.component.data.publicConfirmed, true);
-  f.load({ ...value, scopeVersion: 3, scopeHash: 'c'.repeat(64) }); assert.equal(f.component.data.publicConfirmed, false); f.component.prepare(); assert.equal(f.events.length, 0);
+test('unchanged authoritative polling preserves review checks, changed revision resets them; edit/return never submit', () => {
+  const f = fixture(), value = draft(); f.load(value); f.component.consent({ detail: { value: ['budget', 'deadline', 'public'] } }); f.load(value); assert.equal(f.component.data.publicConfirmed, true);
+  f.load({ ...value, revision: 3, draftHash: 'c'.repeat(64) }); assert.equal(f.component.data.publicConfirmed, false); f.component.prepare(); assert.equal(f.events.length, 0);
   f.component.edit(); assert.equal(f.events[0].name, 'edit'); f.load(null); f.load(value); assert.equal(f.component.data.publicConfirmed, false);
   f.component.close(); assert.equal(f.events.at(-1).name, 'close'); assert.ok(f.events.every(event => event.name !== 'prepare'));
 });
 test('unknown operation disables all mutations and rejects missing scope despite received suggestions', () => {
   const f = fixture(); f.load({ ...draft(), phase: 'needs_information', scope: {}, questions: ['Actual required budget'], suggestions: ['Optional suggestion'] });
-  f.component.consent({ detail: { value: ['terms', 'public'] } }); f.component.prepare(); assert.equal(f.events.length, 0);
-  f.load(draft()); f.component.data.uncertain = true; f.component.consent({ detail: { value: ['terms', 'public'] } }); f.component.prepare(); f.component.edit(); f.component.reject(); assert.equal(f.events.length, 0);
+  f.component.consent({ detail: { value: ['budget', 'deadline', 'public'] } }); f.component.prepare(); assert.equal(f.events.length, 0);
+  f.load(draft()); f.component.data.uncertain = true; f.component.consent({ detail: { value: ['budget', 'deadline', 'public'] } }); f.component.prepare(); f.component.edit(); f.component.reject(); assert.equal(f.events.length, 0);
 });
