@@ -46,7 +46,30 @@ test('actual private image/retail preview and original product library persist; 
   const draft = await f.http(route + '/' + id + '/shopify-draft', 'POST', { requestId: 'supplier-external-draft', expectedRevision: 2, expectedPreviewHash: preview.body.preview.previewHash, confirmed: true }); assert.equal(draft.body.status, 'blocked'); assert.equal(draft.body.error.code, 'SHOPIFY_SETUP_REQUIRED');
   await f.restart(); assert.equal((await f.http(route + '/' + id + '/preview', 'POST', input)).body.preview.id, preview.body.preview.id);
   const changed = await f.http(route + '/' + id + '/profile', 'POST', { requestId: 'supplier-change-retail-unit', expectedRevision: 2, facts: { unitsPerPack: 3 } }); assert.equal(changed.body.service.preview, null);
+  const updated = await f.http(route + '/' + id + '/save-product', 'POST', { requestId: 'supplier-update-original-product', expectedRevision: 3, confirmed: true }); assert.equal(updated.body.product.id, save.body.product.id); assert.equal(updated.body.product.revision, 2);
+  const originalSave = await f.http(route + '/' + id + '/save-product', 'POST', { requestId: 'supplier-save-original-product', expectedRevision: 2, confirmed: true }); assert.equal(originalSave.body.duplicate, true); assert.equal((await f.http(route + '/' + id)).body.service.productReference.productRevision, 2);
   assert.equal(f.app.store.read().goals.length, 0); assert.equal(f.faux.state.callCount, 0);
+});
+
+test('uncertain original library acknowledgement recovers the same receipt and never creates another product', async t => {
+  const f = await fixture(t), route = `/api/conversations/${encodeURIComponent(f.main.id)}/supplier-services`;
+  const service = (await f.http(route, 'POST', { requestId: 'supplier-save-recovery-intake', facts: { name: 'Saved once despite response loss' } })).body.service;
+  const original = f.app.businessLibrary.createProduct; f.app.businessLibrary.createProduct = async (...args) => { await original(...args); throw Error('Synthetic acknowledgement loss after original Store commit'); };
+  const input = { requestId: 'supplier-original-save-recovery', expectedRevision: 1, confirmed: true };
+  assert.equal((await f.http(route + '/' + service.id + '/save-product', 'POST', input)).status, 500); assert.equal(f.app.store.read().businessLibrary.products.length, 1);
+  await f.restart(); const recovered = await f.http(route + '/' + service.id + '/save-product', 'POST', input); assert.equal(recovered.status, 200, JSON.stringify(recovered.body)); assert.equal(f.app.store.read().businessLibrary.products.length, 1);
+  assert.equal((await f.http(route + '/' + service.id + '/save-product', 'POST', input)).body.duplicate, true);
+});
+
+test('explicit intake cancellation and rejection preserve facts, clear preview and block later edits', async t => {
+  const f = await fixture(t), route = `/api/conversations/${encodeURIComponent(f.main.id)}/supplier-services`;
+  for (const action of ['cancel', 'reject']) {
+    const service = (await f.http(route, 'POST', { requestId: 'supplier-stop-intake-' + action, facts: { name: 'Original stopped facts' } })).body.service;
+    const body = { requestId: 'supplier-' + action, expectedRevision: service.revision, expectedProfileHash: service.profileHash, confirmed: true };
+    const stopped = await f.http(route + '/' + service.id + '/' + action, 'POST', body); assert.equal(stopped.status, 200); assert.equal(stopped.body.service.phase, action === 'cancel' ? 'cancelled' : 'rejected'); assert.equal(stopped.body.service.profile.name, 'Original stopped facts');
+    assert.equal((await f.http(route + '/' + service.id + '/' + action, 'POST', body)).body.duplicate, true);
+    assert.equal((await f.http(route + '/' + service.id + '/profile', 'POST', { requestId: 'supplier-edit-stopped-' + action, expectedRevision: 2, facts: { name: 'Changed' } })).status, 409);
+  }
 });
 test('unconfigured seven-day monitor is a disabled original task; missing data stays null and late summary is idempotent', async t => {
   let time = Date.parse('2026-10-12T10:00:00Z');

@@ -1,5 +1,6 @@
 import { DotWorkerError } from './dot-worker-bridge.mjs';
 import { DOT_MCP_TOOLS } from './dot-mcp-tools.mjs';
+import { isSupplierMcpError } from './supplier-mcp.mjs';
 export { DOT_MCP_TOOLS } from './dot-mcp-tools.mjs';
 
 /**
@@ -110,7 +111,11 @@ const resultTool = (value, version, isError = false) => ({
   ...(isError ? { isError: true } : { structuredContent: value }),
 });
 
-export async function handleDotMcpHttp(req, res, { bridge, readBody } = {}) {
+export async function handleDotMcpHttp(req, res, { bridge, readBody, extension = null, extensionOnly = false } = {}) {
+  const muse = bridge?.info?.().kind === 'muse';
+  const serverInfo = muse ? { name: 'workspace-original-muse-supplier', version: '1.0.0' } : SERVER;
+  const instructions = muse ? 'Use only the original owner-approved Muse task, attempt/fence and live lease. Supplier reads require exact approved task scope. This MCP facet never starts, wakes or impersonates Muse, or grants private data or Shopify writes.' : INSTRUCTIONS;
+  const tools = extensionOnly ? extension?.tools || [] : extension ? [...DOT_MCP_TOOLS, ...extension.tools] : DOT_MCP_TOOLS;
   if (!bridge || typeof readBody !== 'function') throw new TypeError('Dot MCP requires the existing authenticated Workspace bridge.');
   if (req.method !== 'POST') return response(res, 405,
     err(null, -32601, 'MCP Streamable HTTP only accepts POST.'));
@@ -143,7 +148,7 @@ export async function handleDotMcpHttp(req, res, { bridge, readBody } = {}) {
     return response(res, 200, ok(id, {
       protocolVersion: selected,
       capabilities: { tools: { listChanged: false } },
-      serverInfo: SERVER, instructions: INSTRUCTIONS,
+      serverInfo, instructions,
     }));
   }
   if (message.method === 'server/discover') {
@@ -152,8 +157,8 @@ export async function handleDotMcpHttp(req, res, { bridge, readBody } = {}) {
     return response(res, 200, ok(id, {
       resultType: 'complete', supportedVersions: SUPPORTED_DOT_MCP_VERSIONS,
       capabilities: { tools: { listChanged: false } },
-      _meta: { 'io.modelcontextprotocol/serverInfo': SERVER },
-      instructions: INSTRUCTIONS, ttlMs: 60_000, cacheScope: 'private',
+      _meta: { 'io.modelcontextprotocol/serverInfo': serverInfo },
+      instructions, ttlMs: 60_000, cacheScope: 'private',
     }));
   }
   if (message.method === 'ping') return response(res, 200, ok(id, {}));
@@ -162,19 +167,19 @@ export async function handleDotMcpHttp(req, res, { bridge, readBody } = {}) {
       err(id, -32602, 'Dot Worker tools/list has exactly one page.'));
     return response(res, 200, ok(id, {
       ...(version === MODERN_MCP_VERSION ? { resultType: 'complete' } : {}),
-      tools: DOT_MCP_TOOLS,
+      tools,
       ...(version === MODERN_MCP_VERSION ? { ttlMs: 60_000, cacheScope: 'private' } : {}),
     }));
   }
   if (message.method === 'tools/call') {
     const name = message.params?.name;
-    if (typeof name !== 'string' || !KNOWN_TOOLS.has(name))
+    if (typeof name !== 'string' || !tools.some(tool => tool.name === name))
       return response(res, 404, err(id, -32601, 'Unregistered Dot Worker tool.'));
     try {
-      const value = await callDotMcpTool(bridge, name, message.params?.arguments || {});
+      const value = !extensionOnly && KNOWN_TOOLS.has(name) ? await callDotMcpTool(bridge, name, message.params?.arguments || {}) : await extension.call(name, message.params?.arguments || {});
       return response(res, 200, ok(id, resultTool(value, version)));
     } catch (cause) {
-      const safe = cause instanceof DotWorkerError ?
+      const safe = cause instanceof DotWorkerError || isSupplierMcpError(cause) ?
         { code: cause.code, message: cause.message } :
         { code: 'DOT_TOOL_FAILED', message: 'This attempt may be uncertain. Query its original task reference before retrying.' };
       return response(res, 200, ok(id, resultTool(safe, version, true)));

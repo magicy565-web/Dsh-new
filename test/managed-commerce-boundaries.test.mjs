@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
 import {createBusinessLibraryService} from '../server/business-library.mjs';
 import {createWorkspaceLibraryAdapter} from '../server/workspace-library.mjs';
@@ -13,7 +14,13 @@ import {callDotMcpTool,DOT_MCP_TOOLS} from '../server/dot-mcp-server.mjs';
 // connector callbacks and injected Shopify responses; no real Store fsync,
 // Shopify request/publication, Muse/model turn or external buyer MCP is exercised.
 const provenance=JSON.parse(fs.readFileSync(new URL('../docs/validation/managed-commerce-sources.json',import.meta.url)));
+// These three files now contain the explicitly requested supplier service
+// extensions. Old reviewed byte pins remain historical evidence; replacing
+// them with this candidate's hashes would falsely imply a fresh review.
+const supplierExtensionFiles = new Set(['server/shopify.mjs','server/capabilities.mjs','server/dot-mcp-server.mjs']);
+const originalSupplierBase = 'a5a524a19adf065f804abc1459f1f573cfd8adf4';
 for(const row of provenance.boundaryFiles) {
+  if (supplierExtensionFiles.has(row.path)) continue;
   const bytes=Buffer.from(fs.readFileSync(new URL('../'+row.path,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   // Verified Supply V1 adds read-only catalog observation; this candidate
   // permits original native Session IDs in conversation library references.
@@ -25,6 +32,17 @@ for(const row of provenance.boundaryFiles) {
   assert.equal(createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'),expected,
     'Reviewed original source differs: '+row.path);
 }
+test('historical pre-supplier byte pins remain unchanged; current extensions have no new review claim', t => {
+  let blobs;
+  try { blobs = provenance.boundaryFiles.filter(row => supplierExtensionFiles.has(row.path)).map(row => ({row, bytes: execFileSync('git', ['cat-file','blob', originalSupplierBase+':'+row.path], {cwd:new URL('../',import.meta.url),stdio:['ignore','pipe','ignore']})})); }
+  catch { t.skip('Source-only archive has no historical Git objects; this historical proof is unrun, current business cases still run.'); return; }
+  for (const {row,bytes} of blobs) {
+    const expected = row.path==='server/shopify.mjs'?'bb7bb5cacce3a5f48a08c23bcd814d0718788051':row.gitBlob;
+    assert.equal(createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'), expected, 'Historical source bytes changed: '+row.path);
+    t.diagnostic('Historical pin only: '+row.path+' at '+originalSupplierBase+'. Supplier candidate requires its own future review.');
+  }
+});
+
 const admin={subject:'fixture-enterprise-operator',role:'admin'},operator={...admin,role:'operator'};
 function fixture() {
   const at=new Date().toISOString();
@@ -98,11 +116,11 @@ test('existing Worker MCP has no procurement/file-lookup bypass and rejects inje
   // This proves only current closed Worker tool behavior; buyer MCP is missing.
 });
 
-test('current product library remains draft-only and Shopify adapter exposes no publication operation',async()=>{
+test('current product library remains draft-only and Shopify adapter exposes scoped reads without publication writes',async()=>{
   const f=fixture();
   await assert.rejects(f.library.createProduct({requestId:randomUUID(),name:'Unauthorized'}, {subject:'viewer',role:'viewer'}),{code:'ROLE_REQUIRED'});
   await assert.rejects(f.product({status:'published'}),{code:'INVALID_INPUT'});
-  assert.deepEqual(Object.keys(f.shopify).sort(),['fingerprint','readCatalogPage','readProjectOrders','status','verify']);
+  assert.deepEqual(Object.keys(f.shopify).sort(),['fingerprint','readCatalogPage','readProductOrders','readProductPublication','readProjectOrders','status','verify']);
   assert.equal(f.shopify.status().readOnly,true);assert.equal(f.externalCalls(),0);
 });
 

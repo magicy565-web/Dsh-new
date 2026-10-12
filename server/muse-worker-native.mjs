@@ -5,6 +5,8 @@ import { MuseWorkerError } from './muse-worker-api.mjs';
 import { createMuseSessionProjection } from './muse-worker-session.mjs';
 import { createMuseConversationDelegation, validateMuseConversationDelegations } from './muse-conversation-delegation.mjs';
 import { createWorkspaceControlReader } from './dot-control-plane-host.mjs';
+import { createDotWorkerAuth } from './dot-worker-bridge.mjs';
+import { handleDotMcpHttp } from './dot-mcp-server.mjs';
 
 const id = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value);
 // Original native owner/session identifiers allow @ and /; Worker API IDs keep
@@ -231,6 +233,12 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
       [name, (...args) => scoped(() => method(...args), ['prepare', 'approve', 'dispatch'].includes(name))])));
   }
   return Object.freeze({ workerId: host.workerId, bindDesk, bindSession, bindConversation, bindControl,
+    async supplierMcp(req, res, extensionFactory) {
+      boundary(req);
+      const authorize = createDotWorkerAuth({ tokenDigest: config.tokenDigest });
+      authorize(req);
+      return scoped(() => handleDotMcpHttp(req, res, { bridge: host.bridge, readBody, extension: extensionFactory(host.bridge), extensionOnly: true }));
+    },
     initialize: () => scoped(() => {
       if (desk.list().some(item => item.status === 'dispatching' && !belongs(item)))
         throw new WorkerDeskError(409, 'MUSE_RECOVERY_OWNER_REQUIRED', 'Review the original WorkerDesk owner before recovering unrelated orders.');

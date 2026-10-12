@@ -58,6 +58,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
       fail('PI_NOT_ADMITTED', 'The original Workspace run is stopped or its execution scope changed.');
     assertInputContextSnapshot(state, active.conversationId, run.inputContextSnapshot);
     assertDraftInvocation(state, run);
+    if (run.supplierDraftContext) { const row = state.workspaceSupplierServices?.services.find(item => item.id === run.supplierDraftContext.serviceId); if (!row || row.cancelledAt || row.rejectedAt || row.revision !== run.supplierDraftContext.revision) fail('PI_NOT_ADMITTED', 'The original supplier intake was stopped or changed.'); }
     return run;
   }
   async function openConversation(conversationId) {

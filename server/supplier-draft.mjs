@@ -28,6 +28,7 @@ export function supplierAdmission(state, actor, conversationId, body, id) {
   const prior = (state.workspaceSupplierServices?.services || []).filter(row => row.subject === actor.subject && row.workspaceId === actor.workspaceId && row.conversationId === conversationId).flatMap(row => row.versions.map(version => version.context)).find(context => context?.requestId === body.requestId);
   if (prior) { if (prior.fingerprint !== fingerprint) supplierFail(409, 'IDEMPOTENCY_CONFLICT', 'This request already names another exact supplier message.'); return structuredClone(prior); }
   const row = id ? supplierFind(state, actor, conversationId, id) : null;
+  if (row?.cancelledAt || row?.rejectedAt || row?.productSaves?.some(save => save.status !== 'done')) supplierFail(409, 'SUPPLIER_INTAKE_STOPPED', 'Retain the original stopped intake or reconcile its product save.');
   if (row && body.expectedRevision !== row.revision || !row && body.expectedRevision !== undefined) supplierFail(409, 'SUPPLIER_REVISION_CONFLICT', 'Read the current supplier revision before clarifying.');
   if (row?.versions.at(-1)?.phase === 'pending' && !['blocked', 'failed', 'cancelled'].includes(state.runs.find(run => run.id === row.versions.at(-1).runId)?.status)) supplierFail(409, 'SUPPLIER_BUSY', 'Reconcile the original Pi run before another clarification.');
   const messages = [...(row?.messages || []), { requestId: body.requestId, content: body.content.trim() }];
@@ -43,7 +44,8 @@ export function registerSupplierDraft(state, context, run, reply) {
   row.revision = context.revision; row.messages = structuredClone(context.messages);
   row.versions.push({ context: structuredClone(context), runId: run.id, replyId: reply.id, phase: 'pending' });
 }
-const labels = { name: /name|名称|产品名/i, description: /description|描述/i, targetMarket: /target.?market|目标市场/i, currency: /currency|零售货币|售价货币/i, skuCode: /sku/i, supplierUnit: /supplier.?unit|供应单位/i, supplierMoq: /moq|起订量/i, wholesaleUnitPrice: /wholesale|批发价/i, wholesaleCurrency: /wholesale.?currency|批发货币/i, internalUnitCost: /internal.?unit.?cost|内部成本/i, internalCostCurrency: /internal.?cost.?currency|成本货币/i, recommendedRetailPrice: /recommended.?retail|建议零售价/i, retailUnit: /retail.?unit|零售单位/i, unitsPerPack: /units.?per.?pack|包装数量/i, consumerPrice: /consumer.?price|消费者售价|销售价/i, productionDays: /production.?days|生产.*天|生产交期/i, handlingDays: /handling.?days|处理发货|发货.*天/i, shippingDays: /shipping.?days|运输.*天|运输时长/i };
+const displayLabels = { name: '产品名称', description: '产品描述', targetMarket: '目标市场', currency: '零售货币', skuCode: 'SKU', supplierUnit: '供应单位', supplierMoq: '起订量', wholesaleUnitPrice: '批发价', wholesaleCurrency: '批发货币', recommendedRetailPrice: '建议零售价', retailUnit: '零售单位', unitsPerPack: '每包数量', consumerPrice: '消费者售价', productionDays: '生产交期（天）', handlingDays: '处理发货时间（天）', shippingDays: '运输时长（天）', images: '图片来源' };
+const labels = { name: /name|名称|产品名/i, description: /description|描述/i, targetMarket: /target.?market|目标市场/i, currency: /\bcurrency\b|零售货币|售价货币/i, skuCode: /sku/i, supplierUnit: /supplier.?unit|供应单位/i, supplierMoq: /moq|起订量/i, wholesaleUnitPrice: /wholesale|批发价/i, wholesaleCurrency: /wholesale.?currency|批发货币/i, internalUnitCost: /internal.?unit.?cost|内部成本/i, internalCostCurrency: /internal.?cost.?currency|成本货币/i, recommendedRetailPrice: /recommended.?retail|建议零售价/i, retailUnit: /retail.?unit|零售单位/i, unitsPerPack: /units.?per.?pack|包装数量/i, consumerPrice: /consumer.?price|消费者售价|零售销售价|实际售价|确认售价/i, productionDays: /production.?days|生产交期|生产周期|生产时间|生产/i, handlingDays: /handling.?days|处理发货|发货期|发货时长|发货/i, shippingDays: /shipping.?days|运输时长|运输时间|运输/i };
 export function normalizeSupplierProposal(args, run) {
   supplierObject(args, ['facts', 'sources', 'suggestions']); supplierObject(args.facts, SUPPLIER_FIELDS.filter(field => field !== 'images'));
   if (!Array.isArray(args.sources) || args.sources.length > 18 || !Array.isArray(args.suggestions || [])) supplierFail(400, 'SUPPLIER_PROPOSAL_INVALID', 'Use factual fields with exact admitted quotes.');
@@ -56,7 +58,9 @@ export function normalizeSupplierProposal(args, run) {
     const content = source?.kind === 'message' ? run.supplierDraftContext.messages.find(message => message.requestId === source.requestId)?.content : source?.kind === 'artifact' ? run.inputContextSnapshot?.artifacts.find(item => item.id === source.artifactId && item.version === source.version && item.sha256 === source.sha256)?.content : null;
     const escaped = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const labelled = new RegExp('(?:' + labels[field].source + ')[\\s:=："\']{0,12}' + escaped + (typeof value === 'number' || /Price|Cost/.test(field) ? '(?![\\d.])' : ''), 'i');
-    const quoted = sources.length === 1 && typeof source.quote === 'string' && content?.includes(source.quote) && labelled.test(source.quote);
+    const fresh = run.supplierDraftContext.previousProfile[field] === null || run.supplierDraftContext.previousProfile[field] === checked[field] || source?.kind === 'message' && source.requestId === run.supplierDraftContext.requestId;
+    const durationKnown = !['productionDays', 'handlingDays', 'shippingDays'].includes(field) || /Days\b/i.test(source?.quote || '') || new RegExp(escaped + '\\s*(?:天|days?\\b)', 'i').test(source?.quote || '');
+    const quoted = durationKnown && fresh && sources.length === 1 && typeof source.quote === 'string' && content?.includes(source.quote) && labelled.test(source.quote);
     if (quoted) facts[field] = checked[field]; else suggestions.push({ field, value, confirmed: false });
   }
   for (const item of args.suggestions || []) { supplierObject(item, ['field', 'value']); if (!SUPPLIER_FIELDS.includes(item.field) || !['string', 'number'].includes(typeof item.value) || String(item.value).length > 500) supplierFail(400, 'SUPPLIER_PROPOSAL_INVALID', 'Suggestions remain bounded unconfirmed values.'); suggestions.push({ ...item, confirmed: false }); }
@@ -64,13 +68,14 @@ export function normalizeSupplierProposal(args, run) {
 }
 export function publishSupplierDraft(state, run, reply, proposal) {
   const context = run.supplierDraftContext, row = supplierFind(state, { ...context, role: 'operator' }, context.conversationId, context.serviceId);
+  if (row.cancelledAt || row.rejectedAt) supplierFail(409, 'SUPPLIER_INTAKE_STOPPED', 'The original intake was stopped before publication.');
   if (row.revision !== context.revision || row.versions.at(-1)?.runId !== run.id) supplierFail(409, 'SUPPLIER_REVISION_CONFLICT', 'The original intake revision changed.');
   const checked = normalizeSupplierProposal(proposal, run);
   row.profile = normalizeSupplierProfile(checked.facts, row.profile); row.profileHash = supplierHash(row.profile); row.suggestions = checked.suggestions; row.preview = null;
   row.versions.at(-1).phase = 'saved'; row.updatedAt = new Date().toISOString();
   const missing = SUPPLIER_FIELDS.filter(field => field !== 'internalUnitCost' && field !== 'internalCostCurrency' && (row.profile[field] === null || field === 'images' && !row.profile.images.length));
   reply.supplierServiceRef = { serviceId: row.id, revision: row.revision, profileHash: row.profileHash };
-  reply.content = missing.length ? `供应商产品资料已私有保存。请补充：${missing.join('、')}。未生成 Shopify 草稿或发布商品。` : '产品事实已私有保存。请审阅零售可销售单元与图片权限，再生成公开字段预览。';
+  reply.content = missing.length ? `供应商产品资料已私有保存。请补充：${missing.map(field => displayLabels[field] || field).join('、')}。未生成 Shopify 草稿或发布商品。` : '产品事实已私有保存。请审阅零售可销售单元与图片权限，再生成公开字段预览。';
 }
 export function supplierInstructions(context) { return '\nYou are the built-in Cnsubscribe supplier intake agent running on Pi. Call workspace_propose_supplier_profile once. Extract only labelled, exact quoted product facts from these admitted user messages and selected files. Keep unknown fields null, suggestions separate. Never map supplier MOQ to pack quantity, wholesale/recommended price to consumer price, or production days to handling/shipping days. Do not propose images or public approval; images are admitted through exact original file references. No Shopify mutation, grant, payment, monitoring activation or Muse/Dot execution is allowed. Admitted messages: ' + JSON.stringify(context.messages); }
 export function supplierDto(state, row) {
@@ -78,7 +83,7 @@ export function supplierDto(state, row) {
   const phase = version?.phase === 'pending' ? ['failed', 'blocked', 'interrupted', 'cancelled'].includes(run?.status) ? run.status : 'pending' : row.preview?.phase || 'needs_information';
   return { id: row.id, serviceId: row.id, conversationId: row.conversationId, revision: row.revision, phase: row.rejectedAt ? 'rejected' : row.cancelledAt ? 'cancelled' : phase, profile: row.profile, profileHash: row.profileHash || supplierHash(row.profile), productReference: row.productReference, preview: row.preview,
     missingFields: SUPPLIER_FIELDS.filter(field => !['internalUnitCost', 'internalCostCurrency'].includes(field) && (row.profile[field] === null || field === 'images' && !row.profile.images.length)), suggestions: row.suggestions || [], runId: version?.runId || null, error: run?.error || null,
-    questions: SUPPLIER_FIELDS.filter(field => !['internalUnitCost', 'internalCostCurrency'].includes(field) && (row.profile[field] === null || field === 'images' && !row.profile.images.length)).map(field => ({ field, question: `请明确 ${field}；未知可保留。` })),
+    questions: SUPPLIER_FIELDS.filter(field => !['internalUnitCost', 'internalCostCurrency'].includes(field) && (row.profile[field] === null || field === 'images' && !row.profile.images.length)).map(field => ({ field, question: `请明确${displayLabels[field] || field}；未知可保留。` })),
     cancelledAt: row.cancelledAt || null, rejectedAt: row.rejectedAt || null,
     runtime: 'pi-durable', externalStatus: row.external?.status || 'preview', external: row.external || null };
 }
