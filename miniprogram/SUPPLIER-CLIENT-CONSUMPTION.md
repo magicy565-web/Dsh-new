@@ -1,17 +1,11 @@
-# 供应商小程序接线状态
+# 供应商小程序稳定契约消费
 
-原采购检查点已完成并推送：PR42 `1666719fa68e0b76d8ebaed31ede45e3fa694ff1`，源码包检查点 `68328e1`，3 项真实本地 HTTP/MCP 与 35 项客户端回归通过。供应商独立分支 `codex/wechat-supplier-20261012`、Draft PR43 保留该检查点，并整合后端固定提交 `0f12d2ac11eae48d490cdb639bbf3fe60dc3d4b7`，客户端不改 server 或共享构建/锁。
+当前独立集成分支 codex/wechat-supplier-integrated-20261012，Draft PR46，源码 3e33f22；已保留采购 PR42 与组件 PR43，整合固定后端 b210576438f72ee7683e736aa17452a3097a33cf。具体交付、47项测试、真实本地HTTP与源码截图/包见 [验收](SUPPLIER-ACCEPTANCE.md)。不修改 server、根构建/锁或网页。
 
-已按该提交的稳定文档消费三种写入：原会话 supplier-services 初始/追问（requestId/content/expectedRevision）、准确 facts 保存，以及 expectedRevision/confirmed/publicFields 预览。请求经现有写前 journal，失败未知时保留原 UUID/body，不另造身份、模型调度或发布流程。商品预览和公开字段审阅组件沿用原卡片/抽屉样式；字段选择默认空，原事实或修订变化重置。服务端生成的零售单位、包装件数、消费者售价、处理/运输时间与图片来源原样显示，MOQ/批发价/建议价/生产期不能代填；图片未观察仍未知，preview 不能当作 Shopify 商品或渠道发布回执。
+消费原 owner-scoped supplier-services collection/detail；Pi initial/messages；profile 精确事实；preview 的 expectedRevision/confirmed/publicFields；原鉴权 images 字节与 SHA；save-product 原资料库回执；shopify-draft 的准确预览 hash 和明确 blocked 结果；shopify-observation 原商品/渠道；monitors 配置/读取、monitor-check、monitor-summary、monitor-stop。CID编码一次，写入复用原 UUID/body 和既有 journal。确认具体 service revision/profileHash 或 monitor scopeHash；字段选择默认空，更新后重新审阅。图片/PDF不解析，引用不是外发许可。
 
-普通组件/显示测试使用实际后端 profile/preview 核心输出以及编译后的 native Component 回调，五项通过；与原 Muse/采购合跑 **43/43 通过**（[日志](evidence/supplier/preflight-client-tests.txt)）。这是产品开发测试，不是微信运行或独立安全审核。[官方类型编译](evidence/supplier/preflight-build.txt)通过。[原组件有限 Chromium 模拟](evidence/supplier/preflight/acceptance.json)七组检查、零页面错误、320px无横向溢出；[商品预览](evidence/supplier/preflight/server-core-preview-390.png)、[初始未选择范围](evidence/supplier/preflight/unselected-exact-scope-390.png)、[320px](evidence/supplier/preflight/compact-scope-320.png)明确标注“非微信/HTTP闭环”。这里尚未接通未实现的 service 会话路由，不声称 UI→HTTP→Pi 闭环已完成，也不把这些截图当成完成的主会话流程。
+一个业务控制点：Cnsubscribe Agent Service 管权限、预算、任务记录、审批、验收。客户端只用该业务 API；云端执行内核 Pi SDK，Durable恢复待主任务验证；原 Muse/Dot 协议/身份/订单/租约/回执保留为适配边界。客户端不加载 DSH/Cordis/fullHarness，不新建 Loop/DAG/Worker 或另一个后台。
 
-后端尚需明确的集中缺口：
+当前集中契约缺口只有实测原产品再次保存：首次保存后，修改商品事实并以新修订再次 save-product 返回 409 SUPPLIER_SAVE_PENDING。最新事实已保存、原产品仍唯一，客户端未绕过；见 [记录](evidence/supplier/integrated/product-update-gap.txt)。需后端释放已完成旧保存回执、按新修订更新原产品并保留幂等恢复。本任务未改后端。
 
-1. GET collection/detail 的准确 service DTO：id/conversationId/revision/phase/profile、必要 missingFields/questions、suggestions、runId、错误、持久 preview/contentHash 以及待核对状态；实际状态机与能力标识。
-2. 服务编辑后的旧预览失效规则、拒绝/取消如何映射原 run/服务；确认预览所依据的准确修订和 hash，以及图片实际可用性/文件权限检查证据。
-3. Shopify 未配置/未授权/可写权限与准确店铺身份状态；独立预览审阅、创建、渠道发布的请求与回执，准确 product/variant/channel IDs 和未发布/已发布/未知/失败状态。客户端不创建凭据，不要求扩权。
-4. 七天监测的配置/读取路由、原 publication 时间来源与窗口、数据源/采样时间/覆盖区间/缺数状态、可空 sales/traffic 指标和订阅通知权限/送达状态；配置记录不能当成调度已开启或通知成功。
-5. 用户选择图片时，以原上传 artifactId/version/SHA 和明确 sourceNote 保存为内部图片事实；图片/PDF不解析。如何完成经审阅的外部传输由业务服务决定，不由客户端直接连接 Shopify。
-
-Cnsubscribe Agent Service 是权限、预算、任务记录、审批和验收的业务控制点。客户端只使用这一个业务 API；执行内核复用 Pi SDK，Durable 恢复待主任务验证。原 Muse/Dot 协议和身份/订单/租约/回执保留为适配边界；包不加载 DSH/Cordis/fullHarness，也不新造 Loop/DAG/Worker 调度器。真实账号、Shopify 授权、通知、生产与独立审核均无新增动作。
+真实 Shopify 创建/发布仍 blocked；ACTIVE不等于发布；七天配置 disabled_requires_original_schedule_approval 不等于启用，缺数为 null、带来源/窗口/状态；原会话总结更正同一消息，外部通知 not_configured。真实账号、Shopify授权/七天数据、微信官方工具/真机/审核/订阅及独立安全验收不在已通过范围。受拦独立审核不执行也不替代。最少操作见 [导入](SUPPLIER-IMPORT.md)。没有访问生产/付费服务、创建真实凭据或扩大权限。
