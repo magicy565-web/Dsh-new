@@ -161,16 +161,19 @@ Page({
     const card = [...this.data.cards, ...this.data.resourceCards].find(value => value.id === event.currentTarget.dataset.id);
     if (!card) return;
     if (!card.file) { if (card.operation) this.setData({ reviewCard: card, reviewLabel: labels[card.operation], error: '' }); return; }
+    const opened=epoch,subject=this.data.subject;
     this.setData({ loading: true, error: '' });
     try {
       const filePath = await client().download(card.file, card.muse === true);
+      if(opened!==epoch||subject!==this.data.subject)return;
       if (card.file.mimeType?.startsWith('image/')) await new Promise<void>((resolve, reject) => wx.previewImage({ urls: [filePath], success: () => resolve(), fail: () => reject(new Error('微信图片预览未打开，请重试原文件。')) }));
       else if (card.file.mimeType === 'application/pdf') await new Promise<void>((resolve, reject) => wx.openDocument({ filePath, fileType: 'pdf', showMenu: true, success: () => resolve(), fail: () => reject(new Error('微信文档预览未打开，请重试原文件。')) }));
       else {
         const content = await new Promise<string>((resolve, reject) => wx.getFileSystemManager().readFile({ filePath, encoding: 'utf8', success: result => resolve(String(result.data)), fail: () => reject(new Error('原文件已下载并校验，文本预览无法读取。')) }));
+        if(opened!==epoch||subject!==this.data.subject)return;
         this.setData({ preview: { title: card.title, content: content.length > 20000 ? `${content.slice(0, 20000)}\n\n（预览仅显示前 20,000 字符；原下载文件已完整校验。）` : content, verified: true } });
       }
-    } catch (error) { this.setData({ error: message(error) }); }
+    } catch (error) { if(opened===epoch&&subject===this.data.subject)this.setData({ error: message(error) }); }
     finally { this.setData({ loading: false }); }
   },
   closePreview() { this.setData({ preview: null }); },

@@ -57,6 +57,7 @@ export class WorkspaceClient {
   private headers(mutating = false) {
     return { 'content-type': 'application/json', 'X-Workspace-Client': 'wechat', ...(this.token ? { 'X-Workspace-Session': this.token } : {}), ...(mutating && this.session?.csrfToken ? { 'X-CSRF-Token': this.session.csrfToken, Origin: this.base() } : {}) };
   }
+  private assertOwner(owner:string){if(this.owner!==owner)throw new ClientError('ACCOUNT_CHANGED','账号已更换；原文件只供原账号重新核对。');}
   request<T>(path: string, method: 'GET' | 'POST' | 'DELETE' = 'GET', data?: Record<string, unknown>): Promise<T> {
     const base = this.base(), requestedOwner=this.owner, requestedSession=this.session, requestedToken=this.token;
     if (!/^\/[a-zA-Z0-9_?&=.%:/-]+$/.test(path) || path.startsWith('//')) throw new ClientError('INVALID_PATH', '无效的业务接口。');
@@ -344,9 +345,12 @@ export class WorkspaceClient {
     return this.commit({kind:'supplier-operation',conversationId,path:this.supplierPath(conversationId,id)+'/'+action,body,key,review:{title:action,detail}});
   }
   async supplierImage(conversationId:string,service:SupplierService,index:number) {
+    const requestedOwner=this.owner;
     const source=service.profile.images[index];if(!Number.isInteger(index)||index<0||!source)throw new ClientError('FILE_REFERENCE_INVALID','原图片引用需要重新核对。');if(source.kind!=='artifact') throw new ClientError('SUPPLIER_IMAGE_UNAVAILABLE','公开 URL 尚未授权观察，请使用可核对的原图片。');
     const filePath=await new Promise<string>((resolve,reject)=>this.platform.downloadFile({url:this.base()+'/api'+this.supplierPath(conversationId,service.id)+'/images/'+index,header:this.headers(),success:result=>result.statusCode===200?resolve(result.tempFilePath):reject(new ClientError('SUPPLIER_IMAGE_UNAVAILABLE','原图片权限或版本无法核对。')),fail:()=>reject(new ClientError('FILE_DOWNLOAD_FAILED','原图片读取未完成。'))}));
+    this.assertOwner(requestedOwner);
     const hash=await new Promise<string>((resolve,reject)=>this.platform.getFileSystemManager().getFileInfo({filePath,digestAlgorithm:'sha256',success:result=>resolve(result.digest),fail:()=>reject(new ClientError('FILE_VERIFY_FAILED','原图片 SHA 校验未完成。'))}));
+    this.assertOwner(requestedOwner);
     if(hash!==source.asset.sha256) throw new ClientError('FILE_HASH_MISMATCH','原图片字节与 SHA 不符，已拒绝显示。');return filePath;
   }
   subscriptionReference(monitor:SupplierMonitor,phase:NotificationPhase='summary'){return this.notificationSubscriptions.find(item=>item.monitorId===monitor.id&&(item.phase||'summary')===phase&&item.monitorHash===monitor.scopeHash&&item.state==='available')||null;}
@@ -444,19 +448,24 @@ export class WorkspaceClient {
   museDelegations(id: string) { return this.request<{ delegations: MuseDelegation[] }>(`/conversations/${encodeURIComponent(id)}/muse-delegations`); }
   saveReferences(value: References) { const body = { references: { products: value.products, documents: value.documents }, expectedRevision: value.revision, requestId: this.requestId() }; return this.commit({ kind: 'references', conversationId: value.conversationId, path: `/conversations/${encodeURIComponent(value.conversationId)}/library-references`, body, key: JSON.stringify(value) }); }
   async upload(conversationId: string, filename: string, filePath: string, size: number) {
+    const requestedOwner=this.owner;
     const extension = filename.split('.').pop()?.toLowerCase() || '';
     if (this.pending) throw new ClientError('RESULT_UNCERTAIN', '先核对上一条原请求的结果。');
     if (!extensionTypes[extension] || !Number.isFinite(size) || size <= 0 || size > 5 * 1024 * 1024) throw new ClientError('FILE_UNSUPPORTED', '请选择 5MiB 以内的图片、PDF、文本或表格文件。');
     const base64 = await new Promise<string>((resolve, reject) => this.platform.getFileSystemManager().readFile({ filePath, encoding: 'base64', success: result => resolve(String(result.data)), fail: () => reject(new ClientError('FILE_READ_FAILED', '文件无法读取。')) }));
+    this.assertOwner(requestedOwner);
     const body = { filename, mimeType: extensionTypes[extension], base64, sourceConversationId: conversationId, requestId: this.requestId() };
     const result = await this.commit({ kind: 'upload', conversationId, path: '/artifacts', body, key: body.requestId }) as { artifact: Artifact };
     return { id: result.artifact.id, version: result.artifact.currentVersion, sha256: result.artifact.sha256, filename: result.artifact.filename, mimeType: result.artifact.mimeType };
   }
   async download(file: FileReference, muse = false) {
+    const requestedOwner=this.owner;
     if (!/^[a-zA-Z0-9_.:-]{1,160}$/.test(file.id) || !Number.isInteger(file.version) || file.version < 1 || !/^[a-f0-9]{64}$/.test(file.sha256)) throw new ClientError('FILE_REFERENCE_INVALID', '文件引用需要核对。');
     const path = muse ? `/muse-worker-files/${encodeURIComponent(file.id)}` : `/artifacts/${encodeURIComponent(file.id)}/download`;
     const tempFilePath = await new Promise<string>((resolve, reject) => this.platform.downloadFile({ url: `${this.base()}/api${path}?version=${file.version}&sha256=${file.sha256}`, header: this.headers(), timeout: 20000, success: result => result.statusCode === 200 ? resolve(result.tempFilePath) : reject(new ClientError('FILE_DENIED', '当前账号无法读取此文件版本。')), fail: () => reject(new ClientError('FILE_DOWNLOAD_FAILED', '文件读取未完成，请重试原版本。')) }));
+    this.assertOwner(requestedOwner);
     const digest = await new Promise<string>((resolve, reject) => this.platform.getFileSystemManager().getFileInfo({ filePath: tempFilePath, digestAlgorithm: 'sha256', success: result => resolve(result.digest), fail: () => reject(new ClientError('FILE_VERIFY_FAILED', '文件校验未完成。')) }));
+    this.assertOwner(requestedOwner);
     if (digest !== file.sha256) throw new ClientError('FILE_HASH_MISMATCH', '文件与原回执不一致，已拒绝打开。');
     return tempFilePath;
   }

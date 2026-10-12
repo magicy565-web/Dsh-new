@@ -39,3 +39,13 @@ Two failures were reproduced with the compiled original client and actual signed
 Minimal repair in `shared/client.ts`: pin response acceptance to its requesting owner; clear authentication only when the rejected request's original in-memory session and token still match; prevent an old mutation rejection from editing the new owner's journal. Old-owner write-ahead data remains available. After signing into the original owner again, the exact admitted creation request reconciles to its original server-created conversation without another POST. No service/backend policy changed.
 
 `account-race-http.test.mjs` covers both failures and real subsequent owner/original-request recovery. Targeted account/business/lifecycle run: 24/24 passed. Both new checks failed before the matching guard changes. Full combined regression will be rerun on the final fixed source after the remaining TUI host patch is integrated.
+
+## File completion after account switching
+
+Extended the same signed-HTTP reproduction to native file callbacks. Before the fix, an original owner's delayed local file read could upload its bytes using the next session; delayed download or SHA completion could return the old file path; an actual owner-only supplier image with correct SHA also returned after switching; and a delayed UTF-8 preview callback repopulated the new page after its account content was cleared.
+
+The client now checks the requesting owner after local read, native download and digest callbacks, including the original supplier image route. The existing Page file handler checks its epoch/subject before native preview and after text read. SHA validation remains mandatory and unchanged. The MCP test fixture now exposes the raw bytes it actually received so image verification uses the real HTTP PNG bytes, not a guessed/recreated file. No production service, auth or upload policy changed.
+
+Account-race, original supplier HTTP, lifecycle and owner MCP transport tests passed 37/37. Files use actual server-created IDs, exact versions and SHA values. All new file boundary cases reproduced failures before the added checks; only local enterprise members/storage/transports are exercised.
+
+The newer TUI Host patch `959c44dad9fa6855962f43429e865ec00029f36f` was integrated as `33d45de`. On that combination, mini plus original protocol tests passed 120/120, TUI tests 7/7 and real Pi PTY seven checks passed. The next producer handoff also changes original `server/wechat-ingress.mjs`; it will be integrated separately and the combined checks updated rather than claiming prior results apply to it.

@@ -32,7 +32,7 @@ export async function supplierOwnerFixture(t, options = {}) {
     const bytes = method === 'GET' ? '' : JSON.stringify(body);
     const assertion = signWorkspaceRequest({ ...access, privateKey: keyPair.privateKey, subject, method, target: route, body: signedBody === undefined ? bytes : signedBody, now: time });
     const request = http.request({ hostname: '127.0.0.1', port, path: route, method, headers: { Host: 'workspace.example', ...(browser ? { Origin: access.publicOrigin } : {}), 'Content-Type': 'application/json', ...(!unsigned ? { 'X-Workspace-Assertion': assertion } : {}), ...(session ? { Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken } : {}), ...headers } }, response => {
-      const chunks = []; response.on('data', chunk => chunks.push(chunk)); response.on('end', () => { const raw = Buffer.concat(chunks).toString(); let data; try { data = JSON.parse(raw); } catch { data = raw; } resolve({ status: response.statusCode, body: data, headers: response.headers }); });
+      const chunks = []; response.on('data', chunk => chunks.push(chunk)); response.on('end', () => { const bytes = Buffer.concat(chunks), raw = bytes.toString(); let data; try { data = JSON.parse(raw); } catch { data = raw; } resolve({ status: response.statusCode, body: data, headers: response.headers, bytes }); });
     }); request.on('error', reject); request.end(bytes);
   });
   const login = async (subject = 'owner') => { const result = await api('/api/session/login', { subject, headers: { 'X-Workspace-Login': '1' } }); assert.equal(result.status, 200, JSON.stringify(result)); return { subject, cookie: result.headers['set-cookie'][0].split(';')[0], csrfToken: result.body.csrfToken }; };
