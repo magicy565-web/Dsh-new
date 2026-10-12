@@ -16,9 +16,9 @@ export function reviewComponent(page){
  const sync=()=>{Object.assign(component.data,{busy:page.data.loading,uncertain:page.data.uncertain&&page.data.shopifyReview?.stage!=='retry',serverError:page.data.error});options.properties.review.observer.call(component,page.data.shopifyReview);};
  return{component,sync,async confirm(values){sync();component.consent({detail:{value:values}});component.confirm();await events;sync();},async deny(){sync();component.deny();await events;sync();},async close(){sync();component.close();await events;sync();}};
 }
-export async function publicationFixture(t,{configured=true}={}){
+export async function publicationFixture(t,{configured=true,...overrides}={}){
  const callbacks=[],holder=t||{after(fn){callbacks.push(fn);}},remote=await fakeShopify(holder),environment=configured?{WORKSPACE_SHOPIFY_SHOP_DOMAIN:'supplier-fixture.myshopify.com',WORKSPACE_SHOPIFY_ADMIN_TOKEN:'LOCAL-SYNTHETIC-SHOPIFY-CREDENTIAL',WORKSPACE_SUPPLIER_SHOPIFY_WRITES_ENABLED:'1'}:{};
- const f=await supplierFixture(t,{capabilityEnvironment:environment,shopifyFetch:remote.fetchImpl});
+ const f=await supplierFixture(t,{...overrides,capabilityEnvironment:environment,shopifyFetch:remote.fetchImpl});
  if(configured){await f.app.supplierPublication.ensureConnector();await f.app.capabilities.updateConnector(f.app.supplierPublication.connectorId,{enabled:true});}
  const attempts=[],original=f.platform.request.bind(f.platform);let beforeExecute=false;
  f.platform.request=options=>{const path=new URL(options.url).pathname.slice(4);attempts.push({path,method:options.method,body:structuredClone(options.data)});if(beforeExecute&&path.endsWith('/shopify-execute')){beforeExecute=false;options.fail({errMsg:'Local fixture disconnected before original execution admission'});return{abort(){}};}return original(options);};

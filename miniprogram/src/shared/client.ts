@@ -7,7 +7,9 @@ import { inquiryValid } from './procurement';
 import type { Inquiry } from './procurement';
 import { publicListingFields } from './supplier-view';
 import type { SupplierProfile, PublicListingField } from './supplier-view';
-import { validSupplier } from './supplier';
+import { validSupplier,validSupplierSample } from './supplier';
+import {validNotification,notificationExecutable} from './notification';
+import type {NotificationBinding,SubscriptionChallenge,SubscriptionReference,NotificationResponse,NotificationOperation} from './notification';
 import { validPublication, canReviewDraftRepair } from './publication';
 import type { PublicationOperation, PublicationState, PublicationResponse } from './publication';
 import type { SupplierService, SupplierMonitor, SupplierSummary } from './supplier';
@@ -17,8 +19,8 @@ export type FileReference = { id: string; version: number; sha256: string; filen
 export type References = { conversationId: string; revision: number; products: { productId: string; productRevision: number }[]; documents: { documentId: string; documentVersion: number }[] };
 export type Card = { id: string; title: string; detail: string; runId?: string; proposalId?: string; conversationId?: string; stateKey?: string; operation?: 'approve' | 'deny' | 'resume' | 'recover' | 'cancel' | 'dispatch' | 'accept' | 'refresh'; file?: FileReference; kind: string; muse?: boolean; orderId?: string; reviewHash?: string; receiptHash?: string };
 export type MuseDelegation = { conversationId: string; orderId: string; reviewHash: string; review: { product: string; market: string; objective: string; budgetCredits: number }; phase: string; receiptHash: string | null; returnedHash: string | null; receipt: { files: FileReference[] } | null };
-type Transport = Pick<typeof wx, 'request' | 'downloadFile' | 'getFileSystemManager' | 'login'>;
-export type Options = { baseUrl: string; goalMode?: 'muse'; allowLoopback?: boolean; journal?: Journal; loginBroker?: (code: string) => Promise<{ session: Session; token: string }> };
+type Transport = Pick<typeof wx, 'request' | 'downloadFile' | 'getFileSystemManager' | 'login'> & Partial<Pick<typeof wx,'requestSubscribeMessage'>>;
+export type Options = { baseUrl: string; notificationBinding?: (context:{conversationId:string;serviceId:string;monitorId:string})=>Promise<NotificationBinding|null>; goalMode?: 'muse'; allowLoopback?: boolean; journal?: Journal; loginBroker?: (code: string) => Promise<{ session: Session; token: string }> };
 const blank = (): InputContext => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });
 const extensionTypes: Record<string, string> = { txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', json: 'application/json', pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
 export class ClientError extends Error { constructor(public code: string, message: string, public status?: number) { super(message); } }
@@ -33,6 +35,7 @@ export class WorkspaceClient {
   private conversationId = '';
   private inFlight: { key: string; promise: Promise<unknown> } | null = null;
   private publicationRequests: Pending[] = [];
+  private notificationSubscriptions:SubscriptionReference[]=[];
   private completed = new Map<string, unknown>();
   private opening: Promise<string> | null = null;
   private loggingIn: Promise<Session> | null = null;
@@ -72,11 +75,12 @@ export class WorkspaceClient {
       const owner = this.session.user?.id || (this.options.allowLoopback && this.session.mode === 'local' ? 'local' : '');
       if (!owner) throw new ClientError('LOGIN_REQUIRED', '企业会话缺少可核对的账号。');
       if (owner !== this.owner) {
-        this.pending = null; this.publicationRequests=[]; this.completed.clear(); this.conversationId = ''; this.owner = ''; this.snapshot = null; this.originalMuseId = ''; this.drafts = [];
+        this.pending = null; this.publicationRequests=[]; this.notificationSubscriptions=[]; this.completed.clear(); this.conversationId = ''; this.owner = ''; this.snapshot = null; this.originalMuseId = ''; this.drafts = [];
         const saved = this.options.journal?.read(owner, this.base());
-        if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create', 'intake', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-intake', 'supplier-profile', 'supplier-preview', 'supplier-operation', 'publication-review', 'publication-decision', 'publication-execute', 'publication-reconcile'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
+        if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create', 'intake', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-intake', 'supplier-profile', 'supplier-preview', 'supplier-operation', 'publication-review', 'publication-decision', 'publication-execute', 'publication-reconcile','notification-challenge','notification-record','notification-review','notification-decision','notification-execute','notification-cancel','notification-revoke'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
         if (saved?.version === 1 && saved.owner === owner && saved.baseUrl === this.base()) {
           this.conversationId = saved.conversationId;
+          this.notificationSubscriptions=Array.isArray(saved.notificationSubscriptions)?saved.notificationSubscriptions.filter(item=>typeof item.monitorId==='string'&&typeof item.subscriptionId==='string'&&typeof item.recipientBindingId==='string'&&Number.isInteger(item.bindingRevision)&&/^[a-f0-9]{64}$/.test(item.monitorHash)).slice(-20):[];
           this.publicationRequests=Array.isArray(saved.publicationRequests)?saved.publicationRequests.filter(item=>item.kind.startsWith('publication-')&&typeof item.path==='string'&&item.body&&typeof item.body.requestId==='string').slice(-30):[];
           if (saved.pending && typeof saved.pending.path === 'string' && typeof saved.pending.key === 'string' && saved.pending.body && typeof saved.pending.body === 'object') this.pending = saved.pending;
         }
@@ -104,7 +108,7 @@ export class WorkspaceClient {
       if (!actual.authenticated || !actual.user || actual.user.id !== result.session.user?.id) throw new ClientError('LOGIN_IDENTITY_MISMATCH', '微信身份与实际企业会话未核对一致。');
       this.session = actual;
       return actual;
-    } catch (error) { this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.publicationRequests=[]; this.snapshot = null; this.completed.clear(); throw error; }
+    } catch (error) { this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.publicationRequests=[]; this.notificationSubscriptions=[]; this.snapshot = null; this.completed.clear(); throw error; }
   }
   async bootstrap() { const snapshot = await this.request<Bootstrap & { museBinding?: { conversationId?: string; originalBinding?: boolean } }>('/bootstrap'); this.snapshot = snapshot; this.originalMuseId = snapshot.museBinding?.originalBinding === true ? snapshot.museBinding.conversationId || '' : ''; this.intakeCapable = snapshot.runtime?.capabilities?.includes('inert-muse-draft-proposals') === true; return snapshot; }
   existingBusinessConversation(snapshot: Bootstrap & { museBinding?: { conversationId?: string; originalBinding?: boolean } }) {
@@ -144,7 +148,7 @@ export class WorkspaceClient {
     return this.commit({ kind: 'send', conversationId, path: `/conversations/${encodeURIComponent(conversationId)}/messages`, body, key: body.requestId }) as Promise<{ run: Run }>;
   }
   private save() {
-    if (this.owner) this.options.journal?.write({ version: 1, owner: this.owner, baseUrl: this.base(), conversationId: this.conversationId, pending: this.pending, publicationRequests:this.publicationRequests });
+    if (this.owner) this.options.journal?.write({ version: 1, owner: this.owner, baseUrl: this.base(), conversationId: this.conversationId, pending: this.pending, publicationRequests:this.publicationRequests,notificationSubscriptions:this.notificationSubscriptions });
   }
   private commit(command: Pending): Promise<unknown> {
     if (this.inFlight?.key === command.key) return this.inFlight.promise;
@@ -160,7 +164,9 @@ export class WorkspaceClient {
     if (!command) return Promise.reject(new ClientError('NO_PENDING_REQUEST', '没有需要核对的原请求。'));
     if (this.inFlight) return this.inFlight.promise;
     const promise = this.request(command.path, 'POST', command.body).then(result => {
-      this.pending = null; if (['action', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-preview', 'supplier-operation','publication-review','publication-decision','publication-execute'].includes(command.kind) && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
+      if(command.kind==='notification-record')this.rememberSubscription(command,result);
+      if(command.kind==='notification-revoke')this.notificationSubscriptions=this.notificationSubscriptions.filter(item=>item.subscriptionId!==command.body.subscriptionId);
+      this.pending = null; if ((['action', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-preview', 'supplier-operation','publication-review','publication-decision','publication-execute'].includes(command.kind) || command.kind.startsWith('notification-')) && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
     }).catch(error => {
       // A response-lost or server-error request retains its exact original body.
       if (error instanceof ClientError && !['RESULT_UNCERTAIN', 'NETWORK_ERROR'].includes(error.code) && error.status !== 401 && error.code !== 'CSRF_REJECTED') { this.pending = null; this.save(); }
@@ -172,6 +178,7 @@ export class WorkspaceClient {
     if (!this.pending) throw new ClientError('NO_PENDING_REQUEST', '没有需要核对的原请求。');
     if (this.inFlight) return this.inFlight.promise;
     const command = this.pending;
+    if(command.kind==='notification-execute')return this.readPendingNotification(command);
     if(command.kind==='publication-execute')return this.readPendingPublication(command);
     // Decisions have no server idempotency key. Read their exact resulting state
     // before replaying the same decision; never infer consent from message text.
@@ -195,10 +202,11 @@ export class WorkspaceClient {
   get pendingDraft() { return ['send', 'intake', 'procurement-reply', 'supplier-intake'].includes(this.pending?.kind || '') ? String(this.pending!.body.content) : ''; }
   get pendingInquiryId() { return this.pending?.kind.startsWith('procurement-') ? decodeURIComponent(this.pending.path.split('/')[3]) : ''; }
   get publicationRequestHistory(){return JSON.parse(JSON.stringify(this.publicationRequests)) as Pending[];}
+  get pendingNotificationMonitorId(){return this.pending?.kind.startsWith('notification-')?String(this.pending.body.monitorId||''):'';}
   get pendingPublicationOperationId(){return this.pending?.kind.startsWith('publication-')?String(this.pending.body.operationId||''):'';}
-  get pendingSupplierId() { return (this.pending?.kind.startsWith('supplier-')||this.pending?.kind.startsWith('publication-')) ? decodeURIComponent(this.pending.path.split('/')[4] || '') : ''; }
+  get pendingSupplierId() { return (this.pending?.kind.startsWith('supplier-')||this.pending?.kind.startsWith('publication-')||this.pending?.kind.startsWith('notification-')) ? decodeURIComponent(this.pending.path.split('/')[4] || '') : ''; }
   get pendingSummary() { return this.pending ? `${this.pending.review ? `${this.pending.review.title}\n${this.pending.review.detail}\n\n` : ''}原请求 ${this.pending.path}\n${this.pending.kind === 'upload' ? String(this.pending.body.filename) : JSON.stringify(this.pending.body, null, 2)}` : ''; }
-  async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.publicationRequests=[]; this.conversationId = ''; this.originalMuseId = ''; this.drafts = []; this.completed.clear(); }
+  async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.publicationRequests=[]; this.notificationSubscriptions=[]; this.conversationId = ''; this.originalMuseId = ''; this.drafts = []; this.completed.clear(); }
   private assertOriginalMuse(conversationId: string) { if (!this.originalMuseId || conversationId !== this.originalMuseId) throw new ClientError('MUSE_ORIGINAL_BINDING_REQUIRED', '当前账号尚未读取到原 Muse 会话绑定；没有发送替代 Pi 请求。'); if (!this.intakeCapable) throw new ClientError('MUSE_DRAFT_UNAVAILABLE', '当前服务尚未提供原 Muse 草案能力，未发送替代 Pi 请求。'); }
   async museDrafts(conversationId: string) {
     this.assertOriginalMuse(conversationId);
@@ -289,7 +297,7 @@ export class WorkspaceClient {
   supplierCatalog() { return this.request<{name:string;services:{id:string;writesEnabled:boolean;shopify:{configured:boolean}}[]}>('/agent-services'); }
   async supplierMonitors(conversationId: string, id: string) {
     const value = await this.request<{monitors:SupplierMonitor[]}>(this.supplierPath(conversationId,id)+'/monitors');
-    if (!Array.isArray(value.monitors) || value.monitors.some(item=>item.serviceId!==id || item.conversationId!==conversationId || !/^[a-f0-9]{64}$/.test(item.scopeHash) || !item.scope || typeof item.scheduleEnabled!=='boolean')) throw new ClientError('SUPPLIER_MONITOR_INVALID','原监测范围无法核对。');
+    if (!Array.isArray(value.monitors) || value.monitors.some(item=>item.serviceId!==id || item.conversationId!==conversationId || !/^[a-f0-9]{64}$/.test(item.scopeHash) || !item.scope || typeof item.scheduleEnabled!=='boolean'||!validSupplierSample(item.latestSample)||!validSupplierSample(item.summary)||item.notification&&!validNotification(item.notification,conversationId,id,item.id))) throw new ClientError('SUPPLIER_MONITOR_INVALID','原监测范围无法核对。');
     return value.monitors;
   }
   supplierSummary(conversationId:string,id:string,monitorId:string) {return this.request<{summary:SupplierSummary|null}>(this.supplierPath(conversationId,id)+'/monitor-summary/'+encodeURIComponent(monitorId));}
@@ -323,6 +331,53 @@ export class WorkspaceClient {
     const hash=await new Promise<string>((resolve,reject)=>this.platform.getFileSystemManager().getFileInfo({filePath,digestAlgorithm:'sha256',success:result=>resolve(result.digest),fail:()=>reject(new ClientError('FILE_VERIFY_FAILED','原图片 SHA 校验未完成。'))}));
     if(hash!==source.asset.sha256) throw new ClientError('FILE_HASH_MISMATCH','原图片字节与 SHA 不符，已拒绝显示。');return filePath;
   }
+  subscriptionReference(monitor:SupplierMonitor){return this.notificationSubscriptions.find(item=>item.monitorId===monitor.id&&item.monitorHash===monitor.scopeHash&&item.state==='available')||null;}
+  private rememberSubscription(command:Pending,result:unknown){const r=result as Record<string,unknown>;if(r.status==='blocked')return;
+    if(typeof r.subscriptionId!=='string'||typeof r.recipientBindingId!=='string'||!Number.isInteger(r.bindingRevision)||!['available','revoked'].includes(String(r.state)))throw new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','可信设施没有返回可核对的原订阅引用。');
+    const value={monitorId:String(command.body.monitorId),monitorHash:String(command.body.expectedMonitorHash),subscriptionId:r.subscriptionId,recipientBindingId:r.recipientBindingId,bindingRevision:Number(r.bindingRevision),state:String(r.state),evidenceKind:String(r.evidenceKind)};
+    this.notificationSubscriptions=[...this.notificationSubscriptions.filter(item=>item.monitorId!==value.monitorId),value].slice(-20);
+  }
+  async notificationStatus(cid:string,sid:string,mid:string){const r=await this.request<NotificationResponse>(this.supplierPath(cid,sid)+'/notification-status/'+encodeURIComponent(mid));if(!validSupplier(r.service,cid)||r.service.id!==sid||r.monitorId!==mid||!validNotification(r.notification,cid,sid,mid))throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原通知对象/回执无法核对。');return r;}
+  async prepareNotificationSubscription(cid:string,monitor:SupplierMonitor,confirmed:boolean){
+    if(!confirmed||monitor.stoppedAt)throw new ClientError('NOTIFICATION_CANCELLED','请明确确认未停止的原监测。');
+    const current=await this.notificationStatus(cid,monitor.serviceId,monitor.id);
+    if(current.notification.delivery.submittedAt||current.notification.delivery.cancelledAt)throw new ClientError('NOTIFICATION_ALREADY_ATTEMPTED','原七天通知已经交接/取消，不再次申请订阅或发送。');
+    if(!current.notification.configured||!current.notification.enabled||!current.notification.confirmedSubscriptionProvider)throw new ClientError('NOTIFICATION_SUBSCRIPTION_PROVIDER_REQUIRED','缺可信原生订阅设施或原通知配置；没有调用微信订阅。');
+    if(!this.options.notificationBinding||!this.platform.requestSubscribeMessage)throw new ClientError('NOTIFICATION_NATIVE_HOST_REQUIRED','既有宿主尚未提供可信收件人绑定读取/原生订阅 API；不接受自报 OpenID 或授权。');
+    const reference=await this.options.notificationBinding({conversationId:cid,serviceId:monitor.serviceId,monitorId:monitor.id});
+    if(!reference?.recipientBindingId||!Number.isInteger(reference.bindingRevision)||reference.bindingRevision<1)throw new ClientError('NOTIFICATION_RECIPIENT_CHANGED','既有宿主没有提供当前原收件人绑定引用。');
+    const body={requestId:this.requestId(),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,recipientBindingId:reference.recipientBindingId,expectedBindingRevision:reference.bindingRevision,confirmed:true};
+    return this.commit({kind:'notification-challenge',conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-subscription-challenge',body,key:body.requestId,review:{title:'准备原生一次性订阅',detail:'仅为原七天总结准备服务端challenge；后续用户另一次点击微信原生订阅。'}}) as Promise<SubscriptionChallenge&{status?:string;code?:string}>;
+  }
+  // Called directly from the separate explicit native-subscribe tap. No await,
+  // HTTP, settings lookup, user identity or proof construction precedes wx API.
+  requestNativeSubscription(cid:string,monitor:SupplierMonitor,challenge:SubscriptionChallenge,confirmed:boolean){
+    if(!confirmed||this.pending||monitor.stoppedAt||!this.platform.requestSubscribeMessage||challenge.userGestureRequired!==true||!/^wx[a-f0-9]{16}$/i.test(challenge.appId)||!challenge.templateId||!challenge.challengeId||!Number.isFinite(Date.parse(challenge.expiresAt))||Date.parse(challenge.expiresAt)<=Date.now())throw new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','原challenge失效或原生订阅不可用，请重新准备。');
+    const body={requestId:this.requestId(),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,challengeId:challenge.challengeId,confirmed:true};
+    return new Promise<string>((resolve,reject)=>this.platform.requestSubscribeMessage!({tmplIds:[challenge.templateId],success:r=>{const decision=r[challenge.templateId];if(!['accept','reject','ban','filter'].includes(decision))reject(new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','没有这个准确模板的原生决定；设置/errMsg不构成授权。'));else resolve(decision);},fail:()=>reject(new ClientError('NOTIFICATION_NATIVE_REQUEST_FAILED','微信原生订阅未完成；没有保存accept或通知授权。'))})).then(decision=>this.commit({kind:'notification-record',conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-subscription-record',body:{...body,decision},key:body.requestId,review:{title:'核对原生订阅决定',detail:'服务端既有可信设施须核对准确会话/challenge/AppID/模板；客户端决定本身不是授权。'}}));
+  }
+  async reviewNotification(cid:string,monitor:SupplierMonitor,confirmed:boolean){const grant=this.subscriptionReference(monitor),summary=monitor.summary;
+    if(!confirmed||!grant||monitor.stoppedAt||!summary||Date.parse(summary.endAt)>Date.now())throw new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','先核对完成七天窗口的总结和可信设施返回的原一次性订阅。');
+    const body={requestId:this.requestId(),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,recipientBindingId:grant.recipientBindingId,expectedBindingRevision:grant.bindingRevision,subscriptionId:grant.subscriptionId,expectedSummaryRevision:summary.revision,expectedSummaryHash:summary.contentHash,confirmed:true};
+    return this.commit({kind:'notification-review',conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-review',body,key:body.requestId,review:{title:'准备独立七天总结通知审批',detail:JSON.stringify({monitor:monitor.id,subscription:grant,summary},null,2)}}) as Promise<NotificationResponse>;
+  }
+  async notificationAction(cid:string,monitor:SupplierMonitor,action:'approved'|'denied'|'execute'|'cancel'|'revoke',confirmed:boolean,operation?:NotificationOperation){
+    if(!confirmed)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','请明确确认准确原通知动作。');
+    const grant=this.subscriptionReference(monitor),decision=action==='approved'||action==='denied';
+    if((decision||action==='execute')&&(!operation||operation.scope.monitorId!==monitor.id||operation.scope.monitorHash!==monitor.scopeHash)||action==='execute'&&(!monitor.notification||!notificationExecutable(monitor,monitor.notification))||action==='revoke'&&!grant)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原通知或订阅范围已变/已使用，不能执行这一动作。');
+    const suffix=decision?'decision':action==='revoke'?'subscription-revoke':action,kind=decision?'notification-decision':action==='revoke'?'notification-revoke':action==='cancel'?'notification-cancel':'notification-execute';
+    const body={requestId:this.requestId(),monitorId:monitor.id,...(decision||action==='execute'?{operationId:operation!.id,expectedScopeHash:operation!.scopeHash}: {expectedMonitorHash:monitor.scopeHash}),...(decision?{decision:action}:{}),...(action==='revoke'?{subscriptionId:grant!.subscriptionId}:{}),confirmed:true};
+    const r=await this.commit({kind,conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-'+suffix,body,key:JSON.stringify([kind,monitor.id,operation?.id,operation?.scopeHash,action,grant?.subscriptionId]),review:{title:'原七天总结通知动作',detail:JSON.stringify(body)}}) as NotificationResponse;
+    if(action==='revoke'){this.notificationSubscriptions=this.notificationSubscriptions.filter(item=>item.subscriptionId!==grant!.subscriptionId);this.save();}return r;
+  }
+  private async readPendingNotification(command:Pending){const cid=command.conversationId||'',sid=decodeURIComponent(command.path.split('/')[4]||''),r=await this.notificationStatus(cid,sid,String(command.body.monitorId)),op=r.notification.review;
+    if(!op||op.id!==command.body.operationId||op.scopeHash!==command.body.expectedScopeHash)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原通知操作无法核对；保留原请求，不重发。');
+    const monitor=(await this.supplierMonitors(cid,sid)).find(item=>item.id===String(command.body.monitorId));if(!monitor||monitor.scopeHash!==op.scope.monitorHash)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原监测对象已变，保留准确请求。');
+    if(!op.connectorRunId&&notificationExecutable(monitor,r.notification))return {...r,notAdmitted:true};
+    if(op.status==='running'&&!['unknown','platform_accepted','failed','cancelled'].includes(r.notification.delivery.status))return {...r,waiting:true};
+    this.pending=null;this.save();return r;
+  }
+  async executeUnadmittedNotification(confirmed:boolean){const command=this.pending;if(!confirmed||command?.kind!=='notification-execute')throw new ClientError('NOTIFICATION_SCOPE_CHANGED','必须再次明确确认同一原通知执行请求。');const r=await this.readPendingNotification(command);if(!r.notAdmitted||this.pending!==command)throw new ClientError('NOTIFICATION_ALREADY_ATTEMPTED','原通知已变化/执行，只能读取状态。');return this.executePending();}
   async publication(conversationId:string,serviceId:string) {
     const value=await this.request<{service:SupplierService;publication:PublicationState}>(this.supplierPath(conversationId,serviceId)+'/publication');
     if(!validSupplier(value.service,conversationId)||value.service.id!==serviceId||value.publication?.schema!=='workspace.supplier-publication.v1'||!Array.isArray(value.publication.operations)||value.publication.operations.some(op=>!validPublication(op,conversationId,serviceId))||value.publication.automaticRetry!==false)throw new ClientError('PUBLICATION_RESPONSE_INVALID','原 Shopify 审批/回执范围无法核对，未启用写入。');return value;

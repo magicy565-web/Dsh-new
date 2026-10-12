@@ -47,7 +47,7 @@ export async function intakeFixture(t, overrides = {}) {
     openDocument(options) { previews.push({ type: 'pdf', path: options.filePath }); options.success?.({}); },
     login() { assert.fail('No real wx.login/account in local business fixture'); },
   };
-  const client = () => new WorkspaceClient(platform, { baseUrl, allowLoopback: true, goalMode: 'muse', journal });
+  const client = () => new WorkspaceClient(platform, { baseUrl, allowLoopback: true, goalMode: 'muse', journal, ...overrides.clientOptions });
   const close = async () => { await app.close(); await fs.rm(directory, { recursive: true, force: true }); };
   t?.after?.(close);
   return { directory, platform, journal, requests, previews, client, faux, raw, get app() { return app; }, close,
