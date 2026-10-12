@@ -249,3 +249,142 @@ test('original Muse image transfer retains the approved administrator role and u
   assert.equal(f.remote.state.uploads, 1);
   assert.equal(draft.operation.receipt.mediaEvidence.remoteBytesVerified, false);
 });
+
+const repairReview = (f, original, extras = {}) => ({ ...f.review('repair_draft'), draftOperationId: original.id,
+  expectedRemoteContentHash: original.receipt.remoteContentHash, ...extras });
+async function partialDraft(f, mode = 'lost_create') {
+  if (mode === 'lost_create') f.remote.state.drops.add('SupplierCreateDraft');
+  else f.remote.state.rejectVariant = true;
+  const attempt = await f.createDraft(); assert.equal(attempt.status, 'uncertain');
+  f.remote.state.rejectVariant = false;
+  return f.bound().reconcilePublication(f.cid, f.serviceId, f.command(attempt.operation));
+}
+async function repairDraft(f, original, extras = {}) {
+  const review = await f.bound().reviewPublication(f.cid, f.serviceId, repairReview(f, original, extras));
+  await f.approve(review.operation);
+  return f.bound().executePublication(f.cid, f.serviceId, f.command(review.operation));
+}
+
+test('separately approved lost-create repair reuses exact product/media without rewriting original attempt checkpoints', async t => {
+  const f = await fixture(t), partial = await partialDraft(f), reads = f.reads.ordinary;
+  assert.equal(partial.status, 'partial'); assert.ok(partial.observation.issues.includes('media_identity_unconfirmed'));
+  const repaired = await repairDraft(f, partial.operation, { approveObservedMedia: true });
+  assert.equal(repaired.status, 'succeeded', JSON.stringify(repaired.operation.error));
+  assert.equal(repaired.operation.action, 'repair_draft'); assert.equal(repaired.operation.receipt.productId, partial.observation.productId);
+  assert.deepEqual(repaired.operation.receipt.mediaIds, partial.observation.mediaIds);
+  assert.equal(repaired.operation.receipt.mediaEvidence.remote, 'separately_approved_observed_ids_and_shopify_status');
+  assert.equal(repaired.operation.receipt.mediaEvidence.remoteBytesVerified, false);
+  assert.equal(f.remote.count('SupplierCreateDraft'), 1); assert.equal(f.remote.count('SupplierStageReviewedImage'), 1);
+  assert.equal(f.remote.state.uploads, 1); assert.equal(f.reads.ordinary, reads); assert.equal(f.remote.count('SupplierSetRetailVariant'), 1);
+  const original = f.bound().publication(f.cid, f.serviceId).publication.operations.find(item => item.id === partial.operation.id);
+  assert.equal(original.status, 'succeeded'); assert.deepEqual(original.repairedBy, [repaired.operation.id]);
+  assert.equal(original.steps.find(item => item.step === 'product_create').status, 'started');
+  assert.equal(f.capabilities.listConnectorRuns().find(item => item.id === original.connectorRunId).status, 'failed');
+  const publish = await f.bound().reviewPublication(f.cid, f.serviceId, f.review('publish')); await f.approve(publish.operation);
+  const released = await f.bound().executePublication(f.cid, f.serviceId, f.command(publish.operation));
+  assert.equal(released.status, 'succeeded'); assert.equal(f.remote.count('SupplierCreateDraft'), 1);
+  assert.equal(f.remote.count('SupplierPublishReviewedProduct'), 1); assert.equal(f.capabilities.listApprovals().length, 3);
+});
+
+test('unknown draft must be reconciled first and unknown media needs its own explicit observed-ID review', async t => {
+  const f = await fixture(t); f.remote.state.drops.add('SupplierCreateDraft');
+  const unknown = await f.createDraft();
+  await assert.rejects(f.bound().reviewPublication(f.cid, f.serviceId, { ...f.review('repair_draft'), draftOperationId: unknown.operation.id, expectedRemoteContentHash: '0'.repeat(64), approveObservedMedia: true }), { code: 'SHOPIFY_REPAIR_RECONCILIATION_REQUIRED' });
+  const partial = await f.bound().reconcilePublication(f.cid, f.serviceId, f.command(unknown.operation));
+  await assert.rejects(f.bound().reviewPublication(f.cid, f.serviceId, repairReview(f, partial.operation)), { code: 'SHOPIFY_REPAIR_MEDIA_REVIEW_REQUIRED' });
+  assert.equal(f.capabilities.listApprovals().length, 1); assert.equal(f.remote.count('SupplierSetRetailVariant'), 0);
+});
+
+test('acknowledged create plus rejected retail variant repairs only the missing variant on the original identity', async t => {
+  const f = await fixture(t), partial = await partialDraft(f, 'rejected_variant');
+  assert.deepEqual(partial.observation.issues, ['retail_variant_changed']);
+  const repaired = await repairDraft(f, partial.operation);
+  assert.equal(repaired.status, 'succeeded'); assert.equal(repaired.operation.scope.repair.approveObservedMedia, false);
+  assert.deepEqual(repaired.operation.scope.repair.steps, ['retail_variant']);
+  assert.equal(f.remote.count('SupplierSetRetailVariant'), 2); assert.equal(f.remote.count('SupplierCreateDraft'), 1);
+  assert.equal(f.remote.state.uploads, 1); assert.equal(repaired.operation.receipt.mediaEvidence.remote, 'acknowledged_ids_and_shopify_status');
+});
+
+test('lost repair response survives reopen and only reads original repair receipt without a second variant update', async t => {
+  const f = await fixture(t), partial = await partialDraft(f);
+  const prepared = await f.bound().reviewPublication(f.cid, f.serviceId, repairReview(f, partial.operation, { approveObservedMedia: true }));
+  await f.approve(prepared.operation); f.remote.state.drops.add('SupplierSetRetailVariant');
+  const body = f.command(prepared.operation), first = await f.bound().executePublication(f.cid, f.serviceId, body);
+  assert.equal(first.status, 'uncertain'); await f.restart();
+  const duplicate = await f.bound().executePublication(f.cid, f.serviceId, body); assert.equal(duplicate.duplicate, true);
+  const rootObserved = await f.bound().reconcilePublication(f.cid, f.serviceId, f.command(partial.operation));
+  assert.equal(rootObserved.status, 'succeeded');
+  const publication = await f.bound().reviewPublication(f.cid, f.serviceId, f.review('publish')); await f.approve(publication.operation);
+  await assert.rejects(f.bound().executePublication(f.cid, f.serviceId, f.command(publication.operation)), { code: 'SUPPLIER_PUBLICATION_PENDING' });
+  const recovered = await f.bound().reconcilePublication(f.cid, f.serviceId, f.command(prepared.operation));
+  assert.equal(recovered.status, 'succeeded'); assert.equal(recovered.operation.receipt.productId, first.operation.scope.productId);
+  assert.equal(f.remote.count('SupplierSetRetailVariant'), 1); assert.equal(f.remote.state.uploads, 1);
+  const released = await f.bound().executePublication(f.cid, f.serviceId, f.command(publication.operation));
+  assert.equal(released.status, 'succeeded'); assert.equal(f.remote.count('SupplierPublishReviewedProduct'), 1);
+});
+
+test('an existing Connector does not acquire the repair capability automatically', async t => {
+  const f = await fixture(t), partial = await partialDraft(f);
+  await f.capabilities.updateConnector(f.domain.connectorId, { capabilities: ['supplier.shopify.draft', 'supplier.shopify.publish'] });
+  await f.restart();
+  const response = await f.bound().reviewPublication(f.cid, f.serviceId, repairReview(f, partial.operation, { approveObservedMedia: true }));
+  assert.equal(response.status, 'blocked'); assert.equal(response.error.code, 'SUPPLIER_REPAIR_CONNECTOR_REVIEW_REQUIRED');
+  assert.deepEqual(f.capabilities.getConnector(f.domain.connectorId).capabilities, ['supplier.shopify.draft', 'supplier.shopify.publish']);
+  assert.equal(f.capabilities.listApprovals().length, 1); assert.equal(f.remote.count('SupplierSetRetailVariant'), 0);
+});
+
+test('changed remote content, substituted media and active products cannot execute an earlier repair review', async t => {
+  for (const changed of ['title', 'media', 'active']) await t.test(changed, async sub => {
+    const f = await fixture(sub), partial = await partialDraft(f), prepared = await f.bound().reviewPublication(f.cid, f.serviceId, repairReview(f, partial.operation, { approveObservedMedia: true }));
+    await f.approve(prepared.operation); const product = [...f.remote.products.values()][0];
+    if (changed === 'title') product.title = 'External content edit';
+    if (changed === 'media') product.media.nodes[0].id = 'gid://shopify/MediaImage/9999';
+    if (changed === 'active') { product.status = 'ACTIVE'; product.publishedOnPublication = true; }
+    const result = await f.bound().executePublication(f.cid, f.serviceId, f.command(prepared.operation));
+    assert.equal(result.status, 'uncertain'); assert.equal(f.remote.count('SupplierSetRetailVariant'), 0);
+    assert.equal(f.remote.count('SupplierCreateDraft'), 1); assert.equal(f.remote.state.uploads, 1);
+    assert.equal(product.status, changed === 'active' ? 'ACTIVE' : 'DRAFT');
+    assert.equal(f.remote.count('SupplierActivateReviewedDraft'), 0); assert.equal(f.remote.count('SupplierPublishReviewedProduct'), 0);
+  });
+});
+
+test('a repair whose retail goal was already completed does not write it again', async t => {
+  const f = await fixture(t), partial = await partialDraft(f), prepared = await f.bound().reviewPublication(f.cid, f.serviceId, repairReview(f, partial.operation, { approveObservedMedia: true }));
+  await f.approve(prepared.operation); Object.assign([...f.remote.products.values()][0].variants.nodes[0], { price: '9.50', sku: 'LOCAL-RETAIL-SKU' });
+  const complete = await f.bound().executePublication(f.cid, f.serviceId, f.command(prepared.operation));
+  assert.equal(complete.status, 'succeeded'); assert.equal(f.remote.count('SupplierSetRetailVariant'), 0);
+  assert.equal(complete.operation.steps.length, 0); assert.equal(f.remote.count('SupplierCreateDraft'), 1);
+});
+
+test('failed media, unconfirmed upload and already acknowledged variant writes are explicit non-repairable states', async t => {
+  for (const mode of ['failed_media', 'unconfirmed_upload', 'acknowledged_variant']) await t.test(mode, async sub => {
+    const f = await fixture(sub);
+    let partial;
+    if (mode === 'acknowledged_variant') {
+      f.remote.state.mediaReady = false; const initial = await f.createDraft(); assert.equal(initial.status, 'partial');
+      const product = [...f.remote.products.values()][0]; product.media.nodes[0].status = 'READY'; product.media.nodes[0].image = { url: 'https://cdn.shopify.com/fixture/media-1000.png' }; product.variants.nodes[0].price = '0.00';
+      partial = await f.bound().reconcilePublication(f.cid, f.serviceId, f.command(initial.operation));
+    } else {
+      partial = await partialDraft(f);
+      if (mode === 'failed_media') { [...f.remote.products.values()][0].media.nodes[0].status = 'FAILED'; partial = await f.bound().reconcilePublication(f.cid, f.serviceId, f.command(partial.operation)); }
+      if (mode === 'unconfirmed_upload') await f.store.update(state => { state.workspaceSupplierServices.services[0].publicationOperations[0].steps.find(item => item.step === 'image_0_upload').status = 'started'; });
+    }
+    const prices = f.remote.count('SupplierSetRetailVariant');
+    await assert.rejects(f.bound().reviewPublication(f.cid, f.serviceId, repairReview(f, partial.operation, { approveObservedMedia: true })), { code: mode === 'failed_media' ? 'SHOPIFY_REPAIR_MEDIA_OR_CONTENT_CHANGED' : mode === 'unconfirmed_upload' ? 'SHOPIFY_REPAIR_MEDIA_TRANSFER_UNCONFIRMED' : 'SHOPIFY_REPAIR_VARIANT_ALREADY_ACKNOWLEDGED' });
+    assert.equal(f.remote.count('SupplierCreateDraft'), 1); assert.equal(f.remote.state.uploads, 1);
+    assert.equal(f.remote.count('SupplierSetRetailVariant'), prices);
+  });
+});
+
+test('duplicate repair requests create one original approval and admit at most one variant mutation', async t => {
+  const f = await fixture(t), partial = await partialDraft(f);
+  const body = repairReview(f, partial.operation, { approveObservedMedia: true });
+  const prepared = await f.bound().reviewPublication(f.cid, f.serviceId, body);
+  assert.equal((await f.bound().reviewPublication(f.cid, f.serviceId, body)).operation.id, prepared.operation.id);
+  await f.approve(prepared.operation); const command = f.command(prepared.operation);
+  const results = await Promise.allSettled([f.bound().executePublication(f.cid, f.serviceId, command), f.bound().executePublication(f.cid, f.serviceId, command)]);
+  assert.ok(results.some(item => item.status === 'fulfilled' && item.value.status === 'succeeded'));
+  for (const item of results) if (item.status === 'rejected') assert.equal(item.reason.code, 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE');
+  assert.equal(f.remote.count('SupplierSetRetailVariant'), 1); assert.equal(f.remote.count('SupplierCreateDraft'), 1);
+  assert.equal(f.capabilities.listApprovals().length, 2); assert.equal(f.capabilities.listConnectorRuns().length, 2);
+});

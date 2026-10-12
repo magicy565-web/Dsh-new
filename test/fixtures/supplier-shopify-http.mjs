@@ -22,7 +22,8 @@ export async function fakeShopify(t) {
       products.set(product.handle, product); data = { productCreate: { product, userErrors: [] } };
     } else if (name === 'SupplierSetRetailVariant') {
       const product = [...products.values()].find(item => item.id === variables.productId), input = variables.variants[0];
-      Object.assign(product.variants.nodes[0], { price: input.price, sku: input.inventoryItem?.sku || '' }); data = { productVariantsBulkUpdate: { productVariants: product.variants.nodes, userErrors: [] } };
+      if (state.rejectVariant) data = { productVariantsBulkUpdate: { productVariants: [], userErrors: [{ field: ['price'], message: 'Deliberately rejected local fixture variant' }] } };
+      else { Object.assign(product.variants.nodes[0], { price: input.price, sku: input.inventoryItem?.sku || '' }); data = { productVariantsBulkUpdate: { productVariants: product.variants.nodes, userErrors: [] } }; }
     } else if (name === 'SupplierActivateReviewedDraft') {
       const product = [...products.values()].find(item => item.id === variables.product.id); product.status = 'ACTIVE'; product.release = { value: variables.product.metafields[0].value }; data = { productUpdate: { product, userErrors: [] } };
     } else if (name === 'SupplierPublishReviewedProduct') {
