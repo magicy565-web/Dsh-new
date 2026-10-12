@@ -8,6 +8,24 @@ Existing owner authentication and native ownership bindings are reusable. The av
 
 The optional HTTP registration and closed service calls are complete. The ordinary CLI intentionally reports `ownerMcp.status=binding_required` and refuses the route with `SUPPLIER_OWNER_BINDING_REQUIRED`. Loading an existing Workspace session or a worker OAuth configuration cannot change that state safely. There is no owner grant-file format, grant creation API or scope-expansion fallback in this change.
 
+## Existing owner HTTP compatibility (read-only feasibility check)
+
+The missing **external connector grant resolver** does not block an already authenticated owner using the original HTTP business routes. Their existing per-request authorization already permits the corresponding business operations. `index.mjs` calls `access.begin`, `musePrivacy.guardHttp`, `readBody`, `access.verifyBody` and the body-aware privacy guard before `supplierServiceHttp`/`supplierPublicationHttp`. In enterprise mode, these require the original signed method/target/body, live matching member/session, CSRF and role. `supplierOwned`/`supplierFind` then enforce exact owner/workspace/conversation/service ownership.
+
+| MCP operation | Existing HTTP operation / bound function |
+| --- | --- |
+| `get`, `monitors` | GET supplier record or `/monitors` → `service.forActor(context).get/monitors` |
+| `intake`, `profile`, `preview`, `save_product` | POST supplier collection or `/messages`, `/profile`, `/preview`, `/save-product` → `request/profile/preview/saveProduct` |
+| `image_upload` | POST `/api/artifacts` → `artifacts.create`; keep the MCP wrapper's narrower private metadata, owned conversation, PNG/JPEG/WebP, size and namespaced request-ID checks |
+| `shopify_observation` | POST `/shopify-observation` → `observe` |
+| `publication` | GET `/publication` → `publication.forActor(context).publication` |
+| `publication_review`, `publication_execute`, `publication_reconcile` | POST `/shopify-review`, `/shopify-execute`, `/shopify-reconcile` → `reviewPublication/executePublication/reconcilePublication` |
+| `monitor_create`, `monitor_check`, `monitor_stop` | POST `/monitors`, `/monitor-check`, `/monitor-stop` → `createMonitor/checkMonitor/stopMonitor` |
+
+Except the artifact route, paths above are under `/api/conversations/:cid/supplier-services[/:sid]`. Existing service revision/hash/request fences, Pi admission/configuration/budget, manual publication approval consumption and disabled-schedule creation remain required. The HTTP decision is made for this exact request; a session identity object alone is not that decision or a connector grant.
+
+An MCP representation of the **same original authenticated owner HTTP request** is technically feasible by reusing these decisions and services, without worker OAuth or a new durable grant. There is no ready no-resolver MCP dispatcher in the current source. Such an interface policy change would need a separately reviewed mapping preserving all the checks above; it cannot be claimed as an already authorized external plugin or implemented by returning a fabricated scope from `nativeSessionIdentity`. This follow-up was explicitly restricted to read-only feasibility; no dispatcher, authorization change or resolver bypass was implemented.
+
 ## Traced sources
 
 | Existing source | What it actually authorizes | Why it cannot produce supplier owner scope |

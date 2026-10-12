@@ -113,6 +113,49 @@ test('empty report is missing instrumentation/data, while an explicit source zer
   assert.equal(zero.status, 'partial'); assert.equal(zero.metrics.productDetailViews.value, 0); assert.equal(zero.complete, false);
 });
 
+test('null, omitted, empty, numeric and boolean source counts are never coerced to zero; restricted zero remains null', async () => {
+  for (const value of [null, undefined, '', ' ', 0, false, '00']) {
+    const sourceRow = row(); sourceRow.metricValues = [{ value }];
+    const f = fixture({ report: report([sourceRow]) });
+    const got = await f.adapter.readProductTraffic(scope());
+    assert.equal(got.status, 'unavailable'); assert.equal(got.error.code, 'GA4_ROW_SCOPE_INVALID');
+    assert.deepEqual(got.metrics.productDetailViews, { value: null, status: 'unavailable' });
+    assert.equal(got.metrics.sessions.value, null);
+  }
+  const f = fixture({ report: report([row('202610120901', '0')], { metadata: { timeZone: 'UTC',
+    schemaRestrictionResponse: { activeMetricRestrictions: [{ metricName: 'itemViewEvents' }] } } }) });
+  const restricted = await f.adapter.readProductTraffic(scope());
+  assert.equal(restricted.status, 'partial'); assert.equal(restricted.error.code, 'GA4_METRIC_RESTRICTED');
+  assert.equal(restricted.metrics.productDetailViews.value, null); assert.equal(restricted.completePagination, true);
+  f.setReport(report([row('202610120901', '0')]));
+  const legalZero = await f.adapter.readProductTraffic(scope());
+  assert.equal(legalZero.metrics.productDetailViews.value, 0); assert.equal(legalZero.status, 'partial');
+  assert.equal(legalZero.error, null); assert.equal(f.calls.length, 4);
+});
+
+test('a zero first page cannot become a count when a later page fails or disappears; recovery requires every page', async () => {
+  for (const failure of ['http', 'empty', 'schema', 'changed-count']) {
+    let failed = true;
+    const f = fixture({ pageSize: 1, fetch: (url, _init, body) => {
+      if (url.endsWith(':checkCompatibility')) return response(compatible());
+      if (body.offset === '0') return response(report([row('202610120901', '0')], { rowCount: 2 }));
+      if (!failed) return response(report([row('202610120902', '0')], { rowCount: 2 }));
+      if (failure === 'http') return response({ error: { message: 'Synthetic second-page outage' } }, 503);
+      if (failure === 'empty') return response(report([], { rowCount: 2 }));
+      if (failure === 'schema') return response(report([row('202610120902', null)], { rowCount: 2 }));
+      return response(report([row('202610120902', '0')], { rowCount: 3 }));
+    } });
+    const got = await f.adapter.readProductTraffic(scope());
+    assert.equal(got.status, 'unavailable'); assert.equal(got.metrics.productDetailViews.value, null);
+    assert.equal(got.completePagination, false); assert.equal(got.diagnostics.rows, 1);
+    assert.equal(got.error.code, { http: 'GA4_REQUEST_FAILED', empty: 'GA4_PAGINATION_INCOMPLETE', schema: 'GA4_ROW_SCOPE_INVALID', 'changed-count': 'GA4_PAGINATION_CHANGED' }[failure]);
+    failed = false;
+    const recovered = await f.adapter.readProductTraffic(scope());
+    assert.equal(recovered.status, 'partial'); assert.equal(recovered.metrics.productDetailViews.value, 0);
+    assert.equal(recovered.completePagination, true); assert.equal(recovered.complete, false); assert.equal(f.calls.length, 6);
+  }
+});
+
 test('request replay and concurrent reads coalesce; new original sample permits late corrections without adding totals', async () => {
   const f = fixture();
   const [one, two] = await Promise.all([f.adapter.readProductTraffic(scope()), f.adapter.readProductTraffic(scope())]);

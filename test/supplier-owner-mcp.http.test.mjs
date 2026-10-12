@@ -129,6 +129,67 @@ test('MCP partial library response recovers the same pending receipt after reloa
   assert.equal((await f.reviewed('save_product', data.sid, input)).duplicate, true);
 });
 
+test('MCP image response timeout after durable commit reuses the original artifact across reconnect and restart', { timeout: 10000 }, async t => {
+  const f = await supplierOwnerFixture(t), committed = Promise.withResolvers(), release = Promise.withResolvers();
+  const create = f.app.artifacts.create;
+  f.app.artifacts.create = async (...args) => { const result = await create(...args); committed.resolve(result); await release.promise; return result; };
+  const input = { requestId: 'response-timeout-image', filename: 'original.png', base64: png, sourceNote: 'Synthetic durable timeout fixture' };
+  f.grant('image_upload', null, input);
+  const request = f.tool('image_upload', null, input, { timeoutMs: 250 });
+  const timedOut = assert.rejects(request, { code: 'SYNTHETIC_CLIENT_TIMEOUT' });
+  let original;
+  try { original = await committed.promise; await timedOut; }
+  finally { release.resolve(); }
+  f.app.artifacts.create = create;
+  const retried = await f.reviewed('image_upload', null, input);
+  assert.equal(retried.artifact.id, original.artifact.id);
+  assert.equal(f.app.store.read().artifacts.length, 1);
+  await f.restart();
+  const reloaded = await f.reviewed('image_upload', null, input);
+  assert.equal(reloaded.artifact.id, original.artifact.id); assert.equal(reloaded.artifact.currentVersion, 1);
+  assert.equal(f.app.store.read().artifacts.length, 1);
+  const changed = { ...input, sourceNote: 'Changed input under the old request ID' };
+  f.grant('image_upload', null, changed);
+  assert.equal((await f.tool('image_upload', null, changed)).error.code, 'IDEMPOTENCY_CONFLICT');
+});
+
+test('MCP profile and preview preserve revision and original request receipts across concurrent calls and restart', async t => {
+  const f = await supplierOwnerFixture(t), data = await f.retail();
+  const input = { requestId: 'concurrent-profile', expectedRevision: 2, facts: { name: 'One original revised product' } };
+  f.grant('profile', data.sid, input);
+  const results = await Promise.all([f.tool('profile', data.sid, input), f.tool('profile', data.sid, input)]);
+  for (const result of results) { assert.equal(result.error, undefined); assert.equal(result.value.service.revision, 3); }
+  assert.equal(results.filter(result => result.value.duplicate).length, 1);
+  await f.restart();
+  const replayed = await f.reviewed('profile', data.sid, input);
+  assert.equal(replayed.duplicate, true); assert.equal(replayed.service.revision, 3);
+  const stale = { ...input, requestId: 'stale-profile', facts: { name: 'Stale revision cannot replace facts' } };
+  f.grant('profile', data.sid, stale); assert.equal((await f.tool('profile', data.sid, stale)).error.code, 'SUPPLIER_REVISION_CONFLICT');
+  const changed = { ...input, expectedRevision: 3, facts: { name: 'Old request cannot change facts' } };
+  f.grant('profile', data.sid, changed); assert.equal((await f.tool('profile', data.sid, changed)).error.code, 'IDEMPOTENCY_CONFLICT');
+  const previewInput = { requestId: 'revised-original-preview', expectedRevision: 3, publicFields, confirmed: true };
+  const preview = await f.reviewed('preview', data.sid, previewInput);
+  assert.equal(preview.preview.product.title, input.facts.name);
+  await f.restart();
+  const previewAgain = await f.reviewed('preview', data.sid, previewInput);
+  assert.equal(previewAgain.duplicate, true); assert.equal(previewAgain.preview.id, preview.preview.id);
+  assert.equal((await f.reviewed('get', data.sid)).revision, 4);
+});
+
+test('MCP image admission rejects an expired original grant before committing bytes', { timeout: 10000 }, async t => {
+  const f = await supplierOwnerFixture(t), entered = Promise.withResolvers(), release = Promise.withResolvers();
+  const create = f.app.artifacts.create;
+  f.app.artifacts.create = async (...args) => { entered.resolve(); await release.promise; return create(...args); };
+  const input = { requestId: 'expired-image-before-commit', filename: 'expired.png', base64: png, sourceNote: 'Synthetic expiry fixture' };
+  const scope = f.grant('image_upload', null, input);
+  scope.expiresAt = new Date(Date.parse(scope.expiresAt) - 59000).toISOString();
+  const pending = f.tool('image_upload', null, input);
+  try { await entered.promise; f.advance(2000); } finally { release.resolve(); }
+  assert.equal((await pending).error.code, 'SUPPLIER_MCP_SCOPE_REQUIRED');
+  assert.equal(f.app.store.read().artifacts.length, 0);
+  await f.restart(); assert.equal(f.app.store.read().artifacts.length, 0);
+});
+
 test('revocation during host grant resolution stops admission; text intake cannot borrow structured-facts authority', async t => {
   const f = await supplierOwnerFixture(t);
   const body = { requestId: 'pi-intake-needs-original-approval', content: 'Known product facts' };
@@ -159,22 +220,32 @@ test('MCP publication consumes original manual approvals and monitor start uses 
   await f.approve(draft.operation);
   const created = await f.reviewed('publication_execute', sid, cmd); assert.equal(created.operation.status, 'succeeded');
   assert.equal((await f.reviewed('publication_execute', sid, cmd)).duplicate, true); assert.equal(f.remote.count('SupplierCreateDraft'), 1);
-  const publish = await f.reviewed('publication_review', sid, f.review('publish')); await f.approve(publish.operation);
-  const published = await f.reviewed('publication_execute', sid, f.command(publish.operation));
+  const publishReview = f.review('publish');
+  const publish = await f.reviewed('publication_review', sid, publishReview); await f.approve(publish.operation);
+  const publishInput = f.command(publish.operation), published = await f.reviewed('publication_execute', sid, publishInput);
   assert.equal(published.operation.receipt.published, true); assert.equal(published.operation.receipt.publishedAt, null);
   const monitorInput = { requestId: 'monitor-from-publication', expectedRevision: 2, startFromPublication: true, confirmed: true };
   f.grant('monitor_create', sid, monitorInput);
   assert.equal((await f.tool('monitor_create', sid, monitorInput)).error.code, 'SUPPLIER_PUBLICATION_TIME_REQUIRED');
-  const observation = await f.reviewed('shopify_observation', sid, { requestId: 'read-real-publication-time', expectedRevision: 2, shopifyProductId: published.operation.receipt.productId, confirmed: true });
+  const observationInput = { requestId: 'read-real-publication-time', expectedRevision: 2, shopifyProductId: published.operation.receipt.productId, confirmed: true };
+  const observation = await f.reviewed('shopify_observation', sid, observationInput);
   assert.equal(observation.observation.evidenceKind, 'shopify_admin_read'); assert.equal(observation.observation.writeReceipt, null);
-  const creation = await f.reviewed('monitor_create', sid, { ...monitorInput, expectedRevision: 3 });
+  const creationInput = { ...monitorInput, expectedRevision: 3 }, creation = await f.reviewed('monitor_create', sid, creationInput);
   assert.equal(creation.monitor.scope.startAt, '2026-10-12T12:00:00.000Z'); assert.equal(creation.monitor.scheduleEnabled, false);
   const check = { requestId: 'manual-monitor-check', monitorId: creation.monitor.id, expectedMonitorHash: creation.monitor.scopeHash, confirmed: true };
   const sample = await f.reviewed('monitor_check', sid, check); assert.equal(sample.sample.sales.retainedUnits, 0); assert.equal(sample.sample.traffic, null); assert.equal(sample.sample.trafficStatus, 'unsupported');
   assert.equal(f.original.app.store.read().capabilities.schedules.filter(item => item.enabled).length, 0);
   await f.original.restart(); assert.equal((await f.reviewed('monitor_check', sid, check)).duplicate, true);
+  assert.equal((await f.reviewed('publication_review', sid, publishReview)).operation.id, publish.operation.id);
+  assert.equal((await f.reviewed('publication_execute', sid, publishInput)).duplicate, true);
+  assert.equal((await f.reviewed('shopify_observation', sid, observationInput)).duplicate, true);
+  const originalMonitor = await f.reviewed('monitor_create', sid, creationInput);
+  assert.equal(originalMonitor.duplicate, true); assert.equal(originalMonitor.monitor.id, creation.monitor.id);
+  assert.equal(f.original.app.store.read().capabilities.schedules.length, 1);
+  assert.equal(f.original.app.store.read().goals.length, 1);
   assert.equal((await f.reviewed('publication', sid)).publication.latest.status, 'succeeded');
-  const stopped = await f.reviewed('monitor_stop', sid, { ...check, requestId: 'manual-monitor-stop' }); assert.equal(stopped.monitor.status, 'stopped');
+  const stopInput = { ...check, requestId: 'manual-monitor-stop' }, stopped = await f.reviewed('monitor_stop', sid, stopInput); assert.equal(stopped.monitor.status, 'stopped');
+  await f.original.restart(); assert.equal((await f.reviewed('monitor_stop', sid, stopInput)).duplicate, true);
   assert.equal((await f.reviewed('monitors', sid)).monitors[0].id, creation.monitor.id);
 });
 
@@ -186,9 +257,13 @@ test('MCP lost Shopify create response is uncertain, then read-only partial reco
   assert.equal(uncertain.operation.status, 'uncertain'); assert.equal(f.remote.count('SupplierCreateDraft'), 1);
   await f.original.restart();
   assert.equal((await f.reviewed('publication_execute', sid, input)).duplicate, true);
-  const reconciled = await f.reviewed('publication_reconcile', sid, f.command(reviewed.operation));
+  const reconcileInput = f.command(reviewed.operation), reconciled = await f.reviewed('publication_reconcile', sid, reconcileInput);
   assert.equal(reconciled.operation.status, 'partial'); assert.equal(reconciled.operation.receipt.complete, false);
   assert.equal(reconciled.operation.canExecute, false); assert.equal(reconciled.operation.automaticRetry, false);
+  assert.equal(f.remote.count('SupplierCreateDraft'), 1); assert.equal(f.remote.count('SupplierSetRetailVariant'), 0);
+  await f.original.restart();
+  const replayed = await f.reviewed('publication_reconcile', sid, reconcileInput);
+  assert.equal(replayed.duplicate, true); assert.deepEqual(replayed.observation, reconciled.observation);
   assert.equal(f.remote.count('SupplierCreateDraft'), 1); assert.equal(f.remote.count('SupplierSetRetailVariant'), 0);
   assert.equal(f.original.app.store.read().workspaceSupplierServices.services[0].external.published, false);
 });

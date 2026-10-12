@@ -53,11 +53,11 @@
   "additionalTestFiles": [
     {
       "path": "test/supplier-owner-mcp.http.test.mjs",
-      "sha256": "68754a0f47d617b2ea29f0eecd4d301b705b254a099e69b5a025ac3b9d8d83ae"
+      "sha256": "d1c65e7f64440b3836327bb7429499fc0e5b9519585883b103c387bb18777384"
     },
     {
       "path": "test/fixtures/supplier-owner-mcp.mjs",
-      "sha256": "8815ebf9d5a5a5a739733e53d67a3231635e184df20397635349f4031c822000"
+      "sha256": "55433381ac6e12a1df46e2f3a2f1735d15e116f9e9604690aa182022e0d1cdb4"
     },
     {
       "path": "test/product-traffic-config.test.mjs",
@@ -66,6 +66,14 @@
     {
       "path": "test/product-traffic-startup.test.mjs",
       "sha256": "a24f085a797a2bbbb2b02dd325b1362ab7c48ed961119b86d9822e1673052dd7"
+    },
+    {
+      "path": "test/product-traffic-ga4.test.mjs",
+      "sha256": "97fca452d01c1e1c6eb9ff4729c9f6e7c94c3ca53be5d97253fa4712cb90cd67"
+    },
+    {
+      "path": "test/product-traffic-nullability.test.mjs",
+      "sha256": "25e664ecb586b98800a0b23932860bbe2af193596bbb200316f513d76ede3110"
     }
   ],
   "hostedCi": {
@@ -93,6 +101,26 @@
       "failed": 0,
       "skipped": 0,
       "overlapsPrevious": true
-    }
+    },
+    "directOwnerHttpFeasibility": "Existing per-request authorization and service methods reusable; no no-resolver MCP dispatcher implemented."
+  },
+  "resilienceVerification": {
+    "passed": 68,
+    "failed": 0,
+    "skipped": 0,
+    "overlapsPrevious": true,
+    "productionChanged": false,
+    "actualClientResponseTimeout": true,
+    "ga4PersistedViewValues": [
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      7,
+      0
+    ]
   }
 }
