@@ -4,7 +4,8 @@ This optional package adds the actual Pi coding-agent **1.1.0 TUI**, with an
 explicit `/workspace-muse` command. It uses the existing Workspace owner routes
 and original Muse conversation. The backend Pi SDK is not a TUI, and this client
 does not replace it or create a queue, identity, approval model, worker or model
-runtime. Root package/lock, server and mini program are unchanged.
+runtime. Root package/lock, supplier MCP and mini program are unchanged. The only
+server patch exposes a Host-internal launcher on the existing native ingress.
 
 ## Start
 
@@ -39,8 +40,9 @@ without the existing Muse binding correctly produces `MW_ORIGINAL_BINDING_REQUIR
 
 For an existing enterprise installation, the built-in
 [original owner Host bridge](OWNER-CONNECTION.md) retains the existing Session
-and CSRF in the trusted Host and launches Pi over a private RPC pipe. Actual
-host mounting is still required and not deployed. The TUI receives no credentials.
+and CSRF in the trusted Host and launches Pi over a private RPC pipe. The existing
+native ingress now returns `launchOwnerTui()`; its authenticated foreground
+terminal action and production enablement remain required. The TUI receives no credentials.
 The existing custom adapter seam is also retained for reviewed hosts:
 
 ```sh
@@ -69,8 +71,10 @@ backend restart require login again; durable task recovery does not preserve aut
    the human to approve its existing `reviewHash`.
 4. `/workspace-muse dispatch ORDER_ID` rereads it and asks a second confirmation.
    The original service refuses dispatch before approval. `queued` means queued.
-5. Your existing Muse consumer performs its normal inbox/read/claim, heartbeat,
-   upload and submit. This TUI cannot impersonate or wake it.
+5. `/workspace-muse handoff ORDER_ID` saves a small public Markdown guide for
+   **only that approved, dispatched order**. Give it manually to your existing
+   Muse; the command does not send, claim or wake it. See [single-order handoff](MUSE-ONE-ORDER.md).
+   Your existing Muse performs its normal inbox/read/claim, heartbeat, upload and submit.
 6. `/workspace-muse status ORDER_ID` reads the same task, attempt/fence and phase.
    `/workspace-muse refresh ORDER_ID` uses the original Session projection to
    return the actual receipt to the original conversation.

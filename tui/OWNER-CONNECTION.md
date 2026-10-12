@@ -1,7 +1,8 @@
 # Exact owner connection and read-only diagnosis
 
-The built-in bridge is implemented. Actual host integration/enablement is not
-performed or authorized by this PR. No production session, key, token, grant,
+The bridge and its **Host-internal native-ingress registration** are implemented.
+Production enablement and a foreground authenticated terminal action remain
+unverified and are not deployed by this PR. No production session, key, token, grant,
 login, listener, proxy configuration or deployment has been created.
 
 ## What already exists, and what is still missing
@@ -10,7 +11,7 @@ login, listener, proxy configuration or deployment has been created.
 | --- | --- | --- |
 | Original login/session | `server/access.mjs`; original native login in `server/wechat-ingress.mjs` | Existing reviewed owner/admin membership and successful original login |
 | Per-request native signing | Existing `createWechatIngress` resolves the opaque original Session then signs exact method/path/body | Original configured HTTPS native ingress, matching existing signing key and public origin |
-| Host → TUI bridge | **Implemented** in `owner-host-launch.mjs`, `owner-session-transport.mjs`, `owner-rpc.mjs` | Original trusted login host must attach its already-held Session to its authenticated terminal launch action |
+| Host → TUI bridge | **Registered** as `launchOwnerTui()` on the objects returned by `createWechatIngress` / `openWechatIngress`; private RPC implementation in `tui/` | Original trusted host must call this method from its authenticated foreground terminal action using its already-held original Session |
 | Browser-only SSO → terminal handoff | **Not present in this repository** | Requires reviewed host integration; setting an environment variable is insufficient |
 | Real Muse consumer | Checked-in v4 CLI matches `workspace.muse.pull.v1` | Current remote installation, original Secure Vault/authd/egress and actual Muse execution remain unverified |
 
@@ -23,19 +24,22 @@ OAuth token as owner authority, or give Pi the ingress private key.
 
 This is a callable implementation for the **existing host**, not a snippet to
 paste credentials into. After its original safe login has already returned the
-native `{token, session}` in memory, its reviewed terminal action can invoke:
+native `{token, session}` in memory, its reviewed terminal action can invoke the
+object returned by the **already opened** native ingress:
 
 ```js
-import { launchWithExistingOwnerSession } from '/absolute/source/tui/owner-host-launch.mjs';
-
-const child = launchWithExistingOwnerSession({
-  origin: originalConfiguredNativeHttpsOrigin,
+const child = await originalNativeIngress.launchOwnerTui({
   token: originalLogin.token,
-  session: originalLogin.session,
-  conversationId: originalReviewedMuseConversationId,
   mode: 'diagnose', // GET-only first; 'tui' requires an attached real terminal
 });
 ```
+
+This internal method resolves the live original session and exact original Muse
+owner itself; callers cannot supply another subject, workspace or conversation.
+It uses the existing native `handle()` and signed loopback forwarder for every
+request. It does not add an HTTP launch route or auto-launch anything at login.
+The standalone `launchWithExistingOwnerSession()` remains available for reviewed
+external native hosts through their configured HTTPS ingress.
 
 The host retains the token in memory. Pi receives only a private inherited RPC
 pipe. It receives no Session token, CSRF value, ingress signature/private key,
@@ -46,7 +50,7 @@ three owner reads required for connection/diagnosis. Login, grants, arbitrary
 HTTP paths, worker claims and different conversation paths are rejected.
 
 On each request the host rechecks the existing native Session through the
-configured HTTPS ingress. Before mutations it obtains current CSRF from that
+original native ingress. Before mutations it obtains current CSRF from that
 same Session; the ingress independently revalidates membership/session and signs
 the exact original request. Redirects and non-JSON login pages fail closed.
 The backend's original approval/review hash remains mandatory.
@@ -54,7 +58,18 @@ The backend's original approval/review hash remains mandatory.
 An existing native login host with no attached terminal can run `mode:'diagnose'`.
 `mode:'tui'` fails `OWNER_TTY_REQUIRED` there. Attaching a real authorized terminal
 to that host is an explicit integration prerequisite, not something the TUI can
-infer or provision. **Actual production mounting requires separate approval.**
+infer or provision. The normal `server/index.mjs` entry opens the headless ingress
+and retains its close hook; it has no authenticated interactive terminal action.
+This PR does not add one or obtain tokens through a new route.
+
+The minimum live path is: (1) review/deploy these source changes and install the
+isolated `tui/` lockfile in the existing trusted host; (2) preserve the already
+configured native ingress and exact owner/Muse binding; (3) implement/review the
+host's foreground terminal action calling the method above with its already-held
+session; (4) complete the original safe login, run diagnosis, then open `mode:'tui'`
+in that authorized terminal. A browser-only installation still needs a reviewed
+terminal handoff component. No environment variable supplies that missing component.
+**Live deployment/login and any additional authorization require separate approval.**
 
 ## One-command read-only check
 
@@ -113,6 +128,8 @@ Do not export a raw key or add a new credential. GET identity/inbox may update
 handshake timestamps, but prove no task execution. Claim/heartbeat/upload/submit
 require a specifically approved real task and its original IDs. No new automatic
 listener, repeated task authorization or notification consent is implemented.
+Use [MUSE-ONE-ORDER.md](MUSE-ONE-ORDER.md) to generate a bounded handoff locally and
+give it manually to the existing Muse; it includes cancellation and lease rules.
 
 Linux is verified with synthetic native ingress + real loopback signed backend
 and an actual child process over the inherited pipe. Production TLS/account,

@@ -2,13 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { createWorkspaceClient, loadOwnerTransport } from '../workspace-client.mjs';
 import { createRequestJournal } from '../request-journal.mjs';
 import { diagnose, OWNER_GUIDANCE } from '../diagnose.mjs';
+import { saveMuseHandoff } from '../muse-handoff.mjs';
 
 // Untrusted task/result text must not send terminal control sequences.
 const plain = value => String(value).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
 const show = (ctx, value) => ctx.ui.notify(plain(JSON.stringify(value)), 'info');
-const help = 'Commands: /workspace-muse diagnose | connect | new | retry | list | status ID | approve ID | dispatch ID | refresh ID | cancel ID | accept ID. Approval and dispatch are separate human confirmations. Queued does not mean Muse claimed.';
+const help = 'Commands: /workspace-muse diagnose | connect | new | retry | list | status ID | handoff ID | approve ID | dispatch ID | refresh ID | cancel ID | accept ID. Approval and dispatch are separate human confirmations. Queued does not mean Muse claimed.';
 
-export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, journal = createRequestJournal() } = {}) {
+export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, journal = createRequestJournal(), saveHandoff = saveMuseHandoff } = {}) {
   let client, request, busy = false;
   const getRequest = async () => request ||= await transport();
   const getClient = async () => client ||= createWorkspaceClient(await getRequest());
@@ -29,7 +30,7 @@ export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, jour
       try {
         const [operation = 'help', orderId, extra] = args.trim().split(/\s+/);
         if (!operation || operation === 'help') { ctx.ui.notify(help, 'info'); return; }
-        if (extra || !['diagnose', 'connect', 'new', 'retry', 'list', 'status', 'approve', 'dispatch', 'refresh', 'cancel', 'accept'].includes(operation)) throw new Error('COMMAND_INVALID');
+        if (extra || !['diagnose', 'connect', 'new', 'retry', 'list', 'status', 'handoff', 'approve', 'dispatch', 'refresh', 'cancel', 'accept'].includes(operation)) throw new Error('COMMAND_INVALID');
         if (operation === 'diagnose') { show(ctx, await diagnose({ transport: async () => { const active = await getRequest(); return input => active(input); } })); return; }
         const api = await getClient();
         if (operation === 'connect') { show(ctx, await api.connect()); return; }
@@ -66,6 +67,7 @@ export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, jour
         if (!orderId || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(orderId)) throw new Error('ORIGINAL_ORDER_ID_REQUIRED');
         const current = await api.get(orderId);
         if (operation === 'status') { show(ctx, current); return; }
+        if (operation === 'handoff') { show(ctx, await saveHandoff(current.delegation, (await api.connection()).muse)); return; }
         if (operation === 'refresh') { show(ctx, await api.act(operation, orderId)); return; }
         const { delegation } = current;
         if (!delegation?.reviewHash || delegation.orderId !== orderId) throw new Error('ORIGINAL_REVIEW_REQUIRED');

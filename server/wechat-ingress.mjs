@@ -104,7 +104,38 @@ export function createWechatIngress({ app, access, privateKey, appId, appSecret,
       return response(error instanceof WechatLoginError ? error.status : 503, { error: { code: error instanceof WechatLoginError ? error.code : 'WECHAT_LOGIN_UNAVAILABLE', message: error instanceof WechatLoginError ? error.message : 'Native login or forwarding could not be completed.' } });
     }
   }
-  return { handle, close() { closing = true; rate.clear(); } };
+  // Host-internal terminal action only. It is deliberately not an HTTP route
+  // and is never called automatically during login. Resolve the original live
+  // Session and exact Muse owner here; callers cannot supply another identity.
+  async function launchOwnerTui({ token, mode = 'diagnose', stdio = 'inherit', environment = process.env } = {}) {
+    if (closing) fail(503, 'WECHAT_INGRESS_CLOSED', 'Native ingress is closing.');
+    const identity = app.access.nativeSessionIdentity(token);
+    if (!identity) fail(401, 'OWNER_SESSION_EXPIRED', 'Return to the original safe login before opening the terminal.');
+    if (!app.piMuse) fail(409, 'MW_ORIGINAL_BINDING_REQUIRED', 'Restore the existing original Muse binding.');
+    app.piMuse.forActor({ ...identity, workspaceId: config.workspaceId });
+    const sessionResult = await handle({ method: 'GET', target: '/api/session', headers: { host: expectedHost, 'x-workspace-session': token } });
+    if (sessionResult.status !== 200) fail(401, 'OWNER_SESSION_EXPIRED', 'The original Session is unavailable.');
+    // Lazy optional client import: normal server/login startup does not load Pi
+    // TUI dependencies, start a child, or create any additional listener.
+    let launchWithExistingOwnerSession;
+    try { ({ launchWithExistingOwnerSession } = await import('../tui/owner-host-launch.mjs')); }
+    catch { fail(503, 'OWNER_TUI_CLIENT_UNAVAILABLE', 'Install the reviewed optional tui source package before opening its terminal.'); }
+    return launchWithExistingOwnerSession({ origin: config.publicOrigin, token,
+      session: JSON.parse(sessionResult.bytes.toString('utf8')), conversationId: app.piMuse.actor.nativeAgentId,
+      mode, stdio, environment,
+      fetchImpl: async (url, options) => {
+        options.signal?.throwIfAborted();
+        const target = new URL(url);
+        if (target.origin !== config.publicOrigin || target.search || target.hash) fail(403, 'OWNER_ROUTE_FORBIDDEN', 'Use the original native ingress only.');
+        const result = await handle({ method: options.method, target: target.pathname,
+          headers: { host: expectedHost, ...Object.fromEntries(Object.entries(options.headers).map(([key, value]) => [key.toLowerCase(), value])) },
+          bytes: options.body === undefined ? Buffer.alloc(0) : Buffer.from(options.body), remoteAddress: 'original-owner-terminal-host' });
+        options.signal?.throwIfAborted(); // An aborted write remains uncertain; never replay it here.
+        return new Response(result.bytes, { status: result.status, headers: result.headers });
+      },
+    });
+  }
+  return { handle, launchOwnerTui, close() { closing = true; rate.clear(); } };
 }
 
 async function privateText(filename, max = 100_000) {
@@ -133,5 +164,6 @@ export async function openWechatIngress({ app, access, configFile }) {
   });
   server.requestTimeout = 15_000; server.headersTimeout = 10_000; server.maxHeadersCount = 64;
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(input.port, input.host, resolve); });
-  return { async close() { gateway.close(); const stopped = new Promise(resolve => server.close(resolve)); server.closeIdleConnections(); await stopped; } };
+  return { launchOwnerTui: gateway.launchOwnerTui,
+    async close() { gateway.close(); const stopped = new Promise(resolve => server.close(resolve)); server.closeIdleConnections(); await stopped; } };
 }

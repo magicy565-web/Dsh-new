@@ -129,6 +129,12 @@ try:
         wait_state(lambda value: len(value["tasks"]) == 1)
         expect('"phase":"queued"')
         checks.append("separate actual terminal approval and dispatch enqueue the same task")
+        send(f"/workspace-muse handoff {task}")
+        expect('"externalSend":false')
+        handoffs = list((Path(client_dir) / "handoffs").glob("*.md"))
+        assert len(handoffs) == 1 and task in handoffs[0].read_text()
+        assert state()["tasks"][0]["status"] == "pending"
+        checks.append("actual TUI saves exact-order public Muse handoff without sending or claiming")
         consumer = subprocess.run(["python3", str(root / "test/fixtures/muse-consumer.py")], input=json.dumps({**settings, "directory": str(Path(client_dir) / "consumer"), "host": "fixture.test", "taskRef": task}), capture_output=True, text=True, timeout=15)
         assert consumer.returncode == 0, consumer.stderr + consumer.stdout
         checks.append("checked-in Muse CLI claims, heartbeats, uploads and submits that task")

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import http from 'node:http';
 import { Readable } from 'node:stream';
@@ -15,6 +15,7 @@ import { wechatIdentityDigest } from '../../server/wechat-code-exchange.mjs';
 import { createNativeOwnerTransport } from '../owner-session-transport.mjs';
 import { launchWithExistingOwnerSession, ownerChildEnvironment } from '../owner-host-launch.mjs';
 import { diagnose } from '../diagnose.mjs';
+import { saveMuseHandoff, renderMuseHandoff } from '../muse-handoff.mjs';
 import { registerWorkspaceMuse } from '../extensions/workspace-muse.mjs';
 import { createWorkspaceClient, loadOwnerTransport } from '../workspace-client.mjs';
 import { createRequestJournal } from '../request-journal.mjs';
@@ -63,9 +64,10 @@ async function fixture(t) {
     async restart() { await app.close(); app = await createApp(options); address = await app.listen(0); await login(); } };
 }
 
-function tui(request, journal, { confirm = true, inputs = [] } = {}) {
+function tui(request, journal, { confirm = true, inputs = [], handoffDirectory } = {}) {
   const commands = new Map(), events = new Map(), messages = [], confirmations = [];
-  registerWorkspaceMuse({ registerCommand: (name, def) => commands.set(name, def), on: (name, fn) => events.set(name, fn) }, { transport: async () => request, journal });
+  registerWorkspaceMuse({ registerCommand: (name, def) => commands.set(name, def), on: (name, fn) => events.set(name, fn) }, { transport: async () => request, journal,
+    ...(handoffDirectory ? { saveHandoff: (delegation, muse) => saveMuseHandoff(delegation, muse, handoffDirectory) } : {}) });
   const ctx = { mode: 'tui', hasUI: true, ui: {
     input: async () => inputs.shift(), notify: (message, level) => messages.push({ message, level }), setStatus() {},
     confirm: async (title, message) => { confirmations.push({ title, message }); return confirm; },
@@ -143,7 +145,7 @@ async function nativeIngressFixture(t) {
   };
   const token = f.session.cookie.split('=')[1];
   const input = { origin, token, scope: { workspaceId: f.access.workspaceId, subject: actor.subject, conversationId: actor.nativeAgentId } };
-  return { ...f, fixture: f, input, fetchImpl, calls };
+  return { ...f, fixture: f, ingress, input, fetchImpl, calls };
 }
 
 test('built-in host transport reuses original native ingress/session signing and CSRF; expiry does not reauthenticate', async t => {
@@ -187,6 +189,29 @@ test('existing trusted host launches read-only diagnostic over private RPC; TUI 
   assert.equal((f.fixture.app.store.read().workerOrders || []).length, 0);
   const missing = await diagnose({ transport: () => loadOwnerTransport({}) });
   assert.equal(missing.owner.code, 'EXISTING_OWNER_TRANSPORT_REQUIRED');
+});
+
+test('original native ingress mounts the Host-only launcher, derives its owner and rejects Worker/viewer/foreign-owner sessions', async t => {
+  const f = await nativeIngressFixture(t);
+  const child = await f.ingress.launchOwnerTui({ token: f.input.token, mode: 'diagnose', stdio: 'pipe' });
+  let output = '', errors = '';
+  child.stdout.on('data', bytes => output += bytes); child.stderr.on('data', bytes => errors += bytes);
+  const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', resolve); });
+  assert.equal(code, 0, errors + output);
+  const report = JSON.parse(output);
+  assert.equal(report.owner.status, 'verified_existing_session');
+  assert.equal(report.owner.conversationId, actor.nativeAgentId);
+  assert.equal(report.realMuseVerified, false);
+  assert.equal(output.includes(f.input.token), false);
+  await assert.rejects(f.ingress.launchOwnerTui({ token: bearer }), { code: 'OWNER_SESSION_EXPIRED' });
+  for (const subject of ['viewer', 'other-owner']) {
+    const session = await f.fixture.login(subject);
+    await assert.rejects(f.ingress.launchOwnerTui({ token: session.cookie.split('=')[1] }), { code: 'MUSE_OWNER_REQUIRED' });
+  }
+  const nonexistent = await f.ingress.handle({ method: 'POST', target: '/api/session/tui',
+    headers: { host: 'workspace.test', 'x-workspace-session': f.input.token, 'x-csrf-token': (await f.fixture.api('/api/session', { cookie: '__Host-workspace_session=' + f.input.token })).body.csrfToken }, bytes: Buffer.from('{}') });
+  assert.equal(nonexistent.status, 404); // No public launch route was introduced.
+  assert.equal((f.fixture.app.store.read().workerOrders || []).length, 0);
 });
 
 test('TUI rejects missing owner, worker token, wrong tenant, other owner, revoked session and declined approval', async t => {
@@ -265,4 +290,23 @@ test('journal must persist before prepare and recovery is isolated by original o
   await ui.run('new');
   assert.equal(ui.error(), 'EEXIST');
   assert.equal((f.app.store.read().workerOrders || []).length, 0);
+});
+
+test('TUI handoff writes one exact approved public order guide without credentials, external sending or another claim', async t => {
+  const f = await fixture(t);
+  const ui = tui(f.request, createRequestJournal(path.join(f.directory, 'journal')), { handoffDirectory: path.join(f.directory, 'handoffs'), inputs: ['channel-validation', '已确认公开产品', 'US', '本地说明生成验证', '5', new Date(Date.now() + 86400000).toISOString()] });
+  await ui.run('new'); const id = ui.result().delegation.orderId;
+  await ui.run(`handoff ${id}`); assert.equal(ui.error(), 'MUSE_HANDOFF_DISPATCH_REQUIRED');
+  await ui.run(`approve ${id}`); await ui.run(`dispatch ${id}`);
+  const reviewHash = ui.result().delegation.reviewHash;
+  await ui.run(`handoff ${id}`);
+  const saved = ui.result(); assert.equal(saved.externalSend, false);
+  const content = await readFile(saved.filename, 'utf8');
+  for (const expected of [id, reviewHash, workerId, '已确认公开产品', 'confirm-stop', 'heartbeat', 'upload-file', 'submit-result', 'inflight claim intent', 'Secure Vault/authd']) assert.ok(content.includes(expected), expected);
+  for (const privateValue of [actor.subject, actor.nativeAgentId, f.session.csrf, f.session.cookie, bearer]) assert.equal(content.includes(privateValue), false);
+  await ui.run(`handoff ${id}`); assert.equal(ui.result().duplicate, true);
+  assert.equal(f.app.store.read().museTasks[0].status, 'pending'); assert.equal(f.app.store.read().museTasks[0].attemptId, null);
+  const state = await createWorkspaceClient(f.request).get(id);
+  assert.throws(() => renderMuseHandoff(state.delegation, { installed: true, approved: true, workerId: 'wrong-worker' }), { code: 'MUSE_HANDOFF_WORKER_MISMATCH' });
+  await ui.run(`cancel ${id}`); await ui.run(`handoff ${id}`); assert.equal(ui.error(), 'MUSE_HANDOFF_DISPATCH_REQUIRED');
 });
