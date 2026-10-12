@@ -69,10 +69,21 @@ export function createShopifyClient({ environment = process.env, fetchImpl = fet
   const token = environment.WORKSPACE_SHOPIFY_ADMIN_TOKEN || '';
   const validDomain = SHOP.test(domain), configured = validDomain && typeof token === 'string' && !!token.trim();
   const fingerprint = createHash('sha256').update(JSON.stringify([domain, SHOPIFY_API_VERSION])).digest('hex');
-  let observation = null, lastError = null;
+  let observation = null, lastError = null, verification = null;
   const at = () => new Date(clock()).toISOString();
+  const readiness = () => {
+    const missingPermissions = observation && !observation.scopes.some(scope => ['read_products', 'write_products'].includes(scope)) ? ['read_products'] : [];
+    const fresh = observation && clock() - Date.parse(observation.verifiedAt) < 300_000;
+    const kind = !configured ? 'unconfigured' : lastError?.code === 'SHOPIFY_IDENTITY_MISMATCH' ? 'store_mismatch' : lastError?.code === 'SHOPIFY_AUTH_REJECTED' ? 'authorization_expired' : lastError?.code === 'SHOPIFY_PERMISSION_DENIED' || missingPermissions.length ? 'insufficient_permissions' : lastError || observation && !fresh ? 'unknown' : observation ? 'readable_ready' : 'not_checked';
+    return { schema: 'workspace.shopify.readiness.v1', kind, readConfirmed: kind === 'readable_ready',
+      shopDomain: observation?.shop.domain || null, targetDomain: validDomain ? domain : null,
+      checkedAt: lastError?.observedAt || observation?.verifiedAt || null,
+      validUntil: observation ? new Date(Date.parse(observation.verifiedAt) + 300_000).toISOString() : null,
+      missingPermissions, code: lastError?.code || null,
+      evidence: observation ? 'shop_identity_and_access_scopes' : null, readOnly: true, writeAuthorized: false };
+  };
   const status = () => ({
-    configured, domain: validDomain ? domain : null, apiVersion: SHOPIFY_API_VERSION,
+    configured, domain: validDomain ? domain : null, apiVersion: SHOPIFY_API_VERSION, readiness: readiness(),
     status: !configured ? 'setup_required' : observation ? 'verified' : 'configured_unverified',
     verifiedAt: observation?.verifiedAt || null, shop: observation?.shop || null,
     scopes: observation?.scopes || [], lastError, readOnly: true,
@@ -88,16 +99,16 @@ export function createShopifyClient({ environment = process.env, fetchImpl = fet
         body: JSON.stringify({ query, variables }),
       });
       if (!response.ok) {
-        if ([401, 403].includes(response.status)) { observation = null; fail(409, 'SHOPIFY_AUTH_REJECTED', 'Shopify 授权已失效或缺少权限，请重新授权。'); }
+        if ([401, 403].includes(response.status)) { observation = null; fail(409, response.status === 401 ? 'SHOPIFY_AUTH_REJECTED' : 'SHOPIFY_PERMISSION_DENIED', response.status === 401 ? 'Shopify 授权已失效或撤销，请核对原授权。' : 'Shopify 拒绝当前原读取权限，请由负责人核对。'); }
         fail(502, response.status === 429 ? 'SHOPIFY_RATE_LIMITED' : 'SHOPIFY_REQUEST_FAILED', 'Shopify 暂时无法完成读取，请稍后重试。');
       }
       const returnedVersion = response.headers.get('x-shopify-api-version');
       if (returnedVersion && returnedVersion !== SHOPIFY_API_VERSION)
         fail(502, 'SHOPIFY_API_VERSION_MISMATCH', 'Shopify API 版本与当前集成不一致，请先升级集成。');
       const result = await boundedJson(response);
+      if (Array.isArray(result.errors) && result.errors.some(error => error?.extensions?.code === 'ACCESS_DENIED')) { observation = null; fail(409, 'SHOPIFY_PERMISSION_DENIED', 'Shopify 拒绝当前读取权限，请由负责人核对。'); }
       if (result.errors?.length || !result.data || typeof result.data !== 'object')
         fail(502, 'SHOPIFY_QUERY_REJECTED', 'Shopify 未接受当前读取请求，请核对应用权限。');
-      lastError = null;
       return result.data;
     } catch (error) {
       const safe = error instanceof ApiError ? error : new ApiError(502, 'SHOPIFY_UNREACHABLE', '无法连接 Shopify，请检查店铺配置和网络后重试。');
@@ -107,15 +118,28 @@ export function createShopifyClient({ environment = process.env, fetchImpl = fet
   }
   return {
     status, fingerprint,
-    async verify() {
-      // A failed re-verification cannot keep an earlier observation green.
-      observation = null;
-      const data = await graphql(INFO_QUERY, {});
-      const shop = data.shop, scopes = data.currentAppInstallation?.accessScopes;
-      if (shop?.myshopifyDomain !== domain || !/^gid:\/\/shopify\/Shop\/\d+$/u.test(shop?.id) || typeof shop?.name !== 'string' || !/^[A-Z]{3}$/u.test(shop?.currencyCode) || !Array.isArray(scopes) || scopes.length > 200 || scopes.some(scope => typeof scope.handle !== 'string' || !/^[a-z_]{1,100}$/u.test(scope.handle)))
-        fail(502, 'SHOPIFY_IDENTITY_MISMATCH', '返回的店铺身份或授权范围不匹配。');
-      observation = { verifiedAt: at(), shop: { id: shop.id, name: shop.name, domain, currency: shop.currencyCode }, scopes: [...new Set(scopes.map(scope => scope.handle))] };
-      return status();
+    verify() {
+      if (verification) return verification;
+      verification = (async () => {
+        // Every explicit recheck invalidates prior green evidence immediately.
+        observation = null; lastError = null;
+        try {
+          const data = await graphql(INFO_QUERY, {});
+          const shop = data.shop, scopes = data.currentAppInstallation?.accessScopes;
+          if (typeof shop?.myshopifyDomain === 'string' && SHOP.test(shop.myshopifyDomain) && shop.myshopifyDomain !== domain)
+            fail(409, 'SHOPIFY_IDENTITY_MISMATCH', '返回的准确店铺域名与原配置不匹配。');
+          if (shop?.myshopifyDomain !== domain || !/^gid:\/\/shopify\/Shop\/\d+$/u.test(shop?.id) || typeof shop?.name !== 'string' || !/^[A-Z]{3}$/u.test(shop?.currencyCode) || !Array.isArray(scopes) || scopes.length > 200 || scopes.some(scope => typeof scope?.handle !== 'string' || !/^[a-z_]{1,100}$/u.test(scope.handle)))
+            fail(502, 'SHOPIFY_RESPONSE_INVALID', '返回的店铺身份或授权范围无法完整核验。');
+          observation = { verifiedAt: at(), shop: { id: shop.id, name: shop.name, domain, currency: shop.currencyCode }, scopes: [...new Set(scopes.map(scope => scope.handle))] };
+          return status();
+        } catch (error) {
+          observation = null;
+          const safe = error instanceof ApiError ? error : new ApiError(502, 'SHOPIFY_UNREACHABLE', '无法核验 Shopify，请重试读取状态。');
+          lastError = { code: safe.code, message: safe.message, observedAt: at() };
+          throw safe;
+        }
+      })().finally(() => { verification = null; });
+      return verification;
     },
     async readCatalogPage({ after = null } = {}) {
       if (after !== null && (typeof after !== 'string' || after.length > 2000)) fail(400, 'INVALID_INPUT', 'Invalid product cursor.');
