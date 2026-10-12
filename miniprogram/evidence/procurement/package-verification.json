@@ -1,0 +1,36 @@
+{
+  "archive": "miniprogram/deliverables/Workspace-Agent-WeChat-Procurement-Client.zip",
+  "sourceCommit": "68328e163619b40a335f7e7c676d7403c980c126",
+  "files": 22,
+  "bytes": 50704,
+  "sha256": "5efc837843eade810484c3ff1fc4375996ee82b961a49c0ad91408ec1cf58c7a",
+  "allCompiledFilesExact": true,
+  "javascriptSyntax": true,
+  "localImportsOnly": true,
+  "imports": [
+    "../../shared/client",
+    "../../shared/muse-draft-view",
+    "../../shared/muse-drafts",
+    "../../shared/procurement",
+    "./muse-draft-view",
+    "./muse-drafts",
+    "./procurement",
+    "./shared/client",
+    "./shared/journal",
+    "./shared/login-broker"
+  ],
+  "DSHOrCordisRuntimeInPackage": false,
+  "config": {
+    "description": "Workspace conversation client; account/device acceptance pending",
+    "miniprogramRoot": "./",
+    "compileType": "miniprogram",
+    "appid": "touristappid",
+    "projectname": "workspace-conversation",
+    "setting": {
+      "es6": true,
+      "minified": true,
+      "urlCheck": true
+    }
+  },
+  "realWechatPlatformAcceptance": false
+}
