@@ -85,7 +85,7 @@ Page({
       this.setData({ conversationId: id, ...view, messages: view.messages.map(value => value.source === 'procurement' ? { ...value, content: procurementMessage(value.content, value.supplyInquiryId) } : value), cards, readError: '', uncertain: client().uncertain, pendingLabel, pendingSummary: client().pendingSummary, readAt: new Date().toLocaleTimeString(),
         museDrafts: drafts, draftCards, selectedDraft: selected || null, goalBlocked: client().requiresOriginalMuse && (!originalBound || !client().museDraftCapable), busy: view.busy || drafts.some(value => ['pending', 'preparing', 'rejecting'].includes(value.phase)),
         drafting: drafts.some(value => value.phase === 'pending'), needsDraftInput: active?.phase === 'needs_information',
-        composerHint: active?.phase === 'needs_information' ? '只需补充上面必要的信息…' : active?.editable ? '补充或修改这份草案…' : '描述要交给原 Muse 的业务目标…',
+        composerHint: this.data.supplierMode ? this.data.supplierCommand === 'monitors' ? '提供既有 Shopify 商品 gid 和明确 UTC 开始时间…' : this.data.supplierCommand === 'shopify-observation' ? '提供既有 Shopify 商品 gid，可附渠道 publication gid…' : '补充或修改商品事实；未知可保留…' : active?.phase === 'needs_information' ? '只需补充上面必要的信息…' : active?.editable ? '补充或修改这份草案…' : '描述要交给原 Muse 的业务目标…',
         ...(client().pendingDraft && !this.data.draft ? { draft: client().pendingDraft } : {}), ...(client().pendingKind === 'procurement-reply' ? { replyInquiryId: client().pendingInquiryId } : {}), runtimeNotice: client().requiresOriginalMuse && !originalBound ? '原 Muse 会话尚未绑定；目标处理已阻挡，采购需求仍可按需关联与回复。' : client().requiresOriginalMuse && !client().museDraftCapable ? '当前服务尚未提供原 Muse 草案能力；此意图已阻挡，请先完成服务接入。' : snapshot.runtime?.configured === false ? '云端模型尚未接入，发送后会保存请求并显示真实阻挡原因。' : '' });
       if (client().pendingKind.startsWith('supplier-')) this.setData({supplierMode:true,selectedSupplierId:client().pendingSupplierId || this.data.selectedSupplierId});
       this.setData({supplierAvailable:client().supplierCapable});
@@ -180,7 +180,7 @@ Page({
       const data:Record<string,unknown>={expectedRevision:service.revision,shopifyProductId:products[0],confirmed:true};
       if(this.data.supplierCommand==='monitors'){
         const publication=this.data.draft.includes('已核验发布时间');
-        if(publication&&times.length||!publication&&(times.length!==1||!Number.isFinite(Date.parse(times[0])))){this.setData({error:'请明确提供一个 UTC 开始时间，或明确选择“已核验发布时间”；两者不能同时使用。'});return;}
+        if(publication&&times.length||!publication&&(times.length!==1||!Number.isFinite(Date.parse(times[0]))||new Date(times[0]).toISOString()!==(times[0].includes('.')?times[0]:times[0].replace('Z','.000Z')))){this.setData({error:'请明确提供一个 UTC 开始时间，或明确选择“已核验发布时间”；两者不能同时使用。'});return;}
         if(publication){if(service.external?.published!==true||service.external.productId!==products[0]||service.external.publicationTimeSource!=='online_store_published_at'||!service.external.publishedAt){this.setData({error:'原服务没有可用的已核验在线商店发布时间。'});return;}data.startFromPublication=true;}else data.startAt=times[0];
         const variants=this.data.draft.match(/gid:\/\/shopify\/ProductVariant\/\d+/g)||[];if(variants.length)data.variantIds=variants;
       }else{const publication=this.data.draft.match(/gid:\/\/shopify\/Publication\/\d+/g)||[];if(publication.length>1){this.setData({error:'请明确一个渠道 publication ID。'});return;}if(publication.length)data.publicationId=publication[0];}
