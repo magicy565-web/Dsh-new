@@ -31,9 +31,9 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
     if (!operation) supplierFail(404, 'SUPPLIER_PUBLICATION_NOT_FOUND', 'The original supplier publication operation was not found.');
     return { row, operation };
   }
-  function current(row, operation) {
+  function current(row, operation, actorRole) {
     const scope = operation.scope;
-    if (row.cancelledAt || row.rejectedAt || row.revision !== scope.serviceRevision || row.preview?.previewHash !== scope.previewHash || supplierHash(row.preview) !== scope.previewSnapshotHash || adapter.fingerprint !== scope.configFingerprint) supplierFail(409, 'SUPPLIER_PUBLICATION_STALE', 'The reviewed product revision, preview or host configuration changed. Create a current review; do not execute this one.');
+    if (actorRole !== scope.actorRole || row.cancelledAt || row.rejectedAt || row.revision !== scope.serviceRevision || row.preview?.previewHash !== scope.previewHash || supplierHash(row.preview) !== scope.previewSnapshotHash || adapter.fingerprint !== scope.configFingerprint) supplierFail(409, 'SUPPLIER_PUBLICATION_STALE', 'The reviewed product revision, preview or host configuration changed. Create a current review; do not execute this one.');
   }
   function replay(state, actor, sid, kind, body) {
     const fingerprint = supplierHash({ sid, kind, body });
@@ -99,7 +99,7 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
         const operation = locate(store.read(), actor, cid, sid, operationId).operation;
         if (operation.approvalId) return;
         const request = capabilities.connectorApprovalRequest(connectorId, executionInput(operation), { binding: binding(operation) });
-        try { await capabilities.requestApproval({ ...request, expiresInSeconds: 1800 }, { onCreated(state, approval) { const found = locate(state, actor, cid, sid, operation.id); if (found.operation.approvalId) supplierFail(409, 'SUPPLIER_APPROVAL_ALREADY_PREPARED', 'The original review already has an approval.'); current(found.row, found.operation); found.operation.approvalId = approval.id; found.operation.status = 'pending_approval'; found.operation.updatedAt = at(); } }); }
+        try { await capabilities.requestApproval({ ...request, expiresInSeconds: 1800 }, { onCreated(state, approval) { const found = locate(state, actor, cid, sid, operation.id); if (found.operation.approvalId) supplierFail(409, 'SUPPLIER_APPROVAL_ALREADY_PREPARED', 'The original review already has an approval.'); current(found.row, found.operation, actor.role); found.operation.approvalId = approval.id; found.operation.status = 'pending_approval'; found.operation.updatedAt = at(); } }); }
         catch (error) { if (error.code !== 'SUPPLIER_APPROVAL_ALREADY_PREPARED') throw error; }
       };
       return {
@@ -137,7 +137,7 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
             const outstanding = operations.find(item => item.action === body.action && ['preparing', 'pending_approval', 'approved', 'running', 'uncertain'].includes(item.status));
             if (outstanding) { if (outstanding.scope.previewHash !== row.preview.previewHash) supplierFail(409, 'SUPPLIER_PUBLICATION_PENDING', 'Resolve the previous original publication review before preparing another version.'); remember(state, actor, sid, 'publication_review', body, { operationId: outstanding.id }); return { operationId: outstanding.id }; }
             if (body.action === 'draft' && operations.some(item => item.action === 'draft' && item.receipt?.found)) supplierFail(409, 'SUPPLIER_EXISTING_REMOTE_PRODUCT', 'The original remote draft already exists. Reconcile it; creating another product is not an update.');
-            const id = randomUUID(), scope = { schema: 'workspace.supplier-publication-scope.v1', operationId: id, action: body.action, subject: actor.subject, workspaceId: actor.workspaceId, conversationId: cid, serviceId: sid, serviceRevision: row.revision, previewHash: row.preview.previewHash, previewSnapshotHash: supplierHash(row.preview), preview: clone(row.preview), shopDomain: verified.shop.domain, shopId: verified.shop.id, configFingerprint: adapter.fingerprint, publicationId: body.publicationId || null, handle: originalDraft?.scope.handle || `cnsub-${supplierHash([actor.workspaceId, actor.subject, sid, id]).slice(0,32)}`, productId: draftReceipt?.productId || null, variantIds: draftReceipt?.variantIds || [], remoteContentHash: draftReceipt?.remoteContentHash || null, draftOperationId: originalDraft?.id || null, draftScopeHash: originalDraft?.scopeHash || null, draftScope: originalDraft ? clone(originalDraft.scope) : null, budget: { modelCalls: 0, paidServiceCalls: 0, source: 'original_business_service' }, transfer: { images: row.preview.images.map(image => image.kind === 'artifact' ? { kind: image.kind, asset: clone(image.asset), sourceNote: image.sourceNote } : { kind: image.kind, url: image.url, sourceNote: image.sourceNote }), approvedPublicFields: clone(row.preview.publicFields) } };
+            const id = randomUUID(), scope = { schema: 'workspace.supplier-publication-scope.v1', operationId: id, action: body.action, subject: actor.subject, actorRole: actor.role, workspaceId: actor.workspaceId, conversationId: cid, serviceId: sid, serviceRevision: row.revision, previewHash: row.preview.previewHash, previewSnapshotHash: supplierHash(row.preview), preview: clone(row.preview), shopDomain: verified.shop.domain, shopId: verified.shop.id, configFingerprint: adapter.fingerprint, publicationId: body.publicationId || null, handle: originalDraft?.scope.handle || `cnsub-${supplierHash([actor.workspaceId, actor.subject, sid, id]).slice(0,32)}`, productId: draftReceipt?.productId || null, variantIds: draftReceipt?.variantIds || [], remoteContentHash: draftReceipt?.remoteContentHash || null, draftOperationId: originalDraft?.id || null, draftScopeHash: originalDraft?.scopeHash || null, draftScope: originalDraft ? clone(originalDraft.scope) : null, budget: { modelCalls: 0, paidServiceCalls: 0, source: 'original_business_service' }, transfer: { images: row.preview.images.map(image => image.kind === 'artifact' ? { kind: image.kind, asset: clone(image.asset), sourceNote: image.sourceNote } : { kind: image.kind, url: image.url, sourceNote: image.sourceNote }), approvedPublicFields: clone(row.preview.publicFields) } };
             const operation = { id, action: body.action, status: 'preparing', scope, scopeHash: supplierHash(scope), approvalId: null, connectorId, connectorRunId: null, createdAt: at(), updatedAt: at(), receipt: null, error: null, steps: [] };
             operations.push(operation); remember(state, actor, sid, 'publication_review', body, { operationId: id }); return { operationId: id };
           });
@@ -149,17 +149,17 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
           const found = checked(cid, sid, body, ['decision']);
           if (!['approved', 'denied'].includes(body.decision)) supplierFail(400, 'SUPPLIER_DECISION_REQUIRED', 'Explicitly approve or deny the exact operation.');
           if (replay(store.read(), actor, sid, 'publication_decision', body).previous) return response(cid, sid, found.operation.id, { duplicate: true });
-          await capabilities.decideApproval(found.operation.approvalId, { decision: body.decision, confirmed: true }, { onDecision(state) { const actual = locate(state, actor, cid, sid, found.operation.id); if (body.decision === 'approved') current(actual.row, actual.operation); actual.operation.status = body.decision; actual.operation.updatedAt = at(); actual.operation.decidedBy = actor.subject; remember(state, actor, sid, 'publication_decision', body, { operationId: actual.operation.id }); } });
+          await capabilities.decideApproval(found.operation.approvalId, { decision: body.decision, confirmed: true }, { onDecision(state) { const actual = locate(state, actor, cid, sid, found.operation.id); if (body.decision === 'approved') current(actual.row, actual.operation, actor.role); actual.operation.status = body.decision; actual.operation.updatedAt = at(); actual.operation.decidedBy = actor.subject; remember(state, actor, sid, 'publication_decision', body, { operationId: actual.operation.id }); } });
           return response(cid, sid, found.operation.id);
         },
         async executePublication(cid, sid, body) {
           const found = checked(cid, sid, body), operation = found.operation;
           if (replay(store.read(), actor, sid, 'publication_execute', body).previous) return response(cid, sid, operation.id, { duplicate: true });
-          current(found.row, operation);
+          current(found.row, operation, actor.role);
           if (operation.connectorRunId || operation.status !== 'approved') supplierFail(409, 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'Only a current unexecuted approved operation may run. Unknown outcomes require reconciliation.');
           const result = await capabilities.executeConnector(connectorId, { ...executionInput(operation), approvalId: operation.approvalId }, {
-            binding: binding(operation),
-            assertAllowed(state) { const actual = locate(state, actor, cid, sid, operation.id); current(actual.row, actual.operation); if (actual.operation.status !== 'approved' || actual.operation.connectorRunId || actual.operation.decidedBy !== actor.subject) supplierFail(409, 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'The original owner-approved operation was already used or changed.'); replay(state, actor, sid, 'publication_execute', body); },
+            binding: binding(operation), signal: helpers.signal,
+            assertAllowed(state) { const actual = locate(state, actor, cid, sid, operation.id); current(actual.row, actual.operation, actor.role); if (actual.operation.status !== 'approved' || actual.operation.connectorRunId || actual.operation.decidedBy !== actor.subject) supplierFail(409, 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'The original owner-approved operation was already used or changed.'); replay(state, actor, sid, 'publication_execute', body); },
             onAdmitted(state, run) { const actual = locate(state, actor, cid, sid, operation.id); actual.operation.status = 'running'; actual.operation.connectorRunId = run.id; actual.operation.updatedAt = at(); remember(state, actor, sid, 'publication_execute', body, { operationId: operation.id }); },
           });
           await store.update(state => { const actual = locate(state, actor, cid, sid, operation.id); if (result.execution.status === 'succeeded') applyReceipt(actual.row, actual.operation, result.execution.result, 'original_connector_receipt'); else if (result.execution.status === 'blocked') { actual.operation.status = 'blocked'; actual.operation.error = result.execution.error; actual.operation.updatedAt = at(); } else uncertain(actual.row, actual.operation, result.execution.error || { code: 'SHOPIFY_PUBLICATION_UNCERTAIN' }); });
@@ -184,13 +184,17 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
 
 /** Call after existing enterprise authentication/body checks, before the
  * general supplier route. The original /shopify-draft remains non-writing. */
-export async function supplierPublicationHttp({ publication, req, res, pathname, context, body, respond, service }) {
+export async function supplierPublicationHttp({ publication, req, res, pathname, context, body, respond, service, access }) {
   const match = pathname.match(/^\/api\/conversations\/([^/]+)\/supplier-services\/([^/]+)\/(publication|shopify-review|shopify-decision|shopify-execute|shopify-reconcile)$/);
   if (!match) return false;
   let cid, sid; try { cid = decodeURIComponent(match[1]); sid = decodeURIComponent(match[2]); } catch { supplierFail(400, 'INVALID_PATH', 'Encode the original supplier conversation and identifier once.'); }
-  const helpers = service?.forActor(context), bound = publication.forActor(context, helpers ? { get: helpers.get } : {}), action = match[3];
+  const helpers = service?.forActor(context), action = match[3];
+  const controller = new AbortController();
+  const watcher = action === 'shopify-execute' && req.method === 'POST' ? access?.watchStream(context, () => controller.abort('SESSION_REVOKED')) : null;
+  const bound = publication.forActor(context, { ...(helpers ? { get: helpers.get } : {}), signal: controller.signal });
   if (req.method === 'GET' && action === 'publication') { await respond(res, 200, bound.publication(cid, sid)); return true; }
   const methods = { 'shopify-review': 'reviewPublication', 'shopify-decision': 'decidePublication', 'shopify-execute': 'executePublication', 'shopify-reconcile': 'reconcilePublication' };
   if (req.method !== 'POST' || !methods[action]) supplierFail(405, 'SUPPLIER_PUBLICATION_METHOD_INVALID', 'Use the documented exact review, decision, execution or read-only reconciliation operation.');
-  await respond(res, 200, await bound[methods[action]](cid, sid, body)); return true;
+  try { if (watcher && !watcher.valid()) supplierFail(401, 'SESSION_REQUIRED', 'The original session expired before admission.'); await respond(res, 200, await bound[methods[action]](cid, sid, body)); return true; }
+  finally { watcher?.stop(); }
 }

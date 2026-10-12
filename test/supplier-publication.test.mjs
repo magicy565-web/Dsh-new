@@ -17,22 +17,24 @@ const PUBLIC = ['name', 'description', 'skuCode', 'retailUnit', 'unitsPerPack', 
 
 async function fixture(t, options = {}) {
   const directory = await fs.mkdtemp('/tmp/supplier-publication-test-'), remote = await fakeShopify(t), cid = randomUUID();
-  const actor = { subject: 'local-supplier-fixture', workspaceId: 'local', role: 'operator' };
+  const actor = { subject: 'local-supplier-fixture', workspaceId: 'local', role: options.muse ? 'admin' : 'operator' };
   const imageBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jKAAAAABJRU5ErkJggg==', 'base64'), image = { artifactId: randomUUID(), version: 1, sha256: createHash('sha256').update(imageBytes).digest('hex') };
-  const artifacts = { async download(id, { version }) { assert.equal(id, image.artifactId); assert.equal(version, image.version); return { bytes: imageBytes, mimeType: 'image/png', version: { sha256: image.sha256 } }; } };
+  let museReads = 0, ordinaryReads = 0;
+  const artifacts = { async download(id, { version }) { ordinaryReads++; assert.ok(!options.muse, 'Original Muse images cannot use ordinary artifact download'); assert.equal(id, image.artifactId); assert.equal(version, image.version); return { bytes: imageBytes, mimeType: 'image/png', version: { sha256: image.sha256 } }; } };
   const environment = { WORKSPACE_SHOPIFY_SHOP_DOMAIN: 'supplier-fixture.myshopify.com', WORKSPACE_SHOPIFY_ADMIN_TOKEN: 'LOCAL-SYNTHETIC-SHOPIFY-CREDENTIAL', WORKSPACE_SUPPLIER_SHOPIFY_WRITES_ENABLED: options.disabled ? '0' : '1' };
   let store, capabilities, adapter, domain, supplier, shopify;
   async function open() {
     store = await openStore(directory); adapter = createShopifyPublicationAdapter({ store, environment, fetchImpl: remote.fetchImpl,
-      readImage: (scope, ref) => supplier.forActor(actor).readImage(scope.conversationId, scope.serviceId, ref) });
+      readImage: (scope, ref) => supplier.forActor({ ...actor, role: scope.actorRole }).readImage(scope.conversationId, scope.serviceId, ref) });
     capabilities = await createCapabilityService({ store, environment, adapters: { [SUPPLIER_SHOPIFY_ADAPTER]: adapter } });
     shopify = createShopifyClient({ environment, fetchImpl: remote.fetchImpl });
     domain = await createSupplierPublication({ store, capabilities, shopify, adapter });
-    supplier = createSupplierService({ store, capabilities, shopify, artifacts, runtime: {}, provider: { kind: 'pi-durable' }, businessLibrary: {} });
+    supplier = createSupplierService({ store, capabilities, shopify, artifacts, runtime: {}, provider: { kind: 'pi-durable' }, businessLibrary: {}, readMuseImage: async (context, conversationId, ref) => { assert.equal(context.subject, actor.subject); assert.equal(context.role, 'admin'); assert.equal(conversationId, cid); assert.deepEqual(ref, image); museReads++; return { bytes: imageBytes, mimeType: 'image/png', version: { sha256: image.sha256 } }; } });
   }
   await open();
   if (!options.disabled) { await domain.ensureConnector(); await capabilities.updateConnector(domain.connectorId, { enabled: true }); }
   await store.update(state => state.conversations.push({ id: cid, createdBy: actor.subject, workspaceId: actor.workspaceId, title: 'Local supplier publication fixture' }));
+  if (options.muse) await store.update(state => state.artifacts.push({ id: image.artifactId, metadata: { museNativeAgentId: cid } }));
   const facts = { name: 'Local cotton shirt', description: 'Explicit supplier retail description', targetMarket: 'US', currency: 'USD', skuCode: 'LOCAL-RETAIL-SKU', supplierUnit: 'piece', supplierMoq: 500, wholesaleUnitPrice: '2.50', wholesaleCurrency: 'CNY', productionDays: 30, retailUnit: 'piece', unitsPerPack: 2, consumerPrice: '9.50', handlingDays: 3, shippingDays: 7, images: [{ kind: 'artifact', asset: image, sourceNote: 'Explicit local test image; no real supplier asset' }] };
   const created = await supplier.forActor(actor).request(cid, { requestId: 'initial-fixture-facts', facts });
   let serviceId = created.serviceId;
@@ -44,7 +46,7 @@ async function fixture(t, options = {}) {
   async function createDraft() { const reviewed = await bound().reviewPublication(cid, serviceId, review('draft')); await approve(reviewed.operation); return bound().executePublication(cid, serviceId, command(reviewed.operation)); }
   t.after(async () => { await capabilities.close(); await store.close(); await fs.rm(directory, { recursive: true, force: true }); });
   return { remote, actor, cid, serviceId, directory, environment, image, bound, review, command, approve, createDraft,
-    get store() { return store; }, get capabilities() { return capabilities; }, get adapter() { return adapter; }, get domain() { return domain; }, get supplier() { return supplier; },
+    get store() { return store; }, get capabilities() { return capabilities; }, get adapter() { return adapter; }, get reads() { return { muse: museReads, ordinary: ordinaryReads }; }, get domain() { return domain; }, get supplier() { return supplier; },
     async restart() { await capabilities.close(); await store.close(); await open(); },
   };
 }
@@ -238,4 +240,12 @@ test('image transfer follows the exact reviewed original file reference before s
   assert.equal(file.version.sha256, f.image.sha256);
   await assert.rejects(bound.readImage(f.cid, f.serviceId, { ...f.image, version: 2 }), { code: 'SUPPLIER_IMAGE_UNAVAILABLE' });
   assert.equal(f.remote.count('SupplierStageReviewedImage'), 0);
+});
+
+test('original Muse image transfer retains the approved administrator role and uses the owned Session reader', async t => {
+  const f = await fixture(t, { muse: true }), draft = await f.createDraft();
+  assert.equal(draft.status, 'succeeded'); assert.equal(draft.operation.scope.actorRole, 'admin');
+  assert.equal(f.reads.ordinary, 0); assert.ok(f.reads.muse >= 2);
+  assert.equal(f.remote.state.uploads, 1);
+  assert.equal(draft.operation.receipt.mediaEvidence.remoteBytesVerified, false);
 });

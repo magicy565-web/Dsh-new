@@ -127,7 +127,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     await workerDesk.recoverInterrupted();
     if (Object.hasOwn(connectorAdapters, SUPPLIER_SHOPIFY_ADAPTER)) throw new TypeError('The original supplier Shopify adapter ID cannot be overwritten.');
     publicationAdapter = createShopifyPublicationAdapter({ store, environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock,
-      readImage: (scope, ref) => supplierService.forActor({ subject: scope.subject, workspaceId: scope.workspaceId, role: 'operator' }).readImage(scope.conversationId, scope.serviceId, ref) });
+      readImage: (scope, ref) => supplierService.forActor({ subject: scope.subject, workspaceId: scope.workspaceId, role: scope.actorRole }).readImage(scope.conversationId, scope.serviceId, ref) });
     capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [SUPPLIER_SHOPIFY_ADAPTER]: publicationAdapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
     museDrafts = piMuse ? createMuseDraftService({ store, runtime, piMuse, artifacts, provider }) : null;
@@ -269,7 +269,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
-        if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, req, res, pathname, context, respond })) return;
+        if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, respond })) return;
         if (await supplierServiceHttp({ service: supplierService, req, res, pathname, context, respond })) return;
         if (await draftHttp(req, res, pathname, context)) return;
         if (piMuse && await piMuse.businessHttp({ req, res, pathname, context, query: url.searchParams })) return;
@@ -366,7 +366,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       access.verifyBody(context, req.bodyBytes || Buffer.alloc(0));
       musePrivacy.guardHttp(pathname, context, body);
       if (await draftHttp(req, res, pathname, context, body)) return;
-      if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, req, res, pathname, context, body, respond })) return;
+      if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, body, respond })) return;
       if (await supplierServiceHttp({ service: supplierService, req, res, pathname, context, body, respond })) return;
       const ownedFileMutation = pathname.match(/^\/api\/artifacts\/([^/]+)$/);
       if (ownedFileMutation && musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Original Muse receipt files are immutable and use the original binding.');

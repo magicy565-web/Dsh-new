@@ -132,3 +132,31 @@ test('actual HTTP publication routes preserve original approval binding and exac
   assert.equal(f.app.capabilities.listConnectorRuns().length, 2);
   assert.equal(f.faux.state.callCount, 0, 'a model cannot execute publication side effects');
 });
+
+test('original session revocation stops later Shopify steps and releases its existing watcher', async t => {
+  const f = await fixture(t), review = await f.http(`${f.route}/shopify-review`, 'POST', f.review('draft'));
+  const operation = review.body.operation;
+  assert.equal(operation.scope.actorRole, 'admin');
+  await f.http(`${f.route}/shopify-decision`, 'POST', { ...f.command(operation), decision: 'approved' });
+  let revoke, stopped = 0;
+  f.app.access.watchStream = (context, close) => { assert.equal(context.subject, 'local-operator'); revoke = close; return { valid: () => true, stop() { stopped++; } }; };
+  f.remote.state.afterResponsePrepared = ({ name }) => { if (name === 'SupplierStageReviewedImage') revoke(); };
+  const executed = await f.http(`${f.route}/shopify-execute`, 'POST', f.command(operation));
+  assert.equal(executed.status, 200); assert.equal(executed.body.status, 'uncertain');
+  assert.equal(stopped, 1); assert.equal(f.remote.state.uploads, 0); assert.equal(f.remote.count('SupplierCreateDraft'), 0);
+  const replayed = await f.http(`${f.route}/shopify-execute`, 'POST', f.command(operation));
+  assert.equal(replayed.status, 409); assert.equal(stopped, 2);
+});
+
+test('an expired original session before admission preserves the approval without any external call', async t => {
+  const f = await fixture(t), review = await f.http(`${f.route}/shopify-review`, 'POST', f.review('draft'));
+  const operation = review.body.operation;
+  await f.http(`${f.route}/shopify-decision`, 'POST', { ...f.command(operation), decision: 'approved' });
+  let stopped = 0;
+  f.app.access.watchStream = () => ({ valid: () => false, stop() { stopped++; } });
+  const execution = await f.http(`${f.route}/shopify-execute`, 'POST', f.command(operation));
+  assert.equal(execution.status, 401); assert.equal(execution.body.error.code, 'SESSION_REQUIRED');
+  assert.equal(stopped, 1); assert.equal(f.app.capabilities.listConnectorRuns().length, 0);
+  assert.equal(f.app.capabilities.listApprovals().find(item => item.id === operation.approvalId).status, 'approved');
+  assert.equal(f.remote.count('SupplierCreateDraft'), 0); assert.equal(f.remote.state.uploads, 0);
+});
