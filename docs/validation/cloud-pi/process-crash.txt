@@ -1,9 +1,18 @@
-✔ actual SIGKILL fixture: recover pending Pi work and cached answer before business acknowledgment without duplicate admission (721.664419ms)
-ℹ tests 1
+✔ actual SIGKILL fixture: recover pending Pi work and cached answer before business acknowledgment without duplicate admission (1167.971852ms)
+✔ real Pi package fixture: durable text execution, usage, persisted submission and business dedupe (112.987348ms)
+✔ real Pi package fixture: selected file tool uses original ID/version/SHA snapshot and cannot read ambient data (71.790773ms)
+✔ real Pi package fixture: user cancellation explicitly aborts durable work; reopen does not resume it (100.21013ms)
+✔ real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/submission (110.053005ms)
+✔ real Pi package fixture: default boot is DSH-free, private storage shares original exclusive writer and Muse never falls back (54.972202ms)
+✔ real Pi package fixture: connector proposal stops for original exact approval and explicit continuation (109.753687ms)
+✔ real Pi package fixture: unknown tools, unselected inputs and unselected connector proposals have no effects (146.045333ms)
+✔ real Pi package fixture: interrupted goal resumes its original reservation and reply without duplicating a step (103.926191ms)
+✔ real Pi package fixture: changed selected memory and execution scope block recovery without another model call (51.87598ms)
+ℹ tests 10
 ℹ suites 0
-ℹ pass 1
+ℹ pass 10
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 993.82771
+ℹ duration_ms 1466.264279

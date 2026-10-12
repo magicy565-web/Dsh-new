@@ -13,7 +13,7 @@ library and exact action approval APIs. The client imports the existing shared
 TypeScript schemas. Pi and durable execute on the server. onHide/onUnload stop
 status polling only; they do not cancel or drive work. onShow loads authoritative
 server state again. An uncertain send retries its same original request ID.
-Approval and execution continuation are separate explicit confirmations.
+Approval and execution continuation are separate explicit confirmations. Existing original Muse delegations use compact cards for separate approve/dispatch/refresh/cancel/accept with the same review/receipt hashes and original verified file route; they never become Pi messages or wake calls.
 
 wx.request does not list PATCH in official RequestOption.method. Conversation
 library references therefore accept a POST alias of the existing same business

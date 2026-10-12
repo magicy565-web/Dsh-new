@@ -39,7 +39,10 @@ async function fixture(t) {
 async function associate(f, ui) {
   await wait(() => button(ui, '关联到本会话') && !button(ui, '关联到本会话').disabled, 'actual shared inquiry visible');
   await click(ui, button(ui, '关联到本会话')); const modal = ui.document.querySelector('[role="dialog"]');
-  await click(ui, modal.querySelector('input[type="checkbox"]')); await click(ui, button(ui, '确认关联本会话', modal));
+  await wait(() => modal.querySelector('input[type="checkbox"]') && !modal.querySelector('input[type="checkbox"]').disabled, 'original association scope is settled');
+  await click(ui, modal.querySelector('input[type="checkbox"]'));
+  await wait(() => button(ui, '确认关联本会话', modal) && !button(ui, '确认关联本会话', modal).disabled, 'actual checked association confirmation is enabled');
+  await click(ui, button(ui, '确认关联本会话', modal));
   await wait(() => !ui.document.querySelector('[role="dialog"]'), 'exact inquiry associated');
   await wait(() => button(ui, '回复原采购方') && !button(ui, '回复原采购方').disabled, 'original associated row refreshed');
 }

@@ -1,0 +1,46 @@
+{
+  "sourceCommit": "ee1ad6c16a528284a9bfaf47512094295adb06bb",
+  "sourceTree": "2fdac9af55024e7b3eaff9a19f9529472a0239f6",
+  "sourceFiles": 500,
+  "byteSource": "original Git blobs, not checkout text",
+  "launchReady": false,
+  "libraryFileIds": [],
+  "libraryTransfer": "blocked before prepare by helper tools/list network error",
+  "files": [
+    {
+      "path": "deliverables/Workspace-Agent-Pi-ee1ad6c-Source.zip",
+      "bytes": 4229170,
+      "sha256": "16b0a020543f9f5551624024729625cc714d7063f7d11f18ba6f22ce7cdf2fa8"
+    },
+    {
+      "path": "deliverables/Workspace-Agent-WeChat-Developer-Client.zip",
+      "bytes": 30274,
+      "sha256": "14eed0cce9202c755a83d971908c33c4a90a598a8d50775ce9d3ede907fc524a"
+    },
+    {
+      "path": "deliverables/Workspace-Agent-Pi-ee1ad6c-Source.manifest.json",
+      "bytes": 129511,
+      "sha256": "ddf01ea37e95a337ce2ac53a924239c74fb6e51c3b8920cda2bc5c38273a8dd9"
+    },
+    {
+      "path": "deliverables/SOURCE-FILES-SHA256SUMS.txt",
+      "bytes": 52437,
+      "sha256": "6943ea7044f0108fa9241a226c18c2b277009f63923a2858bb38f934020d44c1"
+    },
+    {
+      "path": "deliverables/CLEAN-EXTRACTION-ACCEPTANCE.json",
+      "bytes": 786,
+      "sha256": "fcc4be25caf0fbce2599ccc152f467a52bb3790da9a7a464e3cd851595544684"
+    },
+    {
+      "path": "docs/validation/cloud-pi/browser/mobile-390.png",
+      "bytes": 64218,
+      "sha256": "8fa84b77b32cffe9f49c51516bd7f5e4fa01269d7ae4c52d12e325c5e636b4ae"
+    },
+    {
+      "path": "docs/validation/cloud-pi/browser/verified-file-preview.png",
+      "bytes": 186937,
+      "sha256": "875de3daf427fa9a5c46405a31c9fd06226814e9972493d913752aee25da667d"
+    }
+  ]
+}
