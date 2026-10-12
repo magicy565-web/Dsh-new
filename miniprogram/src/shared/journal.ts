@@ -1,6 +1,6 @@
 /** Local recovery only. No login code, session token, CSRF or account secrets. */
-export type Pending = { kind: 'send' | 'action' | 'upload' | 'references' | 'create' | 'intake' | 'prepare' | 'reject' | 'procurement-bind' | 'procurement-reply' | 'supplier-intake' | 'supplier-profile' | 'supplier-preview' | 'supplier-operation'; path: string; body: Record<string, unknown>; conversationId?: string; key: string; review?: { title: string; detail: string } };
-export type Checkpoint = { version: 1; owner: string; baseUrl: string; conversationId: string; pending: Pending | null };
+export type Pending = { kind: 'send' | 'action' | 'upload' | 'references' | 'create' | 'intake' | 'prepare' | 'reject' | 'procurement-bind' | 'procurement-reply' | 'supplier-intake' | 'supplier-profile' | 'supplier-preview' | 'supplier-operation' | 'publication-review' | 'publication-decision' | 'publication-execute' | 'publication-reconcile'; path: string; body: Record<string, unknown>; conversationId?: string; key: string; review?: { title: string; detail: string }; reconciliation?: {path:string;body:Record<string,unknown>} };
+export type Checkpoint = { version: 1; owner: string; baseUrl: string; conversationId: string; pending: Pending | null; publicationRequests?: Pending[] };
 export type Journal = { read(owner?: string, baseUrl?: string): Checkpoint | null; write(value: Checkpoint): void };
 
 export function fileJournal(platform: Pick<typeof wx, 'getFileSystemManager' | 'env'>): Journal {

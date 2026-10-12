@@ -8,6 +8,8 @@ import type { Inquiry } from './procurement';
 import { publicListingFields } from './supplier-view';
 import type { SupplierProfile, PublicListingField } from './supplier-view';
 import { validSupplier } from './supplier';
+import { validPublication } from './publication';
+import type { PublicationOperation, PublicationState, PublicationResponse } from './publication';
 import type { SupplierService, SupplierMonitor, SupplierSummary } from './supplier';
 
 export type Session = { authenticated: boolean; csrfToken: string | null; user: { id: string; role: string } | null; expiresAt: string | null; mode: string };
@@ -30,6 +32,7 @@ export class WorkspaceClient {
   private owner = '';
   private conversationId = '';
   private inFlight: { key: string; promise: Promise<unknown> } | null = null;
+  private publicationRequests: Pending[] = [];
   private completed = new Map<string, unknown>();
   private opening: Promise<string> | null = null;
   private loggingIn: Promise<Session> | null = null;
@@ -69,11 +72,12 @@ export class WorkspaceClient {
       const owner = this.session.user?.id || (this.options.allowLoopback && this.session.mode === 'local' ? 'local' : '');
       if (!owner) throw new ClientError('LOGIN_REQUIRED', '企业会话缺少可核对的账号。');
       if (owner !== this.owner) {
-        this.pending = null; this.completed.clear(); this.conversationId = ''; this.owner = ''; this.snapshot = null; this.originalMuseId = ''; this.drafts = [];
+        this.pending = null; this.publicationRequests=[]; this.completed.clear(); this.conversationId = ''; this.owner = ''; this.snapshot = null; this.originalMuseId = ''; this.drafts = [];
         const saved = this.options.journal?.read(owner, this.base());
-        if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create', 'intake', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-intake', 'supplier-profile', 'supplier-preview', 'supplier-operation'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
+        if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create', 'intake', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-intake', 'supplier-profile', 'supplier-preview', 'supplier-operation', 'publication-review', 'publication-decision', 'publication-execute', 'publication-reconcile'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
         if (saved?.version === 1 && saved.owner === owner && saved.baseUrl === this.base()) {
           this.conversationId = saved.conversationId;
+          this.publicationRequests=Array.isArray(saved.publicationRequests)?saved.publicationRequests.filter(item=>item.kind.startsWith('publication-')&&typeof item.path==='string'&&item.body&&typeof item.body.requestId==='string').slice(-30):[];
           if (saved.pending && typeof saved.pending.path === 'string' && typeof saved.pending.key === 'string' && saved.pending.body && typeof saved.pending.body === 'object') this.pending = saved.pending;
         }
         this.owner = owner;
@@ -140,13 +144,14 @@ export class WorkspaceClient {
     return this.commit({ kind: 'send', conversationId, path: `/conversations/${encodeURIComponent(conversationId)}/messages`, body, key: body.requestId }) as Promise<{ run: Run }>;
   }
   private save() {
-    if (this.owner) this.options.journal?.write({ version: 1, owner: this.owner, baseUrl: this.base(), conversationId: this.conversationId, pending: this.pending });
+    if (this.owner) this.options.journal?.write({ version: 1, owner: this.owner, baseUrl: this.base(), conversationId: this.conversationId, pending: this.pending, publicationRequests:this.publicationRequests });
   }
   private commit(command: Pending): Promise<unknown> {
     if (this.inFlight?.key === command.key) return this.inFlight.promise;
     if (this.completed.has(command.key)) return Promise.resolve(this.completed.get(command.key));
     if (this.pending || this.inFlight) return Promise.reject(new ClientError('RESULT_UNCERTAIN', '先核对上一条原请求的结果。'));
     this.pending = command;
+    if(command.kind.startsWith('publication-'))this.publicationRequests=[...this.publicationRequests.filter(item=>item.body.requestId!==command.body.requestId),JSON.parse(JSON.stringify(command))].slice(-30);
     try { this.save(); } catch (error) { this.pending = null; return Promise.reject(error); }
     return this.executePending();
   }
@@ -155,7 +160,7 @@ export class WorkspaceClient {
     if (!command) return Promise.reject(new ClientError('NO_PENDING_REQUEST', '没有需要核对的原请求。'));
     if (this.inFlight) return this.inFlight.promise;
     const promise = this.request(command.path, 'POST', command.body).then(result => {
-      this.pending = null; if (['action', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-preview', 'supplier-operation'].includes(command.kind) && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
+      this.pending = null; if (['action', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-preview', 'supplier-operation','publication-review','publication-decision','publication-execute'].includes(command.kind) && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
     }).catch(error => {
       // A response-lost or server-error request retains its exact original body.
       if (error instanceof ClientError && !['RESULT_UNCERTAIN', 'NETWORK_ERROR'].includes(error.code) && error.status !== 401 && error.code !== 'CSRF_REJECTED') { this.pending = null; this.save(); }
@@ -167,6 +172,7 @@ export class WorkspaceClient {
     if (!this.pending) throw new ClientError('NO_PENDING_REQUEST', '没有需要核对的原请求。');
     if (this.inFlight) return this.inFlight.promise;
     const command = this.pending;
+    if(command.kind==='publication-execute')return this.readPendingPublication(command);
     // Decisions have no server idempotency key. Read their exact resulting state
     // before replaying the same decision; never infer consent from message text.
     if (command.kind === 'action' && command.path.endsWith('/action-decision')) {
@@ -188,7 +194,9 @@ export class WorkspaceClient {
   get pendingKind() { return this.pending?.kind || ''; }
   get pendingDraft() { return ['send', 'intake', 'procurement-reply', 'supplier-intake'].includes(this.pending?.kind || '') ? String(this.pending!.body.content) : ''; }
   get pendingInquiryId() { return this.pending?.kind.startsWith('procurement-') ? decodeURIComponent(this.pending.path.split('/')[3]) : ''; }
-  get pendingSupplierId() { return this.pending?.kind.startsWith('supplier-') ? decodeURIComponent(this.pending.path.split('/')[4] || '') : ''; }
+  get publicationRequestHistory(){return JSON.parse(JSON.stringify(this.publicationRequests)) as Pending[];}
+  get pendingPublicationOperationId(){return this.pending?.kind.startsWith('publication-')?String(this.pending.body.operationId||''):'';}
+  get pendingSupplierId() { return (this.pending?.kind.startsWith('supplier-')||this.pending?.kind.startsWith('publication-')) ? decodeURIComponent(this.pending.path.split('/')[4] || '') : ''; }
   get pendingSummary() { return this.pending ? `${this.pending.review ? `${this.pending.review.title}\n${this.pending.review.detail}\n\n` : ''}原请求 ${this.pending.path}\n${this.pending.kind === 'upload' ? String(this.pending.body.filename) : JSON.stringify(this.pending.body, null, 2)}` : ''; }
   async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.conversationId = ''; this.originalMuseId = ''; this.drafts = []; this.completed.clear(); }
   private assertOriginalMuse(conversationId: string) { if (!this.originalMuseId || conversationId !== this.originalMuseId) throw new ClientError('MUSE_ORIGINAL_BINDING_REQUIRED', '当前账号尚未读取到原 Muse 会话绑定；没有发送替代 Pi 请求。'); if (!this.intakeCapable) throw new ClientError('MUSE_DRAFT_UNAVAILABLE', '当前服务尚未提供原 Muse 草案能力，未发送替代 Pi 请求。'); }
@@ -314,6 +322,40 @@ export class WorkspaceClient {
     const filePath=await new Promise<string>((resolve,reject)=>this.platform.downloadFile({url:this.base()+'/api'+this.supplierPath(conversationId,service.id)+'/images/'+index,header:this.headers(),success:result=>result.statusCode===200?resolve(result.tempFilePath):reject(new ClientError('SUPPLIER_IMAGE_UNAVAILABLE','原图片权限或版本无法核对。')),fail:()=>reject(new ClientError('FILE_DOWNLOAD_FAILED','原图片读取未完成。'))}));
     const hash=await new Promise<string>((resolve,reject)=>this.platform.getFileSystemManager().getFileInfo({filePath,digestAlgorithm:'sha256',success:result=>resolve(result.digest),fail:()=>reject(new ClientError('FILE_VERIFY_FAILED','原图片 SHA 校验未完成。'))}));
     if(hash!==source.asset.sha256) throw new ClientError('FILE_HASH_MISMATCH','原图片字节与 SHA 不符，已拒绝显示。');return filePath;
+  }
+  async publication(conversationId:string,serviceId:string) {
+    const value=await this.request<{service:SupplierService;publication:PublicationState}>(this.supplierPath(conversationId,serviceId)+'/publication');
+    if(!validSupplier(value.service,conversationId)||value.service.id!==serviceId||value.publication?.schema!=='workspace.supplier-publication.v1'||!Array.isArray(value.publication.operations)||value.publication.operations.some(op=>!validPublication(op,conversationId,serviceId))||value.publication.automaticRetry!==false)throw new ClientError('PUBLICATION_RESPONSE_INVALID','原 Shopify 审批/回执范围无法核对，未启用写入。');return value;
+  }
+  async reviewPublication(conversationId:string,service:SupplierService,action:'draft'|'publish',publicationId?:string,confirmed=false) {
+    if(!confirmed||!service.preview||service.preview.phase!=='preview_ready'||service.preview.missingFields.length||!['draft','publish'].includes(action)||action==='publish'&&!/^gid:\/\/shopify\/Publication\/\d+$/.test(publicationId||'')||action==='draft'&&publicationId!==undefined)throw new ClientError('SUPPLIER_CONFIRMATION_REQUIRED','请审阅当前完整预览、明确草稿/图片传输或这一个精确渠道。');
+    const body={requestId:this.requestId(),expectedRevision:service.revision,expectedPreviewHash:service.preview.previewHash,action,...(action==='publish'?{publicationId}:{}),confirmed:true};
+    return this.commit({kind:'publication-review',conversationId,path:this.supplierPath(conversationId,service.id)+'/shopify-review',body,key:body.requestId,review:{title:'准备独立 Shopify 审批',detail:JSON.stringify({preview:service.preview,action,publicationId},null,2)}}) as Promise<PublicationResponse>;
+  }
+  async publicationAction(conversationId:string,serviceId:string,operation:PublicationOperation,action:'approved'|'denied'|'execute'|'reconcile',confirmed=false) {
+    if(!confirmed||!validPublication(operation,conversationId,serviceId))throw new ClientError('SUPPLIER_CONFIRMATION_REQUIRED','请明确确认这一个原操作及 scope hash。');
+    if(action==='approved'&&(operation.stale||operation.status!=='pending_approval'||operation.approvalStatus!=='pending')||action==='denied'&&(operation.status!=='pending_approval'||operation.approvalStatus!=='pending')||action==='execute'&&(!operation.canExecute||operation.stale)||action==='reconcile'&&!operation.canReconcile)throw new ClientError('SUPPLIER_PUBLICATION_STALE','当前原操作不能执行这一动作，请重新读取。');
+    const decision=['approved','denied'].includes(action),suffix=decision?'shopify-decision':action==='execute'?'shopify-execute':'shopify-reconcile',kind=decision?'publication-decision':action==='execute'?'publication-execute':'publication-reconcile';
+    const body={requestId:this.requestId(),operationId:operation.id,expectedScopeHash:operation.scopeHash,...(decision?{decision:action}:{}),confirmed:true};
+    const key=action==='reconcile'?body.requestId:JSON.stringify([kind,operation.id,operation.scopeHash,action]);
+    return this.commit({kind,conversationId,path:this.supplierPath(conversationId,serviceId)+'/'+suffix,body,key,review:{title:action==='execute'?'独立执行已批准的原操作':action==='reconcile'?'只读核对原结果':'原写入审批决定',detail:JSON.stringify(operation.scope,null,2)}}) as Promise<PublicationResponse>;
+  }
+  private async readPendingPublication(command:Pending):Promise<PublicationResponse> {
+    const cid=command.conversationId||'',sid=decodeURIComponent(command.path.split('/')[4]||''),query=await this.publication(cid,sid),op=query.publication.operations.find(item=>item.id===command.body.operationId&&item.scopeHash===command.body.expectedScopeHash);
+    if(!op)throw new ClientError('PUBLICATION_RECONCILIATION_REQUIRED','未找到准确原操作；保留原请求，不重新写入。');
+    if(op.status==='running')return{service:query.service,operation:op,queryOnly:true,waiting:true};
+    if(!op.connectorRunId&&op.canExecute)return{service:query.service,operation:op,queryOnly:true,notAdmitted:true};
+    let result:PublicationResponse={service:query.service,operation:op,queryOnly:true};
+    if(op.canReconcile&&['uncertain','partial'].includes(op.status)){
+      if(!command.reconciliation){command.reconciliation={path:this.supplierPath(cid,sid)+'/shopify-reconcile',body:{requestId:this.requestId(),operationId:op.id,expectedScopeHash:op.scopeHash,confirmed:true}};this.publicationRequests=[...this.publicationRequests.filter(item=>item.body.requestId!==command.body.requestId),JSON.parse(JSON.stringify(command))].slice(-30);this.save();}
+      result=await this.request<PublicationResponse>(command.reconciliation.path,'POST',command.reconciliation.body);
+    }
+    this.pending=null;this.completed.set(command.key,result);this.save();return result;
+  }
+  async executeUnadmittedPublication(confirmed:boolean) {
+    const command=this.pending;if(!confirmed||command?.kind!=='publication-execute')throw new ClientError('SUPPLIER_CONFIRMATION_REQUIRED','必须明确确认重提同一原执行请求。');
+    const cid=command.conversationId||'',sid=decodeURIComponent(command.path.split('/')[4]||''),query=await this.publication(cid,sid),op=query.publication.operations.find(item=>item.id===command.body.operationId&&item.scopeHash===command.body.expectedScopeHash);
+    if(!op||!op.canExecute||op.connectorRunId||op.stale)throw new ClientError('PUBLICATION_RECONCILIATION_REQUIRED','原操作已变化或已进入执行，只能读取核对。');return this.executePending() as Promise<PublicationResponse>;
   }
   references(id: string) { return this.request<{ libraryReferences: References }>(`/conversations/${encodeURIComponent(id)}/library-references`); }
   museDelegations(id: string) { return this.request<{ delegations: MuseDelegation[] }>(`/conversations/${encodeURIComponent(id)}/muse-delegations`); }
