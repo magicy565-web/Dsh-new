@@ -26,6 +26,8 @@
 
 每张截图注明“小程序原源码 Chromium 模拟 · 本地 HTTP/Pi faux · 非微信/Shopify”：
 
+供应商预览截图亦已按用户请求保存 Library：`/actual-service-listing-preview-390.png`，实际返回的文件/版本身份见 [保存记录](evidence/supplier/integrated/library-screenshot.json)。保存的是上述源码模拟图片，没有真实账号、支付或店铺信息，没有外部共享。
+
 - [商品事实与必要缺项](evidence/supplier/integrated/browser/necessary-product-facts-390.png)
 - [准确图片来源审阅](evidence/supplier/integrated/browser/exact-image-source-390.png)
 - [默认未选择的零售字段](evidence/supplier/integrated/browser/exact-retail-scope-390.png)
