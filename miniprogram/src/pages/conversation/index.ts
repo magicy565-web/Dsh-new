@@ -5,6 +5,8 @@ import type { Company, Product, LibraryDocument } from '../../../../src/library/
 import { presentMuseDraft } from '../../shared/muse-drafts';
 import type { MuseDraft } from '../../shared/muse-drafts';
 import type { DraftPresentation } from '../../shared/muse-draft-view';
+import { inquiryScope, procurementMessage } from '../../shared/procurement';
+import type { Inquiry } from '../../shared/procurement';
 let timer: ReturnType<typeof setTimeout> | undefined;
 let reading = false, visible = false, epoch = 0, readFailures = 0;
 const client = () => getApp<{ globalData: { client: WorkspaceClient } }>().globalData.client;
@@ -16,18 +18,20 @@ Page({
   data: { conversationId: '', subject: '', draft: '', messages: [] as Message[], cards: [] as Card[], files: [] as FileReference[], busy: false, awaitingApproval: false, loading: false, error: '', readError: '', authenticated: false,
     uncertain: false, pendingLabel: '', pendingSummary: '', resourceCards: [] as Card[], runtimeNotice: '', readAt: '', referencesOpen: false, reviewCard: null as Card | null, reviewLabel: '', preview: null as { title: string; content: string; verified: boolean } | null,
     company: null as Company | null, products: [] as Product[], documents: [] as LibraryDocument[], references: null as References | null,
-    museDrafts: [] as MuseDraft[], draftCards: [] as ReturnType<typeof presentMuseDraft>[], selectedDraft: null as DraftPresentation | null, goalMode: false, goalBlocked: false, drafting: false, needsDraftInput: false, composerHint: '描述目标或需要补充的信息…' },
+    museDrafts: [] as MuseDraft[], draftCards: [] as ReturnType<typeof presentMuseDraft>[], selectedDraft: null as DraftPresentation | null, goalMode: false, goalBlocked: false, drafting: false, needsDraftInput: false, composerHint: '描述目标或需要补充的信息…',
+    procurementOpen: false, procurementInbox: [] as Inquiry[], procurementAssociated: [] as Inquiry[], procurementError: '', replyInquiryId: '', savedGoal: null as { draft: string; files: FileReference[] } | null,
+    procurementReview: null as { kind: 'bind' | 'reply'; inquiry: Inquiry; detail: string; content: string } | null },
   onShow() { visible = true; epoch++; void this.open(); },
   onHide() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
   onUnload() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
-  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false }); },
+  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null }); },
   async open() {
     const opened = epoch;
     try {
       const session = await client().initialize();
       if (!visible || opened !== epoch) return;
       const subject = session.user?.id || '';
-      if (subject !== this.data.subject) this.setData({ subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
+      if (subject !== this.data.subject) this.setData({ procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
       this.setData({ authenticated: session.authenticated, readError: '' });
       this.setData({ goalMode: client().requiresOriginalMuse });
       if (session.authenticated) await this.refresh();
@@ -55,12 +59,13 @@ Page({
     reading = true; const opened = epoch;
     try {
       const snapshot = await client().bootstrap();
-      const id = await client().mainConversation(snapshot);
+      const originalBound = snapshot.museBinding?.originalBinding === true;
+      const id = client().requiresOriginalMuse && !originalBound ? client().existingBusinessConversation(snapshot) : await client().mainConversation(snapshot);
       const delegations = snapshot.museBinding?.conversationId === id ? (await client().museDelegations(id)).delegations : [];
-      const drafts = client().requiresOriginalMuse && client().museDraftCapable ? (await client().museDrafts(id)).drafts : [];
+      const drafts = client().requiresOriginalMuse && originalBound && client().museDraftCapable ? (await client().museDrafts(id)).drafts : [];
       if (!visible || opened !== epoch) return;
       const view = conversationView(snapshot, id, delegations);
-      const pendingLabel = ({ send: '消息', action: '操作', upload: '文件上传', references: '资料引用', create: '会话创建', intake: '草案文字', prepare: '原订单准备', reject: '草案拒绝' } as Record<string, string>)[client().pendingKind] || '';
+      const pendingLabel = ({ send: '消息', action: '操作', upload: '文件上传', references: '资料引用', create: '会话创建', intake: '草案文字', prepare: '原订单准备', reject: '草案拒绝', 'procurement-bind': '采购关联', 'procurement-reply': '原采购回复' } as Record<string, string>)[client().pendingKind] || '';
       const draftCards = drafts.map(presentMuseDraft);
       const selected = this.data.selectedDraft && draftCards.find(value => value.id === this.data.selectedDraft?.id && !['rejected', 'rejecting'].includes(value.phase));
       const active = [...draftCards].reverse().find(value => !['prepared', 'rejected'].includes(value.phase));
@@ -71,11 +76,12 @@ Page({
         const title = ({ queued: '草案整理已排队', running: '正在整理委托草案', succeeded: '草案已保存', interrupted: '草案整理已中断', cancelled: '草案整理已取消', failed: '草案整理失败', blocked: '草案需要处理' } as Record<string, string>)[status] || '草案状态待核对';
         return { ...card, title, detail: card.detail + '\n此记录是草案整理结果；原任务进度以订单卡为准。' };
       });
-      this.setData({ conversationId: id, ...view, cards, readError: '', uncertain: client().uncertain, pendingLabel, pendingSummary: client().pendingSummary, readAt: new Date().toLocaleTimeString(),
-        museDrafts: drafts, draftCards, selectedDraft: selected || null, goalBlocked: client().requiresOriginalMuse && !client().museDraftCapable, busy: view.busy || drafts.some(value => ['pending', 'preparing', 'rejecting'].includes(value.phase)),
+      this.setData({ conversationId: id, ...view, messages: view.messages.map(value => value.source === 'procurement' ? { ...value, content: procurementMessage(value.content, value.supplyInquiryId) } : value), cards, readError: '', uncertain: client().uncertain, pendingLabel, pendingSummary: client().pendingSummary, readAt: new Date().toLocaleTimeString(),
+        museDrafts: drafts, draftCards, selectedDraft: selected || null, goalBlocked: client().requiresOriginalMuse && (!originalBound || !client().museDraftCapable), busy: view.busy || drafts.some(value => ['pending', 'preparing', 'rejecting'].includes(value.phase)),
         drafting: drafts.some(value => value.phase === 'pending'), needsDraftInput: active?.phase === 'needs_information',
         composerHint: active?.phase === 'needs_information' ? '只需补充上面必要的信息…' : active?.editable ? '补充或修改这份草案…' : '描述要交给原 Muse 的业务目标…',
-        ...(client().pendingDraft && !this.data.draft ? { draft: client().pendingDraft } : {}), runtimeNotice: client().requiresOriginalMuse && !client().museDraftCapable ? '当前服务尚未提供原 Muse 草案能力；此意图已阻挡，请先完成服务接入。' : snapshot.runtime?.configured === false ? '云端模型尚未接入，发送后会保存请求并显示真实阻挡原因。' : '' });
+        ...(client().pendingDraft && !this.data.draft ? { draft: client().pendingDraft } : {}), ...(client().pendingKind === 'procurement-reply' ? { replyInquiryId: client().pendingInquiryId } : {}), runtimeNotice: client().requiresOriginalMuse && !originalBound ? '原 Muse 会话尚未绑定；目标处理已阻挡，采购需求仍可按需关联与回复。' : client().requiresOriginalMuse && !client().museDraftCapable ? '当前服务尚未提供原 Muse 草案能力；此意图已阻挡，请先完成服务接入。' : snapshot.runtime?.configured === false ? '云端模型尚未接入，发送后会保存请求并显示真实阻挡原因。' : '' });
+      if (this.data.procurementOpen || this.data.replyInquiryId || client().pendingInquiryId) await this.refreshProcurement();
       readFailures = 0;
     } catch (error) {
       readFailures++;
@@ -91,6 +97,7 @@ Page({
   },
   draft(event: WechatMiniprogram.Input) { this.setData({ draft: event.detail.value }); },
   async send() {
+    if (this.data.replyInquiryId) { this.reviewProcurementReply(); return; }
     if (!this.data.authenticated || !this.data.conversationId || this.data.loading || this.data.busy || this.data.goalBlocked || client().uncertain) return;
     this.setData({ loading: true, error: '' });
     try { await client().send(this.data.conversationId, this.data.draft, this.data.files); this.setData({ draft: '', files: [] }); await this.refresh(); }
@@ -104,6 +111,7 @@ Page({
     try {
       const result = await client().retryPending() as { artifact?: Artifact };
       if (kind === 'send' || kind === 'intake') this.setData({ draft: '', files: [] });
+      if (kind.startsWith('procurement-')) { this.setData({ procurementReview: null }); if (kind === 'procurement-reply') this.exitProcurementReply(true); }
       if (kind === 'upload' && result.artifact) this.setData({ files: [...this.data.files, fileReference(result.artifact)] });
       if (kind === 'action') this.setData({ reviewCard: null });
       if (kind === 'prepare' || kind === 'reject') this.setData({ selectedDraft: null });
@@ -131,6 +139,54 @@ Page({
   },
   closePreview() { this.setData({ preview: null }); },
   reviewPending() { this.setData({ preview: { title: '原请求核对', content: client().pendingSummary, verified: false } }); },
+  async refreshProcurement() {
+    const opened = epoch, id = this.data.conversationId;
+    try { const value = await client().procurement(id); if (!visible || opened !== epoch || id !== this.data.conversationId) return;
+      this.setData({ procurementInbox: value.inbox, procurementAssociated: value.associated, procurementError: '' });
+      if (client().pendingKind === 'procurement-reply') this.setData({ replyInquiryId: client().pendingInquiryId });
+      else if (this.data.replyInquiryId && !value.associated.some(item => item.id === this.data.replyInquiryId)) this.exitProcurementReply(true);
+    } catch (error) { this.setData({ procurementError: message(error) }); }
+  },
+  async openProcurement() { if (!this.data.authenticated) return; this.setData({ procurementOpen: true }); await this.refreshProcurement(); },
+  closeProcurement() { this.setData({ procurementOpen: false }); },
+  async bindProcurement(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.loading || client().uncertain) return;
+    const inquiry = this.data.procurementInbox.find(value => value.id === event.currentTarget.dataset.id); if (!inquiry) return;
+    try {
+      if (!this.data.conversationId) { this.setData({ loading: true }); const id = await client().mainConversation(await client().bootstrap(), 'business'); this.setData({ conversationId: id }); }
+      this.setData({ procurementReview: { kind: 'bind', inquiry, detail: inquiryScope(inquiry), content: '' }, procurementOpen: false, error: '' });
+    } catch (error) { this.setData({ error: message(error), uncertain: client().uncertain, pendingLabel: '主会话创建' }); }
+    finally { this.setData({ loading: false }); }
+  },
+  beginProcurementReply(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.loading || client().uncertain) return;
+    const inquiry = this.data.procurementAssociated.find(value => value.id === event.currentTarget.dataset.id); if (!inquiry) return;
+    this.setData({ savedGoal: this.data.savedGoal || { draft: this.data.draft, files: this.data.files }, draft: '', files: [], replyInquiryId: inquiry.id, procurementOpen: false, error: '' });
+  },
+  exitProcurementReply(committed: unknown = false) {
+    if (committed !== true && (this.data.loading || client().uncertain)) return;
+    const saved = this.data.savedGoal;
+    this.setData({ replyInquiryId: '', procurementReview: null, draft: saved?.draft || '', files: saved?.files || [], savedGoal: null });
+  },
+  reviewProcurementReply() {
+    if (this.data.loading || client().uncertain) return;
+    const inquiry = this.data.procurementAssociated.find(value => value.id === this.data.replyInquiryId);
+    if (!inquiry) { this.setData({ error: '原共享状态已改变，请重新读取需求。' }); return; }
+    if (!this.data.draft.trim() || this.data.draft.trim().length > 2400) { this.setData({ error: '原采购回复请使用1至2400字的明确文字。' }); return; }
+    this.setData({ procurementReview: { kind: 'reply', inquiry, detail: inquiryScope(inquiry), content: this.data.draft.trim() }, error: '' });
+  },
+  closeProcurementReview() { if (!this.data.loading) this.setData({ procurementReview: null }); },
+  async confirmProcurement() {
+    const review = this.data.procurementReview; if (!review || this.data.loading || client().uncertain) return;
+    this.setData({ loading: true, error: '' });
+    try {
+      if (review.kind === 'bind') await client().bindProcurement(review.inquiry, this.data.conversationId, true);
+      else await client().replyProcurement(review.inquiry, this.data.conversationId, review.content, true);
+      this.setData({ procurementReview: null }); if (review.kind === 'reply') this.exitProcurementReply(true);
+      await this.refresh(); await this.refreshProcurement();
+    } catch (error) { this.setData({ error: message(error), uncertain: client().uncertain, pendingLabel: review.kind === 'bind' ? '采购关联' : '原采购回复' }); }
+    finally { this.setData({ loading: false }); }
+  },
   openDraft(event: WechatMiniprogram.TouchEvent) {
     if (this.data.loading || client().uncertain) return;
     const draft = this.data.draftCards.find(value => value.id === event.currentTarget.dataset.id && (value.editable || value.rejectable));

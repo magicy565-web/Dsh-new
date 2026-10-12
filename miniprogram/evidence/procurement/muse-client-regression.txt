@@ -1,0 +1,43 @@
+✔ draft view only shows received fields; a missing budget/deadline never becomes an invented permission (0.911959ms)
+✔ amount, deadline and public scope require three explicit confirmations and reset on return or changed revision/draftHash (1.13123ms)
+✔ draft view requires actual fields and presents a model suggestion separately from explicit user confirmation (0.144018ms)
+✔ shipped Muse goal mode rejects missing original binding and never substitutes a Pi send or creates a generic conversation (2.388981ms)
+✔ actual compiled review component emits no prepare without three explicit confirmations (5.342638ms)
+✔ unchanged authoritative polling preserves review checks, changed revision resets them; edit/return never submit (1.255968ms)
+✔ unknown operation disables all mutations and rejects missing scope despite received suggestions (0.805007ms)
+✔ actual Page goal/reply uses frozen Muse routes/version and only server missing questions; zero ordinary Pi sends (20.883123ms)
+✔ lost intake and prepare responses survive cold client restart and reuse original body without another order (36.294703ms)
+✔ stale selected scope cannot prepare through actual Page callback; no client body can override order values (12.424084ms)
+✔ actual Page -> signed HTTP/Pi tool -> one clarified original draft -> separate prepare/approve/dispatch -> real SHA file (738.148521ms)
+✔ actual HTTP first 202 and prepare acknowledgment loss reopen same original draft/body/order without another model call (247.679608ms)
+✔ actual HTTP edits retire old revision; explicit reject of prepared draft retires old review and lost rejection reuses original body (321.517193ms)
+✔ cold process + cloud store restart recovers the exact lost message request without another model call (235.442608ms)
+✔ actual Page callbacks coalesce send/retry taps, retain offline input, and never cancel on hide/unload (121.515852ms)
+✔ exact approval survives lost response; retry reads original proposal; execution continuation reuses one requestId (279.803416ms)
+✔ actual Page rejection targets the exact proposal and never executes the original connector (150.979354ms)
+✔ actual Page full review preserves payload beyond old 3000-character modal limit (59.714711ms)
+✔ image/PDF upload loss retries original bytes without extraction; actual file preview requires SHA match (180.111578ms)
+✔ journal is bound to confirmed enterprise subject, never stores login/session/CSRF; expired sessions fail closed (1.363481ms)
+✔ write-ahead journal failure stops mutation; legacy unknown create without requestId cannot be replayed or guessed (0.545675ms)
+✔ lost conversation creation response recovers the same durable request after client and server reopen (82.319157ms)
+✔ Muse stop states and accepted files retain exact scope; refresh can run again and never claims execution (0.925689ms)
+✔ actual Page ignores delayed reads after unload and clears old account content on expired session (60.199445ms)
+✔ real file journal preserves original request and fails closed for corrupt saved JSON (2.511978ms)
+✔ compiled shipped App boots with empty service and cannot obtain a code or send any request (1.159172ms)
+✔ malformed local recovery record remains blocked on every initialization attempt (0.200393ms)
+✔ actual Page explicit cancel aborts the original durable run; lost stop response reuses original run after cold restart (136.004012ms)
+✔ actual Page explicit interrupted recovery retries one original requestId and retains cloud run/submission (167.373831ms)
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (202.574865ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (59.744857ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (66.269832ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (0.954143ms)
+✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (2.712411ms)
+✔ WeChat original Muse fixture: exact approval/dispatch/file/accept cards never become a Pi model request or wake (4.292846ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2237.341576

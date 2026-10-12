@@ -1,0 +1,32 @@
+✔ actual mini Page -> original HTTP procurement/MCP: private draft, explicit shared association, one reviewed reply, buyer read/reload; models zero (307.972006ms)
+✖ unknown association and reply results cold-recover original UUID/body; no extra share/reply or Pi fallback (218.218955ms)
+✔ reply selection preserves unsent goal/files and transmits only confirmed reply text; revocation removes new-reply controls (115.987397ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 995.407678
+
+✖ failing tests:
+
+test at miniprogram/test/procurement-client.test.mjs:21:1
+✖ unknown association and reply results cold-recover original UUID/body; no extra share/reply or Pi fallback (218.218955ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + ''
+  - '698a0295-4682-469e-833e-7394523a0fef'
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/procurement-client.test.mjs:25:145)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: '698a0295-4682-469e-833e-7394523a0fef',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

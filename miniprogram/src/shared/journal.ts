@@ -1,5 +1,5 @@
 /** Local recovery only. No login code, session token, CSRF or account secrets. */
-export type Pending = { kind: 'send' | 'action' | 'upload' | 'references' | 'create' | 'intake' | 'prepare' | 'reject'; path: string; body: Record<string, unknown>; conversationId?: string; key: string; review?: { title: string; detail: string } };
+export type Pending = { kind: 'send' | 'action' | 'upload' | 'references' | 'create' | 'intake' | 'prepare' | 'reject' | 'procurement-bind' | 'procurement-reply'; path: string; body: Record<string, unknown>; conversationId?: string; key: string; review?: { title: string; detail: string } };
 export type Checkpoint = { version: 1; owner: string; baseUrl: string; conversationId: string; pending: Pending | null };
 export type Journal = { read(owner?: string, baseUrl?: string): Checkpoint | null; write(value: Checkpoint): void };
 
