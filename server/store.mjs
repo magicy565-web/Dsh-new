@@ -85,6 +85,15 @@ export function validateState(state, version = STORE_VERSION) {
       if (seen.has(key)) throw invalid(); seen.add(key);
     }
   }
+  if (Object.hasOwn(state, 'workspaceWechatLoginAttempts')) {
+    const registry = state.workspaceWechatLoginAttempts;
+    if (!isObject(registry) || registry.version !== 1 || !Array.isArray(registry.codes) || registry.codes.length > 1000) throw invalid();
+    const seen = new Set();
+    for (const row of registry.codes) {
+      if (!isObject(row) || Object.keys(row).some(key => !['digest', 'expiresAt'].includes(key)) || typeof row.digest !== 'string' || !/^[a-f0-9]{64}$/.test(row.digest) || !Number.isSafeInteger(row.expiresAt) || row.expiresAt < 0 || seen.has(row.digest)) throw invalid();
+      seen.add(row.digest);
+    }
+  }
   // V12 optional bridge receipt registry: legacy schema-v3 snapshots stay readable.
   if (Object.hasOwn(state, 'workerDelegations')) validateCollection(state.workerDelegations);
   // Optional private single-enterprise sourcing pilot. No migration of legacy

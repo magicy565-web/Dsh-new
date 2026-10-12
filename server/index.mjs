@@ -1,4 +1,5 @@
 import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
+import { openWechatIngress } from './wechat-ingress.mjs';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readLocalVerification, operationalDiagnostics } from './diagnostics.mjs';
@@ -554,7 +555,7 @@ async function main() {
     scopeReviewed: process.env.WORKSPACE_DOT_SCOPE_REVIEWED === '1',
     externalBudgetVerified: process.env.WORKSPACE_DOT_EXTERNAL_BUDGET_VERIFIED === '1',
   } : null;
-  let app;
+  let app, nativeIngress;
   try {
     app = await createApp({ dataDirectory, provider, access,
       workerAdapters: reviewedWorkers.adapters,
@@ -562,13 +563,15 @@ async function main() {
       allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [],
       maxConcurrentRuns: 3 });
     await app.listen(port);
+    nativeIngress = await openWechatIngress({ app, access, configFile: process.env.WORKSPACE_WECHAT_INGRESS_FILE });
   } catch (error) {
+    await nativeIngress?.close();
     await Promise.allSettled([app?.close?.(), reviewedWorkers.close()]);
     throw error;
   }
   console.log(`Workspace server: http://127.0.0.1:${port} (${access.mode} access; ${mode}; ${provider.configured ? 'configured; not connection-tested' : 'setup required'})`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
-    Promise.allSettled([app.close(), reviewedWorkers.close()]).then(results => {
+    Promise.resolve(nativeIngress?.close()).then(() => Promise.allSettled([app.close(), reviewedWorkers.close()])).then(results => {
       process.exit(results.every(result => result.status === 'fulfilled') ? 0 : 1);
     });
   });
