@@ -4,7 +4,7 @@
 
 已按该提交的稳定文档消费三种写入：原会话 supplier-services 初始/追问（requestId/content/expectedRevision）、准确 facts 保存，以及 expectedRevision/confirmed/publicFields 预览。请求经现有写前 journal，失败未知时保留原 UUID/body，不另造身份、模型调度或发布流程。商品预览和公开字段审阅组件沿用原卡片/抽屉样式；字段选择默认空，原事实或修订变化重置。服务端生成的零售单位、包装件数、消费者售价、处理/运输时间与图片来源原样显示，MOQ/批发价/建议价/生产期不能代填；图片未观察仍未知，preview 不能当作 Shopify 商品或渠道发布回执。
 
-普通组件/显示测试使用实际后端 profile/preview 核心输出以及编译后的 native Component 回调，五项通过；这是产品开发测试，不是微信运行或独立安全审核。这里尚未接通未实现的 service 会话路由，不声称 UI→HTTP→Pi 闭环已完成。
+普通组件/显示测试使用实际后端 profile/preview 核心输出以及编译后的 native Component 回调，五项通过；与原 Muse/采购合跑 **43/43 通过**（[日志](evidence/supplier/preflight-client-tests.txt)）。这是产品开发测试，不是微信运行或独立安全审核。[官方类型编译](evidence/supplier/preflight-build.txt)通过。[原组件有限 Chromium 模拟](evidence/supplier/preflight/acceptance.json)七组检查、零页面错误、320px无横向溢出；[商品预览](evidence/supplier/preflight/server-core-preview-390.png)、[初始未选择范围](evidence/supplier/preflight/unselected-exact-scope-390.png)、[320px](evidence/supplier/preflight/compact-scope-320.png)明确标注“非微信/HTTP闭环”。这里尚未接通未实现的 service 会话路由，不声称 UI→HTTP→Pi 闭环已完成，也不把这些截图当成完成的主会话流程。
 
 后端尚需明确的集中缺口：
 
