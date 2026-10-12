@@ -1,0 +1,10 @@
+✔ original conversation readiness labels keep all blocking causes distinct and do not infer domain from handle (1.057669ms)
+✔ readable label needs explicit confirmed service read and actual domain; login/token-like data has no effect (0.401867ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 66.549679

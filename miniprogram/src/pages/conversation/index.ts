@@ -9,6 +9,7 @@ import { inquiryScope, procurementMessage } from '../../shared/procurement';
 import type { Inquiry } from '../../shared/procurement';
 import { presentSupplier, presentMonitor, supplierErrorText } from '../../shared/supplier';
 import type { SupplierService, SupplierMonitor } from '../../shared/supplier';
+import type {ShopReadinessView} from '../../shared/shop-readiness-view';
 import { supplierFieldLabels } from '../../shared/supplier-view';
 import {presentPublication,publicationScopeText,canReviewDraftRepair,mediaSnapshotText} from '../../shared/publication';
 import type {PublicationState,PublicationOperation,PublicationResponse} from '../../shared/publication';
@@ -25,7 +26,7 @@ const labels: Record<string, string> = { approve: '批准此项', deny: '拒绝�
 const fileReference = (artifact: Artifact): FileReference => ({ id: artifact.id, version: artifact.currentVersion, sha256: artifact.sha256, filename: artifact.filename, mimeType: artifact.mimeType });
 
 Page({
-  data: { conversationId: '', subject: '', draft: '', messages: [] as Message[], cards: [] as Card[], files: [] as FileReference[], busy: false, awaitingApproval: false, loading: false, error: '', readError: '', authenticated: false,
+  data: { shopReadiness:null as ShopReadinessView|null,conversationId: '', subject: '', draft: '', messages: [] as Message[], cards: [] as Card[], files: [] as FileReference[], busy: false, awaitingApproval: false, loading: false, error: '', readError: '', authenticated: false,
     uncertain: false, pendingLabel: '', pendingSummary: '', resourceCards: [] as Card[], runtimeNotice: '', readAt: '', referencesOpen: false, reviewCard: null as Card | null, reviewLabel: '', preview: null as { title: string; content: string; verified: boolean } | null,
     company: null as Company | null, products: [] as Product[], documents: [] as LibraryDocument[], references: null as References | null,
     museDrafts: [] as MuseDraft[], draftCards: [] as ReturnType<typeof presentMuseDraft>[], selectedDraft: null as DraftPresentation | null, goalMode: false, goalBlocked: false, drafting: false, needsDraftInput: false, composerHint: '描述目标或需要补充的信息…',
@@ -36,19 +37,20 @@ Page({
   onShow() { visible = true; epoch++; void this.open(); },
   onHide() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
   onUnload() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
-  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, publicationState:null,publicationCards:[],publicationError:'',shopifyReview:null,publicationNotAdmitted:false,notificationNotAdmitted:false,newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'', supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null }); },
+  clearAccount() { this.setData({ shopReadiness:null,authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, publicationState:null,publicationCards:[],publicationError:'',shopifyReview:null,publicationNotAdmitted:false,notificationNotAdmitted:false,newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'', supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null }); },
   async open() {
     const opened = epoch;
     try {
       const session = await client().initialize();
       if (!visible || opened !== epoch) return;
       const subject = session.user?.id || '';
-      if (subject !== this.data.subject) this.setData({ publicationState:null,publicationCards:[],publicationError:'',shopifyReview:null,publicationNotAdmitted:false,notificationNotAdmitted:false,newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'',supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
+      if (subject !== this.data.subject) this.setData({shopReadiness:null, publicationState:null,publicationCards:[],publicationError:'',shopifyReview:null,publicationNotAdmitted:false,notificationNotAdmitted:false,newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'',supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
       this.setData({ authenticated: session.authenticated, readError: '' });
       this.setData({ goalMode: client().requiresOriginalMuse });
       if (session.authenticated) await this.refresh();
     } catch (error) { if (visible && opened === epoch) { this.clearAccount(); this.setData({ readError: message(error) }); } }
   },
+  showShopReadinessDetails(){const value=this.data.shopReadiness;if(value)this.setData({preview:{title:value.title,content:value.detail,verified:false}});},
   async login() {
     if (this.data.loading) return;
     this.setData({ loading: true, error: '' });
