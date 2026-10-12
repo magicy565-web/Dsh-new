@@ -42,7 +42,10 @@ export function createMuseDraftService({ store, runtime, piMuse, artifacts, prov
       }
       if (context.selection?.connectorActions?.length) fail(400, 'MUSE_DRAFT_INPUT', 'Drafting cannot select connector effects.');
       const result = await runtime.sendMessage(conversationId, { content: body.content, requestId: body.requestId, inputContext: context.selection, workspaceExecution: true }, { museDraftContext: context });
-      return { ...result, draftId: context.draftId, revision: context.revision, scopeVersion: context.revision };
+      // Concurrent identical creates may compile different provisional IDs before
+      // the original admission transaction dedupes them. Return its saved ID.
+      const admitted = store.read().runs.find(run => run.id === result.run.id)?.museDraftContext || context;
+      return { ...result, draftId: admitted.draftId, revision: admitted.revision, scopeVersion: admitted.revision };
     },
     async prepare(conversationId, id, body) {
       if (!exact(body, ['requestId', 'expectedRevision', 'expectedDraftHash', 'confirmed', 'budgetConfirmed', 'deadlineConfirmed', 'publicDataConfirmed']) || !key(body.requestId) || body.confirmed !== true || body.budgetConfirmed !== true || body.deadlineConfirmed !== true || body.publicDataConfirmed !== true)
