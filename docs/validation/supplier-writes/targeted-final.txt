@@ -1,0 +1,33 @@
+✔ actual HTTP publication routes preserve original approval binding and exact query recovery across restart (343.055742ms)
+✔ original session revocation stops later Shopify steps and releases its existing watcher (81.428304ms)
+✔ an expired original session before admission preserves the approval without any external call (54.431918ms)
+✔ host defaults and the original disabled connector block writes without preparing approval (43.085955ms)
+✔ original approval and connectorRuns create one exact draft then publish a separately approved version (246.5136ms)
+✔ repeated submissions, lost local response and cold reopen retain the same operation, approval and remote product (121.855682ms)
+✔ changed preview invalidates the previous approval and allows a separate current review without writing (49.44231ms)
+✔ remote draft acknowledgement lost after price update is read-only reconciled after restart (83.295218ms)
+✔ lost create acknowledgement preserves a partial draft and never automatically performs missing variant writes (76.002977ms)
+✔ publication response loss is reconciled by product marker and channel receipt without a second publish (140.948169ms)
+✔ pending media can later be reconciled and unowned or altered external markers never count as completion (75.591465ms)
+✔ a review response gap before approval creation resumes the original operation rather than leaving preparing forever (20.459468ms)
+✔ turning off writes retains read-only access to an original uncertain receipt (67.035954ms)
+✔ a remote image replacement after draft creation cannot be published as the original approved preview (88.160333ms)
+▶ content or publication metadata changed during activation is observed before any channel publish
+  ✔ content (127.478949ms)
+  ✔ publication_marker (110.888082ms)
+✔ content or publication metadata changed during activation is observed before any channel publish (238.939477ms)
+✔ older draft reconciliation cannot replace a later publication and unknown latest receipts are visibly uncertain (130.944071ms)
+✔ an expired unused review remains recorded and a new explicit review can request a fresh original approval (50.412207ms)
+✔ revoking the original connector after staging interrupts transfer without creating a product (60.873081ms)
+✔ a credential omitted from the original broker cannot be replaced by the host secret (16.94982ms)
+✔ same media identity with a changed CDN URL is incomplete and cannot be published (84.817681ms)
+✔ image transfer follows the exact reviewed original file reference before staged authorization (10.199279ms)
+✔ original Muse image transfer retains the approved administrator role and uses the owned Session reader (65.350464ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1771.320002
