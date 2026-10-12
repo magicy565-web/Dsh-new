@@ -1,0 +1,19 @@
+﹣ historical pre-supplier byte pins remain unchanged; current extensions have no new review claim (6.39471ms) # Source-only archive has no historical Git objects; this historical proof is unrun, current business cases still run.
+✔ public retail reference cannot become supplier quotation, supply policy or hosted enterprise inventory (10.776803ms)
+✔ SKU record is enterprise-local and rejects unimplemented supplier/Shopify mapping fields (0.61149ms)
+✔ private enterprise assets stay inaccessible through the existing generic connector, even with a pinned version (1.268258ms)
+✔ existing Worker MCP has no procurement/file-lookup bypass and rejects injected private references before bridge access (0.548836ms)
+✔ current product library remains draft-only and Shopify adapter exposes scoped reads without publication writes (0.546372ms)
+✔ existing connector execution rejects publication-shaped actions without an exact approval (5.407625ms)
+✔ one exact connector approval cannot authorize another product revision, store, connector revision or repeated execution (2.970279ms)
+✔ hosting pins exact enterprise product revision and explicit public scope without reading private company facts (1.293086ms)
+✔ accepted Worker task or completed Goal is not sales evidence, settlement or billable operating result (0.788677ms)
+✔ only recorded non-test paid/fulfilled net receipts count; partial sync and task results never imply attribution or profit (0.610418ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 133.231653

@@ -1,0 +1,9 @@
+supplier-browser 1
+supplier-components-browser 1
+intake-browser 1
+publication-browser 1
+draft-repair-browser 1
+monitor-browser 1
+notification-closure-browser 1
+procurement-browser 1
+browser-simulator 1
