@@ -4,6 +4,7 @@ import { createMuseDraftService } from './muse-draft-service.mjs';
 import { createSupplierService, supplierServiceHttp } from './supplier-service.mjs';
 import { SupplierServiceError } from './supplier-profile.mjs';
 import { createSupplierMonitoring } from './supplier-monitoring.mjs';
+import { createSupplierWorkerMcpExtension } from './supplier-mcp.mjs';
 import { MuseDraftError } from './muse-draft.mjs';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
@@ -127,7 +128,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     museDrafts = piMuse ? createMuseDraftService({ store, runtime, piMuse, artifacts, provider }) : null;
     shopify = createShopifyClient({ environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock });
     supplierMonitoring = await createSupplierMonitoring({ store, runtime, capabilities, shopify, clock: accessClock, trafficAdapter: supplierTrafficAdapter });
-    supplierService = createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock: accessClock, monitoring: supplierMonitoring });
+    supplierService = createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock: accessClock, monitoring: supplierMonitoring,
+      readMuseImage: async (actor, cid, ref) => { if (!piMuse || piMuse.snapshot(actor).conversationId !== cid) throw new SupplierServiceError(404, 'SUPPLIER_IMAGE_UNAVAILABLE', 'Use the original reviewed Muse owner and Session.'); piMuse.forActor(actor); const file = await piMuse.native.bindSession(piMuse.actor).download({ artifactId: ref.artifactId, version: ref.version, sha256: ref.sha256 }); return { ...file, version: { sha256: file.sha256 } }; } });
     commerce = createCommerceService({ store, runtime, shopify, workerDesk, workerCatalog: () => workerDesk.catalog(), museConnection: () => museBridge?.info(), clock: accessClock });
     supply = createSupplyNetworkService({ store, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local',
       merchantMember: subject => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(subject)) : subject === 'local-operator' });
@@ -141,6 +143,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     sourcingMcpAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
   } catch (error) { await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
+  const supplierMcpExtension = bridge => createSupplierWorkerMcpExtension({ bridge, service: supplierService, store, workspaceId: accessConfig.workspaceId || 'local', memberRole: subject => accessConfig.mode === 'enterprise' ? accessConfig.members.get(subject) : subject === 'local-operator' ? 'admin' : null });
+  const supplierMcpEnabled = capabilityEnvironment.WORKSPACE_SUPPLIER_MCP_ENABLED === 'true';
   async function draftHttp(req, res, pathname, context, body) {
     const match = pathname.match(/^\/api\/conversations\/([^/]+)\/muse-drafts(?:\/([^/]+)(?:\/(messages|prepare|reject))?)?$/);
     if (!match) return false;
@@ -201,6 +205,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       // Muse is a separate, authenticated REST API; it does not share the Dot
       // worker credential, task queue or MCP plugin protocol.
       if (pathname === '/api/muse-worker' || pathname.startsWith('/api/muse-worker/')) {
+        if (pathname === '/api/muse-worker/mcp') { if (!supplierMcpEnabled || !piMuse) throw new ApiError(404, 'MW_ORIGINAL_BINDING_REQUIRED', 'Enable only the exact existing reviewed Muse owner Host supplier MCP facet.'); await piMuse.native.supplierMcp(req, res, supplierMcpExtension); return; }
         if (piMuse) { await piMuse.workerHttp(req, res, pathname); return; }
         if (!museHost) throw new ApiError(404, 'MW_GATEWAY_UNAVAILABLE', 'Muse REST gateway is not configured on this host.');
         await museHost.handle(req, res, pathname);
@@ -212,7 +217,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (pathname === '/mcp' || pathname === '/api/dot-worker/mcp') {
         if (!dotBridge || !dotAuth) throw new ApiError(404, 'DOT_BRIDGE_UNAVAILABLE', 'The private dot MCP gateway is not installed on this host.');
         dotAuth(req);
-        return await handleDotMcpHttp(req, res, { bridge: dotBridge, readBody });
+        return await handleDotMcpHttp(req, res, { bridge: dotBridge, readBody, extension: supplierMcpEnabled ? supplierMcpExtension(dotBridge) : null });
       }
       // Personal ChatGPT dots are pull-based tool users, NOT public A2A
       // endpoints. A dedicated server-side bearer credential isolates the
