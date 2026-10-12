@@ -1,0 +1,25 @@
+✔ cold process + cloud store restart recovers the exact lost message request without another model call (219.986735ms)
+✔ actual Page callbacks coalesce send/retry taps, retain offline input, and never cancel on hide/unload (123.777163ms)
+✔ exact approval survives lost response; retry reads original proposal; execution continuation reuses one requestId (231.564357ms)
+✔ actual Page rejection targets the exact proposal and never executes the original connector (90.863254ms)
+✔ actual Page full review preserves payload beyond old 3000-character modal limit (21.304022ms)
+✔ image/PDF upload loss retries original bytes without extraction; actual file preview requires SHA match (133.809702ms)
+✔ journal is bound to confirmed enterprise subject, never stores login/session/CSRF; expired sessions fail closed (1.62096ms)
+✔ write-ahead journal failure stops mutation; unknown create is not replayed without a backend idempotency contract (0.426074ms)
+✔ Muse stop states and accepted files retain exact scope; refresh can run again and never claims execution (0.460897ms)
+✔ actual Page ignores delayed reads after unload and clears old account content on expired session (58.703266ms)
+✔ real file journal preserves original request and fails closed for corrupt saved JSON (4.197023ms)
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (192.791049ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (70.843959ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (72.049551ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (1.367947ms)
+✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (0.455528ms)
+✔ WeChat original Muse fixture: exact approval/dispatch/file/accept cards never become a Pi model request or wake (0.776263ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1620.637553
