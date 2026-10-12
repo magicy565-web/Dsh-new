@@ -102,7 +102,52 @@ the original Muse owner as unauthorized; it now checks another authenticated
 owner's attempt to reference original Muse private data. No policy was weakened.
 
 The 15 tools are callable through `/workspace-supplier call/file TOOL` in the same
-Pi extension. They are **not registered as model tools**, and natural language is
-help-only. The authoritative schemas come from PR57 `tools/list`, not a copied
+Pi extension. Default command mode registers no model tool and natural language
+is help-only. The later explicit Agent mode below registers five narrower native
+proposal tools. The authoritative schemas come from PR57 `tools/list`, not a copied
 permission model. Exact commands, retry restrictions, model boundaries, backend
 dependencies and remaining production gaps are in [SUPPLIER-MCP.md](SUPPLIER-MCP.md).
+
+## Native Pi Agent mode follow-up
+
+Source preservation checkpoint: `2b2b5188a72c801435b5bb9807f9ba2f24e4fc9e`,
+following supplier command source `516c15f5029125ff4e8b307862ef4c00567edec4`.
+Fixed backend remains PR57 `68558d22a46e92fef4b8a300c69b2fbad61fbb20`.
+This follow-up changes only `tui/`; Pi 1.1.0 remains the runtime and model loop.
+
+| Run | Result | Evidence |
+| --- | --- | --- |
+| Combined command/supplier/native-tool regression | 14 pass, 0 fail/skip | [Combined](validation/agent-regressions.txt) |
+| Native proposal tool checks, including same-call changed-input conflict | 2 pass, 0 fail/skip | [Tool checks](validation/agent-tool-tests.txt) |
+| Actual Pi Agent CLI/PTY + native noninteractive CLI | 8 checkpoints, 15 synthetic provider requests | [Agent terminal](validation/agent-terminal-tests.txt) |
+| Existing no-model Muse CLI/PTY | 8 checkpoints | [Muse command mode](validation/agent-muse-command-regressions.txt) |
+| Existing no-model supplier CLI/PTY | 7 checkpoints | [Supplier command mode](validation/agent-supplier-command-regressions.txt) |
+
+The deterministic loopback provider speaks the existing Pi streaming API through
+a temporary original `models.json` profile. It supplies synthetic tool calls; Pi
+itself validates, executes and returns tool results into the next provider request.
+The test uses actual service IDs/revisions from prior tool results, not invented
+receipts. All actual business calls use the original Host RPC/session/signed HTTP.
+
+Verified: intake No creates nothing; confirmed intake/get/profile/preview use the
+original supplier service; Muse creates only an original draft; model-emitted
+dispatch/publication/schedule calls are unavailable; model approval fields fail
+native schema validation; raw Pi JSON/print execution fails INTERACTIVE_TUI_REQUIRED.
+Unit coverage additionally rejects RPC even with hasUI, nonboolean confirmation,
+cancellation and stale revision. Original manual approve/dispatch commands still
+use their visible confirmations and current review hashes.
+
+The first PTY driver waited on a transient startup notification later overwritten
+by another notification. It now reads `/workspace-agent status`. A later check
+encountered physical wrapping inside a JSON key; the driver now normalizes terminal
+layout whitespace while retaining the exact value check. The initial wrapped
+output is retained in [initial output](validation/agent-terminal-wrapped-output-initial.txt).
+The original successful complete run is also retained in
+[first complete run](validation/agent-terminal-first-complete-attempt.txt).
+
+The synthetic provider performs no real inference or external request; backend
+modelRuns=0. RealModel/Shopify/Muse flags remain false. No real Pi profile was opened,
+no real key was supplied and no model fees were incurred. Actual natural-language
+quality, real provider login/billing, production foreground Host and Windows remain
+unverified. No new approval/grant, background work or unattended notification is
+introduced. See [AGENT-MODE.md](AGENT-MODE.md) for current commands and boundaries.

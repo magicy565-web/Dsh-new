@@ -25,12 +25,14 @@
 | --- | --- |
 | 同一 Pi 中 `/workspace-supplier` | initialize → initialized → tools/list → tools/call，15 项原 owner 工具，交互确认写请求 |
 | `/workspace-muse` | 原任务草稿、单独审批/派发、单订单交接、读取/验收继续保留 |
-| Pi 自然语言输入 | 显示命令帮助，**不运行模型、不选择或调用供应商工具** |
-| Pi 模型工具注册 | **没有**；`modelToolsRegistered:false`，启动器继续禁用模型工具和自动 MCP 发现 |
+| 默认命令模式的自然语言输入 | 显示帮助，**不运行模型或调用供应商工具** |
+| 显式 Agent 模式 | [AGENT-MODE.md](AGENT-MODE.md)：五项原生提案工具、Pi 原生循环、每次可见确认；不含批准/派发/发布/计划启用 |
+| 模型工具状态 | 默认模式 modelToolsRegistered:false；Agent 模式 ready 后为 true，自动 MCP 发现仍禁用 |
 | 显式 `intake` 的 `input.facts` | 直接调用原事实录入服务；本次实际终端验证使用该方式，模型调用数为 0 |
 | 显式 `intake` 的 `input.content` | 参数可按服务端 schema 提交，原后端仍自行检查 Pi 配置、预算和审批；本次没有验证或运行模型文本 intake |
 
-这是一项 Pi 交互命令适配，不宣称已接通自然语言模型编排或外部插件授权。
+本文覆盖原命令适配；后续 Agent 模式已用合成 provider 验证原生工具链路，真实
+自然语言效果仍未验证。两种模式都不授予外部插件授权。
 
 ## 调用步骤
 
@@ -135,4 +137,4 @@ node --test test/supplier-session-mcp.http.test.mjs test/wechat-ingress.test.mjs
 没有修改或放宽任何原业务/权限实现。
 
 未验收：生产 Host 前台终端接入、真实登录/TLS、真实 Shopify/Muse、Windows、
-模型文本 intake、自然语言模型编排。七天无人值守通知及持久收件人同意仍未授权。
+模型文本 intake、真实自然语言效果。七天无人值守通知及持久收件人同意仍未授权。

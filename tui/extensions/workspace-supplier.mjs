@@ -40,7 +40,7 @@ function reviewedArguments(args) {
 }
 
 // Called by the one existing extension with its one shared Host RPC transport.
-export function registerWorkspaceSupplier(pi, { getRequest, enter, leave, journal = createSupplierJournal() }) {
+export function registerWorkspaceSupplier(pi, { getRequest, enter, leave, journal = createSupplierJournal(), modelStatus = () => ({ mode: 'interactive_commands', modelToolsRegistered: false }) }) {
   let api;
   const client = async () => api ||= createSupplierMcpClient(await getRequest());
   pi.registerCommand('workspace-supplier', {
@@ -50,10 +50,10 @@ export function registerWorkspaceSupplier(pi, { getRequest, enter, leave, journa
       if (!enter()) { ctx.ui.notify('A Workspace command is still pending.', 'warning'); return; }
       try {
         const [action = 'help', operation, extra] = args.trim().split(/\s+/);
-        if (!action || action === 'help') { ctx.ui.notify(supplierHelp, 'info'); return; }
+        if (!action || action === 'help') { ctx.ui.notify(modelStatus().mode === 'agent' ? supplierHelp.replace('Plain language/model tools are disabled.', 'Agent mode exposes only five confirmed proposal tools; use /workspace-agent status.') : supplierHelp, 'info'); return; }
         if (extra || !['connect', 'tools', 'schema', 'call', 'file', 'retry'].includes(action)) fail('SUPPLIER_COMMAND_INVALID');
         const service = await client();
-        if (action === 'connect') { show(ctx, await service.connect()); return; }
+        if (action === 'connect') { show(ctx, { ...await service.connect(), ...modelStatus() }); return; }
         if (action === 'tools') { show(ctx, (await service.tools()).map(tool => ({ name: tool.name, description: tool.description }))); return; }
         let pending;
         if (action === 'retry') {

@@ -7,6 +7,9 @@ and original Muse conversation. The backend Pi SDK is not a TUI, and this client
 does not replace it or create a queue, identity, approval model, worker or model
 runtime. Root package/lock, supplier MCP and mini program are unchanged. The only
 server patch exposes a Host-internal launcher on the existing native ingress.
+An explicitly selected [Agent mode](AGENT-MODE.md) registers five native Pi
+proposal tools through the same transport. Default startup remains the no-model
+command mode described below.
 
 ## Start
 
@@ -25,7 +28,9 @@ model tools, discovered extensions, MCP connections and startup network work.
 No model request is needed for drafting or reviewing a task.
 `/workspace-supplier connect | tools | schema TOOL | call TOOL | file TOOL | retry`
 uses the 15 original owner-session MCP tools after the fixed PR57 backend is
-integrated. Plain language still displays help; no model tool is registered.
+integrated. In default command mode, plain language displays help and no model
+tool is registered. `npm --prefix tui run agent` uses Pi's existing model/login
+profile and five native tools, each requiring visible human confirmation.
 
 Verified here: Linux, Node 24.19.0, actual Pi CLI in a PTY with keyboard-driven
 input and confirmation dialogs. Windows/PowerShell and a cloud/production

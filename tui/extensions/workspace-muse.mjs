@@ -16,7 +16,7 @@ export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, jour
   const getRequest = async () => request ||= await transport();
   const getClient = async () => client ||= createWorkspaceClient(await getRequest());
   const gate = { enter() { if (busy) return false; busy = true; return true; }, leave() { busy = false; } };
-  registerWorkspaceSupplier(pi, { getRequest, journal: supplierJournal, ...gate });
+  registerWorkspaceSupplier(pi, { getRequest, journal: supplierJournal, ...gate, modelStatus: () => ({ mode: agentMode ? 'agent' : 'interactive_commands', modelToolsRegistered: agentMode && agent.isReady() }) });
   const agent = registerWorkspaceAgent(pi, { enabled: agentMode, getRequest, journal, supplierJournal, ...gate });
   pi.on('session_shutdown', async () => request?.close?.());
   pi.on('session_start', async (_event, ctx) => {
