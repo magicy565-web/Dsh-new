@@ -2,6 +2,8 @@
 
 最终客户端源码 **b7f97f3bed8bdca0592a6b42f01b3035cb5b7f8b**，固定后端 **faaf124d077812b4b86a5d584c1111d3dbdf93fe**；独立分支 `codex/wechat-supplier-integrated-20261012`、Draft [PR46](https://github.com/magicy565-web/workspace-agent/pull/46)。相对 faaf124 只改小程序/其测试/说明/证据，没有自行改 server、根 package/锁、共享构建、网页、主分支或部署。没有使用 PR44 的旧 b210576/dd91cfc 整合覆盖新版。
 
+交接前组合工作树又整合主后端最终 **08a760c045474ed92244bf2ac01e883d91a0a17d**（含 faaf124 与店铺/流量绑定校验、后端验收记录），本任务没有改其代码。[组合普通联调仍48/48、0fail/skip](evidence/supplier/final-faaf124/combined-08a760c-48-tests.txt)。客户端32个编译文件与 **同一个v2包** 全部SHA匹配，使用该包连接08a760c即可，不需用户拼接旧包；[组合版本与字节核验](evidence/supplier/final-faaf124/combined-version.json)。后端全量测试由主任务负责，未重复或替代独立审核。
+
 | 版本 | 实际结果 |
 |---|---|
 | 采购 PR42 `1666719` | 原采购两读两写、同一 composer、完整范围确认、冷恢复；已保留 |
