@@ -37,7 +37,9 @@
     "test:control:cloud": "npm run build && node test/cloud-control.browser.mjs",
     "test:control:activity": "node --test test/cloud-activity.test.mjs",
     "test:control:muse": "npm run build && npm run test:control:activity && node test/muse-control.browser.mjs && node test/muse-receipts.browser.mjs",
-    "test:conversation:ui": "npm run build && node --test --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs"
+    "test:conversation:ui": "npm run build && node --test --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs",
+    "build:mini": "node scripts/build-miniprogram.mjs",
+    "test:pi": "node --test test/pi-runtime.test.mjs"
   },
   "dependencies": {
     "@earendil-works/chord": "1.1.0",
@@ -51,6 +53,7 @@
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
     "jsdom": "29.1.1",
+    "miniprogram-api-typings": "5.2.3",
     "playwright": "1.61.1",
     "typescript": "6.0.3",
     "vite": "8.0.16"

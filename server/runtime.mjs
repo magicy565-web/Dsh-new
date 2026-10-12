@@ -126,7 +126,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     const { businessLibrary: _businessLibrary, commerceProjects: _commerceProjects, ...snapshot } = state;
     snapshot.artifacts = (state.artifacts || []).filter(artifact => !isBusinessLibraryArtifact(state, artifact));
     snapshot.activity = (state.activity || []).filter(event => !isBusinessLibraryArtifact(state, event.artifactId));
-    return { ...snapshot, runtime: status() };
+    return { ...snapshot, settings: { ...snapshot.settings, model: provider.model || snapshot.settings.model }, runtime: status() };
   }
   function finishRun(state, runId, status, error = null) {
     const run = state.runs.find(item => item.id === runId);
@@ -305,7 +305,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
             if (result.nativeEvents) reply.nativeEvents = result.nativeEvents;
             if (result.runtime) reply.runtime = result.runtime;
             if (parsed.plan) current.plan = parsed.plan;
-            if (output) { current.outputArtifactId = output.id; reply.artifactId = output.id; delete current.pendingOutput; }
+            if (output) { current.outputArtifactId = output.id; reply.artifactId = output.id; reply.artifactReference = { id: output.id, version: output.currentVersion, sha256: output.sha256 }; delete current.pendingOutput; }
             if (parsed.done) { item.status = 'idle'; item.activeRunId = null; finishRun(next, runId, 'succeeded'); activity(next, 'completed', 'Reply ready', output ? 'Generated file saved with run provenance.' : 'The runtime returned a visible response.', { conversationId: id, ...(result.nativeSessionId ? { nativeSessionId: result.nativeSessionId, nativeEvents: result.nativeEvents || [] } : {}) }); return null; }
             const created = { id: randomUUID(), conversationId: id, role: 'assistant', content: '', status: 'pending', createdAt: now(), requestId: current.requestId, runId };
             current.assistantId = created.id; next.messages.push(created); return created.id;
@@ -385,7 +385,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
             if (result.runtime) reply.runtime = result.runtime;
             const run = required(next, 'runs', runId);
             if (parsed.plan) { run.plan = parsed.plan; current.plan = parsed.plan; }
-            if (output) { run.outputArtifactId = output.id; current.outputArtifactId = output.id; reply.artifactId = output.id; delete run.pendingOutput; }
+            if (output) { run.outputArtifactId = output.id; current.outputArtifactId = output.id; reply.artifactId = output.id; reply.artifactReference = { id: output.id, version: output.currentVersion, sha256: output.sha256 }; delete run.pendingOutput; }
             current.stepCount += 1; current.output = parsed.content; current.nextStep = (parsed.nextStep || '').slice(0, 2000); current.updatedAt = now();
             const item = required(next, 'conversations', current.conversationId);
             item.updatedAt = now();

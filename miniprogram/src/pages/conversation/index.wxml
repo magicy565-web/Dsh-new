@@ -1,0 +1,17 @@
+<view class="conversation">
+  <view class="companion"><image class="spirit" src="/assets/spirit.svg" mode="aspectFit"/><text class="muted">{{busy ? '正在处理你的目标' : '今天想完成什么？'}}</text></view>
+  <scroll-view class="transcript" scroll-y>
+    <view wx:if="!messages.length" class="welcome">说说目标，附上必要的资料。方案、审批、进度和成果都留在这里。</view>
+    <view wx:for="messages" wx:key="id" class="message {{item.role}}"><text selectable>{{item.status === 'pending' ? '正在处理…' : item.content}}</text><text wx:if="item.error" class="notice">{{item.error.message}}</text></view>
+    <button wx:for="cards" wx:key="id" class="card {{item.kind}}" data-id="{{item.id}}" bindtap="card"><text class="card-title">{{item.title}}</text><text class="card-detail">{{item.detail}}</text><text class="card-action">{{item.kind === 'file' ? '打开原文件' : item.operation === 'approve' ? '审阅并确认' : item.operation === 'resume' ? '明确继续' : item.operation === 'recover' ? '恢复原任务' : '请求停止'}}</text></button>
+  </scroll-view>
+  <view wx:if="error" class="notice" role="alert">{{error}}</view>
+  <button wx:if="!authenticated" class="primary" bindtap="login">登录企业空间</button>
+  <view class="composer" wx:else>
+    <view class="attachments"><text wx:for="files" wx:key="id">{{item.filename}} · 已保存</text></view>
+    <textarea value="{{draft}}" bindinput="draft" auto-height maxlength="10000" placeholder="描述目标或需要补充的信息…" disabled="{{loading || uncertain}}"/>
+    <view class="composer-actions"><button class="secondary" bindtap="chooseImage" disabled="{{busy || loading}}">图片</button><button class="secondary" bindtap="chooseFile" disabled="{{busy || loading}}">文件</button><button class="secondary" bindtap="openReferences">引用资料</button><button class="primary" bindtap="send" disabled="{{busy || loading || uncertain || !draft}}">发送</button></view>
+    <button wx:if="uncertain" bindtap="retry">核对原请求结果</button>
+  </view>
+  <view wx:if="referencesOpen" class="sheet-backdrop"><view class="sheet"><view class="sheet-heading"><text>会话资料</text><button bindtap="closeReferences">返回会话</button></view><scroll-view scroll-y class="sheet-content"><view class="company"><text>{{company.displayName || company.legalName || '企业资料尚未导入'}}</text><text class="muted">{{company.description}}</text></view><text class="muted">按需引用原修订。企业私有资料关联不代表允许导出到模型或连接器。</text><button wx:for="products" wx:key="id" data-id="{{item.id}}" data-kind="product" bindtap="reference" class="reference"><text>{{item.name}}</text><text class="muted">产品修订 {{item.revision}} · 点击切换引用</text></button><button wx:for="documents" wx:key="id" data-id="{{item.id}}" data-kind="document" bindtap="reference" class="reference"><text>{{item.title}}</text><text class="muted">资料 v{{item.currentVersion}} · 点击切换引用</text></button><text wx:if="!products.length &amp;&amp; !documents.length" class="muted">可先通过已有资料库导入资料，再回来引用。</text><text class="muted">已引用 {{references.products.length}} 个产品、{{references.documents.length}} 份资料</text></scroll-view></view></view>
+</view>

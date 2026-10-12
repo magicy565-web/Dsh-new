@@ -19,3 +19,5 @@ docs/NATIVE-SOURCE-LIBRARY.json
 *.pfx
 .DS_Store
 __pycache__/
+
+.mini-build/

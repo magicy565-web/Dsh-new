@@ -102,15 +102,17 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
   }
   function readSession(req) {
     const values = (req.headers.cookie || '').split(';').map(value => value.trim()).filter(value => value.startsWith(`${cookieName}=`));
-    if (values.length !== 1) return null;
-    const token = values[0].slice(cookieName.length + 1);
+    const transport = req.headers['x-workspace-session'];
+    if (transport !== undefined && (typeof transport !== 'string' || values.length)) throw new AccessError(400, 'AMBIGUOUS_SESSION', 'Use one session transport.');
+    if (transport === undefined && values.length !== 1) return null;
+    const token = transport ?? values[0].slice(cookieName.length + 1);
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
     const session = sessions.get(hash(token));
     return live(session) ? session : null;
   }
   function checkBoundary(req, pathname) {
     // Duplicate security-relevant fields can be interpreted differently by proxies.
-    for (const name of ['host', 'origin', 'cookie', 'x-workspace-assertion', 'x-csrf-token', 'x-workspace-login']) {
+    for (const name of ['host', 'origin', 'cookie', 'x-workspace-assertion', 'x-csrf-token', 'x-workspace-login', 'x-workspace-session', 'x-workspace-client']) {
       let count = 0;
       for (let i = 0; i < req.rawHeaders.length; i += 2) if (req.rawHeaders[i].toLowerCase() === name) count++;
       if (count > 1) throw new AccessError(400, 'AMBIGUOUS_HEADER', 'Duplicate security headers are not allowed.');
@@ -162,7 +164,7 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
   async function begin(req, res, pathname) {
     if (closing || (audit && !audit.healthy)) throw new AccessError(503, 'ACCESS_UNAVAILABLE', 'Access control is unavailable.');
     checkBoundary(req, pathname);
-    const context = { requestId: randomUUID(), method: req.method, route: routeLabel(pathname), workspaceId: enterprise ? config.workspaceId : 'local', subject: 'local-operator', role: 'admin', session: null, finished: false };
+    const context = { requestId: randomUUID(), method: req.method, route: routeLabel(pathname), client: req.headers['x-workspace-client'] === 'wechat' ? 'wechat' : 'browser', workspaceId: enterprise ? config.workspaceId : 'local', subject: 'local-operator', role: 'admin', session: null, finished: false };
     if (!enterprise) return context;
     res.setHeader('Strict-Transport-Security', 'max-age=31536000');
     res.setHeader('Cache-Control', 'no-store');
@@ -224,6 +226,9 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
       await audit.append({ type: 'session.created', requestId: context.requestId, actor: context.subject, role: context.role, sessionId: session.id, expiresAt: iso(session.expiresAt) });
       revoke(context.session); sessions.set(session.tokenHash, session); context.session = session;
       res.setHeader('Set-Cookie', `${cookieName}=${token}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(config.absoluteTimeoutMs / 1000)}`);
+      // Native clients explicitly receive the same short-lived session. Signed
+      // ingress identity, membership, CSRF, expiry and revocation stay required.
+      if (context.client === 'wechat') res.setHeader('X-Workspace-Session', token);
       return sessionView(context);
       });
     },

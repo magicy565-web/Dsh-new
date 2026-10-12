@@ -7,6 +7,7 @@ import { promises as fs } from 'node:fs';
 import { openStore, openPrivateFile } from './store.mjs';
 import { readRecoveryStatus } from './recovery-status.mjs';
 import { createPiProvider } from './pi-provider.mjs';
+import { createPiMuseBinding } from './pi-muse-binding.mjs';
 import { ApiError, createRuntime } from './runtime.mjs';
 import { createArtifactService } from './artifacts.mjs';
 import { createBusinessLibraryService } from './business-library.mjs';
@@ -69,13 +70,13 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth, piMuse;
   try {
     await provider.initialize?.({ store });
     recovery = await readRecoveryStatus(store.directory, provider.kind);
@@ -94,7 +95,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     }) : null;
     if (dotBridge && Object.hasOwn(workerAdapters, dotWorkerConfig.workerId || 'chatgpt-dot-xy'))
       throw new TypeError('A Dot Worker ID cannot overwrite another reviewed execution adapter.');
-    if (museWorkerConfig) {
+    if (museOriginalBinding) {
+      piMuse = await createPiMuseBinding({ store, artifacts, config: museWorkerConfig, binding: museOriginalBinding, dotWorkerConfig, readBody, respond });
+    }
+    if (museWorkerConfig && !museOriginalBinding) {
       museHost = createMuseWorkerHost({ store, artifacts, config: museWorkerConfig,
         workerAdapters, dotWorkerConfig, readBody, respond });
       museBridge = museHost.bridge;
@@ -123,7 +127,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       (accessConfig.mode === 'enterprise' ? accessConfig.members.has(row.subject) : row.subject === 'local-operator')))
       throw new TypeError('External procurement buyers require this workspace and a distinct subject from enterprise members.');
     sourcingMcpAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
-  } catch (error) { await provider.close?.(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
+  } catch (error) { await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const streams = new Set();
   let scheduler;
   const schedulerState = { state: 'stopped', automaticTimer: false, intervalMs: schedulerIntervalMs, lastStartedAt: null, lastCompletedAt: null, lastError: null };
@@ -171,6 +175,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       // Muse is a separate, authenticated REST API; it does not share the Dot
       // worker credential, task queue or MCP plugin protocol.
       if (pathname === '/api/muse-worker' || pathname.startsWith('/api/muse-worker/')) {
+        if (piMuse) { await piMuse.workerHttp(req, res, pathname); return; }
         if (!museHost) throw new ApiError(404, 'MW_GATEWAY_UNAVAILABLE', 'Muse REST gateway is not configured on this host.');
         await museHost.handle(req, res, pathname);
         return;
@@ -225,6 +230,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
+        if (piMuse && await piMuse.businessHttp({ req, res, pathname, context, query: url.searchParams })) return;
         const goalCommerce = pathname.match(/^\/api\/goals\/([^/]+)\/commerce-context$/);
         if (goalCommerce) return await respond(res, 200, commerce.forGoal(goalCommerce[1]));
         const supplyRead = await supplyHttp({ supply, method, pathname, query: Object.fromEntries(url.searchParams), actor: context });
@@ -289,14 +295,15 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
           const version = url.searchParams.has('version') ? Number(url.searchParams.get('version')) : undefined;
           if (resource[2] === 'download') {
             const file = await artifacts.download(resource[1], version === undefined ? {} : { version });
+            if (url.searchParams.has('sha256') && url.searchParams.get('sha256') !== file.version.sha256) throw new ApiError(409, 'ARTIFACT_HASH_MISMATCH', 'Use the exact saved file version and SHA reference.');
             await res.accessFinish?.(200);
-            res.writeHead(200, { 'Content-Type': file.mimeType, 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`, 'Content-Length': file.bytes.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; sandbox" }); return res.end(file.bytes);
+            res.writeHead(200, { 'Content-Type': file.mimeType, 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`, 'Content-Length': file.bytes.length, 'X-Content-SHA256': file.version.sha256, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; sandbox" }); return res.end(file.bytes);
           }
           return await respond(res, 200, resource[2] === 'content' ? await artifacts.read(resource[1], version === undefined ? {} : { version }) : artifacts.get(resource[1]));
         }
         resource = pathname.match(/^\/api\/(skills|connectors|schedules)\/([^/]+)$/);
         if (resource) return await respond(res, 200, { [{ skills: 'skill', connectors: 'connector', schedules: 'schedule' }[resource[1]]]: capabilities[{ skills: 'getSkill', connectors: 'getConnector', schedules: 'getSchedule' }[resource[1]]](resource[2]) });
-        const state = { ...runtime.bootstrap(), capabilities: capabilitySnapshot(), diagnostics: diagnostics() };
+        const state = { ...runtime.bootstrap(), ...(piMuse ? { museBinding: piMuse.snapshot(context) } : {}), capabilities: capabilitySnapshot(), diagnostics: diagnostics() };
         const resources = { '/api/bootstrap': state, '/api/status': runtime.status(), '/api/conversations': { conversations: state.conversations }, '/api/goals': { goals: state.goals }, '/api/activity': { activity: state.activity }, '/api/settings': { settings: state.settings }, '/api/memories': { memories: state.memories } };
         if (pathname === '/api/search') { const query = (url.searchParams.get('q') || '').trim(); if (!query || query.length > 200) throw new ApiError(400, 'INVALID_INPUT', 'Search query must be 1–200 characters.'); const needle = query.toLocaleLowerCase(); const results = ['conversations', 'messages', 'goals', 'memories', 'artifacts'].flatMap(collection => (state[collection] || []).filter(item => [item.title, item.content, item.description, item.filename].some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(needle))).slice(0, 50).map(item => ({ collection, id: item.id, title: item.title || item.filename || item.content?.slice(0, 100), conversationId: item.conversationId || item.sourceConversationId || null }))); return await respond(res, 200, { results: results.slice(0, 100) }); }
         if (resources[pathname]) return await respond(res, 200, resources[pathname]);
@@ -304,9 +311,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (singular) { const item = state[singular[1]].find(item => item.id === singular[2]); if (!item) throw new ApiError(404, 'NOT_FOUND', 'Item not found.'); return await respond(res, 200, { [singular[1] === 'goals' ? 'goal' : 'memory']: item }); }
         const match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/messages)?$/);
         if (match) {
-          const item = state.conversations.find(item => item.id === match[1]);
+          const conversationId = decodeApiId(match[1]);
+          const item = state.conversations.find(item => item.id === conversationId);
           if (!item) throw new ApiError(404, 'NOT_FOUND', 'Conversation not found.');
-          return await respond(res, 200, { conversation: item, messages: state.messages.filter(item => item.conversationId === match[1]) });
+          return await respond(res, 200, { conversation: item, messages: state.messages.filter(item => item.conversationId === conversationId) });
         }
         throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
       }
@@ -340,6 +348,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       const accessSession = pathname.match(/^\/api\/access\/sessions\/([^/]+)\/revoke$/);
       if (method === 'POST' && accessSession) return await respond(res, 200, await access.revokeSession(context, accessSession[1]));
+      if (piMuse && await piMuse.businessHttp({ req, res, pathname, context, body, query: url.searchParams })) return;
       const expertDelegation = pathname.match(/^\/api\/cloud-experts\/([^/]+)\/delegate$/);
       if (method === 'POST' && expertDelegation) return await respond(res, 201, await cloudExperts.delegateExpert(expertDelegation[1], body, context.subject));
       if (method === 'POST' && pathname === '/api/cloud-experts') return await respond(res, 201, await cloudExperts.hire(body, context.subject));
@@ -405,6 +414,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         const [, encodedId, resource] = match;
         const id = decodeApiId(encodedId);
         if (method === 'POST' && resource === 'messages') {
+          if (body.provider === 'muse' && piMuse) { piMuse.forActor(context); if (id !== piMuse.actor.nativeAgentId) throw new ApiError(403, 'MUSE_OWNER_REQUIRED', 'Use the original Muse conversation.'); return await respond(res, 201, await piMuse.forActor(context).prepare(body)); }
           if (body.provider === 'muse') throw new ApiError(409, 'MW_NATIVE_CONVERSATION_REQUIRED', 'Muse requires its original reviewed native Host and conversation binding. No model run was started.');
           if (body.provider !== undefined && !['builtin', 'pi'].includes(body.provider)) throw new ApiError(400, 'PROVIDER_NOT_AVAILABLE', 'Select an available explicitly configured provider.');
           return await respond(res, 202, await runtime.sendMessage(id, body));
@@ -442,7 +452,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');
@@ -462,7 +472,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         server.closeIdleConnections();
         try {
           // Signal both domains before waiting, so a connector cannot delay model cancellation.
-          const results = await Promise.allSettled([capabilities.close?.(), runtime.close(), museHost?.close()]);
+          const results = await Promise.allSettled([capabilities.close?.(), runtime.close(), museHost?.close(), piMuse?.close()]);
           await artifacts.close?.();
           const failure = results.find(result => result.status === 'rejected');
           if (failure) throw failure.reason;
@@ -504,6 +514,13 @@ async function main() {
     scopeReviewed: process.env.WORKSPACE_MUSE_SCOPE_REVIEWED === '1',
     externalBudgetVerified: process.env.WORKSPACE_MUSE_EXTERNAL_BUDGET_VERIFIED === '1',
   } : null;
+  let museOriginalBinding = null;
+  if (process.env.WORKSPACE_MUSE_ORIGINAL_BINDING_FILE) {
+    const filename = process.env.WORKSPACE_MUSE_ORIGINAL_BINDING_FILE;
+    if (!path.isAbsolute(filename) || !museWorkerConfig) throw new Error('Original Muse binding requires its existing config and an absolute private file.');
+    const handle = await openPrivateFile(filename, 'r');
+    try { if ((await handle.stat()).size > 16000) throw new Error('Original Muse binding file is too large.'); museOriginalBinding = JSON.parse(await handle.readFile('utf8')); } finally { await handle.close(); }
+  }
   const sourcingMcpConfig = {
     enabled: process.env.WORKSPACE_SOURCING_MCP_ENABLED === '1',
     tokenDigest: process.env.WORKSPACE_SOURCING_MCP_TOKEN_SHA256 || '',
@@ -531,7 +548,7 @@ async function main() {
   try {
     app = await createApp({ dataDirectory, provider, access,
       workerAdapters: reviewedWorkers.adapters,
-      dotWorkerConfig, museWorkerConfig, sourcingMcpConfig,
+      dotWorkerConfig, museWorkerConfig, museOriginalBinding, sourcingMcpConfig,
       allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [],
       maxConcurrentRuns: 3 });
     await app.listen(port);

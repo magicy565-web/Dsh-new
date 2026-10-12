@@ -7,7 +7,7 @@ import { Modal } from '../Modal';
 import { SafeFilePreview } from '../library/common';
 import type { FilePreviewContent } from '../library/common';
 
-function MuseFile({ file }: { file: CloudFile }) {
+export function VerifiedFile({ file, url = museFileUrl(file)! }: { file: CloudFile; url?: string }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false), [preview, setPreview] = useState<FilePreviewContent | null>(null);
   const previewVisible = useRef(false);
@@ -20,7 +20,7 @@ function MuseFile({ file }: { file: CloudFile }) {
     const timeout = window.setTimeout(() => request.abort(), 20000);
     let blobUrl: string | undefined;
     try {
-      const response = await fetch(museFileUrl(file)!, { credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: request.signal });
+      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: request.signal });
       if (!response.ok) {
         if (response.status === 401) throw Error('登录已失效，请恢复原登录后重试下载。');
         if (response.status === 403) throw Error('当前账号无权下载此附件。');
@@ -55,7 +55,7 @@ function MuseFile({ file }: { file: CloudFile }) {
   }
   function openPreview() { if (busy) return; previewVisible.current = true; setPreviewOpen(true); setPreview(null); void read('preview'); }
   function closePreview() { previewVisible.current = false; setPreviewOpen(false); controller.current?.abort(); }
-  return <div><a className="cloud-file" href={museFileUrl(file)!} download aria-disabled={busy} onClick={event => { event.preventDefault(); void read('download'); }}><Icon name="file" size={18}/>{file.filename || '任务文件'}<span>{busy ? '正在校验…' : '下载'}</span></a><button className="text-button" type="button" aria-label={`预览 ${file.filename || '任务文件'}`} disabled={busy} onClick={openPreview}>打开／预览</button>{error && !previewOpen && <p className="control-input-note" role="alert">{error}</p>}
+  return <div><a className="cloud-file" href={url} download aria-disabled={busy} onClick={event => { event.preventDefault(); void read('download'); }}><Icon name="file" size={18}/>{file.filename || '任务文件'}<span>{busy ? '正在校验…' : '下载'}</span></a><button className="text-button" type="button" aria-label={`预览 ${file.filename || '任务文件'}`} disabled={busy} onClick={openPreview}>打开／预览</button>{error && !previewOpen && <p className="control-input-note" role="alert">{error}</p>}
     {previewOpen && <Modal title={`附件 ${file.filename || '任务文件'}`} className="note-modal" onClose={closePreview}><h2>{file.filename || '任务文件'}</h2><p className="control-input-note">原附件 v{file.version} · SHA-256 {file.sha256}</p><section className="bl-preview">{busy ? <p role="status">正在校验并读取原附件…</p> : error ? <p role="alert">{error}</p> : <SafeFilePreview value={preview} alt={file.filename}/>}</section><div className="modal-actions"><button className="secondary-button" disabled={busy} onClick={() => void read('preview')}>重新读取此版本</button><button className="primary-button" disabled={busy} onClick={() => void read('download')}>下载此版本</button></div></Modal>}
   </div>;
 }
@@ -69,7 +69,7 @@ export function MuseFiles({ files, authorized = true, allowedFiles }: { files: u
     if (!isMuseFile(file) || seen.has(file.id)) return <p className="control-input-note" key={index}>文件引用不完整，等待原订单核对。</p>;
     seen.add(file.id);
     const allowed = authorized && (allowedFiles === undefined || Array.isArray(allowedFiles) && allowedFiles.some(ref => isMuseFile(ref) && ref.id === file.id && ref.version === file.version && ref.sha256 === file.sha256 && ref.filename === file.filename));
-    return allowed ? <MuseFile key={file.id + ':' + file.sha256} file={file}/> : <p className="control-input-note" key={index}>当前账号未获此附件的下载授权。</p>;
+    return allowed ? <VerifiedFile key={file.id + ':' + file.sha256} file={file}/> : <p className="control-input-note" key={index}>当前账号未获此附件的下载授权。</p>;
   })}</>;
 }
 export function MuseMessageFiles({ message, tasks, readOnly }: { message: Message; tasks?: MuseTask[]; readOnly: boolean }) {

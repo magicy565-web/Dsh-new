@@ -49,6 +49,23 @@ test('access: enterprise configuration is explicit, HTTPS only, Ed25519 and boun
   await assert.rejects(accessConfigFromEnvironment({ WORKSPACE_ACCESS_MODE: 'enterprise' }), /members file/);
 });
 
+test('access: native WeChat session transport retains signed ingress, membership, CSRF and revocation', async t => {
+  const f = await fixture(t);
+  const login = await f.api('/api/session/login', { method: 'POST', body: {}, headers: { 'X-Workspace-Login': '1', 'X-Workspace-Client': 'wechat' } });
+  assert.equal(login.status, 200);
+  const sessionToken = login.response.headers.get('x-workspace-session');
+  assert.match(sessionToken, /^[A-Za-z0-9_-]{43}$/);
+  const headers = { 'X-Workspace-Session': sessionToken, 'X-CSRF-Token': login.data.csrfToken };
+  assert.equal((await f.api('/api/bootstrap', { headers })).status, 200);
+  assert.equal((await f.api('/api/bootstrap', { headers, unsigned: true })).status, 401);
+  assert.equal((await f.api('/api/conversations', { method: 'POST', body: {}, headers: { 'X-Workspace-Session': sessionToken } })).status, 403);
+  assert.equal((await f.api('/api/conversations', { method: 'POST', body: {}, headers })).status, 201);
+  assert.equal((await f.api('/api/bootstrap', { headers: { ...headers, Cookie: login.cookie } })).status, 400);
+  assert.equal((await f.api('/api/bootstrap', { headers, subject: 'reader' })).status, 401);
+  assert.equal((await f.api('/api/session/logout', { method: 'POST', body: {}, headers })).status, 200);
+  assert.equal((await f.api('/api/bootstrap', { headers })).status, 401);
+});
+
 test('access: default local mode remains usable and reports local session without creating cookies', async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'workspace-local-access-'));
   const app = await createApp({ dataDirectory: directory }); const address = await app.listen(0);
