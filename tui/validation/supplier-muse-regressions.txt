@@ -1,0 +1,26 @@
+
+> workspace-pi-tui@0.1.0 test
+> node --test test/*.test.mjs
+
+✔ TUI command → signed owner HTTP → original Muse claim/upload/submit → same Session result; cold recovery preserves request and task (899.757601ms)
+✔ built-in host transport reuses original native ingress/session signing and CSRF; expiry does not reauthenticate (198.393715ms)
+✔ existing trusted host launches read-only diagnostic over private RPC; TUI never receives token, CSRF or signing key (207.147859ms)
+✔ original native ingress mounts the Host-only launcher, derives its owner and rejects Worker/viewer/foreign-owner sessions (217.016305ms)
+✔ TUI rejects missing owner, worker token, wrong tenant, other owner, revoked session and declined approval (226.215715ms)
+✔ focused TUI cannot approve through noninteractive/model input; transport defaults closed and rejects remote local-mode URLs (0.970858ms)
+✔ checked-in Muse Python v4 CLI consumes the same TUI-created task with real current v1 bodies and preserved lease (287.595113ms)
+✔ journal must persist before prepare and recovery is isolated by original owner/workspace/conversation (33.937484ms)
+✔ TUI handoff writes one exact approved public order guide without credentials, external sending or another claim (267.017157ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3455.488447
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

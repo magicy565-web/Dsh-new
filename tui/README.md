@@ -1,7 +1,8 @@
 # Pi TUI → original Workspace Muse task
 
 This optional package adds the actual Pi coding-agent **1.1.0 TUI**, with an
-explicit `/workspace-muse` command. It uses the existing Workspace owner routes
+explicit `/workspace-muse` command and a [supplier MCP command adapter](SUPPLIER-MCP.md)
+in the same terminal. It uses the existing Workspace owner routes
 and original Muse conversation. The backend Pi SDK is not a TUI, and this client
 does not replace it or create a queue, identity, approval model, worker or model
 runtime. Root package/lock, supplier MCP and mini program are unchanged. The only
@@ -22,6 +23,9 @@ warning does not prevent these commands; **do not log into a model to use this
 flow**. Plain prompts display command help, and this focused launcher disables
 model tools, discovered extensions, MCP connections and startup network work.
 No model request is needed for drafting or reviewing a task.
+`/workspace-supplier connect | tools | schema TOOL | call TOOL | file TOOL | retry`
+uses the 15 original owner-session MCP tools after the fixed PR57 backend is
+integrated. Plain language still displays help; no model tool is registered.
 
 Verified here: Linux, Node 24.19.0, actual Pi CLI in a PTY with keyboard-driven
 input and confirmation dialogs. Windows/PowerShell and a cloud/production
@@ -90,6 +94,9 @@ The journal never saves session tokens, Bearer headers, CSRF values, ingress
 signatures, credential references or approvals. `WORKSPACE_PI_DATA_DIR` can
 select an absolute private runtime directory (default `tui/.data/`). Keep that
 directory out of source packages and Git.
+Supplier writes use a separate private `supplier-requests/` journal containing
+the confirmed supplier arguments (including image bytes where supplied); this
+runtime data is not a source deliverable or a Muse handoff.
 
 ## Protocol and acceptance boundaries
 

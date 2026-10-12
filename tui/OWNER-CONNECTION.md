@@ -48,6 +48,9 @@ variables before launching Pi. This bridge opens no network listener and saves
 no credentials. It only admits the fixed original conversation paths plus the
 three owner reads required for connection/diagnosis. Login, grants, arbitrary
 HTTP paths, worker claims and different conversation paths are rejected.
+The [supplier adapter](SUPPLIER-MCP.md) adds only the exact same conversation's
+`supplier-session-mcp` POST path. It keeps per-request Session/CSRF and the original
+supplier services' approval/privacy checks. External `supplier-mcp` remains denied.
 
 On each request the host rechecks the existing native Session through the
 original native ingress. Before mutations it obtains current CSRF from that

@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node launch.mjs",
     "test": "node --test test/*.test.mjs",
+    "test:supplier": "node --test integration/supplier-mcp.test.mjs",
+    "test:supplier-terminal": "python3 integration/supplier-terminal.py",
     "diagnose": "node diagnose.mjs",
     "test:terminal": "python3 test/terminal-smoke.py"
   },

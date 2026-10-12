@@ -50,7 +50,8 @@ export function serveOwnerRpc(stream, request) {
   stream.on('error', () => abort.abort()); stream.on('close', () => abort.abort());
   stream.on('data', bytes => {
     buffer += bytes.toString('utf8');
-    if (buffer.length > 32768) { stream.destroy(); return; }
+    // Bounded original supplier image JSON (1.3M base64 chars) plus RPC envelope.
+    if (Buffer.byteLength(buffer, 'utf8') > 1_650_000) { stream.destroy(); return; }
     let end;
     while ((end = buffer.indexOf('\n')) >= 0) {
       const line = buffer.slice(0, end); buffer = buffer.slice(end + 1);

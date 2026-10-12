@@ -3,23 +3,26 @@ import { createWorkspaceClient, loadOwnerTransport } from '../workspace-client.m
 import { createRequestJournal } from '../request-journal.mjs';
 import { diagnose, OWNER_GUIDANCE } from '../diagnose.mjs';
 import { saveMuseHandoff } from '../muse-handoff.mjs';
+import { registerWorkspaceSupplier, supplierHelp } from './workspace-supplier.mjs';
 
 // Untrusted task/result text must not send terminal control sequences.
 const plain = value => String(value).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
 const show = (ctx, value) => ctx.ui.notify(plain(JSON.stringify(value)), 'info');
 const help = 'Commands: /workspace-muse diagnose | connect | new | retry | list | status ID | handoff ID | approve ID | dispatch ID | refresh ID | cancel ID | accept ID. Approval and dispatch are separate human confirmations. Queued does not mean Muse claimed.';
 
-export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, journal = createRequestJournal(), saveHandoff = saveMuseHandoff } = {}) {
+export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, journal = createRequestJournal(), saveHandoff = saveMuseHandoff, supplierJournal } = {}) {
   let client, request, busy = false;
   const getRequest = async () => request ||= await transport();
   const getClient = async () => client ||= createWorkspaceClient(await getRequest());
+  registerWorkspaceSupplier(pi, { getRequest, journal: supplierJournal, enter() { if (busy) return false; busy = true; return true; }, leave() { busy = false; } });
   pi.on('session_shutdown', async () => request?.close?.());
   pi.on('session_start', async (_event, ctx) => {
     ctx.ui.setStatus('workspace-muse', 'Workspace → original Muse • /workspace-muse');
     ctx.ui.notify(help, 'info');
+    ctx.ui.notify(supplierHelp, 'info');
   });
   // This focused TUI entry uses deterministic commands, without model spending.
-  pi.on('input', async (_event, ctx) => { ctx.ui.notify(help, 'info'); return { action: 'handled' }; });
+  pi.on('input', async (_event, ctx) => { ctx.ui.notify(help + ' ' + supplierHelp, 'info'); return { action: 'handled' }; });
   pi.on('user_bash', async () => ({ result: { output: 'Use /workspace-muse for reviewed Workspace actions.', exitCode: 1, cancelled: false, truncated: false } }));
   pi.registerCommand('workspace-muse', {
     description: 'Prepare, separately approve/dispatch, and read original Muse tasks through the existing owner session.',

@@ -73,3 +73,36 @@ foreground terminal action. A browser-only SSO terminal handoff is absent; this 
 not solved by entering a few environment variables. The existing session still
 expires/revokes and is not recreated by this bridge. Exact gaps and manual steps
 are in [OWNER-CONNECTION.md](OWNER-CONNECTION.md).
+
+## Supplier MCP follow-up on the fixed integrated backend
+
+Supplier adapter source changes are entirely under `tui/`. They depend on PR57
+source `8af564f15fcb821cde1054984356d2e3f3c75c0c`, complete accepted backend
+`68558d22a46e92fef4b8a300c69b2fbad61fbb20`, and prior TUI
+`cc49bc9fd017710e2f948d0cdfa220c1a6a638a5`. Tests below ran in a separate temporary
+worktree containing exactly that backend plus the original four TUI commits and
+this follow-up. No integration branch, backend service or permission source was changed.
+
+| Run | Result | Evidence |
+| --- | --- | --- |
+| Supplier command/HTTP integration | 3 pass, 0 fail/skip; all 15 tool names reach the original schema gate | [Supplier HTTP](validation/supplier-http-tests.txt) |
+| Actual Pi supplier PTY | 7 checkpoints; private Host RPC → signed original HTTP | [Supplier terminal](validation/supplier-terminal-tests.txt) |
+| Existing TUI/Muse suite on combined source | 9 pass, 0 fail/skip | [Muse regressions](validation/supplier-muse-regressions.txt) |
+| Original supplier-session, ingress and Muse policies | 13 pass, 0 fail/skip | [Original policies](validation/supplier-original-regressions.txt) |
+
+The actual terminal used the original synthetic enterprise session in its trusted
+Host, never a local-mode owner or credentials passed to Pi. It verified the full
+initialize/initialized/list sequence; denied plain-language execution and a No
+confirmation; uploaded a valid deterministic >32 KiB PNG; persisted all requested
+supplier fields; read and generated the original consumer Listing preview; then
+restarted both backend and Pi, performed synthetic original login again and read
+the same service/artifact/previewHash. Model runs were zero. Real Shopify and Muse
+flags remain false. The first strengthened privacy fixture incorrectly treated
+the original Muse owner as unauthorized; it now checks another authenticated
+owner's attempt to reference original Muse private data. No policy was weakened.
+
+The 15 tools are callable through `/workspace-supplier call/file TOOL` in the same
+Pi extension. They are **not registered as model tools**, and natural language is
+help-only. The authoritative schemas come from PR57 `tools/list`, not a copied
+permission model. Exact commands, retry restrictions, model boundaries, backend
+dependencies and remaining production gaps are in [SUPPLIER-MCP.md](SUPPLIER-MCP.md).

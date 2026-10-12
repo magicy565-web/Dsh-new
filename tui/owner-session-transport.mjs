@@ -17,6 +17,7 @@ export function validateOwnerHandoff(input) {
 async function jsonResponse(response) {
   if (!response || !Number.isInteger(response.status) || response.redirected || response.status >= 300 && response.status < 400) fail('OWNER_INGRESS_REDIRECT_REJECTED');
   if (!/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') || '')) fail('OWNER_INGRESS_JSON_REQUIRED');
+  if (response.status === 202) return { status: 202, body: null }; // MCP initialized notification has no body.
   const chunks = []; let size = 0;
   for await (const bytes of response.body) {
     size += bytes.length;
@@ -30,6 +31,7 @@ async function jsonResponse(response) {
 export function createNativeOwnerTransport(input, { fetchImpl = fetch } = {}) {
   const handoff = validateOwnerHandoff(input);
   const base = `/api/conversations/${encodeURIComponent(handoff.scope.conversationId)}/muse-delegations`;
+  const supplierMcp = `/api/conversations/${encodeURIComponent(handoff.scope.conversationId)}/supplier-session-mcp`;
   const orderPath = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}');
   async function send(method, target, body, signal, csrf) {
     const response = await fetchImpl(handoff.origin + target, {
@@ -52,7 +54,7 @@ export function createNativeOwnerTransport(input, { fetchImpl = fetch } = {}) {
   return async ({ method, path: target, body, signal }) => {
     const match = target?.match(orderPath)?.[0];
     const read = method === 'GET' && body === undefined && (['/api/session', '/api/bootstrap', '/api/muse-workers', base].includes(target) || match === target);
-    const write = method === 'POST' && (target === base || match && ['approve', 'dispatch', 'refresh', 'cancel', 'accept'].some(op => target === match + '/' + op));
+    const write = method === 'POST' && (target === supplierMcp || target === base || match && ['approve', 'dispatch', 'refresh', 'cancel', 'accept'].some(op => target === match + '/' + op));
     if (!read && !write) fail('OWNER_ROUTE_FORBIDDEN');
     const actual = await session(signal);
     if (actual.status !== 200 || target === '/api/session') return actual;
