@@ -12,13 +12,14 @@ import { ProviderError } from './provider.mjs';
 import { capabilityPayloadHash } from './capabilities.mjs';
 import { assertInputContextSnapshot } from './task-context.mjs';
 import { openAIUsage, explicitPiUsage, requestAllowance, invocationUsage, PI_REQUEST_LIMIT } from './pi-usage.mjs';
+import { MUSE_DRAFT_FIELDS, normalizeDraftProposal, assertDraftInvocation } from './muse-draft.mjs';
 
 export const PI_SOURCE = 'abe508e1b89912adde45528136c3221eb69acdd7';
 export const PI_VERSION = '1.1.0';
 const context = BACKGROUND_CONTEXT;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const RecordDoc = defineDoc({ kind: 'workspace.pi-invocations', version: 1, scope: 'conversation', history: 'latest', fork: 'initial', initial: () => ({ records: {}, active: null }) });
-const POLICY = { version: 2, tools: ['workspace_input', 'workspace_propose_action'], externalExecution: 'original-workspace-approval', replay: 'safe-only', storage: 'jsonl-fsync', budget: 'durable-request-reservations-wire-usage', museInput: 'original-owner-provenance' };
+const POLICY = { version: 3, tools: ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft'], externalExecution: 'original-workspace-approval', replay: 'safe-only', storage: 'jsonl-fsync', budget: 'durable-request-reservations-wire-usage', museInput: 'original-owner-provenance', museDraft: 'quote-verified-inert-v1' };
 const fail = (code, message) => { throw new ProviderError(code, message); };
 const clone = value => JSON.parse(JSON.stringify(value));
 
@@ -54,6 +55,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
     if (!run || run.status !== 'running' || run.conversationId !== active.conversationId || run.executionHash !== active.executionHash || run.assistantId !== active.replyId)
       fail('PI_NOT_ADMITTED', 'The original Workspace run is stopped or its execution scope changed.');
     assertInputContextSnapshot(state, active.conversationId, run.inputContextSnapshot);
+    assertDraftInvocation(state, run);
     return run;
   }
   async function openConversation(conversationId) {
@@ -139,7 +141,26 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
           }, callContext);
           return { content: [{ type: 'text', text: 'Proposal recorded for original Workspace approval; no action executed.' }], control: { terminate: true } };
         } });
-      const extension = defineExtension({ name: 'workspace-governed', tools: [input, propose], hooks: [
+      const draftField = Type.Union(MUSE_DRAFT_FIELDS.map(value => Type.Literal(value)));
+      const draftProposal = defineTool({ name: 'workspace_propose_muse_draft', replay: 'safe', executionMode: 'sequential',
+        description: 'Record one INERT Muse draft from quoted selected facts. Unknown facts must be null; guesses are separate suggestions. This tool never creates, approves, dispatches an order or wakes/impersonates Muse. Invoke even with all-null scope to ask necessary missing fields.',
+        parameters: Type.Object({ scope: Type.Object(Object.fromEntries(MUSE_DRAFT_FIELDS.map(field => [field, Type.Union([field === 'budgetCredits' ? Type.Integer({ minimum: 1, maximum: 10000 }) : Type.String({ maxLength: field === 'objective' ? 2500 : 240 }), Type.Null()])])), { additionalProperties: false }),
+          sources: Type.Array(Type.Union([
+            Type.Object({ field: draftField, kind: Type.Literal('message'), requestId: Type.String({ maxLength: 128 }), quote: Type.String({ minLength: 1, maxLength: 4000 }) }, { additionalProperties: false }),
+            Type.Object({ field: draftField, kind: Type.Literal('artifact'), id: Type.String({ maxLength: 160 }), version: Type.Integer({ minimum: 1 }), sha256: Type.String({ pattern: '^[a-f0-9]{64}$' }), quote: Type.String({ minLength: 1, maxLength: 4000 }) }, { additionalProperties: false }),
+          ]), { maxItems: 6 }), suggestions: Type.Optional(Type.Array(Type.Object({ field: draftField, value: Type.Union([Type.String({ maxLength: 2500 }), Type.Integer()]) }, { additionalProperties: false }), { maxItems: 6 })) }, { additionalProperties: false }),
+        execute: async (args, api, callContext) => {
+          const run = assertActive(state.active);
+          if (!run.museDraftContext) fail('PI_TOOL_PERMISSION', 'This run did not select Muse draft preparation.');
+          normalizeDraftProposal(args, run);
+          await api.commit(async tx => {
+            const doc = await tx.doc(RecordDoc, api.conversationId);
+            if (doc.active.museDraftProposal && capabilityPayloadHash(doc.active.museDraftProposal) !== capabilityPayloadHash(args)) fail('PI_TOOL_PERMISSION', 'Only one exact inert draft proposal is permitted.');
+            doc.active.museDraftProposal = clone(args);
+          }, callContext);
+          return { content: [{ type: 'text', text: 'Inert draft proposal saved for local factual checks and human review. No order, authorization, dispatch, wake or Muse execution occurred.' }], control: { terminate: true } };
+        } });
+      const extension = defineExtension({ name: 'workspace-governed', tools: [input, propose, draftProposal], hooks: [
         hook(GenerationTask, { beforeRequest: async (request, api, callContext) => {
           assertActive(state.active);
           const doc = await api.snapshot(RecordDoc, api.conversationId, callContext);
@@ -149,12 +170,13 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
           return { messages: [request.messages[0], ...doc.active.messages, ...tail].filter(Boolean) };
         } }),
         hook(ToolTask, { beforeTool: call => {
-          assertActive(state.active);
-          if (!['workspace_input', 'workspace_propose_action'].includes(call.name)) return { block: 'Only selected Workspace input and action-proposal tools are permitted.' };
+          const run = assertActive(state.active);
+          const allowed = run.museDraftContext ? ['workspace_input', 'workspace_propose_muse_draft'] : ['workspace_input', 'workspace_propose_action'];
+          if (!allowed.includes(call.name)) return { block: 'Only the admitted Workspace input/proposal tools are permitted.' };
         } }),
       ] });
       registry.install(extension);
-      state.extension = extension; state.input = input; state.propose = propose;
+      state.extension = extension; state.input = input; state.propose = propose; state.draftProposal = draftProposal;
       try {
         harness = await Harness.open(storage, { models: governedModels, registry, settings: { retry: { enabled: false, maxRetries: 0 }, compaction: { enabled: false }, toolExecution: 'sequential', stream: { timeoutMs, maxRetries: 0 } } }, context);
         state.harness = harness; state.root = await harness.root(context);
@@ -169,7 +191,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
   return {
     kind: 'pi-durable', provider: 'pi', configured: Boolean(suppliedModels ? modelRef : apiKey.trim()), model, models: [model],
     permissionFingerprint: capabilityPayloadHash({ ...POLICY, providerId, model, source: PI_SOURCE }),
-    capabilities: ['pi-agent-context', 'pi-durable-execution', 'durable-request-dedupe', 'explicit-interruption-recovery', 'explicit-durable-abort', 'selected-replay-safe-tools'],
+    capabilities: ['pi-agent-context', 'pi-durable-execution', 'durable-request-dedupe', 'explicit-interruption-recovery', 'explicit-durable-abort', 'selected-replay-safe-tools', 'inert-muse-draft-proposals'],
     setupMessage: 'Configure the existing host-managed FASTAITOKEN_API_KEY and PI_MODEL for Pi. Credentials remain on the server. Your work is saved.',
     limitations: ['Pi 1.1.0 is pinned; model endpoint/account access remains unverified.', 'Only selected input snapshots and exact action proposals are available to Pi. Workspace executes approved actions.', 'Reopen does not resume work automatically. User cancellation explicitly aborts durable work; shutdown preserves checkpoints.', 'Muse and Dot remain independent original connectors. A receipt or write submission is not wake/execution evidence.'],
     containsCredential: value => Boolean(apiKey && typeof value === 'string' && value.includes(apiKey)),
@@ -187,7 +209,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
       if (activeCalls.has(conversationId)) fail('RUNTIME_BUSY', 'This Pi conversation already has admitted work.');
       const requestId = `${runId}:${replyId}`;
       const run = store.read().runs.find(value => value.id === runId);
-      const scope = { runId, replyId, conversationId, executionHash: run?.executionHash, maxTokens, structured: json, snapshot: run?.inputContextSnapshot || null };
+      const scope = { runId, replyId, conversationId, executionHash: run?.executionHash, maxTokens, structured: json, museDraft: Boolean(run?.museDraftContext), snapshot: run?.inputContextSnapshot || null };
       assertActive(scope);
       const document = await state.harness.snapshot(RecordDoc, state.root.id, context);
       const previous = document?.records[requestId];
@@ -221,7 +243,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
           const agent = new Agent({ initialState: { model: modelRef, systemPrompt, messages: canonical }, streamFn: models.streamSimple.bind(models) });
           state.active = { ...scope, requestId, requests: [], messages: clone(agent.state.messages.filter(value => value.role !== 'system')) };
           await state.root.configure({ model: { provider: providerId, modelId: model }, instructions: systemPrompt,
-            tools: json ? [state.input, state.propose] : [state.input], extensions: [state.extension] }, context);
+            tools: scope.museDraft ? [state.input, state.draftProposal] : json ? [state.input, state.propose] : [state.input], extensions: [state.extension] }, context);
           await state.root.commit(async tx => { (await tx.doc(RecordDoc, state.root.id)).active = state.active; }, context);
         }
         if (signal?.aborted) cancelled();
@@ -238,12 +260,14 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
         const finalDoc = await state.harness.snapshot(RecordDoc, state.root.id, context);
         const entry = settled.answer ? await state.root.commit(tx => tx.entry(AssistantEntry, settled.answer), context) : null;
         const answer = entry?.model?.[0];
-        const content = finalDoc.active.proposal ? JSON.stringify(finalDoc.active.proposal) : answer?.content?.filter(value => value.type === 'text').map(value => value.text).join('');
-        if (settled.status !== 'done' && !finalDoc.active.proposal) fail('PI_UNANSWERED', `Pi did not complete this submission (${settled.reason || 'unanswered'}). Saved checkpoints remain available.`);
+        if (scope.museDraft && !finalDoc.active.museDraftProposal) fail('PI_MUSE_PROPOSAL_REQUIRED', 'Pi must use its admitted inert draft tool; text cannot substitute for a draft or Muse execution.');
+        const content = finalDoc.active.museDraftProposal ? JSON.stringify({ done: true, content: 'Pi saved an inert proposal; no Muse execution.' })
+          : finalDoc.active.proposal ? JSON.stringify(finalDoc.active.proposal) : answer?.content?.filter(value => value.type === 'text').map(value => value.text).join('');
+        if (settled.status !== 'done' && !finalDoc.active.proposal && !finalDoc.active.museDraftProposal) fail('PI_UNANSWERED', `Pi did not complete this submission (${settled.reason || 'unanswered'}). Saved checkpoints remain available.`);
         if (answer?.stopReason === 'length') fail('OUTPUT_LIMIT', 'Pi reached the output limit. Review saved work before retrying.');
         if (!content?.trim() || content.length > 80000 || apiKey && content.includes(apiKey)) fail('INVALID_RESPONSE', 'Pi returned an invalid visible answer.');
         const totals = invocationUsage(finalDoc.active.requests);
-        return { content, usage: totals, runtime: { kind: 'pi-durable', version: PI_VERSION, source: PI_SOURCE, submissionId: submission.id, replayed: reattaching } };
+        return { content, usage: totals, ...(scope.museDraft ? { museDraftProposal: clone(finalDoc.active.museDraftProposal) } : {}), runtime: { kind: 'pi-durable', version: PI_VERSION, source: PI_SOURCE, submissionId: submission.id, replayed: reattaching } };
       } catch (error) {
         await abortPromise?.catch(() => {});
         if (localStop.signal.aborted || signal?.aborted) fail('CANCELLED', 'The request was stopped.');

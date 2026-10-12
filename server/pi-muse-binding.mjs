@@ -42,6 +42,11 @@ export async function createPiMuseBinding({ store, artifacts, config, binding, d
         let id;
         try { id = decodeURIComponent(match[1]); } catch { throw new MuseWorkerError(400, 'INVALID_PATH', 'Invalid conversation identifier.'); }
         const service = native.bindConversation(authorized(context, id));
+        if (req.method === 'POST' && ['approve', 'dispatch'].includes(match[3])) {
+          const order = store.read().workerOrders?.find(item => item.id === match[2]);
+          if (order && store.read().workspaceMuseDrafts?.drafts.some(draft => draft.rejected && draft.prepare?.orderRequestId === order.requestId))
+            throw new MuseWorkerError(409, 'MUSE_DRAFT_REJECTED', 'The original draft was explicitly rejected; its old review cannot execute.');
+        }
         if (req.method === 'GET') { await respond(res, 200, match[2] ? { delegation: await service.get(match[2]) } : { delegations: await service.list() }); return true; }
         if (req.method === 'POST' && !match[2]) { await respond(res, 201, await service.prepare(body)); return true; }
         if (req.method === 'POST' && match[3]) {

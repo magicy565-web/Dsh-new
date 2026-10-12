@@ -1,0 +1,55 @@
+✖ actual Pi tool/HTTP: natural goal clarifies one durable draft, then separately prepares/approves/dispatches one original order (174.986845ms)
+✖ unquoted model suggestions stay outside order scope and stale clarification cannot replace the current revision (102.564218ms)
+✖ selected original product resolves locally for review, never enters Pi, and changed revision invalidates preparation (21.486019ms)
+✖ lost original prepare acknowledgment reopens the same receipt/order; explicit rejection blocks its old review (93.920478ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 682.14216
+
+✖ failing tests:
+
+test at test/muse-draft-flow.test.mjs:47:1
+✖ actual Pi tool/HTTP: natural goal clarifies one durable draft, then separately prepares/approves/dispatches one original order (174.986845ms)
+  TypeError: Cannot read properties of undefined (reading 'length')
+      at TestContext.<anonymous> (file:///workspace/pi-muse-draft/test/muse-draft-flow.test.mjs:52:47)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at test/muse-draft-flow.test.mjs:73:1
+✖ unquoted model suggestions stay outside order scope and stale clarification cannot replace the current revision (102.564218ms)
+  TypeError: Cannot read properties of undefined (reading 'length')
+      at TestContext.<anonymous> (file:///workspace/pi-muse-draft/test/muse-draft-flow.test.mjs:80:47)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/muse-draft-flow.test.mjs:83:1
+✖ selected original product resolves locally for review, never enters Pi, and changed revision invalidates preparation (21.486019ms)
+  Error: requestId must be a UUID.
+      at fail (file:///workspace/pi-muse-draft/server/business-library.mjs:6:55)
+      at id (file:///workspace/pi-muse-draft/server/business-library.mjs:34:79)
+      at write (file:///workspace/pi-muse-draft/server/business-library.mjs:206:73)
+      at Object.createProduct (file:///workspace/pi-muse-draft/server/business-library.mjs:255:41)
+      at TestContext.<anonymous> (file:///workspace/pi-muse-draft/test/muse-draft-flow.test.mjs:85:48)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    status: 400,
+    code: 'INVALID_INPUT'
+  }
+
+test at test/muse-draft-flow.test.mjs:98:1
+✖ lost original prepare acknowledgment reopens the same receipt/order; explicit rejection blocks its old review (93.920478ms)
+  Error: Pi requires one original locked Workspace Store lifetime.
+      at Object.initialize (file:///workspace/pi-muse-draft/server/pi-provider.mjs:199:64)
+      at createApp (file:///workspace/pi-muse-draft/server/index.mjs:87:32)
+      at async Object.reopen (file:///workspace/pi-muse-draft/test/muse-draft-flow.test.mjs:38:119)
+      at async TestContext.<anonymous> (file:///workspace/pi-muse-draft/test/muse-draft-flow.test.mjs:105:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
