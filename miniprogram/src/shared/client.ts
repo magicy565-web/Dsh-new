@@ -8,8 +8,8 @@ import type { Inquiry } from './procurement';
 import { publicListingFields } from './supplier-view';
 import type { SupplierProfile, PublicListingField } from './supplier-view';
 import { validSupplier,validSupplierSample } from './supplier';
-import {validNotification,notificationExecutable} from './notification';
-import type {NotificationBinding,SubscriptionChallenge,SubscriptionReference,NotificationResponse,NotificationOperation} from './notification';
+import {validNotification,notificationExecutable,reportFacilityAvailable} from './notification';
+import type {NotificationBinding,SubscriptionChallenge,SubscriptionReference,NotificationResponse,NotificationOperation,NotificationPhase} from './notification';
 import { validPublication, canReviewDraftRepair } from './publication';
 import type { PublicationOperation, PublicationState, PublicationResponse } from './publication';
 import type { SupplierService, SupplierMonitor, SupplierSummary } from './supplier';
@@ -19,7 +19,7 @@ export type FileReference = { id: string; version: number; sha256: string; filen
 export type References = { conversationId: string; revision: number; products: { productId: string; productRevision: number }[]; documents: { documentId: string; documentVersion: number }[] };
 export type Card = { id: string; title: string; detail: string; runId?: string; proposalId?: string; conversationId?: string; stateKey?: string; operation?: 'approve' | 'deny' | 'resume' | 'recover' | 'cancel' | 'dispatch' | 'accept' | 'refresh'; file?: FileReference; kind: string; muse?: boolean; orderId?: string; reviewHash?: string; receiptHash?: string };
 export type MuseDelegation = { conversationId: string; orderId: string; reviewHash: string; review: { product: string; market: string; objective: string; budgetCredits: number }; phase: string; receiptHash: string | null; returnedHash: string | null; receipt: { files: FileReference[] } | null };
-type Transport = Pick<typeof wx, 'request' | 'downloadFile' | 'getFileSystemManager' | 'login'> & Partial<Pick<typeof wx,'requestSubscribeMessage'>>;
+type Transport = Pick<typeof wx, 'request' | 'downloadFile' | 'getFileSystemManager' | 'login'> & Partial<Pick<typeof wx,'requestSubscribeMessage'|'getAccountInfoSync'>>;
 export type Options = { baseUrl: string; notificationBinding?: (context:{conversationId:string;serviceId:string;monitorId:string})=>Promise<NotificationBinding|null>; goalMode?: 'muse'; allowLoopback?: boolean; journal?: Journal; loginBroker?: (code: string) => Promise<{ session: Session; token: string }> };
 const blank = (): InputContext => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });
 const extensionTypes: Record<string, string> = { txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', json: 'application/json', pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
@@ -202,6 +202,7 @@ export class WorkspaceClient {
   get pendingDraft() { return ['send', 'intake', 'procurement-reply', 'supplier-intake'].includes(this.pending?.kind || '') ? String(this.pending!.body.content) : ''; }
   get pendingInquiryId() { return this.pending?.kind.startsWith('procurement-') ? decodeURIComponent(this.pending.path.split('/')[3]) : ''; }
   get publicationRequestHistory(){return JSON.parse(JSON.stringify(this.publicationRequests)) as Pending[];}
+  get pendingNotificationPhase():NotificationPhase{return this.pending?.body.phase==='first_sample'?'first_sample':'summary';}
   get pendingNotificationMonitorId(){return this.pending?.kind.startsWith('notification-')?String(this.pending.body.monitorId||''):'';}
   get pendingPublicationOperationId(){return this.pending?.kind.startsWith('publication-')?String(this.pending.body.operationId||''):'';}
   get pendingSupplierId() { return (this.pending?.kind.startsWith('supplier-')||this.pending?.kind.startsWith('publication-')||this.pending?.kind.startsWith('notification-')) ? decodeURIComponent(this.pending.path.split('/')[4] || '') : ''; }
@@ -331,46 +332,51 @@ export class WorkspaceClient {
     const hash=await new Promise<string>((resolve,reject)=>this.platform.getFileSystemManager().getFileInfo({filePath,digestAlgorithm:'sha256',success:result=>resolve(result.digest),fail:()=>reject(new ClientError('FILE_VERIFY_FAILED','原图片 SHA 校验未完成。'))}));
     if(hash!==source.asset.sha256) throw new ClientError('FILE_HASH_MISMATCH','原图片字节与 SHA 不符，已拒绝显示。');return filePath;
   }
-  subscriptionReference(monitor:SupplierMonitor){return this.notificationSubscriptions.find(item=>item.monitorId===monitor.id&&item.monitorHash===monitor.scopeHash&&item.state==='available')||null;}
+  subscriptionReference(monitor:SupplierMonitor,phase:NotificationPhase='summary'){return this.notificationSubscriptions.find(item=>item.monitorId===monitor.id&&(item.phase||'summary')===phase&&item.monitorHash===monitor.scopeHash&&item.state==='available')||null;}
   private rememberSubscription(command:Pending,result:unknown){const r=result as Record<string,unknown>;if(r.status==='blocked')return;
-    if(typeof r.subscriptionId!=='string'||typeof r.recipientBindingId!=='string'||!Number.isInteger(r.bindingRevision)||!['available','revoked'].includes(String(r.state)))throw new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','可信设施没有返回可核对的原订阅引用。');
-    const value={monitorId:String(command.body.monitorId),monitorHash:String(command.body.expectedMonitorHash),subscriptionId:r.subscriptionId,recipientBindingId:r.recipientBindingId,bindingRevision:Number(r.bindingRevision),state:String(r.state),evidenceKind:String(r.evidenceKind)};
-    this.notificationSubscriptions=[...this.notificationSubscriptions.filter(item=>item.monitorId!==value.monitorId),value].slice(-20);
+    if(typeof r.subscriptionId!=='string'||typeof r.recipientBindingId!=='string'||!Number.isInteger(r.bindingRevision)||!['available','revoked'].includes(String(r.state)))throw new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','原登录报告设施没有返回可核对的客户端报告引用。');
+    const value={phase:command.body.phase==='first_sample'?'first_sample' as const:'summary' as const,monitorId:String(command.body.monitorId),monitorHash:String(command.body.expectedMonitorHash),subscriptionId:r.subscriptionId,recipientBindingId:r.recipientBindingId,bindingRevision:Number(r.bindingRevision),state:String(r.state),evidenceKind:String(r.evidenceKind)};
+    this.notificationSubscriptions=[...this.notificationSubscriptions.filter(item=>item.monitorId!==value.monitorId||(item.phase||'summary')!==value.phase),value].slice(-20);
   }
-  async notificationStatus(cid:string,sid:string,mid:string){const r=await this.request<NotificationResponse>(this.supplierPath(cid,sid)+'/notification-status/'+encodeURIComponent(mid));if(!validSupplier(r.service,cid)||r.service.id!==sid||r.monitorId!==mid||!validNotification(r.notification,cid,sid,mid))throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原通知对象/回执无法核对。');return r;}
-  async prepareNotificationSubscription(cid:string,monitor:SupplierMonitor,confirmed:boolean){
+  async notificationStatus(cid:string,sid:string,mid:string,phase:NotificationPhase='summary'){const r=await this.request<NotificationResponse>(this.supplierPath(cid,sid)+(phase==='first_sample'?'/notification-first-status/':'/notification-status/')+encodeURIComponent(mid));if(!validSupplier(r.service,cid)||r.service.id!==sid||r.monitorId!==mid||!validNotification(r.notification,cid,sid,mid)||(r.notification.phase||'summary')!==phase)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原通知对象/回执无法核对。');return r;}
+  async prepareNotificationSubscription(cid:string,monitor:SupplierMonitor,confirmed:boolean,phase:NotificationPhase='summary'){
     if(!confirmed||monitor.stoppedAt)throw new ClientError('NOTIFICATION_CANCELLED','请明确确认未停止的原监测。');
-    const current=await this.notificationStatus(cid,monitor.serviceId,monitor.id);
+    const current=await this.notificationStatus(cid,monitor.serviceId,monitor.id,phase);
     if(current.notification.delivery.submittedAt||current.notification.delivery.cancelledAt)throw new ClientError('NOTIFICATION_ALREADY_ATTEMPTED','原七天通知已经交接/取消，不再次申请订阅或发送。');
-    if(!current.notification.configured||!current.notification.enabled||!current.notification.confirmedSubscriptionProvider)throw new ClientError('NOTIFICATION_SUBSCRIPTION_PROVIDER_REQUIRED','缺可信原生订阅设施或原通知配置；没有调用微信订阅。');
-    if(!this.options.notificationBinding||!this.platform.requestSubscribeMessage)throw new ClientError('NOTIFICATION_NATIVE_HOST_REQUIRED','既有宿主尚未提供可信收件人绑定读取/原生订阅 API；不接受自报 OpenID 或授权。');
-    const reference=await this.options.notificationBinding({conversationId:cid,serviceId:monitor.serviceId,monitorId:monitor.id});
-    if(!reference?.recipientBindingId||!Number.isInteger(reference.bindingRevision)||reference.bindingRevision<1)throw new ClientError('NOTIFICATION_RECIPIENT_CHANGED','既有宿主没有提供当前原收件人绑定引用。');
-    const body={requestId:this.requestId(),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,recipientBindingId:reference.recipientBindingId,expectedBindingRevision:reference.bindingRevision,confirmed:true};
-    return this.commit({kind:'notification-challenge',conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-subscription-challenge',body,key:body.requestId,review:{title:'准备原生一次性订阅',detail:'仅为原七天总结准备服务端challenge；后续用户另一次点击微信原生订阅。'}}) as Promise<SubscriptionChallenge&{status?:string;code?:string}>;
+    if(!current.notification.configured||!current.notification.enabled||!reportFacilityAvailable(current.notification))throw new ClientError('NOTIFICATION_SUBSCRIPTION_PROVIDER_REQUIRED','缺可信原生订阅设施或原通知配置；没有调用微信订阅。');
+    if(!this.platform.requestSubscribeMessage)throw new ClientError('NOTIFICATION_NATIVE_HOST_REQUIRED','当前宿主没有原生订阅API，未报告决定。');
+    const appId=this.platform.getAccountInfoSync?.().miniProgram.appId,bindings=current.notification.recipientBindings?.filter(item=>!appId||item.appId===appId);
+    let reference:NotificationBinding|null=null;
+    if(bindings?.length===1)reference={recipientBindingId:bindings[0].id,bindingRevision:bindings[0].revision};
+    else if(bindings&&bindings.length>1)throw new ClientError('NOTIFICATION_RECIPIENT_CHANGED','当前原登录绑定不唯一，请核对同一AppID登录，不自填身份。');
+    else if(this.options.notificationBinding&&!current.notification.recipientBindings)reference=await this.options.notificationBinding({conversationId:cid,serviceId:monitor.serviceId,monitorId:monitor.id});
+    if(!reference?.recipientBindingId||!Number.isInteger(reference.bindingRevision)||reference.bindingRevision<1)throw new ClientError('NOTIFICATION_NATIVE_HOST_REQUIRED','当前微信原登录没有可用绑定，请通过原loginBroker重新真实登录；禁止自报OpenID。');
+    const body={requestId:this.requestId(),...(phase==='first_sample'?{phase}:{}),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,recipientBindingId:reference.recipientBindingId,expectedBindingRevision:reference.bindingRevision,confirmed:true};
+    return (this.commit({kind:'notification-challenge',conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-subscription-challenge',body,key:body.requestId,review:{title:'准备原生一次性订阅',detail:'仅为原七天总结准备服务端challenge；后续用户另一次点击微信原生订阅。'}}) as Promise<SubscriptionChallenge&{status?:string;code?:string}>).then(result=>({...result,phase}));
   }
   // Called directly from the separate explicit native-subscribe tap. No await,
   // HTTP, settings lookup, user identity or proof construction precedes wx API.
   requestNativeSubscription(cid:string,monitor:SupplierMonitor,challenge:SubscriptionChallenge,confirmed:boolean){
     if(!confirmed||this.pending||monitor.stoppedAt||!this.platform.requestSubscribeMessage||challenge.userGestureRequired!==true||!/^wx[a-f0-9]{16}$/i.test(challenge.appId)||!challenge.templateId||!challenge.challengeId||!Number.isFinite(Date.parse(challenge.expiresAt))||Date.parse(challenge.expiresAt)<=Date.now())throw new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','原challenge失效或原生订阅不可用，请重新准备。');
-    const body={requestId:this.requestId(),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,challengeId:challenge.challengeId,confirmed:true};
-    return new Promise<string>((resolve,reject)=>this.platform.requestSubscribeMessage!({tmplIds:[challenge.templateId],success:r=>{const decision=r[challenge.templateId];if(!['accept','reject','ban','filter'].includes(decision))reject(new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','没有这个准确模板的原生决定；设置/errMsg不构成授权。'));else resolve(decision);},fail:()=>reject(new ClientError('NOTIFICATION_NATIVE_REQUEST_FAILED','微信原生订阅未完成；没有保存accept或通知授权。'))})).then(decision=>this.commit({kind:'notification-record',conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-subscription-record',body:{...body,decision},key:body.requestId,review:{title:'核对原生订阅决定',detail:'服务端既有可信设施须核对准确会话/challenge/AppID/模板；客户端决定本身不是授权。'}}));
+    if(this.platform.getAccountInfoSync&&this.platform.getAccountInfoSync().miniProgram.appId!==challenge.appId)throw new ClientError('NOTIFICATION_RECIPIENT_CHANGED','当前原生AppID与原challenge不符，未弹出订阅。');
+    const body={requestId:this.requestId(),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,challengeId:challenge.challengeId,...(challenge.phase==='first_sample'?{phase:challenge.phase}:{}),confirmed:true};
+    return new Promise<string>((resolve,reject)=>this.platform.requestSubscribeMessage!({tmplIds:[challenge.templateId],success:r=>{const decision=r[challenge.templateId];if(!['accept','reject','ban','filter'].includes(decision))reject(new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','没有这个准确模板的原生决定；设置/errMsg不构成授权。'));else resolve(decision);},fail:()=>reject(new ClientError('NOTIFICATION_NATIVE_REQUEST_FAILED','微信原生订阅未完成；没有保存accept或通知授权。'))})).then(decision=>this.commit({kind:'notification-record',conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-subscription-record',body:{...body,decision},key:body.requestId,review:{title:'核对原生订阅决定',detail:'服务端核对已有登录/会话/challenge/AppID/模板并记录认证客户端报告；不是独立微信授权证明，平台授权待发送接口核验。'}}));
   }
-  async reviewNotification(cid:string,monitor:SupplierMonitor,confirmed:boolean){const grant=this.subscriptionReference(monitor),summary=monitor.summary;
-    if(!confirmed||!grant||monitor.stoppedAt||!summary||Date.parse(summary.endAt)>Date.now())throw new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','先核对完成七天窗口的总结和可信设施返回的原一次性订阅。');
-    const body={requestId:this.requestId(),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,recipientBindingId:grant.recipientBindingId,expectedBindingRevision:grant.bindingRevision,subscriptionId:grant.subscriptionId,expectedSummaryRevision:summary.revision,expectedSummaryHash:summary.contentHash,confirmed:true};
+  async reviewNotification(cid:string,monitor:SupplierMonitor,confirmed:boolean,phase:NotificationPhase='summary'){const grant=this.subscriptionReference(monitor,phase),summary=(phase==='first_sample'?monitor.firstNotification:monitor.notification)?.source||(phase==='first_sample'?null:monitor.summary);
+    if(!confirmed||!grant||monitor.stoppedAt||!summary||Date.parse(summary.endAt)>Date.now())throw new ClientError('NOTIFICATION_SUBSCRIPTION_REQUIRED','先核对所选原通知来源和原登录绑定的一次性客户端报告。');
+    const body={requestId:this.requestId(),...(phase==='first_sample'?{phase}:{}),monitorId:monitor.id,expectedMonitorHash:monitor.scopeHash,recipientBindingId:grant.recipientBindingId,expectedBindingRevision:grant.bindingRevision,subscriptionId:grant.subscriptionId,expectedSummaryRevision:summary.revision,expectedSummaryHash:summary.contentHash,confirmed:true};
     return this.commit({kind:'notification-review',conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-review',body,key:body.requestId,review:{title:'准备独立七天总结通知审批',detail:JSON.stringify({monitor:monitor.id,subscription:grant,summary},null,2)}}) as Promise<NotificationResponse>;
   }
-  async notificationAction(cid:string,monitor:SupplierMonitor,action:'approved'|'denied'|'execute'|'cancel'|'revoke',confirmed:boolean,operation?:NotificationOperation){
+  async notificationAction(cid:string,monitor:SupplierMonitor,action:'approved'|'denied'|'execute'|'cancel'|'revoke',confirmed:boolean,operation?:NotificationOperation,phase:NotificationPhase='summary'){
     if(!confirmed)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','请明确确认准确原通知动作。');
-    const grant=this.subscriptionReference(monitor),decision=action==='approved'||action==='denied';
-    if((decision||action==='execute')&&(!operation||operation.scope.monitorId!==monitor.id||operation.scope.monitorHash!==monitor.scopeHash)||action==='execute'&&(!monitor.notification||!notificationExecutable(monitor,monitor.notification))||action==='revoke'&&!grant)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原通知或订阅范围已变/已使用，不能执行这一动作。');
+    const grant=this.subscriptionReference(monitor,phase),state=phase==='first_sample'?monitor.firstNotification:monitor.notification,decision=action==='approved'||action==='denied';
+    if((decision||action==='execute')&&(!operation||operation.scope.monitorId!==monitor.id||operation.scope.monitorHash!==monitor.scopeHash)||action==='execute'&&(!state||!notificationExecutable(monitor,state))||action==='revoke'&&!grant)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原通知或订阅范围已变/已使用，不能执行这一动作。');
     const suffix=decision?'decision':action==='revoke'?'subscription-revoke':action,kind=decision?'notification-decision':action==='revoke'?'notification-revoke':action==='cancel'?'notification-cancel':'notification-execute';
-    const body={requestId:this.requestId(),monitorId:monitor.id,...(decision||action==='execute'?{operationId:operation!.id,expectedScopeHash:operation!.scopeHash}: {expectedMonitorHash:monitor.scopeHash}),...(decision?{decision:action}:{}),...(action==='revoke'?{subscriptionId:grant!.subscriptionId}:{}),confirmed:true};
-    const r=await this.commit({kind,conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-'+suffix,body,key:JSON.stringify([kind,monitor.id,operation?.id,operation?.scopeHash,action,grant?.subscriptionId]),review:{title:'原七天总结通知动作',detail:JSON.stringify(body)}}) as NotificationResponse;
+    const body={requestId:this.requestId(),...(phase==='first_sample'?{phase}:{}),monitorId:monitor.id,...(decision||action==='execute'?{operationId:operation!.id,expectedScopeHash:operation!.scopeHash}: {expectedMonitorHash:monitor.scopeHash}),...(decision?{decision:action}:{}),...(action==='revoke'?{subscriptionId:grant!.subscriptionId}:{}),confirmed:true};
+    const r=await this.commit({kind,conversationId:cid,path:this.supplierPath(cid,monitor.serviceId)+'/notification-'+suffix,body,key:JSON.stringify([kind,phase,monitor.id,operation?.id,operation?.scopeHash,action,grant?.subscriptionId]),review:{title:'原七天总结通知动作',detail:JSON.stringify(body)}}) as NotificationResponse;
     if(action==='revoke'){this.notificationSubscriptions=this.notificationSubscriptions.filter(item=>item.subscriptionId!==grant!.subscriptionId);this.save();}return r;
   }
-  private async readPendingNotification(command:Pending){const cid=command.conversationId||'',sid=decodeURIComponent(command.path.split('/')[4]||''),r=await this.notificationStatus(cid,sid,String(command.body.monitorId)),op=r.notification.review;
+  private async readPendingNotification(command:Pending){const cid=command.conversationId||'',sid=decodeURIComponent(command.path.split('/')[4]||''),r=await this.notificationStatus(cid,sid,String(command.body.monitorId),command.body.phase==='first_sample'?'first_sample':'summary'),op=r.notification.review;
     if(!op||op.id!==command.body.operationId||op.scopeHash!==command.body.expectedScopeHash)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原通知操作无法核对；保留原请求，不重发。');
     const monitor=(await this.supplierMonitors(cid,sid)).find(item=>item.id===String(command.body.monitorId));if(!monitor||monitor.scopeHash!==op.scope.monitorHash)throw new ClientError('NOTIFICATION_SCOPE_CHANGED','原监测对象已变，保留准确请求。');
     if(!op.connectorRunId&&notificationExecutable(monitor,r.notification))return {...r,notAdmitted:true};

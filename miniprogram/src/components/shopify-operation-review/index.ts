@@ -1,5 +1,5 @@
-import type {SubscriptionChallenge} from '../../shared/notification';
-export type ShopifyReview = {key:string;stage:'prepare'|'decision'|'execute'|'reconcile'|'retry'|'native'|'cancel'|'revoke';action:'draft'|'publish'|'repair_draft'|'notification';monitorId?:string;monitorHash?:string;summaryHash?:string;summaryRevision?:number;challenge?:SubscriptionChallenge;draftOperationId?:string;expectedRemoteContentHash?:string;expectedMediaSnapshot?:string;observedMediaRequired?:boolean;approveObservedMedia?:boolean;serviceId:string;revision:number;previewHash:string;operationId?:string;scopeHash?:string;publicationId?:string;title:string;detail:string;hasImages:boolean;allowConfirm:boolean};
+import type {SubscriptionChallenge,NotificationPhase} from '../../shared/notification';
+export type ShopifyReview = {key:string;stage:'prepare'|'decision'|'execute'|'reconcile'|'retry'|'native'|'cancel'|'revoke';action:'draft'|'publish'|'repair_draft'|'notification';phase?:NotificationPhase;monitorId?:string;monitorHash?:string;summaryHash?:string;summaryRevision?:number;challenge?:SubscriptionChallenge;draftOperationId?:string;expectedRemoteContentHash?:string;expectedMediaSnapshot?:string;observedMediaRequired?:boolean;approveObservedMedia?:boolean;serviceId:string;revision:number;previewHash:string;operationId?:string;scopeHash?:string;publicationId?:string;title:string;detail:string;hasImages:boolean;allowConfirm:boolean};
 const identities=new WeakMap<object,string>();
 Component({
  options:{styleIsolation:'shared'},
