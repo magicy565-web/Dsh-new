@@ -55,7 +55,7 @@ export class WorkspaceClient {
       const owner = this.session.user?.id || (this.options.allowLoopback && this.session.mode === 'local' ? 'local' : '');
       if (!owner) throw new ClientError('LOGIN_REQUIRED', '企业会话缺少可核对的账号。');
       if (owner !== this.owner) {
-        this.pending = null; this.completed.clear(); this.conversationId = ''; this.owner = '';
+        this.pending = null; this.completed.clear(); this.conversationId = ''; this.owner = ''; this.snapshot = null;
         const saved = this.options.journal?.read(owner, this.base());
         if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
         if (saved?.version === 1 && saved.owner === owner && saved.baseUrl === this.base()) {
@@ -160,7 +160,7 @@ export class WorkspaceClient {
   get uncertain() { return Boolean(this.pending); }
   get pendingKind() { return this.pending?.kind || ''; }
   get pendingDraft() { return this.pending?.kind === 'send' ? String(this.pending.body.content) : ''; }
-  get pendingSummary() { return this.pending ? `${this.pending.path}\n${this.pending.kind === 'upload' ? String(this.pending.body.filename) : JSON.stringify(this.pending.body, null, 2)}` : ''; }
+  get pendingSummary() { return this.pending ? `${this.pending.review ? `${this.pending.review.title}\n${this.pending.review.detail}\n\n` : ''}原请求 ${this.pending.path}\n${this.pending.kind === 'upload' ? String(this.pending.body.filename) : JSON.stringify(this.pending.body, null, 2)}` : ''; }
   async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.conversationId = ''; this.completed.clear(); }
   async action(card: Card, confirmed: boolean, conversationId?: string) {
     if (!confirmed) throw new ClientError('APPROVAL_REQUIRED', '需要明确确认本次具体操作。');
@@ -169,7 +169,7 @@ export class WorkspaceClient {
       if (!/^[a-f0-9]{64}$/.test(card.reviewHash) || card.conversationId && card.conversationId !== conversationId || card.operation === 'accept' && !/^[a-f0-9]{64}$/.test(card.receiptHash || '')) throw new ClientError('INVALID_ACTION', '原订单范围或回执需要重新核对。');
       const path = `/conversations/${encodeURIComponent(conversationId)}/muse-delegations/${encodeURIComponent(card.orderId)}/${card.operation}`;
       const body = { confirmed: true, expectedReviewHash: card.reviewHash, ...(card.operation === 'accept' ? { receiptHash: card.receiptHash } : {}) };
-      return this.commit({ kind: 'action', conversationId, path, body, key: JSON.stringify([path, body]) });
+      return this.commit({ kind: 'action', conversationId, path, body, key: JSON.stringify([path, body]), review: { title: card.title, detail: card.detail } });
     }
     if (!card.runId) throw new ClientError('INVALID_ACTION', '需要核对原运行。');
     const id = encodeURIComponent(card.runId);
@@ -177,7 +177,7 @@ export class WorkspaceClient {
     const path = `/runs/${id}/${card.operation === 'approve' || card.operation === 'deny' ? 'action-decision' : card.operation === 'recover' ? 'retry' : card.operation}`;
     const key = JSON.stringify([this.owner, path, card.proposalId || '', card.operation, card.stateKey || '']);
     const body = card.operation === 'approve' || card.operation === 'deny' ? { proposalId: card.proposalId, decision: card.operation === 'approve' ? 'approved' : 'denied', confirmed: true } : card.operation === 'resume' ? { proposalId: card.proposalId, requestId: this.requestId() } : card.operation === 'recover' ? { requestId: this.requestId() } : {};
-    if (['approve', 'deny', 'resume', 'recover', 'cancel'].includes(card.operation || '')) return this.commit({ kind: 'action', conversationId, path, body, key });
+    if (['approve', 'deny', 'resume', 'recover', 'cancel'].includes(card.operation || '')) return this.commit({ kind: 'action', conversationId, path, body, key, review: { title: card.title, detail: card.detail } });
     throw new ClientError('INVALID_ACTION', '未知操作。');
   }
   async library() {
@@ -224,6 +224,14 @@ export function conversationView(snapshot: Bootstrap, conversationId: string, de
     const artifact = (snapshot.artifacts || []).find(value => value.id === reference?.id && value.sourceRunId === message.runId && value.sourceConversationId === conversationId);
     const version = artifact?.versions.find(value => value.version === reference?.version && value.sha256 === reference?.sha256);
     if (reference && version) cards.push({ id: `${reference.id}:${reference.version}`, kind: 'file', title: version.filename, detail: `原文件 v${reference.version} · 点击校验后打开`, file: { ...reference, filename: version.filename, mimeType: version.mimeType } });
+    const receipt = message.museReceipt as { schema?: string; nativeAgentId?: string; orderId?: string; files?: FileReference[] } | undefined;
+    if (message.role === 'assistant' && typeof message.museReceiptHash === 'string' && /^[a-f0-9]{64}$/.test(message.museReceiptHash) && receipt?.schema === 'workspace.muse.session-receipt.v1' && receipt.nativeAgentId === conversationId && receipt.orderId === message.museOrderId && Array.isArray(receipt.files)) {
+      for (const file of receipt.files) if (typeof file.id === 'string' && file.version === 1 && /^[a-f0-9]{64}$/.test(file.sha256)) cards.push({ id: `muse-message-file:${message.id}:${file.id}`, kind: 'file', title: file.filename, detail: '原 Muse 会话回执文件 · 校验后打开', file: { ...file, mimeType: file.mimeType || extensionTypes[file.filename.split('.').pop()?.toLowerCase() || ''] }, muse: true });
+    }
+  }
+  for (const artifact of snapshot.artifacts || []) {
+    const version = artifact.versions?.find(item => item.version === artifact.currentVersion && item.sha256 === artifact.sha256);
+    if (artifact.sourceConversationId === conversationId && !artifact.sourceRunId && version && !cards.some(card => card.file?.id === artifact.id)) cards.push({ id: `resource:${artifact.id}`, kind: 'input', title: version.filename, detail: '已保存的会话输入文件 · 图片/PDF未解析', file: { id: artifact.id, version: version.version, sha256: version.sha256, filename: version.filename, mimeType: version.mimeType } });
   }
   for (const item of delegations) {
     if (item.conversationId !== conversationId || !/^[a-f0-9]{64}$/.test(item.reviewHash)) continue;
@@ -233,7 +241,7 @@ export function conversationView(snapshot: Bootstrap, conversationId: string, de
     else if (item.phase === 'approved') cards.push({ id: `muse:${item.orderId}`, kind: 'approval', title: '原订单已批准，等待派发', detail, operation: 'dispatch', ...scope });
     else if (item.phase === 'result_returned' && item.receiptHash && item.returnedHash === item.receiptHash) cards.push({ id: `muse:${item.orderId}`, kind: 'approval', title: '验收原 Muse 回执', detail: `${detail}\n回执 SHA ${item.receiptHash}\n请核对文件与范围；外部结论仍需独立验证。`, operation: 'accept', ...scope });
     else {
-      const phase = ({ queued: '已排队，等待领取', claimed: '已领取，执行待核对', result_ready: '回执待核对', reconciliation_required: '原尝试待核对', cancel_requested: '等待停止确认', cancelled: '原任务已取消', enterprise_accepted: '原回执已验收', failed: '原任务未完成', dispatching: '派发结果待确认', lease_expired: '执行租约已过期', deadline_expired: '原任务已超时', input_required: '需要补充信息' } as Record<string, string>)[item.phase] || '进度待核对';
+      const phase = ({ queued: '已排队，等待领取', claimed: '已领取，执行待核对', result_ready: '回执待核对', reconciliation_required: '原尝试待核对', cancel_requested: '等待停止确认', cancelled: '原任务已取消', enterprise_accepted: '原回执已验收', failed: '原任务失败', dispatching: '派发结果待确认', lease_expired: '执行租约已过期', deadline_expired: '原任务已超时', input_required: '需要补充信息' } as Record<string, string>)[item.phase] || '进度待核对';
       const terminal = ['enterprise_accepted', 'cancelled', 'failed'].includes(item.phase);
       cards.push({ id: `muse:${item.orderId}`, kind: 'progress', title: `Muse · ${phase}`, detail: `${detail}\n已派发不等于原执行端已开始工作。`, ...(!terminal ? { operation: 'refresh' as const } : {}), ...scope });
       if (!terminal && item.phase !== 'cancel_requested') cards.push({ id: `muse-stop:${item.orderId}`, kind: 'progress', title: '请求停止原 Muse 任务', detail: '停止要等待原执行端确认。', operation: 'cancel', ...scope });
@@ -242,5 +250,6 @@ export function conversationView(snapshot: Bootstrap, conversationId: string, de
       for (const file of item.receipt?.files || []) if (typeof file.id === 'string' && file.version === 1 && /^[a-f0-9]{64}$/.test(file.sha256)) cards.push({ id: `muse-file:${item.orderId}:${file.id}:${file.version}`, kind: 'file', title: file.filename || 'Muse 原文件', detail: '原回执文件 · 校验确切版本与 SHA 后打开', file, muse: true });
     }
   }
-  return { messages, cards, busy: runs.some(value => ['running', 'queued', 'awaiting_approval'].includes(value.status)) };
+  const unique = cards.filter((card, index) => !card.file || cards.findIndex(item => item.file?.id === card.file?.id && item.file?.version === card.file?.version && item.file?.sha256 === card.file?.sha256 && item.muse === card.muse) === index);
+  return { messages, cards: unique, resourceCards: unique.filter(card => card.kind === 'input'), awaitingApproval: runs.some(run => run.status === 'awaiting_approval'), busy: runs.some(value => ['running', 'queued', 'awaiting_approval'].includes(value.status)) };
 }

@@ -1,0 +1,23 @@
+{"probe":"mini-original-receipt","receiptFiles":1,"miniFileCards":1,"messages":2}
+✔ requirement: mini program shows the original returned Muse receipt file in the same conversation (145.897212ms)
+{"probe":"final-mini-after-muse-acceptance","beforeFileCards":1,"afterFileCards":1,"originalDownloadStatus":200,"finalPhase":"enterprise_accepted","modelCalls":0,"mutations":["/api/conversations/d68e1a48-96f2-4522-a88d-4066323c26b9/muse-delegations/737cdfb6-9dc6-42bf-9ce7-351146f9853c/accept"]}
+{"probe":"final-mini-terminal-failed-task","phase":"failed","cards":[{"title":"Muse · 原任务失败"}]}
+{"probe":"mini-definite-rejection","uncertainAfterDefinite409":false}
+{"probe":"mini-input-pdf","savedArtifacts":1,"persistentFileCards":1}
+✔ requirement: mini Muse files remain accessible in the conversation after actual original human acceptance (100.909385ms)
+✔ requirement: mini renders a failed original Muse task as terminal failure rather than continuing work (0.373435ms)
+✔ requirement: definite mini send rejection releases composer for corrected input (0.498453ms)
+✔ requirement: upload-only PDF remains visible after sending and reloading the mini conversation (0.268807ms)
+{"probe":"compiled-mini-auth-expiry","clientSession":null,"pageAuthenticated":false,"loginButtonHidden":false}
+✔ requirement: compiled mini page restores login UI after the server rejects an expired session (11.423512ms)
+✔ positive independent check: missing mini service fails before obtaining any login code (0.419734ms)
+{"probe":"real-mini-binary-transport","uploadedArtifacts":2,"exactDownloadSHA":true,"binaryInputsParsed":false,"providerCalls":1,"wechatDevice":false}
+✔ positive independent check: mini binary attachments store and download byte-exact PDF/PNG with SHA while not parsing them (138.57011ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 713.928925

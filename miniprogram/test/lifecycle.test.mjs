@@ -158,3 +158,24 @@ test('real file journal preserves original request and fails closed for corrupt 
   const namespace = encodeURIComponent(JSON.stringify([value.baseUrl, value.owner])).match(/.{1,80}/g).join('/');
   await fs.writeFile(`${directory}/workspace-recovery/${namespace}/checkpoint.json`, '{corrupt'); assert.throws(() => journal.read(value.owner, value.baseUrl), /无法读取/);
 });
+
+test('compiled shipped App boots with empty service and cannot obtain a code or send any request', async t => {
+  const require = createRequire(import.meta.url), fsSync = require('node:fs');
+  const file = require.resolve('../../release/miniprogram/app.js');
+  const previousApp = globalThis.App, previousWx = globalThis.wx;
+  let application; const calls = [];
+  globalThis.wx = { env: { USER_DATA_PATH: '/tmp/wechat-default-never-written' }, getFileSystemManager: () => fsSync, request() { calls.push('request'); }, login() { calls.push('login'); } };
+  globalThis.App = value => { application = value; };
+  delete require.cache[file]; require(file);
+  t.after(() => { globalThis.App = previousApp; globalThis.wx = previousWx; delete require.cache[file]; });
+  await assert.rejects(application.globalData.client.initialize(), { code: 'SERVICE_SETUP_REQUIRED' });
+  await assert.rejects(application.globalData.client.login(), { code: 'LOGIN_INTEGRATION_REQUIRED' });
+  assert.deepEqual(calls, []);
+});
+
+test('malformed local recovery record remains blocked on every initialization attempt', async () => {
+  let posts = 0;
+  const client = new WorkspaceClient({ request(options) { if (options.method === 'POST') posts++; options.success({ statusCode: 200, data: { authenticated: true, user: { id: 'owner', role: 'operator' }, mode: 'enterprise' } }); } }, { baseUrl: 'https://workspace.example', journal: { read: () => ({ version: 9, owner: 'owner', baseUrl: 'https://workspace.example' }), write() {} } });
+  for (let i = 0; i < 2; i++) await assert.rejects(client.initialize(), { code: 'RECOVERY_RECORD_INVALID' });
+  assert.equal(posts, 0);
+});

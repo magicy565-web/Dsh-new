@@ -10,8 +10,8 @@ const labels: Record<string, string> = { approve: '批准此项', deny: '拒绝�
 const fileReference = (artifact: Artifact): FileReference => ({ id: artifact.id, version: artifact.currentVersion, sha256: artifact.sha256, filename: artifact.filename, mimeType: artifact.mimeType });
 
 Page({
-  data: { conversationId: '', subject: '', draft: '', messages: [] as Message[], cards: [] as Card[], files: [] as FileReference[], busy: false, loading: false, error: '', readError: '', authenticated: false,
-    uncertain: false, pendingLabel: '', pendingSummary: '', resourceCards: [] as Card[], runtimeNotice: '', readAt: '', referencesOpen: false, reviewCard: null as Card | null, reviewLabel: '', preview: null as { title: string; content: string } | null,
+  data: { conversationId: '', subject: '', draft: '', messages: [] as Message[], cards: [] as Card[], files: [] as FileReference[], busy: false, awaitingApproval: false, loading: false, error: '', readError: '', authenticated: false,
+    uncertain: false, pendingLabel: '', pendingSummary: '', resourceCards: [] as Card[], runtimeNotice: '', readAt: '', referencesOpen: false, reviewCard: null as Card | null, reviewLabel: '', preview: null as { title: string; content: string; verified: boolean } | null,
     company: null as Company | null, products: [] as Product[], documents: [] as LibraryDocument[], references: null as References | null },
   onShow() { visible = true; epoch++; void this.open(); },
   onHide() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
@@ -54,15 +54,14 @@ Page({
       if (!visible || opened !== epoch) return;
       const view = conversationView(snapshot, id, delegations);
       const pendingLabel = ({ send: '消息', action: '操作', upload: '文件上传', references: '资料引用', create: '会话创建' } as Record<string, string>)[client().pendingKind] || '';
-      const resourceCards: Card[] = (snapshot.artifacts || []).filter(file => file.sourceConversationId === id && !file.sourceRunId).map(file => ({ id: `resource:${file.id}`, kind: 'file', title: file.filename, detail: '会话原文件', file: fileReference(file) }));
-      this.setData({ conversationId: id, ...view, resourceCards, readError: '', uncertain: client().uncertain, pendingLabel, pendingSummary: client().pendingSummary, readAt: new Date().toLocaleTimeString(),
+      this.setData({ conversationId: id, ...view, cards: view.cards.filter(card => card.kind !== 'input'), readError: '', uncertain: client().uncertain, pendingLabel, pendingSummary: client().pendingSummary, readAt: new Date().toLocaleTimeString(),
         ...(client().pendingDraft && !this.data.draft ? { draft: client().pendingDraft } : {}), runtimeNotice: snapshot.runtime?.configured === false ? '云端模型尚未接入，发送后会保存请求并显示真实阻挡原因。' : '' });
       readFailures = 0;
     } catch (error) {
       readFailures++;
       if (visible && opened === epoch) {
         this.setData({ readError: message(error) });
-        if (error instanceof ClientError && error.status === 401) this.setData({ authenticated: false, messages: [], cards: [], reviewCard: null, preview: null, referencesOpen: false });
+        if (error instanceof ClientError && error.status === 401) this.setData({ authenticated: false, messages: [], cards: [], files: [], resourceCards: [], reviewCard: null, preview: null, referencesOpen: false, error: message(error), readError: '' });
       }
     } finally {
       reading = false; if (timer !== undefined) clearTimeout(timer);
@@ -103,12 +102,13 @@ Page({
       else if (card.file.mimeType === 'application/pdf') await new Promise<void>((resolve, reject) => wx.openDocument({ filePath, fileType: 'pdf', showMenu: true, success: () => resolve(), fail: () => reject(new Error('微信文档预览未打开，请重试原文件。')) }));
       else {
         const content = await new Promise<string>((resolve, reject) => wx.getFileSystemManager().readFile({ filePath, encoding: 'utf8', success: result => resolve(String(result.data)), fail: () => reject(new Error('原文件已下载并校验，文本预览无法读取。')) }));
-        this.setData({ preview: { title: card.title, content: content.length > 20000 ? `${content.slice(0, 20000)}\n\n（预览仅显示前 20,000 字符；原下载文件已完整校验。）` : content } });
+        this.setData({ preview: { title: card.title, content: content.length > 20000 ? `${content.slice(0, 20000)}\n\n（预览仅显示前 20,000 字符；原下载文件已完整校验。）` : content, verified: true } });
       }
     } catch (error) { this.setData({ error: message(error) }); }
     finally { this.setData({ loading: false }); }
   },
   closePreview() { this.setData({ preview: null }); },
+  reviewPending() { this.setData({ preview: { title: '原请求核对', content: client().pendingSummary, verified: false } }); },
   closeReview() { if (!this.data.loading) this.setData({ reviewCard: null }); },
   async confirmCard(event: WechatMiniprogram.TouchEvent) {
     const card = this.data.reviewCard;
