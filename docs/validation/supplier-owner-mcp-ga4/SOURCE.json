@@ -1,13 +1,13 @@
 {
   "schema": "workspace.supplier-owner-mcp-evidence.v1",
   "baseline": "8ce17ef22190a878f520bad1871029748f211513",
-  "implementationCommit": "4fc6b9677978d5a2cb4b1c0f142203d61cdff46a",
-  "implementationTree": "be347fc5fc81c12480892d2466495cd3df70a2eb",
+  "implementationCommit": "8af564f15fcb821cde1054984356d2e3f3c75c0c",
+  "implementationTree": "8eed107c49c520ec7c5f1ad925ea2289dcb3c45a",
   "sourceFiles": [
     {
       "path": ".env.example",
-      "sha256": "3e73004ed9e8f0f3d78f98392122f1133ac157c208e6eee4fa52ef853094ec76",
-      "bytes": 6071
+      "sha256": "944f13760b08d488317d45e413bbe7baa88c871b2408965427133b0d8629b80d",
+      "bytes": 6157
     },
     {
       "path": "server/dot-mcp-server.mjs",
@@ -16,8 +16,8 @@
     },
     {
       "path": "server/index.mjs",
-      "sha256": "20e4fff493c8050a4403a1f4dce121534477bf52b9192039d273c31895d4c687",
-      "bytes": 59858
+      "sha256": "14b4ae1c1195fd830c8360fad3c9caf4a0253f88ee2015758a94fccaf406ea00",
+      "bytes": 60054
     },
     {
       "path": "server/product-traffic-config.mjs",
@@ -26,8 +26,8 @@
     },
     {
       "path": "server/supplier-mcp.mjs",
-      "sha256": "6a04a40af5122834f6295eccb4755dd74370216a7863f759ab36ba995e8da7f2",
-      "bytes": 9869
+      "sha256": "04c93330e581b3ac92e6b905f5ed9cd5a45ff84c3e6d26193af45e271f5cbbe4",
+      "bytes": 8024
     },
     {
       "path": "server/supplier-monitoring.mjs",
@@ -36,8 +36,8 @@
     },
     {
       "path": "server/supplier-owner-mcp.mjs",
-      "sha256": "e7f3b6e4166375952cfdcfebae4a287b49f6dc102acea469043b81b6a89b486c",
-      "bytes": 3489
+      "sha256": "5ae4a9c9263c4398a1828e6debb18b5294ac822f4ef77da6c4427ab058d533a9",
+      "bytes": 5029
     },
     {
       "path": "server/supplier-owner-tools.mjs",
@@ -46,8 +46,13 @@
     },
     {
       "path": "server/supplier-service.mjs",
-      "sha256": "4abb1a97eeb010d86b3da5350c23fe1b02117b7aa76f6ef00a9d83e2fbcd95b2",
-      "bytes": 24454
+      "sha256": "40c5ad3a5c5c828f98e99620cdd3e639d3ab88ee9527ecc02c8555b8b079d106",
+      "bytes": 24751
+    },
+    {
+      "path": "server/supplier-owner-operation.mjs",
+      "sha256": "a198ab88852fdd97787367c83ee3fafe9c456d8d96e032f9f59426a5da13139d",
+      "bytes": 2435
     }
   ],
   "additionalTestFiles": [
@@ -57,7 +62,7 @@
     },
     {
       "path": "test/fixtures/supplier-owner-mcp.mjs",
-      "sha256": "55433381ac6e12a1df46e2f3a2f1735d15e116f9e9604690aa182022e0d1cdb4"
+      "sha256": "4e046bfd6614f0d580ba58cfe63b31a624b88300f8b12841defc74b1dd0eb0d1"
     },
     {
       "path": "test/product-traffic-config.test.mjs",
@@ -74,19 +79,12 @@
     {
       "path": "test/product-traffic-nullability.test.mjs",
       "sha256": "25e664ecb586b98800a0b23932860bbe2af193596bbb200316f513d76ede3110"
+    },
+    {
+      "path": "test/supplier-session-mcp.http.test.mjs",
+      "sha256": "cd30b1bcf520de33bb11f5273b480ec585c3c3ac9944f39c9c2641abe3a19567"
     }
   ],
-  "hostedCi": {
-    "implementationCommit": "4fc6b9677978d5a2cb4b1c0f142203d61cdff46a",
-    "conclusion": "startup_failure",
-    "runs": [
-      38293155118,
-      38293072878
-    ],
-    "queriedRun": 38293155118,
-    "jobs": 0,
-    "retried": false
-  },
   "realExternalCalls": false,
   "productionDeployment": false,
   "realOwnerBindingVerified": false,
@@ -102,7 +100,7 @@
       "skipped": 0,
       "overlapsPrevious": true
     },
-    "directOwnerHttpFeasibility": "Existing per-request authorization and service methods reusable; no no-resolver MCP dispatcher implemented."
+    "directOwnerHttpFeasibility": "Original owner HTTP session protocol adapter implemented without a grant; external resolver boundary unchanged."
   },
   "resilienceVerification": {
     "passed": 68,
@@ -121,6 +119,57 @@
       null,
       7,
       0
-    ]
+    ],
+    "implementationCommit": "4fc6b9677978d5a2cb4b1c0f142203d61cdff46a"
+  },
+  "previousImplementationCommit": "4fc6b9677978d5a2cb4b1c0f142203d61cdff46a",
+  "previousImplementationTree": "be347fc5fc81c12480892d2466495cd3df70a2eb",
+  "hostedCiHistory": [
+    {
+      "implementationCommit": "4fc6b9677978d5a2cb4b1c0f142203d61cdff46a",
+      "conclusion": "startup_failure",
+      "runs": [
+        38293155118,
+        38293072878
+      ],
+      "queriedRun": 38293155118,
+      "jobs": 0,
+      "retried": false
+    }
+  ],
+  "originalOwnerSessionAdapter": {
+    "route": "/api/conversations/:cid/supplier-session-mcp",
+    "syntheticVerified": true,
+    "directTests": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    "directedSuite": {
+      "passed": 156,
+      "failed": 0,
+      "skipped": 0
+    },
+    "fullSuite": {
+      "total": 703,
+      "passed": 696,
+      "failed": 0,
+      "skipped": 7
+    },
+    "overlappingCounts": true,
+    "newGrants": false,
+    "newIdentityOrCredentials": false,
+    "deployed": false,
+    "tuiAcknowledgementReceived": false
+  },
+  "hostedCi": {
+    "implementationCommit": "8af564f15fcb821cde1054984356d2e3f3c75c0c",
+    "conclusion": "startup_failure",
+    "runs": [
+      38296263848
+    ],
+    "retried": false,
+    "queriedRun": 38296263848,
+    "jobs": 0
   }
 }

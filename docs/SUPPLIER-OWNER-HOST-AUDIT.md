@@ -1,6 +1,6 @@
 # Existing owner host audit
 
-Scope: source-only audit of baseline `8ce17ef22190a878f520bad1871029748f211513` and supplier implementation `4fc6b9677978d5a2cb4b1c0f142203d61cdff46a`. No production configuration, account, credential file, OAuth database or connected worker was read or called. Historical deployment overlay files establish source behavior, not current deployment state.
+Scope: source-only audit of baseline `8ce17ef22190a878f520bad1871029748f211513` and supplier/session implementation `8af564f15fcb821cde1054984356d2e3f3c75c0c`. No production configuration, account, credential file, OAuth database or connected worker was read or called. Historical deployment overlay files establish source behavior, not current deployment state.
 
 ## Result
 
