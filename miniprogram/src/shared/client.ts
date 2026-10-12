@@ -93,12 +93,16 @@ export class WorkspaceClient {
     const native = snapshot.museBinding?.conversationId;
     const known = [this.pending?.conversationId, native, this.conversationId].find(id => id && snapshot.conversations.some(value => value.id === id)) || snapshot.conversations[0]?.id;
     if (known) {
-      if (this.pending?.kind === 'create' && snapshot.conversations.length === 1 && snapshot.conversations[0].title === '主会话') this.pending = null;
+      if (this.pending?.kind === 'create') {
+        const exact = snapshot.conversations.find(value => value.creationRequestId === this.pending?.body.requestId && value.createdBy === this.owner);
+        if (exact) { this.pending = null; this.conversationId = exact.id; this.save(); return exact.id; }
+      }
       this.conversationId = known; this.save(); return known;
     }
     if (this.pending) throw new ClientError('RESULT_UNCERTAIN', '原会话创建或操作结果尚未确认，请重新读取云端状态。');
     if (this.opening) return this.opening;
-    this.opening = this.commit({ kind: 'create', path: '/conversations', body: { title: '主会话' }, key: 'create-main' }).then(result => {
+    const requestId = this.requestId();
+    this.opening = this.commit({ kind: 'create', path: '/conversations', body: { title: '主会话', requestId }, key: requestId }).then(result => {
       this.conversationId = (result as { conversation: { id: string } }).conversation.id; this.save(); return this.conversationId;
     }).finally(() => { this.opening = null; });
     return this.opening;
@@ -153,8 +157,10 @@ export class WorkspaceClient {
       }
       if (proposal?.status !== 'pending') throw new ClientError('ACTION_RECONCILIATION_REQUIRED', '原审批已发生变化，请核对云端回执。');
     }
-    if (command.kind === 'create') throw new ClientError('CONVERSATION_RECONCILIATION_REQUIRED', '云端尚未返回原会话；创建接口缺少幂等契约，不能盲目重建。');
-    return this.executePending();
+    if (command.kind === 'create' && typeof command.body.requestId !== 'string') throw new ClientError('CONVERSATION_RECONCILIATION_REQUIRED', '旧创建请求缺少原 requestId，不能盲目重建。');
+    const result = await this.executePending();
+    if (command.kind === 'create') { this.conversationId = (result as { conversation: { id: string } }).conversation.id; this.save(); }
+    return result;
   }
   retrySend() { return this.retryPending() as Promise<{ run: Run }>; }
   get uncertain() { return Boolean(this.pending); }

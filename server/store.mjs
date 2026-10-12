@@ -73,6 +73,18 @@ export function validateState(state, version = STORE_VERSION) {
   for (const key of ['legalName', 'displayName', 'description']) if (typeof company[key] !== 'string') throw invalid();
   for (const key of ['products', 'documents', 'operations']) validateCollection(library[key]);
   if (Object.hasOwn(library, 'conversationReferences')) validateCollection(library.conversationReferences);
+  if (Object.hasOwn(state, 'workspaceConversationCreations')) {
+    const registry = state.workspaceConversationCreations;
+    if (!isObject(registry) || registry.version !== 1 || !Array.isArray(registry.receipts) || registry.receipts.length > 10000) throw invalid();
+    const seen = new Set();
+    for (const row of registry.receipts) {
+      if (!isObject(row) || Object.keys(row).some(key => !['subject', 'workspaceId', 'requestId', 'fingerprint', 'conversationId'].includes(key)) ||
+          !['subject', 'workspaceId', 'conversationId'].every(key => typeof row[key] === 'string' && row[key].length > 0 && row[key].length <= 256) ||
+          typeof row.requestId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(row.requestId) || typeof row.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(row.fingerprint)) throw invalid();
+      const key = JSON.stringify([row.subject, row.workspaceId, row.requestId]);
+      if (seen.has(key)) throw invalid(); seen.add(key);
+    }
+  }
   // V12 optional bridge receipt registry: legacy schema-v3 snapshots stay readable.
   if (Object.hasOwn(state, 'workerDelegations')) validateCollection(state.workerDelegations);
   // Optional private single-enterprise sourcing pilot. No migration of legacy

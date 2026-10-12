@@ -126,7 +126,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
   function assertMemorySafe(content) { if (looksLikeCredential(content) || provider.containsCredential?.(content)) throw new ApiError(400, 'RAW_CREDENTIAL_REJECTED', 'Credentials cannot be stored in workspace memory. Use reviewed server-side environment references.'); validateMemory(content); }
   function bootstrap() {
     const state = store.read();
-    const { businessLibrary: _businessLibrary, commerceProjects: _commerceProjects, ...snapshot } = state;
+    const { businessLibrary: _businessLibrary, commerceProjects: _commerceProjects, workspaceConversationCreations: _creations, workspaceWechatLoginAttempts: _wechatAttempts, ...snapshot } = state;
     snapshot.artifacts = (state.artifacts || []).filter(artifact => !isBusinessLibraryArtifact(state, artifact));
     snapshot.activity = (state.activity || []).filter(event => !isBusinessLibraryArtifact(state, event.artifactId));
     return { ...snapshot, settings: { ...snapshot.settings, model: provider.model || snapshot.settings.model }, runtime: status() };
@@ -494,11 +494,32 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     },
     async retryRun(id, body = {}) { const run = required(store.read(), 'runs', id); if (pi && run.status === 'interrupted' && run.assistantId) return this.recoverPiRun(id, body); if (!['failed', 'blocked', 'interrupted', 'paused'].includes(run.status)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only stopped or failed runs can be retried.'); if (run.goalId) return this.updateGoal(run.goalId, { action: 'resume', requestId: body.requestId, queued: body.queued }); const message = store.read().messages.find(item => item.conversationId === run.conversationId && item.role === 'user' && item.requestId === run.requestId); if (!message) throw new ApiError(404, 'NOT_FOUND', 'The original input no longer exists.'); return this.sendMessage(run.conversationId, { content: message.content, requestId: body.requestId, queued: body.queued, ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true }); },
     async resetSession(id) { ensureOpen(); return store.update(state => { const item = required(state, 'conversations', id); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current request before resetting native session continuity.'); const previous = item.nativeSessionId || null; item.nativeSessionId = null; item.updatedAt = now(); activity(state, 'session_reset', 'New native session requested', 'Future requests start a new native session using saved visible context.', { conversationId: id, previousNativeSessionId: previous }); return { conversation: item }; }); },
-    async createConversation(body) {
+    async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }) {
       ensureOpen();
+      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['title', 'inputContext', 'requestId'].includes(key))) throw new ApiError(400, 'INVALID_INPUT', 'Create a conversation with title, optional inputContext and requestId only.');
       const title = text(body.title, 'title', 160, 'New conversation');
       const selection = normalizeInputContext(body.inputContext ?? emptyInputContext());
-      return store.update(state => { const item = conversation(state, title); item.inputContext = selection; activity(state, 'created', 'Conversation created', title, { conversationId: item.id }); return { conversation: item }; });
+      const key = body.requestId === undefined ? null : requestKey(body.requestId);
+      const subject = text(actor.subject, 'subject', 128), workspaceId = text(actor.workspaceId || 'local', 'workspaceId', 128);
+      const fingerprint = capabilityPayloadHash({ title, inputContext: selection });
+      return store.update(state => {
+        const receipts = state.workspaceConversationCreations ||= { version: 1, receipts: [] };
+        if (receipts.version !== 1 || !Array.isArray(receipts.receipts)) throw new ApiError(409, 'CREATION_RECEIPT_INVALID', 'Conversation creation receipts need operator review.');
+        const previous = key && receipts.receipts.find(receipt => receipt.subject === subject && receipt.workspaceId === workspaceId && receipt.requestId === key);
+        if (previous) {
+          if (previous.fingerprint !== fingerprint) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'This conversation requestId belongs to another exact request.');
+          const item = state.conversations.find(c => c.id === previous.conversationId);
+          if (!item) throw new ApiError(410, 'CONVERSATION_DELETED', 'The original conversation was deleted. This requestId cannot create a replacement.');
+          return { conversation: item, duplicate: true };
+        }
+        if (key && receipts.receipts.length >= 10000) throw new ApiError(409, 'CREATION_RECEIPT_LIMIT', 'Conversation creation receipt capacity requires operator review.');
+        const item = conversation(state, title); item.inputContext = selection;
+        if (key) {
+          item.creationRequestId = key; item.createdBy = subject;
+          receipts.receipts.push({ subject, workspaceId, requestId: key, fingerprint, conversationId: item.id });
+        }
+        activity(state, 'created', 'Conversation created', title, { conversationId: item.id }); return { conversation: item };
+      });
     },
     async updateConversationInputContext(id, body) {
       ensureOpen();

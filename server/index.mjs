@@ -415,7 +415,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (extension && method === 'POST') return await respond(res, 200, await capabilities[extension[2] === 'enable' ? 'enableSchedule' : 'disableSchedule'](extension[1], body));
       extension = pathname.match(/^\/api\/conversations\/([^/]+)\/reset-session$/);
       if (extension && method === 'POST') return await respond(res, 200, await runtime.resetSession(decodeApiId(extension[1])));
-      if (method === 'POST' && pathname === '/api/conversations') return await respond(res, 201, await runtime.createConversation(body));
+      if (method === 'POST' && pathname === '/api/conversations') return await respond(res, 201, await runtime.createConversation(body, context));
       if (method === 'POST' && pathname === '/api/goals') return await respond(res, 201, await runtime.createGoal(body));
       if (method === 'PATCH' && pathname === '/api/settings') return await respond(res, 200, await runtime.updateSettings(body));
       if (method === 'POST' && pathname === '/api/memories') return await respond(res, 201, await runtime.createMemory(body));

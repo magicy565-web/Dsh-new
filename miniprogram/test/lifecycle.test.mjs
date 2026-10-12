@@ -116,16 +116,33 @@ test('journal is bound to confirmed enterprise subject, never stores login/sessi
   expired = true; await assert.rejects(owner.retryPending(), { status: 401 }); assert.equal(owner.session, null); assert.equal(owner.uncertain, true);
 });
 
-test('write-ahead journal failure stops mutation; unknown create is not replayed without a backend idempotency contract', async () => {
+test('write-ahead journal failure stops mutation; legacy unknown create without requestId cannot be replayed or guessed', async () => {
   const requests = [];
   const session = { authenticated: true, user: { id: 'owner', role: 'operator' }, csrfToken: null, expiresAt: null, mode: 'enterprise' };
   const platform = { request(options) { requests.push(options); if (options.url.endsWith('/session')) options.success({ statusCode: 200, data: session }); else options.fail({ errMsg: 'unknown acknowledgment' }); } };
   const blocked = new WorkspaceClient(platform, { baseUrl: 'https://workspace.example', journal: { read: () => null, write() { throw new Error('disk unavailable'); } } });
   await blocked.initialize(); await assert.rejects(blocked.send('original', 'No unsafe send'), /disk unavailable/); assert.equal(requests.length, 1);
-  const client = new WorkspaceClient(platform, { baseUrl: 'https://workspace.example', journal: memoryJournal() }); await client.initialize();
-  await assert.rejects(client.mainConversation({ conversations: [] }), { code: 'RESULT_UNCERTAIN' }); const count = requests.length;
+  const journal = memoryJournal();
+  journal.write({ version: 1, owner: 'owner', baseUrl: 'https://workspace.example', conversationId: '', pending: { kind: 'create', path: '/conversations', body: { title: '主会话' }, key: 'legacy-create-main' } });
+  const client = new WorkspaceClient(platform, { baseUrl: 'https://workspace.example', journal }); await client.initialize();
+  const count = requests.length;
   await assert.rejects(client.retryPending(), { code: 'CONVERSATION_RECONCILIATION_REQUIRED' }); assert.equal(requests.length, count);
-  assert.equal(await client.mainConversation({ conversations: [{ id: 'cloud-created', title: '主会话' }] }), 'cloud-created'); assert.equal(client.uncertain, false);
+  assert.equal(await client.mainConversation({ conversations: [{ id: 'cloud-created', title: '主会话' }] }), 'cloud-created'); assert.equal(client.uncertain, true);
+});
+
+test('lost conversation creation response recovers the same durable request after client and server reopen', async t => {
+  const f = await fixture(t); await f.client.initialize(); f.loseNext();
+  await assert.rejects(f.client.mainConversation({ conversations: [] }), { code: 'RESULT_UNCERTAIN' });
+  const original = f.journal.read().pending;
+  assert.equal(typeof original.body.requestId, 'string');
+  const id = f.app.store.read().conversations[0].id;
+  await f.reopen(); const recovered = f.newClient(); await recovered.initialize();
+  const result = await recovered.retryPending(); assert.equal(result.conversation.id, id);
+  assert.equal(recovered.conversationId, id); assert.equal(recovered.uncertain, false);
+  assert.equal(f.app.store.read().conversations.length, 1);
+  const creates = f.requests.filter(req => req.url.endsWith('/conversations') && req.method === 'POST');
+  assert.equal(creates.length, 2); assert.deepEqual(creates[0].data, creates[1].data);
+  assert.equal(f.faux.state.callCount, 0);
 });
 
 test('Muse stop states and accepted files retain exact scope; refresh can run again and never claims execution', async () => {
