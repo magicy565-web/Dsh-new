@@ -160,3 +160,33 @@ test('an expired original session before admission preserves the approval withou
   assert.equal(f.app.capabilities.listApprovals().find(item => item.id === operation.approvalId).status, 'approved');
   assert.equal(f.remote.count('SupplierCreateDraft'), 0); assert.equal(f.remote.state.uploads, 0);
 });
+
+test('compatible HTTP review/decision/execute/reconcile routes repair the original draft and keep publication separately approved', async t => {
+  const f = await fixture(t), draft = await f.http(`${f.route}/shopify-review`, 'POST', f.review('draft'));
+  const original = draft.body.operation;
+  await f.http(`${f.route}/shopify-decision`, 'POST', { ...f.command(original), decision: 'approved' });
+  f.remote.state.drops.add('SupplierCreateDraft');
+  const unknown = await f.http(`${f.route}/shopify-execute`, 'POST', f.command(original));
+  assert.equal(unknown.body.status, 'uncertain');
+  const observed = await f.http(`${f.route}/shopify-reconcile`, 'POST', f.command(original));
+  assert.equal(observed.body.status, 'partial');
+  const reviewBody = { ...f.review('repair_draft'), draftOperationId: original.id, expectedRemoteContentHash: observed.body.operation.receipt.remoteContentHash, approveObservedMedia: true };
+  const repair = await f.http(`${f.route}/shopify-review`, 'POST', reviewBody);
+  assert.equal(repair.status, 200, JSON.stringify(repair.body));
+  assert.equal(repair.body.review.repairsExistingDraft, true); assert.equal(repair.body.review.createsProduct, false); assert.equal(repair.body.review.uploadsMedia, false); assert.equal(repair.body.review.publishes, false);
+  assert.equal(repair.body.operation.scope.productId, observed.body.observation.productId);
+  const approved = await f.http(`${f.route}/shopify-decision`, 'POST', { ...f.command(repair.body.operation), decision: 'approved' });
+  assert.equal(approved.status, 200);
+  const command = f.command(repair.body.operation), fixed = await f.http(`${f.route}/shopify-execute`, 'POST', command);
+  assert.equal(fixed.body.status, 'succeeded', JSON.stringify(fixed.body.operation.error));
+  assert.equal(fixed.body.operation.businessCompletion, 'draft_only');
+  await f.restart();
+  const duplicate = await f.http(`${f.route}/shopify-execute`, 'POST', command); assert.equal(duplicate.body.duplicate, true);
+  const query = await f.http(`${f.route}/publication`); assert.equal(query.body.publication.latest.id, repair.body.operation.id);
+  assert.equal(query.body.publication.operations.find(item => item.id === original.id).status, 'succeeded');
+  const publish = await f.http(`${f.route}/shopify-review`, 'POST', f.review('publish')); assert.equal(publish.body.status, 'pending_approval');
+  assert.notEqual(publish.body.operation.approvalId, repair.body.operation.approvalId);
+  assert.equal(f.remote.count('SupplierPublishReviewedProduct'), 0); assert.equal(f.remote.count('SupplierCreateDraft'), 1);
+  assert.equal(f.remote.count('SupplierStageReviewedImage'), 1); assert.equal(f.remote.state.uploads, 1);
+  assert.equal(f.remote.count('SupplierSetRetailVariant'), 1); assert.equal(f.faux.state.callCount, 0);
+});

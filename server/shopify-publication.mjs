@@ -5,7 +5,7 @@ import { supplierFail, supplierHash } from './supplier-profile.mjs';
 // A host-installed action adapter for the ORIGINAL capability service. It is
 // never a model tool and does not own approvals, a queue, or a separate store.
 export const SUPPLIER_SHOPIFY_ADAPTER = 'workspace-supplier-shopify';
-export const SUPPLIER_SHOPIFY_ACTIONS = Object.freeze(['supplier.shopify.draft', 'supplier.shopify.publish']);
+export const SUPPLIER_SHOPIFY_ACTIONS = Object.freeze(['supplier.shopify.draft', 'supplier.shopify.publish', 'supplier.shopify.repair_draft']);
 const NS = 'cnsubscribe_workspace';
 const gid = (kind, value) => typeof value === 'string' && new RegExp(`^gid://shopify/${kind}/\\d+$`).test(value);
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -99,8 +99,17 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
     if (!Array.isArray(product.variants?.nodes) || product.variants.pageInfo?.hasNextPage !== false || product.variants.nodes.length !== 1 || !Array.isArray(product.media?.nodes) || product.media.pageInfo?.hasNextPage !== false) supplierFail(409, 'SHOPIFY_RECEIPT_INCOMPLETE', 'The remote variant/media scope is incomplete.');
     const variant = product.variants.nodes[0], issues = [];
     const draftScope = scope.action === 'draft' ? scope : scope.draftScope;
-    const creation = store && operationFrom(store.read(), draftScope).operation.steps.find(item => item.step === 'product_create' && item.status === 'acknowledged')?.receipt;
-    const expectedMediaIds = creation?.mediaIds;
+    const original = store && operationFrom(store.read(), draftScope);
+    const creation = original?.operation.steps.find(item => item.step === 'product_create' && item.status === 'acknowledged')?.receipt;
+    const mediaSnapshot = product.media.nodes.map(item => ({ id: item.id, mediaContentType: item.mediaContentType, status: item.status, alt: item.alt ?? null, imageUrl: item.image?.url ?? null }));
+    // A new human-approved observation can resolve a lost create response. It
+    // never rewrites the original create/upload checkpoints as acknowledged.
+    const mediaReview = !Array.isArray(creation?.mediaIds) && original?.row.publicationOperations.find(item => {
+      if (item.action !== 'repair_draft' || item.scope.draftOperationId !== draftScope.operationId || !item.scope.repair?.approveObservedMedia || !item.connectorRunId || supplierHash(item.scope.repair.mediaSnapshot) !== supplierHash(mediaSnapshot)) return false;
+      const state = store.read(), run = state.capabilities.connectorRuns.find(run => run.id === item.connectorRunId), approval = state.capabilities.approvals.find(approval => approval.id === item.approvalId);
+      return run?.action === 'supplier.shopify.repair_draft' && run.connectorId === item.connectorId && run.approvalId === item.approvalId && approval?.status === 'consumed' && approval.payload.binding?.operationId === item.id && approval.payload.binding.scopeHash === item.scopeHash;
+    });
+    const expectedMediaIds = creation?.mediaIds || mediaReview?.scope.repair.mediaSnapshot.map(item => item.id);
     if (!Array.isArray(expectedMediaIds) || expectedMediaIds.length !== scope.preview.images.length || supplierHash(expectedMediaIds) !== supplierHash(product.media.nodes.map(item => item.id)) || expectedMediaIds.some(id => !gid('MediaImage', id))) issues.push('media_identity_unconfirmed');
     if (!gid('ProductVariant', variant.id)) supplierFail(502, 'SHOPIFY_RECEIPT_INCOMPLETE', 'The variant receipt has no exact identity.');
     if (product.title !== scope.preview.product.title || product.descriptionHtml !== scope.preview.product.descriptionHtml) issues.push('product_content_changed');
@@ -109,22 +118,40 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
     const remoteContentHash = supplierHash({ title: product.title, descriptionHtml: product.descriptionHtml, variants: product.variants.nodes.map(item => ({ id: item.id, sku: item.sku, price: money(item.price) })), media: product.media.nodes.map(item => ({ id: item.id, mediaContentType: item.mediaContentType, alt: item.alt ?? null, imageUrl: item.image?.url ?? null })) });
     const originalHash = scope.action === 'publish' ? scope.remoteContentHash : store ? operationFrom(store.read(), scope).operation.remoteContentHash : null;
     if (originalHash && originalHash !== remoteContentHash) issues.push('remote_content_changed');
-    if (!['DRAFT', 'ACTIVE'].includes(product.status) || scope.action === 'draft' && product.status !== 'DRAFT') issues.push('product_status_changed');
+    if (!['DRAFT', 'ACTIVE'].includes(product.status) || scope.action !== 'publish' && product.status !== 'DRAFT') issues.push('product_status_changed');
     const published = scope.action === 'publish' && product.status === 'ACTIVE' && product.publishedOnPublication === true && product.release?.value === supplierHash(scope);
     if (scope.action === 'publish' && typeof product.publishedOnPublication !== 'boolean') supplierFail(502, 'SHOPIFY_PUBLICATION_RECEIPT_INVALID', 'The selected publication was not acknowledged.');
     if (scope.action === 'publish' && product.release?.value !== supplierHash(scope)) issues.push('publication_marker_changed');
     if (scope.action === 'publish' && !published) issues.push('publication_not_acknowledged');
     const onlineAt = typeof product.publishedAt === 'string' && Number.isFinite(Date.parse(product.publishedAt)) && typeof product.onlineStoreUrl === 'string' && product.onlineStoreUrl.startsWith('https://') ? product.publishedAt : null;
-    return { status: published && !issues.length ? 'published' : product.status === 'DRAFT' ? 'shopify_draft' : 'unpublished', found: true, complete: !issues.length, readyForPublication: !issues.length && scope.action === 'draft', productId: product.id, productStatus: product.status, variantIds: [variant.id], handle: scope.handle, shopId: scope.shopId, shopDomain: domain, publicationId: scope.publicationId, published: published && !issues.length,
+    const repairBasisHash = supplierHash({ productId: product.id, handle: product.handle, title: product.title, descriptionHtml: product.descriptionHtml, productStatus: product.status, publicationIntentHash: product.release?.value || null, variantIds: [variant.id], mediaSnapshot });
+    return { status: published && !issues.length ? 'published' : product.status === 'DRAFT' ? 'shopify_draft' : 'unpublished', found: true, complete: !issues.length, readyForPublication: !issues.length && scope.action !== 'publish', productId: product.id, productStatus: product.status, variantIds: [variant.id], handle: scope.handle, shopId: scope.shopId, shopDomain: domain, publicationId: scope.publicationId, published: published && !issues.length,
       // Product.publishedAt is Online Store specific, not arbitrary channel time.
       publishedAt: null, publicationTimeSource: null, onlineStorePublishedAt: onlineAt, onlineStoreUrl: onlineAt ? product.onlineStoreUrl : null,
-      observedAt: at(), previewHash: scope.previewHash, remoteContentHash, mediaIds: product.media.nodes.map(item => item.id), mediaEvidence: { sourceBytes: scope.preview.images.every(item => item.kind === 'artifact') ? 'reviewed_sha256_uploaded' : 'remote_url_not_hashed', remote: expectedMediaIds ? 'acknowledged_ids_and_shopify_status' : 'unconfirmed', remoteBytesVerified: false }, issues, externalStatus: published && !issues.length ? 'published' : product.status === 'DRAFT' ? 'shopify_draft' : 'unpublished' };
+      observedAt: at(), previewHash: scope.previewHash, remoteContentHash, repairBasisHash, publicationIntentHash: product.release?.value || null, mediaSnapshot, mediaIds: product.media.nodes.map(item => item.id), mediaEvidence: { sourceBytes: scope.preview.images.every(item => item.kind === 'artifact') ? 'reviewed_sha256_uploaded' : 'remote_url_not_hashed', remote: mediaReview ? 'separately_approved_observed_ids_and_shopify_status' : expectedMediaIds ? 'acknowledged_ids_and_shopify_status' : 'unconfirmed', reviewOperationId: mediaReview?.id || null, remoteBytesVerified: false }, issues, externalStatus: published && !issues.length ? 'published' : product.status === 'DRAFT' ? 'shopify_draft' : 'unpublished' };
   }
   async function reconcile(scope, { signal } = {}) {
     await verify(scope, signal);
     const query = scope.action === 'publish' ? LOOKUP : LOOKUP_DRAFT;
     const data = await graphql(query, { identifier: { handle: scope.handle }, ...(scope.action === 'publish' ? { publicationId: scope.publicationId } : {}) }, signal);
     return inspect(scope, data.product);
+  }
+  async function planRepair(draftScope, { approveObservedMedia = false, signal } = {}) {
+    const { row, operation } = operationFrom(store.read(), draftScope), observed = await reconcile(draftScope, { signal });
+    if (!observed.found) supplierFail(409, 'SHOPIFY_REPAIR_PRODUCT_REQUIRED', 'No exact original remote product exists to repair.');
+    if (observed.productStatus !== 'DRAFT' || observed.publicationIntentHash || row.publicationOperations.some(item => item.action === 'publish' && item.connectorRunId && item.scope.productId === observed.productId)) supplierFail(409, 'SHOPIFY_REPAIR_PUBLICATION_PRESENT', 'An active or previously admitted publication cannot be rolled back or repaired as a draft.');
+    if (observed.complete || operation.remoteContentHash) supplierFail(409, 'SHOPIFY_REPAIR_NOT_REQUIRED', 'A completed draft is not a missing-step repair. Reconcile it without writing.');
+    if (observed.issues.some(issue => !['retail_variant_changed', 'media_identity_unconfirmed'].includes(issue))) supplierFail(409, 'SHOPIFY_REPAIR_MEDIA_OR_CONTENT_CHANGED', 'Repair cannot replace missing/unready/changed media or altered public content. Reconcile the original source first.');
+    const creation = operation.steps.find(item => item.step === 'product_create');
+    if (!creation) supplierFail(409, 'SHOPIFY_REPAIR_PRODUCT_REQUIRED', 'The original product-create intent has no receipt to reconcile.');
+    const adopt = observed.issues.includes('media_identity_unconfirmed');
+    if (adopt && (!approveObservedMedia || creation.status === 'acknowledged' && Array.isArray(creation.receipt?.mediaIds))) supplierFail(409, 'SHOPIFY_REPAIR_MEDIA_REVIEW_REQUIRED', 'Explicitly review the observed existing media identities after a lost create response; known media cannot be substituted.');
+    if (adopt) for (const [index, image] of draftScope.preview.images.entries()) {
+      if (image.kind === 'artifact' && !operation.steps.some(step => step.step === `image_${index}_upload` && step.status === 'acknowledged' && step.receipt?.sourceHash === image.asset.sha256)) supplierFail(409, 'SHOPIFY_REPAIR_MEDIA_TRANSFER_UNCONFIRMED', 'The original reviewed image upload is unacknowledged; no retransmission or invented upload receipt is allowed.');
+    }
+    const repairVariant = observed.issues.includes('retail_variant_changed');
+    if (repairVariant && (operation.steps.some(item => item.step === 'retail_variant' && item.status === 'acknowledged') || row.publicationOperations.some(item => item.action === 'repair_draft' && item.scope.draftOperationId === operation.id && item.steps.some(step => step.step === 'retail_variant_repair' && step.status === 'acknowledged')))) supplierFail(409, 'SHOPIFY_REPAIR_VARIANT_ALREADY_ACKNOWLEDGED', 'This variant was already written; an external edit needs a separately scoped update, not a missing-step repair.');
+    return { observed, repair: { steps: repairVariant ? ['retail_variant'] : [], approveObservedMedia: adopt, mediaSnapshot: observed.mediaSnapshot, repairBasisHash: observed.repairBasisHash, beforeRemoteContentHash: observed.remoteContentHash, originalCreateStatus: creation.status } };
   }
   async function assertExecuting(scope, runId, signal) {
     if (signal?.aborted) supplierFail(409, 'SHOPIFY_OPERATION_INTERRUPTED', 'The original execution was cancelled; reconcile previous steps without replay.');
@@ -164,9 +191,9 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
     return media;
   }
   const adapter = {
-    status, fingerprint, reconcile,
+    status, fingerprint, reconcile, planRepair,
     capabilities: [...SUPPLIER_SHOPIFY_ACTIONS], credentialEnvNames: ['WORKSPACE_SHOPIFY_ADMIN_TOKEN'],
-    actionDescriptions: { 'supplier.shopify.draft': 'Create one reviewed Shopify draft and transfer only its explicitly reviewed retail fields/images.', 'supplier.shopify.publish': 'Activate and publish one exact approved draft to one existing selected Shopify publication.' },
+    actionDescriptions: { 'supplier.shopify.draft': 'Create one reviewed Shopify draft and transfer only its explicitly reviewed retail fields/images.', 'supplier.shopify.publish': 'Activate and publish one exact approved draft to one existing selected Shopify publication.', 'supplier.shopify.repair_draft': 'Complete only a separately reviewed missing retail-variant step on one exact existing draft; never create, upload, activate or publish.' },
     async execute({ action, payload: scope, binding, idempotencyKey: runId, signal, credentials, connectorId }) {
       if (binding?.type !== 'supplier-publication' || binding.operationId !== scope?.operationId || binding.scopeHash !== supplierHash(scope) || action !== `supplier.shopify.${scope.action}`) supplierFail(403, 'SUPPLIER_PUBLICATION_BINDING_REQUIRED', 'Only the original supplier approval can execute this adapter.');
       if (typeof credentials?.shopify !== 'string' || credentials.shopify !== secret || Object.keys(credentials).length !== 1 || operationFrom(store.read(), scope).operation.connectorId !== connectorId) supplierFail(403, 'SHOPIFY_APPROVED_CREDENTIAL_REQUIRED', 'Use the exact credential delivered by the original approved connector.');
@@ -181,6 +208,24 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
         const product = created.product;
         if (!gid('Product', product?.id) || product.handle !== scope.handle || product.variants?.nodes?.length !== 1 || product.variants.pageInfo?.hasNextPage !== false || !gid('ProductVariant', product.variants.nodes[0].id)) supplierFail(502, 'SHOPIFY_DRAFT_RECEIPT_INVALID', 'The original draft or variant was not completely acknowledged.');
         await step(scope, runId, signal, 'retail_variant', async () => resultOf(await graphql(PRICE, { productId: product.id, variants: [{ id: product.variants.nodes[0].id, price: scope.preview.saleUnit.consumerPrice, ...(scope.preview.variants[0].sku === null ? {} : { inventoryItem: { sku: scope.preview.variants[0].sku } }) }] }, signal), 'productVariantsBulkUpdate'), value => ({ variantIds: value.productVariants?.map(item => item.id) || [] }));
+        return reconcile(scope, { signal });
+      }
+      if (scope.action === 'repair_draft') {
+        const checkRepair = async () => {
+          const observed = await reconcile(scope, { signal });
+          if (observed.productStatus !== 'DRAFT' || observed.publicationIntentHash || observed.productId !== scope.productId || observed.repairBasisHash !== scope.repair.repairBasisHash || observed.issues.some(issue => issue !== 'retail_variant_changed')) supplierFail(409, 'SHOPIFY_REPAIR_STALE', 'The reviewed existing draft/media scope changed; do not write or publish.');
+          if (!observed.complete && observed.remoteContentHash !== scope.repair.beforeRemoteContentHash) supplierFail(409, 'SHOPIFY_REPAIR_STALE', 'The observed retail variant changed after this repair review.');
+          return observed;
+        };
+        const before = await checkRepair();
+        if (before.complete) return before;
+        if (!scope.repair.steps.includes('retail_variant')) supplierFail(409, 'SHOPIFY_REPAIR_STALE', 'This review did not approve a missing variant write.');
+        await step(scope, runId, signal, 'retail_variant_repair', async () => {
+          const current = await checkRepair();
+          if (current.complete) return { productVariants: current.variantIds.map(id => ({ id })), skipped: true };
+          await assertExecuting(scope, runId, signal);
+          return resultOf(await graphql(PRICE, { productId: scope.productId, variants: [{ id: scope.variantIds[0], price: scope.preview.saleUnit.consumerPrice, ...(scope.preview.variants[0].sku === null ? {} : { inventoryItem: { sku: scope.preview.variants[0].sku } }) }] }, signal), 'productVariantsBulkUpdate');
+        }, value => ({ variantIds: value.productVariants?.map(item => item.id) || [], skippedAlreadyComplete: value.skipped === true }));
         return reconcile(scope, { signal });
       }
       const before = await reconcile(scope.draftScope, { signal });
