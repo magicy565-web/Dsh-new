@@ -1,0 +1,131 @@
+✔ draft view only shows received fields; a missing budget/deadline never becomes an invented permission (0.981303ms)
+✔ amount, deadline and public scope require three explicit confirmations and reset on return or changed revision/draftHash (1.448079ms)
+✔ draft view requires actual fields and presents a model suggestion separately from explicit user confirmation (0.166902ms)
+✔ shipped Muse goal mode rejects missing original binding and never substitutes a Pi send or creates a generic conversation (8.210082ms)
+✔ repair original read-confirmed draft: distinct default-empty media consent, exact original ID/hash, approval separate from execute, draft_only (1099.929075ms)
+✔ acknowledged original media needs only missing-step consent and no adoption or second upload (766.134051ms)
+✔ existing Connector without repair capability is blocked without capability expansion, grant creation or mutation (525.361747ms)
+✔ deny exact repair leaves original partial and permits a new separate review without writes (641.003251ms)
+▶ changed remote content, unready or substituted media is blocked by real read/review with no repair mutation
+  ✔ content (581.805981ms)
+  ✔ unready (467.761798ms)
+  ✔ substituted (455.293389ms)
+✔ changed remote content, unready or substituted media is blocked by real read/review with no repair mutation (1505.779545ms)
+✔ remote change after approved repair cannot execute old scope or publish; no variant write (528.637506ms)
+✔ repair mutation unknown and local response lost: cold restore reconciles exact repair, one variant write and unchanged original create/upload steps (633.851559ms)
+✔ refresh of original read hash invalidates repair preparation and clears native consent; duplicate confirm admits one repair (401.186734ms)
+✔ already read-confirmed retail variant: separately approved observed media has no variant or other mutation (508.210365ms)
+✔ unadmitted repair execution reuses original request only after read and another explicit confirmation (642.06072ms)
+✔ failed variant repair and lost read response: cold restore preserves original reconcile UUID/body, no repair retransmission (804.922802ms)
+✔ actual compiled review component emits no prepare without three explicit confirmations (5.503019ms)
+✔ unchanged authoritative polling preserves review checks, changed revision resets them; edit/return never submit (1.737036ms)
+✔ unknown operation disables all mutations and rejects missing scope despite received suggestions (1.086042ms)
+✔ actual Page goal/reply uses frozen Muse routes/version and only server missing questions; zero ordinary Pi sends (31.636235ms)
+✔ lost intake and prepare responses survive cold client restart and reuse original body without another order (38.8669ms)
+✔ stale selected scope cannot prepare through actual Page callback; no client body can override order values (14.965895ms)
+✔ actual Page -> signed HTTP/Pi tool -> one clarified original draft -> separate prepare/approve/dispatch -> real SHA file (674.717678ms)
+✔ actual HTTP first 202 and prepare acknowledgment loss reopen same original draft/body/order without another model call (225.619139ms)
+✔ actual HTTP edits retire old revision; explicit reject of prepared draft retires old review and lost rejection reuses original body (341.157081ms)
+✔ cold process + cloud store restart recovers the exact lost message request without another model call (286.817309ms)
+✔ actual Page callbacks coalesce send/retry taps, retain offline input, and never cancel on hide/unload (140.194285ms)
+✔ exact approval survives lost response; retry reads original proposal; execution continuation reuses one requestId (238.998515ms)
+✔ actual Page rejection targets the exact proposal and never executes the original connector (153.30879ms)
+✔ actual Page full review preserves payload beyond old 3000-character modal limit (36.73287ms)
+✔ image/PDF upload loss retries original bytes without extraction; actual file preview requires SHA match (148.994989ms)
+✔ journal is bound to confirmed enterprise subject, never stores login/session/CSRF; expired sessions fail closed (1.4087ms)
+✔ write-ahead journal failure stops mutation; legacy unknown create without requestId cannot be replayed or guessed (0.531914ms)
+✔ lost conversation creation response recovers the same durable request after client and server reopen (69.435798ms)
+✔ Muse stop states and accepted files retain exact scope; refresh can run again and never claims execution (1.148376ms)
+✔ actual Page ignores delayed reads after unload and clears old account content on expired session (43.528102ms)
+✔ real file journal preserves original request and fails closed for corrupt saved JSON (3.226147ms)
+✔ compiled shipped App boots with empty service and cannot obtain a code or send any request (1.395349ms)
+✔ malformed local recovery record remains blocked on every initialization attempt (0.268967ms)
+✔ actual Page explicit cancel aborts the original durable run; lost stop response reuses original run after cold restart (157.388508ms)
+✔ actual Page explicit interrupted recovery retries one original requestId and retains cloud run/submission (182.921542ms)
+✔ actual Page/native controls -> signed HTTP/GA4: product views preserve null sessions, provenance, persistent checks and one corrected summary (1053.72992ms)
+▶ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message
+  ✔ {"configured":false,"traffic":false} (541.688896ms)
+  ✔ {"proof":false} (578.04813ms)
+  ✔ {"binding":false} (582.142269ms)
+✔ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message (1702.847498ms)
+▶ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority
+  ✔ errMsgOnly (517.088175ms)
+  ✔ fail (506.439729ms)
+  ✔ reject (536.590778ms)
+  ✔ ban (522.042064ms)
+  ✔ filter (525.684942ms)
+✔ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority (2609.118121ms)
+✔ native accept is a client claim until existing trusted callback verifies it; no invented OpenID or authority (522.726909ms)
+✔ real local combined seven-day subscription -> separate review/approve/execute; fixture provider accepted is not user read/business acceptance (852.752897ms)
+▶ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox
+  ✔ deny (792.205379ms)
+  ✔ revoke (754.225138ms)
+  ✔ cancel (582.916357ms)
+  ✔ stop (550.512977ms)
+✔ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox (2680.941105ms)
+✔ lost verified subscription record reply cold-reuses exact body and original grant without another wx call (531.727874ms)
+✔ provider and local execution response unknown: cold GET status only, original operation retained, no resend or fake query proof (730.242584ms)
+✔ unadmitted notification requires a new explicit confirm and same original UUID/body, never automatic send (673.819964ms)
+✖ lost subscription challenge cold-replays its original UUID then awaits a separate native click (580.820082ms)
+✔ changed seven-day summary clears original native approval checks and disables old approved send scope (634.685327ms)
+▶ provider failure never resends; cancellation after acceptance records request without claiming recall
+  ✔ failure (722.577136ms)
+  ✔ cancel-after-accept (688.517116ms)
+✔ provider failure never resends; cancellation after acceptance records request without claiming recall (1411.743073ms)
+✔ actual mini Page -> original HTTP procurement/MCP: private draft, explicit shared association, one reviewed reply, buyer read/reload; models zero (305.885875ms)
+✔ unknown association and reply results cold-recover original UUID/body; no extra share/reply or Pi fallback (272.248399ms)
+✔ reply selection preserves unsent goal/files and transmits only confirmed reply text; revocation removes new-reply controls (150.911156ms)
+✔ actual native controls -> signed HTTP -> original draft and image receipt, independent exact channel approval/execute, no default consent (877.702622ms)
+▶ missing configuration is an actual blocker; denying original pending approval emits no write and permits a distinct fresh review
+  ✔ unconfigured (267.731641ms)
+  ✔ deny (312.216386ms)
+✔ missing configuration is an actual blocker; denying original pending approval emits no write and permits a distinct fresh review (580.877813ms)
+✔ local execution response lost: cold recovery queries same operation, preserves original body, never repeats external write (454.843109ms)
+✔ unsubmitted execution requires explicit reconfirmation after query; same original requestId/body is used without automatic admission (440.683983ms)
+✔ remote write result unknown/partial only offers original read-only reconcile; media readiness is not byte verification (360.600981ms)
+✔ unknown local and remote result: lost read-only reconciliation response cold-replays its original body without another write (465.169979ms)
+✔ authoritative preview revision change resets actual review checks and makes an old approval nonexecutable (229.293964ms)
+✔ actual Page -> signed HTTP/Pi tool -> private facts, original image/SHA, reviewed preview, original library and honest Shopify blocker (779.624254ms)
+✔ lost intake/preview/library acknowledgments cold-recover the same UUID/body and persistent result without extra Pi/product (531.420519ms)
+✔ seven-day UI config stays disabled, read uses null/status, stable final summary survives replay/reopen and stop targets original monitor (432.666597ms)
+✔ read-only Shopify response fixture through actual HTTP: ACTIVE stays unpublished and late refund corrects one original summary, no model or mutation (459.75359ms)
+✔ new backend: changed facts update one original product; rejected intake invalidates preview and cannot resume until explicit new product (623.334268ms)
+✔ preview field checks start empty, exact confirmed selection excludes private supply fields (5.260883ms)
+✔ unchanged polling preserves checks, changed original facts/revision resets; uncertain state emits no mutation (2.090591ms)
+✔ original service preview display does not turn MOQ, wholesale, recommended price or production into consumer fields (2.325956ms)
+✔ explicit retail facts and original provenance appear verbatim; unobserved image remains unknown (2.106094ms)
+✔ artifact image review retains original id/version/SHA; preview renderer refuses to portray a publish receipt (0.769093ms)
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (281.713358ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (86.981687ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (91.613224ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (0.874953ms)
+✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (0.44295ms)
+✔ WeChat original Muse fixture: exact approval/dispatch/file/accept cards never become a Pi model request or wake (0.644865ms)
+ℹ tests 97
+ℹ suites 0
+ℹ pass 96
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16118.423404
+
+✖ failing tests:
+
+test at miniprogram/test/monitor-client.test.mjs:40:1
+✖ lost subscription challenge cold-replays its original UUID then awaits a separate native click (580.820082ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(p.client.subscriptionReference(monitor))
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:41:998)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

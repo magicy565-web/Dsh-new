@@ -1,5 +1,7 @@
 # Shopify 原写入审批客户端
 
+当前单一统一版本采用622fbfb，组合97项及当前监测/通知界面见 [MONITOR-FINAL-ACCEPTANCE](MONITOR-FINAL-ACCEPTANCE.md)。
+
 此文件保留原 publication 基线788948d的57项验收记录。**当前PR52增量已接952db1a修复契约**；当前源码afb4972、71项完整客户端回归与修复界面请见 [DRAFT-REPAIR-ACCEPTANCE.md](DRAFT-REPAIR-ACCEPTANCE.md)。旧ZIP不包含当前增量。
 
 客户端源码检查点 **788948d**，独立分支 `codex/wechat-shopify-write-20261012`、Draft [PR52](https://github.com/magicy565-web/workspace-agent/pull/52)。保留 PR46/组合738000f，固定后端 **04cbad4ff5f74fa97e46a0845939233ce66cf35f**；消费40b9601的 [publication JSON契约](../docs/SUPPLIER-PUBLICATION-CLIENT-CONTRACT.json) 与 [实现说明](../docs/SUPPLIER-SHOPIFY-WRITES.md)。最新c2ba9ea只改测试断言；04cbad4与40b9601的接口代码一致。没有取通知WIP96fb4914，也没有取尚未统一的通知/流量DTO。

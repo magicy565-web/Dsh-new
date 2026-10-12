@@ -1,0 +1,58 @@
+✔ actual Page/native controls -> signed HTTP/GA4: product views preserve null sessions, provenance, persistent checks and one corrected summary (866.533434ms)
+▶ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message
+  ✔ {"configured":false,"traffic":false} (646.495107ms)
+  ✔ {"proof":false} (662.064811ms)
+  ✔ {"binding":false} (554.778461ms)
+✔ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message (1864.346492ms)
+▶ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority
+  ✔ errMsgOnly (536.532437ms)
+  ✔ fail (502.375143ms)
+  ✔ reject (448.258775ms)
+  ✔ ban (517.318914ms)
+  ✔ filter (531.667233ms)
+✔ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority (2537.542974ms)
+✔ native accept is a client claim until existing trusted callback verifies it; no invented OpenID or authority (522.396213ms)
+✔ real local combined seven-day subscription -> separate review/approve/execute; fixture provider accepted is not user read/business acceptance (828.636535ms)
+▶ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox
+  ✔ deny (709.669954ms)
+  ✔ revoke (730.155724ms)
+  ✔ cancel (895.467206ms)
+  ✔ stop (741.385186ms)
+✔ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox (3077.858634ms)
+✔ lost verified subscription record reply cold-reuses exact body and original grant without another wx call (638.731522ms)
+✔ provider and local execution response unknown: cold GET status only, original operation retained, no resend or fake query proof (784.764984ms)
+✔ unadmitted notification requires a new explicit confirm and same original UUID/body, never automatic send (765.137794ms)
+✖ lost subscription challenge cold-replays its original UUID then awaits a separate native click (612.739679ms)
+✔ changed seven-day summary clears original native approval checks and disables old approved send scope (606.094247ms)
+▶ provider failure never resends; cancellation after acceptance records request without claiming recall
+  ✔ failure (603.484413ms)
+  ✔ cancel-after-accept (663.292216ms)
+✔ provider failure never resends; cancellation after acceptance records request without claiming recall (1267.889571ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 25
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14761.253689
+
+✖ failing tests:
+
+test at miniprogram/test/monitor-client.test.mjs:40:1
+✖ lost subscription challenge cold-replays its original UUID then awaits a separate native click (612.739679ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(p.client.subscriptionReference(monitor))
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:41:998)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

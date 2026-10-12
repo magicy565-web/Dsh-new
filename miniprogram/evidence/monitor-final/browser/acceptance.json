@@ -1,0 +1,29 @@
+{
+  "backend": "622fbfb6e9d037e548c3ed1d10e5a34a82038da7",
+  "contract": "ad1545d0efebddadf24e545f93dbdb8571a1e4ab",
+  "evidenceKind": "Actual compiled Page/Component and original WXML/WXSS limited Chromium, signed local Workspace and local GA4/Shopify/WeChat HTTP; wx.requestSubscribeMessage is a labelled callback fixture, not WeChat runtime",
+  "chromium": "151.0.7922.173",
+  "checks": [
+    "Default trusted provider missing blocked, zero native call/send and no fake collected traffic",
+    "Actual product detail view events preserve null sessions and provisional quality",
+    "Separate native-template challenge, default empty check and explicit API callback",
+    "Trusted server proof original grant then exact separate notification review/approval",
+    "Approval alone zero send",
+    "Independent execute only local provider acceptance, userRead unknown, businessAcceptance not_recorded",
+    "Correct same summary retaining submitted pointer, no second send",
+    "Cancellation after handoff cannot recall accepted delivery",
+    "Another exact original monitor unknown send has read-only status/cold reentry, no resend",
+    "320px no horizontal overflow"
+  ],
+  "defaultNativeCalls": 0,
+  "defaultProviderPosts": 0,
+  "providerFixturePosts": 2,
+  "nativeCallbackFixtureCalls": 2,
+  "pageErrors": [],
+  "liveWechat": false,
+  "liveGA4": false,
+  "liveShopify": false,
+  "liveMessage": false,
+  "independentSecurityAudit": false,
+  "generatedAt": "2026-10-12T15:01:53.057Z"
+}

@@ -1,0 +1,71 @@
+✖ actual Page/native controls -> signed HTTP/GA4: product views preserve null sessions, provenance, persistent checks and one corrected summary (775.512868ms)
+▶ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message
+  ✔ {"configured":false,"traffic":false} (433.876322ms)
+  ✔ {"proof":false} (428.951077ms)
+  ✔ {"binding":false} (450.159648ms)
+✔ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message (1313.969503ms)
+▶ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority
+  ✔ errMsgOnly (425.022296ms)
+  ✔ fail (401.056463ms)
+  ✔ reject (439.709278ms)
+  ✔ ban (444.538376ms)
+  ✔ filter (406.763278ms)
+✔ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority (2118.310348ms)
+✔ native accept is a client claim until existing trusted callback verifies it; no invented OpenID or authority (378.935194ms)
+✖ real local combined seven-day subscription -> separate review/approve/execute; fixture provider accepted is not user read/business acceptance (598.926938ms)
+▶ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox
+  ✔ deny (498.471142ms)
+  ✔ revoke (477.764119ms)
+  ✔ cancel (503.985831ms)
+  ✔ stop (509.032011ms)
+✔ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox (1990.672108ms)
+✔ lost verified subscription record reply cold-reuses exact body and original grant without another wx call (480.826939ms)
+✔ provider and local execution response unknown: cold GET status only, original operation retained, no resend or fake query proof (606.221907ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 18
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8646.404979
+
+✖ failing tests:
+
+test at miniprogram/test/monitor-client.test.mjs:8:1
+✖ actual Page/native controls -> signed HTTP/GA4: product views preserve null sessions, provenance, persistent checks and one corrected summary (775.512868ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  4 !== 3
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:11:356)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:22:1
+✖ real local combined seven-day subscription -> separate review/approve/execute; fixture provider accepted is not user read/business acceptance (598.926938ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'unknown'
+  - 'platform_accepted'
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:24:138)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unknown',
+    expected: 'platform_accepted',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

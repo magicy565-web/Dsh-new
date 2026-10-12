@@ -61,7 +61,7 @@ await ui.evaluate(({ wxml, css, spirit, componentWxml, componentSources }) => {
     const scroll = document.querySelector('.transcript')?.scrollTop || 0;
     const height = document.querySelector('.transcript')?.scrollHeight || 0;
     const nativeCss = css.replace(/(-?[\d.]+)rpx/g, (_, number) => `${Number(number) * innerWidth / 750}px`).replace(/\bpage(?=\s*{)/g, 'body').replace(/\btext(?=[\s,{.#>:+])/g, '.wx-text').replace(/\bcheckbox(?=[\s,{])/g, 'input[type=checkbox]');
-    style.textContent = nativeCss + 'body{margin:0}header{height:28px;box-sizing:border-box;text-align:center;padding:6px 2px;background:#e9e5d9;color:#6b675b;font-size:11px}.conversation{height:calc(100vh - 28px)}.wx-text{display:inline}textarea{font:inherit;border:0;resize:none;min-height:65px}button{border:0;cursor:pointer}button:disabled{opacity:.5;cursor:default}.transcript{overflow-y:auto}.sheet-heading{gap:10px}.card-title{display:block}';
+    style.textContent = nativeCss + 'body{margin:0}header{height:28px;box-sizing:border-box;text-align:center;padding:6px 2px;background:#e9e5d9;color:#6b675b;font-size:11px}.conversation{height:calc(100vh - 28px)}textarea{font:inherit;border:0;resize:none;min-height:65px}button{border:0;cursor:pointer}button:disabled{opacity:.5;cursor:default}.transcript{overflow-y:auto}.sheet-heading{gap:10px}.card-title{display:block}';
     const root = document.querySelector('main'); root.replaceChildren(); children([...source.documentElement.childNodes], state, root);
     const transcript = document.querySelector('.transcript'); if (transcript) transcript.scrollTop = Math.abs(scroll - height) < 50 ? transcript.scrollHeight : scroll;
   };

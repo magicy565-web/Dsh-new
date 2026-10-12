@@ -1,5 +1,7 @@
 # 原 Shopify 草稿缺失步骤修复客户端
 
+本文件保留原952db1a/71项修复检查点；当前单一统一版本采用622fbfb，组合97项及当前截图见 [MONITOR-FINAL-ACCEPTANCE](MONITOR-FINAL-ACCEPTANCE.md)。
+
 客户端功能源码检查点 **afb4972**，继续同一独立分支 `codex/wechat-shopify-write-20261012` 和 Draft [PR52](https://github.com/magicy565-web/workspace-agent/pull/52)。后端固定 **952db1a7e5a0986312f896e524114cb9a4a5ce25**（PR51），包含原 publication 基线04cbad4；按 [repair JSON 契约](../docs/SUPPLIER-DRAFT-REPAIR-CLIENT-CONTRACT.json) 消费，不含通知/流量的未完成DTO。修复实现没有客户端接口缺口。
 
 作者改动限于 `miniprogram/src/shared/{publication,client,supplier}.ts`、原 conversation Page、原 `shopify-operation-review` Component、普通客户端测试及本目录说明/证据。server 与公共契约是合入主任务固定提交，未自行改写。无根依赖/锁/共享构建改动，无另一套UI；沿用原 Muse精灵、会话、卡片、sheet和默认未勾选确认。浏览器模拟补载原 Muse Component 的共享同款确认样式，没有新视觉。
