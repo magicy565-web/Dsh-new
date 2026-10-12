@@ -1,3 +1,5 @@
+import {validShopReadiness} from './shop-readiness-view';
+import type {ShopReadinessContract} from './shop-readiness-view';
 import type { Artifact, Bootstrap, InputContext, Message, Run } from '../../../src/types';
 import type { Company, Product, LibraryDocument } from '../../../src/library/types';
 import type { Journal, Pending } from './journal';
@@ -294,6 +296,18 @@ export class WorkspaceClient {
   async supplierDetail(conversationId: string, id: string) {
     const value = await this.request<{service: SupplierService}>(this.supplierPath(conversationId,id));
     if (!validSupplier(value.service,conversationId)) throw new ClientError('SUPPLIER_RESPONSE_INVALID','原商品修订无法核对。'); return value.service;
+  }
+  async shopReadiness():Promise<ShopReadinessContract> {
+    const value=await this.request<{shopify?:{readiness?:unknown}}>('/commerce-status');
+    if(!validShopReadiness(value.shopify?.readiness))throw new ClientError('SHOPIFY_READINESS_INVALID','原店铺核验依据无法完整读取；不能按已连接继续。');
+    return value.shopify.readiness;
+  }
+  private checkingShop:Promise<ShopReadinessContract>|null=null;
+  verifyShopReadiness():Promise<ShopReadinessContract>{
+    if(this.checkingShop)return this.checkingShop;
+    if(!this.session?.authenticated||this.session.user?.role!=='admin')return Promise.reject(new ClientError('ROLE_REQUIRED','只有原管理员可核验服务端店铺授权。'));
+    this.checkingShop=this.request<{shopify?:{readiness?:unknown}}>('/commerce-shopify/verify','POST',{requestId:this.requestId()}).then(value=>{if(!validShopReadiness(value.shopify?.readiness))throw new ClientError('SHOPIFY_READINESS_INVALID','原店铺核验依据无法完整读取。');return value.shopify.readiness;}).finally(()=>{this.checkingShop=null;});
+    return this.checkingShop;
   }
   supplierCatalog() { return this.request<{name:string;services:{id:string;writesEnabled:boolean;shopify:{configured:boolean}}[]}>('/agent-services'); }
   async supplierMonitors(conversationId: string, id: string) {
