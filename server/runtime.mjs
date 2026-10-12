@@ -76,6 +76,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
   if (!Number.isInteger(goalTimeoutMs) || goalTimeoutMs < 1 || goalTimeoutMs > 3_600_000) throw new Error('goalTimeoutMs must be 1–3600000.');
   if (!Number.isInteger(shutdownTimeoutMs) || shutdownTimeoutMs < 1 || shutdownTimeoutMs > 60000) throw new Error('shutdownTimeoutMs must be 1–60000.');
   const native = provider.kind === 'deepseek-harness';
+  const pi = provider.kind === 'pi-durable';
   const currentSetupError = (native || provider.setupMessage) ? { code: 'SETUP_REQUIRED', message: provider.setupMessage || 'Native Harness requires DEEPSEEK_API_KEY, an absolute DSH_BIN, and an absolute DSH_REVIEWED_PATCH. Configure the reviewed runtime before starting; your work is saved.' } : setupError;
   const bridge = createWorkspaceBridge({ store, capabilities });
   const jobs = new Map();
@@ -150,7 +151,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
   async function onRunEvent(runId, event) {
     if (shuttingDown || typeof event?.type !== 'string') return;
     // Only event type and sequence cross this boundary, never native reasoning or tool arguments.
-    await store.update(state => { const run = state.runs.find(item => item.id === runId && item.status === 'running'); if (run && run.events.length < 1000) { run.events.push({ sequence: run.events.length + 1, type: event.type.slice(0, 120), createdAt: now() }); if (event.type === 'native.session' && typeof event.nativeSessionId === 'string' && /^[a-zA-Z0-9_.:-]{1,160}$/.test(event.nativeSessionId)) { run.nativeSessionId = event.nativeSessionId; const item = state.conversations.find(item => item.id === run.conversationId); if (item) item.nativeSessionId = event.nativeSessionId; } } });
+    await store.update(state => { const run = state.runs.find(item => item.id === runId && item.status === 'running'); if (run && run.events.length < 1000) { run.events.push({ sequence: run.events.length + 1, type: event.type.slice(0, 120), createdAt: now() }); if (event.type === 'pi.submission') { run.piSubmissionId = event.piSubmissionId; run.piConversationId = event.piConversationId; run.piRequestId = event.piRequestId; } if (event.type === 'native.session' && typeof event.nativeSessionId === 'string' && /^[a-zA-Z0-9_.:-]{1,160}$/.test(event.nativeSessionId)) { run.nativeSessionId = event.nativeSessionId; const item = state.conversations.find(item => item.id === run.conversationId); if (item) item.nativeSessionId = event.nativeSessionId; } } });
   }
   async function pumpQueue() {
     if (pumping || shuttingDown || !backgroundStarted) return;
@@ -277,9 +278,10 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
           const structured = run.workspaceExecution === true;
           let reservation = 1600;
           if (structured) {
-            reservation = Math.min(1600, run.budget.maxOutputTokens - (run.outputTokens || 0));
+            const priorReservation = pi && required(state, 'messages', replyId).reservedOutputTokens;
+            reservation = priorReservation || Math.min(1600, run.budget.maxOutputTokens - (run.outputTokens || 0));
             if (reservation <= 0 || (run.stepCount || 0) >= run.budget.maxSteps || (native && reservation < 1600)) throw new ProviderError('TOKEN_BUDGET', 'The workspace task reached its bounded step or output allowance. Start a new reviewed task to continue.');
-            await store.update(next => { if (!validChat(next, id, runId)) return; const current = required(next, 'runs', runId); current.outputTokens = (current.outputTokens || 0) + reservation; current.reservedOutputTokens = (current.reservedOutputTokens || 0) + reservation; required(next, 'messages', replyId).reservedOutputTokens = reservation; });
+            if (!priorReservation) await store.update(next => { if (!validChat(next, id, runId)) return; const current = required(next, 'runs', runId); current.outputTokens = (current.outputTokens || 0) + reservation; current.reservedOutputTokens = (current.reservedOutputTokens || 0) + reservation; required(next, 'messages', replyId).reservedOutputTokens = reservation; });
           }
           state = store.read(); run = required(state, 'runs', runId);
           if (!validChat(state, id, runId)) return;
@@ -287,7 +289,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
           const messages = runMessages(state, run);
           if (structured) messages[0].content += workspaceResponseInstructions({ grants: run.connectorGrants });
           attachNativeRunData(messages, run);
-          const result = await completeObserved({ messages, model: run.execution.model, maxTokens: reservation, json: structured, signal: controller.signal, nativeSessionId: required(state, 'conversations', id).nativeSessionId || undefined, runId, conversationId: id, onEvent: event => onRunEvent(runId, event) });
+          const result = await completeObserved({ messages, model: run.execution.model, maxTokens: reservation, json: structured, signal: controller.signal, replyId, nativeSessionId: required(state, 'conversations', id).nativeSessionId || undefined, runId, conversationId: id, onEvent: event => onRunEvent(runId, event) });
           if (controller.signal.aborted || !validChat(store.read(), id, runId)) return;
           if (typeof result?.content !== 'string' || !result.content.trim() || result.content.length > 80_000) throw new ProviderError('INVALID_RESPONSE', 'The runtime returned an invalid visible response.');
           await store.update(next => { if (!validChat(next, id, runId)) return; accumulateRun(next, runId, result); const current = required(next, 'runs', runId); if (structured) { current.stepCount = (current.stepCount || 0) + 1; const actual = result.usage?.completionTokens; if (Number.isSafeInteger(actual) && actual > 0) current.outputTokens += actual - reservation; } });
@@ -327,7 +329,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       activity(state, goal.status, 'Goal could not continue', error.message, { goalId, conversationId: goal.conversationId });
     });
   }
-  function launchGoal(goalId, runId, revision, proposalId) {
+  function launchGoal(goalId, runId, revision, proposalId, recoveredReplyId) {
     const controller = new AbortController();
     const timeout = setTimeout(() => { controller.abort('GOAL_TIMEOUT'); void finishGoalError(goalId, runId, revision, { code: 'GOAL_TIMEOUT', message: 'The goal reached its time limit. Review saved steps before resuming.' }).catch(() => {}); }, goalTimeoutMs);
     timeout.unref();
@@ -343,12 +345,14 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         const remainingTokens = goal.maxOutputTokens - goal.outputTokens;
         const reservation = Math.min(1600, remainingTokens);
         if (reservation <= 0 || (native && reservation < 1600)) { await finishGoalError(goalId, runId, revision, { code: 'TOKEN_BUDGET', message: 'The goal reached its output token budget. Increase the budget before resuming.' }); return; }
-        const replyId = randomUUID();
+        const replyId = recoveredReplyId || randomUUID();
+        const recovering = Boolean(recoveredReplyId); recoveredReplyId = null;
         const created = await store.update(next => {
           if (!validGoal(next, goalId, runId, revision)) return false;
           if (!matchesExecution(next, required(next, 'runs', runId))) throw new ProviderError(scopeChangedError.code, scopeChangedError.message);
+          if (recovering) return true;
           required(next, 'goals', goalId).outputTokens += reservation;
-          const run = required(next, 'runs', runId); run.reservedOutputTokens = (run.reservedOutputTokens || 0) + reservation;
+          const run = required(next, 'runs', runId); run.assistantId = replyId; run.reservedOutputTokens = (run.reservedOutputTokens || 0) + reservation;
           next.messages.push({ id: replyId, reservedOutputTokens: reservation, conversationId: goal.conversationId, role: 'assistant', content: '', status: 'pending', createdAt: now(), requestId: runId, runId, goalId, step: goal.stepCount + 1 });
           return true;
         });
@@ -360,7 +364,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         messages.push({ role: 'user', content: `Goal: ${goal.title}\n${goal.description}\nStep ${goal.stepCount + 1} of ${goal.maxSteps}. Continue using previous visible results. Produce the next useful part or final text deliverable as JSON.` });
         attachNativeRunData(messages, required(state, 'runs', runId));
         try {
-          const result = await completeObserved({ messages, model: required(state, 'runs', runId).execution.model, maxTokens: reservation, signal: controller.signal, json: true, nativeSessionId: required(state, 'conversations', goal.conversationId).nativeSessionId || undefined, runId, conversationId: goal.conversationId, goalId, onEvent: event => onRunEvent(runId, event) });
+          const result = await completeObserved({ messages, model: required(state, 'runs', runId).execution.model, maxTokens: reservation, signal: controller.signal, replyId, json: true, nativeSessionId: required(state, 'conversations', goal.conversationId).nativeSessionId || undefined, runId, conversationId: goal.conversationId, goalId, onEvent: event => onRunEvent(runId, event) });
           if (controller.signal.aborted) throw new ProviderError('CANCELLED', 'The request was stopped.');
           await store.update(next => {
             if (!validGoal(next, goalId, runId, revision)) return;
@@ -435,7 +439,45 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       });
       jobs.get(stoppedRun)?.controller.abort(); return result;
     },
-    async retryRun(id, body = {}) { const run = required(store.read(), 'runs', id); if (!['failed', 'blocked', 'interrupted', 'paused'].includes(run.status)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only stopped or failed runs can be retried.'); if (run.goalId) return this.updateGoal(run.goalId, { action: 'resume', requestId: body.requestId, queued: body.queued }); const message = store.read().messages.find(item => item.conversationId === run.conversationId && item.role === 'user' && item.requestId === run.requestId); if (!message) throw new ApiError(404, 'NOT_FOUND', 'The original input no longer exists.'); return this.sendMessage(run.conversationId, { content: message.content, requestId: body.requestId, queued: body.queued, ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true }); },
+    async recoverPiRun(id, body = {}) {
+      ensureOpen();
+      if (!pi || Object.keys(body).some(key => !['requestId', 'queued'].includes(key))) throw new ApiError(400, 'INVALID_INPUT', 'Recover the original Pi invocation without changing its input.');
+      const key = body.requestId === undefined ? null : requestKey(body.requestId);
+      let launch;
+      const result = await store.update(state => {
+        const run = required(state, 'runs', id);
+        if (key && run.piRecoverRequests?.includes(key)) return { run, duplicate: true };
+        if (run.status !== 'interrupted' || !run.piRequestId || jobs.has(id)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only an interrupted, settled Pi run can recover its original submission.');
+        if (!matchesExecution(state, run)) throw new ApiError(409, scopeChangedError.code, scopeChangedError.message);
+        if (!provider.configured) throw new ApiError(409, 'SETUP_REQUIRED', currentSetupError.message);
+        const item = required(state, 'conversations', run.conversationId);
+        if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current conversation work before recovering this run.');
+        assertInputContextSnapshot(state, item.id, run.inputContextSnapshot);
+        bridge.assertGrants(state, run.connectorGrants || []);
+        if ((run.proposals || []).some(proposal => ['executing', 'interrupted', 'uncertain'].includes(proposal.status))) throw new ApiError(409, 'ACTION_RECONCILIATION_REQUIRED', 'Reconcile the original action attempt before recovering this run.');
+        ensureCapacity(state);
+        const reply = required(state, 'messages', run.assistantId);
+        if (reply.status === 'complete') throw new ApiError(409, 'ACTION_RECONCILIATION_REQUIRED', 'The completed reply needs business reconciliation before a new step.');
+        if (run.goalId) {
+          const goal = required(state, 'goals', run.goalId);
+          if (goal.status !== 'paused' || goal.runId) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'The goal has already continued.');
+          goal.status = 'running'; goal.runId = id; goal.lastError = null; run.revision = goal.revision;
+        }
+        run.status = 'running'; run.error = null; run.finishedAt = null;
+        reply.status = 'pending'; reply.error = null;
+        item.status = 'running'; item.activeRunId = id; item.lastError = null;
+        if (key) (run.piRecoverRequests ||= []).push(key);
+        launch = { ...run };
+        activity(state, 'resumed', 'Pi submission recovery requested', 'Reattaching the original durable submission under unchanged Workspace permissions.', { runId: id, conversationId: item.id });
+        return { run, recovered: true };
+      });
+      if (launch) {
+        if (launch.goalId) launchGoal(launch.goalId, id, launch.revision, undefined, launch.assistantId);
+        else launchChat(launch.conversationId, id, launch.assistantId);
+      }
+      return result;
+    },
+    async retryRun(id, body = {}) { const run = required(store.read(), 'runs', id); if (pi && run.status === 'interrupted' && run.piRequestId) return this.recoverPiRun(id, body); if (!['failed', 'blocked', 'interrupted', 'paused'].includes(run.status)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only stopped or failed runs can be retried.'); if (run.goalId) return this.updateGoal(run.goalId, { action: 'resume', requestId: body.requestId, queued: body.queued }); const message = store.read().messages.find(item => item.conversationId === run.conversationId && item.role === 'user' && item.requestId === run.requestId); if (!message) throw new ApiError(404, 'NOT_FOUND', 'The original input no longer exists.'); return this.sendMessage(run.conversationId, { content: message.content, requestId: body.requestId, queued: body.queued, ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true }); },
     async resetSession(id) { ensureOpen(); return store.update(state => { const item = required(state, 'conversations', id); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current request before resetting native session continuity.'); const previous = item.nativeSessionId || null; item.nativeSessionId = null; item.updatedAt = now(); activity(state, 'session_reset', 'New native session requested', 'Future requests start a new native session using saved visible context.', { conversationId: id, previousNativeSessionId: previous }); return { conversation: item }; }); },
     async createConversation(body) {
       ensureOpen();
@@ -702,12 +744,12 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
             for (const item of state.conversations) if (item.status === 'running' && !queuedIds.has(item.activeRunId)) { stopRun(state, item.activeRunId, 'interrupted by server shutdown'); item.lastError = stoppedError; }
           });
         } catch (error) { checkpointError = error; }
-        finally { for (const job of jobs.values()) job.controller.abort(); }
+        finally { for (const job of jobs.values()) job.controller.abort('SERVER_SHUTDOWN'); }
         const settled = Promise.allSettled([...jobs.values()].map(job => job.promise));
         const providerClosed = Promise.resolve().then(() => provider.close?.());
         let timer;
         try {
-          if (native) await Promise.race([
+          if (native || pi) await Promise.race([
             Promise.all([settled, providerClosed]),
             new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new ProviderError('HARNESS_SHUTDOWN', 'Native shutdown was not confirmed before its deadline. Ownership remains locked; stop the server process before restarting.')), shutdownTimeoutMs); }),
           ]);

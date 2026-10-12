@@ -75,6 +75,7 @@ test('audit rotation: archive collisions, links, public parents, in-data paths a
   if (linked) await assert.rejects(rotateAccessAudit({ dataDirectory: f.data, archiveFile: f.archive('linked.jsonl') }), /EEXIST/);
   await assert.rejects(rotateAccessAudit({ dataDirectory: f.data, archiveFile: path.join(f.security, 'bad-archive.jsonl') }), /outside/);
   const publicParent = path.join(f.root, 'public'); await fs.mkdir(publicParent, { mode: 0o755 });
+  if (process.platform !== 'win32') await fs.chmod(publicParent, 0o755); // Preserve the public-parent assertion under a restrictive process umask.
   if (process.platform === 'win32') await fs.writeFile(path.join(publicParent, 'untrusted-existing-data'), 'preserve inherited DACL');
   await assert.rejects(rotateAccessAudit({ dataDirectory: f.data, archiveFile: path.join(publicParent, 'bad.jsonl') }), /private/i);
   assert.deepEqual(await fs.readFile(f.filename), before);

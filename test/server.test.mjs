@@ -158,7 +158,7 @@ test('settings, memories, library outputs and conversations persist across resta
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'workspace-persist-test-'));
   const first = await createApp({ dataDirectory: directory });
   const { conversation } = await first.runtime.createConversation({ title: 'Persisted title' });
-  await first.runtime.updateSettings({ name: '我的助手', model: 'deepseek-v4-pro', maxGoalSteps: 4 });
+  await first.runtime.updateSettings({ name: '我的助手', model: 'gpt-6-sol', maxGoalSteps: 4 });
   const { memory } = await first.runtime.createMemory({ content: 'Reply in short paragraphs', category: 'preference' });
   await first.runtime.updateMemory(memory.id, { content: 'Prefer concise paragraphs' });
   await first.runtime.createMemory({ content: 'Saved draft', category: 'saved' });
@@ -168,7 +168,7 @@ test('settings, memories, library outputs and conversations persist across resta
   const state = second.runtime.bootstrap();
   assert.equal(state.conversations[0].id, conversation.id);
   assert.equal(state.settings.name, '我的助手');
-  assert.equal(state.settings.model, 'deepseek-v4-pro');
+  assert.equal(state.settings.model, 'gpt-6-sol');
   assert.equal(state.memories[0].content, 'Prefer concise paragraphs');
   assert.equal(state.memories[1].category, 'saved');
   await second.runtime.deleteMemory(memory.id);

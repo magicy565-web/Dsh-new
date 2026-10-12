@@ -25,6 +25,12 @@ export async function rotateAccessAudit({ dataDirectory, archiveFile, now = Date
     if (!before.sequence) throw new Error('There is no completed audit segment to rotate.');
     if (before.maxAssertionExpiresAt > now()) throw new Error(`Unexpired ingress assertions remain until ${new Date(before.maxAssertionExpiresAt).toISOString()}; stop the server and wait before rotating.`);
     const requestedParent = path.dirname(archiveFile);
+    // Inspect an existing parent before privateDirectory can tighten its mode.
+    // A public directory is not an authorized private archive destination.
+    try {
+      const existing = await fs.lstat(requestedParent);
+      if (!existing.isDirectory() || existing.isSymbolicLink() || process.platform !== 'win32' && (existing.mode & 0o077)) throw new Error('Archive parent must already be a private real directory.');
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
     await privateDirectory(requestedParent);
     const parentInfo = await fs.lstat(requestedParent);
     if (!parentInfo.isDirectory() || parentInfo.isSymbolicLink() || process.platform !== 'win32' && (parentInfo.mode & 0o077)) throw new Error('Archive parent must be a private real directory.');

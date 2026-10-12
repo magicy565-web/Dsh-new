@@ -6,9 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
 import { openStore, openPrivateFile } from './store.mjs';
 import { readRecoveryStatus } from './recovery-status.mjs';
-import { createHarnessProvider } from './harness-provider.mjs';
-import { createDeepSeekProvider } from './provider.mjs';
-import { createFastAITokenProvider } from './relay-provider.mjs';
+import { createPiProvider } from './pi-provider.mjs';
 import { ApiError, createRuntime } from './runtime.mjs';
 import { createArtifactService } from './artifacts.mjs';
 import { createBusinessLibraryService } from './business-library.mjs';
@@ -31,6 +29,9 @@ import { MuseWorkerError } from './muse-worker-api.mjs';
 import { createMuseWorkerHost } from './muse-worker-host.mjs';
 import { AccessError, validateAccessConfig, createAccessControl, accessConfigFromEnvironment } from './access.mjs';
 
+function decodeApiId(value) {
+  try { return decodeURIComponent(value); } catch { throw new ApiError(400, 'INVALID_PATH', 'Invalid API identifier encoding.'); }
+}
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mimeTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.json': 'application/json' };
 async function respond(res, status, body) {
@@ -68,7 +69,7 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createDeepSeekProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
@@ -76,6 +77,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   const store = await openStore(dataDirectory);
   let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth;
   try {
+    await provider.initialize?.({ store });
     recovery = await readRecoveryStatus(store.directory, provider.kind);
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
@@ -121,7 +123,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       (accessConfig.mode === 'enterprise' ? accessConfig.members.has(row.subject) : row.subject === 'local-operator')))
       throw new TypeError('External procurement buyers require this workspace and a distinct subject from enterprise members.');
     sourcingMcpAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
-  } catch (error) { await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
+  } catch (error) { await provider.close?.(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const streams = new Set();
   let scheduler;
   const schedulerState = { state: 'stopped', automaticTimer: false, intervalMs: schedulerIntervalMs, lastStartedAt: null, lastCompletedAt: null, lastError: null };
@@ -377,7 +379,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       let extension = pathname.match(/^\/api\/runs\/([^/]+)\/(action-decision|resume)$/);
       if (extension && method === 'POST') return await respond(res, 200, await runtime[extension[2] === 'action-decision' ? 'resolveRunAction' : 'resumeRun'](extension[1], body));
       extension = pathname.match(/^\/api\/conversations\/([^/]+)\/input-context$/);
-      if (extension && method === 'PATCH') return await respond(res, 200, await runtime.updateConversationInputContext(extension[1], body));
+      if (extension && method === 'PATCH') return await respond(res, 200, await runtime.updateConversationInputContext(decodeApiId(extension[1]), body));
       extension = pathname.match(/^\/api\/runs\/([^/]+)\/(cancel|retry)$/);
       if (extension && method === 'POST') return await respond(res, extension[2] === 'retry' ? 202 : 200, await runtime[extension[2] === 'cancel' ? 'cancelRun' : 'retryRun'](extension[1], body));
       extension = pathname.match(/^\/api\/artifacts\/([^/]+)$/);
@@ -393,17 +395,18 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       extension = pathname.match(/^\/api\/schedules\/([^/]+)\/(enable|disable)$/);
       if (extension && method === 'POST') return await respond(res, 200, await capabilities[extension[2] === 'enable' ? 'enableSchedule' : 'disableSchedule'](extension[1], body));
       extension = pathname.match(/^\/api\/conversations\/([^/]+)\/reset-session$/);
-      if (extension && method === 'POST') return await respond(res, 200, await runtime.resetSession(extension[1]));
+      if (extension && method === 'POST') return await respond(res, 200, await runtime.resetSession(decodeApiId(extension[1])));
       if (method === 'POST' && pathname === '/api/conversations') return await respond(res, 201, await runtime.createConversation(body));
       if (method === 'POST' && pathname === '/api/goals') return await respond(res, 201, await runtime.createGoal(body));
       if (method === 'PATCH' && pathname === '/api/settings') return await respond(res, 200, await runtime.updateSettings(body));
       if (method === 'POST' && pathname === '/api/memories') return await respond(res, 201, await runtime.createMemory(body));
       let match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/(messages|cancel))?$/);
       if (match) {
-        const [, id, resource] = match;
+        const [, encodedId, resource] = match;
+        const id = decodeApiId(encodedId);
         if (method === 'POST' && resource === 'messages') {
           if (body.provider === 'muse') throw new ApiError(409, 'MW_NATIVE_CONVERSATION_REQUIRED', 'Muse requires its original reviewed native Host and conversation binding. No model run was started.');
-          if (body.provider !== undefined && !['builtin', 'deepseek'].includes(body.provider)) throw new ApiError(400, 'PROVIDER_NOT_AVAILABLE', 'Select an available explicitly configured provider.');
+          if (body.provider !== undefined && !['builtin', 'pi'].includes(body.provider)) throw new ApiError(400, 'PROVIDER_NOT_AVAILABLE', 'Select an available explicitly configured provider.');
           return await respond(res, 202, await runtime.sendMessage(id, body));
         }
         if (method === 'POST' && resource === 'cancel') return await respond(res, 200, await runtime.cancelConversation(id));
@@ -479,16 +482,11 @@ async function main() {
   const port = Number(process.env.PORT || 8787);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer from 1 to 65535.');
   // The key is read only on explicit server startup, never scanned from user files.
-  const mode = process.env.WORKSPACE_RUNTIME || 'fastaitoken';
-  if (!['deepseek-api', 'harness', 'fastaitoken'].includes(mode)) throw new Error('WORKSPACE_RUNTIME must be deepseek-api, fastaitoken or harness.');
+  const mode = process.env.WORKSPACE_RUNTIME || 'pi';
+  if (mode !== 'pi') throw new Error('WORKSPACE_RUNTIME must be pi. Historical DSH startup is retired.');
   const access = await accessConfigFromEnvironment(process.env);
   const dataDirectory = path.resolve(process.env.WORKSPACE_DATA_DIR || path.join(root, '.data'));
-  const dshHome = path.join(dataDirectory, 'harness');
-  const workspaceDirectory = path.join(dataDirectory, 'agent-workspace');
-  if (mode === 'harness') { await fs.mkdir(dshHome, { recursive: true, mode: 0o700 }); await fs.mkdir(workspaceDirectory, { recursive: true, mode: 0o700 }); }
-  const nativeProvider = process.env.DSH_PROVIDER || 'deepseek-official';
-  const nativeOfficial = nativeProvider === 'deepseek-official';
-  const provider = mode === 'harness' ? createHarnessProvider({ apiKey: (nativeOfficial ? process.env.DEEPSEEK_API_KEY : process.env.FASTAITOKEN_API_KEY) || '', nativeProvider, nativeProfile: process.env.DSH_PROFILE || 'sdk', nativeProtocol: process.env.DSH_PROTOCOL || (nativeOfficial ? 'deepseek-native' : ''), nativeBaseURL: process.env.DSH_BASE_URL || (nativeOfficial ? 'https://api.deepseek.com' : ''), nativeApiKeyEnv: process.env.DSH_API_KEY_ENV || (nativeOfficial ? 'DEEPSEEK_API_KEY' : ''), relayPatch: process.env.DSH_RELAY_PATCH || '', recoveryPatch: process.env.DSH_RECOVERY_PATCH || '', dshBin: process.env.DSH_BIN || '', profilePatch: process.env.DSH_REVIEWED_PATCH || '', nativeModel: process.env.DSH_MODEL || (nativeOfficial ? 'deepseek-v4-flash' : ''), nativeBridge: process.env.DSH_WORKSPACE_BRIDGE === '1', bridgePatch: process.env.DSH_WORKSPACE_BRIDGE_PATCH || '', dshHome, workspaceDirectory }) : mode === 'fastaitoken' ? createFastAITokenProvider({ apiKey: process.env.FASTAITOKEN_API_KEY || '', model: process.env.FASTAITOKEN_MODEL || '' }) : createDeepSeekProvider({ apiKey: process.env.DEEPSEEK_API_KEY || '' });
+  const provider = createPiProvider({ apiKey: process.env.FASTAITOKEN_API_KEY || '', model: process.env.PI_MODEL || process.env.FASTAITOKEN_MODEL || 'gpt-6-sol' });
   // No SDK, credentials, outbound requests or partner registration without a
   // pinned, privately stored deployment catalog. Web clients cannot edit it.
   const reviewedWorkers = await loadReviewedA2AWorkers({ environment: process.env });
@@ -535,7 +533,7 @@ async function main() {
       workerAdapters: reviewedWorkers.adapters,
       dotWorkerConfig, museWorkerConfig, sourcingMcpConfig,
       allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [],
-      maxConcurrentRuns: mode === 'harness' ? 1 : 3 });
+      maxConcurrentRuns: 3 });
     await app.listen(port);
   } catch (error) {
     await Promise.allSettled([app?.close?.(), reviewedWorkers.close()]);

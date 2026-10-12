@@ -1,4 +1,4 @@
-# Text API deployment only (FastAIToken or separately approved direct provider). Review paths and all settings on the target.
+# Pi durable application service example. No DSH Host/source is required. Review paths and all settings on the target.
 # This does not configure or deploy the required TLS/authentication ingress.
 [Unit]
 Description=Workspace Agent enterprise backend
