@@ -22,6 +22,7 @@ Node `v24.19.0`. `npm ci --ignore-scripts --no-audit --no-fund --cache /tmp/work
 - Directed original/new backend tests: **132/132 passed**, zero failed/skipped (`targeted-tests.txt`). The 8 new owner HTTP scenarios and 29 new/original GA4 scenarios are subsets of this total, not additional counts.
 - Complete `npm test`: **672 passed, 0 failed, 7 skipped** out of 679 (`backend-tests.txt`). The existing conditional skips require unavailable native runtime/source exports (six) or Windows storage (one); they are not acceptance passes. Directed tests overlap this suite.
 - Additional owner/ordinary-CLI verification: **10/10 passed** (`owner-and-cli-tests.txt`), consisting of the eight owner scenarios rerun with explicit worker-tools isolation assertions and two new actual child-process CLI checks. The child inherits no environment, uses synthetic metadata and an absent authorization snapshot, confirms `configured_unverified`/`binding_required`/model `setup_required`, and rejects malformed metadata before listening. Production implementation is unchanged from `4fc6b96`.
+- Follow-up existing-host audit regression: **11/11 passed** (`host-resolver-tests.txt`), rerunning owner/ordinary-CLI scenarios plus the actual original native-session identity resolver denial. A live synthetic administrator identity/session cannot become a supplier mutation grant. These tests overlap the prior verification; production implementation remains unchanged.
 - `git diff --check`: passed.
 
 Directed command:
@@ -42,6 +43,8 @@ GA4 tests use disposable metadata/snapshot files and synthetic responses. They c
 ## Remaining gates
 
 The baseline has no existing owner `readReviewedScope` implementation callable by the CLI. The real authorized host must supply its original grant resolver; without it the endpoint returns `SUPPLIER_OWNER_BINDING_REQUIRED`. This is an explicit integration gap, not an installed/connected owner plugin. No substitute grants or worker-token promotion were introduced.
+
+The follow-up [source audit](../../SUPPLIER-OWNER-HOST-AUDIT.md) traces original Workspace identity, Pi/Muse bindings, historical native host and OAuth modules. The visible sources have identity and narrow worker/connector/publication scopes, but no supplier owner grant producer; this is an authorization integration implementation gap, not only a missing runtime variable. It records the minimum nonsecret external-resolver handoff or separate authorization decision needed. PR57 comment `6130647802` coordinates this boundary with the Pi TUI/integration tasks; this environment exposes no cross-thread message tool.
 
 Real owner/Muse host integration, existing Shopify/GA4 authorization, live source observation and deployment remain unverified. Seven-day future notification consent and durable recipient permissions await the user's approval and were not developed. Existing manual approvals remain. These synthetic tests establish neither production readiness nor independent security review, real publication/notification, real-device acceptance or a completed seven-day observation window.
 

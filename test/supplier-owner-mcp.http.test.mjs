@@ -50,6 +50,23 @@ test('missing owner resolver remains blocked and loopback local mode cannot impe
   assert.equal(response.status, 403); assert.equal((await response.json()).error.code, 'SUPPLIER_OWNER_AUTH_REQUIRED');
 });
 
+test('the original live native-session resolver proves identity but cannot authorize supplier plugin writes', async t => {
+  const f = await supplierOwnerFixture(t);
+  const token = f.session.cookie.slice(f.session.cookie.indexOf('=') + 1);
+  const identity = f.app.access.nativeSessionIdentity(token, { includeSessionId: true });
+  assert.equal(identity.subject, 'owner'); assert.equal(identity.role, 'admin');
+  const originalSession = f.app.access.nativeSessionById(identity.id);
+  assert.equal(originalSession.workspaceId, f.access.workspaceId);
+  for (const existingIdentity of [identity, originalSession]) {
+    f.hook(() => existingIdentity);
+    const result = await f.tool('intake', null, { requestId: 'identity-is-not-a-grant', facts: { name: 'Never admitted' } });
+    assert.equal(result.error.code, 'SUPPLIER_MCP_SCOPE_REQUIRED');
+  }
+  assert.equal(f.app.store.read().workspaceSupplierServices?.services.length || 0, 0);
+  assert.equal(f.app.store.read().artifacts.length, 0);
+  assert.equal(f.app.store.read().runs.length, 0);
+});
+
 test('owner scope is exact, expiring and rechecked; foreign tenant/owner/conversation records and caller-supplied authority are rejected', async t => {
   const f = await supplierOwnerFixture(t), data = await f.retail();
   for (const patch of [{ subject: 'other' }, { workspaceId: 'another-tenant' }, { conversationId: 'other' }, { operations: [] }, { serviceIds: [] }, { revoked: true }, { expiresAt: '2020-01-01T00:00:00Z' }, { expiresAt: null }]) {

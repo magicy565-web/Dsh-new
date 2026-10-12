@@ -53,7 +53,7 @@
   "additionalTestFiles": [
     {
       "path": "test/supplier-owner-mcp.http.test.mjs",
-      "sha256": "350a87f401d7f6fad8328b342561800b63393b00a82fd9e39cde3336b8657802"
+      "sha256": "68754a0f47d617b2ea29f0eecd4d301b705b254a099e69b5a025ac3b9d8d83ae"
     },
     {
       "path": "test/fixtures/supplier-owner-mcp.mjs",
@@ -81,5 +81,18 @@
   },
   "realExternalCalls": false,
   "productionDeployment": false,
-  "realOwnerBindingVerified": false
+  "realOwnerBindingVerified": false,
+  "hostSourceAudit": {
+    "document": "docs/SUPPLIER-OWNER-HOST-AUDIT.md",
+    "sourceOnly": true,
+    "runtimeFilesRead": false,
+    "existingSupplierResolverFound": false,
+    "existingIdentityResolverTested": true,
+    "tests": {
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "overlapsPrevious": true
+    }
+  }
 }
