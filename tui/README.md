@@ -37,20 +37,26 @@ This URL option only accepts literal HTTP loopback origins. It does not start a
 server or create the missing original conversation/binding. A bare `npm start`
 without the existing Muse binding correctly produces `MW_ORIGINAL_BINDING_REQUIRED`.
 
-For an existing enterprise installation, use a **reviewed host adapter already
-connected to the owner's authorized session**:
+For an existing enterprise installation, the built-in
+[original owner Host bridge](OWNER-CONNECTION.md) retains the existing Session
+and CSRF in the trusted Host and launches Pi over a private RPC pipe. Actual
+host mounting is still required and not deployed. The TUI receives no credentials.
+The existing custom adapter seam is also retained for reviewed hosts:
 
 ```sh
 WORKSPACE_PI_OWNER_TRANSPORT=/absolute/private/existing-owner-adapter.mjs npm --prefix tui start
 ```
 
-The module exports `request({method, path, body, signal})` and returns
+The custom module exports `request({method, path, body, signal})` and returns
 `{status, body}`. It must preserve the original signed ingress, owner/admin
 session, CSRF, exact body and per-request checks. It must honor the signal and
 not follow redirects or retry mutations. This repo does not supply or create a
 production signer, credentials, login, persistent grant, or permission upgrade.
 Never supply a Muse/Dot Worker bearer as owner authority. Missing adapter remains
 `EXISTING_OWNER_TRANSPORT_REQUIRED`; there is no anonymous enterprise fallback.
+Use `npm --prefix tui run diagnose` or `/workspace-muse diagnose` for a GET-only
+report and specific connection guidance. Original session expiry/revocation and
+backend restart require login again; durable task recovery does not preserve auth.
 
 ## Use the terminal
 

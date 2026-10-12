@@ -1,5 +1,7 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createOwnerRpcTransport } from './owner-rpc.mjs';
+import { OwnerSessionError } from './owner-session-transport.mjs';
 
 export class WorkspaceTuiError extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -11,6 +13,9 @@ const same = (a, b) => a?.workspaceId === b?.workspaceId && a?.subject === b?.su
 // This is a client adapter, not a credential provider or an ingress signer.
 // A host adapter must use its ALREADY authorized owner session on each request.
 export async function loadOwnerTransport(environment = process.env) {
+  const configured = ['WORKSPACE_PI_OWNER_RPC_FD', 'WORKSPACE_PI_OWNER_TRANSPORT', 'WORKSPACE_PI_LOCAL_URL'].filter(key => environment[key] !== undefined);
+  if (configured.length > 1) fail('OWNER_TRANSPORT_AMBIGUOUS');
+  if (environment.WORKSPACE_PI_OWNER_RPC_FD !== undefined) return createOwnerRpcTransport(Number(environment.WORKSPACE_PI_OWNER_RPC_FD));
   if (environment.WORKSPACE_PI_OWNER_TRANSPORT) {
     const filename = environment.WORKSPACE_PI_OWNER_TRANSPORT;
     if (!path.isAbsolute(filename)) fail('OWNER_TRANSPORT_ABSOLUTE_PATH_REQUIRED');
@@ -38,7 +43,7 @@ export function createWorkspaceClient(request) {
   async function api(method, target, body) {
     let response;
     try { response = await request({ method, path: target, body, signal: AbortSignal.timeout(15000) }); }
-    catch { fail(method === 'GET' ? 'OWNER_TRANSPORT_UNAVAILABLE' : 'RESULT_UNKNOWN_READ_OR_RETRY_SAME_REQUEST'); }
+    catch (error) { if (error instanceof OwnerSessionError || /^OWNER_[A-Z0-9_]{1,94}$/.test(error.code || '')) throw error; fail(method === 'GET' ? 'OWNER_TRANSPORT_UNAVAILABLE' : 'RESULT_UNKNOWN_READ_OR_RETRY_SAME_REQUEST'); }
     if (!response || response.status < 200 || response.status >= 300) {
       const code = response?.body?.error?.code;
       fail(typeof code === 'string' && /^[A-Z0-9_]{1,100}$/.test(code) ? code : 'OWNER_REQUEST_REJECTED');
@@ -62,6 +67,7 @@ export function createWorkspaceClient(request) {
   }
   return Object.freeze({
     connect,
+    async connection() { await base(); return api('GET', '/api/muse-workers'); },
     async list() { return api('GET', await base()); },
     async get(orderId) { return api('GET', `${await base()}/${segment(orderId)}`); },
     async prepare(pending) {

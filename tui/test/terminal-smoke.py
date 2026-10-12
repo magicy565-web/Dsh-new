@@ -33,6 +33,7 @@ try:
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 180, 0, 0))
         environment = {**os.environ, "WORKSPACE_PI_LOCAL_URL": f'http://127.0.0.1:{settings["port"]}', "WORKSPACE_PI_DATA_DIR": client_dir, "TERM": "xterm-256color"}
         environment.pop("WORKSPACE_PI_OWNER_TRANSPORT", None)
+        environment.pop("WORKSPACE_PI_OWNER_RPC_FD", None)
         child = subprocess.Popen(["node", str(root / "launch.mjs")], stdin=slave, stdout=slave, stderr=slave, env=environment, cwd=root)
         os.close(slave)
         received = ""
@@ -74,6 +75,21 @@ try:
                     return snapshot
                 time.sleep(0.03)
             raise AssertionError(f"Expected fixture state was not reached: {snapshot}")
+
+        def exit_cli():
+            os.write(master, b"\x04")
+            end = time.monotonic() + 8
+            # Pi flushes its transcript when leaving fullscreen. Keep consuming
+            # the real PTY so a full output buffer cannot deadlock normal exit.
+            while child.poll() is None and time.monotonic() < end:
+                readable, _, _ = select.select([master], [], [], 0.05)
+                if readable:
+                    try:
+                        os.read(master, 65536)
+                    except OSError:
+                        break
+            child.wait(timeout=max(0.1, end - time.monotonic()))
+            assert child.returncode == 0
 
         expect("/workspace-muse")
         send("/workspace-muse connect")
@@ -123,9 +139,7 @@ try:
         assert snapshot["modelRuns"] == 0
         assert snapshot["messages"][0]["content"] == "Checked-in Muse CLI local fixture result"
         checks.append("actual TUI refresh displays result and original Session receives same summary; zero model runs")
-        os.write(master, b"\x04")
-        child.wait(timeout=8)
-        assert child.returncode == 0
+        exit_cli()
         os.close(master)
         master, slave = pty.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 180, 0, 0))
@@ -137,9 +151,7 @@ try:
         expect('"phase":"result_returned"')
         assert len(state()["orders"]) == 1
         checks.append("cold Pi TUI restart reads the same task and returned result")
-        os.write(master, b"\x04")
-        child.wait(timeout=8)
-        assert child.returncode == 0
+        exit_cli()
         print(json.dumps({"evidenceKind": "actual-pi-pty-and-checked-in-muse-consumer-local-fixture", "passed": len(checks), "checks": checks, "realMuseVerified": False}, indent=2))
 finally:
     if child and child.poll() is None:

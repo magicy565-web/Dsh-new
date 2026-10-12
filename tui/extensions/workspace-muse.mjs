@@ -1,15 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { createWorkspaceClient, loadOwnerTransport } from '../workspace-client.mjs';
 import { createRequestJournal } from '../request-journal.mjs';
+import { diagnose, OWNER_GUIDANCE } from '../diagnose.mjs';
 
 // Untrusted task/result text must not send terminal control sequences.
 const plain = value => String(value).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
 const show = (ctx, value) => ctx.ui.notify(plain(JSON.stringify(value)), 'info');
-const help = 'Commands: /workspace-muse connect | new | retry | list | status ID | approve ID | dispatch ID | refresh ID | cancel ID | accept ID. Approval and dispatch are separate human confirmations. Queued does not mean Muse claimed.';
+const help = 'Commands: /workspace-muse diagnose | connect | new | retry | list | status ID | approve ID | dispatch ID | refresh ID | cancel ID | accept ID. Approval and dispatch are separate human confirmations. Queued does not mean Muse claimed.';
 
 export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, journal = createRequestJournal() } = {}) {
-  let client, busy = false;
-  const getClient = async () => client ||= createWorkspaceClient(await transport());
+  let client, request, busy = false;
+  const getRequest = async () => request ||= await transport();
+  const getClient = async () => client ||= createWorkspaceClient(await getRequest());
+  pi.on('session_shutdown', async () => request?.close?.());
   pi.on('session_start', async (_event, ctx) => {
     ctx.ui.setStatus('workspace-muse', 'Workspace → original Muse • /workspace-muse');
     ctx.ui.notify(help, 'info');
@@ -26,7 +29,8 @@ export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, jour
       try {
         const [operation = 'help', orderId, extra] = args.trim().split(/\s+/);
         if (!operation || operation === 'help') { ctx.ui.notify(help, 'info'); return; }
-        if (extra || !['connect', 'new', 'retry', 'list', 'status', 'approve', 'dispatch', 'refresh', 'cancel', 'accept'].includes(operation)) throw new Error('COMMAND_INVALID');
+        if (extra || !['diagnose', 'connect', 'new', 'retry', 'list', 'status', 'approve', 'dispatch', 'refresh', 'cancel', 'accept'].includes(operation)) throw new Error('COMMAND_INVALID');
+        if (operation === 'diagnose') { show(ctx, await diagnose({ transport: async () => { const active = await getRequest(); return input => active(input); } })); return; }
         const api = await getClient();
         if (operation === 'connect') { show(ctx, await api.connect()); return; }
         if (operation === 'list') { show(ctx, await api.list()); return; }
@@ -72,7 +76,9 @@ export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, jour
           ...(operation === 'accept' ? { receiptHash: delegation.receiptHash } : {}) }));
       } catch (error) {
         const code = error?.code || error?.message;
-        ctx.ui.notify(/^[A-Z0-9_]{1,100}$/.test(code) ? code : 'WORKSPACE_COMMAND_FAILED', 'error');
+        const safe = /^[A-Z0-9_]{1,100}$/.test(code) ? code : 'WORKSPACE_COMMAND_FAILED';
+        ctx.ui.notify(safe, 'error');
+        if (OWNER_GUIDANCE[safe]) ctx.ui.setStatus('workspace-muse-help', OWNER_GUIDANCE[safe]);
       } finally { busy = false; }
     },
   });

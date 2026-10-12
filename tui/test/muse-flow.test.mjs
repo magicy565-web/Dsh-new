@@ -10,6 +10,11 @@ import { fileURLToPath } from 'node:url';
 import { openStore } from '../../server/store.mjs';
 import { createApp } from '../../server/index.mjs';
 import { signWorkspaceRequest } from '../../server/auth-ingress.mjs';
+import { createWechatIngress } from '../../server/wechat-ingress.mjs';
+import { wechatIdentityDigest } from '../../server/wechat-code-exchange.mjs';
+import { createNativeOwnerTransport } from '../owner-session-transport.mjs';
+import { launchWithExistingOwnerSession, ownerChildEnvironment } from '../owner-host-launch.mjs';
+import { diagnose } from '../diagnose.mjs';
 import { registerWorkspaceMuse } from '../extensions/workspace-muse.mjs';
 import { createWorkspaceClient, loadOwnerTransport } from '../workspace-client.mjs';
 import { createRequestJournal } from '../request-journal.mjs';
@@ -53,7 +58,7 @@ async function fixture(t) {
   }
   await login();
   t.after(async () => { await app.close(); await rm(directory, { recursive: true, force: true }); });
-  return { directory, api, login, get app() { return app; }, get port() { return address.port; },
+  return { directory, api, login, access, privateKey: pair.privateKey, get session() { return session; }, get app() { return app; }, get port() { return address.port; },
     request: ({ method, path: target, body }) => api(target, { method, body }),
     async restart() { await app.close(); app = await createApp(options); address = await app.listen(0); await login(); } };
 }
@@ -114,6 +119,74 @@ test('TUI command → signed owner HTTP → original Muse claim/upload/submit �
   await ui.run(`status ${originalId}`); assert.equal(ui.result().delegation.receiptHash, returned.receiptHash);
   await ui.run(`accept ${originalId}`); assert.equal(ui.result().delegation.phase, 'enterprise_accepted');
   assert.equal(f.app.store.read().runs.length, 0); assert.equal(f.app.store.read().museTasks.length, 1);
+});
+
+async function nativeIngressFixture(t) {
+  const f = await fixture(t);
+  const appId = 'wx0123456789abcdef', appSecret = 'offline-original-native-ingress-fixture';
+  const profile = { version: 1, appId, workspaceId: f.access.workspaceId,
+    review: { id: 'fixture-native-review', reviewedBy: actor.subject, reviewedAt: new Date(Date.now() - 1000).toISOString(), expiresAt: new Date(Date.now() + 3600000).toISOString() },
+    bindings: [{ openidDigest: wechatIdentityDigest({ appId, appSecret, openid: 'fixture-only-owner' }), subject: actor.subject }] };
+  const ingress = createWechatIngress({ app: f.app, access: f.access, privateKey: f.privateKey, appId, appSecret, profile,
+    fetchImpl() { assert.fail('Existing session must never trigger a code exchange or new login'); } });
+  t.after(() => ingress.close());
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    assert.equal(new URL(url).origin, origin);
+    assert.equal(options.redirect, 'error'); assert.equal(options.credentials, 'omit');
+    assert.equal(options.headers.Authorization, undefined); assert.equal(options.headers['X-Workspace-Assertion'], undefined);
+    calls.push({ method: options.method, path: new URL(url).pathname });
+    const result = await ingress.handle({ method: options.method, target: new URL(url).pathname,
+      headers: { host: 'workspace.test', ...Object.fromEntries(Object.entries(options.headers).map(([key, value]) => [key.toLowerCase(), value])) },
+      bytes: options.body === undefined ? Buffer.alloc(0) : Buffer.from(options.body), remoteAddress: 'synthetic-host' });
+    return new Response(result.bytes, { status: result.status, headers: result.headers });
+  };
+  const token = f.session.cookie.split('=')[1];
+  const input = { origin, token, scope: { workspaceId: f.access.workspaceId, subject: actor.subject, conversationId: actor.nativeAgentId } };
+  return { ...f, fixture: f, input, fetchImpl, calls };
+}
+
+test('built-in host transport reuses original native ingress/session signing and CSRF; expiry does not reauthenticate', async t => {
+  const f = await nativeIngressFixture(t), request = createNativeOwnerTransport(f.input, { fetchImpl: f.fetchImpl });
+  const client = createWorkspaceClient(request), scope = await client.connect();
+  assert.equal(scope.conversationId, actor.nativeAgentId);
+  const pending = { scope, input: { provider: 'muse', conversationId: scope.conversationId, requestId: 'native-tui-original-task', content: 'Synthetic native ingress proof', order: { serviceId: 'channel-validation', product: 'Public fixture', market: 'US', objective: 'Original HTTPS native transport fixture', budgetCredits: 5, deadlineAt: new Date(Date.now() + 86400000).toISOString(), publicDataConfirmed: true } } };
+  const made = await client.prepare(pending);
+  assert.equal(made.delegation.phase, 'review_required');
+  const review = { confirmed: true, expectedReviewHash: made.delegation.reviewHash };
+  assert.equal((await client.act('approve', made.delegation.orderId, review)).delegation.phase, 'approved');
+  assert.equal((await client.act('dispatch', made.delegation.orderId, review)).delegation.phase, 'queued');
+  for (const target of ['/api/session/login', '/api/muse-worker/v1/tasks/a/claim', '/api/conversations/other/muse-delegations']) {
+    await assert.rejects(request({ method: 'POST', path: target, body: {} }), { code: 'OWNER_ROUTE_FORBIDDEN' });
+  }
+  const wrong = createNativeOwnerTransport({ ...f.input, scope: { ...f.input.scope, workspaceId: 'different' } }, { fetchImpl: f.fetchImpl });
+  await assert.rejects(wrong({ method: 'GET', path: '/api/session' }), { code: 'OWNER_SESSION_IDENTITY_MISMATCH' });
+  await f.fixture.api('/api/session/logout', { method: 'POST', body: {} });
+  await assert.rejects(client.list(), { code: 'OWNER_SESSION_EXPIRED' });
+  assert.equal(f.calls.some(call => call.path === '/api/session/login' || call.path === '/api/session/wechat'), false);
+});
+
+test('existing trusted host launches read-only diagnostic over private RPC; TUI never receives token, CSRF or signing key', async t => {
+  const f = await nativeIngressFixture(t);
+  const view = (await f.fixture.api('/api/session')).body;
+  const child = launchWithExistingOwnerSession({ origin, token: f.input.token, session: view, conversationId: actor.nativeAgentId, mode: 'diagnose', stdio: 'pipe', fetchImpl: f.fetchImpl });
+  let output = '', errors = '', wire = '';
+  const write = child.stdio[3].write.bind(child.stdio[3]);
+  child.stdio[3].write = (...args) => { wire += String(args[0]); return write(...args); };
+  child.stdout.on('data', bytes => output += bytes); child.stderr.on('data', bytes => errors += bytes);
+  const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', resolve); });
+  assert.equal(code, 0, errors + output);
+  const report = JSON.parse(output);
+  assert.equal(report.owner.status, 'verified_existing_session');
+  assert.equal(report.muse.status, 'original_binding_approved');
+  assert.equal(report.realMuseVerified, false); assert.equal(report.consumer.remoteInstalledVersionVerified, false);
+  assert.equal(f.calls.every(call => call.method === 'GET'), true);
+  for (const secret of [f.input.token, view.csrfToken, 'PRIVATE KEY']) assert.equal((wire + output + errors).includes(secret), false);
+  assert.equal(wire.includes('csrfToken'), false);
+  assert.deepEqual(ownerChildEnvironment({ PATH: '/bin', WORKSPACE_PI_DATA_DIR: '/tmp/fixture', WORKSPACE_MUSE_PROBE_TOKEN: 'must-not-inherit', FASTAITOKEN_API_KEY: 'must-not-inherit', NODE_OPTIONS: 'must-not-inherit' }), { PATH: '/bin', WORKSPACE_PI_DATA_DIR: '/tmp/fixture', WORKSPACE_PI_OWNER_RPC_FD: '3' });
+  assert.equal((f.fixture.app.store.read().workerOrders || []).length, 0);
+  const missing = await diagnose({ transport: () => loadOwnerTransport({}) });
+  assert.equal(missing.owner.code, 'EXISTING_OWNER_TRANSPORT_REQUIRED');
 });
 
 test('TUI rejects missing owner, worker token, wrong tenant, other owner, revoked session and declined approval', async t => {

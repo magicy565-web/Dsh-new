@@ -39,9 +39,26 @@ Worker requests carrying an owner-only Origin header, empty fixture arrays,
 and PTY key/output synchronization. Those fixture drivers were corrected; no
 server policy, assertion gate or original consumer protocol was weakened.
 
-Not accepted: Windows/PowerShell, actual enterprise owner transport, current
+Follow-up: the concrete native HTTPS owner transport and private Host→TUI RPC
+bridge now exist. The trusted Host retains token/CSRF and uses the original
+native ingress for fresh signed requests; the child receives neither secret nor
+signing material. Its minimal child environment excludes Worker/provider keys.
+`npm --prefix tui run diagnose` is GET-only. The original native ingress + signed
+loopback backend + actual child-process RPC fixture passes, including expiry,
+scope mismatch and denied routes. See [Host tests](validation/owner-host-tests.txt)
+and [PTY rerun](validation/owner-host-terminal-tests.txt).
+One PTY rerun reached the returned result but its harness did not drain Pi's
+fullscreen-exit output, causing a cleanup timeout. The original failed output
+is retained in [initial terminal run](validation/owner-host-terminal-initial.txt);
+the driver now drains the real PTY during normal exit and the rerun passed.
+
+Not accepted: Windows/PowerShell, production mounting of the implemented owner bridge, current
 remote Muse consumer installation/version/egress, real Muse online/claim/return,
 real external work or budget, production deployment, supplier publication,
 unattended notification consent or delivery. The existing native owner binding
 and specifically approved real task remain required. The host transport contract
-is documented, but a live adapter is not invented or provisioned by this PR.
+has a runnable implementation, but the actual original login host must mount its
+reviewed terminal action. A browser-only SSO terminal handoff is absent; this is
+not solved by entering a few environment variables. The existing session still
+expires/revokes and is not recreated by this bridge. Exact gaps and manual steps
+are in [OWNER-CONNECTION.md](OWNER-CONNECTION.md).
