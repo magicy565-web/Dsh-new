@@ -1,0 +1,22 @@
+{
+  "evidenceKind": "Original mini Page/WXML/WXSS source in limited Chromium renderer + actual original local HTTP/MCP/Store; not WeChat engine/device/live buyer/Muse",
+  "backend": "a5a524a19adf065f804abc1459f1f573cfd8adf4",
+  "chromium": "151.0.7922.173",
+  "checks": [
+    "Private buyer draft not in inbox",
+    "Buyer confirmed share visible only on demand",
+    "Exact range explicitly binds server-owned main",
+    "Only full reviewed reply text persisted and buyer MCP retrieves it",
+    "Reopening restores original messages and one reply",
+    "390/320px no horizontal overflow"
+  ],
+  "modelCalls": 0,
+  "runs": 0,
+  "workerOrders": 0,
+  "replies": 1,
+  "pageErrors": [],
+  "liveBuyer": false,
+  "wechatDevice": false,
+  "independentSecurityAudit": false,
+  "generatedAt": "2026-10-12T10:22:08.172Z"
+}
