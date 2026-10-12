@@ -1,28 +1,29 @@
-✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (212.71651ms)
-✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (90.005038ms)
-✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (117.760529ms)
-✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (0.987423ms)
-✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (0.606668ms)
-✔ official durable contract fixture: write appends without model execution and requestId deduplicates across reopen (66.578059ms)
-✔ official durable contract fixture: cancelling wait leaves work admitted; explicit conversation abort stops it (17.872622ms)
-✔ official durable contract fixture: only replay:safe tool execution restarts after close/reopen (108.006698ms)
-✔ DSH-free HTTP fixture: original Muse order/attempt/file/return protocol with explicit owner and no model/wake (177.271577ms)
-✔ DSH-free binding refuses missing original conversation instead of inventing another identity (16.016529ms)
-✔ actual SIGKILL fixture: recover pending Pi work and cached answer before business acknowledgment without duplicate admission (819.542036ms)
-✔ real Pi package fixture: durable text execution, usage, persisted submission and business dedupe (130.92273ms)
-✔ real Pi package fixture: selected file tool uses original ID/version/SHA snapshot and cannot read ambient data (110.616662ms)
-✔ real Pi package fixture: user cancellation explicitly aborts durable work; reopen does not resume it (144.446577ms)
-✔ real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/submission (179.067243ms)
-✔ real Pi package fixture: default boot is DSH-free, private storage shares original exclusive writer and Muse never falls back (68.421543ms)
-✔ real Pi package fixture: connector proposal stops for original exact approval and explicit continuation (106.14705ms)
-✔ real Pi package fixture: unknown tools, unselected inputs and unselected connector proposals have no effects (155.796867ms)
-✔ real Pi package fixture: interrupted goal resumes its original reservation and reply without duplicating a step (80.921541ms)
-✔ real Pi package fixture: changed selected memory and execution scope block recovery without another model call (49.224874ms)
-ℹ tests 20
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (208.124043ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (81.399614ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (84.433628ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (1.160265ms)
+✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (0.658416ms)
+✔ WeChat original Muse fixture: exact approval/dispatch/file/accept cards never become a Pi model request or wake (0.927904ms)
+✔ official durable contract fixture: write appends without model execution and requestId deduplicates across reopen (51.921128ms)
+✔ official durable contract fixture: cancelling wait leaves work admitted; explicit conversation abort stops it (29.070393ms)
+✔ official durable contract fixture: only replay:safe tool execution restarts after close/reopen (113.671565ms)
+✔ DSH-free HTTP fixture: original Muse order/attempt/file/return protocol with explicit owner and no model/wake (212.247906ms)
+✔ DSH-free binding refuses missing original conversation instead of inventing another identity (61.905782ms)
+✔ actual SIGKILL fixture: recover pending Pi work and cached answer before business acknowledgment without duplicate admission (1249.28282ms)
+✔ real Pi package fixture: durable text execution, usage, persisted submission and business dedupe (170.473822ms)
+✔ real Pi package fixture: selected file tool uses original ID/version/SHA snapshot and cannot read ambient data (115.341481ms)
+✔ real Pi package fixture: user cancellation explicitly aborts durable work; reopen does not resume it (113.277934ms)
+✔ real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/submission (139.074116ms)
+✔ real Pi package fixture: default boot is DSH-free, private storage shares original exclusive writer and Muse never falls back (61.187585ms)
+✔ real Pi package fixture: connector proposal stops for original exact approval and explicit continuation (128.129279ms)
+✔ real Pi package fixture: unknown tools, unselected inputs and unselected connector proposals have no effects (158.804735ms)
+✔ real Pi package fixture: interrupted goal resumes its original reservation and reply without duplicating a step (87.980388ms)
+✔ real Pi package fixture: changed selected memory and execution scope block recovery without another model call (57.121555ms)
+ℹ tests 21
 ℹ suites 0
-ℹ pass 20
+ℹ pass 21
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 1851.271534
+ℹ duration_ms 2080.228844

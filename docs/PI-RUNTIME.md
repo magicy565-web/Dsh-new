@@ -20,8 +20,10 @@ only inside the original Store writer lifetime. JSONL fsync:true is enabled; a
 second process must acquire the original Store lock and is rejected. Pi itself
 has no cross-process lock. Reopen does not call resume. An interrupted chat's
 existing retry operation reattaches the same run/reply/submission under unchanged
-execution and input/grant checks. Completed submissions can return their saved
-answer instead of repeating the model request. Active business action attempts
+execution and input/grant checks. Completed submissions return their saved
+answer instead of repeating the model request, including a crash before the
+business Pi metadata acknowledgment. Recovery uses the stable original Run/reply
+identity, not the presence of an event as admission or execution evidence. Active business action attempts
 must be reconciled rather than replayed. Goal recovery preserves the reserved
 reply and token allowance. Shutdown closes Harness while preserving pending
 durable work. User cancellation explicitly calls conversation.abort and fences

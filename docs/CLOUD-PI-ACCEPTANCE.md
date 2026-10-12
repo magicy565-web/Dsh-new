@@ -42,11 +42,11 @@ Test evidence (overlapping suites are not added as independent tests):
 | Command / evidence | Result | Scope |
 |---|---|---|
 | npm run test:all | exit 0 | Backend, original UI, conversation suites and mini build |
-| Backend within test:all | 533 total, 526 pass, 0 fail, 7 skip | 6 existing DSH/source-bound tests and 1 Windows-only test skipped |
+| Backend within test:all | 534 total, 527 pass, 0 fail, 7 skip | 6 existing DSH/source-bound tests and 1 Windows-only test skipped |
 | Original UI suite | 19/19, no skip | Complete existing original DOM suite |
 | Conversation suites | 14/14, no skip | Conversation, Muse receipt/file and procurement UI |
-| New Pi/Muse/durable/crash/mini targeted suites | 20/20, no skip | Real installed Pi packages and actual loopback Store/file APIs; platform/model tools are explicitly fixtures |
-| Actual process SIGKILL fixture | 1 top-level test, 2 scenarios pass | Pending request and durable answer before business acknowledgment; cached answer recovery makes zero new model calls |
+| New Pi/Muse/durable/crash/mini targeted suites | 21/21, no skip | Real installed Pi packages and actual loopback Store/file APIs; platform/model tools are explicitly fixtures |
+| Actual process SIGKILL fixture | 1 top-level test, 3 scenarios pass | Pending request, durable answer before business acknowledgment, and missing business Pi metadata; cached answers recover without new model calls |
 | TypeScript/Vite | pass | JS501.58kB/gzip141.99kB; existing size warning remains |
 | Mini program official-types build | pass | Developer import folder, no account upload/review |
 | Real Chromium | 6 checks pass; console errors 0 | Desktop, 390/320px, actual UI→Pi fixture→Store→SHA preview/reload, reduced motion |
@@ -63,7 +63,12 @@ run and are therefore unverified by this obsolete UI suite. Restoring a
 discarded resource page would change the authorized UI scope, so it was not done.
 Logs remain in docs/validation/cloud-pi, including the failed sweep and full
 pr33-all-supply-failures.txt reproduction. Historical TT041 counts and failures from earlier implementation
-iterations are not reused as current acceptance.
+iterations are not reused as current acceptance. One final full run observed a
+procurement association fixture clicking a disabled confirmation during polling;
+the fixture now waits for the original enabled checkbox/checked confirmation,
+retaining every permission/idempotency/revocation assertion. Both the focused
+14/14 rerun and subsequent complete test:all passed. The observed failed run is
+retained in observed-procurement-fixture-race.txt.
 
 
 Each obsolete Supply UI case was run on both candidate and fixed PR33:
