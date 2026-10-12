@@ -1,0 +1,23 @@
+✔ repair original read-confirmed draft: distinct default-empty media consent, exact original ID/hash, approval separate from execute, draft_only (657.586963ms)
+✔ acknowledged original media needs only missing-step consent and no adoption or second upload (482.580392ms)
+✔ existing Connector without repair capability is blocked without capability expansion, grant creation or mutation (344.191751ms)
+✔ deny exact repair leaves original partial and permits a new separate review without writes (479.912218ms)
+▶ changed remote content, unready or substituted media is blocked by real read/review with no repair mutation
+  ✔ content (386.683977ms)
+  ✔ unready (387.331256ms)
+  ✔ substituted (372.847424ms)
+✔ changed remote content, unready or substituted media is blocked by real read/review with no repair mutation (1148.145918ms)
+✔ remote change after approved repair cannot execute old scope or publish; no variant write (464.36917ms)
+✔ repair mutation unknown and local response lost: cold restore reconciles exact repair, one variant write and unchanged original create/upload steps (592.64382ms)
+✔ refresh of original read hash invalidates repair preparation and clears native consent; duplicate confirm admits one repair (440.026945ms)
+✔ already read-confirmed retail variant: separately approved observed media has no variant or other mutation (443.00687ms)
+✔ unadmitted repair execution reuses original request only after read and another explicit confirmation (470.621924ms)
+✔ failed variant repair and lost read response: cold restore preserves original reconcile UUID/body, no repair retransmission (586.155783ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6447.535312

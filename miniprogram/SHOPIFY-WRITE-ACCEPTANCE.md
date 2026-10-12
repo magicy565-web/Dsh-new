@@ -1,5 +1,7 @@
 # Shopify 原写入审批客户端
 
+此文件保留原 publication 基线788948d的57项验收记录。**当前PR52增量已接952db1a修复契约**；当前源码afb4972、71项完整客户端回归与修复界面请见 [DRAFT-REPAIR-ACCEPTANCE.md](DRAFT-REPAIR-ACCEPTANCE.md)。旧ZIP不包含当前增量。
+
 客户端源码检查点 **788948d**，独立分支 `codex/wechat-shopify-write-20261012`、Draft [PR52](https://github.com/magicy565-web/workspace-agent/pull/52)。保留 PR46/组合738000f，固定后端 **04cbad4ff5f74fa97e46a0845939233ce66cf35f**；消费40b9601的 [publication JSON契约](../docs/SUPPLIER-PUBLICATION-CLIENT-CONTRACT.json) 与 [实现说明](../docs/SUPPLIER-SHOPIFY-WRITES.md)。最新c2ba9ea只改测试断言；04cbad4与40b9601的接口代码一致。没有取通知WIP96fb4914，也没有取尚未统一的通知/流量DTO。
 
 只改小程序源文件/其测试/说明/证据，没有自行修改server、根依赖/锁、共享构建或另一套UI。沿用原主会话、输入框、预览/资源抽屉、Muse精灵与视觉。旧客户端v2与组合归档按原版本保留，**不包含本轮新写入控件**；此轮按要求不重复打包，从本分支`npm run build:mini`构建。
@@ -47,4 +49,4 @@
 
 真实微信code/account/工具/真机/审核、真实Shopify账号授权/原Connector启用/每项批准及一次真实草稿媒体/发布验收没有提供或执行。该代码有真实可调用协议与adapter联调，不能把fixture回执、官方types编译或截图当作真实店铺/上线通过。默认host writes关闭；客户端不能启用Connector、安装店铺、创建凭据、扩权、付费或部署。
 
-渠道名称/列表DTO未提供，当前仅消费明确的既有Publication GID。partial修复不是本契约功能，仍禁盲补写；需要主后端提供独立修复审阅契约。通知/产品流量有独立任务；本轮不改其后台、不制造微信订阅接受或启用状态，待统一最终DTO后只消费真实数据可用/未授权/已提交状态。真实订阅只能由用户触发。没有访问关闭华为、main修改/合并/强推、生产发布，也没有新视觉/重复归档。
+渠道名称/列表DTO未提供，当前仅消费明确的既有Publication GID。原04cbad4契约不含partial修复；952db1a已提供独立repair_draft契约，当前客户端实现和范围见上述增量验收，仍禁止盲补写。通知/产品流量有独立任务；本轮不改其后台、不制造微信订阅接受或启用状态，待统一最终DTO后只消费真实数据可用/未授权/已提交状态。真实订阅只能由用户触发。没有访问关闭华为、main修改/合并/强推、生产发布，也没有新视觉/重复归档。

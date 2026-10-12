@@ -1,3 +1,5 @@
+当前增量交付继续 Draft PR52，包含 Shopify draft/publish 与 `repair_draft`，后端固定952db1a。见 [修复验收](DRAFT-REPAIR-ACCEPTANCE.md)：普通客户端与原微信协议71/71；截图为原源码Chromium/本地HTTP模拟，真实微信和真实Shopify验收未完成。旧ZIP保持旧版标记，不包含本轮增量。
+
 # 微信开发客户端导入
 
 解压 `Workspace-Agent-WeChat-Client.zip`，在微信开发者工具选择“导入项目”，选择含 `project.config.json` 的解压根目录。也可先 `npm ci --cache /tmp/wechat-npm-cache`，再 `npm run build:mini`，导入 `release/miniprogram`。
