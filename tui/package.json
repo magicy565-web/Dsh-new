@@ -1,0 +1,12 @@
+{
+  "name": "workspace-pi-tui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node launch.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": { "@earendil-works/pi-coding-agent": "1.1.0" }
+}
