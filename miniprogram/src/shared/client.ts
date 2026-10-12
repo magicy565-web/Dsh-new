@@ -58,16 +58,17 @@ export class WorkspaceClient {
     return { 'content-type': 'application/json', 'X-Workspace-Client': 'wechat', ...(this.token ? { 'X-Workspace-Session': this.token } : {}), ...(mutating && this.session?.csrfToken ? { 'X-CSRF-Token': this.session.csrfToken, Origin: this.base() } : {}) };
   }
   request<T>(path: string, method: 'GET' | 'POST' | 'DELETE' = 'GET', data?: Record<string, unknown>): Promise<T> {
-    const base = this.base();
+    const base = this.base(), requestedOwner=this.owner, requestedSession=this.session, requestedToken=this.token;
     if (!/^\/[a-zA-Z0-9_?&=.%:/-]+$/.test(path) || path.startsWith('//')) throw new ClientError('INVALID_PATH', '无效的业务接口。');
     return new Promise((resolve, reject) => {
       this.platform.request<Record<string, unknown>>({ url: `${base}/api${path}`, method, data, header: this.headers(method !== 'GET'), timeout: 10000, redirect: 'manual',
         success: result => {
           if (result.statusCode < 200 || result.statusCode >= 300) {
-            if (result.statusCode === 401 || result.statusCode === 403 && (result.data?.error as { code?: string })?.code === 'CSRF_REJECTED') { this.token = ''; this.session = null; }
+            if ((result.statusCode === 401 || result.statusCode === 403 && (result.data?.error as { code?: string })?.code === 'CSRF_REJECTED') && this.session===requestedSession && this.token===requestedToken) { this.token = ''; this.session = null; }
             const error = result.data?.error as { code?: string; message?: string } | undefined;
             reject(new ClientError(result.statusCode >= 500 && method !== 'GET' ? 'RESULT_UNCERTAIN' : error?.code || 'API_ERROR', error?.message || '操作未完成，请核对服务状态。', result.statusCode));
-          } else resolve(result.data as T);
+          } else if(this.owner!==requestedOwner)reject(new ClientError('ACCOUNT_CHANGED','账号已更换；旧回包不用于当前会话，请登录原账号核对原请求。'));
+          else resolve(result.data as T);
         }, fail: () => reject(new ClientError(method === 'GET' ? 'NETWORK_ERROR' : 'RESULT_UNCERTAIN', method === 'GET' ? '暂时无法连接，请重试读取。' : '操作结果尚未确认；请核对原请求，不要新建重复操作。')) });
     });
   }
@@ -162,7 +163,7 @@ export class WorkspaceClient {
     return this.executePending();
   }
   private executePending(): Promise<unknown> {
-    const command = this.pending;
+    const command = this.pending, requestedOwner=this.owner;
     if (!command) return Promise.reject(new ClientError('NO_PENDING_REQUEST', '没有需要核对的原请求。'));
     if (this.inFlight) return this.inFlight.promise;
     const promise = this.request(command.path, 'POST', command.body).then(result => {
@@ -171,6 +172,8 @@ export class WorkspaceClient {
       this.pending = null; if ((['action', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-preview', 'supplier-operation','publication-review','publication-decision','publication-execute'].includes(command.kind) || command.kind.startsWith('notification-')) && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
     }).catch(error => {
       // A response-lost or server-error request retains its exact original body.
+      // Account switching already preserved the original owner's journal.
+      if(this.owner!==requestedOwner)throw error;
       if (error instanceof ClientError && !['RESULT_UNCERTAIN', 'NETWORK_ERROR'].includes(error.code) && error.status !== 401 && error.code !== 'CSRF_REJECTED') { this.pending = null; this.save(); }
       throw error;
     }).finally(() => { this.inFlight = null; });

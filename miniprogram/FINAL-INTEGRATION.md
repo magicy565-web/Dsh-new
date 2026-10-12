@@ -25,3 +25,17 @@ Additional original draft approval/rejection response-loss tests pass for both d
 ## GitHub CI observations (commit-specific)
 
 Parent's read-only check: packaging head `d4612de0c251039898b0f1c59824d5721e447f99` has runs 38292607838 and 38292535772, both startup_failure with zero jobs. Earlier 38284242811 is historical. This agent read the original workflow API for integrated TUI head `2ce3efc85cad8e7af670ca9d7c3088399f4e3cde`: PR-triggered run 38293253100 is completed/startup_failure; jobs API returned an empty list. None is a passing CI run. No rerun, billing, repository settings or workflow changes were made.
+
+## Supplier owner MCP / GA4 integration
+
+Consumed PR57's published fixed sequence `00c0920f0d1b387a3ba9571aba74ddec4868f548`, `4fc6b9677978d5a2cb4b1c0f142203d61cdff46a`, `8efb14e6bfe05d766eed26014e383c89d7b3c84f` in order, integrated as `3fc7a5b`, `d91987f`, `be7419c`. Original role/session/body checks and host-supplied existing grant resolution remain required. The 15 closed tools cannot decide publication approvals, activate schedules or subscribe/send notifications. Ordinary CLI without the original resolver still reports `SUPPLIER_OWNER_BINDING_REQUIRED`; metadata/configuration is not a verified GA4 connection. Shared `server/index.mjs` uses only the producer's small imports/options/route wiring; no root lockfile change.
+
+Unified build and mini build passed. Actual combined backend run: 684 tests, 677 passed, 7 original conditional skips, 0 failures. Actual combined mini plus original protocol run: 118/118. Original owner MCP HTTP transport and ordinary GA4 child-process CLI checks: 10/10. Integrated TUI tests 5/5 and actual Pi CLI/PTY seven checks passed again. Counts overlap; do not add them or claim remote account/GA4/Muse acceptance.
+
+## In-flight response across an account change
+
+Two failures were reproduced with the compiled original client and actual signed enterprise HTTP, using distinct existing fixture members: delayed old-owner conversation creation response was accepted into the next owner's checkpoint; a delayed 401 from the already revoked old session cleared the new session. The transport driver delays actual server responses rather than fabricating a new identity or business result.
+
+Minimal repair in `shared/client.ts`: pin response acceptance to its requesting owner; clear authentication only when the rejected request's original in-memory session and token still match; prevent an old mutation rejection from editing the new owner's journal. Old-owner write-ahead data remains available. After signing into the original owner again, the exact admitted creation request reconciles to its original server-created conversation without another POST. No service/backend policy changed.
+
+`account-race-http.test.mjs` covers both failures and real subsequent owner/original-request recovery. Targeted account/business/lifecycle run: 24/24 passed. Both new checks failed before the matching guard changes. Full combined regression will be rerun on the final fixed source after the remaining TUI host patch is integrated.
