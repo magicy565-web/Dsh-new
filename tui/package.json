@@ -6,6 +6,7 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "start": "node launch.mjs",
+    "agent": "node launch.mjs --agent",
     "test": "node --test test/*.test.mjs",
     "test:supplier": "node --test integration/supplier-mcp.test.mjs",
     "test:supplier-terminal": "python3 integration/supplier-terminal.py",

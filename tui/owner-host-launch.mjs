@@ -7,7 +7,7 @@ export function ownerChildEnvironment(environment) {
   // Do not inherit the login host's provider keys, Worker tokens, signing keys,
   // debug hooks or unrelated connector environment into Pi.
   const allowed = ['PATH', 'Path', 'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'SYSTEMROOT', 'SystemRoot', 'WINDIR',
-    'TEMP', 'TMP', 'TMPDIR', 'LANG', 'LC_ALL', 'TERM', 'COLORTERM', 'TERM_PROGRAM', 'TERM_PROGRAM_VERSION', 'WORKSPACE_PI_DATA_DIR'];
+    'TEMP', 'TMP', 'TMPDIR', 'LANG', 'LC_ALL', 'TERM', 'COLORTERM', 'TERM_PROGRAM', 'TERM_PROGRAM_VERSION', 'WORKSPACE_PI_DATA_DIR', 'WORKSPACE_PI_MODE', 'PI_CODING_AGENT_DIR'];
   return { ...Object.fromEntries(allowed.filter(key => environment[key] !== undefined).map(key => [key, environment[key]])), WORKSPACE_PI_OWNER_RPC_FD: '3' };
 }
 

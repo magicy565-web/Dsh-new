@@ -1,28 +1,34 @@
-import { randomUUID } from 'node:crypto';
 import { createWorkspaceClient, loadOwnerTransport } from '../workspace-client.mjs';
 import { createRequestJournal } from '../request-journal.mjs';
 import { diagnose, OWNER_GUIDANCE } from '../diagnose.mjs';
 import { saveMuseHandoff } from '../muse-handoff.mjs';
-import { registerWorkspaceSupplier, supplierHelp } from './workspace-supplier.mjs';
+import { registerWorkspaceSupplier, createSupplierJournal, supplierHelp } from './workspace-supplier.mjs';
+import { registerWorkspaceAgent } from './workspace-agent.mjs';
+import { museDraftRequest } from '../muse-draft-request.mjs';
 
 // Untrusted task/result text must not send terminal control sequences.
 const plain = value => String(value).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
 const show = (ctx, value) => ctx.ui.notify(plain(JSON.stringify(value)), 'info');
 const help = 'Commands: /workspace-muse diagnose | connect | new | retry | list | status ID | handoff ID | approve ID | dispatch ID | refresh ID | cancel ID | accept ID. Approval and dispatch are separate human confirmations. Queued does not mean Muse claimed.';
 
-export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, journal = createRequestJournal(), saveHandoff = saveMuseHandoff, supplierJournal } = {}) {
+export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, journal = createRequestJournal(), saveHandoff = saveMuseHandoff, supplierJournal = createSupplierJournal(), agentMode = process.env.WORKSPACE_PI_MODE === 'agent' } = {}) {
   let client, request, busy = false;
   const getRequest = async () => request ||= await transport();
   const getClient = async () => client ||= createWorkspaceClient(await getRequest());
-  registerWorkspaceSupplier(pi, { getRequest, journal: supplierJournal, enter() { if (busy) return false; busy = true; return true; }, leave() { busy = false; } });
+  const gate = { enter() { if (busy) return false; busy = true; return true; }, leave() { busy = false; } };
+  registerWorkspaceSupplier(pi, { getRequest, journal: supplierJournal, ...gate });
+  const agent = registerWorkspaceAgent(pi, { enabled: agentMode, getRequest, journal, supplierJournal, ...gate });
   pi.on('session_shutdown', async () => request?.close?.());
   pi.on('session_start', async (_event, ctx) => {
     ctx.ui.setStatus('workspace-muse', 'Workspace → original Muse • /workspace-muse');
     ctx.ui.notify(help, 'info');
-    ctx.ui.notify(supplierHelp, 'info');
+    ctx.ui.notify(agentMode ? 'Agent mode selected. Supplier and Muse slash commands remain available; model proposals require visible confirmation.' : supplierHelp, 'info');
   });
   // This focused TUI entry uses deterministic commands, without model spending.
-  pi.on('input', async (_event, ctx) => { ctx.ui.notify(help + ' ' + supplierHelp, 'info'); return { action: 'handled' }; });
+  pi.on('input', async (_event, ctx) => {
+    if (agentMode && agent.isReady()) return { action: 'continue' };
+    ctx.ui.notify(agentMode ? 'ORIGINAL_OWNER_TOOLS_NOT_READY: use /workspace-agent connect after the original safe login.' : help + ' ' + supplierHelp, 'info'); return { action: 'handled' };
+  });
   pi.on('user_bash', async () => ({ result: { output: 'Use /workspace-muse for reviewed Workspace actions.', exitCode: 1, cancelled: false, truncated: false } }));
   pi.registerCommand('workspace-muse', {
     description: 'Prepare, separately approve/dispatch, and read original Muse tasks through the existing owner session.',
@@ -54,8 +60,7 @@ export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, jour
           order.budgetCredits = Number(order.budgetCredits);
           if (!Number.isFinite(order.budgetCredits) || order.budgetCredits <= 0 || !Number.isFinite(Date.parse(order.deadlineAt)) || !/(Z|[+-]\d\d:\d\d)$/.test(order.deadlineAt)) throw new Error('EXPLICIT_BUDGET_AND_DEADLINE_REQUIRED');
           if (!await ctx.ui.confirm('Save this public task for review?', plain(JSON.stringify(order)) + '\nConfirm these fields may be shared with your existing Muse. This does not approve or dispatch it.')) return;
-          order.publicDataConfirmed = true;
-          const pending = { scope, input: { provider: 'muse', conversationId: scope.conversationId, requestId: randomUUID(), content: order.objective, order } };
+          const pending = museDraftRequest(scope, order);
           // Journal before the request. Retry always uses this exact body/UUID.
           await journal.save(pending);
           show(ctx, await api.prepare(pending));

@@ -10,6 +10,7 @@ const show = (ctx, value) => ctx.ui.notify(plain(JSON.stringify(value)), 'info')
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 export const supplierHelp = 'Supplier commands in this same Pi TUI: /workspace-supplier connect | tools | schema TOOL | call TOOL | file TOOL | retry. TOOL is a listed suffix. Every write asks confirmation; original publication/schedule approvals still apply. Plain language/model tools are disabled.';
 const directory = path.join(process.env.WORKSPACE_PI_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '../.data'), 'supplier-requests');
+export const createSupplierJournal = () => createRequestJournal(directory);
 
 async function readArguments(filename) {
   if (!path.isAbsolute(filename)) fail('SUPPLIER_ARGUMENT_FILE_ABSOLUTE_REQUIRED');
@@ -39,7 +40,7 @@ function reviewedArguments(args) {
 }
 
 // Called by the one existing extension with its one shared Host RPC transport.
-export function registerWorkspaceSupplier(pi, { getRequest, enter, leave, journal = createRequestJournal(directory) }) {
+export function registerWorkspaceSupplier(pi, { getRequest, enter, leave, journal = createSupplierJournal() }) {
   let api;
   const client = async () => api ||= createSupplierMcpClient(await getRequest());
   pi.registerCommand('workspace-supplier', {
