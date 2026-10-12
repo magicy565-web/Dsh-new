@@ -1,4 +1,6 @@
-# 原供应商会话客户端交付
+# 原供应商会话客户端交付（b210576历史版本）
+
+当前交接以 [faaf124最终验收](SUPPLIER-FINAL-ACCEPTANCE.md) 为准；本记录保留3e33f22/v1/47项与旧失败，不代表当前阻挡。
 
 源码检查点 **3e33f22efbd5b8c75172d001b7642f32df74deaa**；独立分支 `codex/wechat-supplier-integrated-20261012`，Draft [PR46](https://github.com/magicy565-web/workspace-agent/pull/46)。保留采购 PR42 `1666719` 与供应商组件 PR43 `dd91cfc`，整合后端固定 **b210576438f72ee7683e736aa17452a3097a33cf**。相对后端基线只新增/修改小程序客户端、其测试/证据/说明；server 变更来自该固定提交，没有自行修改 server、根 package/锁、共享构建或网页。
 

@@ -1,0 +1,14 @@
+{
+  "archive": "miniprogram/deliverables/Workspace-Agent-WeChat-Supplier-Service-Client-v2.zip",
+  "sourceCommit": "b7f97f3bed8bdca0592a6b42f01b3035cb5b7f8b",
+  "backend": "faaf124d077812b4b86a5d584c1111d3dbdf93fe",
+  "files": 32,
+  "bytes": 66862,
+  "sha256": "b5b873805d4237f400668999cb61f0b0d07caab3296701968e34c23c0e26ab41",
+  "allCompiledFilesExact": true,
+  "javascriptSyntax": true,
+  "localImportsOnly": true,
+  "noDSHOrCordisRuntime": true,
+  "noBackendAccountSecretFiles": true,
+  "realWechatPlatformAcceptance": false
+}

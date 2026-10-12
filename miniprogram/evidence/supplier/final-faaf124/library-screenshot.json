@@ -1,0 +1,15 @@
+{
+  "operation": "replace_library_file",
+  "status": "succeeded",
+  "libraryPath": "/actual-service-listing-preview-390.png",
+  "fileId": "file_000000005a1081f8aa7a3efeb60a0dcf",
+  "libraryFileId": "libfile_87f23245f3c48191ac66bdd352b19e04",
+  "fileName": "actual-service-listing-preview-390.png",
+  "version": 1,
+  "bytes": 88576,
+  "sourceCommit": "b7f97f3bed8bdca0592a6b42f01b3035cb5b7f8b",
+  "backendCommit": "faaf124d077812b4b86a5d584c1111d3dbdf93fe",
+  "repositoryPath": "miniprogram/evidence/supplier/final-faaf124/browser/actual-service-listing-preview-390.png",
+  "mode": "Original source Chromium + signed local HTTP/Pi SDK faux/Store; not WeChat or live Shopify",
+  "metadataPersistence": true
+}
