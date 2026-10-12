@@ -1,0 +1,42 @@
+{
+  "schema": "workspace.readiness.clean-rebuild.v1",
+  "sourceCommit": "65252e24f4b467f32d77f8dd755168e5a04b2be5",
+  "backendContractCommit": "e60f1a8bf873fce4ba0b5c90c313d8a6e9474fea",
+  "sourceTree": "c410a55fae58d6bbb9679293ed677f019da9ff8a",
+  "allSourceBytesModesUnchangedAfterBuildAndTests": true,
+  "sourceFiles": 1056,
+  "allCleanCompiledFilesMatchImportPackage": true,
+  "compiledFiles": 39,
+  "commands": [
+    {
+      "command": "npm ci --ignore-scripts --cache /tmp/wechat-npm-cache",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run build:mini",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test miniprogram/test/*test.mjs test/miniprogram-client.test.mjs",
+      "exitCode": 0,
+      "tests": 112,
+      "passed": 112,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "node --test test/shopify-readiness.test.mjs test/commerce.http.test.mjs",
+      "exitCode": 0,
+      "tests": 15,
+      "passed": 15,
+      "failed": 0
+    }
+  ],
+  "realWechat": false,
+  "liveShopify": false,
+  "liveDeployment": false
+}
