@@ -1,3 +1,4 @@
+import { notificationSource } from './notification-source.mjs';
 import { randomUUID } from 'node:crypto';
 import { supplierFind, supplierRequest } from '../supplier-draft.mjs';
 import { supplierFail, supplierHash } from '../supplier-profile.mjs';
@@ -21,7 +22,10 @@ function synchronous(value) { if (value?.then) throw new TypeError('Notification
 
 /** Additive original-monitor delivery receipts. Host owns authentication, command receipts and scheduling. */
 export function createSevenDayNotifications({ store, adapter = null, resolveRecipient = null,
-  subscriptions = null, authorize = null, clock = Date.now } = {}) {
+  subscriptions = null, authorize = null, clock = Date.now, phase = 'summary' } = {}) {
+  if (!['summary', 'first_sample'].includes(phase)) throw new TypeError('Choose an explicit supported notification phase.');
+  const recordKey = phase === 'summary' ? 'externalNotification' : 'firstSampleNotification';
+  const messagePrefix = phase === 'summary' ? 'supplier-summary' : 'supplier-first-sample';
   if (!store || typeof store.read !== 'function' || typeof store.update !== 'function') throw new TypeError('Use the original Workspace Store.');
   if (adapter && (!identifier(adapter.channel) || !hash(adapter.fingerprint)
     || !['send', 'status', 'validateRecipient', 'validateSubscription', 'recipientFingerprint'].every(key => typeof adapter[key] === 'function')))
@@ -37,12 +41,12 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
     return { monitor, service };
   }
   function projection(monitor) {
-    const row = monitor.externalNotification;
-    return { status: row?.status || 'blocked', code: row?.code || 'NOTIFICATION_UNCONFIGURED',
+    const row = monitor[recordKey];
+    return { phase, status: row?.status || 'blocked', code: row?.code || 'NOTIFICATION_UNCONFIGURED',
       channel: row?.channel || adapter?.channel || null, recipientBindingId: row?.recipientBindingId || null,
       bindingRevision: row?.bindingRevision || null, deliveryKey: row?.deliveryKey || null,
-      latestSummary: pointer(monitor.summary), submittedSummary: row?.submittedSummary || null,
-      summaryCorrectedAfterSubmission: !!row?.submittedSummary && monitor.summary?.contentHash !== row.submittedSummary.contentHash,
+      latestSummary: pointer(notificationSource(monitor, phase)), submittedSummary: row?.submittedSummary || null,
+      summaryCorrectedAfterSubmission: !!row?.submittedSummary && notificationSource(monitor, phase)?.contentHash !== row.submittedSummary.contentHash,
       attemptId: row?.attemptId || null, submittedAt: row?.submittedAt || null, finishedAt: row?.finishedAt || null,
       cancelledAt: row?.cancelledAt || null, cancellationRequestedAt: row?.cancellationRequestedAt || null,
       providerCode: row?.providerCode ?? null, classification: row?.classification || null,
@@ -59,9 +63,9 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
     return found.monitor;
   }
   function requireSummary(monitor, body) {
-    const summary = monitor.summary;
-    if (!summary || summary.messageId !== `supplier-summary-${monitor.id}` || summary.notificationCount !== 1
-      || summary.monitorId !== monitor.id || summary.startAt !== monitor.scope.startAt || summary.endAt !== monitor.scope.endAt
+    const summary = notificationSource(monitor, phase);
+    if (!summary || summary.messageId !== `${messagePrefix}-${monitor.id}` || summary.notificationCount !== 1
+      || summary.monitorId !== monitor.id || summary.startAt !== monitor.scope.startAt || phase === 'summary' && summary.endAt !== monitor.scope.endAt
       || Date.parse(summary.endAt) > clock() || !hash(summary.contentHash) || !Number.isSafeInteger(summary.revision)
       || summary.revision < 1 || summary.revision !== body.expectedSummaryRevision || summary.contentHash !== body.expectedSummaryHash)
       supplierFail(409, 'NOTIFICATION_SUMMARY_CHANGED', 'Review the current original seven-day summary hash and revision.');
@@ -81,7 +85,7 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
       && grant.workspaceId === monitor.workspaceId && grant.subject === monitor.subject
       && grant.recipientBindingId === recipient.id && grant.bindingRevision === recipient.revision
       && grant.monitorId === monitor.id && grant.scopeHash === monitor.scopeHash
-      && grant.summaryId === `supplier-summary-${monitor.id}` && Number.isFinite(Date.parse(grant.acceptedAt))
+      && grant.summaryId === `${messagePrefix}-${monitor.id}` && Number.isFinite(Date.parse(grant.acceptedAt))
       && Date.parse(grant.acceptedAt) <= clock() && (!grant.expiresAt || Date.parse(grant.expiresAt) > clock())
       && synchronous(adapter.validateSubscription(grant, { recipient, monitor, now: clock() })) === true;
     if (!valid) supplierFail(409, 'NOTIFICATION_SUBSCRIPTION_REQUIRED', 'A current bound one-time client subscription is required.');
@@ -106,7 +110,7 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
       return store.update(state => {
         let interrupted = 0;
         for (const monitor of state.workspaceSupplierServices?.monitors || []) {
-          const row = monitor.externalNotification;
+          const row = monitor[recordKey];
           if (!row || !['preparing', 'dispatching'].includes(row.status)) continue;
           row.status = row.submittedAt ? 'unknown' : row.cancelledAt ? 'cancelled' : 'blocked';
           row.code = row.submittedAt ? 'NOTIFICATION_INTERRUPTED_AFTER_HANDOFF' : 'NOTIFICATION_PREPARATION_INTERRUPTED';
@@ -122,7 +126,7 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
       const actor = { subject: context.subject, workspaceId: context.workspaceId || 'local', role: context.role };
       const transaction = (state, sid, action, body, work) => {
         if (typeof command !== 'function') supplierFail(503, 'NOTIFICATION_COMMAND_PORT_REQUIRED', 'Use the existing supplier command receipt facility.');
-        return synchronous(command(state, actor, sid, action, body, work));
+        return synchronous(command(state, actor, sid, phase === 'summary' ? action : `first_sample_${action}`, body, work));
       };
       const validate = (state, cid, sid, body) => {
         const { monitor } = lookup(state, actor, cid, sid, body.monitorId);
@@ -141,13 +145,13 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
           const recipient = operational() ? await freshRecipient(actor, candidate) : null;
           await store.update(state => transaction(state, sid, 'notification_configure', body, () => {
             const monitor = validate(state, cid, sid, body); requireRunning(state, actor, cid, sid, monitor.id);
-            if (terminal(monitor.externalNotification) || monitor.externalNotification?.status === 'preparing')
+            if (terminal(monitor[recordKey]) || monitor[recordKey]?.status === 'preparing')
               supplierFail(409, 'NOTIFICATION_ALREADY_ATTEMPTED', 'Retain this original delivery receipt; corrections do not send another notification.');
             const grant = operational() ? subscriptionFor(state, recipient, monitor, candidate) : null;
-            monitor.externalNotification = { schema: 'workspace.seven-day.delivery.v1', ...candidate,
+            monitor[recordKey] = { schema: 'workspace.seven-day.delivery.v1', ...candidate,
               channel: adapter?.channel || 'wechat_subscription', adapterFingerprint: adapter?.fingerprint || null,
               deliveryKey: supplierHash([actor.workspaceId, actor.subject, monitor.id, monitor.scopeHash,
-                `supplier-summary-${monitor.id}`, adapter?.channel || 'wechat_subscription', candidate.recipientBindingId]),
+                `${messagePrefix}-${monitor.id}`, adapter?.channel || 'wechat_subscription', candidate.recipientBindingId]),
               recipientFingerprint: recipient ? recipientFingerprint(recipient) : null,
               subscriptionFingerprint: grant ? supplierHash(grant) : null,
               status: operational() ? 'ready' : 'blocked', code: operational() ? null : 'NOTIFICATION_UNCONFIGURED', configuredAt: now() };
@@ -159,7 +163,7 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
           supplierRequest(body, ['monitorId', 'expectedMonitorHash', 'confirmed']); validate(store.read(), cid, sid, body);
           await store.update(state => transaction(state, sid, 'notification_cancel', body, () => {
             const monitor = validate(state, cid, sid, body);
-            const row = monitor.externalNotification ||= { schema: 'workspace.seven-day.delivery.v1', channel: adapter?.channel || 'wechat_subscription' };
+            const row = monitor[recordKey] ||= { schema: 'workspace.seven-day.delivery.v1', channel: adapter?.channel || 'wechat_subscription' };
             row.cancellationRequestedAt ||= now(); row.cancelledAt ||= now();
             if (!row.submittedAt) { row.status = 'cancelled'; row.code = 'NOTIFICATION_CANCELLED'; }
             return { monitorId: monitor.id };
@@ -170,12 +174,12 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
           supplierRequest(body, ['monitorId', 'expectedMonitorHash', 'expectedSummaryRevision', 'expectedSummaryHash', 'confirmed']);
           const initial = validate(store.read(), cid, sid, body);
           // Return an existing irreversible outcome even if its summary has since been corrected.
-          if (terminal(initial.externalNotification) || initial.externalNotification?.status === 'preparing') return projection(initial);
+          if (terminal(initial[recordKey]) || initial[recordKey]?.status === 'preparing') return projection(initial);
           requireSummary(initial, body); requireRunning(store.read(), actor, cid, sid, initial.id);
-          if (!operational() || !initial.externalNotification) return { ...projection(initial), status: 'blocked', code: 'NOTIFICATION_UNCONFIGURED' };
+          if (!operational() || !initial[recordKey]) return { ...projection(initial), status: 'blocked', code: 'NOTIFICATION_UNCONFIGURED' };
           const attemptId = randomUUID();
           const admitted = await store.update(state => transaction(state, sid, 'notification_dispatch', body, () => {
-            const monitor = validate(state, cid, sid, body), row = monitor.externalNotification;
+            const monitor = validate(state, cid, sid, body), row = monitor[recordKey];
             requireRunning(state, actor, cid, sid, monitor.id); requireSummary(monitor, body);
             if (terminal(row) || row.status === 'preparing') return { attemptId: row.attemptId || null, claimed: false };
             if (row.adapterFingerprint !== adapter.fingerprint) supplierFail(409, 'NOTIFICATION_CONFIGURATION_CHANGED', 'Review the current adapter configuration.');
@@ -185,19 +189,19 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
           if (!admitted.claimed || admitted.duplicate) return projection(lookup(store.read(), actor, cid, sid, body.monitorId).monitor);
           let outcome;
           try {
-            const monitor = lookup(store.read(), actor, cid, sid, body.monitorId).monitor, row = monitor.externalNotification;
+            const monitor = lookup(store.read(), actor, cid, sid, body.monitorId).monitor, row = monitor[recordKey];
             const recipient = await freshRecipient(actor, row);
             if (recipientFingerprint(recipient) !== row.recipientFingerprint) supplierFail(409, 'NOTIFICATION_RECIPIENT_CHANGED', 'The original recipient identity changed.');
             const subscription = subscriptionFor(store.read(), recipient, monitor, row);
             if (supplierHash(subscription) !== row.subscriptionFingerprint) supplierFail(409, 'NOTIFICATION_SUBSCRIPTION_CHANGED', 'Review the current original subscription receipt.');
             const summary = requireSummary(monitor, body);
             outcome = await adapter.send({ recipient, subscription,
-              summary: { ...pointer(summary), endAt: summary.endAt, provisional: summary.provisional === true }, signal,
+              summary: { ...pointer(summary), phase, endAt: summary.endAt, provisional: summary.provisional === true }, signal,
               async beforeSend() {
                 // Fresh binding after token acquisition; original permissions/grant/cancellation checked atomically.
                 const fresh = await freshRecipient(actor, row);
                 await store.update(state => {
-                  const current = validate(state, cid, sid, body), delivery = current.externalNotification;
+                  const current = validate(state, cid, sid, body), delivery = current[recordKey];
                   requireRunning(state, actor, cid, sid, current.id); requireSummary(current, body);
                   if (signal?.aborted || delivery.cancelledAt) supplierFail(409, 'NOTIFICATION_CANCELLED', 'The original notification was stopped before handoff.');
                   if (delivery.attemptId !== attemptId || delivery.status !== 'preparing' || delivery.submittedAt)
@@ -210,12 +214,12 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
                     supplierFail(409, 'NOTIFICATION_SUBSCRIPTION_CHANGED', 'The original subscription changed before handoff.');
                   const reserved = synchronous(subscriptions.reserve(state, { subscriptionId: delivery.subscriptionId, deliveryKey: delivery.deliveryKey, attemptId }));
                   if (reserved?.reserved !== true) supplierFail(409, 'NOTIFICATION_SUBSCRIPTION_REQUIRED', 'The original one-time subscription is no longer available.');
-                  delivery.status = 'dispatching'; delivery.submittedAt = now(); delivery.submittedSummary = pointer(current.summary);
+                  delivery.status = 'dispatching'; delivery.submittedAt = now(); delivery.submittedSummary = pointer(notificationSource(current, phase));
                 });
               },
             });
           } catch (error) {
-            const row = lookup(store.read(), actor, cid, sid, body.monitorId).monitor.externalNotification;
+            const row = lookup(store.read(), actor, cid, sid, body.monitorId).monitor[recordKey];
             outcome = row.submittedAt ? { status: 'unknown', code: 'NOTIFICATION_ADAPTER_UNCERTAIN' }
               : { status: row.cancelledAt || signal?.aborted ? 'cancelled' : 'blocked',
                 code: /^NOTIFICATION_[A-Z_]{1,60}$/.test(error.code || '') ? error.code : 'NOTIFICATION_PREPARATION_FAILED' };
@@ -223,7 +227,7 @@ export function createSevenDayNotifications({ store, adapter = null, resolveReci
           const safe = safeOutcome(outcome);
           if (adapter.status().evidenceKind === 'local_fixture') safe.evidenceKind = 'local_fixture';
           await store.update(state => {
-            const current = lookup(state, actor, cid, sid, body.monitorId).monitor, row = current.externalNotification;
+            const current = lookup(state, actor, cid, sid, body.monitorId).monitor, row = current[recordKey];
             if (row.attemptId !== attemptId) supplierFail(409, 'NOTIFICATION_ATTEMPT_CHANGED', 'Preserve the original notification receipt.');
             // A trusted plugin cannot assert success/failure without recording the required handoff.
             if (!row.submittedAt && ['platform_accepted', 'failed', 'unknown'].includes(safe.status))

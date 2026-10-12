@@ -106,12 +106,12 @@ export function createSupplierService({ store, runtime, provider, businessLibrar
 
 export async function supplierServiceHttp({ service, req, res, pathname, context, body, respond, access }) {
   if (req.method === 'GET' && pathname === '/api/agent-services') { await respond(res, 200, service.catalog()); return true; }
-  const match = pathname.match(/^\/api\/conversations\/([^/]+)\/supplier-services(?:\/([^/]+)(?:\/(messages|profile|preview|preview-page|cancel|reject|task-scope|save-product|shopify-observation|shopify-draft|monitors|monitor-check|monitor-stop|monitor-summary|images|notification-status|notification-review|notification-decision|notification-execute|notification-cancel|notification-subscription-challenge|notification-subscription-record|notification-subscription-revoke)(?:\/([^/]+))?)?)?$/);
+  const match = pathname.match(/^\/api\/conversations\/([^/]+)\/supplier-services(?:\/([^/]+)(?:\/(messages|profile|preview|preview-page|cancel|reject|task-scope|save-product|shopify-observation|shopify-draft|monitors|monitor-check|monitor-stop|monitor-summary|images|notification-status|notification-first-status|notification-review|notification-decision|notification-execute|notification-cancel|notification-subscription-challenge|notification-subscription-record|notification-subscription-revoke)(?:\/([^/]+))?)?)?$/);
   if (!match) return false;
   let cid; try { cid = decodeURIComponent(match[1]); } catch { supplierFail(400, 'INVALID_PATH', 'Encode the original conversation ID once.'); }
   const [, , id, op, detail] = match, bound = service.forActor(context);
   if (req.method === 'GET') {
-    if (op === 'notification-status') { await respond(res, 200, bound.notifications.snapshot(cid, id, detail)); return true; }
+    if (op === 'notification-status' || op === 'notification-first-status') { await respond(res, 200, bound.notifications.snapshot(cid, id, detail, op === 'notification-first-status' ? 'first_sample' : 'summary')); return true; }
     if (op === 'preview-page') {
       const row = bound.get(cid, id), preview = row.preview; if (!preview || row.cancelledAt || row.rejectedAt) supplierFail(404, 'SUPPLIER_PREVIEW_REQUIRED', 'Generate and confirm a current owner-scoped preview first.');
       const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);

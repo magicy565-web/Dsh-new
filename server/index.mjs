@@ -4,6 +4,7 @@ import { createMuseDraftService } from './muse-draft-service.mjs';
 import { createSupplierService, supplierServiceHttp } from './supplier-service.mjs';
 import { SupplierServiceError } from './supplier-profile.mjs';
 import { createSupplierMonitoring } from './supplier-monitoring.mjs';
+import { createNativeSubscriptionFacility, loadSupplierNotificationOptions } from './native-subscription-facility.mjs';
 import { createGa4ProductTrafficAdapter } from './product-traffic-ga4.mjs';
 import { createSupplierNotificationHost, SUPPLIER_MONITOR_NOTIFICATION_ADAPTER } from './supplier-notification-host.mjs';
 import { createShopifyPublicationAdapter, SUPPLIER_SHOPIFY_ADAPTER } from './shopify-publication.mjs';
@@ -128,6 +129,9 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     cloudExperts = createCloudExpertService({ store, workerCatalog: () => workerDesk.catalog(), workerDesk });
     await workerDesk.recoverInterrupted();
     if (Object.hasOwn(connectorAdapters, SUPPLIER_SHOPIFY_ADAPTER) || Object.hasOwn(connectorAdapters, SUPPLIER_MONITOR_NOTIFICATION_ADAPTER)) throw new TypeError('The original supplier Shopify adapter ID cannot be overwritten.');
+    if (!Object.keys(supplierNotificationOptions).length && capabilityEnvironment.WORKSPACE_SUPPLIER_NOTIFICATION_CONFIG_FILE) supplierNotificationOptions = await loadSupplierNotificationOptions(capabilityEnvironment.WORKSPACE_SUPPLIER_NOTIFICATION_CONFIG_FILE);
+    const nativeSubscriptions = createNativeSubscriptionFacility({ access, clock: accessClock });
+    supplierNotificationOptions = { ...supplierNotificationOptions, nativeFacility: nativeSubscriptions, resolveRecipient: supplierNotificationOptions.resolveRecipient || nativeSubscriptions.resolveRecipient, confirmSubscription: supplierNotificationOptions.confirmSubscription || nativeSubscriptions.confirmSubscription };
     supplierNotifications = createSupplierNotificationHost({ store, getCapabilities: () => capabilities, getSupplier: () => supplierService, options: supplierNotificationOptions, clock: accessClock, currentRole: subject => accessConfig.mode === 'enterprise' ? accessConfig.members.get(subject) : subject === 'local-operator' ? 'admin' : null });
     publicationAdapter = createShopifyPublicationAdapter({ store, environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock,
       readImage: (scope, ref) => supplierService.forActor({ subject: scope.subject, workspaceId: scope.workspaceId, role: scope.actorRole }).readImage(scope.conversationId, scope.serviceId, ref) });

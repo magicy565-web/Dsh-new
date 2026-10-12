@@ -90,6 +90,8 @@ export function createWechatIngress({ app, access, privateKey, appId, appSecret,
         if (result.status !== 200) return response(result.status, JSON.parse(result.bytes.toString('utf8')));
         const session = JSON.parse(result.bytes.toString('utf8')), token = result.headers['x-workspace-session'];
         if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token) || session?.authenticated !== true || session.user?.id !== subject || session.mode !== 'enterprise') fail(502, 'WECHAT_SESSION_UNCERTAIN', 'The original enterprise session could not be confirmed. Obtain a fresh code.');
+        const verified = app.access.nativeSessionIdentity(token, { includeSessionId: true });
+        if (verified?.id) app.supplierNotifications?.registerVerifiedLogin?.({ sessionId: verified.id, subject, workspaceId: config.workspaceId, appId, openid: identity.openid, reviewId: mapping.reviewId, expiresAt: Math.min(mapping.expiresAt, Date.parse(session.expiresAt)) });
         return response(200, { token, session });
       }
       const identity = app.access.nativeSessionIdentity(headers['x-workspace-session']);
