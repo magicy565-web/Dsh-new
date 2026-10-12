@@ -1,6 +1,6 @@
 import { conversationView, WorkspaceClient, ClientError } from '../../shared/client';
 import type { Card, FileReference, References } from '../../shared/client';
-import type { Artifact, Message } from '../../../../src/types';
+import type { Artifact, Message, Run } from '../../../../src/types';
 import type { Company, Product, LibraryDocument } from '../../../../src/library/types';
 import { presentMuseDraft } from '../../shared/muse-drafts';
 import type { MuseDraft } from '../../shared/muse-drafts';
@@ -11,7 +11,7 @@ import { presentSupplier, presentMonitor, supplierErrorText } from '../../shared
 import type { SupplierService, SupplierMonitor } from '../../shared/supplier';
 import { supplierFieldLabels } from '../../shared/supplier-view';
 import type { SupplierProfile, PublicListingField } from '../../shared/supplier-view';
-type SupplierReview = {kind:'images'|'save-product'|'shopify-draft'|'shopify-observation'|'monitors'|'monitor-check'|'monitor-stop';serviceId:string;revision:number;profileHash:string;detail:string;data:Record<string,unknown>;facts?:Partial<SupplierProfile>};
+type SupplierReview = {kind:'images'|'save-product'|'shopify-draft'|'shopify-observation'|'monitors'|'monitor-check'|'monitor-stop'|'cancel'|'reject';serviceId:string;revision:number;profileHash:string;detail:string;data:Record<string,unknown>;facts?:Partial<SupplierProfile>};
 let timer: ReturnType<typeof setTimeout> | undefined;
 let reading = false, visible = false, epoch = 0, readFailures = 0;
 const client = () => getApp<{ globalData: { client: WorkspaceClient } }>().globalData.client;
@@ -25,19 +25,19 @@ Page({
     company: null as Company | null, products: [] as Product[], documents: [] as LibraryDocument[], references: null as References | null,
     museDrafts: [] as MuseDraft[], draftCards: [] as ReturnType<typeof presentMuseDraft>[], selectedDraft: null as DraftPresentation | null, goalMode: false, goalBlocked: false, drafting: false, needsDraftInput: false, composerHint: '描述目标或需要补充的信息…',
     procurementOpen: false, procurementInbox: [] as Inquiry[], procurementAssociated: [] as Inquiry[], procurementError: '', replyInquiryId: '', savedGoal: null as { draft: string; files: FileReference[] } | null,
-    supplierResourcesOpen:false, supplierMode: false, supplierAvailable: false, selectedSupplierId: '', supplierServices: [] as SupplierService[], supplierCards: [] as ReturnType<typeof presentSupplier>[], supplierReadError: '', supplierNotice: '', supplierCommand: '' as ''|'shopify-observation'|'monitors', supplierScope: null as {id:string;revision:number;profile:SupplierProfile}|null, supplierReview: null as SupplierReview|null, supplierMonitors: [] as ReturnType<typeof presentMonitor>[], verifiedProductImage: null as {serviceId:string;path:string;sha256:string;sourceNote:string}|null,
+    newSupplier:false, supplierResourcesOpen:false, supplierMode: false, supplierAvailable: false, selectedSupplierId: '', supplierServices: [] as SupplierService[], supplierCards: [] as ReturnType<typeof presentSupplier>[], supplierReadError: '', supplierNotice: '', supplierCommand: '' as ''|'shopify-observation'|'monitors', supplierScope: null as {id:string;revision:number;profile:SupplierProfile}|null, supplierReview: null as SupplierReview|null, supplierMonitors: [] as ReturnType<typeof presentMonitor>[], verifiedProductImage: null as {serviceId:string;path:string;sha256:string;sourceNote:string}|null,
     procurementReview: null as { kind: 'bind' | 'reply'; inquiry: Inquiry; detail: string; content: string } | null },
   onShow() { visible = true; epoch++; void this.open(); },
   onHide() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
   onUnload() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
-  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'', supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null }); },
+  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'', supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null }); },
   async open() {
     const opened = epoch;
     try {
       const session = await client().initialize();
       if (!visible || opened !== epoch) return;
       const subject = session.user?.id || '';
-      if (subject !== this.data.subject) this.setData({ supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'',supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
+      if (subject !== this.data.subject) this.setData({ newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'',supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
       this.setData({ authenticated: session.authenticated, readError: '' });
       this.setData({ goalMode: client().requiresOriginalMuse });
       if (session.authenticated) await this.refresh();
@@ -76,6 +76,8 @@ Page({
       const selected = this.data.selectedDraft && draftCards.find(value => value.id === this.data.selectedDraft?.id && !['rejected', 'rejecting'].includes(value.phase));
       const active = [...draftCards].reverse().find(value => !['prepared', 'rejected'].includes(value.phase));
       const cards = view.cards.filter(card => card.kind !== 'input').map(card => {
+        const supplierRun=snapshot.runs?.find(run=>run.id===card.runId) as (Run & {supplierDraftContext?:{serviceId:string}})|undefined;
+        if(card.kind==='progress'&&supplierRun?.supplierDraftContext?.serviceId){const title=({queued:'商品事实整理已排队',running:'Pi 正在整理商品事实',succeeded:'原商品事实已保存',failed:'商品事实整理未完成',blocked:'商品事实整理受阻',interrupted:'原商品整理已中断',cancelled:'原商品整理已取消'} as Record<string,string>)[supplierRun.status]||'原商品整理状态待核对';return{...card,title,detail:card.detail+'\n此原运行只整理内部事实；预览、Shopify 和七天结果以各自记录为准。'};}
         const draft = drafts.find(value => value.runId === card.runId);
         if (!draft || card.kind !== 'progress') return card;
         const status = snapshot.runs?.find(run => run.id === draft.runId)?.status || '';
@@ -154,7 +156,7 @@ Page({
     const opened=epoch,id=this.data.conversationId;
     try {
       const services=await client().supplierServices(id); if(!visible||opened!==epoch||id!==this.data.conversationId)return;
-      const selected=services.find(item=>item.id===this.data.selectedSupplierId) || services[services.length-1];
+      const selected=this.data.newSupplier?undefined:services.find(item=>item.id===this.data.selectedSupplierId) || [...services].reverse().find(item=>!['cancelled','rejected'].includes(item.phase));
       const scope=this.data.supplierScope && selected && selected.id===this.data.supplierScope.id ? {id:selected.id,revision:selected.revision,profile:selected.profile}:null;
       this.setData({supplierServices:services,supplierCards:services.map(presentSupplier),selectedSupplierId:selected?.id||'',supplierScope:scope,supplierReadError:''});
       const monitors=selected?await client().supplierMonitors(id,selected.id):[];
@@ -169,10 +171,12 @@ Page({
       const id=await client().mainConversation(snapshot,'business');this.setData({conversationId:id,supplierMode:true,supplierCommand:'',replyInquiryId:'',composerHint:'说说商品、市场、供货与零售信息；未知可保留…'});await this.refresh();
     }catch(error){this.setData({error:message(error),uncertain:client().uncertain});}finally{this.setData({loading:false});}
   },
+  startNewSupplier(){if(!this.data.loading&&!client().uncertain)this.setData({newSupplier:true,supplierMode:true,selectedSupplierId:'',supplierScope:null,supplierReview:null,supplierCommand:'',supplierMonitors:[],verifiedProductImage:null,composerHint:'描述另一件明确商品；不会复用已停止的整理范围…'});},
   exitSupplier() {if(!this.data.loading&&!client().uncertain)this.setData({supplierMode:false,supplierCommand:'',supplierScope:null,supplierReview:null});},
   async sendSupplier() {
     if(this.data.loading||this.data.busy||client().uncertain||!this.data.conversationId)return;
-    const service=this.data.supplierServices.find(item=>item.id===this.data.selectedSupplierId);
+    const service=this.data.newSupplier?undefined:this.data.supplierServices.find(item=>item.id===this.data.selectedSupplierId);
+    if(service&&['cancelled','rejected'].includes(service.phase)){this.setData({error:'此商品整理已停止或拒绝，请明确选择新商品，不恢复旧范围。'});return;}
     if(this.data.supplierCommand){
       if(!service)return;
       const products=this.data.draft.match(/gid:\/\/shopify\/Product\/\d+/g)||[],times=this.data.draft.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z/g)||[];
@@ -188,14 +192,14 @@ Page({
     }
     this.setData({loading:true,error:''});try{
       const result=await client().supplierIntake(this.data.conversationId,this.data.draft,service?{id:service.id,revision:service.revision}:undefined) as {serviceId:string};
-      this.setData({draft:'',selectedSupplierId:result.serviceId,supplierNotice:'商品文字已提交原 Pi；图片仅存档，可在事实保存后单独确认原图片来源。'});await this.refresh();
+      this.setData({draft:'',newSupplier:false,selectedSupplierId:result.serviceId,supplierNotice:'商品文字已提交原 Pi；图片仅存档，可在事实保存后单独确认原图片来源。'});await this.refresh();
     }catch(error){this.setData({error:message(error),uncertain:client().uncertain,pendingLabel:'商品事实'});}finally{this.setData({loading:false});}
   },
   openSupplierResources(event:WechatMiniprogram.TouchEvent){if(this.data.loading||client().uncertain)return;this.setData({selectedSupplierId:event.currentTarget.dataset.id,supplierResourcesOpen:true});void this.refreshSupplier();},
   closeSupplierResources(){this.setData({supplierResourcesOpen:false});},
   supplierAction(event:WechatMiniprogram.TouchEvent) {
     if(this.data.loading||client().uncertain)return;const service=this.data.supplierServices.find(item=>item.id===event.currentTarget.dataset.id);if(!service)return;
-    const kind=event.currentTarget.dataset.kind;this.setData({supplierResourcesOpen:false,selectedSupplierId:service.id,supplierMode:true,supplierCommand:'',error:''});
+    const kind=event.currentTarget.dataset.kind;this.setData({newSupplier:false,supplierResourcesOpen:false,selectedSupplierId:service.id,supplierMode:true,supplierCommand:'',error:''});
     if(kind==='edit'){this.setData({composerHint:'只需说明要补充或修改的商品事实…',supplierScope:null});return;}
     if(kind==='details'){this.setData({preview:{title:'原商品内部资料',content:Object.entries(service.profile).filter(([field])=>field!=='images').map(([field,value])=>`${supplierFieldLabels[field]||field}：${value===null?'尚未提供':value}`).join('\n')+'\n\n'+service.questions.map(item=>item.question.replace(item.field,supplierFieldLabels[item.field]||item.field)).join('\n'),verified:false}});return;}
     if(kind==='preview'){this.setData({supplierScope:{id:service.id,revision:service.revision,profile:service.profile}});return;}
@@ -205,10 +209,10 @@ Page({
       const images=[...service.profile.images,...files.map(file=>({kind:'artifact' as const,asset:{artifactId:file.id,version:file.version,sha256:file.sha256},sourceNote:`用户本次选择：${file.filename}（内部图片来源，未授予外发许可）`}))];
       this.setData({supplierReview:{kind:'images',serviceId:service.id,revision:service.revision,profileHash:service.profileHash,data:{},facts:{images},detail:`保存为原商品内部图片来源；不解析图片、不外发。\n${images.map(image=>image.kind==='artifact'?`${image.sourceNote}\n原文件 ${image.asset.artifactId} v${image.asset.version}\nSHA256 ${image.asset.sha256}`:`${image.sourceNote}\n${image.url}`).join('\n\n')}`}});return;
     }
-    if(kind==='save-product'||kind==='shopify-draft'){
+    if(kind==='save-product'||kind==='shopify-draft'||kind==='cancel'||kind==='reject'){
       if(kind==='shopify-draft'&&!service.preview){this.setData({error:'请先审阅并生成当前商品预览。'});return;}
-      const data={expectedRevision:service.revision,confirmed:true,...(kind==='shopify-draft'?{expectedPreviewHash:service.preview!.previewHash}:{})};
-      this.setData({supplierReview:{kind,serviceId:service.id,revision:service.revision,profileHash:service.profileHash,data,detail:`${service.profile.name||service.id} · 原修订 ${service.revision}\n范围 SHA256 ${service.profileHash}\n${kind==='save-product'?'保存到原内部资料库，供货单位/MOQ/批发价格/生产期保留原含义，不发布。':`预览 SHA256 ${service.preview!.previewHash}\nShopify 创建/发布当前未授权；本次只核对原服务阻挡状态。`}`}});
+      const data={expectedRevision:service.revision,confirmed:true,...(['cancel','reject'].includes(kind)?{expectedProfileHash:service.profileHash}:{}),...(kind==='shopify-draft'?{expectedPreviewHash:service.preview!.previewHash}:{})};
+      this.setData({supplierReview:{kind,serviceId:service.id,revision:service.revision,profileHash:service.profileHash,data,detail:`${service.profile.name||service.id} · 原修订 ${service.revision}\n范围 SHA256 ${service.profileHash}\n${kind==='cancel'||kind==='reject'?'停止/拒绝这一原商品整理，保留事实历史、使预览失效；不取消别的会话运行，七天监测须另按原监测停止。':kind==='save-product'?'保存到原内部资料库，供货单位/MOQ/批发价格/生产期保留原含义，不发布。':`预览 SHA256 ${service.preview!.previewHash}\nShopify 创建/发布当前未授权；本次只核对原服务阻挡状态。`}`}});
     }
   },
   closeSupplierScope(){if(!this.data.loading)this.setData({supplierScope:null});},

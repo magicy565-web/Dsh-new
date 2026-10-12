@@ -1,0 +1,13 @@
+✔ actual Page -> signed HTTP/Pi tool -> private facts, original image/SHA, reviewed preview, original library and honest Shopify blocker (775.880174ms)
+✔ lost intake/preview/library acknowledgments cold-recover the same UUID/body and persistent result without extra Pi/product (498.838101ms)
+✔ seven-day UI config stays disabled, read uses null/status, stable final summary survives replay/reopen and stop targets original monitor (489.909215ms)
+✔ read-only Shopify response fixture through actual HTTP: ACTIVE stays unpublished and late refund corrects one original summary, no model or mutation (428.027934ms)
+✔ new backend: changed facts update one original product; rejected intake invalidates preview and cannot resume until explicit new product (668.822553ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3303.324686

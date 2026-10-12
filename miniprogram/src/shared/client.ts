@@ -301,10 +301,11 @@ export class WorkspaceClient {
     const body = { requestId: this.requestId(), expectedRevision: target.revision, confirmed: true, publicFields: [...fields] };
     return this.commit({ kind: 'supplier-preview', conversationId, path: this.supplierPath(conversationId, target.id) + '/preview', body, key: JSON.stringify(['supplier-preview', conversationId, target.id, target.revision, fields]), review: { title: '本次商品预览范围', detail: JSON.stringify({ serviceId: target.id, revision: target.revision, publicFields: fields }, null, 2) } });
   }
-  async supplierOperation(conversationId:string,id:string,action:'save-product'|'shopify-draft'|'shopify-observation'|'monitors'|'monitor-check'|'monitor-stop',data:Record<string,unknown>,detail:string) {
+  async supplierOperation(conversationId:string,id:string,action:'save-product'|'shopify-draft'|'shopify-observation'|'monitors'|'monitor-check'|'monitor-stop'|'cancel'|'reject',data:Record<string,unknown>,detail:string) {
     if (!id || data.confirmed!==true) throw new ClientError('SUPPLIER_CONFIRMATION_REQUIRED','请明确确认当前原商品或监测的准确范围。');
     if (['monitor-check','monitor-stop'].includes(action)) {if (typeof data.monitorId!=='string' || !/^[a-f0-9]{64}$/.test(String(data.expectedMonitorHash))) throw new ClientError('SUPPLIER_MONITOR_INVALID','请读取原监测对象和 hash。');}
     else if (!Number.isInteger(data.expectedRevision) || Number(data.expectedRevision)<1) throw new ClientError('SUPPLIER_REVISION_REQUIRED','请读取原商品修订。');
+    if (['cancel','reject'].includes(action) && !/^[a-f0-9]{64}$/.test(String(data.expectedProfileHash))) throw new ClientError('SUPPLIER_REVISION_REQUIRED','请审阅原商品的准确 profile hash。');
     const body={...data,requestId:this.requestId()},key=action==='monitor-check'?body.requestId:JSON.stringify(['supplier-operation',conversationId,id,action,data]);
     return this.commit({kind:'supplier-operation',conversationId,path:this.supplierPath(conversationId,id)+'/'+action,body,key,review:{title:action,detail}});
   }
