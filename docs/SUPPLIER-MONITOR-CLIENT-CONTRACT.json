@@ -1,0 +1,52 @@
+{
+  "schema": "workspace.supplier-monitor-client.v3",
+  "extends": ["workspace.supplier-publication-client.v1", "workspace.supplier-draft-repair-client.v1"],
+  "baseRepairSource": "952db1a7e5a0986312f896e524114cb9a4a5ce25",
+  "selectedFrontend": "PR52 0d2183c938161fb00d3081207b41f4857fb17e0c (not included in this backend worktree)",
+  "basePath": "/api/conversations/:conversationId/supplier-services/:serviceId",
+  "existingRoutes": {
+    "createMonitor": {"suffix":"/monitors", "method":"POST", "body":["requestId", "expectedRevision", "shopifyProductId", "variantIds?", "startAt or verified startFromPublication", "confirmed:true"]},
+    "check": {"suffix":"/monitor-check", "method":"POST", "body":["requestId", "monitorId", "expectedMonitorHash", "confirmed:true"]},
+    "summary": {"suffix":"/monitor-summary/:monitorId", "method":"GET"},
+    "stop": {"suffix":"/monitor-stop", "method":"POST", "body":["requestId", "monitorId", "expectedMonitorHash", "confirmed:true"]}
+  },
+  "traffic": {
+    "detect": "sample.traffic.contractVersion === 2",
+    "label": "商品详情浏览事件",
+    "valuePath": "sample.traffic.metrics.productDetailViews.value",
+    "sessionsPath": "sample.traffic.metrics.sessions.value (always null)",
+    "statuses": ["partial", "unconfigured", "unsupported", "no_data", "unavailable"],
+    "missing": "display unavailable; never null-to-zero coercion",
+    "zero": "only numeric0 from an explicit acknowledged source row is a provisional zero",
+    "preserve": ["source", "requestedWindow", "coverage", "granularity", "sampledAt", "freshness", "dataLagSeconds", "completePagination", "sampling", "quality", "metricDefinitions", "error"],
+    "completeness": "complete:false, freshness:unknown, dataLagSeconds:null; partial is not fully ingested seven-day data",
+    "attribution": "exact reviewed whole product/item mapping; variant-filtered sales do not define a product conversion rate",
+    "legacy": "v1 traffic can still have sessions; never label v2 event counts as sessions",
+    "summary": "same semantic values with a new sample time keep contentHash/revision/messageId/notificationCount; actual count/coverage/quality changes correct that same summary"
+  },
+  "notifications": {
+    "status": {"method":"GET", "suffix":"/notification-status/:monitorId", "response":"{service,monitorId,notification:{status,code,configured,enabled,confirmedSubscriptionProvider,delivery,review}}"},
+    "challenge": {"method":"POST", "suffix":"/notification-subscription-challenge", "body":["requestId", "monitorId", "expectedMonitorHash", "recipientBindingId", "expectedBindingRevision", "confirmed:true"], "response":["challengeId", "expiresAt", "appId", "templateId", "evidenceKind", "userGestureRequired"]},
+    "clientOptIn": "A real user gesture calls wx.requestSubscribeMessage for the server-provided template; settings/errMsg alone are insufficient.",
+    "record": {"method":"POST", "suffix":"/notification-subscription-record", "body":["requestId", "monitorId", "expectedMonitorHash", "challengeId", "decision:accept|reject|ban|filter", "confirmed:true"], "response":["subscriptionId", "state", "recipientBindingId", "bindingRevision", "evidenceKind"]},
+    "recordAuthority": "Server existing trusted native proof facility must confirm this exact session/subject/nonce/AppID/template. A client accept claim alone cannot create authority. Missing facility is blocked.",
+    "review": {"method":"POST", "suffix":"/notification-review", "body":["requestId", "monitorId", "expectedMonitorHash", "recipientBindingId", "expectedBindingRevision", "subscriptionId", "expectedSummaryRevision", "expectedSummaryHash", "confirmed:true"]},
+    "decision": {"method":"POST", "suffix":"/notification-decision", "body":["requestId", "monitorId", "operationId:notification.review.id", "expectedScopeHash:notification.review.scopeHash", "decision:approved|denied", "confirmed:true"]},
+    "execute": {"method":"POST", "suffix":"/notification-execute", "body":["requestId", "monitorId", "operationId", "expectedScopeHash", "confirmed:true"]},
+    "cancel": {"method":"POST", "suffix":"/notification-cancel", "body":["requestId", "monitorId", "expectedMonitorHash", "confirmed:true"]},
+    "revoke": {"method":"POST", "suffix":"/notification-subscription-revoke", "body":["requestId", "monitorId", "expectedMonitorHash", "subscriptionId", "confirmed:true"]},
+    "scope": "review names exact recipient binding/revision, original one-time receipt, current seven-day summary hash/revision, template and adapter fingerprint; its own original capability approval/connectorRun is required",
+    "schedule": "read-only monitor Schedule approval is insufficient; original dispatcher attempts a notification only when a matching separate notification review is approved",
+    "deliveryStatuses": ["blocked", "ready", "preparing", "dispatching", "cancelled", "platform_accepted", "failed", "unknown"],
+    "evidence": "Use notification.delivery.evidenceKind for actual outcome; transport configuration evidenceKind is not an executed receipt.",
+    "accepted": "platform_accepted means provider acceptance only; userRead remains unknown and businessAcceptance remains not_recorded; local_fixture never proves a real WeChat send",
+    "unknown": "show reconciliationRequired:true and automaticRetry:false; requery status/retain original request. No resend or fabricated query-by-deliveryKey proof exists.",
+    "correction": "submittedSummary remains immutable, latestSummary may change; summaryCorrectedAfterSubmission is informational and never sends again",
+    "privacy": "never request/send/display OpenID, access token, raw subscription proof or private source credentials",
+    "limits": "only completed seven-day-window summary sending is implemented; first-sample notification/smoke action is not implemented"
+  },
+  "unchanged": "Shopify draft/media/publish/repair routes and DTO remain compatible with PR52; no frontend files are replaced.",
+  "configurationDependencies": ["existing reviewed GA4 binding/property/product mapping/token provider", "existing reviewed WeChat AppID/template/token provider", "fresh exact native recipient binding and trusted native subscription proof callback", "host officialContractReviewed only after current official server contract verification", "original notification Connector enabled and exact send approval"],
+  "unrun": ["real model preview", "real Shopify draft/media/publication", "real GA4 first sample", "real WeChat notification/device/read", "actual continuous seven days"],
+  "noClaims": "No current official WeChat server-contract verification, live source/send, deployment, new credential/permission or independent audit was performed."
+}

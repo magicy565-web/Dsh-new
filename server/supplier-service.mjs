@@ -4,7 +4,7 @@ import { supplierAdmission, supplierDto, supplierFind, supplierOwned, supplierRe
 import { isOriginalMuseArtifact } from './muse-owner-policy.mjs';
 
 export const supplierUuid = value => { const hash = supplierHash(value); return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`; };
-export function createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock = Date.now, monitoring, readMuseImage }) {
+export function createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock = Date.now, monitoring, readMuseImage, notifications }) {
   const now = () => new Date(clock()).toISOString();
   const saved = store.read().workspaceSupplierServices;
   if (saved && (saved.version !== 1 || !['services', 'commands', 'monitors'].every(field => Array.isArray(saved[field])))) supplierFail(409, 'SUPPLIER_STORE_INVALID', 'Preserve and review the original supplier store.');
@@ -83,6 +83,7 @@ export function createSupplierService({ store, runtime, provider, businessLibrar
         async stop(cid, id, body, reject = false) {
           supplierRequest(body, ['expectedRevision', 'expectedProfileHash', 'confirmed']); if (body.confirmed !== true) supplierFail(400, 'SUPPLIER_CONFIRMATION_REQUIRED', 'Confirm the original intake revision to stop.');
           const stopped = await store.update(state => command(state, actor, id, reject ? 'reject' : 'cancel', body, () => { const row = find(cid, id, state); requireRevision(row, body); if (body.expectedProfileHash !== supplierHash(row.profile)) supplierFail(409, 'SUPPLIER_REVISION_CONFLICT', 'Review the exact current private facts.'); row[reject ? 'rejectedAt' : 'cancelledAt'] = now(); row.preview = null; row.revision++; return { runId: row.versions.at(-1)?.runId || null }; }));
+          for (const monitor of (store.read().workspaceSupplierServices?.monitors || []).filter(item => item.serviceId === id && item.subject === actor.subject && !item.stoppedAt)) await result.stopMonitor(cid, id, { requestId: `intake-monitor-stop-${supplierHash([body.requestId, monitor.id]).slice(0, 40)}`, monitorId: monitor.id, expectedMonitorHash: monitor.scopeHash, confirmed: true });
           const current = store.read().conversations.find(item => item.id === cid);
           if (stopped.runId && current?.activeRunId === stopped.runId) await runtime.cancelConversation(cid);
           return { service: get(cid, id), runCancellationRequested: !!stopped.runId, duplicate: !!stopped.duplicate };
@@ -95,6 +96,7 @@ export function createSupplierService({ store, runtime, provider, businessLibrar
           return { publicProductText: JSON.stringify(scope), originalTaskApprovalRequired: true, workerCredentialCreated: false, executionStarted: false };
         },
       };
+      if (notifications) result.notifications = notifications.forActor(context, { command, get });
       if (monitoring) Object.assign(result, monitoring.forActor(actor, { find, get, command, requireRevision }));
       return result;
     },
@@ -102,13 +104,14 @@ export function createSupplierService({ store, runtime, provider, businessLibrar
   return service;
 }
 
-export async function supplierServiceHttp({ service, req, res, pathname, context, body, respond }) {
+export async function supplierServiceHttp({ service, req, res, pathname, context, body, respond, access }) {
   if (req.method === 'GET' && pathname === '/api/agent-services') { await respond(res, 200, service.catalog()); return true; }
-  const match = pathname.match(/^\/api\/conversations\/([^/]+)\/supplier-services(?:\/([^/]+)(?:\/(messages|profile|preview|preview-page|cancel|reject|task-scope|save-product|shopify-observation|shopify-draft|monitors|monitor-check|monitor-stop|monitor-summary|images)(?:\/([^/]+))?)?)?$/);
+  const match = pathname.match(/^\/api\/conversations\/([^/]+)\/supplier-services(?:\/([^/]+)(?:\/(messages|profile|preview|preview-page|cancel|reject|task-scope|save-product|shopify-observation|shopify-draft|monitors|monitor-check|monitor-stop|monitor-summary|images|notification-status|notification-review|notification-decision|notification-execute|notification-cancel|notification-subscription-challenge|notification-subscription-record|notification-subscription-revoke)(?:\/([^/]+))?)?)?$/);
   if (!match) return false;
   let cid; try { cid = decodeURIComponent(match[1]); } catch { supplierFail(400, 'INVALID_PATH', 'Encode the original conversation ID once.'); }
   const [, , id, op, detail] = match, bound = service.forActor(context);
   if (req.method === 'GET') {
+    if (op === 'notification-status') { await respond(res, 200, bound.notifications.snapshot(cid, id, detail)); return true; }
     if (op === 'preview-page') {
       const row = bound.get(cid, id), preview = row.preview; if (!preview || row.cancelledAt || row.rejectedAt) supplierFail(404, 'SUPPLIER_PREVIEW_REQUIRED', 'Generate and confirm a current owner-scoped preview first.');
       const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -121,6 +124,13 @@ export async function supplierServiceHttp({ service, req, res, pathname, context
     await respond(res, 200, value); return true;
   }
   if (req.method === 'POST') {
+    if (op?.startsWith('notification-')) {
+      const method = { 'notification-review': 'reviewNotification', 'notification-decision': 'decideNotification', 'notification-execute': 'executeNotification', 'notification-cancel': 'cancel', 'notification-subscription-challenge': 'challenge', 'notification-subscription-record': 'recordSubscription', 'notification-subscription-revoke': 'revokeSubscription' }[op];
+      if (!method) supplierFail(405, 'SUPPLIER_METHOD_INVALID', 'Use the documented original notification command.');
+      const controller = new AbortController(), watcher = op === 'notification-execute' ? access?.watchStream(context, () => controller.abort('SESSION_REVOKED')) : null;
+      try { if (watcher && !watcher.valid()) supplierFail(401, 'SESSION_REQUIRED', 'The original session expired before notification admission.'); await respond(res, 200, await bound.notifications[method](cid, id, body, { signal: controller.signal })); return true; }
+      finally { watcher?.stop(); }
+    }
     const value = !id || op === 'messages' ? await bound.request(cid, body, id) : op === 'profile' ? await bound.profile(cid, id, body) : op === 'preview' ? await bound.preview(cid, id, body) : op === 'cancel' || op === 'reject' ? await bound.stop(cid, id, body, op === 'reject') : op === 'task-scope' ? bound.taskScope(cid, id, body) : op === 'save-product' ? await bound.saveProduct(cid, id, body) : op === 'shopify-observation' ? await bound.observe(cid, id, body) : op === 'shopify-draft' ? await bound.shopifyDraft(cid, id, body) : op === 'monitors' ? await bound.createMonitor(cid, id, body) : op === 'monitor-check' ? await bound.checkMonitor(cid, id, body) : op === 'monitor-stop' ? await bound.stopMonitor(cid, id, body) : supplierFail(405, 'SUPPLIER_METHOD_INVALID', 'Use documented original supplier service operations.');
     await respond(res, !id || op === 'messages' ? 202 : 200, value); return true;
   }

@@ -1,0 +1,59 @@
+✔ Shopify capability checks do not invent a product sessions field even with read_reports and Level 2 (0.973373ms)
+✔ without configuration, original auth review, or matching authorization, no network read and no zero (3.42393ms)
+✔ one fixed store and a unique reviewed mapping cannot be inferred from SKU or mutated after construction (6.465531ms)
+✔ reads official itemViewEvents with exact product/store/minute filters; preserves source, definition and unknown freshness (2.269023ms)
+✔ subminute bounds and collection beginning late restrict coverage without asserting seven complete days (1.224713ms)
+✔ empty report is missing instrumentation/data, while an explicit source zero stays a provisional observation (1.715765ms)
+✔ request replay and concurrent reads coalesce; new original sample permits late corrections without adding totals (1.506589ms)
+✔ full bounded pagination counts each distinct minute once; duplicate or changed buckets produce null (2.757001ms)
+✔ sampling rate and source estimates remain explicit; thresholding and truncation stay partial (2.663019ms)
+✔ unsupported metric combinations and non-UTC properties do not widen the query or fabricate sessions (0.950909ms)
+✔ wrong product, hostname, time, malformed counts and report headers fail closed (3.012717ms)
+✔ rate limits, rejected auth, network errors and aborted checks retain null and permit ordinary recovery (3.587577ms)
+✔ scope and v2 integration validation reject invalid ranges or sessions substitution (0.862124ms)
+✔ expired authorization between pages and cancellation during a read cannot produce or cache a final count (2.195531ms)
+✔ oversized or malformed source JSON remains unavailable rather than zero (0.770246ms)
+✔ real local HTTP transport serializes official read requests and never calls a customer store (28.570231ms)
+✔ actual bounded Shopify query pagination preserves exact variant quantities, cancellations/refund overlap and late corrections (79.735175ms)
+✔ missing original order scope, denied authorization and truncated line data are unavailable, while complete empty cohorts are real zero (126.768574ms)
+✔ reviewed product traffic retains its independent sampling, coverage and delay; partial is not zero or full-window attribution (38.260322ms)
+✔ shutdown-interrupted read reconciles its original frozen interval; a partial replay after day seven cannot masquerade as a complete summary (40.123411ms)
+✔ actual publication observation binds IDs and a real online-store timestamp; read receipts are never draft creation receipts (38.425142ms)
+✔ original approved Schedule dispatches deterministic service checks with no model; restart retains one monitor/task and final message (59.40758ms)
+✔ original Dot MCP accepts only explicit task scope plus original active lease; owner Connector binding requires its original grant (75.606352ms)
+✖ integrated GA4 v2 preserves exact-product view events, durable replay and semantic-only seven-day corrections (37.104353ms)
+✔ missing/revoked GA4 authorization is null and a changed reviewed mapping cannot silently rebind an original monitor (54.860162ms)
+✔ real Pi SDK tool and HTTP save private supplier facts, clarify without inventing and dedupe across disk reopen (205.149342ms)
+✔ actual private image/retail preview and original product library persist; no Shopify config returns blocked (117.007214ms)
+✔ uncertain original library acknowledgement recovers the same receipt and never creates another product (41.194411ms)
+✔ explicit intake cancellation and rejection preserve facts, clear preview and block later edits (44.666712ms)
+✔ unconfigured seven-day monitor is a disabled original task; missing data stays null and late summary is idempotent (89.070177ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 851.271442
+
+✖ failing tests:
+
+test at test/supplier-monitoring.test.mjs:141:1
+✖ integrated GA4 v2 preserves exact-product view events, durable replay and semantic-only seven-day corrections (37.104353ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'unavailable'
+  - 'partial'
+  
+      at TestContext.<anonymous> (file:///workspace/supplier-service-integration/test/supplier-monitoring.test.mjs:145:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'partial',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

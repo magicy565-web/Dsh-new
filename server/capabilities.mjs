@@ -279,7 +279,7 @@ export async function createCapabilityService({ store, clock = () => Date.now(),
     if (!['approved', 'denied'].includes(input.decision) || input.confirmed !== true) fail(400, 'EXPLICIT_DECISION_REQUIRED', 'Choose approved or denied and confirm the displayed action and payload.');
     return mutate(state => {
       const approval = requireItem(state, 'approvals', id);
-      if (['workspace-run', 'supplier-publication'].includes(approval.payload?.binding?.type) && typeof trusted.onDecision !== 'function') fail(409, 'RUN_APPROVAL_BOUND', 'Review this action in its originating conversation run.');
+      if (['workspace-run', 'supplier-publication', 'supplier-monitor-notification'].includes(approval.payload?.binding?.type) && typeof trusted.onDecision !== 'function') fail(409, 'RUN_APPROVAL_BOUND', 'Review this action in its originating conversation run.');
       if (Date.parse(approval.expiresAt) <= milliseconds()) fail(409, 'APPROVAL_EXPIRED', 'Approval expired. Review a new request.');
       if (approval.status !== 'pending') fail(409, 'APPROVAL_ALREADY_DECIDED', 'This approval already has a decision.');
       approval.status = input.decision; approval.decidedAt = now();
