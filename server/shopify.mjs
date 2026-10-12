@@ -29,6 +29,20 @@ const ORDERS_QUERY = `query WorkspaceOrders($query: String!, $after: String) {
     pageInfo { hasNextPage endCursor }
   }
 }`;
+const PRODUCT_OBSERVATION_QUERY = `query WorkspaceSupplierProduct($id: ID!) {
+  product(id: $id) { id title status publishedAt onlineStoreUrl
+    variants(first: 250) { nodes { id sku } pageInfo { hasNextPage } }
+  }
+}`;
+const PRODUCT_ORDERS_QUERY = `query WorkspaceSupplierOrders($query: String!, $after: String) {
+  orders(first: 50, after: $after, query: $query, sortKey: CREATED_AT) {
+    nodes { id createdAt updatedAt test cancelledAt
+      lineItems(first: 250) { nodes { id quantity currentQuantity product { id } variant { id } } pageInfo { hasNextPage } }
+      refunds { id createdAt refundLineItems(first: 250) { nodes { quantity lineItem { id } } pageInfo { hasNextPage } } }
+    }
+    pageInfo { hasNextPage endCursor }
+  }
+}`;
 
 async function boundedJson(response) {
   if (Number(response.headers.get('content-length')) > 1_000_000 || !response.body)
@@ -65,11 +79,11 @@ export function createShopifyClient({ environment = process.env, fetchImpl = fet
     orderReadAvailable: !!observation?.scopes.some(scope => ['read_orders', 'write_orders'].includes(scope)),
     requirements: [!validDomain && '配置店铺的 myshopify.com 域名', !token && '在服务器配置 Admin API 授权凭证'].filter(Boolean),
   });
-  async function graphql(query, variables) {
+  async function graphql(query, variables, signal) {
     if (!configured) fail(409, 'SHOPIFY_SETUP_REQUIRED', '请先在服务器配置经过授权的 Shopify 店铺。');
     try {
       const response = await fetchImpl(`https://${domain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`, {
-        method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
+        method: 'POST', redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000),
         headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token },
         body: JSON.stringify({ query, variables }),
       });
@@ -140,6 +154,26 @@ export function createShopifyClient({ environment = process.env, fetchImpl = fet
       if (result.nodes.some(order => !Array.isArray(order.tags) || !order.tags.includes(`workspace-project-${projectId}`) || !Number.isFinite(Date.parse(order.createdAt)) || Date.parse(order.createdAt) < Date.parse(createdAt)))
         fail(502, 'SHOPIFY_ORDER_SCOPE_MISMATCH', '返回的订单不属于本次托管任务范围，未记录这批结果。');
       return { orders: result.nodes, nextCursor: result.pageInfo.hasNextPage ? result.pageInfo.endCursor : null, observedAt: at(), shopId: observation.shop.id, shopDomain: domain };
+    },
+    async readProductPublication({ productId, publicationId = null, signal } = {}) {
+      if (!/^gid:\/\/shopify\/Product\/\d+$/.test(productId) || publicationId !== null && !/^gid:\/\/shopify\/Publication\/\d+$/.test(publicationId)) fail(400, 'SHOPIFY_PRODUCT_SCOPE_INVALID', 'Use exact existing Shopify product/publication IDs.');
+      if (!observation || !observation.scopes.some(scope => ['read_products', 'write_products'].includes(scope))) fail(409, 'SHOPIFY_PRODUCT_SCOPE_REQUIRED', 'Verify the original shop and product read scope.');
+      const query = publicationId ? PRODUCT_OBSERVATION_QUERY.replace('$id: ID!', '$id: ID!, $publicationId: ID!').replace('id title status', 'publishedOnPublication(publicationId: $publicationId) id title status') : PRODUCT_OBSERVATION_QUERY;
+      const data = await graphql(query, { id: productId, ...(publicationId ? { publicationId } : {}) }, signal), product = data.product;
+      if (!product || product.id !== productId || !['ACTIVE', 'DRAFT', 'ARCHIVED', 'UNLISTED'].includes(product.status) || !Array.isArray(product.variants?.nodes) || typeof product.variants.pageInfo?.hasNextPage !== 'boolean' || product.publishedAt !== null && !Number.isFinite(Date.parse(product.publishedAt))) fail(502, 'SHOPIFY_PRODUCT_OBSERVATION_INVALID', 'The product identity/publication response is invalid.');
+      if (product.variants.pageInfo.hasNextPage || product.variants.nodes.length > 250 || product.variants.nodes.some(item => !/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(item.id))) fail(409, 'SHOPIFY_VARIANTS_INCOMPLETE', 'A complete exact variant scope is required; this bounded adapter supports at most 250 variants.');
+      if (publicationId && typeof product.publishedOnPublication !== 'boolean') fail(502, 'SHOPIFY_PRODUCT_OBSERVATION_INVALID', 'The selected publication was not acknowledged.');
+      const published = product.status === 'ACTIVE' && (publicationId ? product.publishedOnPublication : Boolean(product.onlineStoreUrl && product.publishedAt));
+      return { productId, productStatus: product.status, shopId: observation.shop.id, shopDomain: domain, variantIds: product.variants.nodes.map(item => item.id), publicationId,
+        published, publishedAt: !publicationId && published ? product.publishedAt : null, publicationTimeSource: !publicationId && published ? 'online_store_published_at' : null, observedAt: at() };
+    },
+    async readProductOrders({ productId, from, to, after = null, signal } = {}) {
+      if (!/^gid:\/\/shopify\/Product\/\d+$/.test(productId) || !Number.isFinite(Date.parse(from)) || !Number.isFinite(Date.parse(to)) || Date.parse(to) <= Date.parse(from) || Date.parse(to) - Date.parse(from) > 7 * 86400000 || after !== null && (typeof after !== 'string' || !after.length || after.length > 2000)) fail(400, 'SHOPIFY_PRODUCT_SCOPE_INVALID', 'Use an exact product and bounded seven-day order cohort.');
+      if (!observation || !status().orderReadAvailable) fail(409, 'SHOPIFY_ORDER_SCOPE_REQUIRED', 'Verify existing read_orders authorization before monitoring.');
+      if (clock() - Date.parse(from) >= 60 * 86400000 && !observation.scopes.includes('read_all_orders')) fail(409, 'SHOPIFY_ORDER_HISTORY_SCOPE_REQUIRED', 'This cohort is outside the original 60-day order window.');
+      const data = await graphql(PRODUCT_ORDERS_QUERY, { query: `created_at:>='${new Date(from).toISOString()}' created_at:<'${new Date(to).toISOString()}'`, after }, signal), page = data.orders;
+      if (!Array.isArray(page?.nodes) || page.nodes.length > 50 || typeof page.pageInfo?.hasNextPage !== 'boolean' || page.pageInfo.hasNextPage && (typeof page.pageInfo.endCursor !== 'string' || !page.pageInfo.endCursor || page.pageInfo.endCursor === after)) fail(502, 'SHOPIFY_ORDERS_INCOMPLETE', 'The product order pagination is incomplete.');
+      return { orders: page.nodes, nextCursor: page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null, shopId: observation.shop.id, shopDomain: domain, sampledAt: at(), coverage: { from, to }, dataLagSeconds: null, source: 'shopify_admin_orders_2026-10' };
     },
   };
 }
