@@ -6,7 +6,7 @@ Scope: source-only audit of baseline `8ce17ef22190a878f520bad1871029748f211513` 
 
 Existing owner authentication and native ownership bindings are reusable. The available source does **not** implement an existing supplier owner grant resolver that can be wired into the new MCP route. This is an authorization-integration implementation gap, not merely a missing environment variable. The baseline owner factory explicitly required a host-owned `readReviewedScope`, but had no registration or producer for it.
 
-The optional HTTP registration and closed service calls are complete. The ordinary CLI intentionally reports `ownerMcp.status=binding_required` and refuses the route with `SUPPLIER_OWNER_BINDING_REQUIRED`. Loading an existing Workspace session or a worker OAuth configuration cannot change that state safely. There is no owner grant-file format, grant creation API or scope-expansion fallback in this change.
+The external-connector HTTP registration and closed service calls are complete. The ordinary CLI intentionally reports `ownerMcp.status=binding_required` and refuses `/supplier-mcp` with `SUPPLIER_OWNER_BINDING_REQUIRED`. Loading an existing Workspace session or a worker OAuth configuration cannot change that state safely. There is no owner grant-file format, grant creation API or scope-expansion fallback. The separately authorized owner-session protocol adapter below reuses the original HTTP decision directly, without resolving or fabricating a grant.
 
 ## Existing owner HTTP compatibility (read-only feasibility check)
 
@@ -24,7 +24,7 @@ The missing **external connector grant resolver** does not block an already auth
 
 Except the artifact route, paths above are under `/api/conversations/:cid/supplier-services[/:sid]`. Existing service revision/hash/request fences, Pi admission/configuration/budget, manual publication approval consumption and disabled-schedule creation remain required. The HTTP decision is made for this exact request; a session identity object alone is not that decision or a connector grant.
 
-An MCP representation of the **same original authenticated owner HTTP request** is technically feasible by reusing these decisions and services, without worker OAuth or a new durable grant. There is no ready no-resolver MCP dispatcher in the current source. Such an interface policy change would need a separately reviewed mapping preserving all the checks above; it cannot be claimed as an already authorized external plugin or implemented by returning a fabricated scope from `nativeSessionIdentity`. This follow-up was explicitly restricted to read-only feasibility; no dispatcher, authorization change or resolver bypass was implemented.
+The subsequently authorized minimal implementation provides an MCP representation of the **same original authenticated owner HTTP request** at `/api/conversations/:cid/supplier-session-mcp`. `supplierOwnerMcpHttp` only reaches session dispatch after the original authentication, exact body and recursive privacy checks. The shared `invokeSupplierOwnerOperation` calls the same original bound services, with independent ownership and live-request checks. Both existing cookie and native session-header transports are tested. There is no worker OAuth use, new durable grant, session-to-scope conversion, external-resolver fallback or new permission. The external route remains blocked without its original resolver. No real entrypoint was enabled or deployed.
 
 ## Traced sources
 

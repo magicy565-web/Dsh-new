@@ -28,9 +28,9 @@ export async function supplierOwnerFixture(t, options = {}) {
   const open = async () => { app = await createApp(config); port = (await app.listen(0)).port; };
   await open();
   t.after(async () => { await app.close(); await fs.rm(directory, { recursive: true, force: true }); });
-  const api = (route, { method = 'POST', body = {}, session, subject = session?.subject || 'owner', headers = {}, unsigned = false, browser = true, signedBody, timeoutMs } = {}) => new Promise((resolve, reject) => {
+  const api = (route, { method = 'POST', body = {}, session, subject = session?.subject || 'owner', headers = {}, unsigned = false, browser = true, signedBody, timeoutMs, assertionOverrides = {} } = {}) => new Promise((resolve, reject) => {
     const bytes = method === 'GET' ? '' : JSON.stringify(body);
-    const assertion = signWorkspaceRequest({ ...access, privateKey: keyPair.privateKey, subject, method, target: route, body: signedBody === undefined ? bytes : signedBody, now: time });
+    const assertion = signWorkspaceRequest({ ...access, privateKey: keyPair.privateKey, subject, method, target: route, body: signedBody === undefined ? bytes : signedBody, now: time, ...assertionOverrides });
     const request = http.request({ hostname: '127.0.0.1', port, path: route, method, headers: { Host: 'workspace.example', ...(browser ? { Origin: access.publicOrigin } : {}), 'Content-Type': 'application/json', ...(!unsigned ? { 'X-Workspace-Assertion': assertion } : {}), ...(session ? { Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken } : {}), ...headers } }, response => {
       const chunks = []; response.on('data', chunk => chunks.push(chunk)); response.on('end', () => { const bytes = Buffer.concat(chunks), raw = bytes.toString(); let data; try { data = JSON.parse(raw); } catch { data = raw; } resolve({ status: response.statusCode, body: data, headers: response.headers, bytes }); });
     });
@@ -41,7 +41,7 @@ export async function supplierOwnerFixture(t, options = {}) {
   let session = await login();
   const created = await api('/api/conversations', { session, body: { title: 'Original owner MCP conversation', requestId: 'owner-fixture-conversation' } }); assert.equal(created.status, 201, JSON.stringify(created));
   const cid = created.body.conversation.id;
-  const rpc = (method, params = {}, extra = {}) => api(`/api/conversations/${extra.cid || cid}/supplier-mcp`, { session, body: { jsonrpc: '2.0', id: 1, method, params }, ...extra });
+  const rpc = (method, params = {}, extra = {}) => api(`/api/conversations/${extra.cid || cid}/${extra.sessionMcp ? 'supplier-session-mcp' : 'supplier-mcp'}`, { session, body: { jsonrpc: '2.0', id: 1, method, params }, ...extra });
   const args = (serviceId, input) => ({ ...(serviceId ? { serviceId } : {}), ...(input !== undefined ? { input } : {}) });
   const grant = (operation, serviceId, input = {}, extra = {}) => {
     const actor = { subject: extra.subject || 'owner', workspaceId: access.workspaceId };

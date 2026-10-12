@@ -4,7 +4,7 @@ import { supplierAdmission, supplierDto, supplierFind, supplierOwned, supplierRe
 import { isOriginalMuseArtifact } from './muse-owner-policy.mjs';
 
 export const supplierUuid = value => { const hash = supplierHash(value); return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`; };
-export function createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock = Date.now, monitoring, readMuseImage, notifications, publicationStatus = () => null, ownerMcpConfigured = false }) {
+export function createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock = Date.now, monitoring, readMuseImage, notifications, publicationStatus = () => null, ownerMcpConfigured = false, ownerSessionMcpAvailable = false }) {
   const now = () => new Date(clock()).toISOString();
   const saved = store.read().workspaceSupplierServices;
   if (saved && (saved.version !== 1 || !['services', 'commands', 'monitors'].every(field => Array.isArray(saved[field])))) supplierFail(409, 'SUPPLIER_STORE_INVALID', 'Preserve and review the original supplier store.');
@@ -36,6 +36,7 @@ export function createSupplierService({ store, runtime, provider, businessLibrar
         publication: { supported: true, configured: publication?.configured === true, hostEnabled: publication?.enabled === true, connectorStatus: publication?.connectorStatus || 'not_configured', reviewRequired: true, automaticRetry: false },
         trafficStatus: traffic.status, traffic,
         ownerMcp: { supported: true, configured: ownerMcpConfigured, status: ownerMcpConfigured ? 'configured_unverified' : 'binding_required', originalGrantRequired: true },
+        ownerSessionMcp: { supported: true, available: ownerSessionMcpAvailable, status: ownerSessionMcpAvailable ? 'original_session_required' : 'enterprise_session_required', authentication: 'original_signed_workspace_session', externalConnectorGrant: false },
       }] };
     },
     forActor(context) {
