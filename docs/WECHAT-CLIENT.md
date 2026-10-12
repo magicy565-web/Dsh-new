@@ -81,3 +81,17 @@ this is a limited WXML/WXSS renderer and compiled Page callbacks, not WeChat
 DevTools/device acceptance. No real account/Muse/model execution or production
 access is claimed. Backend P1/security and real login/device/platform acceptance
 remain outside this client's passing evidence.
+
+## Original Muse conversation draft continuation
+
+[Draft PR38 acceptance](../miniprogram/MUSE-INTAKE-ACCEPTANCE.md) records the
+implemented single-conversation flow against backend source96231bb/delivery4054c8a.
+The shipped client uses original Muse binding plus inert-muse-draft-proposals,
+canonical revision/draftHash, three separate amount/deadline/public-text confirmations,
+and actual prepare/reject followed by original approval/dispatch. No ordinary Pi
+substitution occurs for this intent. Client source17fc90f, final35/35 business/client
+checks, original client8/8, and source-driven Chromium six groups pass; these overlap
+and do not certify WeChat tools/devices/live Muse or independent security review.
+[New import package](../miniprogram/deliverables/Workspace-Agent-WeChat-Muse-Draft-Client.zip)
+and [minimum operator steps](../miniprogram/MUSE-INTAKE-IMPORT.md) retain an empty
+origin, touristappid and urlCheck:true. No user-accessible cloud preview exists.

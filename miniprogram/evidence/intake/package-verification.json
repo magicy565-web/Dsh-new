@@ -1,0 +1,12 @@
+{
+  "sourceCommit": "17fc90f8b304a6b127e419aa160aa93f864a59d3",
+  "files": 21,
+  "zipBytes": 47116,
+  "zipSHA256": "6fa76062c9ff50615cc1c3bdbfa9a51ec232363352a90234bccafbcc0b3a4f88",
+  "mode": "Clean compiled ZIP byte/hash/syntax checks, not official WeChat runtime",
+  "urlCheck": true,
+  "appid": "touristappid",
+  "defaultBaseUrl": "",
+  "defaultGoalMode": "muse",
+  "noBackendOrAccountSecretsInBundle": true
+}
