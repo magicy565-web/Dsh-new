@@ -1,0 +1,26 @@
+{
+  "sourceCommit": "18e3b07aa6a1297e5258a55e83e2fb8af9c48d05",
+  "evidenceKind": "Actual compiled Page/Component + original WXML/WXSS limited Chromium, actual signed local Workspace HTTP and local Shopify HTTP fixture; not WeChat/live shop",
+  "chromium": "151.0.7922.173",
+  "checks": [
+    "Draft/image checks default empty",
+    "Original approval does not execute",
+    "Independent execution creates one draft/upload",
+    "Draft receipt not published, remoteBytesVerified=false",
+    "Separate precise channel review/approval/execute",
+    "Unknown publish offers read-only reconcile, one publication mutation",
+    "Arbitrary-channel time null",
+    "Exit/reenter same operation",
+    "320px no horizontal overflow"
+  ],
+  "draftCreates": 1,
+  "imageUploads": 1,
+  "publishes": 1,
+  "syntheticModelCalls": 1,
+  "realModelExecuted": false,
+  "pageErrors": [],
+  "liveWechat": false,
+  "liveShopify": false,
+  "independentSecurityAudit": false,
+  "generatedAt": "2026-10-12T19:40:45.165Z"
+}

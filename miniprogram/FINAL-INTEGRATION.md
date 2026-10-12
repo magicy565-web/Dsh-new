@@ -59,3 +59,23 @@ On the actual `7289e54` combination: original builds passed; full backend 684 to
 The publication browser driver's first run completed all nine business assertions then failed during cleanup because `onUnload` clearing readiness triggered a queued render after the browser closed. The driver now drains its render queue before closing; notification cleanup has the same fix. Reentry verification clears only the fixture's local publication cache before waiting for the actual original server operation to be reread. Test assertions were retained. Retest exited 0 for publication and first-notification flows, with no page errors, one fixture publication and one fixture provider attempt respectively. They remain limited Chromium/native-callback/local HTTP evidence.
 
 Browser outputs now default to separate untracked runtime evidence directories (or an explicit output argument). Old tracked historical screenshots/checkpoint packages are preserved. Runtime records use the actual source HEAD instead of hard-coded historical backend IDs and label the one faux model call as synthetic. Final same-source screenshots will be rerun on the frozen committed source.
+
+## Latest signed-session MCP fixed sequence and combined run
+
+Consumed additional PR57 commits `d5bc67bc2a068ca61622e94b3880db5cfef348d4`, `fb7651050ac7bc1a1fd9d1a13d89f2dfc3bec29b`, `8af564f15fcb821cde1054984356d2e3f3c75c0c`, `68558d22a46e92fef4b8a300c69b2fbad61fbb20` in that order; integrated as `e9adea2`, `ce59d7b`, `e1b42a5`, `50f8ce2`. The one conflict was in the HTTP test fixture: retained both actual binary response bytes and the producer's request timeout. Business/server code had no conflict.
+
+The new `/supplier-session-mcp` facet reuses the original signed HTTP owner session and its exact method/target/body/CSRF/expiry/conversation/privacy checks. It creates no grant and does not fall back from the external `/supplier-mcp` facet, which still needs its original reviewed scope resolver. Tools still cannot decide publication approval, activate schedules or subscribe/send notifications.
+
+On actual fixed `50f8ce24eb66f858168c5aac06cb28877bad11b8`: builds passed; full backend 706 total, 699 passed, 7 conditional skips, 0 failed; mini/original protocol 126/126; TUI 9/9 and actual Muse PTY eight checks; owner/session MCP plus account-race targeted 26/26. Producer PR57's recorded backend result is 703 total, 696 passed, 7 skips; the combined root test files differ only by the added three readiness tests and the binary-capable fixture. Earlier 677 passed belonged to the pre-session `7289e54` combination and is not asserted for this newer source.
+
+Read-only GitHub workflow metadata for `50f8ce2`: run 38297574549 completed with startup_failure; jobs API returned []. This is not passing CI. No rerun, setting/billing or paid action.
+
+## Same Pi TUI supplier session tools
+
+Consumed `516c15f5029125ff4e8b307862ef4c00567edec4` after PR57's latest sequence and TUI `cc49bc9`; integrated as `18e3b07aa6a1297e5258a55e83e2fb8af9c48d05`. Only `tui/` changed from `50f8ce2`; root server/tests/client source are identical. One existing Pi extension/Host transport now registers `/workspace-supplier` command access to 15 original session tools. Raw image review is represented by byte length and SHA, and native RPC is bounded to accommodate the original image schema. No extra owner authorization or model tool registration.
+
+Actual reruns on `18e3b07`: supplier HTTP integration 3/3; supplier Pi PTY seven checks, including >32KiB actual image transfer, exact consumer-sale-unit preview and backend/Pi cold restore; existing TUI tests 9/9 and original Muse Pi PTY eight checks. Publication browser nine path checks and first-notification browser ten path checks both exited 0 with no page errors. Small source-labelled screenshots plus the observed original cleanup error record are in `integration-checkpoints/18e3b07/`.
+
+Plain language currently displays help; `modelToolsRegistered:false` is intentional and not described as autonomous model/agent tool selection. Real production host enablement, browser SSO foreground launch, real remote Muse/Shopify/GA4/WeChat and continuous seven-day outcomes remain unverified. The 18:56 packages are preserved; no new large archive was generated for these small commits.
+
+Execution environment restoration was verified with an actual exit-0 `git status`, `git rev-parse HEAD`, and Node 24.19.0 command, not a connection-status label.
