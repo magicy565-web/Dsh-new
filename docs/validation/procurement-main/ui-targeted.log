@@ -1,0 +1,14 @@
+✔ conversation creation retains exact subject/body receipts across concurrency, restart and deletion (81.985014ms)
+✔ HTTP creates dedupe original requests and reject client-provided identity without running a model (68.813506ms)
+✔ conversation UI keeps buyer draft private, explicitly binds exact shared inquiry and persists one original merchant reply (634.410242ms)
+✔ lost reply response reopens as same explicit request; revoked sharing blocks future reads and replies (381.50764ms)
+✔ actual sourcing MCP persists private buyer requests, explicit exact merchant sharing, replies and revocation across restart (158.920811ms)
+✔ restored owned conversation procurement reads decode its opaque identifier exactly once (15.601439ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1981.534192
