@@ -1,0 +1,15 @@
+✔ actual bounded Shopify query pagination preserves exact variant quantities, cancellations/refund overlap and late corrections (74.457979ms)
+✔ missing original order scope, denied authorization and truncated line data are unavailable, while complete empty cohorts are real zero (120.51673ms)
+✔ reviewed product traffic retains its independent sampling, coverage and delay; partial is not zero or full-window attribution (29.159698ms)
+✔ shutdown-interrupted read reconciles its original frozen interval; a partial replay after day seven cannot masquerade as a complete summary (37.360503ms)
+✔ actual publication observation binds IDs and a real online-store timestamp; read receipts are never draft creation receipts (25.277045ms)
+✔ original approved Schedule dispatches deterministic service checks with no model; restart retains one monitor/task and final message (58.278174ms)
+✔ original Dot MCP accepts only explicit task scope plus original active lease; owner Connector binding requires its original grant (102.302382ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 731.676136

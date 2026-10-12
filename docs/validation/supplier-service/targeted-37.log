@@ -1,0 +1,48 @@
+✔ historical pre-supplier byte pins remain unchanged; current extensions have no new review claim (13.410048ms)
+ℹ Historical pin only: server/shopify.mjs at a5a524a19adf065f804abc1459f1f573cfd8adf4. Supplier candidate requires its own future review.
+ℹ Historical pin only: server/capabilities.mjs at a5a524a19adf065f804abc1459f1f573cfd8adf4. Supplier candidate requires its own future review.
+ℹ Historical pin only: server/dot-mcp-server.mjs at a5a524a19adf065f804abc1459f1f573cfd8adf4. Supplier candidate requires its own future review.
+✔ public retail reference cannot become supplier quotation, supply policy or hosted enterprise inventory (14.55547ms)
+✔ SKU record is enterprise-local and rejects unimplemented supplier/Shopify mapping fields (1.326177ms)
+✔ private enterprise assets stay inaccessible through the existing generic connector, even with a pinned version (1.49422ms)
+✔ existing Worker MCP has no procurement/file-lookup bypass and rejects injected private references before bridge access (0.359163ms)
+✔ current product library remains draft-only and Shopify adapter exposes scoped reads without publication writes (0.642021ms)
+✔ existing connector execution rejects publication-shaped actions without an exact approval (3.67547ms)
+✔ one exact connector approval cannot authorize another product revision, store, connector revision or repeated execution (3.573777ms)
+✔ hosting pins exact enterprise product revision and explicit public scope without reading private company facts (1.301809ms)
+✔ accepted Worker task or completed Goal is not sales evidence, settlement or billable operating result (1.078402ms)
+✔ only recorded non-test paid/fulfilled net receipts count; partial sync and task results never imply attribution or profit (0.584514ms)
+✔ real Pi package fixture: durable text execution, usage, persisted submission and business dedupe (128.245661ms)
+✔ real Pi package fixture: selected file tool uses original ID/version/SHA snapshot and cannot read ambient data (117.458638ms)
+✔ real Pi package fixture: user cancellation explicitly aborts durable work; reopen does not resume it (129.049603ms)
+✔ real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/submission (130.240575ms)
+✔ real Pi package fixture: default boot is DSH-free, private storage shares original exclusive writer and Muse never falls back (62.316436ms)
+✔ real Pi package fixture: connector proposal stops for original exact approval and explicit continuation (124.710874ms)
+✔ real Pi package fixture: unknown tools, unselected inputs and unselected connector proposals have no effects (164.632535ms)
+✔ real Pi package fixture: interrupted goal resumes its original reservation and reply without duplicating a step (79.517579ms)
+✔ real Pi package fixture: changed selected memory and execution scope block recovery without another model call (57.953104ms)
+✔ actual bounded Shopify query pagination preserves exact variant quantities, cancellations/refund overlap and late corrections (105.902886ms)
+✔ missing original order scope, denied authorization and truncated line data are unavailable, while complete empty cohorts are real zero (194.999395ms)
+✔ reviewed product traffic retains its independent sampling, coverage and delay; partial is not zero or full-window attribution (32.017067ms)
+✔ shutdown-interrupted read reconciles its original frozen interval; a partial replay after day seven cannot masquerade as a complete summary (48.418721ms)
+✔ actual publication observation binds IDs and a real online-store timestamp; read receipts are never draft creation receipts (36.779081ms)
+✔ original approved Schedule dispatches deterministic service checks with no model; restart retains one monitor/task and final message (48.991658ms)
+✔ original Dot MCP accepts only explicit task scope plus original active lease; owner Connector binding requires its original grant (95.709334ms)
+✔ original Muse owner/Host/token/task lease expose only the approved supplier read facet, without a Muse wake or protocol mutation (116.754958ms)
+✔ supplier, recommended retail and consumer prices remain distinct; MOQ never becomes consumer pack quantity (1.684349ms)
+✔ explicit retail facts yield real escaped preview content while the original image is still private (0.70072ms)
+✔ unknown image availability is never treated as a usable image or permission to publish (0.870928ms)
+✔ invalid currency, unnamed image provenance, negative durations and credential URLs are rejected (0.506696ms)
+✔ real Pi SDK tool and HTTP save private supplier facts, clarify without inventing and dedupe across disk reopen (205.179857ms)
+✔ actual private image/retail preview and original product library persist; no Shopify config returns blocked (103.411937ms)
+✔ uncertain original library acknowledgement recovers the same receipt and never creates another product (42.82644ms)
+✔ explicit intake cancellation and rejection preserve facts, clear preview and block later edits (54.953206ms)
+✔ unconfigured seven-day monitor is a disabled original task; missing data stays null and late summary is idempotent (86.480172ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1448.637581

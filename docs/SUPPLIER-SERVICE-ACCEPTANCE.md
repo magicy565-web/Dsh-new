@@ -1,0 +1,30 @@
+# Supplier service backend acceptance — 2026-10-12
+
+The independent branch is `codex/cloud-supplier-service-20261012`, Draft [PR #45](https://github.com/magicy565-web/workspace-agent/pull/45), based on PR41 fixed `a5a524a19adf065f804abc1459f1f573cfd8adf4`. Early contracts/facts checkpoint `0f12d2ac11eae48d490cdb639bbf3fe60dc3d4b7`, working service checkpoint `b210576438f72ee7683e736aa17452a3097a33cf`, complete scoped-flow checkpoint `faaf124d077812b4b86a5d584c1111d3dbdf93fe` were committed and pushed. The final package manifest identifies the later immutable source commit and tree, including final shop/traffic binding guards.
+
+## Implemented and verified
+
+The original conversation owns private product intake and structured facts. Actual Pi SDK/pi-durable fixture calls the new replay-safe facts tool; label/quote/provenance validation preserves unknown values and separates suggestions. MOQ, wholesale/internal cost/recommended retail price, consumer unit/pack/price, production, handling and shipping remain independent. Explicit preview public fields generate actual structured Listing content and an authenticated HTML product card. Original file/version/SHA PNG bytes are read, and original library write receipts preserve one product through uncertain acknowledgements and updates.
+
+Shopify's original pinned read client now observes exact existing product/publication/variants and reads bounded, fully paginated product/variant order cohorts. Cancellation/refund overlap is explicit; retained units use currentQuantity without subtracting refunds twice. Missing scope, authorization/network failure and truncated pagination return unavailable/null; an acknowledged complete empty cohort can return zero. Authorized traffic adapter data keeps its own attribution, sampling, coverage and delay. Default traffic is unsupported, not whole-store sessions.
+
+One original disabled Goal/Schedule is configured per exact seven-day scope. Separate original approval/enable dispatches its registered deterministic handler without a model or new scheduler. Restart/duplicate, actual interrupted read recovery, frozen partial intervals, end summary and late refund correction preserve business receipts. A correction edits the same final message; external notification remains unconfigured. Original Dot/Muse task/approval/lease/fence gates protect optional MCP reads; Muse only exposes a read facet and keeps original mutation protocol. Original owner Connector callbacks require the original trusted Host grant and are not automatically installed.
+
+## Actual checks
+
+- Build passed. `npm run test:all` after reconciling historical checks: 570 backend cases, 563 passed, 7 original environment skips, 0 failed; UI 19/19, conversation UI 14/14, mini compilation passed. The final source binding guard is covered again by the retained final full output.
+- Targeted real Pi/HTTP/library/Shopify/monitor/MCP and preserved ordinary boundaries: 37/37 passed; final Muse Host/token/task read fixture additionally 1/1 passed; the complete full suite includes it.
+- Original separate mini directory baseline: 29/29 passed. This branch does not contain PR42/43's later frontend wiring. Those commits were preserved/read, and the stable backend contract is supplied for its separate integration.
+- Actual local Chromium 151: 320px/390px Listing card, actual authenticated HTTP and original file bytes, real Pi SDK **faux provider**, original main/central companion retained, zero page errors. The PNG is clearly labelled a synthetic file-chain fixture. These are server-rendered preview screenshots, not a WeChat or fully integrated mini conversation claim.
+
+First full run failed before ordinary business assertions because historical source byte pins referred to pre-extension files. A subsequent ordinary check exposed the old read-method list. Those outputs are retained. Historical old SHA values and provenance records were not overwritten: the explicitly modified three files' old bytes are checked from fixed ancestor PR41; unchanged boundaries still retain their prior pins. Current candidate behavior is tested separately, with no new review claim. Source-only extraction lacks historic Git objects and skips that **one historical proof** while its ordinary business cases still run. Formal independent security review was not retried or replaced.
+
+## Evidence and source handoff
+
+See [stable client API](SUPPLIER-SERVICE-CONTRACT.md), [configuration/real capability boundaries](SUPPLIER-SERVICE-DEPLOYMENT.md), [actual browser evidence](validation/supplier-service/browser/acceptance.json), [390px card](validation/supplier-service/browser/listing-preview-390.png), [320px card](validation/supplier-service/browser/listing-preview-320.png), and [original main](validation/supplier-service/browser/original-main-conversation-320.png). Original outputs are in `docs/validation/supplier-service/*.log`.
+
+The deliverable source ZIP uses the existing Git raw-blob packaging script, full per-file SHA256 manifest and source commit/tree. A separate delivery commit records it; it is not silently replaced or rehashed after checkout newline conversion. This backend source is based on PR41 and does not pretend to contain the separately developing PR42/43 client. No credential or operational Store data is included.
+
+## Remaining blocks
+
+No real Shopify store/account is configured or contacted; no actual monitor is enabled. Product creation/media transfer/publication writer remains unimplemented/ungranted and accurately blocked. Existing-product observations are reads with no write receipt. Actual product traffic authorization/data source, external notification implementation/permission/delivery, real owner Connector installation, live Muse and WeChat device/account acceptance remain absent. Huawei production remains off and untouched. No deployment, payment, credential creation, permission expansion or external communication occurred. pi-durable production acceptance and the previously blocked formal independent review remain outstanding; fixtures do not establish either.
