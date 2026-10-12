@@ -89,5 +89,11 @@
     "Both new PR58 commits were cherry-picked sequentially with -x without conflicts."
   ],
   "mergedCheckpoint": "07d2f5a793ff5c23f28e7a27e11fca12cb310c85",
-  "finalSourceAuthority": "SOURCE-MANIFEST.json and BUILD-MANIFEST.json in the final fixed-source delivery; later test-driver fixes are descendants of mergedCheckpoint."
+  "finalSourceAuthority": "SOURCE-MANIFEST.json and BUILD-MANIFEST.json in the final fixed-source delivery; later test-driver fixes are descendants of mergedCheckpoint.",
+  "postIntegrationCorrections": [
+    {
+      "commit": "c3e9fd28e2f2677e26e374c27b8cfba9da2f0c6e",
+      "scope": "Minimal reproduced explicit-navigation and same-scope attachment refresh fixes, deterministic regressions and accurate browser evidence."
+    }
+  ]
 }
