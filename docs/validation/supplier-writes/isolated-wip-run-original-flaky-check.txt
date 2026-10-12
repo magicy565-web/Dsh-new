@@ -1,0 +1,40 @@
+✔ actual bounded Shopify query pagination preserves exact variant quantities, cancellations/refund overlap and late corrections (138.668136ms)
+✔ missing original order scope, denied authorization and truncated line data are unavailable, while complete empty cohorts are real zero (200.387514ms)
+✔ reviewed product traffic retains its independent sampling, coverage and delay; partial is not zero or full-window attribution (55.285581ms)
+✔ shutdown-interrupted read reconciles its original frozen interval; a partial replay after day seven cannot masquerade as a complete summary (46.366628ms)
+✔ actual publication observation binds IDs and a real online-store timestamp; read receipts are never draft creation receipts (36.582423ms)
+✔ original approved Schedule dispatches deterministic service checks with no model; restart retains one monitor/task and final message (70.760768ms)
+✔ original Dot MCP accepts only explicit task scope plus original active lease; owner Connector binding requires its original grant (135.949439ms)
+✔ real Pi SDK tool and HTTP save private supplier facts, clarify without inventing and dedupe across disk reopen (283.120171ms)
+✖ actual private image/retail preview and original product library persist; no Shopify config returns blocked (54.817594ms)
+✔ uncertain original library acknowledgement recovers the same receipt and never creates another product (74.742736ms)
+✔ explicit intake cancellation and rejection preserve facts, clear preview and block later edits (59.890255ms)
+✔ unconfigured seven-day monitor is a disabled original task; missing data stays null and late summary is idempotent (134.742753ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 995.564687
+
+✖ failing tests:
+
+test at test/supplier-service.http.test.mjs:34:1
+✖ actual private image/retail preview and original product library persist; no Shopify config returns blocked (54.817594ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(!JSON.stringify(preview.body.preview).includes('500'))
+  
+      at TestContext.<anonymous> (file:///workspace/supplier-shopify-writes/test/supplier-service.http.test.mjs:43:77)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
