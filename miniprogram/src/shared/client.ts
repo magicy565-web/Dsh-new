@@ -104,7 +104,7 @@ export class WorkspaceClient {
       if (!actual.authenticated || !actual.user || actual.user.id !== result.session.user?.id) throw new ClientError('LOGIN_IDENTITY_MISMATCH', '微信身份与实际企业会话未核对一致。');
       this.session = actual;
       return actual;
-    } catch (error) { this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.snapshot = null; this.completed.clear(); throw error; }
+    } catch (error) { this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.publicationRequests=[]; this.snapshot = null; this.completed.clear(); throw error; }
   }
   async bootstrap() { const snapshot = await this.request<Bootstrap & { museBinding?: { conversationId?: string; originalBinding?: boolean } }>('/bootstrap'); this.snapshot = snapshot; this.originalMuseId = snapshot.museBinding?.originalBinding === true ? snapshot.museBinding.conversationId || '' : ''; this.intakeCapable = snapshot.runtime?.capabilities?.includes('inert-muse-draft-proposals') === true; return snapshot; }
   existingBusinessConversation(snapshot: Bootstrap & { museBinding?: { conversationId?: string; originalBinding?: boolean } }) {
@@ -198,7 +198,7 @@ export class WorkspaceClient {
   get pendingPublicationOperationId(){return this.pending?.kind.startsWith('publication-')?String(this.pending.body.operationId||''):'';}
   get pendingSupplierId() { return (this.pending?.kind.startsWith('supplier-')||this.pending?.kind.startsWith('publication-')) ? decodeURIComponent(this.pending.path.split('/')[4] || '') : ''; }
   get pendingSummary() { return this.pending ? `${this.pending.review ? `${this.pending.review.title}\n${this.pending.review.detail}\n\n` : ''}原请求 ${this.pending.path}\n${this.pending.kind === 'upload' ? String(this.pending.body.filename) : JSON.stringify(this.pending.body, null, 2)}` : ''; }
-  async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.conversationId = ''; this.originalMuseId = ''; this.drafts = []; this.completed.clear(); }
+  async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.publicationRequests=[]; this.conversationId = ''; this.originalMuseId = ''; this.drafts = []; this.completed.clear(); }
   private assertOriginalMuse(conversationId: string) { if (!this.originalMuseId || conversationId !== this.originalMuseId) throw new ClientError('MUSE_ORIGINAL_BINDING_REQUIRED', '当前账号尚未读取到原 Muse 会话绑定；没有发送替代 Pi 请求。'); if (!this.intakeCapable) throw new ClientError('MUSE_DRAFT_UNAVAILABLE', '当前服务尚未提供原 Muse 草案能力，未发送替代 Pi 请求。'); }
   async museDrafts(conversationId: string) {
     this.assertOriginalMuse(conversationId);
