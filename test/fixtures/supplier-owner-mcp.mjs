@@ -28,10 +28,10 @@ export async function supplierOwnerFixture(t, options = {}) {
   const open = async () => { app = await createApp(config); port = (await app.listen(0)).port; };
   await open();
   t.after(async () => { await app.close(); await fs.rm(directory, { recursive: true, force: true }); });
-  const api = (route, { method = 'POST', body = {}, session, subject = session?.subject || 'owner', headers = {}, unsigned = false, signedBody } = {}) => new Promise((resolve, reject) => {
+  const api = (route, { method = 'POST', body = {}, session, subject = session?.subject || 'owner', headers = {}, unsigned = false, browser = true, signedBody } = {}) => new Promise((resolve, reject) => {
     const bytes = method === 'GET' ? '' : JSON.stringify(body);
     const assertion = signWorkspaceRequest({ ...access, privateKey: keyPair.privateKey, subject, method, target: route, body: signedBody === undefined ? bytes : signedBody, now: time });
-    const request = http.request({ hostname: '127.0.0.1', port, path: route, method, headers: { Host: 'workspace.example', Origin: access.publicOrigin, 'Content-Type': 'application/json', ...(!unsigned ? { 'X-Workspace-Assertion': assertion } : {}), ...(session ? { Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken } : {}), ...headers } }, response => {
+    const request = http.request({ hostname: '127.0.0.1', port, path: route, method, headers: { Host: 'workspace.example', ...(browser ? { Origin: access.publicOrigin } : {}), 'Content-Type': 'application/json', ...(!unsigned ? { 'X-Workspace-Assertion': assertion } : {}), ...(session ? { Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken } : {}), ...headers } }, response => {
       const chunks = []; response.on('data', chunk => chunks.push(chunk)); response.on('end', () => { const raw = Buffer.concat(chunks).toString(); let data; try { data = JSON.parse(raw); } catch { data = raw; } resolve({ status: response.statusCode, body: data, headers: response.headers }); });
     }); request.on('error', reject); request.end(bytes);
   });

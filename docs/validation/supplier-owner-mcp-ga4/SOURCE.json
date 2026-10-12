@@ -1,0 +1,85 @@
+{
+  "schema": "workspace.supplier-owner-mcp-evidence.v1",
+  "baseline": "8ce17ef22190a878f520bad1871029748f211513",
+  "implementationCommit": "4fc6b9677978d5a2cb4b1c0f142203d61cdff46a",
+  "implementationTree": "be347fc5fc81c12480892d2466495cd3df70a2eb",
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "3e73004ed9e8f0f3d78f98392122f1133ac157c208e6eee4fa52ef853094ec76",
+      "bytes": 6071
+    },
+    {
+      "path": "server/dot-mcp-server.mjs",
+      "sha256": "02dc42cbe085540ef4a0c992584098cd7f833acb1ca6b5bf63d9e6efa9448096",
+      "bytes": 10604
+    },
+    {
+      "path": "server/index.mjs",
+      "sha256": "20e4fff493c8050a4403a1f4dce121534477bf52b9192039d273c31895d4c687",
+      "bytes": 59858
+    },
+    {
+      "path": "server/product-traffic-config.mjs",
+      "sha256": "dbddae9ee998d944bc4887cbce72b144894dd6070927219487e941b28d4f4713",
+      "bytes": 5150
+    },
+    {
+      "path": "server/supplier-mcp.mjs",
+      "sha256": "6a04a40af5122834f6295eccb4755dd74370216a7863f759ab36ba995e8da7f2",
+      "bytes": 9869
+    },
+    {
+      "path": "server/supplier-monitoring.mjs",
+      "sha256": "503d507d2061d8858f2063dbfc7b7182282795d92df5d7e0e03c5b4440605e1b",
+      "bytes": 26066
+    },
+    {
+      "path": "server/supplier-owner-mcp.mjs",
+      "sha256": "e7f3b6e4166375952cfdcfebae4a287b49f6dc102acea469043b81b6a89b486c",
+      "bytes": 3489
+    },
+    {
+      "path": "server/supplier-owner-tools.mjs",
+      "sha256": "d7081960f4a344715510fbaf73c62b0ea106e7ee08b55e5bf3deae0211d47363",
+      "bytes": 6897
+    },
+    {
+      "path": "server/supplier-service.mjs",
+      "sha256": "4abb1a97eeb010d86b3da5350c23fe1b02117b7aa76f6ef00a9d83e2fbcd95b2",
+      "bytes": 24454
+    }
+  ],
+  "additionalTestFiles": [
+    {
+      "path": "test/supplier-owner-mcp.http.test.mjs",
+      "sha256": "350a87f401d7f6fad8328b342561800b63393b00a82fd9e39cde3336b8657802"
+    },
+    {
+      "path": "test/fixtures/supplier-owner-mcp.mjs",
+      "sha256": "8815ebf9d5a5a5a739733e53d67a3231635e184df20397635349f4031c822000"
+    },
+    {
+      "path": "test/product-traffic-config.test.mjs",
+      "sha256": "d000f2f4e3a827960484b91d92ffef31f2f95f7faa1e1d9661bac62164efc5eb"
+    },
+    {
+      "path": "test/product-traffic-startup.test.mjs",
+      "sha256": "a24f085a797a2bbbb2b02dd325b1362ab7c48ed961119b86d9822e1673052dd7"
+    }
+  ],
+  "hostedCi": {
+    "implementationCommit": "4fc6b9677978d5a2cb4b1c0f142203d61cdff46a",
+    "conclusion": "startup_failure",
+    "runs": [
+      38293155118,
+      38293072878
+    ],
+    "queriedRun": 38293155118,
+    "jobs": 0,
+    "retried": false
+  },
+  "realExternalCalls": false,
+  "productionDeployment": false,
+  "realOwnerBindingVerified": false
+}

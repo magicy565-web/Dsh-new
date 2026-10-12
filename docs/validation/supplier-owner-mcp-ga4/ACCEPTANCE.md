@@ -3,6 +3,7 @@
 Baseline: `8ce17ef22190a878f520bad1871029748f211513`, including PR54.
 Branch: `codex/supplier-owner-mcp-ga4`. Draft PR: [57](https://github.com/magicy565-web/workspace-agent/pull/57).
 Contract checkpoint `00c0920f0d1b387a3ba9571aba74ddec4868f548` was pushed and its remote SHA verified.
+Implementation checkpoint `4fc6b9677978d5a2cb4b1c0f142203d61cdff46a` was also pushed and verified with `git ls-remote`. PR56 received its fixed contract and minimal `index.mjs` integration boundary. Subsequent acceptance-only commits do not change that implementation.
 
 ## Changes and boundaries
 
@@ -19,6 +20,8 @@ Node `v24.19.0`. `npm ci --ignore-scripts --no-audit --no-fund --cache /tmp/work
 - `npm run build`: passed (original bundle-size warning retained in `build.txt`).
 - `npm run build:mini`: passed (`mini-build.txt`); no upload/deployment.
 - Directed original/new backend tests: **132/132 passed**, zero failed/skipped (`targeted-tests.txt`). The 8 new owner HTTP scenarios and 29 new/original GA4 scenarios are subsets of this total, not additional counts.
+- Complete `npm test`: **672 passed, 0 failed, 7 skipped** out of 679 (`backend-tests.txt`). The existing conditional skips require unavailable native runtime/source exports (six) or Windows storage (one); they are not acceptance passes. Directed tests overlap this suite.
+- Additional owner/ordinary-CLI verification: **10/10 passed** (`owner-and-cli-tests.txt`), consisting of the eight owner scenarios rerun with explicit worker-tools isolation assertions and two new actual child-process CLI checks. The child inherits no environment, uses synthetic metadata and an absent authorization snapshot, confirms `configured_unverified`/`binding_required`/model `setup_required`, and rejects malformed metadata before listening. Production implementation is unchanged from `4fc6b96`.
 - `git diff --check`: passed.
 
 Directed command:
@@ -31,6 +34,9 @@ Before the original frontend build, the first directed run was 130/132: two orig
 
 Owner tests use real local HTTP `initialize`, `notifications/initialized`, `tools/list`, `tools/call` and existing modern discovery. They cover original ingress/session/body/CSRF denial, exact scope/expiry/revocation, cross-owner and cross-workspace isolation, private image/facts/consumer-sale-unit preview persistence, public URL unknown state, private product response-loss recovery, original publication approval consumption, actual observed publication-time origin, disabled monitoring, and partial Shopify reconciliation without retry after reload. Shopify responses originate only from the original loopback fixture. Model invocation is forbidden by the fixture.
 
+Logs retain command output with terminal escape codes/trailing whitespace removed; no runtime Store, private image data directory or real authorization is included.
+`SOURCE.json` binds implementation source bytes to `4fc6b96` and records the final additional test-file hashes. The new worker-route probe initially used browser headers from the owner fixture and correctly hit `DOT_BROWSER_FORBIDDEN`; the fixture now sends the original worker server-to-server request without Origin. No authentication implementation or expectation of worker rejection was weakened.
+
 GA4 tests use disposable metadata/snapshot files and synthetic responses. They cover private-path/schema/size/mode validation, missing configuration/provider/authorization, revocation/expiry, exact workspace/shop/property identity, producer rotation, startup wiring and overrides, original Store reload, partial failure and catalog accuracy. No real secret was read, copied, generated or injected.
 
 ## Remaining gates
@@ -38,3 +44,5 @@ GA4 tests use disposable metadata/snapshot files and synthetic responses. They c
 The baseline has no existing owner `readReviewedScope` implementation callable by the CLI. The real authorized host must supply its original grant resolver; without it the endpoint returns `SUPPLIER_OWNER_BINDING_REQUIRED`. This is an explicit integration gap, not an installed/connected owner plugin. No substitute grants or worker-token promotion were introduced.
 
 Real owner/Muse host integration, existing Shopify/GA4 authorization, live source observation and deployment remain unverified. Seven-day future notification consent and durable recipient permissions await the user's approval and were not developed. Existing manual approvals remain. These synthetic tests establish neither production readiness nor independent security review, real publication/notification, real-device acceptance or a completed seven-day observation window.
+
+GitHub Actions for implementation `4fc6b96` reported `startup_failure` (runs [38293155118](https://github.com/magicy565-web/workspace-agent/actions/runs/38293155118) and [38293072878](https://github.com/magicy565-web/workspace-agent/actions/runs/38293072878)); the queried latest run had zero jobs. This is not passing hosted CI. No run was retried, alternate entry used, or paid quota action performed; the precise platform cause was not returned by the connector.

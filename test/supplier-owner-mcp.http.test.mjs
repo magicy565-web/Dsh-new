@@ -7,7 +7,7 @@ import { supplierOwnerFixture, png, retailFacts, publicFields } from './fixtures
 import { fakeShopify } from './fixtures/supplier-shopify-http.mjs';
 
 test('owner MCP uses real initialize/list/call transport and original session/body/CSRF admission; worker credential is never owner', async t => {
-  const f = await supplierOwnerFixture(t);
+  const f = await supplierOwnerFixture(t, { capabilityEnvironment: { WORKSPACE_SUPPLIER_MCP_ENABLED: 'true' } });
   const initialized = await f.rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'synthetic-owner-client', version: '1' } });
   assert.equal(initialized.status, 200); assert.equal(initialized.body.result.serverInfo.name, 'workspace-supplier-owner');
   assert.equal((await f.rpc('notifications/initialized')).status, 202);
@@ -18,6 +18,11 @@ test('owner MCP uses real initialize/list/call transport and original session/bo
   const denied = await f.tool('intake', null, { requestId: 'no-grant', facts: { name: 'Unapproved' } });
   assert.equal(denied.error.code, 'SUPPLIER_MCP_SCOPE_REQUIRED'); assert.equal(f.app.store.read().workspaceSupplierServices?.services.length || 0, 0);
   assert.equal((await f.rpc('tools/call', { name: 'workspace_worker_claim_task', arguments: {} })).status, 404);
+  const worker = await f.api('/mcp', { unsigned: true, browser: false, headers: { Authorization: `Bearer ${f.workerToken}` }, body: { jsonrpc: '2.0', id: 1, method: 'tools/list' } });
+  assert.equal(worker.status, 200);
+  assert.deepEqual(worker.body.result.tools.filter(tool => tool.name.startsWith('workspace_supplier_')).map(tool => tool.name), ['workspace_supplier_listing_preview', 'workspace_supplier_monitor_status']);
+  const workerWrite = await f.api('/mcp', { unsigned: true, browser: false, headers: { Authorization: `Bearer ${f.workerToken}` }, body: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'workspace_supplier_owner_intake', arguments: { input: { requestId: 'worker-cannot-write', facts: { name: 'Forbidden' } } } } } });
+  assert.equal(workerWrite.status, 404);
   assert.equal((await f.rpc('tools/list', {}, { unsigned: true, headers: { Authorization: `Bearer ${f.workerToken}` } })).status, 401);
   assert.equal((await f.rpc('tools/list', {}, { session: undefined, headers: { Authorization: `Bearer ${f.workerToken}` } })).status, 401);
   assert.equal((await f.rpc('tools/list', {}, { headers: { 'X-CSRF-Token': '' } })).status, 403);
