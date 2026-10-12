@@ -3,7 +3,7 @@
   <scroll-view class="transcript" scroll-y>
     <view wx:if="!messages.length" class="welcome">说说目标，附上必要的资料。方案、审批、进度和成果都留在这里。</view>
     <view wx:for="messages" wx:key="id" class="message {{item.role}}"><text selectable>{{item.status === 'pending' ? '正在处理…' : item.content}}</text><text wx:if="item.error" class="notice">{{item.error.message}}</text></view>
-    <button wx:for="cards" wx:key="id" class="card {{item.kind}}" data-id="{{item.id}}" bindtap="card"><text class="card-title">{{item.title}}</text><text class="card-detail">{{item.detail}}</text><text class="card-action">{{item.kind === 'file' ? '打开原文件' : item.operation === 'approve' ? '审阅并确认' : item.operation === 'resume' ? '明确继续' : item.operation === 'recover' ? '恢复原任务' : '请求停止'}}</text></button>
+    <button wx:for="cards" wx:key="id" class="card {{item.kind}}" data-id="{{item.id}}" bindtap="card"><text class="card-title">{{item.title}}</text><text class="card-detail">{{item.detail}}</text><text class="card-action">{{item.kind === 'file' ? '打开原文件' : item.operation === 'approve' ? '审阅并确认' : item.operation === 'resume' ? '明确继续' : item.operation === 'recover' ? '恢复原任务' : item.operation === 'refresh' ? '核对原进度' : item.operation === 'dispatch' ? '派发原订单' : item.operation === 'accept' ? '核对并验收' : '请求停止'}}</text></button>
   </scroll-view>
   <view wx:if="error" class="notice" role="alert">{{error}}</view>
   <button wx:if="!authenticated" class="primary" bindtap="login">登录企业空间</button>

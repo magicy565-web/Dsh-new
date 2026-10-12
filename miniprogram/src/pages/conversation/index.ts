@@ -30,7 +30,8 @@ Page({
     try {
       const snapshot = await client().bootstrap();
       const id = this.data.conversationId || await client().mainConversation(snapshot);
-      const view = conversationView(snapshot, id);
+      const delegations = snapshot.museBinding?.conversationId === id ? (await client().museDelegations(id)).delegations : [];
+      const view = conversationView(snapshot, id, delegations);
       this.setData({ conversationId: id, ...view, error: '', uncertain: client().uncertain });
     } catch (error) { this.setData({ error: message(error) }); }
     finally { reading = false; if (timer !== undefined) clearTimeout(timer); if (visible) timer = setTimeout(() => { void this.refresh(); }, 2000); }
@@ -54,15 +55,15 @@ Page({
     if (!card) return;
     if (card.file) {
       try {
-        const filePath = await client().download(card.file);
+        const filePath = await client().download(card.file, card.muse === true);
         if (card.file.mimeType?.startsWith('image/')) wx.previewImage({ urls: [filePath] });
         else if (card.file.mimeType === 'application/pdf') wx.openDocument({ filePath, fileType: 'pdf', showMenu: true });
         else wx.getFileSystemManager().readFile({ filePath, encoding: 'utf8', success: result => wx.showModal({ title: card.title, content: String(result.data).slice(0, 2000), showCancel: false }) });
       } catch (error) { this.setData({ error: message(error) }); }
       return;
     }
-    wx.showModal({ title: card.title, content: card.detail.slice(0, 3000), confirmText: card.operation === 'approve' ? '批准此项' : card.operation === 'resume' ? '执行此项' : card.operation === 'cancel' ? '请求停止' : '恢复原任务',
-      success: async result => { if (!result.confirm) return; try { await client().action(card, true); await this.refresh(); } catch (error) { this.setData({ error: message(error) }); } } });
+    wx.showModal({ title: card.title, content: card.detail.slice(0, 3000), confirmText: card.operation === 'approve' ? '批准此项' : card.operation === 'resume' ? '执行此项' : card.operation === 'dispatch' ? '派发原单' : card.operation === 'accept' ? '验收原单' : card.operation === 'refresh' ? '核对进度' : card.operation === 'cancel' ? '请求停止' : '恢复原任务',
+      success: async result => { if (!result.confirm) return; try { await client().action(card, true, this.data.conversationId); await this.refresh(); } catch (error) { this.setData({ error: message(error) }); } } });
   },
   chooseFile() {
     wx.chooseMessageFile({ count: 1, type: 'all', success: async result => {

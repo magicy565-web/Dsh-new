@@ -116,3 +116,24 @@ test('WeChat login mapping fixture: broker cannot invent an enterprise role or i
   const missingService = new WorkspaceClient({ login() { assert.fail('No login without configured service'); } }, { ...options, baseUrl: '' });
   await assert.rejects(missingService.login(), { code: 'SERVICE_SETUP_REQUIRED' });
 });
+
+test('WeChat original Muse fixture: exact approval/dispatch/file/accept cards never become a Pi model request or wake', async () => {
+  const requests = [], sha = 'a'.repeat(64);
+  const platform = { request(options) { requests.push(options); options.success({ statusCode: 200, data: { delegation: {} } }); } };
+  const client = new WorkspaceClient(platform, { baseUrl: 'https://workspace.example' });
+  const snapshot = { conversations: [], messages: [], runs: [], artifacts: [] };
+  const original = { conversationId: 'original:owner/session', orderId: 'original-order', reviewHash: sha, review: { product: 'Public fixture', market: 'US', objective: 'Original reviewed scope', budgetCredits: 5 }, receiptHash: sha, returnedHash: sha, receipt: { files: [{ id: 'original-file', version: 1, sha256: sha, filename: 'result.json' }] } };
+  for (const [phase, operation] of [['review_required', 'approve'], ['approved', 'dispatch'], ['result_returned', 'accept'], ['queued', 'refresh']]) {
+    const view = conversationView(snapshot, original.conversationId, [{ ...original, phase }]);
+    const card = view.cards.find(item => item.kind === 'approval' || item.operation === 'refresh');
+    assert.equal(card.operation, operation);
+    await assert.rejects(client.action(card, false, original.conversationId), { code: 'APPROVAL_REQUIRED' });
+    const before = requests.length; await client.action(card, true, original.conversationId);
+    assert.equal(requests.length, before + 1);
+    assert.ok(requests.at(-1).url.endsWith(`/muse-delegations/original-order/${operation}`));
+    assert.equal(requests.at(-1).data.expectedReviewHash, sha);
+    if (operation === 'accept') { assert.equal(requests.at(-1).data.receiptHash, sha); assert.equal(view.cards.find(item => item.kind === 'file').muse, true); }
+  }
+  assert.ok(requests.every(item => !item.url.endsWith('/messages') && !item.url.includes('wake')));
+  assert.equal(conversationView(snapshot, 'different-session', [{ ...original, phase: 'result_returned' }]).cards.length, 0);
+});

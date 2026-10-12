@@ -1,0 +1,16 @@
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (135.866721ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (58.897232ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (68.668023ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (0.790997ms)
+✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (0.380676ms)
+✔ WeChat original Muse fixture: exact approval/dispatch/file/accept cards never become a Pi model request or wake (0.573388ms)
+✔ DSH-free HTTP fixture: original Muse order/attempt/file/return protocol with explicit owner and no model/wake (200.307208ms)
+✔ DSH-free binding refuses missing original conversation instead of inventing another identity (62.99453ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1162.639937
