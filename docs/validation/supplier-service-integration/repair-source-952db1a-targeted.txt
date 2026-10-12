@@ -1,0 +1,51 @@
+✔ actual HTTP publication routes preserve original approval binding and exact query recovery across restart (418.775506ms)
+✔ original session revocation stops later Shopify steps and releases its existing watcher (102.062704ms)
+✔ an expired original session before admission preserves the approval without any external call (61.125298ms)
+✔ compatible HTTP review/decision/execute/reconcile routes repair the original draft and keep publication separately approved (247.451742ms)
+✔ host defaults and the original disabled connector block writes without preparing approval (50.401501ms)
+✔ original approval and connectorRuns create one exact draft then publish a separately approved version (222.171883ms)
+✔ repeated submissions, lost local response and cold reopen retain the same operation, approval and remote product (110.632306ms)
+✔ changed preview invalidates the previous approval and allows a separate current review without writing (54.81024ms)
+✔ remote draft acknowledgement lost after price update is read-only reconciled after restart (88.06619ms)
+✔ lost create acknowledgement preserves a partial draft and never automatically performs missing variant writes (80.832115ms)
+✔ publication response loss is reconciled by product marker and channel receipt without a second publish (194.392469ms)
+✔ pending media can later be reconciled and unowned or altered external markers never count as completion (101.710918ms)
+✔ a review response gap before approval creation resumes the original operation rather than leaving preparing forever (31.491992ms)
+✔ turning off writes retains read-only access to an original uncertain receipt (91.835001ms)
+✔ a remote image replacement after draft creation cannot be published as the original approved preview (103.949915ms)
+▶ content or publication metadata changed during activation is observed before any channel publish
+  ✔ content (144.914043ms)
+  ✔ publication_marker (143.35155ms)
+✔ content or publication metadata changed during activation is observed before any channel publish (288.912151ms)
+✔ older draft reconciliation cannot replace a later publication and unknown latest receipts are visibly uncertain (158.907098ms)
+✔ an expired unused review remains recorded and a new explicit review can request a fresh original approval (37.799802ms)
+✔ revoking the original connector after staging interrupts transfer without creating a product (65.017579ms)
+✔ a credential omitted from the original broker cannot be replaced by the host secret (22.169802ms)
+✔ same media identity with a changed CDN URL is incomplete and cannot be published (94.655467ms)
+✔ image transfer follows the exact reviewed original file reference before staged authorization (15.656ms)
+✔ original Muse image transfer retains the approved administrator role and uses the owned Session reader (72.497422ms)
+✔ separately approved lost-create repair reuses exact product/media without rewriting original attempt checkpoints (210.121675ms)
+✔ unknown draft must be reconciled first and unknown media needs its own explicit observed-ID review (72.710384ms)
+✔ acknowledged create plus rejected retail variant repairs only the missing variant on the original identity (125.962469ms)
+✔ lost repair response survives reopen and only reads original repair receipt without a second variant update (249.11713ms)
+✔ an existing Connector does not acquire the repair capability automatically (73.426177ms)
+▶ changed remote content, substituted media and active products cannot execute an earlier repair review
+  ✔ title (113.444405ms)
+  ✔ media (107.136854ms)
+  ✔ active (99.89336ms)
+✔ changed remote content, substituted media and active products cannot execute an earlier repair review (321.181348ms)
+✔ a repair whose retail goal was already completed does not write it again (101.234928ms)
+▶ failed media, unconfirmed upload and already acknowledged variant writes are explicit non-repairable states
+  ✔ failed_media (73.750277ms)
+  ✔ unconfirmed_upload (68.376119ms)
+  ✔ acknowledged_variant (89.277753ms)
+✔ failed media, unconfirmed upload and already acknowledged variant writes are explicit non-repairable states (232.115396ms)
+✔ duplicate repair requests create one original approval and admit at most one variant mutation (112.352268ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3479.284495

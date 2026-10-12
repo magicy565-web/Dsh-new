@@ -1,0 +1,19 @@
+✔ actual bounded Shopify query pagination preserves exact variant quantities, cancellations/refund overlap and late corrections (106.116208ms)
+✔ missing original order scope, denied authorization and truncated line data are unavailable, while complete empty cohorts are real zero (162.542236ms)
+✔ reviewed product traffic retains its independent sampling, coverage and delay; partial is not zero or full-window attribution (27.596023ms)
+✔ shutdown-interrupted read reconciles its original frozen interval; a partial replay after day seven cannot masquerade as a complete summary (52.024555ms)
+✔ actual publication observation binds IDs and a real online-store timestamp; read receipts are never draft creation receipts (27.475391ms)
+✔ original approved Schedule dispatches deterministic service checks with no model; restart retains one monitor/task and final message (68.424823ms)
+✔ original Dot MCP accepts only explicit task scope plus original active lease; owner Connector binding requires its original grant (70.799436ms)
+✔ integrated GA4 v2 preserves exact-product view events, durable replay and semantic-only seven-day corrections (62.488303ms)
+✔ missing/revoked GA4 authorization is null and a changed reviewed mapping cannot silently rebind an original monitor (53.620819ms)
+✔ integrated actual HTTP notification requires original separate approval and preserves one fixture POST across corrections/reopen (131.518061ms)
+✔ integrated unknown notification consumes original one-time reservation and cannot send on duplicate/reopen (94.520567ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1182.214373
