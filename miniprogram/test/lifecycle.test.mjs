@@ -179,3 +179,31 @@ test('malformed local recovery record remains blocked on every initialization at
   for (let i = 0; i < 2; i++) await assert.rejects(client.initialize(), { code: 'RECOVERY_RECORD_INVALID' });
   assert.equal(posts, 0);
 });
+
+test('actual Page explicit cancel aborts the original durable run; lost stop response reuses original run after cold restart', async t => {
+  const f = await fixture(t); const { page } = await openPage(t, f);
+  f.faux.setResponses([async (_ctx, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }]);
+  page.draft({ detail: { value: 'Cancellation protocol fixture only' } }); await page.send(); await until(() => f.faux.state.callCount === 1); await page.refresh();
+  const runId = f.app.runtime.listRuns().runs[0].id, card = page.data.cards.find(card => card.runId === runId && card.operation === 'cancel');
+  await page.card(event(card.id)); f.loseNext(); await page.confirmCard(event(null, { decision: 'confirm' }));
+  assert.equal(page.data.uncertain, true); await until(() => f.app.runtime.getRun(runId).run.status === 'cancelled');
+  page.onUnload(); await f.reopen(); const cold = f.newClient(); const { page: restored } = await openPage(t, f, cold);
+  assert.equal(cold.pendingKind, 'action'); await restored.retry();
+  assert.equal(f.app.runtime.listRuns().runs.length, 1); assert.equal(f.app.runtime.getRun(runId).run.status, 'cancelled'); assert.equal(f.faux.state.callCount, 1);
+  assert.ok(restored.data.cards.some(card => card.title === '任务已取消')); assert.equal(restored.data.busy, false);
+});
+
+test('actual Page explicit interrupted recovery retries one original requestId and retains cloud run/submission', async t => {
+  const f = await fixture(t); const { page } = await openPage(t, f);
+  f.faux.setResponses([async (_ctx, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }]);
+  page.draft({ detail: { value: 'Recovery protocol fixture only' } }); await page.send(); await until(() => f.app.runtime.listRuns().runs[0]?.piSubmissionId);
+  const runId = f.app.runtime.listRuns().runs[0].id, submissionId = f.app.runtime.getRun(runId).run.piSubmissionId;
+  page.onUnload(); await f.reopen(); assert.equal(f.app.runtime.getRun(runId).run.status, 'interrupted');
+  const cold = f.newClient(); const { page: restored } = await openPage(t, f, cold); const count = f.faux.state.callCount;
+  assert.equal(f.faux.state.callCount, count); const recovery = restored.data.cards.find(card => card.operation === 'recover'); assert.ok(recovery);
+  f.faux.setResponses([fauxAssistantMessage(JSON.stringify({ done: true, content: 'Same submission recovered' }))]);
+  await restored.card(event(recovery.id)); f.loseNext(); await restored.confirmCard(event(null, { decision: 'confirm' }));
+  const original = structuredClone(f.requests.filter(value => value.url.endsWith('/retry')).at(-1).data);
+  await until(() => f.app.runtime.getRun(runId).run.status === 'succeeded'); await restored.retry();
+  assert.deepEqual(f.requests.filter(value => value.url.endsWith('/retry')).at(-1).data, original); assert.equal(f.app.runtime.listRuns().runs.length, 1); assert.equal(f.app.runtime.getRun(runId).run.piSubmissionId, submissionId);
+});

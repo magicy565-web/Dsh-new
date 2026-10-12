@@ -16,6 +16,7 @@ Page({
   onShow() { visible = true; epoch++; void this.open(); },
   onHide() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
   onUnload() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
+  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '' }); },
   async open() {
     const opened = epoch;
     try {
@@ -25,7 +26,7 @@ Page({
       if (subject !== this.data.subject) this.setData({ subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
       this.setData({ authenticated: session.authenticated, readError: '' });
       if (session.authenticated) await this.refresh();
-    } catch (error) { if (visible && opened === epoch) this.setData({ authenticated: false, readError: message(error) }); }
+    } catch (error) { if (visible && opened === epoch) { this.clearAccount(); this.setData({ readError: message(error) }); } }
   },
   async login() {
     if (this.data.loading) return;
@@ -39,7 +40,7 @@ Page({
     wx.showModal({ title: '退出企业空间', content: '退出后可重新登录读取云端进度，云端任务会继续。', confirmText: '退出登录', success: async result => {
       if (!result.confirm || this.data.loading) return;
       this.setData({ loading: true });
-      try { await client().logout(); if (timer !== undefined) clearTimeout(timer); this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, error: '', readError: '' }); }
+      try { await client().logout(); if (timer !== undefined) clearTimeout(timer); this.clearAccount(); this.setData({ error: '', readError: '' }); }
       catch (error) { this.setData({ error: message(error) }); }
       finally { this.setData({ loading: false }); }
     } });
@@ -61,7 +62,7 @@ Page({
       readFailures++;
       if (visible && opened === epoch) {
         this.setData({ readError: message(error) });
-        if (error instanceof ClientError && error.status === 401) this.setData({ authenticated: false, messages: [], cards: [], files: [], resourceCards: [], reviewCard: null, preview: null, referencesOpen: false, error: message(error), readError: '' });
+        if (error instanceof ClientError && (error.status === 401 || error.code === 'CSRF_REJECTED')) { this.clearAccount(); this.setData({ error: message(error), readError: '' }); }
       }
     } finally {
       reading = false; if (timer !== undefined) clearTimeout(timer);
@@ -152,8 +153,10 @@ Page({
   removeFile(event: WechatMiniprogram.TouchEvent) { if (!this.data.loading && !client().uncertain) this.setData({ files: this.data.files.filter(file => file.id !== event.currentTarget.dataset.id) }); },
   async openReferences() {
     if (!this.data.authenticated || !this.data.conversationId) return;
+    const opened = epoch, id = this.data.conversationId;
     try {
-      const [library, selected] = await Promise.all([client().library(), client().references(this.data.conversationId)]);
+      const [library, selected] = await Promise.all([client().library(), client().references(id)]);
+      if (!visible || opened !== epoch || id !== this.data.conversationId) return;
       this.setData({ ...library, references: selected.libraryReferences, referencesOpen: true });
     } catch (error) { this.setData({ error: message(error) }); }
   },
