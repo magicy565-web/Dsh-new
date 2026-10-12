@@ -31,7 +31,7 @@ async function fixture(t, options = {}) {
     } else assert.fail('Unexpected Shopify operation; no write or ShopifyQL is permitted in this fixture');
     return new Response(JSON.stringify({ data }), { headers: { 'Content-Type': 'application/json', 'X-Shopify-API-Version': '2026-10' } });
   };
-  const config = { dataDirectory: directory, provider: { kind: 'fixture', configured: false, complete() { assert.fail('Monitoring cannot call a model'); } }, accessClock: () => time, capabilityEnvironment: { WORKSPACE_SHOPIFY_SHOP_DOMAIN: 'fixture-shop.myshopify.com', WORKSPACE_SHOPIFY_ADMIN_TOKEN: 'synthetic-api-fixture-only', ...(options.environment || {}) }, shopifyFetch: fetchImpl, supplierTrafficAdapter: options.trafficAdapter || null, dotWorkerConfig: options.dot || null, schedulerIntervalMs: 60000 };
+  const config = { dataDirectory: directory, provider: { kind: 'fixture', configured: false, complete() { assert.fail('Monitoring cannot call a model'); } }, accessClock: () => time, capabilityEnvironment: { WORKSPACE_SHOPIFY_SHOP_DOMAIN: 'fixture-shop.myshopify.com', WORKSPACE_SHOPIFY_ADMIN_TOKEN: 'synthetic-api-fixture-only', ...(options.environment || {}) }, shopifyFetch: fetchImpl, supplierTrafficAdapter: options.trafficAdapter || null, supplierTrafficOptions: options.ga4 || null, dotWorkerConfig: options.dot || null, schedulerIntervalMs: 60000 };
   let app = await createApp(config);
   t.after(async () => { await app.close(); await fs.rm(directory, { recursive: true, force: true }); });
   const actor = { subject: 'local-operator', role: 'admin', workspaceId: 'local' };
@@ -119,4 +119,56 @@ test('original Dot MCP accepts only explicit task scope plus original active lea
   await f.app.workerDesk.cancel(order.id); assert.equal((await mcp('workspace_supplier_listing_preview', input)).isError, true);
   const owner = createSupplierOwnerMcpBinding({ service: f.app.supplierService, actor: f.actor, conversationId: f.main.id, readReviewedScope: async () => null });
   await assert.rejects(owner.call('get', f.service.id), { code: 'SUPPLIER_MCP_SCOPE_REQUIRED' });
+});
+
+function ga4Options() {
+  const fixture = { count: '5', revoked: false, calls: 0 };
+  fixture.options = {
+    binding: { workspaceId: 'local', shopId, shopDomain: 'fixture-shop.myshopify.com', propertyId: '1234', hostNames: ['store.fixture.example'], mappingRevision: 'reviewed-local-product-mapping-1', authorizationReviewed: true,
+      products: [{ productId: product, itemId: 'whole-product-fixture-123', collectionStartedAt: '2026-10-12T09:00:00.000Z', evidenceRef: 'explicit-local-mapping-fixture' }] },
+    getAuthorization: async () => ({ authorized: !fixture.revoked, workspaceId: 'local', shopId, shopDomain: 'fixture-shop.myshopify.com', propertyId: '1234', scopes: ['https://www.googleapis.com/auth/analytics.readonly'], expiresAt: '2026-11-01T00:00:00.000Z', accessToken: 'SYNTHETIC-GA4-EXISTING-TOKEN' }),
+    fetchImpl: async (url, init) => {
+      assert.match(url, /^https:\/\/analyticsdata\.googleapis\.com\/v1beta\/properties\/1234:(checkCompatibility|runReport)$/); fixture.calls++;
+      const compatibility = { dimensionCompatibilities: ['itemId', 'hostName', 'dateHourMinute'].map(name => ({ dimensionMetadata: { apiName: name }, compatibility: 'COMPATIBLE' })), metricCompatibilities: [{ metricMetadata: { apiName: 'itemViewEvents' }, compatibility: 'COMPATIBLE' }] };
+      const value = url.endsWith(':checkCompatibility') ? compatibility : { dimensionHeaders: ['itemId', 'hostName', 'dateHourMinute'].map(name => ({ name })), metricHeaders: [{ name: 'itemViewEvents', type: 'TYPE_INTEGER' }], rowCount: 1,
+        rows: [{ dimensionValues: ['whole-product-fixture-123', 'store.fixture.example', '202610131000'].map(value => ({ value })), metricValues: [{ value: fixture.count }] }], metadata: { timeZone: 'Etc/UTC' } };
+      return new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  return fixture;
+}
+
+test('integrated GA4 v2 preserves exact-product view events, durable replay and semantic-only seven-day corrections', async t => {
+  const ga4 = ga4Options(), f = await fixture(t, { ga4: ga4.options });
+  const { monitor } = await configure(f); assert.equal(monitor.scope.trafficContractVersion, 2);
+  const original = input(monitor, 'ga4-original-check'), first = await f.bound().checkMonitor(f.main.id, f.service.id, original);
+  assert.equal(first.sample.trafficStatus, 'partial'); assert.equal(first.sample.traffic.metrics.productDetailViews.value, 5);
+  assert.equal(first.sample.traffic.metrics.sessions.value, null); assert.equal(first.sample.traffic.dataLagSeconds, null);
+  assert.equal(first.sample.traffic.complete, false); assert.equal(first.sample.traffic.workspaceId, 'local');
+  assert.equal(first.summary.provisional, true); assert.equal(first.summary.revision, 1);
+  const calls = ga4.calls; await f.restart();
+  const duplicate = await f.bound().checkMonitor(f.main.id, f.service.id, original);
+  assert.equal(duplicate.duplicate, true); assert.equal(ga4.calls, calls);
+  f.setTime('2026-10-20T11:00:00Z');
+  const refreshed = await f.bound().checkMonitor(f.main.id, f.service.id, input(monitor, 'ga4-same-values-new-check'));
+  assert.equal(refreshed.summary.revision, 1); assert.equal(refreshed.summary.contentHash, first.summary.contentHash);
+  assert.equal(refreshed.summary.notificationCount, 1); assert.notEqual(refreshed.sample.traffic.sampledAt, first.sample.traffic.sampledAt);
+  ga4.count = '7';
+  const corrected = await f.bound().checkMonitor(f.main.id, f.service.id, input(monitor, 'ga4-late-detail-events'));
+  assert.equal(corrected.summary.revision, 2); assert.equal(corrected.summary.traffic.metrics.productDetailViews.value, 7);
+  assert.equal(corrected.summary.messageId, first.summary.messageId); assert.equal(corrected.summary.notificationCount, 1);
+  const text = f.app.store.read().messages.find(message => message.id === first.summary.messageId).content;
+  assert.ok(text.includes('商品详情浏览事件 7')); assert.ok(text.includes('sessions 不可用'));
+});
+
+test('missing/revoked GA4 authorization is null and a changed reviewed mapping cannot silently rebind an original monitor', async t => {
+  const ga4 = ga4Options(), f = await fixture(t, { ga4: ga4.options }), { monitor } = await configure(f);
+  ga4.revoked = true;
+  const denied = await f.bound().checkMonitor(f.main.id, f.service.id, input(monitor, 'ga4-revoked-source'));
+  assert.equal(denied.sample.trafficStatus, 'unconfigured'); assert.equal(denied.sample.traffic.metrics.productDetailViews.value, null);
+  assert.equal(ga4.calls, 0); assert.equal(denied.sample.traffic.metrics.sessions.value, null);
+  ga4.revoked = false; ga4.options.binding.mappingRevision = 'changed-local-mapping-2'; await f.restart();
+  const changed = await f.bound().checkMonitor(f.main.id, f.service.id, input(monitor, 'ga4-changed-binding'));
+  assert.equal(changed.sample.traffic, null); assert.ok(changed.sample.errors.some(item => item.code === 'SUPPLIER_TRAFFIC_SCOPE_CHANGED'));
+  assert.equal(ga4.calls, 0);
 });

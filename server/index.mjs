@@ -4,6 +4,7 @@ import { createMuseDraftService } from './muse-draft-service.mjs';
 import { createSupplierService, supplierServiceHttp } from './supplier-service.mjs';
 import { SupplierServiceError } from './supplier-profile.mjs';
 import { createSupplierMonitoring } from './supplier-monitoring.mjs';
+import { createGa4ProductTrafficAdapter } from './product-traffic-ga4.mjs';
 import { createShopifyPublicationAdapter, SUPPLIER_SHOPIFY_ADAPTER } from './shopify-publication.mjs';
 import { createSupplierPublication, supplierPublicationHttp } from './supplier-publication.mjs';
 import { createSupplierWorkerMcpExtension } from './supplier-mcp.mjs';
@@ -82,7 +83,7 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
@@ -132,7 +133,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
     museDrafts = piMuse ? createMuseDraftService({ store, runtime, piMuse, artifacts, provider }) : null;
     shopify = createShopifyClient({ environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock });
-    supplierMonitoring = await createSupplierMonitoring({ store, runtime, capabilities, shopify, clock: accessClock, trafficAdapter: supplierTrafficAdapter });
+    supplierMonitoring = await createSupplierMonitoring({ store, runtime, capabilities, shopify, clock: accessClock, trafficAdapter: supplierTrafficAdapter || (supplierTrafficOptions ? createGa4ProductTrafficAdapter({ ...supplierTrafficOptions, clock: accessClock }) : null) });
     supplierService = createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock: accessClock, monitoring: supplierMonitoring,
       readMuseImage: async (actor, cid, ref) => { if (!piMuse || piMuse.snapshot(actor).conversationId !== cid) throw new SupplierServiceError(404, 'SUPPLIER_IMAGE_UNAVAILABLE', 'Use the original reviewed Muse owner and Session.'); piMuse.forActor(actor); const file = await piMuse.native.bindSession(piMuse.actor).download({ artifactId: ref.artifactId, version: ref.version, sha256: ref.sha256 }); return { ...file, version: { sha256: file.sha256 } }; } });
     supplierPublication = await createSupplierPublication({ store, capabilities, shopify, adapter: publicationAdapter, clock: accessClock });

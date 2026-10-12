@@ -1,0 +1,31 @@
+Ordinary local business tests; synthetic source fixtures and loopback HTTP only.
+Base: 08a760c045474ed92244bf2ac01e883d91a0a17d
+Command: node --test test/product-traffic-ga4.test.mjs test/supplier-profile.test.mjs
+✔ Shopify capability checks do not invent a product sessions field even with read_reports and Level 2 (2.078448ms)
+✔ without configuration, original auth review, or matching authorization, no network read and no zero (4.961349ms)
+✔ one fixed store and a unique reviewed mapping cannot be inferred from SKU or mutated after construction (8.219593ms)
+✔ reads official itemViewEvents with exact product/store/minute filters; preserves source, definition and unknown freshness (2.565658ms)
+✔ subminute bounds and collection beginning late restrict coverage without asserting seven complete days (1.418606ms)
+✔ empty report is missing instrumentation/data, while an explicit source zero stays a provisional observation (1.94601ms)
+✔ request replay and concurrent reads coalesce; new original sample permits late corrections without adding totals (2.367254ms)
+✔ full bounded pagination counts each distinct minute once; duplicate or changed buckets produce null (3.92577ms)
+✔ sampling rate and source estimates remain explicit; thresholding and truncation stay partial (3.359647ms)
+✔ unsupported metric combinations and non-UTC properties do not widen the query or fabricate sessions (1.204122ms)
+✔ wrong product, hostname, time, malformed counts and report headers fail closed (3.52749ms)
+✔ rate limits, rejected auth, network errors and aborted checks retain null and permit ordinary recovery (4.046091ms)
+✔ scope and v2 integration validation reject invalid ranges or sessions substitution (1.412537ms)
+✔ expired authorization between pages and cancellation during a read cannot produce or cache a final count (2.607596ms)
+✔ oversized or malformed source JSON remains unavailable rather than zero (0.662317ms)
+✔ real local HTTP transport serializes official read requests and never calls a customer store (34.027962ms)
+✔ supplier, recommended retail and consumer prices remain distinct; MOQ never becomes consumer pack quantity (1.879809ms)
+✔ explicit retail facts yield real escaped preview content while the original image is still private (0.751151ms)
+✔ unknown image availability is never treated as a usable image or permission to publish (1.066144ms)
+✔ invalid currency, unnamed image provenance, negative durations and credential URLs are rejected (0.422716ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 211.29237
