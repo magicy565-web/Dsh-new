@@ -1,0 +1,34 @@
+{
+  "schema": "workspace.supplier-publication-client.v1",
+  "backendBaseSource": "08a760c045474ed92244bf2ac01e883d91a0a17d",
+  "developmentPR": 48,
+  "sameAuthenticatedConversation": true,
+  "basePath": "/api/conversations/:conversationId/supplier-services/:serviceId",
+  "routes": {
+    "query": {"method":"GET","suffix":"/publication"},
+    "review": {"method":"POST","suffix":"/shopify-review","body":{"requestId":"stable caller ID", "expectedRevision":"service.revision", "expectedPreviewHash":"service.preview.previewHash", "action":"draft | publish", "publicationId":"existing gid://shopify/Publication/N, required for publish only", "confirmed":true}},
+    "decision": {"method":"POST","suffix":"/shopify-decision","body":{"requestId":"stable caller ID", "operationId":"operation.id", "expectedScopeHash":"operation.scopeHash", "decision":"approved | denied", "confirmed":true}},
+    "execute": {"method":"POST","suffix":"/shopify-execute","body":{"requestId":"stable caller ID", "operationId":"operation.id", "expectedScopeHash":"operation.scopeHash", "confirmed":true}},
+    "reconcile": {"method":"POST","suffix":"/shopify-reconcile","readOnly":true,"body":{"requestId":"stable caller ID", "operationId":"operation.id", "expectedScopeHash":"operation.scopeHash", "confirmed":true}}
+  },
+  "response": {"service":"current original SupplierService DTO", "operation":"original publication operation; query route instead returns publication.operations/latest", "approval":"original capability approval", "status":"preparing | pending_approval | approved | denied | stale | running | partial | uncertain | succeeded | blocked", "duplicate":"true on exact request recovery"},
+  "operationFields": ["id", "action", "scope", "scopeHash", "approvalId", "approvalStatus", "connectorId", "connectorRunId", "steps", "receipt", "error", "stale", "canExecute", "canReconcile", "businessCompletion", "automaticRetry"],
+  "displayRules": {
+    "draftSuccess":"businessCompletion draft_only, never display as published",
+    "publicationSuccess":"businessCompletion published requires exact-channel verified receipt",
+    "partial":"show issues and original product ID; cannot auto-retry missing writes",
+    "uncertain":"retain original operation and request; offer read-only reconcile",
+    "replay":"keep exact original requestId and body after local response loss",
+    "scopeChanged":"refresh/query and explicitly review current scope; never reinterpret an old confirmation",
+    "approval":"use domain decision route; generic approval decision rejects the binding",
+    "oldShopifyDraftRoute":"remains non-writing; old confirmation cannot create a Shopify product",
+    "media":"source SHA and remote IDs/READY are separate; remoteBytesVerified is false",
+    "publicationTime":"selected arbitrary channel publishedAt is null; onlineStorePublishedAt is separate",
+    "firstRealAcceptance":"not run; fixture responses are never live execution evidence"
+  },
+  "blockers": {
+    "configurationAuthorization":["existing shop domain/token", "existing write_products", "existing write_publications for publishing", "host writes enabled", "original Connector enabled", "each exact explicit approval"],
+    "code":["frontend new publication controls", "separately reviewed partial-draft repair", "selected-channel notifications and exact-source traffic integration are in continued development"],
+    "realAcceptance":["actual product/model preview", "real draft/media", "real separate publication", "first live sales/refunds/attributed traffic", "first notification", "full real seven-day observation"]
+  }
+}

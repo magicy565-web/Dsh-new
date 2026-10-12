@@ -1,0 +1,38 @@
+{
+  "scope": "Only two Shopify/supplier modules and their ordinary business fixtures/tests; no PR44 runtime, queue, UI, identity or integration copied.",
+  "sourceCommit": "1e0cc43d973b5d10861561f2cd4979065d5f33f6",
+  "baseCommit": "08a760c045474ed92244bf2ac01e883d91a0a17d",
+  "copiedFiles": [
+    {
+      "path": "server/shopify-publication.mjs",
+      "sourceCommit": "1e0cc43d973b5d10861561f2cd4979065d5f33f6",
+      "sha256": "37b313a453c3a7fd955add0551d5219116d5d19bb2067c331673b3d67ee1d18e",
+      "bytes": 22860
+    },
+    {
+      "path": "server/supplier-publication.mjs",
+      "sourceCommit": "1e0cc43d973b5d10861561f2cd4979065d5f33f6",
+      "sha256": "61c5c0d03ef0bf021a2a6d941476b8c390c66f896681ae67a2549605c81a3f11",
+      "bytes": 25098
+    },
+    {
+      "path": "test/fixtures/supplier-shopify-http.mjs",
+      "sourceCommit": "1e0cc43d973b5d10861561f2cd4979065d5f33f6",
+      "sha256": "bd9bef80b9c16837e6f16613b433bdd909ab97ee5539ef1a40b0476017220e12",
+      "bytes": 5072
+    },
+    {
+      "path": "test/supplier-publication.test.mjs",
+      "sourceCommit": "1e0cc43d973b5d10861561f2cd4979065d5f33f6",
+      "sha256": "50e9f18c6f8df5f93533ac838e9cb5ea9c233bbccf5f1b92557b42c06c441888",
+      "bytes": 19890
+    },
+    {
+      "path": "test/supplier-publication.http.test.mjs",
+      "sourceCommit": "1e0cc43d973b5d10861561f2cd4979065d5f33f6",
+      "sha256": "4c13bfa197f82262de6ccbdac766219c07d8db0241ba6c05c326c7d8f530e2f6",
+      "bytes": 8930
+    }
+  ],
+  "newRoundAfterDeadline": true
+}

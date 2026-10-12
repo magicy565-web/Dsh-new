@@ -6,7 +6,7 @@ import { fauxProvider, fauxAssistantMessage, fauxToolCall } from '@earendil-work
 import { createPiProvider } from '../server/pi-provider.mjs';
 import { createApp } from '../server/index.mjs';
 
-const directory = await fs.mkdtemp('/tmp/workspace-supplier-browser-'), destination = 'docs/validation/supplier-service/browser';
+const directory = await fs.mkdtemp('/tmp/workspace-supplier-browser-'), destination = process.env.SUPPLIER_BROWSER_EVIDENCE_DIRECTORY || 'docs/validation/supplier-service/browser';
 const faux = fauxProvider(), models = createModels(); models.setProvider(faux.provider);
 const app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1' }) });
 const { port } = await app.listen(0), base = `http://127.0.0.1:${port}`;
