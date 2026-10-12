@@ -1,0 +1,1 @@
+{"kind":"pre-contract original WXML/WXSS/compiled Page slot test","states":5,"nullSlotHidden":true,"actualNativeHandler":true,"navigationClearsCachedReady":true,"cloudCancellationCalled":false,"pageErrors":[],"liveShopify":false,"backendContractAssumed":false}
