@@ -161,6 +161,9 @@ test('same-conversation bootstrap refresh retains an in-flight exact attachment 
   await wait(() => ui.document.querySelector('.conversation-native [role="alert"]')?.textContent.includes('permission denial'), 'original delegation refresh denied');
   assert.equal(ui.document.querySelector('[role="dialog"]'), null);
   assert.equal(control(), null);
+  // React may remove DOM before flushing passive-effect cleanup. Wait for the
+  // actual abort; this bounded check expires before the 20-second read timeout.
+  await wait(() => deniedRead.signal.aborted, 'failed authorization reread aborts pending attachment');
   assert.equal(deniedRead.signal.aborted, true, 'failed authorization reread unmounts and aborts pending attachment');
   deniedRead.release();
   assert.equal(ui.document.querySelector('[role="dialog"] pre'), null);
