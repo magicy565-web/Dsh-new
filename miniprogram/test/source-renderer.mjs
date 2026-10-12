@@ -14,6 +14,7 @@ await ui.evaluate(({ wxml, css, spirit, componentWxml, componentSources }) => {
       if (node.nodeType === 3) { parent.append(document.createTextNode(String(value(node.textContent, scope)))); continue; }
       if (node.nodeType !== 1) continue;
       if (node.hasAttribute('wx:if')) { previousIf = Boolean(value(node.getAttribute('wx:if'), scope)); if (!previousIf) continue; }
+      else if (node.hasAttribute('wx:elif')) { if (previousIf === true) continue; previousIf = Boolean(value(node.getAttribute('wx:elif'), scope)); if (!previousIf) continue; }
       else if (node.hasAttribute('wx:else')) { if (previousIf !== false) continue; previousIf = null; }
       else previousIf = null;
       if (node.hasAttribute('wx:for')) {

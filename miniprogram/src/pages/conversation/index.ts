@@ -10,6 +10,9 @@ import type { Inquiry } from '../../shared/procurement';
 import { presentSupplier, presentMonitor, supplierErrorText } from '../../shared/supplier';
 import type { SupplierService, SupplierMonitor } from '../../shared/supplier';
 import { supplierFieldLabels } from '../../shared/supplier-view';
+import {presentPublication,publicationScopeText} from '../../shared/publication';
+import type {PublicationState,PublicationOperation,PublicationResponse} from '../../shared/publication';
+import type {ShopifyReview} from '../../components/shopify-operation-review/index';
 import type { SupplierProfile, PublicListingField } from '../../shared/supplier-view';
 type SupplierReview = {kind:'images'|'save-product'|'shopify-draft'|'shopify-observation'|'monitors'|'monitor-check'|'monitor-stop'|'cancel'|'reject';serviceId:string;revision:number;profileHash:string;detail:string;data:Record<string,unknown>;facts?:Partial<SupplierProfile>};
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -25,19 +28,20 @@ Page({
     company: null as Company | null, products: [] as Product[], documents: [] as LibraryDocument[], references: null as References | null,
     museDrafts: [] as MuseDraft[], draftCards: [] as ReturnType<typeof presentMuseDraft>[], selectedDraft: null as DraftPresentation | null, goalMode: false, goalBlocked: false, drafting: false, needsDraftInput: false, composerHint: '描述目标或需要补充的信息…',
     procurementOpen: false, procurementInbox: [] as Inquiry[], procurementAssociated: [] as Inquiry[], procurementError: '', replyInquiryId: '', savedGoal: null as { draft: string; files: FileReference[] } | null,
-    newSupplier:false, supplierResourcesOpen:false, supplierMode: false, supplierAvailable: false, selectedSupplierId: '', supplierServices: [] as SupplierService[], supplierCards: [] as ReturnType<typeof presentSupplier>[], supplierReadError: '', supplierNotice: '', supplierCommand: '' as ''|'shopify-observation'|'monitors', supplierScope: null as {id:string;revision:number;profile:SupplierProfile}|null, supplierReview: null as SupplierReview|null, supplierMonitors: [] as ReturnType<typeof presentMonitor>[], verifiedProductImage: null as {serviceId:string;path:string;sha256:string;sourceNote:string}|null,
+    publicationState:null as PublicationState|null,publicationCards:[] as ReturnType<typeof presentPublication>[],publicationError:'',shopifyReview:null as ShopifyReview|null,publicationNotAdmitted:false,
+    newSupplier:false, supplierResourcesOpen:false, supplierMode: false, supplierAvailable: false, selectedSupplierId: '', supplierServices: [] as SupplierService[], supplierCards: [] as ReturnType<typeof presentSupplier>[], supplierReadError: '', supplierNotice: '', supplierCommand: '' as ''|'shopify-observation'|'monitors'|'shopify-publish', supplierScope: null as {id:string;revision:number;profile:SupplierProfile}|null, supplierReview: null as SupplierReview|null, supplierMonitors: [] as ReturnType<typeof presentMonitor>[], verifiedProductImage: null as {serviceId:string;path:string;sha256:string;sourceNote:string}|null,
     procurementReview: null as { kind: 'bind' | 'reply'; inquiry: Inquiry; detail: string; content: string } | null },
   onShow() { visible = true; epoch++; void this.open(); },
   onHide() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
   onUnload() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
-  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'', supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null }); },
+  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, publicationState:null,publicationCards:[],publicationError:'',shopifyReview:null,publicationNotAdmitted:false,newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'', supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null }); },
   async open() {
     const opened = epoch;
     try {
       const session = await client().initialize();
       if (!visible || opened !== epoch) return;
       const subject = session.user?.id || '';
-      if (subject !== this.data.subject) this.setData({ newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'',supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
+      if (subject !== this.data.subject) this.setData({ publicationState:null,publicationCards:[],publicationError:'',shopifyReview:null,publicationNotAdmitted:false,newSupplier:false, supplierResourcesOpen:false, supplierReadError:'', supplierMode:false, selectedSupplierId:'',supplierServices:[],supplierCards:[],supplierMonitors:[],supplierScope:null,supplierReview:null,supplierCommand:'',supplierNotice:'',verifiedProductImage:null, procurementOpen: false, procurementInbox: [], procurementAssociated: [], procurementReview: null, replyInquiryId: '', savedGoal: null, subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
       this.setData({ authenticated: session.authenticated, readError: '' });
       this.setData({ goalMode: client().requiresOriginalMuse });
       if (session.authenticated) await this.refresh();
@@ -71,7 +75,7 @@ Page({
       const drafts = client().requiresOriginalMuse && originalBound && client().museDraftCapable ? (await client().museDrafts(id)).drafts : [];
       if (!visible || opened !== epoch) return;
       const view = conversationView(snapshot, id, delegations);
-      const pendingLabel = ({ send: '消息', action: '操作', upload: '文件上传', references: '资料引用', create: '会话创建', intake: '草案文字', prepare: '原订单准备', reject: '草案拒绝', 'procurement-bind': '采购关联', 'procurement-reply': '原采购回复', 'supplier-intake':'商品事实', 'supplier-profile':'原图片事实', 'supplier-preview':'商品预览', 'supplier-operation':'商品服务操作' } as Record<string, string>)[client().pendingKind] || '';
+      const pendingLabel = ({ send: '消息', action: '操作', upload: '文件上传', references: '资料引用', create: '会话创建', intake: '草案文字', prepare: '原订单准备', reject: '草案拒绝', 'procurement-bind': '采购关联', 'procurement-reply': '原采购回复', 'supplier-intake':'商品事实', 'supplier-profile':'原图片事实', 'supplier-preview':'商品预览', 'supplier-operation':'商品服务操作','publication-review':'Shopify审阅','publication-decision':'原写入审批','publication-execute':'原外部执行','publication-reconcile':'只读回执核对' } as Record<string, string>)[client().pendingKind] || '';
       const draftCards = drafts.map(presentMuseDraft);
       const selected = this.data.selectedDraft && draftCards.find(value => value.id === this.data.selectedDraft?.id && !['rejected', 'rejecting'].includes(value.phase));
       const active = [...draftCards].reverse().find(value => !['prepared', 'rejected'].includes(value.phase));
@@ -87,9 +91,9 @@ Page({
       this.setData({ conversationId: id, ...view, messages: view.messages.map(value => value.source === 'procurement' ? { ...value, content: procurementMessage(value.content, value.supplyInquiryId) } : value), cards, readError: '', uncertain: client().uncertain, pendingLabel, pendingSummary: client().pendingSummary, readAt: new Date().toLocaleTimeString(),
         museDrafts: drafts, draftCards, selectedDraft: selected || null, goalBlocked: client().requiresOriginalMuse && (!originalBound || !client().museDraftCapable), busy: view.busy || drafts.some(value => ['pending', 'preparing', 'rejecting'].includes(value.phase)),
         drafting: drafts.some(value => value.phase === 'pending'), needsDraftInput: active?.phase === 'needs_information',
-        composerHint: this.data.supplierMode ? this.data.supplierCommand === 'monitors' ? '提供既有 Shopify 商品 gid 和明确 UTC 开始时间…' : this.data.supplierCommand === 'shopify-observation' ? '提供既有 Shopify 商品 gid，可附渠道 publication gid…' : '补充或修改商品事实；未知可保留…' : active?.phase === 'needs_information' ? '只需补充上面必要的信息…' : active?.editable ? '补充或修改这份草案…' : '描述要交给原 Muse 的业务目标…',
+        composerHint: this.data.supplierMode ? this.data.supplierCommand === 'shopify-publish' ? '请输入一个真实既有渠道 Publication gid，不用商品 ID 替代…' : this.data.supplierCommand === 'monitors' ? '提供既有 Shopify 商品 gid 和明确 UTC 开始时间…' : this.data.supplierCommand === 'shopify-observation' ? '提供既有 Shopify 商品 gid，可附渠道 publication gid…' : '补充或修改商品事实；未知可保留…' : active?.phase === 'needs_information' ? '只需补充上面必要的信息…' : active?.editable ? '补充或修改这份草案…' : '描述要交给原 Muse 的业务目标…',
         ...(client().pendingDraft && !this.data.draft ? { draft: client().pendingDraft } : {}), ...(client().pendingKind === 'procurement-reply' ? { replyInquiryId: client().pendingInquiryId } : {}), runtimeNotice: client().requiresOriginalMuse && !originalBound ? '原 Muse 会话尚未绑定；目标处理已阻挡，采购需求仍可按需关联与回复。' : client().requiresOriginalMuse && !client().museDraftCapable ? '当前服务尚未提供原 Muse 草案能力；此意图已阻挡，请先完成服务接入。' : snapshot.runtime?.configured === false ? '云端模型尚未接入，发送后会保存请求并显示真实阻挡原因。' : '' });
-      if (client().pendingKind.startsWith('supplier-')) this.setData({supplierMode:true,selectedSupplierId:client().pendingSupplierId || this.data.selectedSupplierId});
+      if (client().pendingKind.startsWith('supplier-')||client().pendingKind.startsWith('publication-')) this.setData({supplierMode:true,selectedSupplierId:client().pendingSupplierId || this.data.selectedSupplierId});
       this.setData({supplierAvailable:client().supplierCapable});
       if (id && client().supplierCapable) await this.refreshSupplier();
       if (this.data.procurementOpen || this.data.replyInquiryId || client().pendingInquiryId) await this.refreshProcurement();
@@ -121,7 +125,8 @@ Page({
     const kind = client().pendingKind;
     this.setData({ loading: true, error: '' });
     try {
-      const result = await client().retryPending() as { artifact?: Artifact; serviceId?:string; status?:string; error?:{code:string} };
+      const result = await client().retryPending() as { operation?:PublicationOperation;notAdmitted?:boolean;waiting?:boolean; artifact?: Artifact; serviceId?:string; status?:string; error?:{code:string} };
+      if(kind.startsWith('publication-'))this.setData({shopifyReview:null,publicationNotAdmitted:result.notAdmitted===true,supplierNotice:result.notAdmitted?'原执行尚未被接收，原审批未使用；只在再次明确确认后提交同一请求。':result.waiting?'原操作仍在进行；保留请求，只读等待。':'已读取原操作结果；未盲重试外部写入。'});
       if (kind.startsWith('supplier-')) {this.setData({supplierReview:null,supplierScope:null,...(result.serviceId?{selectedSupplierId:result.serviceId}:{}),...(kind==='supplier-intake'?{draft:''}:{}),...(kind==='supplier-profile'?{files:this.data.files.filter(file=>!file.mimeType?.startsWith('image/'))}:{}),supplierNotice:result.error?supplierErrorText(result.error.code):''});}
       if (kind === 'send' || kind === 'intake') this.setData({ draft: '', files: [] });
       if (kind.startsWith('procurement-')) { this.setData({ procurementReview: null }); if (kind === 'procurement-reply') this.exitProcurementReply(true); }
@@ -129,7 +134,7 @@ Page({
       if (kind === 'action') this.setData({ reviewCard: null });
       if (kind === 'prepare' || kind === 'reject') this.setData({ selectedDraft: null });
       if (kind === 'references') await this.openReferences();
-      this.setData({ uncertain: false }); await this.refresh();
+      this.setData({ uncertain: client().uncertain }); await this.refresh();
     } catch (error) { this.setData({ error: message(error), uncertain: client().uncertain }); }
     finally { this.setData({ loading: false }); }
   },
@@ -160,7 +165,7 @@ Page({
       const scope=this.data.supplierScope && selected && selected.id===this.data.supplierScope.id ? {id:selected.id,revision:selected.revision,profile:selected.profile}:null;
       this.setData({supplierServices:services,supplierCards:services.map(presentSupplier),selectedSupplierId:selected?.id||'',supplierScope:scope,supplierReadError:''});
       const monitors=selected?await client().supplierMonitors(id,selected.id):[];
-      if(visible&&opened===epoch&&id===this.data.conversationId&&selected?.id===this.data.selectedSupplierId)this.setData({supplierMonitors:monitors.map(presentMonitor)});
+      if(visible&&opened===epoch&&id===this.data.conversationId&&selected?.id===this.data.selectedSupplierId){this.setData({supplierMonitors:monitors.map(presentMonitor)});if(selected)await this.refreshPublication();else this.setData({publicationState:null,publicationCards:[]});}
     } catch(error){if(visible&&opened===epoch)this.setData({supplierReadError:message(error),supplierScope:null});}
   },
   async beginSupplier() {
@@ -179,6 +184,7 @@ Page({
     if(service&&['cancelled','rejected'].includes(service.phase)){this.setData({error:'此商品整理已停止或拒绝，请明确选择新商品，不恢复旧范围。'});return;}
     if(this.data.supplierCommand){
       if(!service)return;
+      if(this.data.supplierCommand==='shopify-publish'){const ids=this.data.draft.match(/gid:\/\/shopify\/Publication\/\d+/g)||[];if(ids.length!==1){this.setData({error:'请提供一个真实的既有渠道 Publication gid，不猜渠道或用商品 ID 替代。'});return;}await this.prepareShopify(service.id,'publish',ids[0]);return;}
       const products=this.data.draft.match(/gid:\/\/shopify\/Product\/\d+/g)||[],times=this.data.draft.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z/g)||[];
       if(products.length!==1){this.setData({error:'请明确提供一个既有 Shopify 商品 gid，不能用商品名或预览 ID 替代。'});return;}
       const data:Record<string,unknown>={expectedRevision:service.revision,shopifyProductId:products[0],confirmed:true};
@@ -197,6 +203,48 @@ Page({
   },
   openSupplierResources(event:WechatMiniprogram.TouchEvent){if(this.data.loading||client().uncertain)return;this.setData({selectedSupplierId:event.currentTarget.dataset.id,supplierResourcesOpen:true});void this.refreshSupplier();},
   closeSupplierResources(){this.setData({supplierResourcesOpen:false});},
+  async refreshPublication(){
+    const opened=epoch,cid=this.data.conversationId,sid=this.data.selectedSupplierId;if(!sid){this.setData({publicationState:null,publicationCards:[],shopifyReview:null});return;}
+    try{const value=await client().publication(cid,sid);if(!visible||opened!==epoch||cid!==this.data.conversationId||sid!==this.data.selectedSupplierId)return;
+      const services=this.data.supplierServices.map(item=>item.id===sid?value.service:item);this.setData({publicationState:value.publication,publicationCards:value.publication.operations.map(presentPublication),publicationError:'',supplierServices:services,supplierCards:services.map(presentSupplier)});
+      const review=this.data.shopifyReview;
+      if(review){if(review.stage==='prepare'){if(value.service.revision!==review.revision||value.service.preview?.previewHash!==review.previewHash)this.setData({shopifyReview:null,error:'原商品或预览已变，请重新审阅本次外发范围。'});}
+        else{const op=value.publication.operations.find(item=>item.id===review.operationId&&item.scopeHash===review.scopeHash);this.setData({shopifyReview:op?this.publicationReview(op,review.stage):null});}}
+    }catch(error){if(visible&&opened===epoch&&sid===this.data.selectedSupplierId)this.setData({publicationError:error instanceof ClientError&&error.status===404?'当前服务没有部署新 Shopify 审批契约，未启用写入。':message(error),shopifyReview:null});}
+  },
+  publicationReview(op:PublicationOperation,stage:'decision'|'execute'|'reconcile'|'retry'):ShopifyReview{
+    return{key:JSON.stringify([op.id,op.scopeHash,stage,op.status,op.approvalStatus,op.stale,op.canExecute]),stage,action:op.action,serviceId:op.scope.serviceId,revision:op.scope.serviceRevision,previewHash:op.scope.previewHash,operationId:op.id,scopeHash:op.scopeHash,publicationId:op.scope.publicationId||undefined,hasImages:op.scope.transfer.images.length>0,
+      allowConfirm:stage==='decision'?!op.stale&&op.status==='pending_approval'&&op.approvalStatus==='pending':stage==='reconcile'?op.canReconcile:op.canExecute&&!op.stale,
+      title:stage==='decision'?'审批这一个原 Shopify 作用域':stage==='reconcile'?'只读核对原 Shopify 结果':stage==='retry'?'明确重提未接收的原执行请求':'独立执行已批准操作',detail:publicationScopeText(op.scope)+`\n原操作 ${op.id}\n审批 ${op.approvalId||'未生成'} · 状态 ${op.approvalStatus||'未知'}\nscope SHA256 ${op.scopeHash}${op.stale?'\n范围已失效，不能批准或执行。':''}`};
+  },
+  async prepareShopify(serviceId:string,action:'draft'|'publish',publicationId?:string){
+    if(this.data.loading||client().uncertain)return;this.setData({selectedSupplierId:serviceId,supplierResourcesOpen:false,supplierMode:true});await this.refreshPublication();
+    const service=this.data.supplierServices.find(item=>item.id===serviceId),state=this.data.publicationState;if(!service||!state||this.data.publicationError)return;
+    const preview=service.preview;if(!preview||preview.phase!=='preview_ready'||preview.missingFields.length){this.setData({error:'请先补齐可用图片与零售字段，并审阅当前完整 Listing 预览。'});return;}
+    const images=preview.images.map(image=>image.kind==='artifact'?`${image.sourceNote}\n原文件 ${image.asset.artifactId} v${image.asset.version}\nSHA256 ${image.asset.sha256}`:`${image.sourceNote}\n公开 URL ${image.url}（原始字节未核验）`).join('\n\n');
+    const latestDraft=[...state.operations].reverse().find(op=>op.action==='draft'&&op.receipt?.complete&&op.status==='succeeded'&&op.scope.previewHash===preview.previewHash);
+    if(action==='publish'&&!latestDraft){this.setData({error:'先核对这一预览的完整原 Shopify 草稿；部分或未知结果仅能只读核对。'});return;}
+    this.setData({shopifyReview:{key:JSON.stringify([service.id,service.revision,preview.previewHash,action,publicationId||'',state.domain]),stage:'prepare',action,serviceId:service.id,revision:service.revision,previewHash:preview.previewHash,publicationId,hasImages:preview.images.length>0,allowConfirm:true,title:action==='draft'?'准备草稿与图片的独立审批':'准备精确渠道发布审批',
+      detail:`${action==='draft'?'只创建 Shopify DRAFT，不发布渠道':'仅发布这一完整原草稿到下列渠道'}\n当前店铺 ${state.domain||'未配置'} · 写入${state.writesEnabled?'主机已配置，仍需原 Connector/审批':'未启用'} · Connector ${state.connectorStatus}\n原服务 ${service.id} · 修订 ${service.revision}\n商品 ${action==='publish'?latestDraft?.receipt?.productId:'尚未创建'}\n渠道 ${publicationId||'本次没有渠道发布'}\n${preview.product.title}\n${preview.saleUnit.consumerPrice} ${preview.market.currency} · ${preview.saleUnit.unitsPerPack} ${preview.saleUnit.unit}/包\n${preview.display.paragraphs.join('\n')}\nSKU ${preview.variants.map(item=>item.sku||'未提供').join('、')}\n本次已选图片：\n${images}\n预览 SHA256 ${preview.previewHash}\n图片外发仅限本次范围；远端 READY 不等于 CDN 字节一致。`},error:''});
+  },
+  async beginDraftWrite(event:WechatMiniprogram.TouchEvent){await this.prepareShopify(event.currentTarget.dataset.id,'draft');},
+  beginChannelPublish(event:WechatMiniprogram.TouchEvent){if(this.data.loading||client().uncertain)return;this.setData({selectedSupplierId:event.currentTarget.dataset.id,supplierMode:true,supplierCommand:'shopify-publish',supplierResourcesOpen:false,draft:'',composerHint:'输入真实既有渠道 Publication gid，之后单独审阅审批…'});void this.refreshPublication();},
+  publicationCard(event:WechatMiniprogram.TouchEvent){
+    if(this.data.loading||client().uncertain)return;const op=this.data.publicationState?.operations.find(item=>item.id===event.currentTarget.dataset.id);if(!op)return;
+    const stage=event.currentTarget.dataset.kind as 'decision'|'execute'|'reconcile';if(!['decision','execute','reconcile'].includes(stage))return;this.setData({shopifyReview:this.publicationReview(op,stage),error:''});
+  },
+  closeShopifyReview(){if(!this.data.loading)this.setData({shopifyReview:null});},
+  async confirmShopifyReview(event:WechatMiniprogram.CustomEvent<ShopifyReview & {confirmed:boolean}>,denied=false){
+    if(this.data.loading||!event.detail.confirmed)return;const target=event.detail,current=this.data.shopifyReview;if(!current||target.key!==current.key||(!denied&&!current.allowConfirm)||client().uncertain&&target.stage!=='retry')return;
+    const service=this.data.supplierServices.find(item=>item.id===target.serviceId),op=this.data.publicationState?.operations.find(item=>item.id===target.operationId&&item.scopeHash===target.scopeHash);
+    if(!service||target.stage==='prepare'&&(service.revision!==target.revision||service.preview?.previewHash!==target.previewHash)||target.stage!=='prepare'&&!op){this.setData({shopifyReview:null,error:'原对象或范围已变，请重新读取并审阅。'});return;}
+    this.setData({loading:true,error:''});try{
+      const result=target.stage==='prepare'?await client().reviewPublication(this.data.conversationId,service,target.action,target.publicationId,true):target.stage==='retry'?await client().executeUnadmittedPublication(true):await client().publicationAction(this.data.conversationId,service.id,op!,target.stage==='decision'?denied?'denied':'approved':target.stage==='execute'?'execute':'reconcile',true);
+      this.setData({shopifyReview:null,publicationNotAdmitted:false,supplierCommand:'',...(this.data.supplierCommand==='shopify-publish'?{draft:''}:{}),uncertain:client().uncertain,supplierNotice:result.error?message(new ClientError(result.error.code,result.error.message||result.error.code)):target.stage==='prepare'?'原独立审批已准备，尚未批准或执行。':target.stage==='decision'?denied?'已拒绝这一原写入审批。':'批准已保存，执行仍需独立确认。':result.operation?.status==='uncertain'?'原外部结果未知；后续只读核对，不能盲重试或补写。':'已读取原操作/回执，以本会话的具体状态为准。'});await this.refresh();
+    }catch(error){this.setData({error:message(error),uncertain:client().uncertain,pendingLabel:target.stage==='execute'||target.stage==='retry'?'原 Shopify 执行':'原 Shopify 审批/核对'});}finally{this.setData({loading:false});}
+  },
+  async denyShopifyReview(event:WechatMiniprogram.CustomEvent<ShopifyReview & {confirmed:boolean}>){await this.confirmShopifyReview(event,true);},
+  reviewUnadmittedPublication(){if(this.data.loading||!this.data.publicationNotAdmitted||client().pendingKind!=='publication-execute')return;const op=this.data.publicationState?.operations.find(item=>item.id===client().pendingPublicationOperationId);if(op&&!op.connectorRunId&&op.canExecute)this.setData({shopifyReview:this.publicationReview(op,'retry')});},
   supplierAction(event:WechatMiniprogram.TouchEvent) {
     if(this.data.loading||client().uncertain)return;const service=this.data.supplierServices.find(item=>item.id===event.currentTarget.dataset.id);if(!service)return;
     const kind=event.currentTarget.dataset.kind;this.setData({newSupplier:false,supplierResourcesOpen:false,selectedSupplierId:service.id,supplierMode:true,supplierCommand:'',error:''});
