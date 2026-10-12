@@ -42,26 +42,45 @@ Test evidence (overlapping suites are not added as independent tests):
 | Command / evidence | Result | Scope |
 |---|---|---|
 | npm run test:all | exit 0 | Backend, original UI, conversation suites and mini build |
-| Backend within test:all | 532 total, 525 pass, 0 fail, 7 skip | 6 existing DSH/source-bound tests and 1 Windows-only test skipped |
+| Backend within test:all | 533 total, 526 pass, 0 fail, 7 skip | 6 existing DSH/source-bound tests and 1 Windows-only test skipped |
 | Original UI suite | 19/19, no skip | Complete existing original DOM suite |
 | Conversation suites | 14/14, no skip | Conversation, Muse receipt/file and procurement UI |
-| New Pi/Muse/durable/crash/mini targeted suites | 19/19, no skip | Real installed Pi packages and actual loopback Store/file APIs; platform/model tools are explicitly fixtures |
+| New Pi/Muse/durable/crash/mini targeted suites | 20/20, no skip | Real installed Pi packages and actual loopback Store/file APIs; platform/model tools are explicitly fixtures |
 | Actual process SIGKILL fixture | 1 top-level test, 2 scenarios pass | Pending request and durable answer before business acknowledgment; cached answer recovery makes zero new model calls |
 | TypeScript/Vite | pass | JS501.58kB/gzip141.99kB; existing size warning remains |
 | Mini program official-types build | pass | Developer import folder, no account upload/review |
 | Real Chromium | 6 checks pass; console errors 0 | Desktop, 390/320px, actual UI→Pi fixture→Store→SHA preview/reload, reduced motion |
 | Extra extended DOM sweep | 40 total, 33 pass, 7 fail, no skip | Includes old Supply Commerce screen tests outside the current conversation UI |
-| PR33 baseline Supply DOM case | 0/1, same failure | Detached fixed PR33 reproduces waiting for removed /commerce Supply screen |
+| Full PR33 baseline Supply DOM suite | 0/7, same seven failures | Detached fixed PR33 reproduces each obsolete /commerce screen timeout |
 | Current Pi launch evidence inventory | blocked | Correctly remains unready without live/target/reference/security evidence |
 
 The seven extra Supply DOM failures were not skipped, weakened or presented as
 passes. All wait for `.supply-network` at `/commerce`; the existing PR33 route
-maps `/commerce` to the library. One exact failing case was rebuilt and rerun in
-the detached fixed PR33 worktree, reproducing the same timeout. Restoring a
+maps `/commerce` to the library. All seven exact cases were rebuilt and rerun in
+the detached fixed PR33 worktree, reproducing the same initial render timeout.
+The downstream CRUD/permission/publication assertions were not reached in either
+run and are therefore unverified by this obsolete UI suite. Restoring a
 discarded resource page would change the authorized UI scope, so it was not done.
-Logs remain in docs/validation/cloud-pi, including the failed sweep and baseline
-reproduction. Historical TT041 counts and failures from earlier implementation
+Logs remain in docs/validation/cloud-pi, including the failed sweep and full
+pr33-all-supply-failures.txt reproduction. Historical TT041 counts and failures from earlier implementation
 iterations are not reused as current acceptance.
+
+
+Each obsolete Supply UI case was run on both candidate and fixed PR33:
+
+| Case | Candidate | PR33 | First failing boundary |
+|---|---|---|---|
+| Saves supplier/product and restarts | fail | fail | .supply-network at /commerce absent |
+| Revision conflict and explicit new revision | fail | fail | Same initial render timeout |
+| Unknown committed command retry | fail | fail | Same initial render timeout |
+| Dirty navigation/refresh protection | fail | fail | Same initial render timeout |
+| Read failures/invalid writes/reload | fail | fail | Same initial render timeout |
+| Other-role pending command/viewer guard | fail | fail | Same initial render timeout |
+| Exact supplier/listing publication approval | fail | fail | Same initial render timeout |
+
+These observations establish a pre-existing route/test mismatch only. Deeper
+business assertions in this suite were not executed; original backend coverage
+is reported separately.
 
 Actual screenshots: docs/validation/cloud-pi/browser/desktop-conversation.png,
 verified-file-preview.png, mobile-390.png and mobile-320.png. These are real local
@@ -97,3 +116,9 @@ then can install/build/boot a clean extraction without DSH or credentials.
 Generated archive/manifest/clean-extraction evidence belongs in deliverables;
 the archive records its exact source checkpoint, excluding deliverables and all
 live runtime/dependency directories. No CRLF conversion or repaired hash is used.
+
+Delivery transport: the required prepared Library helper failed before preparing
+uploads: hosted apps tools/list request failed: network. No Library file ID or
+upload session was returned. Deliverables are therefore retained on the authorized
+private development branch with exact commit/file URLs. Local cloud paths are not
+presented as user-downloadable links. No permission/credential change was made.
