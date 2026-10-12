@@ -29,7 +29,7 @@ export function goalDefinition(goal, state) {
     memories: (selection.memoryIds || []).map(id => { const memory = state.memories?.find(item => item.id === id); return { id, enabled: memory?.enabled !== false, conversationId: memory?.conversationId || null, contentHash: capabilityPayloadHash(memory?.content ?? null) }; }),
     connectors: (selection.connectorActions || []).map(item => { const connector = state.capabilities?.connectors.find(connector => connector.id === item.connectorId); return { ...item, revision: connector?.revision ?? null, enabled: connector?.enabled === true }; }),
   } : null;
-  return { title: goal.title ?? '', description: goal.description ?? '', maxSteps: goal.maxSteps ?? null, maxOutputTokens: goal.maxOutputTokens ?? (goal.maxSteps ?? 3) * 1600, model: state.settings?.model ?? null, inputContext: selection, inputContextHash: capabilityPayloadHash(selected) };
+  return { title: goal.title ?? '', description: goal.description ?? '', maxSteps: goal.maxSteps ?? null, maxOutputTokens: goal.maxOutputTokens ?? (goal.maxSteps ?? 3) * 1600, model: state.settings?.model ?? null, inputContext: selection, inputContextHash: capabilityPayloadHash(selected), ...(goal.serviceTask ? { serviceTask: structuredClone(goal.serviceTask) } : {}) };
 }
 
 const collections = ['skills', 'connectors', 'approvals', 'schedules', 'scheduleRuns', 'connectorRuns'];
@@ -443,14 +443,14 @@ export async function createCapabilityService({ store, clock = () => Date.now(),
         try {
           const response = await boundedCall(() => dispatchGoal({ goalId: claim.goalId, requestId: claim.requestId, scheduleId: claim.scheduleId, dueAt: claim.dueAt, expectedGoalDefinitionHash: claim.expectedGoalDefinitionHash, scheduleClaim: { id: claim.id, scheduleId: claim.scheduleId, scheduleRevision: claim.scheduleRevision, goalId: claim.goalId, requestId: claim.requestId } }), controller, dispatchTimeoutMs);
           const status = response?.status ?? (response?.goal ? (['queued', 'running'].includes(response.goal.status) ? 'queued' : 'blocked') : undefined);
-          if (!['queued', 'blocked', 'skipped'].includes(status)) throw new Error('Dispatcher must return a durable admission outcome.');
-          outcome = { status, ...(response?.goal?.runId ? { modelRunId: response.goal.runId } : {}), ...(status === 'queued' ? {} : { error: { code: 'GOAL_DISPATCH_BLOCKED', message: 'The goal could not be enqueued. Inspect the goal before approving another schedule.' } }) };
+          if (!['queued', 'blocked', 'skipped', 'completed'].includes(status) || status === 'completed' && (!read().goals.find(goal => goal.id === claim.goalId)?.serviceTask || !response.serviceReceipt)) throw new Error('Dispatcher must return a durable admission outcome.');
+          outcome = { status, ...(response?.goal?.runId ? { modelRunId: response.goal.runId } : {}), ...(response?.serviceReceipt ? { serviceReceipt: response.serviceReceipt } : {}), ...(['queued', 'completed'].includes(status) ? {} : { error: { code: 'GOAL_DISPATCH_BLOCKED', message: 'The goal could not be enqueued. Inspect the goal before approving another schedule.' } }) };
         } catch (cause) { outcome = { status: cause instanceof InterruptedOperation ? 'interrupted' : 'failed', error: { code: cause instanceof InterruptedOperation ? 'DISPATCH_INTERRUPTED' : 'GOAL_DISPATCH_FAILED', message: 'Goal enqueue was not acknowledged. No automatic retry was made.' } }; }
         runs.push(await store.update(state => {
           const run = requireItem(state, 'scheduleRuns', claim.id); Object.assign(run, outcome, { finishedAt: now() });
           const schedule = state.capabilities.schedules.find(item => item.id === run.scheduleId);
-          if (schedule && schedule.revision === run.scheduleRevision && outcome.status !== 'queued') { schedule.enabled = false; schedule.status = 'blocked'; schedule.lastError = outcome.error; }
-          audit(state, 'schedule_dispatch', outcome.status === 'queued' ? 'Scheduled goal enqueued' : 'Scheduled goal not enqueued', run.finishedAt, { scheduleId: claim.scheduleId, goalId: claim.goalId });
+          if (schedule && schedule.revision === run.scheduleRevision && !['queued', 'completed'].includes(outcome.status)) { schedule.enabled = false; schedule.status = 'blocked'; schedule.lastError = outcome.error; }
+          audit(state, 'schedule_dispatch', outcome.status === 'completed' ? 'Scheduled service check completed' : outcome.status === 'queued' ? 'Scheduled goal enqueued' : 'Scheduled goal not enqueued', run.finishedAt, { scheduleId: claim.scheduleId, goalId: claim.goalId });
           return run;
         }));
       }
