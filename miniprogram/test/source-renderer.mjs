@@ -1,6 +1,7 @@
 // Limited source-driven Chromium rendering; never official WeChat engine evidence.
-export async function installSourceRenderer(ui, { wxml, css, spirit, componentWxml = '' }) {
-await ui.evaluate(({ wxml, css, spirit, componentWxml }) => {
+export async function installSourceRenderer(ui, { wxml, css, spirit, componentWxml = '', componentSources = {} }) {
+await ui.evaluate(({ wxml, css, spirit, componentWxml, componentSources }) => {
+  const definitions = { 'muse-draft-review': { wxml: componentWxml, stateField: '_draftReview', prefix: 'component.' }, ...componentSources };
   const normalized = wxml.replace(/\b(scroll-y|selectable|auto-height|wx:else)(?=[\s>])/g, '$1=""');
   const source = new DOMParser().parseFromString('<root xmlns:wx="urn:wx" xmlns:bind="urn:bind">' + normalized + '</root>', 'application/xml');
   if (source.querySelector('parsererror')) throw Error(source.querySelector('parsererror').textContent);
@@ -23,11 +24,12 @@ await ui.evaluate(({ wxml, css, spirit, componentWxml }) => {
     }
   }
   function element(node, scope, parent, prefix = '') {
-    if (node.tagName === 'muse-draft-review') {
-      if (componentWxml && scope._draftReview?.view) {
-        const child = new DOMParser().parseFromString('<root xmlns:wx="urn:wx" xmlns:bind="urn:bind">' + componentWxml.replace(/\b(scroll-y|selectable|auto-height|wx:else)(?=[\s>])/g, '$1=""') + '</root>', 'application/xml');
+    if (definitions[node.tagName]) {
+      const definition=definitions[node.tagName], state=definition.instanceAttribute ? scope[definition.stateField]?.[value(node.getAttribute(definition.instanceAttribute),scope)] : scope[definition.stateField];
+      if (definition.wxml && state) {
+        const child = new DOMParser().parseFromString('<root xmlns:wx="urn:wx" xmlns:bind="urn:bind">' + definition.wxml.replace(/\b(scroll-y|selectable|auto-height|wx:else)(?=[\s>])/g, '$1=""') + '</root>', 'application/xml');
         if (child.querySelector('parsererror')) throw Error(child.querySelector('parsererror').textContent);
-        children([...child.documentElement.childNodes], scope._draftReview, parent, 'component.');
+        children([...child.documentElement.childNodes], state, parent, definition.prefix || '');
       }
       return;
     }
@@ -62,5 +64,5 @@ await ui.evaluate(({ wxml, css, spirit, componentWxml }) => {
     const root = document.querySelector('main'); root.replaceChildren(); children([...source.documentElement.childNodes], state, root);
     const transcript = document.querySelector('.transcript'); if (transcript) transcript.scrollTop = Math.abs(scroll - height) < 50 ? transcript.scrollHeight : scroll;
   };
-}, { wxml, css, spirit, componentWxml });
+}, { wxml, css, spirit, componentWxml, componentSources });
 }

@@ -18,20 +18,20 @@ export const blankScope = () => ({ serviceId: null, product: null, market: null,
 export const propose = (scope, requestId, quote) => fauxAssistantMessage(fauxToolCall('workspace_propose_muse_draft', { scope, sources: Object.keys(scope).filter(field => scope[field] !== null).map(field => ({ field, kind: 'message', requestId, quote })) }), { stopReason: 'toolUse' });
 export const readyScope = () => ({ serviceId: 'channel-validation', product: '公开夹克', market: '美国', objective: '研究公开销售渠道并提供证据', budgetCredits: 5, deadlineAt: new Date(Date.now() + 86400000).toISOString() });
 export const scopeText = scope => `请为${scope.product}研究${scope.market}市场的海外销售渠道验证，目标是${scope.objective}；额度上限${scope.budgetCredits} credits，截止${scope.deadlineAt}。`;
-export async function intakeFixture(t) {
+export async function intakeFixture(t, overrides = {}) {
   const directory = await fs.mkdtemp('/tmp/wechat-muse-business-'), pair = generateKeyPairSync('ed25519');
   const access = { mode: 'enterprise', publicOrigin: 'https://workspace.example', workspaceId: 'client-business-fixture', issuer: 'fixture-ingress', keyId: 'fixture-key', publicKey: pair.publicKey.export({ type: 'spki', format: 'pem' }), members: [{ subject: actor.subject, role: 'admin' }] };
   const saved = await openStore(directory); await saved.update(state => state.conversations.push({ id: actor.nativeAgentId, ...actor, title: 'Original business fixture', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), status: 'idle', activeRunId: null })); await saved.close();
   const faux = fauxProvider(), models = createModels(); models.setProvider(faux.provider);
   const token = 'offline-client-worker-protocol-fixture';
-  const options = { dataDirectory: directory, access, museWorkerConfig: { workerId, ownerId: 'offline-fixture-only', tokenDigest: digest(Buffer.from(token)), enabled: true, scopeReviewed: true, externalBudgetVerified: true }, museOriginalBinding: { actor, operators: [actor], expectedHost: 'workspace.example' } };
+  const options = { dataDirectory: directory, access, capabilityEnvironment: {}, museWorkerConfig: { workerId, ownerId: 'offline-fixture-only', tokenDigest: digest(Buffer.from(token)), enabled: true, scopeReviewed: true, externalBudgetVerified: true }, museOriginalBinding: { actor, operators: [actor], expectedHost: 'workspace.example' }, ...overrides };
   const provider = () => createPiProvider({ models, providerId: 'faux', model: 'faux-1' });
   let app = await createApp({ ...options, provider: provider() }), address = await app.listen(0), session;
   const port = address.port, baseUrl = `http://127.0.0.1:${port}`, requests = [], previews = [], journal = memoryJournal();
   let lost = false, corrupt = false;
   async function raw(path, method = 'GET', data, worker = false) {
     const target = '/api' + path, body = data === undefined ? '' : JSON.stringify(data);
-    const headers = { Host: 'workspace.example', ...(worker ? { Authorization: `Bearer ${token}` } : { 'X-Workspace-Assertion': signWorkspaceRequest({ privateKey: pair.privateKey, ...access, subject: actor.subject, method, target, body }), ...(method !== 'GET' ? { Origin: access.publicOrigin } : {}), ...(path === '/session/login' ? { 'X-Workspace-Login': '1' } : {}), ...(session ? { Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken } : {}) }), ...(body ? { 'content-type': 'application/json' } : {}) };
+    const headers = { Host: 'workspace.example', ...(worker ? { Authorization: `Bearer ${token}` } : { 'X-Workspace-Assertion': signWorkspaceRequest({ privateKey: pair.privateKey, ...access, subject: actor.subject, method, target, body, ...(overrides.accessClock?{now:overrides.accessClock()}: {}) }), ...(method !== 'GET' ? { Origin: access.publicOrigin } : {}), ...(path === '/session/login' ? { 'X-Workspace-Login': '1' } : {}), ...(session ? { Cookie: session.cookie, 'X-CSRF-Token': session.csrfToken } : {}) }), ...(body ? { 'content-type': 'application/json' } : {}) };
     const response = await new Promise((resolve, reject) => { const req = http.request(baseUrl + target, { method, headers }, res => resolve(new Response(Readable.toWeb(res), { status: res.statusCode, headers: res.headers }))); req.on('error', reject); req.end(body); });
     const bytes = Buffer.from(await response.arrayBuffer()); let result; try { result = JSON.parse(bytes); } catch { result = null; }
     if (path === '/session/login') session = { ...result, cookie: response.headers.get('set-cookie').split(';')[0] };
