@@ -40,15 +40,19 @@
     "test:conversation:ui": "npm run build && node --test --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs"
   },
   "dependencies": {
+    "@earendil-works/chord": "1.1.0",
+    "@earendil-works/pi-agent-core": "1.1.0",
+    "@earendil-works/pi-ai": "1.1.0",
+    "@earendil-works/pi-durable": "1.1.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
-    "typescript": "6.0.3",
-    "vite": "8.0.16",
+    "jsdom": "29.1.1",
     "playwright": "1.61.1",
-    "jsdom": "29.1.1"
+    "typescript": "6.0.3",
+    "vite": "8.0.16"
   }
 }
