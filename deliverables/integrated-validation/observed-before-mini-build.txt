@@ -1,0 +1,175 @@
+node:internal/modules/cjs/loader:1517
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '../../release/miniprogram/shared/muse-draft-view.js'
+Require stack:
+- /workspace/pi-delivery/miniprogram/test/draft-presentation.test.mjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+    at Module._load (node:internal/modules/cjs/loader:1294:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at file:///workspace/pi-delivery/miniprogram/test/draft-presentation.test.mjs:4:74
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/workspace/pi-delivery/miniprogram/test/draft-presentation.test.mjs'
+  ]
+}
+
+Node.js v24.19.0
+✖ miniprogram/test/draft-presentation.test.mjs (74.787559ms)
+✖ actual compiled review component emits no prepare without three explicit confirmations (1.410374ms)
+✖ unchanged authoritative polling preserves review checks, changed revision resets them; edit/return never submit (0.316869ms)
+✖ unknown operation disables all mutations and rejects missing scope despite received suggestions (0.232672ms)
+node:internal/modules/cjs/loader:1517
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '../../release/miniprogram/shared/client.js'
+Require stack:
+- /workspace/pi-delivery/miniprogram/test/support.mjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+    at Module._load (node:internal/modules/cjs/loader:1294:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at file:///workspace/pi-delivery/miniprogram/test/support.mjs:11:54
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/workspace/pi-delivery/miniprogram/test/support.mjs' ]
+}
+
+Node.js v24.19.0
+✖ miniprogram/test/intake-client.test.mjs (573.360253ms)
+node:internal/modules/cjs/loader:1517
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '../../release/miniprogram/shared/client.js'
+Require stack:
+- /workspace/pi-delivery/miniprogram/test/support.mjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+    at Module._load (node:internal/modules/cjs/loader:1294:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at file:///workspace/pi-delivery/miniprogram/test/support.mjs:11:54
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/workspace/pi-delivery/miniprogram/test/support.mjs' ]
+}
+
+Node.js v24.19.0
+✖ miniprogram/test/intake-http.test.mjs (413.053462ms)
+node:internal/modules/cjs/loader:1517
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '../../release/miniprogram/shared/client.js'
+Require stack:
+- /workspace/pi-delivery/miniprogram/test/support.mjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+    at Module._load (node:internal/modules/cjs/loader:1294:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at file:///workspace/pi-delivery/miniprogram/test/support.mjs:11:54
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/workspace/pi-delivery/miniprogram/test/support.mjs' ]
+}
+
+Node.js v24.19.0
+✖ miniprogram/test/lifecycle.test.mjs (524.088681ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 0
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 658.852184
+
+✖ failing tests:
+
+test at miniprogram/test/draft-presentation.test.mjs:1:1
+✖ miniprogram/test/draft-presentation.test.mjs (74.787559ms)
+  'test failed'
+
+test at miniprogram/test/draft-review-component.test.mjs:15:1
+✖ actual compiled review component emits no prepare without three explicit confirmations (1.410374ms)
+  Error: ENOENT: no such file or directory, open '/workspace/pi-delivery/release/miniprogram/components/muse-draft-review/index.js'
+      at readFileSync (node:fs:484:20)
+      at fixture (file:///workspace/pi-delivery/miniprogram/test/draft-review-component.test.mjs:9:22)
+      at TestContext.<anonymous> (file:///workspace/pi-delivery/miniprogram/test/draft-review-component.test.mjs:16:13)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/workspace/pi-delivery/release/miniprogram/components/muse-draft-review/index.js'
+  }
+
+test at miniprogram/test/draft-review-component.test.mjs:22:1
+✖ unchanged authoritative polling preserves review checks, changed revision resets them; edit/return never submit (0.316869ms)
+  Error: ENOENT: no such file or directory, open '/workspace/pi-delivery/release/miniprogram/components/muse-draft-review/index.js'
+      at readFileSync (node:fs:484:20)
+      at fixture (file:///workspace/pi-delivery/miniprogram/test/draft-review-component.test.mjs:9:22)
+      at TestContext.<anonymous> (file:///workspace/pi-delivery/miniprogram/test/draft-review-component.test.mjs:23:13)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/workspace/pi-delivery/release/miniprogram/components/muse-draft-review/index.js'
+  }
+
+test at miniprogram/test/draft-review-component.test.mjs:28:1
+✖ unknown operation disables all mutations and rejects missing scope despite received suggestions (0.232672ms)
+  Error: ENOENT: no such file or directory, open '/workspace/pi-delivery/release/miniprogram/components/muse-draft-review/index.js'
+      at readFileSync (node:fs:484:20)
+      at fixture (file:///workspace/pi-delivery/miniprogram/test/draft-review-component.test.mjs:9:22)
+      at TestContext.<anonymous> (file:///workspace/pi-delivery/miniprogram/test/draft-review-component.test.mjs:29:13)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/workspace/pi-delivery/release/miniprogram/components/muse-draft-review/index.js'
+  }
+
+test at miniprogram/test/intake-client.test.mjs:1:1
+✖ miniprogram/test/intake-client.test.mjs (573.360253ms)
+  'test failed'
+
+test at miniprogram/test/intake-http.test.mjs:1:1
+✖ miniprogram/test/intake-http.test.mjs (413.053462ms)
+  'test failed'
+
+test at miniprogram/test/lifecycle.test.mjs:1:1
+✖ miniprogram/test/lifecycle.test.mjs (524.088681ms)
+  'test failed'

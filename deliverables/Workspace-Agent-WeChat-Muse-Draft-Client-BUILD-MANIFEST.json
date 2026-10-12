@@ -1,0 +1,118 @@
+{
+  "sourceCommit": "17fc90f8b304a6b127e419aa160aa93f864a59d3",
+  "officialApiTypings": "miniprogram-api-typings@5.2.3",
+  "mode": "Importable compiled development client; no WeChat account/device/platform acceptance",
+  "configuration": {
+    "appid": "touristappid",
+    "urlCheck": true,
+    "baseUrl": "",
+    "loginBroker": "absent; fails closed"
+  },
+  "files": [
+    {
+      "path": "app.js",
+      "bytes": 725,
+      "sha256": "53a2abb9dc5e759d5c2d0de9ac78412fea7b4e583d07daf6e42eab60f18d303d"
+    },
+    {
+      "path": "app.json",
+      "bytes": 235,
+      "sha256": "fa27d599909a5c8088a19482a5b8f7ad0d202b40d9a7955814be464215aaefa6"
+    },
+    {
+      "path": "app.wxss",
+      "bytes": 304,
+      "sha256": "0049d50ec5ff361d8b6794e1b2390ca874977119e46f4565cedcbbbe1a9a07e8"
+    },
+    {
+      "path": "assets/spirit.png",
+      "bytes": 15935,
+      "sha256": "c4496c86c5869b965a102ede5da45135e3e27946e5255926862cb82a98db4ebc"
+    },
+    {
+      "path": "assets/spirit.svg",
+      "bytes": 1141,
+      "sha256": "540b2032d8638684f0ad52868a5a8a52f1c7ac903ae8c835fb8722f00c18af5e"
+    },
+    {
+      "path": "components/muse-draft-review/index.js",
+      "bytes": 3342,
+      "sha256": "d73027e8e654ab7b1b68afe55d91ad709e43380a2060fa9de54c0aed43efee66"
+    },
+    {
+      "path": "components/muse-draft-review/index.json",
+      "bytes": 19,
+      "sha256": "6bcc2e9e536384851fcfbdd823aee8ae4331243636adc4a656a64a44d9cf9318"
+    },
+    {
+      "path": "components/muse-draft-review/index.wxml",
+      "bytes": 2153,
+      "sha256": "40cf4ac2fdecadcd5c20995182bc7a7577b51ecee895047c5af339f4f13a6787"
+    },
+    {
+      "path": "components/muse-draft-review/index.wxss",
+      "bytes": 549,
+      "sha256": "6fa14c009068c4ab8b29f873d1be100f990c3046f5c9fb571af8eb861e8ef7fc"
+    },
+    {
+      "path": "package.json",
+      "bytes": 35,
+      "sha256": "eb5f3182658b0282ad147e535c62d2b788d2baabc44448b74fe5dc1f66821fad"
+    },
+    {
+      "path": "pages/conversation/index.js",
+      "bytes": 21352,
+      "sha256": "f4876c7de45a8f790f4bd0cf3ab549653235b7788e20556ebe8f9a8491f1e905"
+    },
+    {
+      "path": "pages/conversation/index.json",
+      "bytes": 122,
+      "sha256": "fce3ff561289a0b57ee5855562aef15baaf267d3f1b390a32e637d0d72bdb50b"
+    },
+    {
+      "path": "pages/conversation/index.wxml",
+      "bytes": 7992,
+      "sha256": "f99d198e00a7a83b409a040bf6a1076da76989753dce1c16e6f9030f04ed1f46"
+    },
+    {
+      "path": "pages/conversation/index.wxss",
+      "bytes": 3744,
+      "sha256": "774e8525beaba3316c007a89294b62f2b305afb1dcdd51b4a381ede865126785"
+    },
+    {
+      "path": "project.config.json",
+      "bytes": 296,
+      "sha256": "22b7d9bffcf5534d4668ae13f069988ff2b38eca9784acb9417e47880b6ff896"
+    },
+    {
+      "path": "shared/client.js",
+      "bytes": 34526,
+      "sha256": "b84ab07848aee9e014b2e19a45b2f977bc39e987a494084498e6ac5de9846291"
+    },
+    {
+      "path": "shared/journal.js",
+      "bytes": 1713,
+      "sha256": "a9f9c5493220861125771302f5e235ff42a6f2982cadab4d86c249968856cbdc"
+    },
+    {
+      "path": "shared/login-broker.js",
+      "bytes": 1341,
+      "sha256": "839999f60381a565f3a0829d73b11273bcf104815ab916c6c6af5130bbcdd50f"
+    },
+    {
+      "path": "shared/muse-draft-view.js",
+      "bytes": 2789,
+      "sha256": "62b9ffed1fb9c9736bb0391ffbaf062465a1e28519e70984a83cfd1719505cc1"
+    },
+    {
+      "path": "shared/muse-drafts.js",
+      "bytes": 2619,
+      "sha256": "27eeda86e95301f06f256a58e33e7695f64c9589fdcef2331705a9dcbe29d3f9"
+    },
+    {
+      "path": "sitemap.json",
+      "bytes": 93,
+      "sha256": "fa8c18d4a21b07a90dc8b89eb9169f7dddb9bacc0d6e662bacf42fa1999e3d98"
+    }
+  ]
+}

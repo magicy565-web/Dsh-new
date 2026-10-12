@@ -1,0 +1,15 @@
+{
+  "result": "passed",
+  "evidenceKind": "clean-pi-source-package",
+  "sourceCommit": "6a204412f14144cfa58ececcb618c8e0595a43eb",
+  "sourceTree": "7bc83207c3ee7dc30eef296e68dad1379ae06714",
+  "archiveSha256": "3319c131c168133ed2c53da96195cb1984a0fecacb8872990709cb351a4c13aa",
+  "files": 577,
+  "checks": [
+    "all SHA256 and original Git blob IDs match raw archive bytes",
+    "no credentials, live runtime directories or dependency tree"
+  ],
+  "liveMuse": false,
+  "liveModel": false,
+  "production": false
+}
