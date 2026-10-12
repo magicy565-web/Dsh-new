@@ -1,0 +1,4 @@
+.supplier-price { display: block; font-size: 38rpx; color: #344e40; margin: 10rpx 0; }
+.supplier-source { margin-top: 18rpx; border-top: 1rpx solid #e6e3dc; padding-top: 16rpx; overflow-wrap: anywhere; }
+.supplier-source text { display: block; }
+.supplier-status { display: block; margin-top: 20rpx; }
