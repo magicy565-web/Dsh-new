@@ -1,5 +1,7 @@
 import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
 import { openWechatIngress } from './wechat-ingress.mjs';
+import { createMuseDraftService } from './muse-draft-service.mjs';
+import { MuseDraftError } from './muse-draft.mjs';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readLocalVerification, operationalDiagnostics } from './diagnostics.mjs';
@@ -80,7 +82,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth, piMuse;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts;
   try {
     await provider.initialize?.({ store });
     recovery = await readRecoveryStatus(store.directory, provider.kind);
@@ -119,6 +121,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     await workerDesk.recoverInterrupted();
     capabilities = await createCapabilityService({ store, adapters: { ...connectorAdapters, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
+    museDrafts = piMuse ? createMuseDraftService({ store, runtime, piMuse, artifacts, provider }) : null;
     shopify = createShopifyClient({ environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock });
     commerce = createCommerceService({ store, runtime, shopify, workerDesk, workerCatalog: () => workerDesk.catalog(), museConnection: () => museBridge?.info(), clock: accessClock });
     supply = createSupplyNetworkService({ store, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local',
@@ -133,6 +136,19 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     sourcingMcpAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
   } catch (error) { await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
+  async function draftHttp(req, res, pathname, context, body) {
+    const match = pathname.match(/^\/api\/conversations\/([^/]+)\/muse-drafts(?:\/([^/]+)(?:\/(messages|prepare|reject))?)?$/);
+    if (!match) return false;
+    if (!museDrafts) throw new MuseDraftError(409, 'MW_ORIGINAL_BINDING_REQUIRED', 'Restore the exact original Muse owner/conversation binding; no substitute model was started.');
+    piMuse.forActor(context);
+    const conversationId = decodeApiId(match[1]), draftId = match[2] ? decodeApiId(match[2]) : null;
+    if (conversationId !== piMuse.actor.nativeAgentId) throw new MuseDraftError(403, 'MUSE_OWNER_REQUIRED', 'Use the exact original Muse conversation.');
+    if (req.method === 'GET' && !match[3]) await respond(res, 200, draftId ? { draft: museDrafts.get(conversationId, draftId) } : { drafts: museDrafts.list(conversationId) });
+    else if (req.method === 'POST' && (!draftId || match[3] === 'messages')) await respond(res, 202, await museDrafts.request(conversationId, body, draftId));
+    else if (req.method === 'POST' && ['prepare', 'reject'].includes(match[3])) await respond(res, 200, await museDrafts[match[3]](conversationId, draftId, body));
+    else throw new MuseDraftError(405, 'METHOD_NOT_ALLOWED', 'Use the exact draft read, clarification, preparation or rejection operation.');
+    return true;
+  }
   const streams = new Set();
   let scheduler;
   const schedulerState = { state: 'stopped', automaticTimer: false, intervalMs: schedulerIntervalMs, lastStartedAt: null, lastCompletedAt: null, lastError: null };
@@ -237,6 +253,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
+        if (await draftHttp(req, res, pathname, context)) return;
         if (piMuse && await piMuse.businessHttp({ req, res, pathname, context, query: url.searchParams })) return;
         const goalCommerce = pathname.match(/^\/api\/goals\/([^/]+)\/commerce-context$/);
         if (goalCommerce) return await respond(res, 200, commerce.forGoal(goalCommerce[1]));
@@ -330,6 +347,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const body = method === 'DELETE' ? {} : await readBody(req, /^\/api\/artifacts(?:\/[^/]+)?$/.test(pathname) ? 7_100_000 : 100_000);
       access.verifyBody(context, req.bodyBytes || Buffer.alloc(0));
       musePrivacy.guardHttp(pathname, context, body);
+      if (await draftHttp(req, res, pathname, context, body)) return;
       const ownedFileMutation = pathname.match(/^\/api\/artifacts\/([^/]+)$/);
       if (ownedFileMutation && musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Original Muse receipt files are immutable and use the original binding.');
       const supplyWrite = await supplyHttp({ supply, method, pathname, body, actor: context });
@@ -446,7 +464,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
     } catch (error) {
-      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof CloudExpertError || error instanceof DotWorkerError || error instanceof MuseWorkerError || error instanceof AccessError;
+      const safe = error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof CloudExpertError || error instanceof DotWorkerError || error instanceof MuseWorkerError || error instanceof AccessError || error instanceof MuseDraftError;
       try {
         if (!res.accessFinish) await access.recordDenial(error);
         if (!res.headersSent) await respond(res, safe ? error.status : 500, { error: { code: safe ? error.code : 'INTERNAL_ERROR', message: safe ? error.message : 'The server could not complete this action. Please retry.' } });
@@ -463,7 +481,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');

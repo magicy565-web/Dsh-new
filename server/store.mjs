@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { assertWindowsDirectoryVolume } from './windows-volume.mjs';
 import { assertPrivateWindowsPath } from './windows-private-acl.mjs';
 import { validateMuseJointSlots } from './muse-worker-slot.mjs';
+import { validateMuseDraftRegistry } from './muse-draft.mjs';
 
 export const STORE_VERSION = 3;
 export const SUPPORTED_STORE_VERSIONS = Object.freeze([1, 2, STORE_VERSION]);
@@ -63,6 +64,7 @@ export function validateState(state, version = STORE_VERSION) {
     if (state[key] !== undefined) validateCollection(state[key]);
   }
   validateMuseJointSlots(state);
+  validateMuseDraftRegistry(state);
   if (state.dotLastSeenAt !== undefined && !iso(state.dotLastSeenAt)) throw invalid();
   if (state.museLastSeenAt !== undefined && !iso(state.museLastSeenAt)) throw invalid();
   if (version === 2) return;

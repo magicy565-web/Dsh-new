@@ -1,0 +1,12 @@
+✔ actual Pi tool/HTTP: natural goal clarifies one durable draft, then separately prepares/approves/dispatches one original order (288.84548ms)
+✔ unquoted model suggestions stay outside order scope and stale clarification cannot replace the current revision (79.857632ms)
+✔ selected original product resolves locally for review, never enters Pi, and changed revision invalidates preparation (89.085581ms)
+✔ lost original prepare acknowledgment reopens the same receipt/order; explicit rejection blocks its old review (99.898848ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 845.627952

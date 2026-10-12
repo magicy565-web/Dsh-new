@@ -45,7 +45,7 @@ export function isOriginalMuseArtifact(state, value) {
 }
 
 export function isOriginalMuseMessage(state, item) {
-  return Boolean(item.workerOwner || item.museReceipt || item.museOrderId || isOriginalMuseArtifact(state, item.artifactId));
+  return Boolean(item.workerOwner || item.museReceipt || item.museOrderId || item.museDraftRef || isOriginalMuseArtifact(state, item.artifactId));
 }
 
 export function createMuseOwnerPolicy({ read, actor, error }) {
