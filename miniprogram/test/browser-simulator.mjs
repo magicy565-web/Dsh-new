@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 import { installSourceRenderer } from './source-renderer.mjs';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { fixture, loadPage, until, WorkspaceClient } from './support.mjs';
-const destination = new URL('../evidence/browser/', import.meta.url);
+const destination = new URL(process.env.WECHAT_SIM_OUTPUT || '../evidence/browser/', import.meta.url);
 await fs.mkdir(destination, { recursive: true });
 const wxml = await fs.readFile(new URL('../src/pages/conversation/index.wxml', import.meta.url), 'utf8');
 const css = (await fs.readFile(new URL('../src/app.wxss', import.meta.url), 'utf8')) + (await fs.readFile(new URL('../src/pages/conversation/index.wxss', import.meta.url), 'utf8'));

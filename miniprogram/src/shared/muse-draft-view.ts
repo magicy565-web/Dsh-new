@@ -12,7 +12,7 @@ export type DraftPresentation = {
   orderId?: string;
 };
 export function draftPresentation(value: DraftPresentation) {
-  const summary = [value.scope.product, value.scope.market, value.scope.objective, value.scope.serviceId ? `服务 ${value.scope.serviceId}` : ''].filter(Boolean).join(' · ');
+  const summary = [value.scope.product, value.scope.market, value.scope.objective, value.scope.serviceId ? `服务 ${({ 'channel-validation': '渠道验证', 'buyer-discovery': '买家研究' } as Record<string, string>)[value.scope.serviceId] || value.scope.serviceId}` : ''].filter(Boolean).join(' · ');
   return {
     ...value,
     title: value.phase === 'needs_information' ? '只需补充这些信息' : value.phase === 'prepared' ? '已关联原 Muse 订单' : value.phase === 'rejected' ? '此草案已拒绝' : '审阅委托草案',
