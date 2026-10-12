@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import { chromium } from 'playwright';
+import { installSourceRenderer } from './source-renderer.mjs';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { fixture, loadPage, until, WorkspaceClient } from './support.mjs';
 const destination = new URL('../evidence/browser/', import.meta.url);
@@ -21,57 +22,7 @@ await ui.exposeFunction('pageEvent', async (handler, dataset, value) => {
   await active[handler]({ currentTarget: { dataset }, detail: { value } }); await paint(); return active.data;
 });
 await ui.setContent('<!doctype html><html lang="zh"><head><meta name="viewport" content="width=device-width, initial-scale=1"/></head><body><header>浏览器运行模拟 · 原 WXML/WXSS · 非微信真机</header><main></main></body></html>');
-await ui.evaluate(({ wxml, css, spirit }) => {
-  const normalized = wxml.replace(/\b(scroll-y|selectable|auto-height|wx:else)(?=[\s>])/g, '$1=""');
-  const source = new DOMParser().parseFromString('<root xmlns:wx="urn:wx">' + normalized + '</root>', 'application/xml');
-  if (source.querySelector('parsererror')) throw Error(source.querySelector('parsererror').textContent);
-  const style = document.createElement('style'); document.head.append(style);
-  const evaluate = (expression, scope) => new Function('scope', 'with(scope) { return (' + expression + '); }')(scope);
-  const value = (text, scope) => { const full = text.match(/^{{([\s\S]+)}}$/); return full ? evaluate(full[1], scope) : text.replace(/{{([\s\S]+?)}}/g, (_, expression) => String(evaluate(expression, scope) ?? '')); };
-  function children(nodes, scope, parent) {
-    let previousIf = null;
-    for (const node of nodes) {
-      if (node.nodeType === 3) { parent.append(document.createTextNode(String(value(node.textContent, scope)))); continue; }
-      if (node.nodeType !== 1) continue;
-      if (node.hasAttribute('wx:if')) { previousIf = Boolean(value(node.getAttribute('wx:if'), scope)); if (!previousIf) continue; }
-      else if (node.hasAttribute('wx:else')) { if (previousIf !== false) continue; previousIf = null; }
-      else previousIf = null;
-      if (node.hasAttribute('wx:for')) {
-        const list = value(node.getAttribute('wx:for'), scope);
-        if (!Array.isArray(list)) throw Error('Simulator expects actual array in wx:for');
-        list.forEach((item, index) => element(node, { ...scope, item, index }, parent));
-      } else element(node, scope, parent);
-    }
-  }
-  function element(node, scope, parent) {
-    const tag = ({ view: 'div', 'scroll-view': 'div', text: 'span', image: 'img' })[node.tagName] || node.tagName;
-    const target = document.createElement(tag); let handler, inputHandler;
-    for (const attribute of node.attributes) {
-      if (attribute.name.startsWith('wx:') || ['scroll-y', 'auto-height', 'selectable', 'mode'].includes(attribute.name)) continue;
-      if (attribute.name === 'bindtap') { handler = attribute.value; continue; }
-      if (attribute.name === 'bindinput') { inputHandler = attribute.value; continue; }
-      const rendered = value(attribute.value, scope);
-      if (attribute.name === 'disabled') { target.disabled = Boolean(rendered); continue; }
-      if (attribute.name === 'loading') continue;
-      if (attribute.name === 'value') { target.value = String(rendered ?? ''); continue; }
-      target.setAttribute(attribute.name, String(rendered ?? ''));
-    }
-    if (node.tagName === 'text') target.classList.add('wx-text');
-    if (node.tagName === 'image') target.src = spirit;
-    if (node.tagName === 'scroll-view') target.style.overflowY = 'auto';
-    if (handler) target.onclick = async () => { await window.pageEvent(handler, { ...target.dataset }); };
-    if (inputHandler) target.oninput = () => { void window.pageEvent(inputHandler, {}, target.value); };
-    children([...node.childNodes], scope, target); parent.append(target);
-  }
-  window.renderSource = state => {
-    const scroll = document.querySelector('.transcript')?.scrollTop || 0;
-    const height = document.querySelector('.transcript')?.scrollHeight || 0;
-    const nativeCss = css.replace(/(-?[\d.]+)rpx/g, (_, number) => `${Number(number) * innerWidth / 750}px`).replace(/\bpage(?=\s*{)/g, 'body').replace(/\btext(?=[\s,{.#>:+])/g, '.wx-text');
-    style.textContent = nativeCss + 'body{margin:0}header{height:28px;box-sizing:border-box;text-align:center;padding:6px 2px;background:#e9e5d9;color:#6b675b;font-size:11px}.conversation{height:calc(100vh - 28px)}.wx-text{display:inline}textarea{font:inherit;border:0;resize:none;min-height:65px}button{border:0;cursor:pointer}button:disabled{opacity:.5;cursor:default}.transcript{overflow-y:auto}.sheet-heading{gap:10px}.card-title{display:block}';
-    const root = document.querySelector('main'); root.replaceChildren(); children([...source.documentElement.childNodes], state, root);
-    const transcript = document.querySelector('.transcript'); if (transcript) transcript.scrollTop = Math.abs(scroll - height) < 50 ? transcript.scrollHeight : scroll;
-  };
-}, { wxml, css, spirit });
+await installSourceRenderer(ui, { wxml, css, spirit });
 function paint() { painting = painting.then(() => ui.evaluate(state => window.renderSource(state), active.data)); return painting; }
 function attach(client) {
   active?.onUnload(); const loaded = loadPage(client, f.platform); active = loaded.page;

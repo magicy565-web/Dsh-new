@@ -2,6 +2,9 @@ import { conversationView, WorkspaceClient, ClientError } from '../../shared/cli
 import type { Card, FileReference, References } from '../../shared/client';
 import type { Artifact, Message } from '../../../../src/types';
 import type { Company, Product, LibraryDocument } from '../../../../src/library/types';
+import { presentMuseDraft } from '../../shared/muse-drafts';
+import type { MuseDraft } from '../../shared/muse-drafts';
+import type { DraftPresentation } from '../../shared/muse-draft-view';
 let timer: ReturnType<typeof setTimeout> | undefined;
 let reading = false, visible = false, epoch = 0, readFailures = 0;
 const client = () => getApp<{ globalData: { client: WorkspaceClient } }>().globalData.client;
@@ -12,11 +15,12 @@ const fileReference = (artifact: Artifact): FileReference => ({ id: artifact.id,
 Page({
   data: { conversationId: '', subject: '', draft: '', messages: [] as Message[], cards: [] as Card[], files: [] as FileReference[], busy: false, awaitingApproval: false, loading: false, error: '', readError: '', authenticated: false,
     uncertain: false, pendingLabel: '', pendingSummary: '', resourceCards: [] as Card[], runtimeNotice: '', readAt: '', referencesOpen: false, reviewCard: null as Card | null, reviewLabel: '', preview: null as { title: string; content: string; verified: boolean } | null,
-    company: null as Company | null, products: [] as Product[], documents: [] as LibraryDocument[], references: null as References | null },
+    company: null as Company | null, products: [] as Product[], documents: [] as LibraryDocument[], references: null as References | null,
+    museDrafts: [] as MuseDraft[], draftCards: [] as ReturnType<typeof presentMuseDraft>[], selectedDraft: null as DraftPresentation | null, goalMode: false, goalBlocked: false, drafting: false, needsDraftInput: false, composerHint: '描述目标或需要补充的信息…' },
   onShow() { visible = true; epoch++; void this.open(); },
   onHide() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
   onUnload() { visible = false; epoch++; if (timer !== undefined) clearTimeout(timer); },
-  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '' }); },
+  clearAccount() { this.setData({ authenticated: false, subject: '', conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', reviewCard: null, preview: null, referencesOpen: false, references: null, company: null, products: [], documents: [], uncertain: false, pendingSummary: '', museDrafts: [], draftCards: [], selectedDraft: null, goalBlocked: false }); },
   async open() {
     const opened = epoch;
     try {
@@ -25,6 +29,7 @@ Page({
       const subject = session.user?.id || '';
       if (subject !== this.data.subject) this.setData({ subject, conversationId: '', messages: [], cards: [], files: [], resourceCards: [], draft: '', referencesOpen: false, reviewCard: null, preview: null, references: null, company: null, products: [], documents: [] });
       this.setData({ authenticated: session.authenticated, readError: '' });
+      this.setData({ goalMode: client().requiresOriginalMuse });
       if (session.authenticated) await this.refresh();
     } catch (error) { if (visible && opened === epoch) { this.clearAccount(); this.setData({ readError: message(error) }); } }
   },
@@ -52,16 +57,31 @@ Page({
       const snapshot = await client().bootstrap();
       const id = await client().mainConversation(snapshot);
       const delegations = snapshot.museBinding?.conversationId === id ? (await client().museDelegations(id)).delegations : [];
+      const drafts = client().requiresOriginalMuse ? (await client().museDrafts(id)).drafts : [];
       if (!visible || opened !== epoch) return;
       const view = conversationView(snapshot, id, delegations);
-      const pendingLabel = ({ send: '消息', action: '操作', upload: '文件上传', references: '资料引用', create: '会话创建' } as Record<string, string>)[client().pendingKind] || '';
-      this.setData({ conversationId: id, ...view, cards: view.cards.filter(card => card.kind !== 'input'), readError: '', uncertain: client().uncertain, pendingLabel, pendingSummary: client().pendingSummary, readAt: new Date().toLocaleTimeString(),
+      const pendingLabel = ({ send: '消息', action: '操作', upload: '文件上传', references: '资料引用', create: '会话创建', intake: '草案文字', prepare: '原订单准备' } as Record<string, string>)[client().pendingKind] || '';
+      const draftCards = drafts.map(presentMuseDraft);
+      const selected = this.data.selectedDraft && draftCards.find(value => value.id === this.data.selectedDraft?.id && value.phase !== 'prepared');
+      const active = [...draftCards].reverse().find(value => value.phase !== 'prepared');
+      const cards = view.cards.filter(card => card.kind !== 'input').map(card => {
+        const draft = drafts.find(value => value.runId === card.runId);
+        if (!draft || card.kind !== 'progress') return card;
+        const status = snapshot.runs?.find(run => run.id === draft.runId)?.status || '';
+        const title = ({ queued: '草案整理已排队', running: '正在整理委托草案', succeeded: '草案已保存', interrupted: '草案整理已中断', cancelled: '草案整理已取消', failed: '草案整理失败', blocked: '草案需要处理' } as Record<string, string>)[status] || '草案状态待核对';
+        return { ...card, title, detail: card.detail + '\n此记录是草案整理结果；原任务进度以订单卡为准。' };
+      });
+      this.setData({ conversationId: id, ...view, cards, readError: '', uncertain: client().uncertain, pendingLabel, pendingSummary: client().pendingSummary, readAt: new Date().toLocaleTimeString(),
+        museDrafts: drafts, draftCards, selectedDraft: selected || null, goalBlocked: false, busy: view.busy || drafts.some(value => ['pending', 'preparing'].includes(value.phase)),
+        drafting: drafts.some(value => value.phase === 'pending'), needsDraftInput: active?.phase === 'needs_information',
+        composerHint: active?.phase === 'needs_information' ? '只需补充上面必要的信息…' : active?.editable ? '补充或修改这份草案…' : '描述要交给原 Muse 的业务目标…',
         ...(client().pendingDraft && !this.data.draft ? { draft: client().pendingDraft } : {}), runtimeNotice: snapshot.runtime?.configured === false ? '云端模型尚未接入，发送后会保存请求并显示真实阻挡原因。' : '' });
       readFailures = 0;
     } catch (error) {
       readFailures++;
       if (visible && opened === epoch) {
         this.setData({ readError: message(error) });
+        if (client().requiresOriginalMuse) this.setData({ goalBlocked: true, selectedDraft: null });
         if (error instanceof ClientError && (error.status === 401 || error.code === 'CSRF_REJECTED')) { this.clearAccount(); this.setData({ error: message(error), readError: '' }); }
       }
     } finally {
@@ -71,10 +91,10 @@ Page({
   },
   draft(event: WechatMiniprogram.Input) { this.setData({ draft: event.detail.value }); },
   async send() {
-    if (!this.data.authenticated || !this.data.conversationId || this.data.loading || this.data.busy || client().uncertain) return;
+    if (!this.data.authenticated || !this.data.conversationId || this.data.loading || this.data.busy || this.data.goalBlocked || client().uncertain) return;
     this.setData({ loading: true, error: '' });
     try { await client().send(this.data.conversationId, this.data.draft, this.data.files); this.setData({ draft: '', files: [] }); await this.refresh(); }
-    catch (error) { this.setData({ error: message(error), uncertain: client().uncertain, pendingLabel: '消息' }); }
+    catch (error) { this.setData({ error: message(error), uncertain: client().uncertain, pendingLabel: client().requiresOriginalMuse ? '草案文字' : '消息' }); }
     finally { this.setData({ loading: false }); }
   },
   async retry() {
@@ -83,9 +103,10 @@ Page({
     this.setData({ loading: true, error: '' });
     try {
       const result = await client().retryPending() as { artifact?: Artifact };
-      if (kind === 'send') this.setData({ draft: '', files: [] });
+      if (kind === 'send' || kind === 'intake') this.setData({ draft: '', files: [] });
       if (kind === 'upload' && result.artifact) this.setData({ files: [...this.data.files, fileReference(result.artifact)] });
       if (kind === 'action') this.setData({ reviewCard: null });
+      if (kind === 'prepare') this.setData({ selectedDraft: null });
       if (kind === 'references') await this.openReferences();
       this.setData({ uncertain: false }); await this.refresh();
     } catch (error) { this.setData({ error: message(error), uncertain: client().uncertain }); }
@@ -110,6 +131,23 @@ Page({
   },
   closePreview() { this.setData({ preview: null }); },
   reviewPending() { this.setData({ preview: { title: '原请求核对', content: client().pendingSummary, verified: false } }); },
+  openDraft(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.loading || client().uncertain) return;
+    const draft = this.data.draftCards.find(value => value.id === event.currentTarget.dataset.id && value.editable);
+    if (draft) this.setData({ selectedDraft: draft, error: '' });
+  },
+  closeDraft() { if (!this.data.loading) this.setData({ selectedDraft: null }); },
+  editDraft() { if (!this.data.loading && !client().uncertain) this.setData({ selectedDraft: null, composerHint: '在这里说明要修改或补充的内容…' }); },
+  rejectDraft() { this.setData({ error: '后端尚未提供持久草案拒绝操作，云端草案未改变；请返回并核对服务契约。' }); },
+  async prepareDraft(event: WechatMiniprogram.CustomEvent<{ id: string; scopeVersion: number; scopeHash: string; budgetConfirmed: boolean; publicDataConfirmed: boolean }>) {
+    if (this.data.loading || client().uncertain || this.data.goalBlocked || !this.data.authenticated) return;
+    const target = event.detail, draft = this.data.museDrafts.find(value => value.id === target.id && value.scopeVersion === target.scopeVersion && value.scopeHash === target.scopeHash);
+    if (!draft) { this.setData({ selectedDraft: null, error: '草案范围已变更，请重新审阅当前版本。' }); return; }
+    this.setData({ loading: true, error: '' });
+    try { await client().prepareMuseDraft(draft, target.budgetConfirmed === true, target.publicDataConfirmed === true); this.setData({ selectedDraft: null }); await this.refresh(); }
+    catch (error) { this.setData({ error: message(error), uncertain: client().uncertain, pendingLabel: '原订单准备' }); }
+    finally { this.setData({ loading: false }); }
+  },
   closeReview() { if (!this.data.loading) this.setData({ reviewCard: null }); },
   async confirmCard(event: WechatMiniprogram.TouchEvent) {
     const card = this.data.reviewCard;

@@ -1,0 +1,30 @@
+✔ cold process + cloud store restart recovers the exact lost message request without another model call (256.836222ms)
+✔ actual Page callbacks coalesce send/retry taps, retain offline input, and never cancel on hide/unload (198.994374ms)
+✔ exact approval survives lost response; retry reads original proposal; execution continuation reuses one requestId (495.348724ms)
+✔ actual Page rejection targets the exact proposal and never executes the original connector (263.154566ms)
+✔ actual Page full review preserves payload beyond old 3000-character modal limit (59.66267ms)
+✔ image/PDF upload loss retries original bytes without extraction; actual file preview requires SHA match (137.037937ms)
+✔ journal is bound to confirmed enterprise subject, never stores login/session/CSRF; expired sessions fail closed (0.96559ms)
+✔ write-ahead journal failure stops mutation; legacy unknown create without requestId cannot be replayed or guessed (0.395558ms)
+✔ lost conversation creation response recovers the same durable request after client and server reopen (51.21154ms)
+✔ Muse stop states and accepted files retain exact scope; refresh can run again and never claims execution (0.749764ms)
+✔ actual Page ignores delayed reads after unload and clears old account content on expired session (40.20368ms)
+✔ real file journal preserves original request and fails closed for corrupt saved JSON (2.648443ms)
+✔ compiled shipped App boots with empty service and cannot obtain a code or send any request (1.347577ms)
+✔ malformed local recovery record remains blocked on every initialization attempt (0.197559ms)
+✔ actual Page explicit cancel aborts the original durable run; lost stop response reuses original run after cold restart (113.329521ms)
+✔ actual Page explicit interrupted recovery retries one original requestId and retains cloud run/submission (142.477219ms)
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (207.461727ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (104.599274ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (93.597179ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (0.969185ms)
+✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (0.430281ms)
+✔ WeChat original Muse fixture: exact approval/dispatch/file/accept cards never become a Pi model request or wake (0.668421ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2182.922262

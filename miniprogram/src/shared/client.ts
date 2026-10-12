@@ -1,6 +1,8 @@
 import type { Artifact, Bootstrap, InputContext, Message, Run } from '../../../src/types';
 import type { Company, Product, LibraryDocument } from '../../../src/library/types';
 import type { Journal, Pending } from './journal';
+import { validMuseDraft } from './muse-drafts';
+import type { MuseDraft } from './muse-drafts';
 
 export type Session = { authenticated: boolean; csrfToken: string | null; user: { id: string; role: string } | null; expiresAt: string | null; mode: string };
 export type FileReference = { id: string; version: number; sha256: string; filename: string; mimeType?: string };
@@ -8,7 +10,7 @@ export type References = { conversationId: string; revision: number; products: {
 export type Card = { id: string; title: string; detail: string; runId?: string; proposalId?: string; conversationId?: string; stateKey?: string; operation?: 'approve' | 'deny' | 'resume' | 'recover' | 'cancel' | 'dispatch' | 'accept' | 'refresh'; file?: FileReference; kind: string; muse?: boolean; orderId?: string; reviewHash?: string; receiptHash?: string };
 export type MuseDelegation = { conversationId: string; orderId: string; reviewHash: string; review: { product: string; market: string; objective: string; budgetCredits: number }; phase: string; receiptHash: string | null; returnedHash: string | null; receipt: { files: FileReference[] } | null };
 type Transport = Pick<typeof wx, 'request' | 'downloadFile' | 'getFileSystemManager' | 'login'>;
-export type Options = { baseUrl: string; allowLoopback?: boolean; journal?: Journal; loginBroker?: (code: string) => Promise<{ session: Session; token: string }> };
+export type Options = { baseUrl: string; goalMode?: 'muse'; allowLoopback?: boolean; journal?: Journal; loginBroker?: (code: string) => Promise<{ session: Session; token: string }> };
 const blank = (): InputContext => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });
 const extensionTypes: Record<string, string> = { txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', json: 'application/json', pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
 export class ClientError extends Error { constructor(public code: string, message: string, public status?: number) { super(message); } }
@@ -26,7 +28,10 @@ export class WorkspaceClient {
   private opening: Promise<string> | null = null;
   private loggingIn: Promise<Session> | null = null;
   private snapshot: Bootstrap | null = null;
+  private originalMuseId = '';
+  private drafts: MuseDraft[] = [];
   constructor(private platform: Transport, private options: Options) {}
+  get requiresOriginalMuse() { return this.options.goalMode === 'muse'; }
   private base() {
     const url = this.options.baseUrl;
     if (!/^https:\/\/[a-z0-9.-]+(?::[0-9]+)?$/i.test(url) && !(this.options.allowLoopback && /^http:\/\/127\.0\.0\.1:[0-9]+$/.test(url))) throw new ClientError('SERVICE_SETUP_REQUIRED', '开发版尚未绑定已授权的企业服务。');
@@ -55,9 +60,9 @@ export class WorkspaceClient {
       const owner = this.session.user?.id || (this.options.allowLoopback && this.session.mode === 'local' ? 'local' : '');
       if (!owner) throw new ClientError('LOGIN_REQUIRED', '企业会话缺少可核对的账号。');
       if (owner !== this.owner) {
-        this.pending = null; this.completed.clear(); this.conversationId = ''; this.owner = ''; this.snapshot = null;
+        this.pending = null; this.completed.clear(); this.conversationId = ''; this.owner = ''; this.snapshot = null; this.originalMuseId = ''; this.drafts = [];
         const saved = this.options.journal?.read(owner, this.base());
-        if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
+        if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create', 'intake', 'prepare'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
         if (saved?.version === 1 && saved.owner === owner && saved.baseUrl === this.base()) {
           this.conversationId = saved.conversationId;
           if (saved.pending && typeof saved.pending.path === 'string' && typeof saved.pending.key === 'string' && saved.pending.body && typeof saved.pending.body === 'object') this.pending = saved.pending;
@@ -88,9 +93,11 @@ export class WorkspaceClient {
       return actual;
     } catch (error) { this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.snapshot = null; this.completed.clear(); throw error; }
   }
-  async bootstrap() { const snapshot = await this.request<Bootstrap & { museBinding?: { conversationId?: string } }>('/bootstrap'); this.snapshot = snapshot; return snapshot; }
-  async mainConversation(snapshot: Bootstrap & { museBinding?: { conversationId?: string } }) {
+  async bootstrap() { const snapshot = await this.request<Bootstrap & { museBinding?: { conversationId?: string; originalBinding?: boolean } }>('/bootstrap'); this.snapshot = snapshot; this.originalMuseId = snapshot.museBinding?.originalBinding === true ? snapshot.museBinding.conversationId || '' : ''; return snapshot; }
+  async mainConversation(snapshot: Bootstrap & { museBinding?: { conversationId?: string; originalBinding?: boolean } }) {
     const native = snapshot.museBinding?.conversationId;
+    if (this.requiresOriginalMuse && (snapshot.museBinding?.originalBinding !== true || !native || !snapshot.conversations.some(value => value.id === native))) throw new ClientError('MUSE_ORIGINAL_BINDING_REQUIRED', '当前账号尚未读取到原 Muse 会话绑定，请由服务负责人恢复授权关联。');
+    if (this.requiresOriginalMuse && native) { this.conversationId = native; this.save(); return native; }
     const known = [this.pending?.conversationId, native, this.conversationId].find(id => id && snapshot.conversations.some(value => value.id === id)) || snapshot.conversations[0]?.id;
     if (known) {
       if (this.pending?.kind === 'create') {
@@ -110,6 +117,7 @@ export class WorkspaceClient {
   private requestId() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, letter => { const value = Math.floor(Math.random() * 16); return (letter === 'x' ? value : (value & 3) | 8).toString(16); }); }
   async send(conversationId: string, content: string, artifacts: FileReference[] = []) {
     if (!content.trim()) throw new ClientError('INPUT_REQUIRED', '说说你想完成的事。');
+    if (this.requiresOriginalMuse) return this.sendMuseDraft(conversationId, content, artifacts);
     if (this.pending) throw new ClientError('RESULT_UNCERTAIN', '先核对上一条原请求的结果。');
     const original = this.snapshot?.conversations.find(value => value.id === conversationId)?.inputContext;
     const inputContext: InputContext = original ? JSON.parse(JSON.stringify(original)) : blank();
@@ -134,7 +142,7 @@ export class WorkspaceClient {
     if (!command) return Promise.reject(new ClientError('NO_PENDING_REQUEST', '没有需要核对的原请求。'));
     if (this.inFlight) return this.inFlight.promise;
     const promise = this.request(command.path, 'POST', command.body).then(result => {
-      this.pending = null; if (command.kind === 'action' && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
+      this.pending = null; if ((command.kind === 'action' || command.kind === 'prepare') && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
     }).catch(error => {
       // A response-lost or server-error request retains its exact original body.
       if (error instanceof ClientError && !['RESULT_UNCERTAIN', 'NETWORK_ERROR'].includes(error.code) && error.status !== 401 && error.code !== 'CSRF_REJECTED') { this.pending = null; this.save(); }
@@ -165,9 +173,34 @@ export class WorkspaceClient {
   retrySend() { return this.retryPending() as Promise<{ run: Run }>; }
   get uncertain() { return Boolean(this.pending); }
   get pendingKind() { return this.pending?.kind || ''; }
-  get pendingDraft() { return this.pending?.kind === 'send' ? String(this.pending.body.content) : ''; }
+  get pendingDraft() { return this.pending?.kind === 'send' || this.pending?.kind === 'intake' ? String(this.pending.body.content) : ''; }
   get pendingSummary() { return this.pending ? `${this.pending.review ? `${this.pending.review.title}\n${this.pending.review.detail}\n\n` : ''}原请求 ${this.pending.path}\n${this.pending.kind === 'upload' ? String(this.pending.body.filename) : JSON.stringify(this.pending.body, null, 2)}` : ''; }
-  async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.conversationId = ''; this.completed.clear(); }
+  async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.conversationId = ''; this.originalMuseId = ''; this.drafts = []; this.completed.clear(); }
+  private assertOriginalMuse(conversationId: string) { if (!this.originalMuseId || conversationId !== this.originalMuseId) throw new ClientError('MUSE_ORIGINAL_BINDING_REQUIRED', '当前账号尚未读取到原 Muse 会话绑定；没有发送替代 Pi 请求。'); }
+  async museDrafts(conversationId: string) {
+    this.assertOriginalMuse(conversationId);
+    const result = await this.request<{ drafts: MuseDraft[] }>(`/conversations/${encodeURIComponent(conversationId)}/muse-drafts`);
+    if (!Array.isArray(result.drafts) || !result.drafts.every(draft => validMuseDraft(draft, conversationId))) throw new ClientError('MUSE_DRAFT_RESPONSE_INVALID', '服务端草案格式无法核对，未启用准备操作。');
+    this.drafts = result.drafts; return result;
+  }
+  async sendMuseDraft(conversationId: string, content: string, artifacts: FileReference[] = []) {
+    this.assertOriginalMuse(conversationId);
+    if (this.pending) throw new ClientError('RESULT_UNCERTAIN', '先核对上一条原请求的结果。');
+    if (!content.trim()) throw new ClientError('INPUT_REQUIRED', '说说目标或需要补充的信息。');
+    const active = [...this.drafts].reverse().find(value => value.conversationId === conversationId && value.phase !== 'prepared');
+    if (active && ['pending', 'preparing'].includes(active.phase)) throw new ClientError('MUSE_DRAFT_BUSY', '请先读取当前草案或原订单准备结果。');
+    const inputContext = blank();
+    inputContext.artifacts = artifacts.filter(value => ['text/plain', 'text/markdown', 'text/csv', 'application/json'].includes(value.mimeType || '')).map(value => ({ id: value.id, version: value.version }));
+    const requestId = this.requestId(), body = { requestId, content: content.trim(), inputContext, ...(active ? { expectedScopeVersion: active.scopeVersion } : {}) };
+    const path = `/conversations/${encodeURIComponent(conversationId)}/muse-drafts${active ? `/${encodeURIComponent(active.id)}/messages` : ''}`;
+    return this.commit({ kind: 'intake', conversationId, path, body, key: requestId }) as Promise<{ draftId: string; scopeVersion: number; run: Run }>;
+  }
+  async prepareMuseDraft(draft: MuseDraft, termsConfirmed: boolean, publicDataConfirmed: boolean) {
+    this.assertOriginalMuse(draft.conversationId);
+    if (!termsConfirmed || !publicDataConfirmed || draft.phase !== 'ready_for_review' || draft.missingFields.length || !draft.scopeHash) throw new ClientError('MUSE_DRAFT_CONFIRMATION', '请审阅完整草案并分别确认预算期限与公开文字范围。');
+    const body = { requestId: this.requestId(), expectedScopeVersion: draft.scopeVersion, expectedScopeHash: draft.scopeHash, confirmed: true, budgetConfirmed: true, publicDataConfirmed: true };
+    return this.commit({ kind: 'prepare', conversationId: draft.conversationId, path: `/conversations/${encodeURIComponent(draft.conversationId)}/muse-drafts/${encodeURIComponent(draft.id)}/prepare`, body, key: JSON.stringify(['prepare', draft.id, draft.scopeVersion, draft.scopeHash]), review: { title: '准备待审原订单', detail: JSON.stringify(draft.scope, null, 2) } });
+  }
   async action(card: Card, confirmed: boolean, conversationId?: string) {
     if (!confirmed) throw new ClientError('APPROVAL_REQUIRED', '需要明确确认本次具体操作。');
     if (card.muse) {
