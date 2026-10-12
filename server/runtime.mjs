@@ -519,8 +519,9 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         }
         if (key && receipts.receipts.length >= 10000) throw new ApiError(409, 'CREATION_RECEIPT_LIMIT', 'Conversation creation receipt capacity requires operator review.');
         const item = conversation(state, title); item.inputContext = selection;
+        item.createdBy = subject; item.workspaceId = workspaceId;
         if (key) {
-          item.creationRequestId = key; item.createdBy = subject;
+          item.creationRequestId = key;
           receipts.receipts.push({ subject, workspaceId, requestId: key, fingerprint, conversationId: item.id });
         }
         activity(state, 'created', 'Conversation created', title, { conversationId: item.id }); return { conversation: item };

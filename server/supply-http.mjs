@@ -1,4 +1,6 @@
 /** The same service/API contract on the existing app and original native Host. */
+import { ApiError } from './runtime.mjs';
+
 export async function supplyHttp({ supply, method, pathname, body = {}, query = {}, actor }) {
   if (method === 'GET') {
     const read = { '/api/supply/status': 'status', '/api/supply/suppliers': 'suppliers', '/api/supply/listings': 'listings', '/api/supply/inquiries': 'inquiries', '/api/supply/events': 'events', '/api/supply/shopify/observation': 'shopifyObservation' }[pathname];
@@ -7,7 +9,12 @@ export async function supplyHttp({ supply, method, pathname, body = {}, query = 
     const inquiry = pathname.match(/^\/api\/supply\/inquiries\/([^/]+)(?:\/(review))?$/);
     if (inquiry) return { status: 200, body: await supply[inquiry[2] ? 'reviewInquiry' : 'inquiry'](inquiry[1], actor) };
     const conversation = pathname.match(/^\/api\/conversations\/([^/]+)\/procurement$/);
-    if (conversation) return { status: 200, body: await supply.conversationInquiries(conversation[1], actor) };
+    if (conversation) {
+      let conversationId;
+      try { conversationId = decodeURIComponent(conversation[1]); }
+      catch { throw new ApiError(400, 'INVALID_PATH', 'Invalid API identifier encoding.'); }
+      return { status: 200, body: await supply.conversationInquiries(conversationId, actor) };
+    }
   }
   if (method === 'POST') {
     const create = { '/api/supply/suppliers': 'createSupplier', '/api/supply/listings': 'createListing', '/api/supply/inquiries': 'createInquiry' }[pathname];

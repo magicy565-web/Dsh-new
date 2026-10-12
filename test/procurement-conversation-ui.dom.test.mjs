@@ -3,8 +3,8 @@ import test from 'node:test';
 import { randomUUID, createHash } from 'node:crypto';
 import { originalHttp, bundleRenderer, wait, button, click, field, input } from './fixtures/conversation-ui.mjs';
 
-// Original HTTP/MCP/Store on temporary NTFS. The buyer token and preconfigured
-// merchant-conversation ownership are test fixtures, never live connectors or
+// Original HTTP/MCP/Store in a temporary directory. The buyer token is a
+// fixture; merchant conversations are created by the actual HTTP API, not
 // client-supplied authority. Reading/binding/replying must not execute a model.
 async function fixture(t) {
   const token = 'synthetic-conversation-ui-buyer-0123456789', request = () => ({ requestId: randomUUID() });
@@ -15,7 +15,6 @@ async function fixture(t) {
   };
   const own = (await http.request('/api/conversations', 'POST', { title: 'Original merchant fixture' })).conversation;
   const other = (await http.request('/api/conversations', 'POST', { title: 'Unrelated merchant fixture' })).conversation;
-  await http.app.store.update(state => { for (const conversation of state.conversations) conversation.subject = 'local-operator'; });
   const skuId = randomUUID(), product = (await http.request('/api/library/products', 'POST', { ...request(), name: 'Saved UI fixture product', skus: [{ id: skuId, code: 'P-UI' }] })).product;
   let supplier = (await http.request('/api/supply/suppliers', 'POST', { ...request(), displayName: 'Exact fixture merchant', country: 'China' })).supplier;
   supplier = (await http.request(`/api/supply/suppliers/${supplier.id}/merchant`, 'POST', { ...request(), expectedRevision: supplier.revision, merchantSubject: 'local-operator', confirmed: true })).supplier;

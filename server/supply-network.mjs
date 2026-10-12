@@ -63,7 +63,13 @@ export function createSupplyNetworkService({ store, clock = Date.now, workspaceI
   };
   function reference(state, row, actor, conversationId, kind, value) {
     const conversation = state.conversations?.find(c => c.id === conversationId);
-    if (!conversation || !(conversation.subject === actor.subject || actor.nativeAgentId === conversationId)) fail(404, 'SUPPLY_CONVERSATION_REQUIRED', 'Use this merchant\'s original owned business conversation.');
+    const creations = state.workspaceConversationCreations;
+    // Reuse the server-stamped owner and original creation receipt. Earlier
+    // keyed conversations have no workspaceId field; their receipt provides it.
+    const ownedCreation = conversation?.createdBy === actor.subject && (conversation.creationRequestId
+      ? creations?.version === 1 && Array.isArray(creations.receipts) && creations.receipts.some(receipt => receipt.conversationId === conversationId && receipt.subject === actor.subject && receipt.workspaceId === workspaceId && receipt.requestId === conversation.creationRequestId)
+      : conversation.workspaceId === workspaceId);
+    if (!conversation || !(conversation.subject === actor.subject || actor.nativeAgentId === conversationId || ownedCreation)) fail(404, 'SUPPLY_CONVERSATION_REQUIRED', 'Use this merchant\'s original owned business conversation.');
     const id = 'supply-' + digest([row.id, row.share.reviewHash, kind, value]);
     state.messages ??= [];
     if (!state.messages.some(m => m.id === id)) state.messages.push({ id, conversationId, role: 'assistant', status: 'complete',

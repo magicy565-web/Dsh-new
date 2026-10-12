@@ -36,6 +36,11 @@ test('HTTP creates dedupe original requests and reject client-provided identity 
   const second = await (await post(body)).json();
   assert.equal(first.conversation.id, second.conversation.id); assert.equal(second.duplicate, true);
   assert.equal(first.conversation.createdBy, 'local-operator');
+  assert.equal(first.conversation.workspaceId, 'local');
   assert.equal((await post({ ...body, subject: 'invented-owner' })).status, 400);
-  assert.equal(app.store.read().conversations.length, 1); assert.equal(app.runtime.listRuns().runs.length, 0);
+  const unkeyed = await (await post({ title: 'Original web create shape' })).json();
+  assert.equal(unkeyed.conversation.createdBy, 'local-operator');
+  assert.equal(unkeyed.conversation.workspaceId, 'local');
+  assert.equal(unkeyed.conversation.creationRequestId, undefined);
+  assert.equal(app.store.read().conversations.length, 2); assert.equal(app.runtime.listRuns().runs.length, 0);
 });
