@@ -1,0 +1,393 @@
+✔ draft view only shows received fields; a missing budget/deadline never becomes an invented permission (1.184763ms)
+✔ amount, deadline and public scope require three explicit confirmations and reset on return or changed revision/draftHash (1.873424ms)
+✔ draft view requires actual fields and presents a model suggestion separately from explicit user confirmation (0.200914ms)
+✔ shipped Muse goal mode rejects missing original binding and never substitutes a Pi send or creates a generic conversation (5.555925ms)
+✔ repair original read-confirmed draft: distinct default-empty media consent, exact original ID/hash, approval separate from execute, draft_only (977.056794ms)
+✔ acknowledged original media needs only missing-step consent and no adoption or second upload (693.506919ms)
+✔ existing Connector without repair capability is blocked without capability expansion, grant creation or mutation (556.22494ms)
+✔ deny exact repair leaves original partial and permits a new separate review without writes (624.143879ms)
+▶ changed remote content, unready or substituted media is blocked by real read/review with no repair mutation
+  ✔ content (467.956857ms)
+  ✔ unready (507.505258ms)
+  ✔ substituted (622.952309ms)
+✔ changed remote content, unready or substituted media is blocked by real read/review with no repair mutation (1599.540957ms)
+✔ remote change after approved repair cannot execute old scope or publish; no variant write (598.715879ms)
+✔ repair mutation unknown and local response lost: cold restore reconciles exact repair, one variant write and unchanged original create/upload steps (691.402948ms)
+✔ refresh of original read hash invalidates repair preparation and clears native consent; duplicate confirm admits one repair (428.873539ms)
+✔ already read-confirmed retail variant: separately approved observed media has no variant or other mutation (546.877272ms)
+✔ unadmitted repair execution reuses original request only after read and another explicit confirmation (620.064807ms)
+✔ failed variant repair and lost read response: cold restore preserves original reconcile UUID/body, no repair retransmission (763.202624ms)
+✔ actual compiled review component emits no prepare without three explicit confirmations (4.504965ms)
+✔ unchanged authoritative polling preserves review checks, changed revision resets them; edit/return never submit (1.356382ms)
+✔ unknown operation disables all mutations and rejects missing scope despite received suggestions (1.043108ms)
+✔ actual Page goal/reply uses frozen Muse routes/version and only server missing questions; zero ordinary Pi sends (34.352878ms)
+✔ lost intake and prepare responses survive cold client restart and reuse original body without another order (42.573573ms)
+✔ stale selected scope cannot prepare through actual Page callback; no client body can override order values (15.149778ms)
+✔ actual Page -> signed HTTP/Pi tool -> one clarified original draft -> separate prepare/approve/dispatch -> real SHA file (691.377227ms)
+✔ actual HTTP first 202 and prepare acknowledgment loss reopen same original draft/body/order without another model call (336.83678ms)
+✔ actual HTTP edits retire old revision; explicit reject of prepared draft retires old review and lost rejection reuses original body (393.638347ms)
+✔ cold process + cloud store restart recovers the exact lost message request without another model call (252.148889ms)
+✔ actual Page callbacks coalesce send/retry taps, retain offline input, and never cancel on hide/unload (128.69916ms)
+✔ exact approval survives lost response; retry reads original proposal; execution continuation reuses one requestId (189.925927ms)
+✔ actual Page rejection targets the exact proposal and never executes the original connector (107.653908ms)
+✔ actual Page full review preserves payload beyond old 3000-character modal limit (35.392781ms)
+✔ image/PDF upload loss retries original bytes without extraction; actual file preview requires SHA match (117.45834ms)
+✔ journal is bound to confirmed enterprise subject, never stores login/session/CSRF; expired sessions fail closed (1.306306ms)
+✔ write-ahead journal failure stops mutation; legacy unknown create without requestId cannot be replayed or guessed (0.433025ms)
+✔ lost conversation creation response recovers the same durable request after client and server reopen (52.84412ms)
+✔ Muse stop states and accepted files retain exact scope; refresh can run again and never claims execution (0.880341ms)
+✔ actual Page ignores delayed reads after unload and clears old account content on expired session (35.972007ms)
+✔ real file journal preserves original request and fails closed for corrupt saved JSON (2.360771ms)
+✔ compiled shipped App boots with empty service and cannot obtain a code or send any request (1.212013ms)
+✔ malformed local recovery record remains blocked on every initialization attempt (0.332924ms)
+✔ actual Page explicit cancel aborts the original durable run; lost stop response reuses original run after cold restart (109.176502ms)
+✔ actual Page explicit interrupted recovery retries one original requestId and retains cloud run/submission (141.248394ms)
+✔ actual Page/native controls -> signed HTTP/GA4: product views preserve null sessions, provenance, persistent checks and one corrected summary (984.520737ms)
+▶ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message
+  ✔ {"configured":false,"traffic":false} (489.211142ms)
+  ✔ {"proof":false} (632.623127ms)
+  ✔ {"binding":false} (627.538076ms)
+✔ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message (1750.378366ms)
+▶ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority
+  ✖ errMsgOnly (558.171361ms)
+  ✖ fail (539.822175ms)
+  ✖ reject (490.824757ms)
+  ✖ ban (472.07167ms)
+  ✖ filter (485.204465ms)
+✖ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority (2547.759436ms)
+✖ native accept is a client claim until existing trusted callback verifies it; no invented OpenID or authority (444.015148ms)
+✖ real local combined seven-day subscription -> separate review/approve/execute; fixture provider accepted is not user read/business acceptance (437.861369ms)
+▶ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox
+  ✖ deny (560.515101ms)
+  ✔ revoke (537.881445ms)
+  ✔ cancel (579.002285ms)
+  ✔ stop (537.607882ms)
+✖ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox (2216.04277ms)
+✖ lost verified subscription record reply cold-reuses exact body and original grant without another wx call (482.147772ms)
+✖ provider and local execution response unknown: cold GET status only, original operation retained, no resend or fake query proof (407.632429ms)
+✖ unadmitted notification requires a new explicit confirm and same original UUID/body, never automatic send (382.677272ms)
+✖ lost subscription challenge cold-replays its original UUID then awaits a separate native click (377.883726ms)
+✖ changed seven-day summary clears original native approval checks and disables old approved send scope (413.73126ms)
+▶ provider failure never resends; cancellation after acceptance records request without claiming recall
+  ✖ failure (447.807905ms)
+  ✖ cancel-after-accept (398.856234ms)
+✖ provider failure never resends; cancellation after acceptance records request without claiming recall (847.374283ms)
+✔ actual mini Page -> original HTTP procurement/MCP: private draft, explicit shared association, one reviewed reply, buyer read/reload; models zero (379.739376ms)
+✔ unknown association and reply results cold-recover original UUID/body; no extra share/reply or Pi fallback (250.086904ms)
+✔ reply selection preserves unsent goal/files and transmits only confirmed reply text; revocation removes new-reply controls (128.117055ms)
+✔ actual native controls -> signed HTTP -> original draft and image receipt, independent exact channel approval/execute, no default consent (885.166958ms)
+▶ missing configuration is an actual blocker; denying original pending approval emits no write and permits a distinct fresh review
+  ✔ unconfigured (273.895491ms)
+  ✔ deny (366.59119ms)
+✔ missing configuration is an actual blocker; denying original pending approval emits no write and permits a distinct fresh review (641.518322ms)
+✔ local execution response lost: cold recovery queries same operation, preserves original body, never repeats external write (504.936417ms)
+✔ unsubmitted execution requires explicit reconfirmation after query; same original requestId/body is used without automatic admission (466.588567ms)
+✔ remote write result unknown/partial only offers original read-only reconcile; media readiness is not byte verification (429.614023ms)
+✔ unknown local and remote result: lost read-only reconciliation response cold-replays its original body without another write (423.762703ms)
+✔ authoritative preview revision change resets actual review checks and makes an old approval nonexecutable (290.178361ms)
+✔ actual Page -> signed HTTP/Pi tool -> private facts, original image/SHA, reviewed preview, original library and honest Shopify blocker (725.041997ms)
+✔ lost intake/preview/library acknowledgments cold-recover the same UUID/body and persistent result without extra Pi/product (454.32735ms)
+✔ seven-day UI config stays disabled, read uses null/status, stable final summary survives replay/reopen and stop targets original monitor (389.891624ms)
+✖ read-only Shopify response fixture through actual HTTP: ACTIVE stays unpublished and late refund corrects one original summary, no model or mutation (438.954222ms)
+✔ new backend: changed facts update one original product; rejected intake invalidates preview and cannot resume until explicit new product (605.784742ms)
+✔ preview field checks start empty, exact confirmed selection excludes private supply fields (4.78685ms)
+✔ unchanged polling preserves checks, changed original facts/revision resets; uncertain state emits no mutation (2.03654ms)
+✔ original service preview display does not turn MOQ, wholesale, recommended price or production into consumer fields (6.110312ms)
+✔ explicit retail facts and original provenance appear verbatim; unobserved image remains unknown (2.653244ms)
+✔ artifact image review retains original id/version/SHA; preview renderer refuses to portray a publish receipt (0.600228ms)
+✔ WeChat protocol fixture: one conversation uses real Pi backend and verifies actual deliverable bytes (219.387933ms)
+✔ WeChat protocol fixture: lost send acknowledgment retries same business request without another model run (94.308724ms)
+✔ WeChat protocol fixture: attachment upload uses original storage, opaque IDs encode once and business references use POST (111.143125ms)
+✔ WeChat client rejects unconfigured identity and unconfirmed approvals without a platform or model call (1.203431ms)
+✔ WeChat login mapping fixture: broker cannot invent an enterprise role or impersonate another existing session (0.615722ms)
+✔ WeChat original Muse fixture: exact approval/dispatch/file/accept cards never become a Pi model request or wake (0.921384ms)
+ℹ tests 97
+ℹ suites 0
+ℹ pass 78
+ℹ fail 19
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13600.726127
+
+✖ failing tests:
+
+test at miniprogram/test/monitor-client.test.mjs:17:74
+✖ errMsgOnly (558.171361ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:358)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:66)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:17:74
+✖ fail (539.822175ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:358)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:66)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:17:74
+✖ reject (490.824757ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:358)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:66)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:17:74
+✖ ban (472.07167ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:358)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:66)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:17:74
+✖ filter (485.204465ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:358)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:17:66)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:19:1
+✖ native accept is a client claim until existing trusted callback verifies it; no invented OpenID or authority (444.015148ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:20:153)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:22:1
+✖ real local combined seven-day subscription -> separate review/approve/execute; fixture provider accepted is not user read/business acceptance (437.861369ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:23:244)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:29:62
+✖ deny (560.515101ms)
+  TypeError: Cannot read properties of null (reading 'status')
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:29:371)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:29:54)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at miniprogram/test/monitor-client.test.mjs:31:1
+✖ lost verified subscription record reply cold-reuses exact body and original grant without another wx call (482.147772ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:32:233)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:34:1
+✖ provider and local execution response unknown: cold GET status only, original operation retained, no resend or fake query proof (407.632429ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:35:369)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:37:1
+✖ unadmitted notification requires a new explicit confirm and same original UUID/body, never automatic send (382.677272ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:38:279)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:40:1
+✖ lost subscription challenge cold-replays its original UUID then awaits a separate native click (377.883726ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + ''
+  - 'notification-challenge'
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:41:198)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: 'notification-challenge',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:43:1
+✖ changed seven-day summary clears original native approval checks and disables old approved send scope (413.73126ms)
+  TypeError: Cannot read properties of null (reading 'id')
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:44:919)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at miniprogram/test/monitor-client.test.mjs:47:62
+✖ failure (447.807905ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'blocked'
+  - 'failed'
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:47:322)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:47:54)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'blocked',
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/monitor-client.test.mjs:47:62
+✖ cancel-after-accept (398.856234ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'blocked'
+  - 'platform_accepted'
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:47:322)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:47:54)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'blocked',
+    expected: 'platform_accepted',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at miniprogram/test/supplier-http.test.mjs:34:1
+✖ read-only Shopify response fixture through actual HTTP: ACTIVE stays unpublished and late refund corrects one original summary, no model or mutation (438.954222ms)
+  TypeError: Cannot read properties of undefined (reading 'latestSample')
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/supplier-http.test.mjs:50:66)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

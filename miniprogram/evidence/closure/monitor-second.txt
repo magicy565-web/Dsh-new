@@ -1,0 +1,58 @@
+✔ actual Page/native controls -> signed HTTP/GA4: product views preserve null sessions, provenance, persistent checks and one corrected summary (847.564362ms)
+▶ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message
+  ✔ {"configured":false,"traffic":false} (477.63978ms)
+  ✔ {"proof":false} (468.303568ms)
+  ✔ {"binding":false} (592.25442ms)
+✔ real default/missing trusted provider/missing host boundary is blocked, no native subscription/accept claim or message (1539.234164ms)
+▶ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority
+  ✔ errMsgOnly (517.47431ms)
+  ✔ fail (446.028253ms)
+  ✔ reject (527.96614ms)
+  ✔ ban (551.406225ms)
+  ✔ filter (647.070471ms)
+✔ native template decision required: errMsg-only/failure cannot record; reject/ban/filter persist revoked without authority (2692.882146ms)
+✖ native accept is a client claim until existing trusted callback verifies it; no invented OpenID or authority (542.045677ms)
+✔ real local combined seven-day subscription -> separate review/approve/execute; fixture provider accepted is not user read/business acceptance (740.833488ms)
+▶ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox
+  ✔ deny (540.276001ms)
+  ✔ revoke (594.724002ms)
+  ✔ cancel (562.359426ms)
+  ✔ stop (572.305541ms)
+✔ deny, revoke and cancel exact original notification do not send and monitor stop cancels original outbox (2270.448966ms)
+✔ lost verified subscription record reply cold-reuses exact body and original grant without another wx call (552.220888ms)
+✔ provider and local execution response unknown: cold GET status only, original operation retained, no resend or fake query proof (760.680219ms)
+✔ unadmitted notification requires a new explicit confirm and same original UUID/body, never automatic send (688.584409ms)
+✔ lost subscription challenge cold-replays its original UUID then awaits a separate native click (588.20994ms)
+✔ changed seven-day summary clears original native approval checks and disables old approved send scope (660.809443ms)
+▶ provider failure never resends; cancellation after acceptance records request without claiming recall
+  ✔ failure (728.910163ms)
+  ✔ cancel-after-accept (803.270448ms)
+✔ provider failure never resends; cancellation after acceptance records request without claiming recall (1533.396189ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 25
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13774.43395
+
+✖ failing tests:
+
+test at miniprogram/test/monitor-client.test.mjs:19:1
+✖ native accept is a client claim until existing trusted callback verifies it; no invented OpenID or authority (542.045677ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /claim|订阅|设施|native/. Input:
+  
+  '缺已绑定原登录的一次性客户端报告；不是独立微信授权证明'
+  
+      at TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/monitor-client.test.mjs:20:100)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '缺已绑定原登录的一次性客户端报告；不是独立微信授权证明',
+    expected: /claim|订阅|设施|native/,
+    operator: 'match',
+    diff: 'simple'
+  }

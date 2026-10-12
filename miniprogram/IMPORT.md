@@ -1,3 +1,5 @@
+当前单一固定组合：主后端PR54 1ebc5f7（接口7e2fa155）+ PR52客户端功能4f7d800/185c82b。见 [最终原生报告/首次通知验收](NOTIFICATION-CLOSURE-ACCEPTANCE.md)，105/105普通客户端组合；原生结果仅认证客户端报告，平台授权待发送核验，官方协议/真机/实店未验收。旧ZIP不含增量，不重新打包。
+
 当前固定统一版本：主后端PR53 622fbfb + 同一PR52客户端功能09edc8b。见 [统一监测/通知验收](MONITOR-FINAL-ACCEPTANCE.md)，普通组合97/97，保留draft/publish/repair；生产可信订阅设施和首采样通知仍缺代码，真实来源/微信未验收。旧ZIP不包含当前增量，本轮不重复归档。
 
 当前增量交付继续 Draft PR52，包含 Shopify draft/publish 与 `repair_draft`，后端固定952db1a。见 [修复验收](DRAFT-REPAIR-ACCEPTANCE.md)：普通客户端与原微信协议71/71；截图为原源码Chromium/本地HTTP模拟，真实微信和真实Shopify验收未完成。旧ZIP保持旧版标记，不包含本轮增量。

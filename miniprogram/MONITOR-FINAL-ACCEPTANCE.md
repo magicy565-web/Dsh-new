@@ -1,5 +1,7 @@
 # 统一监测与七天总结通知客户端
 
+本文件保留622fbfb/25c5559的97项阶段检查点。当前固定最终组合采用PR54 1ebc5f7、105项，见 [NOTIFICATION-CLOSURE-ACCEPTANCE](NOTIFICATION-CLOSURE-ACCEPTANCE.md)。此前两个代码缺口已闭合到认证客户端报告级别，不能理解为独立微信授权证明。
+
 固定主后端 **622fbfb6e9d037e548c3ed1d10e5a34a82038da7（PR53）**；代码契约 **ad1545d0efebddadf24e545f93dbdb8571a1e4ab** 的 [JSON](../docs/SUPPLIER-MONITOR-CLIENT-CONTRACT.json)。客户端功能源码 **09edc8b**，继续同一独立分支 `codex/wechat-shopify-write-20261012`、[Draft PR52](https://github.com/magicy565-web/workspace-agent/pull/52)。最终交付为本PR固定head的源码、编译入口、普通测试与证据；旧写入/repair报告是历史检查点，不代表当前统一版本。
 
 客户端作者改动只有 `miniprogram/`：原 conversation Page、原审批 Component、shared DTO/Client/恢复记录、普通测试、说明与证据。后台和公共API完全来自主任务固定提交；没有自行改server、根依赖/锁/共享构建。复用原卡片、资源入口、审批sheet、Muse精灵和素材，没有新后台或另一套UI。保留原 draft/publish/repair 交互和原批准/执行边界。
