@@ -192,7 +192,7 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
     if (loading || !initialMainEntry.current) return;
     initialMainEntry.current = false;
     setEntryReady(true);
-    if (!route.id && route.page === 'chat' && conversations[0] && !currentDialog.current && !dirtyRef.current && !mutationLock.current && !draft.trim() && goalDraft === null) performNavigation('chat', conversations[0].id);
+    if (navigationRevision.current === 0 && !route.id && route.page === 'chat' && conversations[0] && !currentDialog.current && !dirtyRef.current && !mutationLock.current && !draft.trim() && goalDraft === null) performNavigation('chat', conversations[0].id);
   }, [loading, conversations, route.page, route.id]);
   useEffect(() => {
     const resized = () => { if (window.innerWidth < 1100) { setPanelOpen(false); if (window.innerWidth < 760) setSidebarOpen(false); } };

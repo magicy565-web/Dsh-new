@@ -10,9 +10,16 @@ export const stamp = (value: string) => value ? new Date(value).toLocaleString('
 export function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="bl-field">{label}{children}</label>; }
 export function Notice({ error, retry }: { error: string; retry?: () => void }) { return error ? <div className="bl-error" role="alert"><p>{error}</p>{retry && <button type="button" className="text-button" onClick={retry}>重试读取</button>}</div> : null; }
 export function Empty({ title, children }: { title: string; children?: ReactNode }) { return <div className="bl-empty"><span className="ys-empty-glyph" aria-hidden="true"><Icon name="library" size={30}/></span><h3>{title}</h3>{children}</div>; }
-export function useRead<T>(path: string | null, reloadKey: number = 0) {
+export function useRead<T>(path: string | null, reloadKey: number = 0, retainWhileReloading = false) {
   const [value, setValue] = useState<T | null>(null), [loading, setLoading] = useState(!!path), [error, setError] = useState(''), [refresh, setRefresh] = useState(0);
-  useEffect(() => { let alive = true; setValue(null); setError(''); setLoading(!!path); if (path) void api<T>(path).then(result => { if (alive) setValue(result); }).catch(cause => { if (alive) setError(cause.message); }).finally(() => { if (alive) setLoading(false); }); return () => { alive = false; }; }, [path, refresh, reloadKey]);
+  const previousPath = useRef(path);
+  useEffect(() => {
+    let alive = true;
+    if (!retainWhileReloading || previousPath.current !== path || !path) setValue(null);
+    previousPath.current = path; setError(''); setLoading(!!path);
+    if (path) void api<T>(path).then(result => { if (alive) setValue(result); }).catch(cause => { if (alive) { setValue(null); setError(cause.message); } }).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [path, refresh, reloadKey, retainWhileReloading]);
   return { value, loading, error, retry: () => setRefresh(n => n + 1) };
 }
 

@@ -1,6 +1,7 @@
 // Actual compiled Page callbacks + actual source WXML/WXSS in a deliberately
 // limited Chromium renderer. This is NOT WeChat DevTools or a real device.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { chromium } from 'playwright';
 import { installSourceRenderer } from './source-renderer.mjs';
@@ -9,6 +10,7 @@ import { fixture, loadPage, until, WorkspaceClient } from './support.mjs';
 const destination = new URL(process.env.WECHAT_SIM_OUTPUT || '../evidence/browser/', import.meta.url);
 await fs.mkdir(destination, { recursive: true });
 const wxml = await fs.readFile(new URL('../src/pages/conversation/index.wxml', import.meta.url), 'utf8');
+const shopifyReviewWxml = await fs.readFile(new URL('../src/components/shopify-operation-review/index.wxml', import.meta.url), 'utf8');
 const css = (await fs.readFile(new URL('../src/app.wxss', import.meta.url), 'utf8')) + (await fs.readFile(new URL('../src/pages/conversation/index.wxss', import.meta.url), 'utf8'));
 const spirit = 'data:image/png;base64,' + (await fs.readFile(new URL('../src/assets/spirit.png', import.meta.url))).toString('base64');
 for (const match of wxml.matchAll(/wx:(?:if|for)="([^"]+)"/g)) assert.match(match[1], /^{{[\s\S]*}}$/, 'WXML control expressions must use native {{ }} binding');
@@ -22,8 +24,10 @@ await ui.exposeFunction('pageEvent', async (handler, dataset, value) => {
   await active[handler]({ currentTarget: { dataset }, detail: { value } }); await paint(); return active.data;
 });
 await ui.setContent('<!doctype html><html lang="zh"><head><meta name="viewport" content="width=device-width, initial-scale=1"/></head><body><header>浏览器运行模拟 · 原 WXML/WXSS · 非微信真机</header><main></main></body></html>');
-await installSourceRenderer(ui, { wxml, css, spirit });
-function paint() { painting = painting.then(() => ui.evaluate(state => window.renderSource(state), active.data)); return painting; }
+// The actual Shopify review component has no active review state in this fixture;
+// mounted approval behavior is exercised by publication/notification drivers.
+await installSourceRenderer(ui, { wxml, css, spirit, componentSources: { 'shopify-operation-review': { wxml: shopifyReviewWxml, stateField: '_shopifyReview' } } });
+function paint() { assert.equal(active.data.shopifyReview, null, 'Main conversation fixture must not mount a Shopify approval'); painting = painting.then(() => ui.evaluate(state => window.renderSource(state), active.data)); return painting; }
 function attach(client) {
   active?.onUnload(); const loaded = loadPage(client, f.platform); active = loaded.page;
   const original = active.setData; active.setData = function(values) { original.call(this, values); void paint(); };
@@ -53,10 +57,11 @@ try {
   await click('审阅并决定'); await until(() => active.data.reviewCard); await screenshot('exact-review-390.png');
   assert.equal(f.app.capabilities.listConnectorRuns().length, 0); await click('拒绝此项'); await until(() => f.app.runtime.listRuns().runs.at(-1)?.error?.code === 'ACTION_DENIED'); await active.refresh();
   checks.push('Explicit exact proposal rejection performs zero connector executions; free text never approves');
+  await until(() => !active.data.loading && !active.data.busy); await paint();
   f.offline(); active.draft({ detail: { value: '网络恢复后继续核对同一条业务目标。' } }); await active.send(); assert.equal(active.data.uncertain, true); await screenshot('uncertain-original-request-390.png'); f.offline(false);
   await ui.setViewportSize({ width: 320, height: 740 }); await paint();
   const overflow = await ui.evaluate(() => document.documentElement.scrollWidth > innerWidth); assert.equal(overflow, false); await screenshot('compact-320.png'); checks.push('320px simulation has no horizontal overflow; unknown request preserves input and blocks new send');
   assert.deepEqual(errors, []);
-  await fs.writeFile(new URL('acceptance.json', destination), JSON.stringify({ mode: 'Custom source-driven Chromium simulation, not WeChat DevTools/device', browserVersion: browser.version(), actualRuntime: 'Compiled Page JS in Node vm; original WXML/WXSS converted by limited renderer; wx transport shims to real local HTTP backend; official Pi faux model; no live login/account/Muse execution', checks, pageErrors: errors, backendModelCalls: f.faux.state.callCount, connectorExecutions: f.app.capabilities.listConnectorRuns().length, generatedAt: new Date().toISOString() }, null, 2));
+  await fs.writeFile(new URL('acceptance.json', destination), JSON.stringify({ sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(), mode: 'Custom source-driven Chromium simulation, not WeChat DevTools/device', browserVersion: browser.version(), actualRuntime: 'Compiled Page JS in Node vm; original WXML/WXSS converted by limited renderer; wx transport shims to real local HTTP backend; official Pi faux model; no live login/account/Muse execution', checks, pageErrors: errors, backendModelCalls: f.faux.state.callCount, connectorExecutions: f.app.capabilities.listConnectorRuns().length, generatedAt: new Date().toISOString() }, null, 2));
   console.log(JSON.stringify({ checks: checks.length, pageErrors: errors, browserVersion: browser.version(), mode: 'source-driven Chromium simulation', destination: destination.pathname }));
-} finally { active?.onUnload(); await context.close(); await browser.close(); await f.close(); }
+} finally { active?.onUnload(); await painting; await context.close(); await browser.close(); await f.close(); }

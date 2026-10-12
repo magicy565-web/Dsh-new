@@ -55,7 +55,7 @@ async function fixture(t, { model = false, originalNative = false } = {}) {
       return response;
     };
     window.eval(script);
-    await wait(() => window.document.querySelector('.composer-region'), 'original conversation mounted');
+    await wait(() => window.document.querySelector('.app-shell'), 'original workspace mounted');
     await wait(() => !window.document.querySelector('.loading-state'), 'bootstrap loaded');
     return { window, document: window.document, errors };
   }
@@ -70,7 +70,7 @@ const conversation = async (f, title) => (await f.request('/conversations', 'POS
 
 test('conversation entry opens the actual latest conversation without creating or executing another one', async t => {
   const f = await fixture(t); await conversation(f, 'Earlier fixture'); const latest = await conversation(f, 'Current fixture'); const ui = await f.render();
-  await wait(() => ui.window.location.pathname === `/chat/${latest.id}`, 'latest actual conversation selected');
+  await wait(() => ui.window.location.pathname === `/chat/${latest.id}` && ui.document.querySelector('.chat-title-pill span')?.textContent === 'Current fixture', 'latest actual conversation selected and rendered');
   assert.equal(ui.document.querySelector('.chat-title-pill span').textContent, 'Current fixture');
   for (const label of ['工作', '产品托管', '云端专家', '业务任务']) assert.equal(aria(ui, label), null);
   assert.equal(ui.document.querySelector('.master-control'), null); assert.equal(ui.document.querySelector('.download-placeholder'), null);
@@ -91,6 +91,18 @@ test('encoded slash/colon conversation routes retain the opaque ID for messages 
   assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []); assert.deepEqual(invalid.errors, []);
 });
 
+test('retired commerce entry opens the original product Library without mounting the old supply panel', async t => {
+  const f = await fixture(t), ui = await f.render('/commerce');
+  await wait(() => ui.document.querySelector('.business-library .bl-tabs [aria-current="page"]'), 'legacy entry resolves to original Library');
+  assert.equal(ui.document.querySelector('.business-library h1').textContent, '资料库');
+  assert.equal(ui.document.querySelector('.bl-tabs [aria-current="page"]').textContent, '产品库');
+  assert.equal(ui.document.querySelector('.supply-network'), null);
+  assert.equal(aria(ui, '产品托管'), null);
+  await click(ui, button(ui, '企业资料'));
+  await wait(() => ui.window.location.pathname === '/library/company' && ui.document.querySelector('.bl-tabs [aria-current="page"]')?.textContent === '企业资料', 'current Library navigation remains reachable');
+  assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []);
+});
+
 test('initial latest-conversation selection preserves an already opened original settings dialog', async t => {
   const f = await fixture(t); await conversation(f, 'Existing latest fixture');
   const ui = await f.render('/', 1366, undefined, async window => {
@@ -99,6 +111,30 @@ test('initial latest-conversation selection preserves an already opened original
     await wait(() => window.document.querySelector('.settings-modal'), 'original settings opened before bootstrap returns');
   });
   assert.ok(ui.document.querySelector('.settings-modal')); assert.equal(ui.window.location.pathname, '/');
+  assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []);
+});
+
+test('initial latest-conversation selection preserves Goals clicked as the first bootstrap becomes visible', async t => {
+  const f = await fixture(t), current = await conversation(f, 'Early Goals fixture');
+  await conversation(f, 'Latest fixture');
+  const goal = (await f.request('/goals', 'POST', { title: 'Early Fixture Goal', description: 'Read without starting work', conversationId: current.id, maxSteps: 3 })).goal;
+  let clicked = false;
+  const ui = await f.render('/', 1366, undefined, async window => {
+    // Hold the first response until the initial UI is mounted, then click in
+    // the first loaded DOM commit, before its passive auto-selection effect.
+    await wait(() => window.document.querySelector('.loading-state'), 'first bootstrap still loading');
+    const observer = new window.MutationObserver(() => {
+      if (window.document.querySelector('.loading-state')) return;
+      observer.disconnect(); clicked = true;
+      window.document.querySelector('button[aria-label="目标"]').click();
+    });
+    observer.observe(window.document.getElementById('root'), { childList: true, subtree: true });
+    t.after(() => observer.disconnect());
+  });
+  await wait(() => clicked && ui.document.querySelector('.goal-list-item') && ui.document.querySelector('.app-shell[aria-busy="false"]'), 'explicit Goals navigation survives bootstrap auto-selection');
+  assert.equal(ui.window.location.pathname, '/goals');
+  assert.equal(ui.document.querySelector('.goal-list-item strong').textContent, goal.title);
+  assert.equal((await f.request('/bootstrap')).goals.find(item => item.id === goal.id).status, 'draft');
   assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []);
 });
 

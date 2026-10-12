@@ -22,7 +22,9 @@ function valid(item: Delegation, conversationId: string) {
 
 export function MuseConversation({ conversationId, scope, revision, readOnly, onDirty, onUpdated }: { conversationId: string; scope: string; revision: number; readOnly: boolean; onDirty: (value: boolean) => void; onUpdated: () => void }) {
   const prefix = conversationApiPath(conversationId, '/muse-delegations');
-  const read = useRead<{ delegations: Delegation[] }>(prefix, revision), writer = useMuseConversationCommand(scope, conversationId);
+  // Keep an exact attachment mounted during a same-scope refresh. Failed reads
+  // still clear it; writes remain blocked while the current read is pending.
+  const read = useRead<{ delegations: Delegation[] }>(prefix, revision, true), writer = useMuseConversationCommand(scope, conversationId);
   const [form, setForm] = useState(initial), [prepareOpen, setPrepareOpen] = useState(false), [publicConfirmed, setPublicConfirmed] = useState(false);
   const [action, setAction] = useState<{ operation: Operation; item: Delegation } | null>(null), [confirmed, setConfirmed] = useState(false);
   const items = read.value?.delegations;

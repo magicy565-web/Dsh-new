@@ -1,6 +1,7 @@
 // Preflight only: actual compiled Component and original WXML/WXSS, actual
 // backend preview core. No service HTTP/Pi/Shopify/device acceptance claim.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ import { chromium } from 'playwright';
 import { normalizeSupplierProfile, supplierListingPreview } from '../../server/supplier-profile.mjs';
 import { installSourceRenderer } from './source-renderer.mjs';
 import { until } from './support.mjs';
-const output = new URL('../evidence/supplier/preflight/', import.meta.url); await fs.mkdir(output, {recursive:true});
+const output = new URL(process.env.WECHAT_BROWSER_OUTPUT || '../evidence/supplier/preflight/', import.meta.url); await fs.mkdir(output, {recursive:true});
 const profile=normalizeSupplierProfile({name:'轻棉日常 T 恤（本地业务 fixture）',description:'用户明确提供：棉质，日常穿着，圆领短袖。',targetMarket:'US',currency:'USD',skuCode:'SUPPLIER-FIXTURE-TEE',supplierUnit:'件',supplierMoq:300,wholesaleUnitPrice:'3.20',wholesaleCurrency:'USD',recommendedRetailPrice:'18.00',productionDays:15,retailUnit:'件',unitsPerPack:1,consumerPrice:'12.30',handlingDays:2,shippingDays:7,images:[{kind:'public_url',url:'https://example.com/tee.jpg',sourceNote:'供应商给出的公开图片地址，尚未授权观察可用性'}]});
 function component(name) {
  const file=new URL(`../../release/miniprogram/components/${name}/index.js`,import.meta.url);let options;
@@ -32,5 +33,5 @@ try {
  for(const field of ['name','description','consumerPrice']){const before=interactions;await ui.locator(`input[value="${field}"]`).check();await until(()=>interactions>before);}
  const before=interactions;await ui.getByRole('button',{name:'确认本次预览范围',exact:true}).click();await until(()=>interactions>before);assert.equal(active.events[0].name,'preview');assert.deepEqual(active.events[0].data.publicFields,['name','description','consumerPrice']);
  await ui.setViewportSize({width:320,height:740});await render();assert.equal(await ui.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await ui.screenshot({path:new URL('compact-scope-320.png',output).pathname});assert.deepEqual(errors,[]);
- const result={evidenceKind:'Actual compiled supplier Component + original WXML/WXSS in limited Chromium; actual backend preview core, not HTTP/Pi/Shopify/WeChat acceptance',backend:'0f12d2ac11eae48d490cdb639bbf3fe60dc3d4b7',chromium:browser.version(),checks:['Explicit retail facts display','Supply price absent from retail preview','Unobserved image unknown','Preview not publication','All preview checks initially empty','Exact selected fields emitted','320px no horizontal overflow'],pageErrors:errors,generatedAt:new Date().toISOString()};await fs.writeFile(new URL('acceptance.json',output),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+ const result={evidenceKind:'Actual compiled supplier Component + original WXML/WXSS in limited Chromium; actual backend preview core, not HTTP/Pi/Shopify/WeChat acceptance',sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),chromium:browser.version(),checks:['Explicit retail facts display','Supply price absent from retail preview','Unobserved image unknown','Preview not publication','All preview checks initially empty','Exact selected fields emitted','320px no horizontal overflow'],pageErrors:errors,generatedAt:new Date().toISOString()};await fs.writeFile(new URL('acceptance.json',output),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 } finally {await browser.close();}

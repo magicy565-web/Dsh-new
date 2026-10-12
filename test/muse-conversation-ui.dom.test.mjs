@@ -12,7 +12,7 @@ async function fixture(t) {
   t.after(() => removeTemporaryDirectory(directory, 'workspace-native-conversation-ui-'));
   const now = new Date().toISOString();
   await native.change(state => { state.conversations = [{ ...actor, id: actor.nativeAgentId, title: 'Original native fixture', createdAt: now, updatedAt: now, status: 'idle' }]; state.messages = []; });
-  let losePrepare = false, readOverride, viewer = false, fileFault;
+  let losePrepare = false, readOverride, readStatus = 200, viewer = false, fileFault, fileGate;
   const prefix = `/api/conversations/${actor.nativeAgentId}/muse-delegations`;
   const renderer = await bundleRenderer(t, async (path, options) => {
     const method = options.method || 'GET', body = options.body ? JSON.parse(options.body) : undefined;
@@ -21,7 +21,7 @@ async function fixture(t) {
       const base = await http.request(path), state = native.store.read();
       return json({ ...base, conversations: state.conversations, messages: state.messages, activity: state.activity, meta: state.meta });
     }
-    if (path === prefix && method === 'GET') return json(readOverride || { delegations: await native.api().list() });
+    if (path === prefix && method === 'GET') return json(readOverride || { delegations: await native.api().list() }, readStatus);
     if (path === prefix && method === 'POST') {
       let result;
       try { result = await native.api().prepare(body); } catch (error) { return json({ code: error.code, error: error.message }, error.status || 409); }
@@ -33,6 +33,7 @@ async function fixture(t) {
       try { return json(await native.api()[operation](id, body)); } catch (error) { return json({ code: error.code, error: error.message }, error.status || 409); }
     }
     if (path.startsWith('/api/muse-worker-files/')) {
+      if (fileGate) { const gate = fileGate; fileGate = undefined; gate.signal = options.signal; gate.started = true; await gate.wait; }
       if (fileFault === 'denied') return json({ error: 'Explicit client transport denial fixture' }, 403);
       const url = new URL(path, 'http://fixture.test'), id = url.pathname.split('/').at(-1);
       const item = (await native.api().list()).find(item => item.receipt?.files.some(file => file.id === id));
@@ -41,7 +42,8 @@ async function fixture(t) {
     }
     return http.transport(path, options);
   });
-  return { native, http, ...renderer, prefix, loseNextPrepare() { losePrepare = true; }, setRead(value) { readOverride = value; }, viewer() { viewer = true; }, fileFault(value) { fileFault = value; } };
+  return { native, http, ...renderer, prefix, loseNextPrepare() { losePrepare = true; }, setRead(value, status = 200) { readOverride = value; readStatus = status; }, viewer() { viewer = true; }, fileFault(value) { fileFault = value; },
+    holdNextFileRead() { const gate = { started: false }; gate.wait = new Promise(resolve => { gate.release = resolve; }); fileGate = gate; t.after(() => gate.release()); return gate; } };
 }
 async function preparedUi(f) {
   const ui = await f.render(`/chat/${actor.nativeAgentId}`);
@@ -131,4 +133,36 @@ test('same-conversation attachment preview verifies exact original bytes, refuse
   assert.ok(f.requests.filter(item => item.path.startsWith('/api/muse-worker-files/')).every(item => item.path === `/api/muse-worker-files/${file.artifactId}?version=1&sha256=${hash(file.bytes)}`));
   f.viewer(); const viewer = await f.render(`/chat/${actor.nativeAgentId}`); await wait(() => viewer.document.querySelector('.conversation-native [data-order-id]'), 'viewer can read order status');
   assert.equal(viewer.document.querySelector('button[aria-label="预览 result.json"]'), null); assert.equal(f.http.modelCalls, 0); assert.deepEqual(ui.errors, []); assert.deepEqual(viewer.errors, []);
+});
+
+test('same-conversation bootstrap refresh retains an in-flight exact attachment but a denied refresh removes it', async t => {
+  const f = await fixture(t), item = await f.native.approveAndDispatch(f.native.input('preview-refresh-request'));
+  const claim = (await f.native.call(item.orderId, 'claim', { requestId: 'preview-refresh-claim' })).body;
+  const file = await f.native.deliver(item.orderId, claim); await f.native.api().refresh(item.orderId); await f.native.relay.reconcile();
+  const ui = await f.render(`/chat/${actor.nativeAgentId}`);
+  const control = () => ui.document.querySelector('.conversation-native button[aria-label="预览 result.json"]');
+  const reads = () => f.requests.filter(request => request.path === f.prefix && request.method === 'GET').length;
+  await wait(() => reads() >= 2 && control() && !button(ui, '核对原任务状态').disabled && ui.document.querySelector('.app-shell[aria-busy="false"]'), 'initial bootstrap and original task reads settled');
+  const pending = f.holdNextFileRead(); await click(ui, control());
+  await wait(() => pending.started && ui.document.querySelector('[role="dialog"]'), 'original attachment response deliberately held');
+  const dialog = ui.document.querySelector('[role="dialog"]'), before = reads();
+  await f.native.change(state => state.activity.push({ id: 'preview-refresh-event', type: 'conversation', title: 'Offline refresh fixture', conversationId: actor.nativeAgentId, createdAt: new Date().toISOString() }));
+  await wait(() => reads() > before && button(ui, '核对原任务状态') && !button(ui, '核对原任务状态').disabled, 'changed bootstrap revision rereads original delegation');
+  assert.equal(ui.document.querySelector('[role="dialog"]'), dialog, 'same-scope refresh must not unmount the active preview');
+  assert.equal(pending.signal.aborted, false);
+  pending.release();
+  await wait(() => ui.document.querySelector('[role="dialog"] pre'), 'held original bytes verified after refresh');
+  assert.equal(ui.document.querySelector('[role="dialog"] pre').textContent, file.bytes.toString('utf8'));
+  await click(ui, ui.document.querySelector('[role="dialog"] button[aria-label="关闭弹窗"]'));
+  const deniedRead = f.holdNextFileRead(); await click(ui, control());
+  await wait(() => deniedRead.started && ui.document.querySelector('[role="dialog"]'), 'second attachment read held');
+  f.setRead({ error: 'Explicit original delegation permission denial' }, 403);
+  await f.native.change(state => state.activity.push({ id: 'preview-denied-event', type: 'conversation', title: 'Offline permission refresh fixture', conversationId: actor.nativeAgentId, createdAt: new Date().toISOString() }));
+  await wait(() => ui.document.querySelector('.conversation-native [role="alert"]')?.textContent.includes('permission denial'), 'original delegation refresh denied');
+  assert.equal(ui.document.querySelector('[role="dialog"]'), null);
+  assert.equal(control(), null);
+  assert.equal(deniedRead.signal.aborted, true, 'failed authorization reread unmounts and aborts pending attachment');
+  deniedRead.release();
+  assert.equal(ui.document.querySelector('[role="dialog"] pre'), null);
+  assert.equal(f.requests.filter(request => request.method !== 'GET').length, 0); assert.equal(f.http.modelCalls, 0); assert.deepEqual(ui.errors, []);
 });

@@ -1,12 +1,13 @@
 // Actual compiled Page + original WXML/WXSS in limited Chromium renderer,
 // original local HTTP/MCP/Store. Not official WeChat or real buyer/Muse.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { chromium } from 'playwright';
 import { loadPage, until } from './support.mjs';
 import { procurementFixture } from './procurement-support.mjs';
 import { installSourceRenderer } from './source-renderer.mjs';
-const output = new URL('../evidence/procurement/browser/', import.meta.url); await fs.mkdir(output, { recursive: true });
+const output = new URL(process.env.WECHAT_BROWSER_OUTPUT || '../evidence/procurement/browser/', import.meta.url); await fs.mkdir(output, { recursive: true });
 const f = await procurementFixture(), { page } = loadPage(f.client(), f.platform), browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
 const ui = await browser.newPage({ viewport: { width: 390, height: 844 } }), errors = []; ui.on('pageerror', error => errors.push(error.message)); let paint = Promise.resolve(), interactions = 0;
 const render = () => { paint = paint.then(() => ui.evaluate(value => window.renderSource(value), page.data)); return paint; };
@@ -24,5 +25,5 @@ try {
  page.onHide(); page.onShow(); await until(() => page.data.messages.some(message => message.content.includes(reply))); await click('采购需求'); await shot('reopened-original-reply-390.png');
  await ui.setViewportSize({ width: 320, height: 740 }); await render(); assert.equal(await ui.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await shot('compact-320.png');
  assert.equal(f.modelCalls, 0); assert.equal(f.app.store.read().runs.length, 0); assert.equal((f.app.store.read().workerOrders || []).length, 0); assert.deepEqual(errors, []);
- const result = { evidenceKind: 'Original mini Page/WXML/WXSS source in limited Chromium renderer + actual original local HTTP/MCP/Store; not WeChat engine/device/live buyer/Muse', backend: 'a5a524a19adf065f804abc1459f1f573cfd8adf4', chromium: browser.version(), checks: ['Private buyer draft not in inbox', 'Buyer confirmed share visible only on demand', 'Exact range explicitly binds server-owned main', 'Only full reviewed reply text persisted and buyer MCP retrieves it', 'Reopening restores original messages and one reply', '390/320px no horizontal overflow'], modelCalls: f.modelCalls, runs: f.app.store.read().runs.length, workerOrders: (f.app.store.read().workerOrders || []).length, replies: buyer.replies.length, pageErrors: errors, liveBuyer: false, wechatDevice: false, independentSecurityAudit: false, generatedAt: new Date().toISOString() }; await fs.writeFile(new URL('acceptance.json', output), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
-} finally { page.onUnload(); await browser.close(); await f.close(); }
+ const result = { evidenceKind: 'Original mini Page/WXML/WXSS source in limited Chromium renderer + actual original local HTTP/MCP/Store; not WeChat engine/device/live buyer/Muse', sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(), chromium: browser.version(), checks: ['Private buyer draft not in inbox', 'Buyer confirmed share visible only on demand', 'Exact range explicitly binds server-owned main', 'Only full reviewed reply text persisted and buyer MCP retrieves it', 'Reopening restores original messages and one reply', '390/320px no horizontal overflow'], modelCalls: f.modelCalls, runs: f.app.store.read().runs.length, workerOrders: (f.app.store.read().workerOrders || []).length, replies: buyer.replies.length, pageErrors: errors, liveBuyer: false, wechatDevice: false, independentSecurityAudit: false, generatedAt: new Date().toISOString() }; await fs.writeFile(new URL('acceptance.json', output), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
+} finally { page.onUnload(); await paint; await browser.close(); await f.close(); }

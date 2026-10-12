@@ -1,6 +1,7 @@
 // Original Page/Component/WXML/WXSS + real local signed HTTP business backend.
 // Limited Chromium rendering; not a WeChat tool/device or live Muse account.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { promises as fs, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ import { chromium } from 'playwright';
 import { loadPage, until } from './support.mjs';
 import { intakeFixture, readyScope, scopeText } from './intake-http-support.mjs';
 import { installSourceRenderer } from './source-renderer.mjs';
-const destination = new URL('../evidence/intake/browser/', import.meta.url); await fs.mkdir(destination, { recursive: true });
+const destination = new URL(process.env.WECHAT_BROWSER_OUTPUT || '../evidence/intake/browser/', import.meta.url); await fs.mkdir(destination, { recursive: true });
 const f = await intakeFixture(), client = f.client(), { page } = loadPage(client, f.platform);
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
 const ui = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 }); const errors = []; ui.on('pageerror', error => errors.push(error.message));
@@ -40,5 +41,5 @@ try {
   const orderId = page.data.museDrafts.at(-1).orderId, delivered = await f.deliver(orderId); await page.refresh(); await click('核对原进度'); await click('核对进度'); await shot('original-receipt-390.png');
   await click('校验并打开'); await until(() => page.data.preview); assert.equal(page.data.preview.content, delivered.bytes.toString()); await shot('original-file-sha-preview-390.png'); await click('返回');
   await ui.setViewportSize({ width: 320, height: 740 }); await render(); assert.equal(await ui.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await shot('compact-320.png');
-  assert.deepEqual(errors, []); const result = { mode: 'Compiled Page/Component + source WXML/WXSS in limited Chromium renderer; real signed local HTTP/Pi faux/Store/original Worker protocol; not WeChat engine/device/live Muse', backendSource: '96231bbff32c0bbb03329dd2b218e58a98f557d8', browserVersion: browser.version(), checks: ['Two actual missing questions only', 'Three independent unchecked confirmations', 'Prepare creates one unapproved original order', 'Approve does not dispatch; separate dispatch creates one original task', 'Actual Worker receipt artifact ID and bytes verified by SHA', '390/320px source rendering, no horizontal overflow'], modelCalls: f.faux.state.callCount, originalOrders: f.app.store.read().workerOrders.length, originalTasks: f.app.store.read().museTasks.length, artifactId: delivered.artifactId, pageErrors: errors, generatedAt: new Date().toISOString() }; await fs.writeFile(new URL('acceptance.json', destination), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
-} finally { page.onUnload(); await browser.close(); await f.close(); }
+  assert.deepEqual(errors, []); const result = { mode: 'Compiled Page/Component + source WXML/WXSS in limited Chromium renderer; real signed local HTTP/Pi faux/Store/original Worker protocol; not WeChat engine/device/live Muse', sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(), browserVersion: browser.version(), checks: ['Two actual missing questions only', 'Three independent unchecked confirmations', 'Prepare creates one unapproved original order', 'Approve does not dispatch; separate dispatch creates one original task', 'Actual Worker receipt artifact ID and bytes verified by SHA', '390/320px source rendering, no horizontal overflow'], modelCalls: f.faux.state.callCount, originalOrders: f.app.store.read().workerOrders.length, originalTasks: f.app.store.read().museTasks.length, artifactId: delivered.artifactId, pageErrors: errors, generatedAt: new Date().toISOString() }; await fs.writeFile(new URL('acceptance.json', destination), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
+} finally { page.onUnload(); await paint; await browser.close(); await f.close(); }
