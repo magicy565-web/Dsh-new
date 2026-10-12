@@ -42,7 +42,7 @@ export function presentSupplierPreview(preview: SupplierPreview) {
     market: explicit(preview.market.countryCode), sku: preview.variants.map(value => explicit(value.sku)).join('、'),
     fulfillment: `处理及发货 ${explicit(preview.fulfillment.handlingDays)} 天 · 运输 ${explicit(preview.fulfillment.shippingDays)} 天`,
     missing: preview.missingFields.map(field => supplierFieldLabels[field] || field),
-    images: preview.images.map(image => ({ ...image, label: image.kind === 'artifact' ? `原图片 v${image.asset.version} · SHA256 ${image.asset.sha256}` : image.url,
+    images: preview.images.map((image,index) => ({ ...image, key: String(index), label: image.kind === 'artifact' ? `原图片 v${image.asset.version} · SHA256 ${image.asset.sha256}` : image.url,
       status: image.availability === 'available' ? '原服务已核验可用性；对外传输仍需明确审阅' : '图片可用性尚未核验' })),
     status: '服务端商品预览 · 尚未创建或发布到 Shopify',
   };

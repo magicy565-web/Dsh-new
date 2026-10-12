@@ -20,7 +20,7 @@ export function validSupplier(value: SupplierService, cid: string) {
     (!value.preview || value.preview.revision <= value.revision && value.preview.profileHash === value.profileHash && /^[a-f0-9]{64}$/.test(value.preview.previewHash) && value.preview.contentHash === value.preview.previewHash && value.preview.externalStatus === 'preview' && value.preview.published === false);
 }
 const show = (value: unknown) => value === null || value === undefined ? '未知' : String(value);
-export const supplierErrorText = (code: string) => ({ SHOPIFY_SETUP_REQUIRED: 'Shopify 尚未配置；没有创建或发布商品', SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED: 'Shopify 商品写入尚未授权；没有创建或发布', SUPPLIER_MONITOR_START_REQUIRED: '需要明确的 UTC 开始时间', SUPPLIER_PUBLICATION_TIME_REQUIRED: '没有可用的已核验在线商店发布时间', SUPPLIER_IMAGE_UNAVAILABLE: '原图片版本或 SHA 无法核对' } as Record<string,string>)[code] || code;
+export const supplierErrorText = (code: string) => ({ SHOPIFY_SETUP_REQUIRED: 'Shopify 尚未配置；没有创建或发布商品', SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED: 'Shopify 商品写入尚未授权；没有创建或发布', SUPPLIER_SAVE_PENDING: '原产品保存回执待服务端核对；没有另建产品', SUPPLIER_REVISION_CONFLICT: '原商品修订已改变，请重新读取后审阅', SUPPLIER_MONITOR_START_REQUIRED: '需要明确的 UTC 开始时间', SUPPLIER_PUBLICATION_TIME_REQUIRED: '没有可用的已核验在线商店发布时间', SUPPLIER_IMAGE_UNAVAILABLE: '原图片版本或 SHA 无法核对' } as Record<string,string>)[code] || code;
 export function presentSupplier(value: SupplierService) {
   const p = value.profile;
   return { id: value.id, revision: value.revision, phase: value.phase, title: p.name || '正在整理商品事实', preview: value.preview,

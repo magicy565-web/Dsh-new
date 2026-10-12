@@ -15,7 +15,7 @@ type SupplierReview = {kind:'images'|'save-product'|'shopify-draft'|'shopify-obs
 let timer: ReturnType<typeof setTimeout> | undefined;
 let reading = false, visible = false, epoch = 0, readFailures = 0;
 const client = () => getApp<{ globalData: { client: WorkspaceClient } }>().globalData.client;
-const message = (error: unknown) => error instanceof Error ? error.message : '操作未完成，请重试读取。';
+const message = (error: unknown) => error instanceof ClientError && supplierErrorText(error.code) !== error.code ? supplierErrorText(error.code) : error instanceof Error ? error.message : '操作未完成，请重试读取。';
 const labels: Record<string, string> = { approve: '批准此项', deny: '拒绝此项', resume: '执行此项', dispatch: '派发原单', accept: '验收原单', refresh: '核对进度', cancel: '请求停止', recover: '恢复原任务' };
 const fileReference = (artifact: Artifact): FileReference => ({ id: artifact.id, version: artifact.currentVersion, sha256: artifact.sha256, filename: artifact.filename, mimeType: artifact.mimeType });
 
