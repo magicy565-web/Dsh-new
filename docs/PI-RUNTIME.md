@@ -38,6 +38,20 @@ No shell, generic file, browser, HTTP, Muse wake or arbitrary connector tool is
 installed. Retry and automatic compaction are disabled; model rounds and output
 are bounded by the original run reservation.
 
+Each actual SDK model dispatch first fsyncs its output reservation in the same
+durable invocation document. At most four requests share that invocation's
+allowance. A 1600-token invocation with missing usage grants 400/400/400/400,
+including an unsettled request left by a crash. Verified completion counts can
+release unused reservation for later rounds; absent/invalid counters cannot.
+Limits are applied at SDK dispatch, after durable hooks, with SDK retries disabled.
+Raw OpenAI-compatible SDK events establish usage provenance; normalized default
+zeros are never measured usage. Missing counters remain null/unknown, and partial
+counters retain uncertainty. Prompt totals include cache-read/write tokens;
+validated cache counters remain separately inspectable. Other unverified APIs
+retain unknown usage. Official faux message counters are offline fixture evidence.
+The security policy fingerprint changes: pre-fix interrupted invocations require
+review instead of silently replaying their old permission scope.
+
 Muse/Dot protocol modules and Secure Vault client remain original. Ordinary model
 messages requesting provider:muse reject rather than falling back to a model.
 An optional WORKSPACE_MUSE_ORIGINAL_BINDING_FILE attaches the exact existing
@@ -50,6 +64,13 @@ validation or edit its immutable files. Returning the verified business message
 is a write-only Session projection; there is no substitute agent.send or wake.
 The reviewed original Muse binding, account and production ingress remain a
 separate requirement; neither Pi nor a saved write receipt proves Muse started.
+Generic Worker operations cannot bypass the original delegation review protocol.
+Persisted owner provenance filters generic reads/search/bootstrap and guards
+mutations, even when the original binding is not mounted. Protected receipts and
+notes cannot be ordinary model/Connector inputs; admission, execution snapshots,
+model history, local library operations and historical unsafe output provenance
+all enforce that boundary. Original owner receipt downloads still use the exact
+original Muse Session file protocol.
 Local faux-provider tests execute the real Pi packages, not a live model/account.
 Production is intentionally off and no live request is authorized.
 

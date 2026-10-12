@@ -1,6 +1,7 @@
 import { ApiError } from './runtime.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { isBusinessLibraryArtifact } from './business-library-policy.mjs';
+import { isOriginalMuseArtifact, originalMuseScope } from './muse-owner-policy.mjs';
 
 export const INPUT_CONTEXT_LIMITS = Object.freeze({ artifacts: 8, artifactCharacters: 32000, skills: 12, skillCharacters: 12000, memories: 20, memoryCharacters: 8000, connectorActions: 12 });
 export const emptyInputContext = () => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });
@@ -38,6 +39,7 @@ export async function prepareInputContext({ state, conversationId, inputContext,
   for (const selected of selection.artifacts) {
     const artifact = (state.artifacts || []).find(item => item.id === selected.id);
     if (isBusinessLibraryArtifact(state, artifact)) fail('BUSINESS_LIBRARY_PRIVATE', 'Enterprise library files cannot be sent to models or connectors.', 403);
+    if (isOriginalMuseArtifact(state, artifact)) fail('MUSE_OWNER_REQUIRED', 'Original Muse receipt files use the reviewed owner binding and cannot be ordinary model or connector inputs.', 403);
     const version = artifact?.versions.find(item => item.version === selected.version);
     if (!version) fail('INPUT_ARTIFACT_MISSING', 'A selected file version no longer exists. Choose an available version.', 409);
     if (!textType(version.mimeType)) fail('INPUT_ARTIFACT_UNSUPPORTED', 'Only UTF-8 TXT, Markdown, CSV and JSON files can be model input. PDF and image parsing is not available.');
@@ -61,6 +63,7 @@ export async function prepareInputContext({ state, conversationId, inputContext,
   }
   for (const selected of selection.memoryIds) {
     const memory = (state.memories || []).find(item => item.id === selected);
+    if (memory && originalMuseScope(state).privateRecord(memory)) fail('MUSE_OWNER_REQUIRED', 'Original Muse notes cannot be ordinary model or connector inputs.', 403);
     if (!memory || memory.enabled === false || (memory.conversationId && memory.conversationId !== conversationId)) fail('INPUT_MEMORY_UNAVAILABLE', 'A selected memory is disabled, missing or belongs to a different conversation.', 409);
     memoryCharacters += memory.content.length;
     if (memoryCharacters > INPUT_CONTEXT_LIMITS.memoryCharacters) fail('INPUT_CONTEXT_TOO_LARGE', 'Selected notes and memories exceed 8,000 characters. Choose fewer items.');
@@ -74,6 +77,7 @@ export function assertInputContextSnapshot(state, conversationId, snapshot) {
   if (!snapshot) return;
   for (const selected of snapshot.artifacts) {
     if (isBusinessLibraryArtifact(state, selected.id)) fail('BUSINESS_LIBRARY_PRIVATE', 'Enterprise library files cannot be sent to models or connectors.', 403);
+    if (isOriginalMuseArtifact(state, selected.id)) fail('MUSE_OWNER_REQUIRED', 'Original Muse receipt files cannot be ordinary model or connector inputs.', 403);
     const version = (state.artifacts || []).find(item => item.id === selected.id)?.versions.find(item => item.version === selected.version);
     if (!version || version.sha256 !== selected.sha256 || version.mimeType !== selected.mimeType || version.filename !== selected.filename) fail('INPUT_ARTIFACT_CHANGED', 'A selected file changed or was removed while preparing this run. Select it again.', 409);
   }
@@ -83,6 +87,7 @@ export function assertInputContextSnapshot(state, conversationId, snapshot) {
   }
   for (const selected of snapshot.memories) {
     const memory = (state.memories || []).find(item => item.id === selected.id);
+    if (memory && originalMuseScope(state).privateRecord(memory)) fail('MUSE_OWNER_REQUIRED', 'Original Muse notes cannot be ordinary model or connector inputs.', 403);
     if (!memory || memory.enabled === false || memory.content !== selected.content || (memory.conversationId || null) !== selected.conversationId || (memory.conversationId && memory.conversationId !== conversationId)) fail('INPUT_MEMORY_CHANGED', 'A selected note or memory changed while preparing this run. Review the task inputs.', 409);
   }
 }

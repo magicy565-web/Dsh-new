@@ -1,5 +1,12 @@
 # Cloud Pi acceptance, 2026-10-12
 
+This is the historical ee1ad6c delivery readout. PR37 independently found P1
+owner/usage failures in that candidate. Its ZIP is not a repaired candidate.
+The later P1 repair and exact unchanged strict checks are recorded in
+[CLOUD-PI-P1.md](CLOUD-PI-P1.md). Client integration and remaining contracts must
+finish before a new full candidate is frozen; local P1 passes are not independent
+security acceptance or launch approval.
+
 Recovery baseline: PR33 e37d4b98c0a9a981c3e1ce37c9afca73c1fb1c89;
 PR32 7b891844821803ec61aaf564fe5dfcb903d83a8f and PR28
 1a669dc81e6e3dab6fa11d3fbf0afbced08f8c39 are verified ancestors. Original cloud

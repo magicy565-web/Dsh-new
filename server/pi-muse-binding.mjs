@@ -1,5 +1,6 @@
 import { createNativeMuseBinding } from './muse-worker-native.mjs';
 import { MuseWorkerError } from './muse-worker-api.mjs';
+import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
 
 /** Mount the original native binding onto the existing locked Workspace host.
  * No DSH service, replacement Session sender, token, identity or scheduler is
@@ -25,18 +26,9 @@ export async function createPiMuseBinding({ store, artifacts, config, binding, d
       throw new MuseWorkerError(403, 'MUSE_OWNER_REQUIRED', 'Use the exact original reviewed Muse owner and conversation.');
     return actor;
   }
+  const policy = createMuseOwnerPolicy({ read: () => store.read(), actor, error: (status, code, message) => new MuseWorkerError(status, code, message) });
   return {
-    actor, native,
-    ownsArtifact(item) { return item?.workerOwner?.workerId === native.workerId; },
-    filterBootstrap(snapshot, context) {
-      const result = { ...snapshot, artifacts: (snapshot.artifacts || []).filter(item => item.workerOwner?.workerId !== native.workerId) };
-      if (context.role !== 'admin' || context.subject !== actor.subject) {
-        for (const collection of ['conversations', 'messages', 'runs', 'memories']) result[collection] = (result[collection] || []).filter(item => (item.conversationId || item.id) !== actor.nativeAgentId);
-        for (const collection of ['workerOrders', 'museTasks']) result[collection] = (result[collection] || []).filter(item => item.workerId !== native.workerId);
-        delete result.workspaceMuseSessionReceipts;
-      }
-      return result;
-    },
+    actor, native, ...policy,
     forActor(context) { return native.bindConversation(authorized(context)); },
     snapshot(context) {
       return context.role === 'admin' && context.subject === actor.subject

@@ -4,19 +4,21 @@ import { createHash } from 'node:crypto';
 import { Agent } from '@earendil-works/pi-agent-core';
 import { Type, createModels, createProvider } from '@earendil-works/pi-ai';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
+import { createAssistantMessageEventStream } from '@earendil-works/pi-ai/utils/event-stream';
 import { BACKGROUND_CONTEXT, withAbortSignal } from '@earendil-works/chord/context';
 import { AssistantEntry, Harness, GenerationTask, ToolTask, createRegistry, defineDoc, defineExtension, defineTool, hook } from '@earendil-works/pi-durable';
 import { openNodeJsonlStorage } from '@earendil-works/pi-durable/storage/jsonl/node';
 import { ProviderError } from './provider.mjs';
 import { capabilityPayloadHash } from './capabilities.mjs';
 import { assertInputContextSnapshot } from './task-context.mjs';
+import { openAIUsage, explicitPiUsage, requestAllowance, invocationUsage, PI_REQUEST_LIMIT } from './pi-usage.mjs';
 
 export const PI_SOURCE = 'abe508e1b89912adde45528136c3221eb69acdd7';
 export const PI_VERSION = '1.1.0';
 const context = BACKGROUND_CONTEXT;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const RecordDoc = defineDoc({ kind: 'workspace.pi-invocations', version: 1, scope: 'conversation', history: 'latest', fork: 'initial', initial: () => ({ records: {}, active: null }) });
-const POLICY = { version: 1, tools: ['workspace_input', 'workspace_propose_action'], externalExecution: 'original-workspace-approval', replay: 'safe-only', storage: 'jsonl-fsync' };
+const POLICY = { version: 2, tools: ['workspace_input', 'workspace_propose_action'], externalExecution: 'original-workspace-approval', replay: 'safe-only', storage: 'jsonl-fsync', budget: 'durable-request-reservations-wire-usage', museInput: 'original-owner-provenance' };
 const fail = (code, message) => { throw new ProviderError(code, message); };
 const clone = value => JSON.parse(JSON.stringify(value));
 
@@ -63,6 +65,57 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
       const storage = await openNodeJsonlStorage(location, context, { fsync: true });
       let harness;
       const state = { harness: null, root: null, active: null, location };
+      const governedModels = new Proxy(models, { get(target, key) {
+        if (key !== 'streamSimple') { const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value; }
+        return (requested, transcript, options) => {
+          const output = createAssistantMessageEventStream();
+          void (async () => {
+            let observed = null;
+            try {
+              assertActive(state.active);
+              const requestId = state.active.requestId;
+              const reservation = await state.root.commit(async tx => {
+                const active = (await tx.doc(RecordDoc, state.root.id)).active;
+                if (active.requestId !== requestId) fail('PI_NOT_ADMITTED', 'The Pi invocation changed before its model request.');
+                const maxTokens = requestAllowance(active);
+                if (!maxTokens) fail('TOKEN_BUDGET', 'Pi has no remaining admitted request/output allowance.');
+                const index = active.requests.length;
+                active.requests.push({ maxTokens, usage: null });
+                return { index, maxTokens };
+              }, context);
+              assertActive(state.active);
+              // Enforce at dispatch, after durable beforeRequest hooks and even
+              // when their checkpoint captured earlier stream settings.
+              const events = models.streamSimple(requested, transcript, { ...options, maxTokens: reservation.maxTokens, maxRetries: 0,
+                onProviderStreamEvent: async (event, ref) => {
+                  if (requested.api === 'openai-completions' && (event?.usage || event?.choices?.[0]?.usage)) observed = openAIUsage(event);
+                  await options?.onProviderStreamEvent?.(event, ref);
+                } });
+              for await (const event of events) {
+                if (event.type === 'done' || event.type === 'error') {
+                  // The official faux provider is a keyless, explicitly supplied
+                  // test transport with message-owned counters, not wire billing.
+                  if (requested.api === 'faux') observed = explicitPiUsage((event.message || event.error)?.usage);
+                  if (observed?.completionTokens > reservation.maxTokens) fail('OUTPUT_LIMIT', 'The provider exceeded this request output allowance.');
+                  await state.root.commit(async tx => {
+                    const active = (await tx.doc(RecordDoc, state.root.id)).active;
+                    if (active.requestId !== requestId) fail('PI_NOT_ADMITTED', 'The Pi invocation changed before usage settlement.');
+                    active.requests[reservation.index].usage = observed;
+                  }, context);
+                }
+                output.push(event);
+              }
+              output.end(await events.result());
+            } catch (error) {
+              const message = { role: 'assistant', content: [], api: requested.api, provider: requested.provider, model: requested.id,
+                timestamp: Date.now(), stopReason: 'error', errorMessage: error instanceof ProviderError ? error.message : 'Pi request reservation could not be verified.',
+                usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+              output.push({ type: 'error', reason: 'error', error: message }); output.end();
+            }
+          })();
+          return output;
+        };
+      } });
       const registry = createRegistry();
       const input = defineTool({ name: 'workspace_input', description: 'Read only an explicitly selected, verified input snapshot. No filesystem paths or ambient enterprise data.',
         parameters: Type.Object({ kind: Type.Union([Type.Literal('artifact'), Type.Literal('memory'), Type.Literal('skill')]), id: Type.String({ maxLength: 160 }) }), replay: 'safe',
@@ -92,9 +145,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
           const doc = await api.snapshot(RecordDoc, api.conversationId, callContext);
           const tail = request.messages.filter(message => message.role !== 'system').slice(1);
           const answers = tail.filter(message => message.role === 'assistant');
-          const used = answers.reduce((sum, message) => sum + (message.usage?.output || 0), 0);
-          if (answers.length >= 4 || used >= doc.active.maxTokens) fail('TOKEN_BUDGET', 'Pi reached the admitted turn/output allowance.');
-          state.active.remainingTokens = doc.active.maxTokens - used;
+          if (answers.length >= PI_REQUEST_LIMIT || !requestAllowance(doc.active)) fail('TOKEN_BUDGET', 'Pi reached the admitted request/output allowance.');
           return { messages: [request.messages[0], ...doc.active.messages, ...tail].filter(Boolean) };
         } }),
         hook(ToolTask, { beforeTool: call => {
@@ -105,8 +156,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
       registry.install(extension);
       state.extension = extension; state.input = input; state.propose = propose;
       try {
-        harness = await Harness.open(storage, { models, registry, settings: { retry: { enabled: false, maxRetries: 0 }, compaction: { enabled: false }, toolExecution: 'sequential',
-          get stream() { return { maxTokens: Math.min(1600, state.active?.remainingTokens || state.active?.maxTokens || 1600), timeoutMs }; } } }, context);
+        harness = await Harness.open(storage, { models: governedModels, registry, settings: { retry: { enabled: false, maxRetries: 0 }, compaction: { enabled: false }, toolExecution: 'sequential', stream: { timeoutMs, maxRetries: 0 } } }, context);
         state.harness = harness; state.root = await harness.root(context);
         // No resume here: reopen is a read. Only an admitted complete() may start work.
         opened.set(conversationId, state);
@@ -169,7 +219,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
           // Use the real Pi Agent state API for canonical context. pi-durable
           // owns execution and tools; no second Agent loop/scheduler is started.
           const agent = new Agent({ initialState: { model: modelRef, systemPrompt, messages: canonical }, streamFn: models.streamSimple.bind(models) });
-          state.active = { ...scope, requestId, messages: clone(agent.state.messages.filter(value => value.role !== 'system')) };
+          state.active = { ...scope, requestId, requests: [], messages: clone(agent.state.messages.filter(value => value.role !== 'system')) };
           await state.root.configure({ model: { provider: providerId, modelId: model }, instructions: systemPrompt,
             tools: json ? [state.input, state.propose] : [state.input], extensions: [state.extension] }, context);
           await state.root.commit(async tx => { (await tx.doc(RecordDoc, state.root.id)).active = state.active; }, context);
@@ -192,9 +242,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', models: sup
         if (settled.status !== 'done' && !finalDoc.active.proposal) fail('PI_UNANSWERED', `Pi did not complete this submission (${settled.reason || 'unanswered'}). Saved checkpoints remain available.`);
         if (answer?.stopReason === 'length') fail('OUTPUT_LIMIT', 'Pi reached the output limit. Review saved work before retrying.');
         if (!content?.trim() || content.length > 80000 || apiKey && content.includes(apiKey)) fail('INVALID_RESPONSE', 'Pi returned an invalid visible answer.');
-        // Invocation usage is computed from the reset-bounded active transcript.
-        const view = await state.root.context(context);
-        const totals = view.messages.filter(value => value.role === 'assistant').reduce((sum, value) => ({ promptTokens: sum.promptTokens + (value.usage?.input || 0), completionTokens: sum.completionTokens + (value.usage?.output || 0), totalTokens: sum.totalTokens + (value.usage?.totalTokens || 0) }), { promptTokens: 0, completionTokens: 0, totalTokens: 0 });
+        const totals = invocationUsage(finalDoc.active.requests);
         return { content, usage: totals, runtime: { kind: 'pi-durable', version: PI_VERSION, source: PI_SOURCE, submissionId: submission.id, replayed: reattaching } };
       } catch (error) {
         await abortPromise?.catch(() => {});

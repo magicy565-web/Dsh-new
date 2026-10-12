@@ -6,18 +6,30 @@ import { join, resolve } from 'node:path';
 import { randomUUID, createHash, webcrypto } from 'node:crypto';
 import { JSDOM } from 'jsdom';
 import { createApp } from '../server/index.mjs';
+import { openStore } from '../server/store.mjs';
 
 // Production React, original local HTTP and temporary NTFS persistence. The
 // provider and optional native transport DTO are explicit offline fixtures.
 // No browser geometry, original Host, account or PersonalAgent acceptance.
-async function fixture(t, { model = false } = {}) {
+async function fixture(t, { model = false, originalNative = false } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'workspace-conversation-ui-'));
   let modelCalls = 0;
   const provider = { configured: model, provider: 'offline-ui-fixture', kind: 'fixture', complete: async () => {
     modelCalls++; assert.ok(model, 'No model call allowed in read/reference test');
     return { content: JSON.stringify({ done: true, content: 'Fixture task returned.', artifact: { filename: 'conversation-result.md', content: 'OFFLINE_FIXTURE_RESULT' } }) };
   } };
-  let app = await createApp({ dataDirectory: directory, provider }), address = await app.listen(0);
+  const actor = originalNative ? { subject: 'local-operator', nativeAgentId: randomUUID() } : null;
+  const workerId = 'cf4a108c-8051-48bb-9bd2-b8e5a10a1db1';
+  if (actor) {
+    const store = await openStore(directory), at = new Date().toISOString();
+    await store.update(state => state.conversations.push({ id: actor.nativeAgentId, ...actor, title: 'Native fixture', status: 'idle', activeRunId: null, createdAt: at, updatedAt: at }));
+    await store.close();
+  }
+  const options = { dataDirectory: directory, provider, ...(actor ? {
+    museWorkerConfig: { workerId, ownerId: 'fixture-owner', tokenDigest: createHash('sha256').update('fixture-only-not-live').digest('hex'), enabled: false, scopeReviewed: false, externalBudgetVerified: false },
+    museOriginalBinding: { actor, operators: [actor], expectedHost: 'fixture.test' },
+  } : {}) };
+  let app = await createApp(options), address = await app.listen(0);
   const requests = [], windows = [];
   const assets = await readdir(resolve('dist/assets'));
   const script = await readFile(resolve('dist/assets', assets.find(name => /^index-.*\.js$/.test(name))), 'utf8');
@@ -48,7 +60,7 @@ async function fixture(t, { model = false } = {}) {
     return { window, document: window.document, errors };
   }
   t.after(async () => { for (const window of windows) window.close(); await app.close(); assert.ok(resolve(directory).startsWith(resolve(join(tmpdir(), 'workspace-conversation-ui-')))); await rm(directory, { recursive: true, force: true }); });
-  return { request, render, requests, get app() { return app; }, get modelCalls() { return modelCalls; }, async restart() { await app.close(); app = await createApp({ dataDirectory: directory, provider }); address = await app.listen(0); } };
+  return { actor, workerId, request, render, requests, get app() { return app; }, get modelCalls() { return modelCalls; }, async restart() { await app.close(); app = await createApp(options); address = await app.listen(0); } };
 }
 async function wait(check, message) { for (let i = 0; i < 240; i++) { if (await check()) return; await new Promise(r => setTimeout(r, 25)); } throw Error('Timed out: ' + message); }
 function button(ui, text, root = ui.document) { return [...root.querySelectorAll('button')].find(item => item.textContent.trim() === text); }
@@ -151,9 +163,11 @@ test('320 and 390 px entry has one conversation and mutually exclusive original 
 });
 
 test('original native task DTO and checked receipt stay in their conversation with no automatic dispatch', async t => {
-  const f = await fixture(t), current = await conversation(f, 'Native fixture'), other = await conversation(f, 'Other native fixture');
+  // Receipt UI requires the actual reviewed owner binding, including for this
+  // offline DTO. An unbound native receipt is now correctly private by default.
+  const f = await fixture(t, { originalNative: true }), current = { id: f.actor.nativeAgentId }, other = await conversation(f, 'Other native fixture');
   const file = { id: 'fixture-file', version: 1, sha256: 'a'.repeat(64), filename: 'fixture-receipt.md' };
-  const receipt = { schema: 'workspace.muse.session-receipt.v1', nativeAgentId: current.id, orderId: 'fixture-order', workerId: 'fixture-worker', taskRef: 'fixture-task', attemptId: 'fixture-attempt', requestId: 'fixture-request', submitRequestId: 'fixture-submit', fence: 1, submitHash: 'b'.repeat(64), reportSha256: 'c'.repeat(64), independentlyVerified: false, files: [file] };
+  const receipt = { schema: 'workspace.muse.session-receipt.v1', nativeAgentId: current.id, orderId: 'fixture-order', workerId: f.workerId, taskRef: 'fixture-task', attemptId: 'fixture-attempt', requestId: 'fixture-request', submitRequestId: 'fixture-submit', fence: 1, submitHash: 'b'.repeat(64), reportSha256: 'c'.repeat(64), independentlyVerified: false, files: [file] };
   const hash = createHash('sha256').update(JSON.stringify(receipt)).digest('hex'), now = new Date().toISOString();
   await f.app.store.update(state => state.messages.push({ id: randomUUID(), conversationId: current.id, role: 'assistant', status: 'complete', content: 'Explicit native DTO fixture', createdAt: now, museOrderId: receipt.orderId, museReceiptHash: hash, museReceipt: receipt }));
   const task = { agentKind: 'muse', orderId: receipt.orderId, nativeAgentId: current.id, requestId: receipt.requestId, workerId: receipt.workerId, taskRef: receipt.taskRef, attemptId: receipt.attemptId, fence: 1, status: 'review_required', executionStatus: 'submitted', leaseUntil: null, createdAt: now, updatedAt: now, deadlineAt: new Date(Date.now() + 3600000).toISOString(), serviceId: 'fixture', product: 'Fixture product', market: 'Fixture market', objective: 'Fixture task objective', budgetCredits: 5, summary: 'Fixture receipt', receipt: { files: [file] }, receiptHash: hash, returnedHash: hash, acceptedAt: null, independentlyVerified: false };

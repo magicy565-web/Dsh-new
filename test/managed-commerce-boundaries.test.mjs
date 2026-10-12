@@ -17,9 +17,11 @@ for(const row of provenance.boundaryFiles) {
   const bytes=Buffer.from(fs.readFileSync(new URL('../'+row.path,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   // Verified Supply V1 adds read-only catalog observation; this candidate
   // permits original native Session IDs in conversation library references.
-  // Pin those two reviewed deltas; all other source boundaries stay identical.
+  // P1 closes original Muse receipt access through ordinary library connectors.
+  // Pin that narrow security delta too; every other boundary remains pinned.
   const expected=row.path==='server/shopify.mjs'?'bb7bb5cacce3a5f48a08c23bcd814d0718788051':
-    row.path==='server/business-library.mjs'?'e636d1bbc27b3808576fae5cc4a6efd54ffc81da':row.gitBlob;
+    row.path==='server/business-library.mjs'?'e636d1bbc27b3808576fae5cc4a6efd54ffc81da':
+    row.path==='server/workspace-library.mjs'?'45b938f40d22e4a13def7ac59fea17cde73750d1':row.gitBlob;
   assert.equal(createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'),expected,
     'Reviewed original source differs: '+row.path);
 }

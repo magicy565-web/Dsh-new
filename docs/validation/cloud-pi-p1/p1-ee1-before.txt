@@ -1,0 +1,122 @@
+{"probe":"owner-private-order","specializedStatus":403,"listStatus":200,"directStatus":200,"markerDisclosed":true,"directMarkerDisclosed":true}
+✖ requirement: non-owner cannot enumerate original Muse private orders through generic Worker routes (140.715254ms)
+{"probe":"protected-file-to-model","directDownloadStatus":404,"sendStatus":202,"providerCalls":1,"privateBytesReachedFauxModel":true}
+✖ requirement: a non-owner cannot send protected Muse receipt bytes to Pi by selecting its artifact ID (138.726366ms)
+{"probe":"original-conversation-injection","sendStatus":202,"providerCalls":1,"ownerReceiptReachedFauxModel":true}
+✖ requirement: non-owner cannot inject messages into the original Muse conversation through provider pi (83.467448ms)
+{"probe":"pi-usage-missing","usage":{"promptTokens":0,"completionTokens":0,"totalTokens":0},"usageStatus":"complete","expected":"unknown, not measured zero; preserve reserved allowance"}
+✖ requirement: official OpenAI-compatible Pi usage preserves missing usage semantics (125.283781ms)
+{"probe":"pi-usage-cached","usage":{"promptTokens":20,"completionTokens":5,"totalTokens":105},"usageStatus":"complete","expected":{"promptTokens":100,"completionTokens":5,"totalTokens":105}}
+✖ requirement: official OpenAI-compatible Pi usage preserves cached usage semantics (45.956737ms)
+{"probe":"pi-usage-missing-rounds","usage":{"promptTokens":0,"completionTokens":0,"totalTokens":0},"usageStatus":"complete","expected":"unknown, not measured zero; preserve reserved allowance"}
+{"probe":"pi-reservation-with-missing-usage","admittedOutputAllowance":1600,"perModelRequestOutputCaps":[1600,1600,1600,1600],"totalGrantedCeilings":6400,"reportedUsage":{"promptTokens":0,"completionTokens":0,"totalTokens":0}}
+✖ requirement: official OpenAI-compatible Pi usage preserves missing-rounds usage semantics (126.01599ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 947.918145
+
+✖ failing tests:
+
+test at acceptance/independent-ee1ad6c.mjs:71:1
+✖ requirement: non-owner cannot enumerate original Muse private orders through generic Worker routes (140.715254ms)
+  AssertionError [ERR_ASSERTION]: Generic list must preserve original Muse owner confidentiality
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/pi-p1-ee1/acceptance/independent-ee1ad6c.mjs:80:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at acceptance/independent-ee1ad6c.mjs:84:1
+✖ requirement: a non-owner cannot send protected Muse receipt bytes to Pi by selecting its artifact ID (138.726366ms)
+  AssertionError [ERR_ASSERTION]: Denied Muse files must also be denied as model input
+      at TestContext.<anonymous> (file:///workspace/pi-p1-ee1/acceptance/independent-ee1ad6c.mjs:92:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at acceptance/independent-ee1ad6c.mjs:96:1
+✖ requirement: non-owner cannot inject messages into the original Muse conversation through provider pi (83.467448ms)
+  AssertionError [ERR_ASSERTION]: Original Muse owner guard must apply to generic conversation messages
+  
+  202 !== 403
+  
+      at TestContext.<anonymous> (file:///workspace/pi-p1-ee1/acceptance/independent-ee1ad6c.mjs:101:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 202,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at acceptance/independent-ee1ad6c.mjs:213:61
+✖ requirement: official OpenAI-compatible Pi usage preserves missing usage semantics (125.283781ms)
+  AssertionError [ERR_ASSERTION]: Absent provider usage must not become complete measured zeros
+  + actual - expected
+  
+  + 'complete'
+  - 'unknown'
+  
+      at TestContext.<anonymous> (file:///workspace/pi-p1-ee1/acceptance/independent-ee1ad6c.mjs:252:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'complete',
+    expected: 'unknown',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at acceptance/independent-ee1ad6c.mjs:213:61
+✖ requirement: official OpenAI-compatible Pi usage preserves cached usage semantics (45.956737ms)
+  AssertionError [ERR_ASSERTION]: Cached input remains part of total prompt tokens
+  
+  20 !== 100
+  
+      at TestContext.<anonymous> (file:///workspace/pi-p1-ee1/acceptance/independent-ee1ad6c.mjs:253:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 20,
+    expected: 100,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at acceptance/independent-ee1ad6c.mjs:213:61
+✖ requirement: official OpenAI-compatible Pi usage preserves missing-rounds usage semantics (126.01599ms)
+  AssertionError [ERR_ASSERTION]: Unknown-usage rounds must conservatively consume original reserved allowance
+      at TestContext.<anonymous> (file:///workspace/pi-p1-ee1/acceptance/independent-ee1ad6c.mjs:251:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

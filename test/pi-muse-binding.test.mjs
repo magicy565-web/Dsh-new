@@ -6,6 +6,7 @@ import { Readable } from 'node:stream';
 import { createHash } from 'node:crypto';
 import { openStore } from '../server/store.mjs';
 import { createApp } from '../server/index.mjs';
+import { createWorkspaceLibraryAdapter } from '../server/workspace-library.mjs';
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const actor = { subject: 'local-operator', nativeAgentId: 'original:conversation/fixture' };
 const workerId = 'cf4a108c-8051-48bb-9bd2-b8e5a10a1db1';
@@ -56,11 +57,29 @@ test('DSH-free HTTP fixture: original Muse order/attempt/file/return protocol wi
   assert.equal((await call(`/artifacts/${upload.data.artifactId}/download?version=1`)).response.status, 404);
   assert.equal((await call(`/artifacts/${upload.data.artifactId}`, 'DELETE')).response.status, 404);
   assert.equal((await call('/bootstrap')).data.artifacts.some(item => item.id === upload.data.artifactId), false);
+  assert.equal((await call('/worker-orders')).data.orders.some(item => item.id === orderId), false);
+  for (const action of ['', '/approve', '/dispatch', '/refresh', '/accept', '/cancel', '/promote'])
+    assert.equal((await call(`/worker-orders/${orderId}${action}`, action ? 'POST' : 'GET', action ? review : undefined)).response.status, 404);
+  assert.equal((await call(`/artifacts/${upload.data.artifactId}`, 'PATCH', { metadata: {} })).response.status, 404);
+  const ordinary = (await app.runtime.createConversation({})).conversation;
+  const selected = { artifacts: [{ id: upload.data.artifactId, version: 1 }], skills: [], memoryIds: [], connectorActions: [] };
+  await assert.rejects(app.runtime.sendMessage(ordinary.id, { content: 'No private Muse inputs', inputContext: selected }), { code: 'MUSE_OWNER_REQUIRED' });
+  const library = createWorkspaceLibraryAdapter({ artifacts: app.artifacts, store: app.store });
+  for (const action of ['read_file', 'update_file']) await assert.rejects(library.execute({ action, resource: `artifact:${upload.data.artifactId}`,
+    payload: action === 'read_file' ? { version: 1 } : { expectedRevision: 1, content: 'Forbidden edit' } }), { code: 'MUSE_OWNER_REQUIRED' });
   assert.equal((await call(`/muse-worker-files/${upload.data.artifactId}?version=2&sha256=${hash(bytes)}`)).response.status, 404);
   await app.close(); app = await createApp(options); address = await app.listen(0);
   assert.equal((await call(`${path}/${orderId}`)).data.delegation.receiptHash, refreshed.data.delegation.receiptHash);
   assert.equal(app.store.read().museTasks.length, 1);
   assert.equal(app.runtime.listRuns().runs.length, 0);
+  await app.close();
+  // Persisted provenance remains closed when the binding is not mounted.
+  app = await createApp({ dataDirectory: directory }); address = await app.listen(0);
+  const closed = await call('/bootstrap');
+  assert.equal(JSON.stringify(closed.data).includes(orderId), false);
+  assert.equal((await call(`/conversations/${encodeURIComponent(actor.nativeAgentId)}`, 'PATCH', { title: 'Forbidden rename' })).response.status, 403);
+  assert.equal((await call(`/worker-orders/${orderId}`)).response.status, 404);
+  assert.equal((await call(`/artifacts/${upload.data.artifactId}/content`)).response.status, 404);
 });
 
 test('DSH-free binding refuses missing original conversation instead of inventing another identity', async t => {

@@ -1,0 +1,21 @@
+{"probe":"owner-private-order","specializedStatus":403,"listStatus":200,"directStatus":404,"markerDisclosed":false,"directMarkerDisclosed":false}
+✔ requirement: non-owner cannot enumerate original Muse private orders through generic Worker routes (120.310324ms)
+{"probe":"protected-file-to-model","directDownloadStatus":404,"sendStatus":403,"providerCalls":0,"privateBytesReachedFauxModel":false}
+✔ requirement: a non-owner cannot send protected Muse receipt bytes to Pi by selecting its artifact ID (70.751854ms)
+{"probe":"original-conversation-injection","sendStatus":403,"providerCalls":0,"ownerReceiptReachedFauxModel":false}
+✔ requirement: non-owner cannot inject messages into the original Muse conversation through provider pi (66.60464ms)
+{"probe":"pi-usage-missing","usage":{"promptTokens":null,"completionTokens":null,"totalTokens":null},"usageStatus":"unknown","expected":"unknown, not measured zero; preserve reserved allowance"}
+✔ requirement: official OpenAI-compatible Pi usage preserves missing usage semantics (156.806276ms)
+{"probe":"pi-usage-cached","usage":{"promptTokens":100,"completionTokens":5,"totalTokens":105},"usageStatus":"complete","expected":{"promptTokens":100,"completionTokens":5,"totalTokens":105}}
+✔ requirement: official OpenAI-compatible Pi usage preserves cached usage semantics (46.184922ms)
+{"probe":"pi-usage-missing-rounds","usage":{"promptTokens":null,"completionTokens":null,"totalTokens":null},"usageStatus":"unknown","expected":"unknown, not measured zero; preserve reserved allowance"}
+{"probe":"pi-reservation-with-missing-usage","admittedOutputAllowance":1600,"perModelRequestOutputCaps":[400,400,400,400],"totalGrantedCeilings":1600,"reportedUsage":{"promptTokens":null,"completionTokens":null,"totalTokens":null}}
+✔ requirement: official OpenAI-compatible Pi usage preserves missing-rounds usage semantics (114.343935ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 882.915094

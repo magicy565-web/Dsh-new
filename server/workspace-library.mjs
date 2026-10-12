@@ -1,5 +1,6 @@
 import { ApiError } from './runtime.mjs';
 import { isBusinessLibraryArtifact } from './business-library-policy.mjs';
+import { isOriginalMuseArtifact } from './muse-owner-policy.mjs';
 
 export const WORKSPACE_LIBRARY_ADAPTER = 'workspace-library';
 export const WORKSPACE_LIBRARY_ACTIONS = ['read_file', 'create_file', 'update_file'];
@@ -14,6 +15,8 @@ const resourceId = resource => {
 /** A shipped, reviewed LOCAL connector. Every invocation still needs exact approval. */
 export function createWorkspaceLibraryAdapter({ artifacts, store }) {
   const assertPublicArtifact = (state, id) => {
+    if (isOriginalMuseArtifact(state, id))
+      throw new ApiError(403, 'MUSE_OWNER_REQUIRED', 'Original Muse receipt files cannot be accessed by ordinary connectors.');
     if (isBusinessLibraryArtifact(state, id))
       throw new ApiError(403, 'BUSINESS_LIBRARY_PRIVATE', 'Enterprise library files cannot be accessed by connectors.');
   };

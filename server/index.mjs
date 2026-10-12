@@ -1,3 +1,4 @@
+import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readLocalVerification, operationalDiagnostics } from './diagnostics.mjs';
@@ -36,6 +37,8 @@ function decodeApiId(value) {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mimeTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.json': 'application/json' };
 async function respond(res, status, body) {
+  if (res.filterWorkspaceResponse && status < 400) body = res.filterWorkspaceResponse(body);
+  if (body === undefined) throw new ApiError(404, 'NOT_FOUND', 'The requested record is outside this reviewed binding.');
   await res.accessFinish?.(status);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
   res.end(JSON.stringify(body));
@@ -128,6 +131,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       throw new TypeError('External procurement buyers require this workspace and a distinct subject from enterprise members.');
     sourcingMcpAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
   } catch (error) { await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
+  const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
   const streams = new Set();
   let scheduler;
   const schedulerState = { state: 'stopped', automaticTimer: false, intervalMs: schedulerIntervalMs, lastStartedAt: null, lastCompletedAt: null, lastError: null };
@@ -225,6 +229,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         throw new ApiError(404, 'DOT_ROUTE_NOT_FOUND', 'Only the reviewed dot Worker task methods are accepted.');
       }
       const context = await access.begin(req, res, pathname);
+      musePrivacy.guardHttp(pathname, context);
+      res.filterWorkspaceResponse = body => musePrivacy.filterResponse(body, context);
       if (!pathname.startsWith('/api/')) {
         if (method !== 'GET' && method !== 'HEAD') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
         return await staticResponse(req, res, pathname, staticDirectory);
@@ -255,7 +261,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
           if (result) return await respond(res, result.status, result.body);
         }
         if (pathname === '/api/runs') return await respond(res, 200, runtime.listRuns());
-        if (pathname === '/api/artifacts') return await respond(res, 200, { ...artifacts.list(), artifacts: artifacts.list().artifacts.filter(item => !piMuse?.ownsArtifact(item)) });
+        if (pathname === '/api/artifacts') return await respond(res, 200, { ...artifacts.list(), artifacts: artifacts.list().artifacts.filter(item => !musePrivacy.ownsArtifact(item)) });
         if (pathname === '/api/cloud-expert-catalog') return await respond(res, 200, cloudExperts.catalog());
         if (pathname === '/api/cloud-experts') return await respond(res, 200, { experts: cloudExperts.experts() });
         if (pathname === '/api/cloud-teams') return await respond(res, 200, { teams: cloudExperts.teams() });
@@ -275,7 +281,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         }
         if (pathname === '/api/dot-worker-connection') return await respond(res, 200, dotBridge ? dotBridge.info() : { installed:false, approved:false, ownerId:'xy', onlineVerified:false });
         if (pathname === '/api/worker-services') return await respond(res, 200, { services: workerDesk.catalog() });
-        if (pathname === '/api/worker-orders') return await respond(res, 200, { orders: workerDesk.list() });
+        if (pathname === '/api/worker-orders') return await respond(res, 200, { orders: workerDesk.list().filter(item => !musePrivacy.ownsOrder(item.id)) });
         if (pathname === '/api/worker-opportunities') return await respond(res, 200, { opportunities: workerOpportunities.list() });
         const opportunityRead = pathname.match(/^\/api\/worker-opportunities\/([^/]+)$/);
         if (opportunityRead) return await respond(res, 200, { opportunity: workerOpportunities.get(opportunityRead[1]) });
@@ -292,7 +298,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (resource) return await respond(res, 200, runtime.getRun(resource[1]));
         resource = pathname.match(/^\/api\/artifacts\/([^/]+)(?:\/(content|download))?$/);
         if (resource) {
-          if (piMuse?.ownsArtifact(store.read().artifacts.find(item => item.id === resource[1]))) throw new ApiError(404, 'NOT_FOUND', 'Use the exact original Muse receipt file reference.');
+          if (musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === resource[1]))) throw new ApiError(404, 'NOT_FOUND', 'Use the exact original Muse receipt file reference.');
           const version = url.searchParams.has('version') ? Number(url.searchParams.get('version')) : undefined;
           if (resource[2] === 'download') {
             const file = await artifacts.download(resource[1], version === undefined ? {} : { version });
@@ -304,7 +310,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         }
         resource = pathname.match(/^\/api\/(skills|connectors|schedules)\/([^/]+)$/);
         if (resource) return await respond(res, 200, { [{ skills: 'skill', connectors: 'connector', schedules: 'schedule' }[resource[1]]]: capabilities[{ skills: 'getSkill', connectors: 'getConnector', schedules: 'getSchedule' }[resource[1]]](resource[2]) });
-        const state = { ...(piMuse ? piMuse.filterBootstrap(runtime.bootstrap(), context) : runtime.bootstrap()), ...(piMuse ? { museBinding: piMuse.snapshot(context) } : {}), capabilities: capabilitySnapshot(), diagnostics: diagnostics() };
+        const state = { ...(musePrivacy.filterBootstrap(runtime.bootstrap(), context)), ...(piMuse ? { museBinding: piMuse.snapshot(context) } : {}), capabilities: capabilitySnapshot(), diagnostics: diagnostics() };
         const resources = { '/api/bootstrap': state, '/api/status': runtime.status(), '/api/conversations': { conversations: state.conversations }, '/api/goals': { goals: state.goals }, '/api/activity': { activity: state.activity }, '/api/settings': { settings: state.settings }, '/api/memories': { memories: state.memories } };
         if (pathname === '/api/search') { const query = (url.searchParams.get('q') || '').trim(); if (!query || query.length > 200) throw new ApiError(400, 'INVALID_INPUT', 'Search query must be 1–200 characters.'); const needle = query.toLocaleLowerCase(); const results = ['conversations', 'messages', 'goals', 'memories', 'artifacts'].flatMap(collection => (state[collection] || []).filter(item => [item.title, item.content, item.description, item.filename].some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(needle))).slice(0, 50).map(item => ({ collection, id: item.id, title: item.title || item.filename || item.content?.slice(0, 100), conversationId: item.conversationId || item.sourceConversationId || null }))); return await respond(res, 200, { results: results.slice(0, 100) }); }
         if (resources[pathname]) return await respond(res, 200, resources[pathname]);
@@ -322,8 +328,9 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (!['POST', 'PATCH', 'DELETE'].includes(method)) throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
       const body = method === 'DELETE' ? {} : await readBody(req, /^\/api\/artifacts(?:\/[^/]+)?$/.test(pathname) ? 7_100_000 : 100_000);
       access.verifyBody(context, req.bodyBytes || Buffer.alloc(0));
+      musePrivacy.guardHttp(pathname, context, body);
       const ownedFileMutation = pathname.match(/^\/api\/artifacts\/([^/]+)$/);
-      if (ownedFileMutation && piMuse?.ownsArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Original Muse receipt files are immutable and use the original binding.');
+      if (ownedFileMutation && musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Original Muse receipt files are immutable and use the original binding.');
       const supplyWrite = await supplyHttp({ supply, method, pathname, body, actor: context });
       if (supplyWrite) return await respond(res, supplyWrite.status, supplyWrite.body);
       if (method === 'POST' && pathname === '/api/supply/shopify/observe') {
