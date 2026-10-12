@@ -1,0 +1,10 @@
+✔ draft view only shows received fields; a missing budget/deadline never becomes an invented permission (1.505004ms)
+✔ draft view requires actual fields and presents a model suggestion separately from explicit user confirmation (0.25793ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 119.970518
