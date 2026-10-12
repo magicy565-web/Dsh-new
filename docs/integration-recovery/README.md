@@ -13,18 +13,22 @@ The original integration task completed its handoff with evidence-only commit [`
 
 ## Source and evidence
 
-The final source archive is an exact Git tree, including every tracked historical file in its original bytes. Its embedded `SOURCE-MANIFEST.json` is the authority for the immutable source commit, tree, paths, Git blobs, modes and SHA256. The client archive's `BUILD-MANIFEST.json` must name that same source commit. Historical archives inside the tree are explicitly labelled historical and are not the current client.
+The current fallback delivery uses the **portable checkpoint** profile in [`PORTABLE-DELIVERY.md`](../../miniprogram/scripts/PORTABLE-DELIVERY.md). It includes every tracked current source/config/test/document path except the fixed historical-output prefixes; the required `docs/validation/managed-commerce-sources.json` test input is explicitly retained. Every excluded path, mode, Git blob and reason is listed in `SOURCE-MANIFEST.json`. `exactGitTree=false`: this package does not contain or reconstruct the complete Git tree or Git history. The immutable GitHub source SHA remains canonical.
+
+The source and WeChat import manifests name the same full source commit and tree. The verifier checks the pinned original commit, full tree metadata, every included source blob, explicit exclusions and client archive integrity. This alone does not prove compilation equivalence; a separate clean extraction/install/build and byte comparison must establish that result.
+
+The earlier full-tree packager remains unchanged for environments that possess all historical blobs. Its archives include every tracked historical file; those older archives are never the current client.
 
 Validation records distinguish the source commit being exercised from a later evidence-only delivery commit. Generated screenshots, logs and archives are added after source freeze; they are not recursive inputs to the archive that contains them. Do not relabel earlier counts, screenshots, historical acceptance JSON fields or uncommitted diagnostic hooks as final-source acceptance. Each run records command, exit code, source before/after and evidence hashes. Failed initial runs remain available alongside follow-up runs.
 
-Use the existing packager and verifier with an explicit source commit and backend commit (never the packager's historical default):
+For the earlier full-tree profile only, use the existing packager and verifier with an explicit source commit and backend commit (never the packager's historical default):
 
 ```sh
 python3 miniprogram/scripts/package-fixed-combination.py --repository "$REPOSITORY" --commit "$SOURCE_COMMIT" --backend "$SOURCE_COMMIT" --compiled "$REPOSITORY/release/miniprogram" --output "$DELIVERY_DIRECTORY"
 python3 miniprogram/scripts/verify-fixed-delivery.py --source "$SOURCE_ARCHIVE" --client "$CLIENT_ARCHIVE" --destination "$NEW_CLEAN_DIRECTORY" --record "$VERIFICATION_RECORD"
 ```
 
-The verifier safely extracts the archive, checks every blob/mode/hash and reconstructs the exact Git tree. It does not restore Git history. The source can then be built with the original lock files and scripts. Compare the resulting mini client bytes against `BUILD-MANIFEST.json`.
+That full-tree verifier safely extracts the archive, checks every blob/mode/hash and reconstructs the exact Git tree. It does not restore Git history. The portable verifier deliberately makes no full-tree reconstruction claim. Both source profiles can be built with the original lockfiles and scripts; compare resulting mini client bytes against `BUILD-MANIFEST.json`.
 
 ## Minimal reproduced corrections
 
@@ -47,3 +51,9 @@ The existing signed owner-session supplier MCP and separately configured owner-b
 No new credentials, account permissions or persistent access were created. No production/model/Shopify/Muse/notification call, deployment, payment, main update/merge or force push is authorized by this recovery. The future seven-day notification's durable continuing consent and persisted recipient-authority design remain unapproved; this work keeps the existing manual approvals and does not add that design. Real provider/Host/Muse, Shopify/GA4, WeChat/device, Windows and independent security acceptance remain separate gates. CI startup failures with no jobs are not passing test evidence.
 
 The initial merged and `c3e9fd2` checkpoints retain their exact earlier failures in separate historical evidence. Their passes are never substituted for a later source. A baseline-identical file alone is not evidence that a user-visible defect is acceptable; reachable defects were corrected and obsolete harness routes were migrated with their distinct safety assertions preserved. Final reports separate current product routes from the retired component contract, and list all remaining non-synthetic acceptance gates.
+
+## Fallback validation checkpoint
+
+[`ac358ff`](../../test/muse-conversation-ui.dom.test.mjs) adds a bounded wait for actual unmount abort before retaining the existing strict signal assertion. The historical intermittent immediate-signal failure did not reproduce in the fallback environment. Removing the product's unmount abort in a temporary mutation experiment makes the test fail before the independent 20-second read timeout; original product bytes were then restored and verified. [Mutation and regression evidence](../validation/fallback-abort-checkpoint/README.md) records those distinctions.
+
+[Fallback evidence](../validation/fallback-ac358ff/README.md) records backend 698 pass/8 skip, UI 19, combined conversation 17, current Library/retired Supply component 13, mini business 126, and three actual Pi PTY suites using deterministic local fixtures. The extra backend skip relative to cloud 699/7 is the historical Git-object proof unavailable in a source-only checkout. Chromium startup is blocked before page assertions by this environment's socket restriction; earlier browser evidence remains historical. No new screenshot/browser-pass or independent security-acceptance claim follows from these DOM and protocol results. Later frozen-source delivery validation must name its own exact commit.
