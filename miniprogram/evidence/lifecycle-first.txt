@@ -1,0 +1,29 @@
+✔ cold process + cloud store restart recovers the exact lost message request without another model call (157.570285ms)
+✔ actual Page callbacks coalesce send/retry taps, retain offline input, and never cancel on hide/unload (101.515628ms)
+✔ exact approval survives lost response; retry reads original proposal; execution continuation reuses one requestId (198.489358ms)
+✔ actual Page rejection targets the exact proposal and never executes the original connector (96.071252ms)
+✔ actual Page full review preserves payload beyond old 3000-character modal limit (40.334421ms)
+✖ image/PDF upload loss retries original bytes without extraction; actual file preview requires SHA match (5267.622292ms)
+✔ journal is bound to confirmed enterprise subject, never stores login/session/CSRF; expired sessions fail closed (1.518445ms)
+✔ write-ahead journal failure stops mutation; unknown create is not replayed without a backend idempotency contract (0.441167ms)
+✔ Muse stop states and accepted files retain exact scope; refresh can run again and never claims execution (0.418793ms)
+✔ actual Page ignores delayed reads after unload and clears old account content on expired session (47.094809ms)
+✔ real file journal preserves original request and fails closed for corrupt saved JSON (2.114146ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6216.013379
+
+✖ failing tests:
+
+test at miniprogram/test/lifecycle.test.mjs:86:1
+✖ image/PDF upload loss retries original bytes without extraction; actual file preview requires SHA match (5267.622292ms)
+  Error: Client fixture did not settle
+      at until (file:///workspace/wechat-client/miniprogram/test/support.mjs:13:161)
+      at async TestContext.<anonymous> (file:///workspace/wechat-client/miniprogram/test/lifecycle.test.mjs:97:94)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

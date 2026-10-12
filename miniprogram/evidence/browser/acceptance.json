@@ -1,0 +1,16 @@
+{
+  "mode": "Custom source-driven Chromium simulation, not WeChat DevTools/device",
+  "browserVersion": "151.0.7922.173",
+  "actualRuntime": "Compiled Page JS in Node vm; original WXML/WXSS converted by limited renderer; wx transport shims to real local HTTP backend; official Pi faux model; no live login/account/Muse execution",
+  "checks": [
+    "Empty shipped configuration visibly blocks login; no fake identity",
+    "Native source binding renders one composer, original spirit, resource expansion on demand",
+    "Actual loopback Pi request, Store bytes, wx transport shim SHA256, source-driven text preview and persistent PDF resource",
+    "Explicit exact proposal rejection performs zero connector executions; free text never approves",
+    "320px simulation has no horizontal overflow; unknown request preserves input and blocks new send"
+  ],
+  "pageErrors": [],
+  "backendModelCalls": 2,
+  "connectorExecutions": 0,
+  "generatedAt": "2026-10-12T05:54:33.964Z"
+}

@@ -55,3 +55,29 @@ states this limitation. Product/company references stay governed library data,
 not implicit authorization to export private files to models/connectors. Bulk
 library import/editing remains in the existing source-backed library; this client
 does not force recreation of those records or add another import backend.
+
+## Hardened client delivery (2026-10-12)
+
+The existing client now uses a native file recovery journal scoped to the confirmed
+enterprise subject and service. It writes the exact request before mutation;
+network/lost-response results keep the original requestId/body, while definite
+admission rejection permits correction. Tokens/code/CSRF stay in memory. Cold
+startup requires login, then restores the cloud conversation and original pending
+request. Exact decisions reconcile the same server proposal before retrying.
+Approvals use full scrollable scope with explicit approve/deny; execution remains
+a separate confirmation. Original Muse files stay available after acceptance,
+failed/cancelled/stop-requested stages remain distinct, and uploaded input files
+remain available in the on-demand resource sheet. PDF/image storage has an honest
+text-only-model notice. WXML control/list bindings now use native `{{ }}` syntax.
+
+Client source checkpoint: `e0afb7d852e063cb2b22cca759cfb9bedf06166b` on Draft PR36.
+[Acceptance and screenshots](../miniprogram/ACCEPTANCE.md),
+[importable compiled ZIP](../miniprogram/deliverables/Workspace-Agent-WeChat-Client.zip),
+[minimum login/API gaps](../miniprogram/CONTRACT-GAPS.md),
+[operator import steps](../miniprogram/IMPORT.md).
+Actual local client tests are 21/21; PR35/PR37 unchanged strict client checks are
+6/6 and 8/8 (overlapping). Source-driven Chromium simulation passes five groups;
+this is a limited WXML/WXSS renderer and compiled Page callbacks, not WeChat
+DevTools/device acceptance. No real account/Muse/model execution or production
+access is claimed. Backend P1/security and real login/device/platform acceptance
+remain outside this client's passing evidence.

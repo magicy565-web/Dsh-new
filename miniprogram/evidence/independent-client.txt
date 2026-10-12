@@ -1,0 +1,19 @@
+{"probe":"mini-original-receipt","receiptFiles":1,"miniFileCards":1,"messages":2}
+{"probe":"mini-definite-rejection","uncertainAfterDefinite409":false}
+{"probe":"mini-input-pdf","savedArtifacts":1,"persistentFileCards":1}
+✔ requirement: mini program shows the original returned Muse receipt file in the same conversation (148.869265ms)
+✔ requirement: definite mini send rejection releases composer for corrected input (2.61292ms)
+✔ requirement: upload-only PDF remains visible after sending and reloading the mini conversation (0.259813ms)
+{"probe":"compiled-mini-auth-expiry","clientSession":null,"pageAuthenticated":false,"loginButtonHidden":false}
+✔ requirement: compiled mini page restores login UI after the server rejects an expired session (12.176466ms)
+✔ positive independent check: missing mini service fails before obtaining any login code (0.491754ms)
+{"probe":"real-mini-binary-transport","uploadedArtifacts":2,"exactDownloadSHA":true,"binaryInputsParsed":false,"providerCalls":1,"wechatDevice":false}
+✔ positive independent check: mini binary attachments store and download byte-exact PDF/PNG with SHA while not parsing them (135.247252ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 616.96238
