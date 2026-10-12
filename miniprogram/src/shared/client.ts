@@ -5,6 +5,8 @@ import { validMuseDraft } from './muse-drafts';
 import type { MuseDraft } from './muse-drafts';
 import { inquiryValid } from './procurement';
 import type { Inquiry } from './procurement';
+import { publicListingFields } from './supplier-view';
+import type { SupplierProfile, PublicListingField } from './supplier-view';
 
 export type Session = { authenticated: boolean; csrfToken: string | null; user: { id: string; role: string } | null; expiresAt: string | null; mode: string };
 export type FileReference = { id: string; version: number; sha256: string; filename: string; mimeType?: string };
@@ -66,7 +68,7 @@ export class WorkspaceClient {
       if (owner !== this.owner) {
         this.pending = null; this.completed.clear(); this.conversationId = ''; this.owner = ''; this.snapshot = null; this.originalMuseId = ''; this.drafts = [];
         const saved = this.options.journal?.read(owner, this.base());
-        if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create', 'intake', 'prepare', 'reject', 'procurement-bind', 'procurement-reply'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
+        if (saved && (saved.version !== 1 || typeof saved.conversationId !== 'string' || saved.pending && (!['send', 'action', 'upload', 'references', 'create', 'intake', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-intake', 'supplier-profile', 'supplier-preview'].includes(saved.pending.kind) || typeof saved.pending.path !== 'string' || typeof saved.pending.key !== 'string' || !saved.pending.body || typeof saved.pending.body !== 'object'))) throw new ClientError('RECOVERY_RECORD_INVALID', '原请求恢复记录无法核对，未启用新的提交。');
         if (saved?.version === 1 && saved.owner === owner && saved.baseUrl === this.base()) {
           this.conversationId = saved.conversationId;
           if (saved.pending && typeof saved.pending.path === 'string' && typeof saved.pending.key === 'string' && saved.pending.body && typeof saved.pending.body === 'object') this.pending = saved.pending;
@@ -150,7 +152,7 @@ export class WorkspaceClient {
     if (!command) return Promise.reject(new ClientError('NO_PENDING_REQUEST', '没有需要核对的原请求。'));
     if (this.inFlight) return this.inFlight.promise;
     const promise = this.request(command.path, 'POST', command.body).then(result => {
-      this.pending = null; if (['action', 'prepare', 'reject', 'procurement-bind', 'procurement-reply'].includes(command.kind) && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
+      this.pending = null; if (['action', 'prepare', 'reject', 'procurement-bind', 'procurement-reply', 'supplier-preview'].includes(command.kind) && !command.path.endsWith('/refresh')) this.completed.set(command.key, result); this.save(); return result;
     }).catch(error => {
       // A response-lost or server-error request retains its exact original body.
       if (error instanceof ClientError && !['RESULT_UNCERTAIN', 'NETWORK_ERROR'].includes(error.code) && error.status !== 401 && error.code !== 'CSRF_REJECTED') { this.pending = null; this.save(); }
@@ -181,7 +183,7 @@ export class WorkspaceClient {
   retrySend() { return this.retryPending() as Promise<{ run: Run }>; }
   get uncertain() { return Boolean(this.pending); }
   get pendingKind() { return this.pending?.kind || ''; }
-  get pendingDraft() { return this.pending?.kind === 'send' || this.pending?.kind === 'intake' || this.pending?.kind === 'procurement-reply' ? String(this.pending.body.content) : ''; }
+  get pendingDraft() { return ['send', 'intake', 'procurement-reply', 'supplier-intake'].includes(this.pending?.kind || '') ? String(this.pending!.body.content) : ''; }
   get pendingInquiryId() { return this.pending?.kind.startsWith('procurement-') ? decodeURIComponent(this.pending.path.split('/')[3]) : ''; }
   get pendingSummary() { return this.pending ? `${this.pending.review ? `${this.pending.review.title}\n${this.pending.review.detail}\n\n` : ''}原请求 ${this.pending.path}\n${this.pending.kind === 'upload' ? String(this.pending.body.filename) : JSON.stringify(this.pending.body, null, 2)}` : ''; }
   async logout() { await this.request('/session/logout', 'POST', {}); this.token = ''; this.session = null; this.owner = ''; this.pending = null; this.conversationId = ''; this.originalMuseId = ''; this.drafts = []; this.completed.clear(); }
@@ -258,6 +260,26 @@ export class WorkspaceClient {
     if (!content.trim() || content.trim().length > 2400) throw new ClientError('SUPPLY_INPUT_INVALID', '回复请使用1至2400字的明确文字。');
     const body = { requestId: this.requestId(), expectedRevision: inquiry.revision, expectedShareHash: inquiry.share!.reviewHash, content: content.trim(), confirmed: true };
     return this.commit({ kind: 'procurement-reply', conversationId, path: `/supply/inquiries/${encodeURIComponent(inquiry.id)}/reply`, body, key: JSON.stringify(['procurement-reply', inquiry.id, inquiry.revision, inquiry.share!.reviewHash, body.content]), review: { title: '回复原采购方', detail: content.trim() } });
+  }
+  private supplierPath(conversationId: string, serviceId = '') {
+    if (!conversationId) throw new ClientError('CONVERSATION_REQUIRED', '请先读取原业务会话。');
+    return `/conversations/${encodeURIComponent(conversationId)}/supplier-services${serviceId ? `/${encodeURIComponent(serviceId)}` : ''}`;
+  }
+  async supplierIntake(conversationId: string, content: string, target?: { id: string; revision: number }) {
+    if (!content.trim() || content.trim().length > 4000) throw new ClientError('SUPPLIER_INPUT_REQUIRED', '请使用1至4000字说明商品信息或需要补充的事实。');
+    if (target && (!target.id || !Number.isInteger(target.revision) || target.revision < 1)) throw new ClientError('SUPPLIER_REVISION_REQUIRED', '请先读取原商品修订。');
+    const requestId = this.requestId(), body = { requestId, content: content.trim(), ...(target ? { expectedRevision: target.revision } : {}) };
+    return this.commit({ kind: 'supplier-intake', conversationId, path: this.supplierPath(conversationId, target?.id) + (target ? '/messages' : ''), body, key: requestId });
+  }
+  async supplierProfile(conversationId: string, target: { id: string; revision: number }, facts: Partial<SupplierProfile>) {
+    if (!target.id || !Number.isInteger(target.revision) || target.revision < 1) throw new ClientError('SUPPLIER_REVISION_REQUIRED', '请先读取原商品修订。');
+    const body = { requestId: this.requestId(), expectedRevision: target.revision, facts };
+    return this.commit({ kind: 'supplier-profile', conversationId, path: this.supplierPath(conversationId, target.id) + '/profile', body, key: body.requestId, review: { title: '保存原商品事实', detail: JSON.stringify(facts, null, 2) } });
+  }
+  async supplierPreview(conversationId: string, target: { id: string; revision: number }, fields: PublicListingField[], confirmed: boolean) {
+    if (!confirmed || !target.id || !Number.isInteger(target.revision) || target.revision < 1 || !fields.length || new Set(fields).size !== fields.length || fields.some(field => !publicListingFields.includes(field))) throw new ClientError('SUPPLIER_CONFIRMATION_REQUIRED', '请明确确认当前原商品修订和本次预览的准确字段。');
+    const body = { requestId: this.requestId(), expectedRevision: target.revision, confirmed: true, publicFields: [...fields] };
+    return this.commit({ kind: 'supplier-preview', conversationId, path: this.supplierPath(conversationId, target.id) + '/preview', body, key: JSON.stringify(['supplier-preview', conversationId, target.id, target.revision, fields]), review: { title: '本次商品预览范围', detail: JSON.stringify({ serviceId: target.id, revision: target.revision, publicFields: fields }, null, 2) } });
   }
   references(id: string) { return this.request<{ libraryReferences: References }>(`/conversations/${encodeURIComponent(id)}/library-references`); }
   museDelegations(id: string) { return this.request<{ delegations: MuseDelegation[] }>(`/conversations/${encodeURIComponent(id)}/muse-delegations`); }

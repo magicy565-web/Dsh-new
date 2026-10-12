@@ -47,7 +47,7 @@ await ui.evaluate(({ wxml, css, spirit, componentWxml }) => {
       target.setAttribute(attribute.name, String(rendered ?? ''));
     }
     if (node.tagName === 'text') target.classList.add('wx-text');
-    if (node.tagName === 'image') target.src = spirit;
+    if (node.tagName === 'image' && target.getAttribute('src') === '/assets/spirit.png') target.src = spirit;
     if (node.tagName === 'scroll-view') target.style.overflowY = 'auto';
     if (handler) target.onclick = async () => { await window.pageEvent(prefix + handler, { ...target.dataset }); };
     if (inputHandler) target.oninput = () => { void window.pageEvent(prefix + inputHandler, {}, target.value); };
