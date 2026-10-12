@@ -4,7 +4,7 @@ import { supplierAdmission, supplierDto, supplierFind, supplierOwned, supplierRe
 import { isOriginalMuseArtifact } from './muse-owner-policy.mjs';
 
 export const supplierUuid = value => { const hash = supplierHash(value); return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`; };
-export function createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock = Date.now, monitoring, readMuseImage, notifications }) {
+export function createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock = Date.now, monitoring, readMuseImage, notifications, publicationStatus = () => null, ownerMcpConfigured = false }) {
   const now = () => new Date(clock()).toISOString();
   const saved = store.read().workspaceSupplierServices;
   if (saved && (saved.version !== 1 || !['services', 'commands', 'monitors'].every(field => Array.isArray(saved[field])))) supplierFail(409, 'SUPPLIER_STORE_INVALID', 'Preserve and review the original supplier store.');
@@ -29,7 +29,15 @@ export function createSupplierService({ store, runtime, provider, businessLibrar
     return available;
   }
   const service = {
-    catalog() { return { name: 'Cnsubscribe Agent Service', executionKernel: 'Pi Agent SDK 1.1.0', persistence: 'original Workspace business Store; pi-durable execution checkpoints', services: [{ id: 'supplier-listing-monitor', title: '供应商产品与零售 Listing', capabilities: ['private_intake', 'retail_preview', 'original_product_library', 'configured_shopify_observation', 'seven_day_monitor'], shopify: shopify.status(), writesEnabled: false, trafficStatus: 'unsupported' }] }; },
+    catalog() {
+      const publication = publicationStatus(), traffic = monitoring?.trafficStatus?.() || { supported: true, configured: false, status: 'unconfigured', observationRequired: true };
+      return { name: 'Cnsubscribe Agent Service', executionKernel: 'Pi Agent SDK 1.1.0', persistence: 'original Workspace business Store; pi-durable execution checkpoints', services: [{ id: 'supplier-listing-monitor', title: '供应商产品与零售 Listing', capabilities: ['private_intake', 'retail_preview', 'original_product_library', 'configured_shopify_observation', 'approved_shopify_publication', 'seven_day_monitor', 'exact_product_traffic'], shopify: shopify.status(),
+        writesEnabled: publication?.writesEnabled === true && publication.connectorStatus === 'ready',
+        publication: { supported: true, configured: publication?.configured === true, hostEnabled: publication?.enabled === true, connectorStatus: publication?.connectorStatus || 'not_configured', reviewRequired: true, automaticRetry: false },
+        trafficStatus: traffic.status, traffic,
+        ownerMcp: { supported: true, configured: ownerMcpConfigured, status: ownerMcpConfigured ? 'configured_unverified' : 'binding_required', originalGrantRequired: true },
+      }] };
+    },
     forActor(context) {
       const actor = actorFor(context);
       const find = (cid, id, state = store.read()) => supplierFind(state, actor, cid, id);

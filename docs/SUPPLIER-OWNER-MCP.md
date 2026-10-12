@@ -1,15 +1,17 @@
 # Supplier owner MCP integration contract
 
 Baseline: `8ce17ef22190a878f520bad1871029748f211513` (includes PR54).
-This checkpoint specifies the implementation boundary; it is not a live connection or acceptance result.
+The implementation is exercised only with synthetic grants and local HTTP sources; it is not a live connection or production acceptance result.
 
 ## Authority and transport
 
-The existing Dot/Muse leased-worker MCP endpoints keep their two supplier read tools. A worker token never becomes owner authority. The owner facet is a separate, optional `POST /api/conversations/:conversationId/supplier-mcp` route behind the original Workspace access checks (signed ingress, original session, CSRF, body signature, membership and conversation ownership). It reuses the existing MCP JSON-RPC transport for `initialize`, `tools/list` and `tools/call`.
+The existing Dot/Muse leased-worker MCP endpoints keep their two supplier read tools. A worker token never becomes owner authority. The owner facet is a separate, optional `POST /api/conversations/:conversationId/supplier-mcp` route behind the original enterprise Workspace access checks (signed ingress, original session, CSRF, body signature, membership and conversation ownership). Local no-login mode is refused even if a callback is supplied. It reuses the existing MCP JSON-RPC transport for `initialize`, `tools/list` and `tools/call` (2025-06-18 and 2025-11-25), plus its existing 2026-07-28 per-request headers/metadata and `server/discover`. No new session token or transport loop is created.
 
 Mounting requires a trusted host `supplierOwnerMcpBinding.readReviewedScope` callback. There is no default callback, grant-file loader, credential creation, grant store or role-to-grant fallback. The baseline supplies no callable owner grant resolver. Until the original authorized host supplies that resolver, the route reports `SUPPLIER_OWNER_BINDING_REQUIRED`; the ordinary CLI does not claim an installed owner plugin.
 
-Each call resolves its existing reviewed scope again, including subject, workspace, conversation, closed operation, exact service and input hash. Mutations require the matching reviewed input hash. Service revisions, request IDs, hashes, original publication approvals and schedule approvals remain enforced by the original services. MCP exposes neither approval decisions nor schedule activation nor notification/subscription operations. A tool argument saying `confirmed:true` is not owner grant evidence.
+Each call resolves its existing reviewed scope again, including subject, workspace, conversation, closed operation, exact service, expiry and input hash. Mutations require the matching reviewed input hash. Service revisions, request IDs, hashes, original publication approvals and schedule approvals remain enforced by the original services. MCP exposes neither approval decisions nor schedule activation nor notification/subscription operations. A tool argument saying `confirmed:true` is not owner grant evidence.
+
+The trusted callback receives `{actor:{subject,workspaceId,role},conversationId,operation,serviceId,inputHash}`. It must resolve an already authorized grant, or return null. The admitted scope is `{subject,workspaceId,conversationId,operations,serviceIds,expiresAt,inputHash,piIntakeApproved?}` with a future ISO expiry and no `revoked:true`. `inputHash` is `supplierHash({operation,serviceId:serviceId||null,input})`; identity comes from the route. `piIntakeApproved:true` is additionally required for text/continuation intake, never inferred from a facts grant. The callback remains responsible for its original approval, budget, revocation and any one-use grant consumption. This module provides no grant creation or renewal API.
 
 ## Closed tool family
 
@@ -33,13 +35,21 @@ Owner tool names use `workspace_supplier_owner_` plus these suffixes:
 | `monitor_check` | Manual exact-scope check |
 | `monitor_stop` | Stop the original monitor |
 
-Arguments are a closed `serviceId` plus `input` object where applicable; identity and conversation come from the authenticated route, never tool arguments. Image upload and initial intake omit `serviceId`. The published tool schema is the authoritative field list.
+Arguments are a closed `serviceId` plus `input` object where applicable; identity and conversation come from the authenticated route, never tool arguments. Image upload and initial intake omit `serviceId`; continued text intake includes it. The published tool schema in `server/supplier-owner-tools.mjs` is the authoritative field list. Images are canonical base64 PNG/JPEG/WebP up to 1,300,000 base64 characters, with an explicit provenance note. Original artifact validation, private library metadata and namespaced idempotency remain in force. No URL fetch, arbitrary artifact lookup or external image transfer occurs in upload.
+
+An example tool call body (after the original host has independently admitted this exact input):
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workspace_supplier_owner_intake","arguments":{"input":{"requestId":"original-request-id","facts":{"name":"Explicit owner-supplied product"}}}}}
+```
+
+Successful tool values use JSON `structuredContent` and the same JSON in text content; monitor lists use `{monitors:[...]}`. Service denials return `isError:true` with a safe code/message. Ingress/session/body failures retain original HTTP access errors. Uncertain external outcomes retain original operation receipts and are reconciled without automatic retry.
 
 Public image URLs retain `unknown` availability until verified; merely providing a URL does not produce a usable image. Publication request/approval/execution receipts alone do not establish the monitor's start timestamp. Use `shopify_observation`, then `monitor_create` with `startFromPublication:true`; keep the original disabled schedule and manual approval flow.
 
 ## File ownership and remaining integration
 
-This branch owns supplier MCP contract/transport tests, GA4 configuration loading, supplier capability accuracy and deployment documentation. `server/index.mjs` receives only the minimal import, service-option wiring and owner-route adapter. Pi TUI, readiness, shop identity logic and clients remain outside this branch.
+This branch owns supplier MCP contract/transport tests, GA4 configuration loading, supplier capability accuracy and deployment documentation. `server/index.mjs` receives only imports, service-option wiring and the owner-route adapter. The shared MCP response function now finishes the original access audit and accepts host-supplied server metadata; worker registration/authentication is unchanged. Pi TUI, readiness, shop identity logic and clients remain outside this branch.
 
 GA4 uses the already implemented exact product/item/host `productDetailViews` adapter. A metadata configuration and an existing authorization provider are distinct from an available source. Missing configuration, expired/revoked authorization, missing mapping and partial observations must remain accurate and never become zero or connected claims. Only synthetic configuration is tested.
 

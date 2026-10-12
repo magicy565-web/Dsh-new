@@ -61,7 +61,8 @@ const err = (id, code, message, data) => ({
     ...(data ? { data } : {}),
   },
 });
-const response = (res, status, body) => {
+const response = async (res, status, body) => {
+  await res.accessFinish?.(status);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
@@ -111,10 +112,10 @@ const resultTool = (value, version, isError = false) => ({
   ...(isError ? { isError: true } : { structuredContent: value }),
 });
 
-export async function handleDotMcpHttp(req, res, { bridge, readBody, extension = null, extensionOnly = false } = {}) {
+export async function handleDotMcpHttp(req, res, { bridge, readBody, extension = null, extensionOnly = false, serverInfo: suppliedServerInfo, instructions: suppliedInstructions } = {}) {
   const muse = bridge?.info?.().kind === 'muse';
-  const serverInfo = muse ? { name: 'workspace-original-muse-supplier', version: '1.0.0' } : SERVER;
-  const instructions = muse ? 'Use only the original owner-approved Muse task, attempt/fence and live lease. Supplier reads require exact approved task scope. This MCP facet never starts, wakes or impersonates Muse, or grants private data or Shopify writes.' : INSTRUCTIONS;
+  const serverInfo = suppliedServerInfo || (muse ? { name: 'workspace-original-muse-supplier', version: '1.0.0' } : SERVER);
+  const instructions = suppliedInstructions || (muse ? 'Use only the original owner-approved Muse task, attempt/fence and live lease. Supplier reads require exact approved task scope. This MCP facet never starts, wakes or impersonates Muse, or grants private data or Shopify writes.' : INSTRUCTIONS);
   const tools = extensionOnly ? extension?.tools || [] : extension ? [...DOT_MCP_TOOLS, ...extension.tools] : DOT_MCP_TOOLS;
   if (!bridge || typeof readBody !== 'function') throw new TypeError('Dot MCP requires the existing authenticated Workspace bridge.');
   if (req.method !== 'POST') return response(res, 405,

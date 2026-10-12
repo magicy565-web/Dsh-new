@@ -1,4 +1,7 @@
-import { SupplierServiceError, supplierFail, supplierObject } from './supplier-profile.mjs';
+import { SupplierServiceError, supplierFail, supplierObject, supplierHash } from './supplier-profile.mjs';
+import { supplierOwned, supplierRequest } from './supplier-draft.mjs';
+import { SUPPLIER_OWNER_MCP_OPERATIONS, SUPPLIER_OWNER_MCP_TOOLS, validateSupplierOwnerArguments } from './supplier-owner-tools.mjs';
+export { SUPPLIER_OWNER_MCP_TOOLS } from './supplier-owner-tools.mjs';
 
 const args = { type: 'object', additionalProperties: false, properties: { taskRef: { type: 'string', maxLength: 128 }, attemptId: { type: 'string', maxLength: 128 }, fence: { type: 'integer', minimum: 1 } }, required: ['taskRef', 'attemptId', 'fence'] };
 export const SUPPLIER_WORKER_MCP_TOOLS = Object.freeze([
@@ -40,15 +43,42 @@ export function createSupplierWorkerMcpExtension({ bridge, service, store, membe
 // their existing authenticated resource/grant binding. This factory does not
 // install a credential or authorize a caller; the original Host must supply a
 // fresh reviewed scope on each call, including its original budget/approval.
-export function createSupplierOwnerMcpBinding({ service, actor, conversationId, readReviewedScope }) {
-  if (typeof readReviewedScope !== 'function' || !actor?.subject || !['admin', 'operator'].includes(actor.role)) throw new TypeError('An existing authenticated owner and original reviewed resource scope are required.');
-  const methods = { get: 'get', intake: 'request', profile: 'profile', preview: 'preview', monitors: 'monitors', monitor_check: 'checkMonitor' };
-  return Object.freeze({ async call(operation, serviceId, input = {}) {
-    if (!Object.hasOwn(methods, operation)) supplierFail(403, 'SUPPLIER_MCP_OPERATION_FORBIDDEN', 'Only the registered original owner service methods are callable.');
-    const scope = await readReviewedScope({ operation, serviceId });
-    if (scope?.subject !== actor.subject || scope.workspaceId !== actor.workspaceId || scope.conversationId !== conversationId || !scope.operations?.includes(operation) || serviceId && !scope.serviceIds?.includes(serviceId) || operation === 'intake' && scope.piIntakeApproved !== true) supplierFail(403, 'SUPPLIER_MCP_SCOPE_REQUIRED', 'The original owner Connector grant does not admit this exact call.');
+export function createSupplierOwnerMcpBinding({ service, publication, artifacts, store, actor: suppliedActor, conversationId, readReviewedScope, clock = Date.now, assertActive = () => {}, signal }) {
+  if (typeof readReviewedScope !== 'function' || !suppliedActor?.subject || !suppliedActor.workspaceId || !conversationId || !['admin', 'operator'].includes(suppliedActor.role)) throw new TypeError('An existing authenticated owner and original reviewed resource scope are required.');
+  const actor = Object.freeze({ subject: suppliedActor.subject, workspaceId: suppliedActor.workspaceId, role: suppliedActor.role });
+  const call = async (operation, serviceId, input = {}) => {
+    if (!Object.hasOwn(SUPPLIER_OWNER_MCP_OPERATIONS, operation)) supplierFail(403, 'SUPPLIER_MCP_OPERATION_FORBIDDEN', 'Only the registered original owner service methods are callable.');
+    const definition = SUPPLIER_OWNER_MCP_OPERATIONS[operation];
+    validateSupplierOwnerArguments(operation, { ...(serviceId !== undefined && serviceId !== null ? { serviceId } : {}), ...(definition.tool.inputSchema.properties.input ? { input } : {}) });
+    input = structuredClone(input);
+    const inputHash = supplierHash({ operation, serviceId: serviceId || null, input });
+    const scope = await readReviewedScope({ actor, conversationId, operation, serviceId: serviceId || null, inputHash });
+    assertActive();
+    if (scope?.subject !== actor.subject || scope.workspaceId !== actor.workspaceId || scope.conversationId !== conversationId || !Array.isArray(scope.operations) || !scope.operations.includes(operation) || serviceId && (!Array.isArray(scope.serviceIds) || !scope.serviceIds.includes(serviceId)) || scope.revoked === true || !Number.isFinite(Date.parse(scope.expiresAt)) || Date.parse(scope.expiresAt) <= clock() || !definition.readOnly && scope.inputHash !== inputHash || operation === 'intake' && (serviceId || input.facts === undefined) && scope.piIntakeApproved !== true) supplierFail(403, 'SUPPLIER_MCP_SCOPE_REQUIRED', 'The original owner Connector grant does not admit this exact current call.');
+    const assertCurrent = () => { assertActive(); if (scope.revoked === true || Date.parse(scope.expiresAt) <= clock()) supplierFail(403, 'SUPPLIER_MCP_SCOPE_REQUIRED', 'The original reviewed owner scope expired or was revoked.'); };
     const bound = service.forActor(actor);
-    return operation === 'intake' ? bound.request(conversationId, input, serviceId) : operation === 'get' ? bound.get(conversationId, serviceId) : operation === 'monitors' ? bound.monitors(conversationId, serviceId) : bound[methods[operation]](conversationId, serviceId, input);
+    // Also admit resource ownership independently of the host callback. A grant
+    // resolver cannot turn another tenant's record into this owner's service.
+    if (serviceId) bound.get(conversationId, serviceId); else bound.list(conversationId);
+    if (operation === 'image_upload') {
+      if (!artifacts || !store) supplierFail(409, 'SUPPLIER_IMAGE_STORE_REQUIRED', 'Use the original Workspace artifact store.');
+      supplierRequest(input, ['filename', 'base64', 'sourceNote']);
+      if (typeof input.filename !== 'string' || !/\.(png|jpg|jpeg|webp)$/.test(input.filename) || typeof input.base64 !== 'string' || input.base64.length > 1_300_000 || typeof input.sourceNote !== 'string' || !input.sourceNote.trim() || input.sourceNote.length > 500) supplierFail(400, 'SUPPLIER_IMAGE_SOURCE_REQUIRED', 'Supply a bounded original PNG/JPEG/WebP image and provenance note.');
+      const result = await artifacts.create({ requestId: `supplier-image-${supplierHash([actor.subject, actor.workspaceId, conversationId, input.requestId])}`, filename: input.filename, base64: input.base64, description: input.sourceNote, sourceConversationId: conversationId, metadata: { businessLibrary: { visibility: 'internal' } } }, { check(state) { assertCurrent(); supplierOwned(state, actor, conversationId); } });
+      assertCurrent(); return result;
+    }
+    if (operation.startsWith('publication')) {
+      if (!publication) supplierFail(409, 'SUPPLIER_PUBLICATION_BINDING_REQUIRED', 'Use the original supplier publication service and approvals.');
+      const result = await publication.forActor(actor, { get: bound.get, signal })[definition.method](conversationId, serviceId, input);
+      assertCurrent(); return result;
+    }
+    const result = await (operation === 'intake' ? bound.request(conversationId, input, serviceId) : bound[definition.method](conversationId, serviceId, input));
+    assertCurrent(); return operation === 'monitors' ? { monitors: result } : result;
+  };
+  return Object.freeze({ call, tools: SUPPLIER_OWNER_MCP_TOOLS, async callTool(name, args) {
+    const operation = Object.keys(SUPPLIER_OWNER_MCP_OPERATIONS).find(key => SUPPLIER_OWNER_MCP_OPERATIONS[key].tool.name === name);
+    validateSupplierOwnerArguments(operation, args);
+    return call(operation, args.serviceId, args.input || {});
   } });
 }
 export const isSupplierMcpError = error => error instanceof SupplierServiceError;
