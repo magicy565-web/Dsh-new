@@ -5,7 +5,8 @@ import { intakeFixture, actor } from './intake-http-support.mjs';
 import { until } from './support.mjs';
 export const supplierFacts={name:'轻棉日常 T 恤（本地业务 fixture）',description:'棉质，圆领短袖，日常穿着。',targetMarket:'US',currency:'USD',skuCode:'SUPPLIER-CLIENT-FIXTURE',supplierUnit:'件',supplierMoq:300,wholesaleUnitPrice:'3.20',wholesaleCurrency:'USD',recommendedRetailPrice:'18.00',productionDays:15};
 export const retailFacts={retailUnit:'件',unitsPerPack:1,consumerPrice:'12.30',handlingDays:2,shippingDays:7};
-export const factText=facts=>Object.entries(facts).map(([field,value])=>`${field}: ${value}`).join('; ');
+const quotedLabels={skuCode:'SKU',wholesaleUnitPrice:'批发价',recommendedRetailPrice:'建议零售价'};
+export const factText=facts=>Object.entries(facts).map(([field,value])=>`${quotedLabels[field]||field}: ${value}`).join('; ');
 export const event=(id,kind)=>({currentTarget:{dataset:{id,...(kind?{kind}:{})}}});
 export async function supplierFixture(t,overrides={}){
  const f=await intakeFixture(t,overrides);

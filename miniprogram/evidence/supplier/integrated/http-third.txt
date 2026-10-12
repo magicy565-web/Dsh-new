@@ -1,0 +1,11 @@
+✔ actual Page -> signed HTTP/Pi tool -> private facts, original image/SHA, reviewed preview, original library and honest Shopify blocker (622.582969ms)
+✔ lost intake/preview/library acknowledgments cold-recover the same UUID/body and persistent result without extra Pi/product (334.069291ms)
+✔ seven-day UI config stays disabled, read uses null/status, stable final summary survives replay/reopen and stop targets original monitor (246.139752ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1538.399233
