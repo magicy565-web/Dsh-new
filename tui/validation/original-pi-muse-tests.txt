@@ -1,0 +1,11 @@
+✔ DSH-free HTTP fixture: original Muse order/attempt/file/return protocol with explicit owner and no model/wake (348.768026ms)
+✔ DSH-free binding refuses missing original conversation instead of inventing another identity (35.932968ms)
+✔ persisted receipt provenance closes historical model-output laundering without a mounted connector (4.21113ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 815.889549

@@ -65,7 +65,9 @@ export function registerWorkspaceMuse(pi, { transport = loadOwnerTransport, jour
         if (operation === 'refresh') { show(ctx, await api.act(operation, orderId)); return; }
         const { delegation } = current;
         if (!delegation?.reviewHash || delegation.orderId !== orderId) throw new Error('ORIGINAL_REVIEW_REQUIRED');
-        if (!await ctx.ui.confirm(`${operation.toUpperCase()} this exact original task?`, plain(JSON.stringify(delegation)))) return;
+        if (!await ctx.ui.confirm(`${operation.toUpperCase()} this exact original task?`, plain(JSON.stringify(delegation)))) {
+          ctx.ui.notify('Action cancelled.', 'info'); return;
+        }
         show(ctx, await api.act(operation, orderId, { confirmed: true, expectedReviewHash: delegation.reviewHash,
           ...(operation === 'accept' ? { receiptHash: delegation.receiptHash } : {}) }));
       } catch (error) {

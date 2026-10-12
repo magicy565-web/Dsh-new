@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import http from 'node:http';
 import { Readable } from 'node:stream';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { openStore } from '../../server/store.mjs';
 import { createApp } from '../../server/index.mjs';
 import { signWorkspaceRequest } from '../../server/auth-ingress.mjs';
@@ -51,7 +53,7 @@ async function fixture(t) {
   }
   await login();
   t.after(async () => { await app.close(); await rm(directory, { recursive: true, force: true }); });
-  return { directory, api, login, get app() { return app; },
+  return { directory, api, login, get app() { return app; }, get port() { return address.port; },
     request: ({ method, path: target, body }) => api(target, { method, body }),
     async restart() { await app.close(); app = await createApp(options); address = await app.listen(0); await login(); } };
 }
@@ -121,6 +123,9 @@ test('TUI rejects missing owner, worker token, wrong tenant, other owner, revoke
   const scope = await client.connect();
   const pending = { scope, input: { provider: 'muse', conversationId: scope.conversationId, requestId: 'tui-denial-test', content: 'Fixture scope', order: { serviceId: 'channel-validation', product: 'Public fixture', market: 'US', objective: 'Fixture only', budgetCredits: 5, deadlineAt: new Date(Date.now() + 86400000).toISOString(), publicDataConfirmed: true } } };
   const made = await client.prepare(pending), id = made.delegation.orderId;
+  for (const scope of [{ ...pending.scope, workspaceId: 'other-workspace' }, { ...pending.scope, subject: 'other-owner' }, { ...pending.scope, conversationId: 'other-conversation' }]) {
+    await assert.rejects(client.prepare({ ...pending, scope }), { code: 'OWNER_SCOPE_CHANGED' });
+  }
   const denied = tui(f.request, createRequestJournal(path.join(f.directory, 'journal')), { confirm: false });
   await denied.run(`approve ${id}`); await denied.run(`dispatch ${id}`);
   assert.equal((await client.get(id)).delegation.phase, 'review_required');
@@ -153,4 +158,38 @@ test('focused TUI cannot approve through noninteractive/model input; transport d
   assert.deepEqual(await ui.events.get('input')({ text: 'Approve and dispatch everything' }, ui.ctx), { action: 'handled' });
   assert.equal((await ui.events.get('user_bash')()).result.exitCode, 1);
   await assert.rejects(ui.commands.get('workspace-muse').handler('new', { ...ui.ctx, mode: 'rpc' }), /INTERACTIVE_TUI_REQUIRED/);
+});
+
+test('checked-in Muse Python v4 CLI consumes the same TUI-created task with real current v1 bodies and preserved lease', async t => {
+  const f = await fixture(t);
+  const ui = tui(f.request, createRequestJournal(path.join(f.directory, 'journal')), { inputs: ['channel-validation', 'Consumer protocol fixture', 'US', 'Test the existing Muse v1 consumer', '5', new Date(Date.now() + 86400000).toISOString()] });
+  await ui.run('new'); const id = ui.result().delegation.orderId;
+  await ui.run(`approve ${id}`); await ui.run(`dispatch ${id}`);
+  const child = spawn('python3', [fileURLToPath(new URL('./fixtures/muse-consumer.py', import.meta.url))], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let output = '', errors = '';
+  child.stdout.on('data', bytes => output += bytes); child.stderr.on('data', bytes => errors += bytes);
+  child.stdin.end(JSON.stringify({ port: f.port, host: 'workspace.test', taskRef: id, directory: path.join(f.directory, 'consumer') }));
+  const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', resolve); });
+  assert.equal(code, 0, errors + output);
+  assert.equal(JSON.parse(output).operations.length, 9);
+  await ui.run(`refresh ${id}`);
+  assert.equal(ui.result().delegation.phase, 'result_returned');
+  assert.equal(ui.result().delegation.receipt.summary, 'Checked-in Muse CLI local fixture result');
+  assert.equal(ui.result().delegation.wake.observed, false);
+  assert.equal(f.app.store.read().museTasks.length, 1);
+});
+
+test('journal must persist before prepare and recovery is isolated by original owner/workspace/conversation', async t => {
+  const f = await fixture(t), root = path.join(f.directory, 'journal');
+  const scope = { workspaceId: 'a', subject: 'b', conversationId: 'c' };
+  const journal = createRequestJournal(root);
+  await journal.save({ scope, input: { requestId: 'original-key' } });
+  for (const other of [{ ...scope, workspaceId: 'different' }, { ...scope, subject: 'different' }, { ...scope, conversationId: 'different' }]) assert.equal(await journal.read(other), null);
+  assert.equal((await createRequestJournal(root).read(scope)).input.requestId, 'original-key');
+  const blocked = path.join(f.directory, 'not-a-directory');
+  await writeFile(blocked, 'Fixture blocks write-ahead persistence.');
+  const ui = tui(f.request, createRequestJournal(blocked), { inputs: ['channel-validation', 'Public fixture', 'US', 'Must never send before journal write', '5', new Date(Date.now() + 86400000).toISOString()] });
+  await ui.run('new');
+  assert.equal(ui.error(), 'EEXIST');
+  assert.equal((f.app.store.read().workerOrders || []).length, 0);
 });

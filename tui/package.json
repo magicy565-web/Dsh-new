@@ -6,7 +6,8 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "start": "node launch.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "test:terminal": "python3 test/terminal-smoke.py"
   },
   "dependencies": { "@earendil-works/pi-coding-agent": "1.1.0" }
 }

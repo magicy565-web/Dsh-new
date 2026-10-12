@@ -1,0 +1,166 @@
+transport failed; claim intent kept inflight — re-run the same command to retry ONLY the original claim
+transport failed; heartbeat intent kept inflight — re-run to retry with the same requestId
+error: HTTP 500: request failed
+error: taskRef invalid: must match ^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$ with no '..'
+error: HTTP 409 mw_task_unavailable: server busy/unavailable for this call; do not retry blindly
+== offline test suite v4 (SIMULATED: credential+network FORBIDDEN) ==
+-- transport boundary: real _real_transport + mocked subprocess --
+-- regex/ids/fence --
+-- sources: urllib.parse + ipaddress --
+-- evidence/filename --
+-- intent paths: full sha, no folding --
+-- claim filenames cannot collide --
+-- atomic write failures are not swallowed --
+-- claim validation gates --
+-- response-loss retry keeps ONE claim intent --
+note: retrying inflight claim intent with original requestId
+HTTP 200
+{
+  "taskRef": "T1",
+  "claimed": true,
+  "canExecute": true,
+  "cancellationRequested": false,
+  "requestId": "rq-claim-1",
+  "attemptId": "att1",
+  "fence": 7,
+  "leaseUntil": 1791834134.3932843
+}
+claim receipt persisted; server leaseUntil=1791834134.3932843
+-- expired/cancelled/dead receipts: NO implicit re-claim --
+-- second heartbeat truly renews --
+HTTP 200
+{
+  "attemptId": "att-h",
+  "fence": 11,
+  "leaseUntil": 1791834134.3932843
+}
+HTTP 200
+{
+  "attemptId": "att-h",
+  "fence": 11,
+  "leaseUntil": 1791835034.3932843
+}
+-- heartbeat response-loss keeps intent --
+HTTP 200
+{
+  "attemptId": "att-hl",
+  "fence": 3,
+  "leaseUntil": 1791834134.3932843
+}
+-- inflight param change refused --
+HTTP 200
+{}
+-- null leaseUntil: terminal state, markers kept --
+HTTP 200
+{
+  "attemptId": "att-n",
+  "fence": 6,
+  "leaseUntil": null,
+  "canExecute": false
+}
+HTTP 200
+{}
+confirm-stop accepted; local lease receipt dropped
+-- fence/attempt change refused --
+HTTP 200
+{
+  "attemptId": "att-f",
+  "fence": 999,
+  "leaseUntil": 1791834135.3932843
+}
+-- expired lease: confirm-stop works, others stop --
+HTTP 200
+{
+  "stopped": true
+}
+confirm-stop accepted; local lease receipt dropped
+-- cancellation blocks upload --
+-- HTTP classification: real MW_* codes --
+HTTP 401
+{
+  "error": "unauthorized"
+}
+HTTP 403
+{
+  "_nonJson": "{\"error\":{\"code\":\"forbidden\"}}}"
+}
+note: live lease exists; idempotent re-claim with original requestId
+HTTP 409
+{
+  "code": "MW_IDEMPOTENCY_CONFLICT"
+}
+HTTP 409
+{
+  "code": "MW_LEASE_EXPIRED"
+}
+HTTP 409
+{
+  "code": "MW_SLOT_BUSY"
+}
+HTTP 409
+{
+  "code": "mystery_xyz"
+}
+HTTP 429
+{}
+HTTP 200
+{
+  "duplicate": true
+}
+note: server reports duplicate:true (idempotent replay)
+-- main() exit codes --
+HTTP 500
+{
+  "code": "x"
+}
+HTTP 200
+{
+  "ok": true
+}
+HTTP 409
+{
+  "code": "MW_TASK_UNAVAILABLE"
+}
+-- dry-run builds without credential/network --
+
+  PASS curl argv/input exact bytes (claim/upload/submit/ack/GET)
+  PASS reject .. in taskRef
+  PASS accept normal taskRef
+  PASS fence accepts int
+  PASS fence rejects string
+  PASS fence rejects zero
+  PASS fence rejects bool
+  PASS reject userinfo
+  PASS reject ipv4 literal
+  PASS reject ipv6 literal
+  PASS reject example.com
+  PASS reject .invalid
+  PASS accept public https
+  PASS reject long tool id
+  PASS reject placeholder note
+  PASS reject repeated-char note
+  PASS accept honest note
+  PASS intent sha paths never collide
+  PASS sha filenames + read-back verify
+  PASS persist failure raises
+  PASS valid claim stored, server deadline kept
+  PASS reject claimed=false
+  PASS reject canExecute=false
+  PASS reject cancellationRequested
+  PASS reject taskRef mismatch
+  PASS reject string fence
+  PASS reject missing leaseUntil
+  PASS reject past leaseUntil
+  PASS claim response-loss: same requestId retried
+  PASS expired/cancelled: stop, suggest confirm-stop
+  PASS heartbeat renews with new ids
+  PASS heartbeat loss: intent kept, id reused
+  PASS same id never carries different data
+  PASS null leaseUntil -> terminated, confirm-stop works
+  PASS server fence change refused
+  PASS confirm-stop after expiry; heartbeat blocked
+  PASS cancelled: upload blocked pre-send
+  PASS MW_* 409s all non-zero; 200+duplicate ok
+  PASS non-2xx -> non-zero exit
+  PASS dry-run + fixed routes
+== 40/40 ALL PASS ==

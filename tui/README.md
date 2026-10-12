@@ -22,6 +22,11 @@ flow**. Plain prompts display command help, and this focused launcher disables
 model tools, discovered extensions, MCP connections and startup network work.
 No model request is needed for drafting or reviewing a task.
 
+Verified here: Linux, Node 24.19.0, actual Pi CLI in a PTY with keyboard-driven
+input and confirmation dialogs. Windows/PowerShell and a cloud/production
+deployment are **not verified**. The optional terminal test below requires a
+Unix PTY; do not report its local pass as a remote Muse pass.
+
 With an **already configured local** Workspace and original Muse binding:
 
 ```sh
@@ -71,6 +76,10 @@ response is lost, `retry` reads the fsynced local request journal and resends th
 same UUID/body after confirmation; it never approves or dispatches. The journal
 is private runtime data under `tui/.data/`, ignored by Git, and contains public
 task scope only. Owner/workspace/conversation changes fail closed.
+The journal never saves session tokens, Bearer headers, CSRF values, ingress
+signatures, credential references or approvals. `WORKSPACE_PI_DATA_DIR` can
+select an absolute private runtime directory (default `tui/.data/`). Keep that
+directory out of source packages and Git.
 
 ## Protocol and acceptance boundaries
 
@@ -96,9 +105,18 @@ or performed by this implementation.
 
 ```sh
 npm --prefix tui test
+npm --prefix tui run test:terminal
 node --test test/pi-muse-binding.test.mjs test/pi-muse-policy.test.mjs
 python3 deploy/muse-native-overlay/client/workspace-api.py test
 ```
+
+The terminal test starts the actual installed Pi CLI, types the real command,
+fills its dialogs, declines one approval, then separately approves and dispatches
+one synthetic task. The unchanged checked-in Python consumer reads/claims it,
+renews the lease, uploads and submits. The real TUI refresh displays the returned
+result and a fresh Pi process recovers it. There are zero model runs. The
+consumer's test hooks redirect egress solely to loopback and prohibit actual
+credential lookup; its production protocol and source remain unchanged.
 
 The extension API and CLI flags were read from the published pinned package's
 `docs/extensions.md`, `dist/core/extensions/types.d.ts`, and `dist/cli/args.js`.

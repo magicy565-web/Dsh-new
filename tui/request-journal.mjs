@@ -3,7 +3,7 @@ import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const directory = path.join(path.dirname(fileURLToPath(import.meta.url)), '.data', 'requests');
+const directory = path.join(process.env.WORKSPACE_PI_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '.data'), 'requests');
 const key = scope => createHash('sha256').update(JSON.stringify([scope.workspaceId, scope.subject, scope.conversationId])).digest('hex');
 
 // Client write-ahead recovery only: no queue, credentials, consent or scheduler.
