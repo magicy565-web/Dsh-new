@@ -283,6 +283,12 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
       return update(state => {
         const current = requireOrder(state, id);
         if (!['queued', 'running', 'cancel_requested', 'dispatch_uncertain', 'input_required'].includes(current.status)) fail(409, 'INVALID_STATE', 'Order changed during status retrieval.');
+        // Two concurrent reconciliations of a lost acknowledgement may return
+        // different remote IDs. Bind exactly one job inside the authoritative
+        // Store transaction, before changing its cost, status or deliverables.
+        if (current.workerId !== order.workerId || current.serviceId !== order.serviceId ||
+            current.remoteJobId && current.remoteJobId !== snapshot.jobId)
+          fail(409, 'WORKER_JOB_MISMATCH', 'The service order was bound to a different Worker job during refresh; no second job report was applied.');
         current.remoteJobId ??= snapshot.jobId;
         if (cost !== null) current.reportedCostCredits = cost;
         // A late result or queue response cannot undo an operator's stop request.
@@ -301,7 +307,10 @@ export function createWorkerServiceDesk({ store, adapters = {}, artifacts = null
         } else if (snapshot.status === 'cancelled') current.status = 'cancelled';
         else if (snapshot.status === 'failed') current.status = 'failed';
         else if (snapshot.status === 'input_required') current.status = 'input_required';
-        else if (snapshot.status === 'queued') current.status = 'queued';
+        else if (snapshot.status === 'queued')
+          // A delayed queue observation cannot undo a confirmed running or
+          // input-required state from another concurrent status request.
+          current.status = ['running', 'input_required'].includes(current.status) ? current.status : 'queued';
         else current.status = current.status === 'cancel_requested' ? 'cancel_requested' : 'running';
         current.updatedAt = now();
         return { order: current };
