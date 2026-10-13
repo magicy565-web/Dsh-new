@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -64,8 +65,21 @@ test('Agent read projection tracks the original Pi conversation/run linkage with
   assert.deepEqual(projection.events(task.id), delivered, 'Failed event validation must roll back SQLite.');
 
   published.payload.done = false;
+  const content = '# Immutable original artifact';
+  const file = { name: 'evidence.md', content, bytes: Buffer.byteLength(content, 'utf8'),
+    sha256: createHash('sha256').update(content).digest('hex'),
+    url: '/api/agent/v1/tasks/' + task.id + '/artifacts/evidence.md' };
+  task.deliverables.push(file);
+  await projection.sync(task, 7);
+  const publishedFiles = projection.listArtifacts(task.id);
+  assert.deepEqual(publishedFiles, [{ name: file.name, bytes: file.bytes, url: file.url }]);
+  file.url = '/api/agent/v1/tasks/' + task.id + '/artifacts/other.md';
+  await assert.rejects(projection.sync(task, 8), /published agent artifact metadata cannot change/i);
+  assert.deepEqual(projection.listArtifacts(task.id), publishedFiles,
+    'An altered download URL must not replace or fork an already published artifact.');
+  file.url = publishedFiles[0].url;
   task.subject = 'other-member';
-  await assert.rejects(projection.sync(task, 7), /original agent task owner changed/i);
+  await assert.rejects(projection.sync(task, 9), /original agent task owner changed/i);
   assert.equal(projection.getTask(task.id, { ...actor, subject: 'other-member' }), null,
     'The projection must never reassign a task by changing its owner columns.');
   assert.equal(projection.getTask(task.id, actor).workspace.runIds[0], 'original-pi-run');
