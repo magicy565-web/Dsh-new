@@ -156,7 +156,7 @@ test('restart pauses without model replay until explicit resume reattaches the o
 
 test('missing production model stays unconfigured, explicit demo stays visibly separate, same task can resume after configuration', async t => {
   const f = await fixture(t, { configured: false });
-  const health = await f.api('/health', { token: undefined }); assert.equal(health.json.mode, 'model'); assert.equal(health.json.readiness, 'unconfigured');
+  const health = await f.api(API + '/health', { token: undefined }); assert.equal(health.json.mode, 'model'); assert.equal(health.json.readiness, 'unconfigured');
   const submitted = await f.submit(), id = submitted.json.taskId, stopped = await f.terminal(id);
   assert.equal(stopped.json.status, 'failed'); assert.equal(stopped.json.result.state, 'unconfigured'); assert.equal(stopped.json.result.businessGoalAchieved, false);
   assert.equal(f.faux.state.callCount, 0); assert.equal(f.app.store.read().runs.length, 0);
