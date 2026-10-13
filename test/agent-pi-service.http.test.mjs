@@ -152,6 +152,11 @@ test('restart pauses without model replay until explicit resume reattaches the o
   const reset = await f.api('/api/conversations/' + beforeRun.conversationId + '/reset-session', { method: 'POST', body: {} });
   assert.equal(reset.status, 409, reset.text);
   assert.equal(reset.json.error.code, 'AGENT_TASK_ROUTE_REQUIRED');
+  const rebind = await f.api('/api/conversations/' + beforeRun.conversationId + '/input-context', {
+    method: 'PATCH', body: { inputContext: {} },
+  });
+  assert.equal(rebind.status, 409, rebind.text);
+  assert.equal(rebind.json.error.code, 'AGENT_TASK_ROUTE_REQUIRED');
   const deleted = await f.api('/api/conversations/' + beforeRun.conversationId, { method: 'DELETE' });
   assert.equal(deleted.status, 409, deleted.text);
   assert.equal(deleted.json.error.code, 'AGENT_TASK_ROUTE_REQUIRED');
