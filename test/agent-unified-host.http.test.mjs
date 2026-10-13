@@ -58,7 +58,8 @@ test('explicit Agent adapter persists tasks in original Workspace Store on the s
     WS_AGENT_DATA: path.join(dir, 'agent') }, principals };
   let app;
   try {
-    app = await createApp({ dataDirectory: dir, provider: createPiProvider(),
+    const provider = createPiProvider();
+    app = await createApp({ dataDirectory: dir, provider,
       capabilityEnvironment: {}, agentConfig: config });
     await app.listen(0);
     const url = base(app.server);
@@ -86,6 +87,17 @@ test('explicit Agent adapter persists tasks in original Workspace Store on the s
       'Agent SQLite is a projection beneath the original data root.');
     assert.ok(app.supplierService, 'The original supplier service remains available.');
     assert.ok(app.supplierNotifications, 'The original notification host remains available.');
+    // An enabled Agent connector must not silently upgrade unrelated ordinary
+    // Pi runs to the additional Agent-only tool authority.
+    const ordinaryConversation = (await app.runtime.createConversation({ title: 'Original ordinary conversation' })).conversation;
+    const ordinaryMessage = await app.runtime.sendMessage(ordinaryConversation.id, {
+      content: 'Original ordinary Pi request', requestId: 'ordinary-unconfigured-agent-enabled',
+    });
+    const ordinaryRun = app.runtime.getRun(ordinaryMessage.run.id).run;
+    assert.equal(ordinaryRun.execution.permissionFingerprint, provider.permissionFingerprint);
+    assert.deepEqual(Object.keys(ordinaryRun.execution).sort(), ['kind', 'model', 'permissionFingerprint'],
+      'Agent enablement must not alter the PR59 ordinary execution scope.');
+    assert.equal(ordinaryRun.agentPresetContext, undefined);
   } finally {
     try { await app?.close?.(); }
     finally { await rm(dir, { recursive: true, force: true }); }
