@@ -133,6 +133,32 @@ test('restart pauses without model replay until explicit resume reattaches the o
   await delay(60);
   assert.equal(f.faux.state.callCount, 3, 'A Host restart may not silently re-call the model.');
   assert.equal(f.app.store.read().runs.length, 3, 'No substitute run may be created by restart.');
+  // Original Workspace endpoints are intentionally readable to the task owner,
+  // but MUST NOT bypass the business Agent coordinator's explicit resume gate.
+  const messageCount = f.app.store.read().messages.length;
+  const legacyRetry = await f.api('/api/runs/' + beforeRun.id + '/retry', { method: 'POST', body: {} });
+  assert.equal(legacyRetry.status, 409, legacyRetry.text);
+  assert.equal(legacyRetry.json.error.code, 'AGENT_RECOVERY_REQUIRED');
+  const ordinaryMessage = await f.api('/api/conversations/' + beforeRun.conversationId + '/messages', {
+    method: 'POST', body: { content: 'Bypass original Agent task', requestId: 'forbidden-legacy-agent-chat' },
+  });
+  assert.equal(ordinaryMessage.status, 409, ordinaryMessage.text);
+  assert.equal(ordinaryMessage.json.error.code, 'AGENT_TASK_ROUTE_REQUIRED');
+  const goal = await f.api('/api/goals', { method: 'POST', body: {
+    title: 'Forbidden parallel Goal', description: '', maxSteps: 1, maxOutputTokens: 1600, conversationId: beforeRun.conversationId,
+  } });
+  assert.equal(goal.status, 409, goal.text);
+  assert.equal(goal.json.error.code, 'AGENT_TASK_ROUTE_REQUIRED');
+  const reset = await f.api('/api/conversations/' + beforeRun.conversationId + '/reset-session', { method: 'POST', body: {} });
+  assert.equal(reset.status, 409, reset.text);
+  assert.equal(reset.json.error.code, 'AGENT_TASK_ROUTE_REQUIRED');
+  const deleted = await f.api('/api/conversations/' + beforeRun.conversationId, { method: 'DELETE' });
+  assert.equal(deleted.status, 409, deleted.text);
+  assert.equal(deleted.json.error.code, 'AGENT_TASK_ROUTE_REQUIRED');
+  assert.equal(f.app.store.read().messages.length, messageCount, 'Blocked legacy routes cannot add model work.');
+  assert.equal(f.app.store.read().runs.length, 3);
+  assert.equal(f.faux.state.callCount, 3);
+  assert.equal(f.app.runtime.getRun(beforeRun.id).run.piSubmissionId, beforeRun.piSubmissionId);
   const [authorized, sameRequest] = await Promise.all([
     f.api(API + '/tasks/' + id + '/resume', { method: 'POST', body: {} }),
     f.api(API + '/tasks/' + id + '/resume', { method: 'POST', body: {} }),
