@@ -1,0 +1,51 @@
+{
+  "name": "native-targeted",
+  "command": [
+    "node",
+    "--test",
+    "test/pi-native-agent.test.mjs",
+    "test/pi-runtime.test.mjs",
+    "test/pi-process-crash.test.mjs",
+    "test/agent-pi-runtime.test.mjs",
+    "test/agent-pi-service.http.test.mjs",
+    "test/agent-owner-policy.test.mjs",
+    "test/agent-coordinator-explicit-recovery.test.mjs",
+    "test/agent-projection-linkage.test.mjs",
+    "test/agent-research.test.mjs",
+    "test/agent-ui.http.test.mjs"
+  ],
+  "cwd": "/workspace/workspace-pi-native-agent-20261013",
+  "sourceBefore": "42673468c2d25f9723f324951fe4597ade99fb62",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "LANG",
+    "LC_ALL",
+    "NODE_EXTRA_CA_CERTS",
+    "NO_PROXY",
+    "PATH",
+    "SSL_CERT_FILE",
+    "TERM",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "startedAt": "2026-10-13T17:57:45.369663+00:00",
+  "exitCode": 1,
+  "durationSeconds": 7.72,
+  "sourceAfter": "42673468c2d25f9723f324951fe4597ade99fb62",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T17:57:53.097224+00:00",
+  "log": "native-targeted.log",
+  "logSha256": "8abfce7a9ca53a0f14ed4d83e03f3e3773560685cc37599872ca61c1905f3488",
+  "counts": {
+    "tests": 64,
+    "suites": 0,
+    "pass": 63,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  }
+}

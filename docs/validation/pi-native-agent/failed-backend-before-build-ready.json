@@ -1,0 +1,41 @@
+{
+  "name": "backend-all",
+  "command": [
+    "npm",
+    "test"
+  ],
+  "cwd": "/workspace/workspace-pi-native-agent-20261013",
+  "sourceBefore": "d1e1c5af456568bdd62a368c0173c8f8f9f8b755",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "LANG",
+    "LC_ALL",
+    "NODE_EXTRA_CA_CERTS",
+    "NO_PROXY",
+    "PATH",
+    "SSL_CERT_FILE",
+    "TERM",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "startedAt": "2026-10-13T18:01:57.511562+00:00",
+  "exitCode": 1,
+  "durationSeconds": 31.985,
+  "sourceAfter": "d1e1c5af456568bdd62a368c0173c8f8f9f8b755",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T18:02:29.510057+00:00",
+  "log": "backend-all.log",
+  "logSha256": "e69315121ba45404836995eab8e6b434edf694a1632704a944c0288c2c064bfa",
+  "counts": {
+    "tests": 790,
+    "suites": 0,
+    "pass": 774,
+    "fail": 9,
+    "cancelled": 0,
+    "skipped": 7,
+    "todo": 0
+  }
+}
