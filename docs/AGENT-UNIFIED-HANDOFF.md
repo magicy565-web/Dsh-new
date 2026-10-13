@@ -2,7 +2,7 @@
 
 ## Fixed inputs and branch ownership
 
-- Current single Workspace business/client baseline: [PR59](https://github.com/magicy565-web/workspace-agent/pull/59), head `18cc80aca0f88a68fb96d2f1d960897f8a48dac2`, underlying application source `24c37b06284720b4b9d8d7b79dc19d56ef5d51b1`.
+- Single Workspace business/client baseline: [PR59](https://github.com/magicy565-web/workspace-agent/pull/59), tested application source `24c37b06284720b4b9d8d7b79dc19d56ef5d51b1` and evidence checkpoint `18cc80aca0f88a68fb96d2f1d960897f8a48dac2`. Subsequently integrated its new Native Host/Muse commits through `32c8ce98fe28cda1e22a16bf0d1088c768e081c8` in conflict-free two-parent merge `9f808f202ce825a2ab647f11456eb5dbcf8fe76e` (separate from Agent code).
 - Imported interface source: [PR47](https://github.com/magicy565-web/workspace-agent/pull/47), commit `1e0cc43d973b5d10861561f2cd4979065d5f33f6`.
 - Work lives only on `codex/unified-pi-agent-api-20261013`. PR59, PR47, PR52, other workers and `main` are unmodified. **Draft; release blocked.**
 
