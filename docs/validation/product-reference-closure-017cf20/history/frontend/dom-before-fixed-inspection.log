@@ -1,0 +1,28 @@
+✖ selected Library references inspect their fixed document version and distinguish current product facts without rebinding (7611.969249ms)
+✖ missing fixed document version stays explicit and cannot silently fall back or be selected (7745.842644ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16137.168916
+
+✖ failing tests:
+
+test at test/library-reference-inspection.dom.test.mjs:15:1
+✖ selected Library references inspect their fixed document version and distinguish current product facts without rebinding (7611.969249ms)
+  Error: Timed out: inspection reads selected v1 rather than current v2
+      at wait (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:49:168)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/library-reference-inspection.dom.test.mjs:28:70)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at test/library-reference-inspection.dom.test.mjs:42:1
+✖ missing fixed document version stays explicit and cannot silently fall back or be selected (7745.842644ms)
+  Error: Timed out: missing fixed version exposed
+      at wait (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:49:168)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/library-reference-inspection.dom.test.mjs:55:80)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

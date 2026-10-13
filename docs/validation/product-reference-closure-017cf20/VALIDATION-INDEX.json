@@ -1,0 +1,143 @@
+{
+  "recordedAt": "2026-10-13T08:15:00.934480+00:00",
+  "sourceCommit": "017cf2030836398513319a7c910c6ad732e43b16",
+  "sourceTree": "9829e53955063f5a4a321e14ae71d880b85276f8",
+  "previousEvidenceCommit": "3f84eb0103db8b3e41e8cebdee8d1f37095c9ac5",
+  "previousFullyTestedSource": "13b268edebbc3a26dd7e4197dfecb2dde37d3164",
+  "sourceCodeBuildFingerprint": "d4f9790044cf48b8ca6424410df7cf9c0c41ba4988855303657bd159365134cc",
+  "node": "v24.19.0",
+  "python": "Python 3.12.14",
+  "branch": "codex/unified-pi-agent-api-20261013",
+  "pr": "https://github.com/magicy565-web/workspace-agent/pull/60",
+  "sourceChangesSincePreviousEvidence": [
+    "package.json",
+    "server/muse-draft-service.mjs",
+    "src/library/ConversationReferences.tsx",
+    "test/library-reference-inspection.dom.test.mjs",
+    "test/library-reference-scope.browser.mjs",
+    "test/muse-draft-flow.test.mjs"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "source": "017cf2030836398513319a7c910c6ad732e43b16",
+      "exitCode": 0,
+      "counts": {},
+      "receipt": "final/build.json"
+    },
+    {
+      "name": "backend",
+      "command": [
+        "npm",
+        "test"
+      ],
+      "source": "017cf2030836398513319a7c910c6ad732e43b16",
+      "exitCode": 0,
+      "counts": {
+        "tests": 758,
+        "suites": 0,
+        "pass": 751,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 7,
+        "todo": 0
+      },
+      "receipt": "final/backend.json"
+    },
+    {
+      "name": "conversation-dom",
+      "command": [
+        "node",
+        "--test",
+        "--test-isolation=none",
+        "test/conversation-integration.dom.test.mjs",
+        "test/muse-conversation-ui.dom.test.mjs",
+        "test/procurement-conversation-ui.dom.test.mjs",
+        "test/library-reference-inspection.dom.test.mjs"
+      ],
+      "source": "017cf2030836398513319a7c910c6ad732e43b16",
+      "exitCode": 0,
+      "counts": {
+        "tests": 19,
+        "suites": 0,
+        "pass": 19,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "receipt": "final/conversation-dom.json"
+    },
+    {
+      "name": "references-browser",
+      "command": [
+        "env",
+        "CHROMIUM_PATH=/usr/bin/chromium",
+        "CHROMIUM_NO_SANDBOX=1",
+        "node",
+        "test/library-reference-scope.browser.mjs",
+        "/tmp/workspace-launch-20261013/product-final-017cf20/web"
+      ],
+      "source": "017cf2030836398513319a7c910c6ad732e43b16",
+      "exitCode": 0,
+      "counts": {},
+      "receipt": "final/references-browser.json"
+    }
+  ],
+  "actualChromium": {
+    "checks": 5,
+    "screenshots": 8,
+    "modelCalls": 0,
+    "pageErrors": [],
+    "preparedOrderPhase": "review_required",
+    "taskRef": null,
+    "syntheticLocalIdentityOnly": true,
+    "realHostVerified": false
+  },
+  "backendSkips": {
+    "count": 7,
+    "unavailableReviewedOriginalNativeSourceBuildExports": 6,
+    "windowsOnlyOnLinux": 1
+  },
+  "reusedPiProbe": {
+    "source": "3f84eb0103db8b3e41e8cebdee8d1f37095c9ac5",
+    "tests": 1,
+    "pass": 1,
+    "actualLocalPiSdkDispatches": 3,
+    "externalProviderCalls": 0,
+    "equivalence": "reused/pi-client/SOURCE-EQUIVALENCE-017cf20.json"
+  },
+  "historicalEvidencePreserved": "All prior tracked files unchanged except the explicit six source/test/script changes listed here; prior docs, evidence and 13b268e packages remain pinned to their original source.",
+  "releaseState": "release_blocked",
+  "limitations": [
+    "CI startup_failure with zero jobs; not a test execution result.",
+    "Six original native source/build checks and one Windows check skipped.",
+    "Real Host/identity/Muse/Dot/provider/Shopify/GA4/WeChat/seven-day/live login/deployment remain unverified.",
+    "Independent security review was not restarted or bypassed.",
+    "The existing Library product model does not provide historical product snapshots; current facts are labeled while the prior reference is retained.",
+    "Library association is not authorization to export private data. Public scope and dispatch require existing explicit approvals."
+  ],
+  "runtimeDataDelivered": false,
+  "productionCallsOrDeployments": false,
+  "requestedSubagentModel": "gpt-6.1-sol",
+  "requestedSubagentReasoningEffort": "xhigh",
+  "agentAssignmentProof": "../workspace-release-prep-13b268e/AGENT-ASSIGNMENTS.json",
+  "userRequestedVisibleFrontend": {
+    "index": "visible/VISIBLE-SCREENS-INDEX.json",
+    "screenshots": 43,
+    "mobileWidth": 390,
+    "desktopWidth": 1440,
+    "frontendPackage": "../../../deliverables/frontend-visible-017cf20/Workspace-Frontend-Build-017cf20.zip",
+    "frontendPackageSha256": "99a2ea099759090fac489c8616fd235f352de21cca0fce2d797c81cab6ceacd9",
+    "safeUserAccessiblePreviewUrl": null,
+    "librarySaveConfirmed": false,
+    "confirmedLibraryFileIds": [],
+    "libraryStatus": "LIBRARY-DELIVERY-STATUS.json"
+  },
+  "sourcePreservation": "SOURCE-PRESERVATION.json"
+}

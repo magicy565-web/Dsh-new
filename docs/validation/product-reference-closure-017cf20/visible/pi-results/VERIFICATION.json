@@ -1,0 +1,40 @@
+{
+  "result": "passed",
+  "source": "017cf2030836398513319a7c910c6ad732e43b16",
+  "sourceStatus": "?? docs/validation/product-reference-closure-017cf20/",
+  "actualBrowser": true,
+  "browserVersion": "151.0.7922.173",
+  "screenshotCount": 4,
+  "screenshots": [
+    "/tmp/workspace-launch-20261013/frontend-visible-017cf20/pi-results/01-original-result-card-390.png",
+    "/tmp/workspace-launch-20261013/frontend-visible-017cf20/pi-results/02-verified-result-preview-390.png",
+    "/tmp/workspace-launch-20261013/frontend-visible-017cf20/pi-results/01-original-result-card-1440.png",
+    "/tmp/workspace-launch-20261013/frontend-visible-017cf20/pi-results/02-verified-result-preview-1440.png"
+  ],
+  "checks": [
+    "Actual original browser send → original HTTP/Runtime → installed Pi SDK with faux provider → same-conversation durable file and exact provenance.",
+    "390/1440 px actual result card and SHA-verified preview remain readable; browser downloads match the persisted file bytes exactly.",
+    "Actual original host/Store restart restores the same succeeded fixture run and exact file reference without replaying Pi."
+  ],
+  "errors": [],
+  "actualPiSdkRequests": 1,
+  "liveModelCalls": 0,
+  "liveMuseExecution": false,
+  "externalHostsBlocked": [],
+  "dataSource": "Temporary original Workspace Store, explicit synthetic input and actual Pi faux provider output.",
+  "state": {
+    "conversationId": "2ed8b6de-6ff0-4ffb-b3e9-d626f41cb189",
+    "runId": "1836e6ed-d706-4b02-a443-7f20a0a0cc0e",
+    "runStatus": "succeeded",
+    "artifactId": "280b1c84-b116-4c3a-b0a1-754732b112c3",
+    "artifactReference": {
+      "id": "280b1c84-b116-4c3a-b0a1-754732b112c3",
+      "version": 1,
+      "sha256": "20353dc27460ba13a912567ffa18d4799457c9c017dbb217458bb1a7267828e3"
+    },
+    "sourceConversationId": "2ed8b6de-6ff0-4ffb-b3e9-d626f41cb189",
+    "sourceRunId": "1836e6ed-d706-4b02-a443-7f20a0a0cc0e",
+    "downloadedSha256": "20353dc27460ba13a912567ffa18d4799457c9c017dbb217458bb1a7267828e3"
+  },
+  "boundary": "Current actual production App/Runtime/Pi package on loopback, local synthetic provider only. No production models, credentials, native Host/login acceptance or deployment."
+}

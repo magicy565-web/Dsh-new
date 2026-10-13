@@ -1,0 +1,33 @@
+{
+  "source": "017cf2030836398513319a7c910c6ad732e43b16",
+  "sourceStatus": "?? deliverables/frontend-visible-017cf20/\n?? docs/validation/product-reference-closure-017cf20/",
+  "executionSourceComparison": {
+    "command": [
+      "git",
+      "diff",
+      "--exit-code",
+      "017cf2030836398513319a7c910c6ad732e43b16",
+      "--",
+      "src",
+      "server",
+      "test",
+      "scripts",
+      "package.json",
+      "package-lock.json",
+      "tsconfig.json",
+      "vite.config.ts",
+      "miniprogram/src",
+      "tui/src"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "existingBuiltAssets": {
+    "dist/assets/index-B488nmlF.css": "bcd04d82b8f9bc9a07936c24d1d4e28e46636ab9782ca07ccb7d97261f8c533a",
+    "dist/assets/index-CaQCdyFY.js": "05ee687e0a18f90c72b877cc1ea239d9af183671676ca91d4e4c42bdaba603a2",
+    "dist/index.html": "f4378f34f90cedb7e422638c8456f1bfc8d41303de0d988574d5cfe129fc6492"
+  },
+  "captureBuildsPerformed": 0,
+  "repositoryWritesPerformed": 0
+}

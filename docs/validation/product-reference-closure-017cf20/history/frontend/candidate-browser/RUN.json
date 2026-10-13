@@ -1,0 +1,6 @@
+{
+  "source": "02c57c43a47a21223d175acf19cabe870eae7953",
+  "sourceStatus": "M src/library/ConversationReferences.tsx\n?? test/library-reference-inspection.dom.test.mjs\n?? test/library-reference-scope.browser.mjs",
+  "startedAt": "2026-10-13T08:03:17.224Z",
+  "scope": "synthetic existing owner/session fixture, original loopback HTTP/Store, production React and actual Chromium"
+}

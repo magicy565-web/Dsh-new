@@ -1,0 +1,30 @@
+✖ two-step real Pi task preserves selected public v1 and keeps both exact output references reachable in its conversation (216.567552ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 522.233018
+
+✖ failing tests:
+
+test at ../../tmp/workspace-launch-20261013/current-product-path/pi-client/two-output-probe.mjs:13:1
+✖ two-step real Pi task preserves selected public v1 and keeps both exact output references reachable in its conversation (216.567552ms)
+  AssertionError [ERR_ASSERTION]: {"execution":{"kind":"pi-durable","model":"faux-1","permissionFingerprint":"d45add0680228a7fd7e8a180e8acc2bf1eacc195620e4cb37d243c87cfea087d"},"executionHash":"ba24b291968c66da241d922f8024afea9ba4b2a5d583ca9b8751fb7af8d7021a","createdAt":"2026-10-13T07:52:15.898Z","startedAt":"2026-10-13T07:52:15.898Z","finishedAt":"2026-10-13T07:52:15.956Z","events":[{"sequence":1,"type":"pi.submission","createdAt":"2026-10-13T07:52:15.933Z"}],"usage":{"promptTokens":null,"completionTokens":null,"totalTokens":null},"usageStatus":"unknown","usageMissing":["promptTokens","completionTokens","totalTokens"],"error":{"code":"INVALID_GOAL_RESPONSE","message":"The structured workspace response has invalid or conflicting fields. No proposed action was executed."},"inputContext":{"artifacts":[{"id":"6326f19d-3193-4d10-b38d-121d73f954c8","version":1}],"skills":[],"memoryIds":[],"connectorActions":[]},"inputContextSnapshot":{"selection":{"artifacts":[{"id":"6326f19d-3193-4d10-b38d-121d73f954c8","version":1}],"skills":[],"memoryIds":[],"connectorActions":[]},"artifacts":[{"id":"6326f19d-3193-4d10-b38d-121d73f954c8","version":1,"filename":"reviewed-public-scope.md","mimeType":"text/markdown","sha256":"18132ce3ff997862da91af4d2c4954cc2225b729b531f4fbafadff7f8617fe8a","content":"EXPLICITLY_SELECTED_PUBLIC_SCOPE_VERSION_ONE"}],"skills":[],"memories":[],"preparedAt":"2026-10-13T07:52:15.896Z"},"connectorGrants":[],"workspaceExecution":true,"budget":{"maxSteps":4,"maxOutputTokens":6400},"outputTokens":1600,"stepCount":1,"id":"5e9185f3-9f34-4101-91c7-22f5540009f4","kind":"chat","conversationId":"7c171197-af20-4b66-aaf9-9faa955fce35","assistantId":"c3bab826-4a14-4dea-937e-2eacaf0df38d","requestId":"79277e4e-086e-40a6-95ef-503b0237eb07","status":"failed","reservedOutputTokens":1600,"piSubmissionId":11,"piConversationId":1,"piRequestId":"5e9185f3-9f34-4101-91c7-22f5540009f4:c3bab826-4a14-4dea-937e-2eacaf0df38d","usageCache":{"readTokens":null,"writeTokens":null},"usageCacheMissing":["readTokens","writeTokens"],"usageCacheStatus":"unknown"}
+  + actual - expected
+  
+  + 'failed'
+  - 'succeeded'
+  
+      at TestContext.<anonymous> (file:///tmp/workspace-launch-20261013/current-product-path/pi-client/two-output-probe.mjs:45:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'succeeded',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

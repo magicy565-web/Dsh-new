@@ -1,0 +1,48 @@
+{
+  "source": "3f84eb0103db8b3e41e8cebdee8d1f37095c9ac5",
+  "sourceStatus": "",
+  "actualBrowser": true,
+  "browserVersion": "151.0.7922.173",
+  "observations": [
+    {
+      "width": 320,
+      "selectedLabel": "Pinned Internal Specification\n资料 v1\n移除",
+      "storedReference": {
+        "documentId": "86aca953-85d4-4dbd-97fe-459ba99de942",
+        "documentVersion": 1
+      },
+      "inspectedVersion": "2",
+      "preview": "SYNTHETIC_PRIVATE_DOCUMENT_V2",
+      "download": "/api/artifacts/a6b5b93b-7a22-43df-b15f-ccdfb7791aa3/download?version=1",
+      "v1ArtifactId": "6adc923f-3b30-4dd4-a699-2444ef5df192",
+      "v2ArtifactId": "a6b5b93b-7a22-43df-b15f-ccdfb7791aa3"
+    },
+    {
+      "width": 320,
+      "selectedProductRevision": 1,
+      "currentProductRevision": 2,
+      "detailText": "Pinned Product\n\nSYNTHETIC_PRODUCT_R2\n\n选择此产品修订 2\nSKU 与供货规格\n\n尚未填写 SKU，编辑产品可以添加。\n\n供货条件\n企业内部资料\n关联企业资料\n\n尚未关联企业资料。"
+    },
+    {
+      "width": 390,
+      "selectedLabel": "Pinned Internal Specification\n资料 v1\n移除",
+      "storedReference": {
+        "documentId": "86aca953-85d4-4dbd-97fe-459ba99de942",
+        "documentVersion": 1
+      },
+      "inspectedVersion": "2",
+      "preview": "SYNTHETIC_PRIVATE_DOCUMENT_V2",
+      "download": "/api/artifacts/a6b5b93b-7a22-43df-b15f-ccdfb7791aa3/download?version=1",
+      "v1ArtifactId": "6adc923f-3b30-4dd4-a699-2444ef5df192",
+      "v2ArtifactId": "a6b5b93b-7a22-43df-b15f-ccdfb7791aa3"
+    },
+    {
+      "width": 390,
+      "selectedProductRevision": 1,
+      "currentProductRevision": 2,
+      "detailText": "Pinned Product\n\nSYNTHETIC_PRODUCT_R2\n\n选择此产品修订 2\nSKU 与供货规格\n\n尚未填写 SKU，编辑产品可以添加。\n\n供货条件\n企业内部资料\n关联企业资料\n\n尚未关联企业资料。"
+    }
+  ],
+  "browserWrites": [],
+  "modelCalls": 0
+}

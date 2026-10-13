@@ -1,0 +1,27 @@
+{
+  "sourceCommit": "3f84eb0103db8b3e41e8cebdee8d1f37095c9ac5",
+  "sourceStatus": "",
+  "command": [
+    "node",
+    "--test",
+    "/tmp/workspace-launch-20261013/reference-audit-3f84eb0/muse-input-delete-race.test.mjs"
+  ],
+  "node": "v24.19.0",
+  "exitCode": 1,
+  "counts": {
+    "tests": 1,
+    "pass": 0,
+    "fail": 1,
+    "skipped": 0
+  },
+  "finding": "Original selected artifact deleted after read validation but before prepare writer does not block the original review-required order.",
+  "sourceSha256": {
+    "server/muse-draft-service.mjs": "7944a64cecdcd31a931f0a55e89bae810b4717095f39ca853094e3445f2fa61a",
+    "server/muse-draft.mjs": "5d904f553c33ef8e5f4f09293ce48527d14369d72c5da01dc57ef1384467c8e2",
+    "server/task-context.mjs": "6fe8eee74810e931c867a7134b827be3aacda4a9650649508808c4c42b49f734",
+    "test/muse-draft-flow.test.mjs": "cf6ef4dba1d19f43df4cf69d2fb267fe651094cb5c8026cb460e142d3303ff8d"
+  },
+  "testSha256": "dd3bd1d8c442d8a80e3808157ac6f257c459876d3907138a7990f4fdfc487a59",
+  "logSha256": "c37e6c2d1c931968de2a22b57fb6a4f71f32440eb6d117b1c9e7948c8e63aee2",
+  "recordedAt": "2026-10-13T07:50:26.338154+00:00"
+}

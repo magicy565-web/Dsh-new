@@ -1,0 +1,50 @@
+{
+  "result": "passed",
+  "source": "02c57c43a47a21223d175acf19cabe870eae7953",
+  "sourceStatus": "M src/library/ConversationReferences.tsx\n?? test/library-reference-inspection.dom.test.mjs\n?? test/library-reference-scope.browser.mjs",
+  "actualBrowser": true,
+  "browserVersion": "151.0.7922.173",
+  "checkCount": 5,
+  "checks": [
+    "320/390 px selected document v1 inspection previews/downloads exact original bytes and SHA after a new v2 exists.",
+    "Current product r2 inspection identifies its still-pinned r1 and requires explicit reselection; inspection causes zero writes.",
+    "The original Muse preparation opens only by explicit user action with blank public facts and unchecked consent; Library values are never prefilled.",
+    "Human-entered public scope requires fresh confirmation after edits and prepares exactly one review-required original order, with no task dispatch, run or model call.",
+    "Private names, costs, document bytes and reference IDs are absent from the exact prepare request; fixed Library references remain unchanged."
+  ],
+  "modelCalls": 0,
+  "pageErrors": [],
+  "browserWrites": [
+    {
+      "path": "/api/conversations/cd92638a-4a58-41f5-829c-da4c1356f798/muse-delegations",
+      "method": "POST",
+      "body": {
+        "provider": "muse",
+        "conversationId": "cd92638a-4a58-41f5-829c-da4c1356f798",
+        "requestId": "48a1f22a-0799-49f2-a9c3-fb41bb0f21d3",
+        "content": "Public protocol fixture request only.",
+        "order": {
+          "serviceId": "channel-validation",
+          "product": "Human-entered public example product.",
+          "market": "United States",
+          "objective": "Synthetic read-only research scope; no contact, publishing or payment.",
+          "budgetCredits": 5,
+          "deadlineAt": "2026-10-14T08:03:00.000Z",
+          "publicDataConfirmed": true
+        }
+      }
+    }
+  ],
+  "fixedDocument": {
+    "version": 1,
+    "artifactId": "614b2763-be39-46d8-966f-6f9baf8e720c",
+    "sha256": "da1baa23c661fc074f8d7b6ce4dedd80eb6debb1ce4eb3cb7e75df96f387b6c9"
+  },
+  "prepared": {
+    "orderId": "f1c38e1d-75bb-43ba-a25e-c267025b21b2",
+    "phase": "review_required",
+    "taskRef": null
+  },
+  "externalHostsBlocked": [],
+  "boundary": "Synthetic pre-existing local operator/native-session metadata and reviewed config flags. Original production HTTP/binding/Store code is exercised locally; real Host/identity/native execution is unverified."
+}

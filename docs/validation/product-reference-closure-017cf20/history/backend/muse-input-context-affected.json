@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "3f84eb0103db8b3e41e8cebdee8d1f37095c9ac5",
+  "sourceStatusBefore": "M server/muse-draft-service.mjs\n M test/muse-draft-flow.test.mjs",
+  "command": [
+    "node",
+    "--test",
+    "test/muse-draft-flow.test.mjs",
+    "test/task-context.test.mjs",
+    "test/muse-conversation-delegation.test.mjs",
+    "test/muse-conversation-host.test.mjs"
+  ],
+  "node": "v24.19.0",
+  "sourceSha256": {
+    "server/muse-draft-service.mjs": "c37833f243356c9b5a9288045abce3c5f660eba7cf74370dbdf17f5c484f8f69",
+    "server/muse-draft.mjs": "5d904f553c33ef8e5f4f09293ce48527d14369d72c5da01dc57ef1384467c8e2",
+    "server/task-context.mjs": "6fe8eee74810e931c867a7134b827be3aacda4a9650649508808c4c42b49f734",
+    "test/muse-draft-flow.test.mjs": "2a9e1812fffcab3907ca8bbd6e4caccef2701fdab78c4e10b6c26a53ee8ea7bf"
+  },
+  "startedAt": "2026-10-13T07:53:01.817302+00:00",
+  "exitCode": 0,
+  "finishedAt": "2026-10-13T07:53:03.228563+00:00",
+  "sourceStatusAfter": "M server/muse-draft-service.mjs\n M test/muse-draft-flow.test.mjs",
+  "counts": {
+    "tests": 23,
+    "suites": 0,
+    "pass": 23,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "failureLines": [],
+  "skipLines": [],
+  "logSha256": "e5ff999f074ed73a2856185f50a7771226bdc97ea8e60efc1590b18cf629e876"
+}

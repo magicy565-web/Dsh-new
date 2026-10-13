@@ -1,0 +1,38 @@
+{
+  "name": "backend",
+  "command": [
+    "npm",
+    "test"
+  ],
+  "sourceBefore": "017cf2030836398513319a7c910c6ad732e43b16",
+  "treeBefore": "9829e53955063f5a4a321e14ae71d880b85276f8",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T08:11:35.697164+00:00",
+  "exitCode": 0,
+  "durationSeconds": 28.879,
+  "sourceAfter": "017cf2030836398513319a7c910c6ad732e43b16",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T08:12:04.582959+00:00",
+  "log": "backend.log",
+  "logSha256": "471aad3d52becccb16741c398e735b3b9700844a4c79286be185c25282a54703",
+  "counts": {
+    "tests": 758,
+    "suites": 0,
+    "pass": 751,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 7,
+    "todo": 0
+  }
+}

@@ -1,0 +1,31 @@
+✔ explicit Muse draft maps once to original conversation, then explicit approval queues one original order (12.011136ms)
+✔ natural text, private scope, arbitrary Worker, foreign Session and stale review cannot dispatch (1.934413ms)
+✔ requestId conflicts and one unfinished original delegation are enforced transactionally (3.345244ms)
+✔ copy-on-write failure publishes neither an order nor a message and is not converted to success (1.035756ms)
+✔ lost dispatch persistence reconciles the same original order, without a replacement task or job ID (3.319226ms)
+✔ claimed, expired lease, cancellation and late submit retain attempt and fence (14.731276ms)
+✔ result ready, native durable return and enterprise acceptance are distinct; exact file bytes survive JSON remount (19.97159ms)
+✔ order scope or original conversation corruption invalidates old approvals without repair or replay (1.362291ms)
+✔ a cached bound conversation cannot prepare work after native pause or detach (0.575557ms)
+✔ an exact retry after the deadline returns its original queued order and cannot restart expired work (3.748811ms)
+✔ original conversation Host prepares Muse with no Dot connection, without dispatch or starting a timer (14.108315ms)
+✔ original Dot submissions retain their binding and cannot fall through to a Muse order (2.729198ms)
+✔ an explicitly reviewed original Muse Session keeps its Host entry through later REST attachment (2.074856ms)
+✔ actual Pi tool/HTTP: natural goal clarifies one durable draft, then separately prepares/approves/dispatches one original order (376.380287ms)
+✔ unquoted model suggestions stay outside order scope and stale clarification cannot replace the current revision (107.924139ms)
+✔ concurrent identical intake returns the same durable draft ID/run and changed scope rejects its old hash (153.092327ms)
+✔ selected original product resolves locally for review, never enters Pi, and changed revision invalidates preparation (103.796467ms)
+✔ selected exact input deleted after read checks blocks the original Muse preparation transaction (103.466588ms)
+✔ lost original prepare acknowledgment reopens the same receipt/order; explicit rejection blocks its old review (149.660497ms)
+✔ task context distinguishes legacy defaults from explicit empty least-privilege selections (1.975673ms)
+✔ task context loads pinned UTF-8 artifact versions without silently using newer content (49.159737ms)
+✔ skills require explicit enabled reviewed revisions; memory selection is scoped and excludes unrelated content (20.209046ms)
+✔ task context rejects unsupported binary files, credentials and over-budget text rather than truncating (30.989141ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1371.408348

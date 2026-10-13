@@ -1,0 +1,40 @@
+{
+  "source": "017cf2030836398513319a7c910c6ad732e43b16",
+  "sourceStatus": "?? docs/validation/product-reference-closure-017cf20/",
+  "capturedAt": "2026-10-13T08:19:17.819Z",
+  "actualBrowser": true,
+  "screenshot": "/tmp/workspace-launch-20261013/frontend-visible-017cf20/main-library/02b-assistant-drawer-390.png",
+  "pageUrl": "http://127.0.0.1:33779/chat/775896f3-7909-4049-9cc0-b140977d8cbc",
+  "path": "/chat/775896f3-7909-4049-9cc0-b140977d8cbc",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "state": {
+    "title": "对话 · Workspace",
+    "route": "/chat/775896f3-7909-4049-9cc0-b140977d8cbc",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "shell": "app-shell conversation-workspace chat-route with-panel ",
+    "chatTitle": "Current synthetic conversation",
+    "visibleHeadings": [
+      "Workspace",
+      "最新动态",
+      "今天"
+    ],
+    "dialogs": [],
+    "visibleTaskSummaries": [
+      "原会话委托"
+    ],
+    "visibleFiles": [],
+    "bodyExcerpt": "Current synthetic conversation\n新的开始\n\n嗨，我是 Workspace，你的企业协作助手。我可以帮你梳理业务问题、明确成果和验收标准，真正执行请通过 AI Worker 委托。\n\n助手介绍\n\n今天想先聊点什么？\n\n理清今天的重点\n开始一个新目标\n聊聊一个想法\n原会话委托\n选择产品或资料\n任务输入 · 0 个文件 · 0 个技能 · 0 条笔记 · 0 个可提议动作\n生成计划与文件草稿\nWorkspace\n等待配置模型\n最新动态\n全部\n今天\nConversation created\n\nCurrent synthetic conversation\n\n08:19\nConversation created\n\nEarlier synthetic conversation\n\n08:19",
+    "documentWidth": 390
+  },
+  "evidenceGroup": "main-library",
+  "dataSource": "Synthetic temporary original Workspace Store and original loopback HTTP host; no production data.",
+  "backendBoundary": "Current production React bundle rendered against the original createApp/Runtime/Store implementation on 127.0.0.1.",
+  "modelBoundary": "Provider disabled; no live model or external execution.",
+  "identityBoundary": "Local no-login fixture; no real identity/production authorization acceptance."
+}

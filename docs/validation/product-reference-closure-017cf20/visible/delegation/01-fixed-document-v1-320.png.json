@@ -1,0 +1,49 @@
+{
+  "source": "017cf2030836398513319a7c910c6ad732e43b16",
+  "sourceStatus": "?? docs/validation/product-reference-closure-017cf20/",
+  "capturedAt": "2026-10-13T08:20:05.975Z",
+  "actualBrowser": true,
+  "screenshot": "/tmp/workspace-launch-20261013/frontend-visible-017cf20/delegation/01-fixed-document-v1-320.png",
+  "pageUrl": "http://127.0.0.1:33829/chat/e82e0143-47e9-4fbc-b090-9fc1577cee45",
+  "path": "/chat/e82e0143-47e9-4fbc-b090-9fc1577cee45",
+  "viewport": {
+    "width": 320,
+    "height": 844
+  },
+  "state": {
+    "title": "对话 · Workspace",
+    "route": "/chat/e82e0143-47e9-4fbc-b090-9fc1577cee45",
+    "viewport": {
+      "width": 320,
+      "height": 844
+    },
+    "shell": "app-shell conversation-workspace chat-route  ",
+    "chatTitle": "Synthetic fixed-reference public-scope fixture",
+    "visibleHeadings": [
+      "会话资料",
+      "SYNTHETIC_PRIVATE_COMPANY_DOCUMENT"
+    ],
+    "dialogs": [
+      {
+        "label": "选择会话产品或资料",
+        "heading": "会话资料"
+      }
+    ],
+    "visibleTaskSummaries": [
+      "原会话委托"
+    ],
+    "visibleFiles": [
+      {
+        "text": "下载此版本",
+        "path": "/api/artifacts/2e7fd614-d2b1-47d0-9bfe-0a528a3bdb12/download?version=1"
+      }
+    ],
+    "bodyExcerpt": "Synthetic fixed-reference public-scope fixture\n新的开始\n\n嗨，我是 Workspace，你的企业协作助手。我可以帮你梳理业务问题、明确成果和验收标准，真正执行请通过 AI Worker 委托。\n\n助手介绍\n\n今天想先聊点什么？\n\n理清今天的重点\n开始一个新目标\n聊聊一个想法\n原会话委托\n会话资料 · 1 个产品 / 1 份文件\n仅关联，未发送给模型\nSYNTHETIC_PRIVATE_LIBRARY_PRODUCT\n引用修订 1 · 已有新版本\nSYNTHETIC_PRIVATE_COMPANY_DOCUMENT\n固定 v1 · 已有新版本\n任务输入 · 沿用旧聊天的已启用技能与适用记忆\n生成计划与文件草稿\n返回选择列表\n会话资料\n\n只保存这次会话的引用，不会自动发送内部文件、价格或政策给模型与外部 Worker。\n\nSYNTHETIC_PRIVATE_COMPANY_DOCUMENT\n固定资料版本\nv2 · 当前版本\nv1 · 历史版本\n选择此资料版本 v1\nSYNTHETIC_PRIVATE_DOCUMENT_V1\n下载此版本\n1 个产品 / 1 份文件\n保存关联并返回会话",
+    "documentWidth": 320
+  },
+  "evidenceGroup": "delegation",
+  "dataSource": "Synthetic temporary original Workspace Store and original loopback HTTP host; no production data.",
+  "backendBoundary": "Current production React bundle rendered against the original createApp/Runtime/Store implementation on 127.0.0.1.",
+  "modelBoundary": "Provider disabled; no live model or external execution.",
+  "identityBoundary": "Synthetic pre-existing local operator/native-session metadata; existing original binding code. No real Host/login/native acceptance."
+}

@@ -1,0 +1,38 @@
+{
+  "source": "017cf2030836398513319a7c910c6ad732e43b16",
+  "sourceStatus": "?? docs/validation/product-reference-closure-017cf20/",
+  "capturedAt": "2026-10-13T08:19:19.585Z",
+  "actualBrowser": true,
+  "screenshot": "/tmp/workspace-launch-20261013/frontend-visible-017cf20/main-library/05-product-detail-mobile.png",
+  "pageUrl": "http://127.0.0.1:33779/library/products/747b991c-bc16-4dc5-9818-8f9c1980ce95",
+  "path": "/library/products/747b991c-bc16-4dc5-9818-8f9c1980ce95",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "state": {
+    "title": "资料库 · Workspace",
+    "route": "/library/products/747b991c-bc16-4dc5-9818-8f9c1980ce95",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "shell": "app-shell conversation-workspace   ",
+    "libraryTab": "产品库",
+    "visibleHeadings": [
+      "Synthetic Library Product",
+      "SKU 与供货规格",
+      "关联企业资料"
+    ],
+    "dialogs": [],
+    "visibleTaskSummaries": [],
+    "visibleFiles": [],
+    "bodyExcerpt": "资料库\nWORKSPACE\n产品库\n产品草稿\nSynthetic Library Product\n\n修订 1 · 2026/10/13 08:19:19\n\n尚无产品图片\n\nSaved only as an internal enterprise draft.\n\n发布准备检查\n资料待补齐\nSKU 与供货规格\nBROWSER-1\npiece · MOQ 10\n供货条件\n企业内部资料\n关联企业资料\n\n尚未关联企业资料。\n\n编辑产品",
+    "documentWidth": 390
+  },
+  "evidenceGroup": "main-library",
+  "dataSource": "Synthetic temporary original Workspace Store and original loopback HTTP host; no production data.",
+  "backendBoundary": "Current production React bundle rendered against the original createApp/Runtime/Store implementation on 127.0.0.1.",
+  "modelBoundary": "Provider disabled; no live model or external execution.",
+  "identityBoundary": "Local no-login fixture; no real identity/production authorization acceptance."
+}

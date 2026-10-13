@@ -1,0 +1,49 @@
+{
+  "source": "017cf2030836398513319a7c910c6ad732e43b16",
+  "sourceStatus": "?? docs/validation/product-reference-closure-017cf20/",
+  "capturedAt": "2026-10-13T08:24:42.164Z",
+  "actualBrowser": true,
+  "screenshot": "/tmp/workspace-launch-20261013/frontend-visible-017cf20/pi-results/02-verified-result-preview-390.png",
+  "pageUrl": "http://127.0.0.1:35107/chat/2ed8b6de-6ff0-4ffb-b3e9-d626f41cb189",
+  "path": "/chat/2ed8b6de-6ff0-4ffb-b3e9-d626f41cb189",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "state": {
+    "title": "对话 · Workspace",
+    "route": "/chat/2ed8b6de-6ff0-4ffb-b3e9-d626f41cb189",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "shell": "app-shell conversation-workspace chat-route  ",
+    "chatTitle": "Pi 本地合成成果 · 非生产执行",
+    "visibleHeadings": [
+      "workspace-local-result.md"
+    ],
+    "dialogs": [
+      {
+        "label": "附件 workspace-local-result.md",
+        "heading": "workspace-local-result.md"
+      }
+    ],
+    "visibleTaskSummaries": [
+      "任务进度 · 成果已返回",
+      "原会话委托"
+    ],
+    "visibleFiles": [
+      {
+        "text": "workspace-local-result.md下载",
+        "path": "/api/artifacts/280b1c84-b116-4c3a-b0a1-754732b112c3/download?version=1&sha256=20353dc27460ba13a912567ffa18d4799457c9c017dbb217458bb1a7267828e3"
+      }
+    ],
+    "bodyExcerpt": "Pi 本地合成成果 · 非生产执行\n今天 08:24\n请依据显式选择的合成公开资料制作一份本地文件，不调用外部工具。\n本地合成文件已保存。下面可预览或下载原始版本；此结果不代表真实模型或 Muse 执行。\nworkspace-local-result.md\n下载\n打开／预览\nworkspace-local-result.md\n\n原附件 v1 · SHA-256 20353dc27460ba13a912567ffa18d4799457c9c017dbb217458bb1a7267828e3\n\n# Workspace 本地合成成果\n\n这份文件由当前原始 Runtime 与真实安装的 Pi SDK 通过本地 faux provider 生成并保存。\n\n这是合成验收数据，不代表真实模型、Muse、Shopify 或生产执行。\n\n来源：显式选择的公开合成输入 v1。\n源码：017cf2030836398513319a7c910c6ad732e43b16。\n\n重新读取此版本\n下载此版本\n任务进度 · 成果已返回\n原会话委托\n选择产品或资料\n任务输入 · 1 个文件 · 0 个技能 · 0 条笔记 · 0 个可提议动作\n生成计划与文件草稿",
+    "documentWidth": 390
+  },
+  "evidenceGroup": "pi-results",
+  "dataSource": "Synthetic temporary original Workspace Store and original loopback HTTP host; no production data.",
+  "backendBoundary": "Current production React bundle rendered against the original createApp/Runtime/Store implementation on 127.0.0.1.",
+  "modelBoundary": "Actual installed Pi package with its local faux provider; synthetic response only, zero live model or external execution.",
+  "identityBoundary": "Local no-login fixture; no real identity/production authorization acceptance."
+}

@@ -1,0 +1,27 @@
+✖ two-step real Pi task preserves selected public v1 and keeps both exact output references reachable in its conversation (156.604007ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 533.675315
+
+✖ failing tests:
+
+test at ../../tmp/workspace-launch-20261013/current-product-path/pi-client/two-output-probe.mjs:13:1
+✖ two-step real Pi task preserves selected public v1 and keeps both exact output references reachable in its conversation (156.604007ms)
+  AssertionError [ERR_ASSERTION]: {"error":{"code":"INVALID_INPUT","message":"Unsupported artifact field: requestId."}}
+      at api (file:///tmp/workspace-launch-20261013/current-product-path/pi-client/two-output-probe.mjs:24:51)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///tmp/workspace-launch-20261013/current-product-path/pi-client/two-output-probe.mjs:33:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

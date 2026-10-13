@@ -1,0 +1,38 @@
+{
+  "source": "017cf2030836398513319a7c910c6ad732e43b16",
+  "sourceStatus": "?? docs/validation/product-reference-closure-017cf20/",
+  "capturedAt": "2026-10-13T08:19:23.716Z",
+  "actualBrowser": true,
+  "screenshot": "/tmp/workspace-launch-20261013/frontend-visible-017cf20/main-library/13-company-390.png",
+  "pageUrl": "http://127.0.0.1:46269/library/company",
+  "path": "/library/company",
+  "viewport": {
+    "width": 390,
+    "height": 1000
+  },
+  "state": {
+    "title": "资料库 · Workspace",
+    "route": "/library/company",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "shell": "app-shell conversation-workspace   ",
+    "libraryTab": "企业资料",
+    "visibleHeadings": [
+      "资料库",
+      "企业资料",
+      "企业文件"
+    ],
+    "dialogs": [],
+    "visibleTaskSummaries": [],
+    "visibleFiles": [],
+    "bodyExcerpt": "资料库\nWORKSPACE\n企业的知识与底气\n资料库\n\n每一份资料，都为下一步做好准备。\n\n企业资料\n产品库\n笔记与记忆\n企业资料\n上传资料\n企业基础档案 · 待完善\n企业名称\n展示名称\n企业简介\n修订 1 · 已保存\n保存企业资料\n企业文件\n全部资料\n企业介绍\n营业执照\n资质证书\n检测报告\n产品规格\n供货政策\n其他资料\nSynthetic Company Specification\n产品规格 · browser / synthetic\nv2 · 2026/10/13 08:19:21",
+    "documentWidth": 390
+  },
+  "evidenceGroup": "main-library",
+  "dataSource": "Synthetic temporary original Workspace Store and original loopback HTTP host; no production data.",
+  "backendBoundary": "Current production React bundle rendered against the original createApp/Runtime/Store implementation on 127.0.0.1.",
+  "modelBoundary": "Provider disabled; no live model or external execution.",
+  "identityBoundary": "Local no-login fixture; no real identity/production authorization acceptance."
+}

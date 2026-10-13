@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "017cf2030836398513319a7c910c6ad732e43b16",
+  "attemptedDeliverables": 13,
+  "requestedImages": 12,
+  "requestedFrontendBuildPackages": 1,
+  "saveSucceeded": false,
+  "confirmedLibraryFileIds": [],
+  "failureStage": "read-only hosted-apps tools/list discovery before prepare_uploads or finalize_uploads",
+  "exactDiagnostic": "library upload failed: hosted apps tools/list request failed: network",
+  "helperExitCode": 1,
+  "rawOutputBytes": 0,
+  "writeOutcomeUncertain": false,
+  "alternativeEntryOrDirectUploadAttempted": false,
+  "fallback": "Confirmed private branch paths and SHA-256 in visible/VISIBLE-SCREENS-INDEX.json and deliverables/frontend-visible-017cf20/BUILD-MANIFEST.json. Parent can prepare native attachments.",
+  "capturedAt": "2026-10-13T08:32:01.035067+00:00"
+}

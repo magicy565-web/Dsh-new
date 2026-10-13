@@ -1,0 +1,10 @@
+{"runId":"42e5896f-3437-4d2e-a87a-f42b0b6c5578","selectedInputVersion":1,"libraryReferenceVersion":1,"privateLibrarySentToModel":false,"actualPiSdkRequests":3,"currentOutputArtifactId":"5c53259a-50db-4abd-8ea7-bf1e3b570155","outputFiles":[{"filename":"final.md","artifactId":"5c53259a-50db-4abd-8ea7-bf1e3b570155","sourceRunId":"42e5896f-3437-4d2e-a87a-f42b0b6c5578","messageReference":{"id":"5c53259a-50db-4abd-8ea7-bf1e3b570155","version":1,"sha256":"199a10772473642fa67a1a69eb1284fd9d60c6f17a47fb164ae543ae0d36e8c2"},"scalarConversationGuardAllows":true,"allOutputsMembership":false}],"cancelledRunId":"4fa446e5-4e47-4a65-b69d-7898221031c7","cancelledFilePublished":false,"restartReplayedTasks":false,"exactOutputReferenceSurvivedRestart":true}
+✔ supported two-step real Pi task preserves explicit public v1, private Library references, final file, cancel and restart (386.677831ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 710.176706

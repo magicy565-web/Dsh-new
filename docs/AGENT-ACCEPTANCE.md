@@ -2,14 +2,26 @@
 
 ## 当前状态
 
-**原 Work 环境的固定源码本地组合验收已通过；整体仍为 release_blocked，独立审查与真实生产验收未完成。**
+**原 Work 环境的组合基线已通过；当前产品增量 `017cf20` 的构建、后端与会话回归及真实浏览器验证也已完成。整体仍为 release_blocked，独立审查与真实生产验收未完成。**
 
-- 唯一集成 PR：[PR60](https://github.com/magicy565-web/workspace-agent/pull/60)。初始基线 PR59 `18cc80aca0f88a68fb96d2f1d960897f8a48dac2`，后通过双父提交 `9f808f202ce825a2ab647f11456eb5dbcf8fe76e` 同步 PR59 的原生 Host/Muse 新修复 `32c8ce98fe28cda1e22a16bf0d1088c768e081c8`，且未覆盖其源码。下列历史段落记录源码接口阶段；当前固定源码 `13b268edebbc3a26dd7e4197dfecb2dde37d3164` 已完成原 Work 的实际 Node24/Python/HTTP/SQLite/Pi 组合回归。
+- 唯一集成 PR：[PR60](https://github.com/magicy565-web/workspace-agent/pull/60)。初始基线 PR59 `18cc80aca0f88a68fb96d2f1d960897f8a48dac2`，后通过双父提交 `9f808f202ce825a2ab647f11456eb5dbcf8fe76e` 同步 PR59 的原生 Host/Muse 新修复 `32c8ce98fe28cda1e22a16bf0d1088c768e081c8`，且未覆盖其源码。下列历史段落记录源码接口阶段；组合基线 `13b268edebbc3a26dd7e4197dfecb2dde37d3164` 及其文档交付 `3f84eb0103db8b3e41e8cebdee8d1f37095c9ac5` 保留原身份。最新源码和实际运行在下一节单列。
 - 选择性来源：PR47 `1e0cc43d973b5d10861561f2cd4979065d5f33f6`。
 - 本次的代码边界、唯一权威和部署限制见 [AGENT-UNIFIED-HANDOFF.md](AGENT-UNIFIED-HANDOFF.md)。
 - 未重建商城/供应商库/计划/通知、模型循环、商业 Task Store 或另一个后端；PR59 是业务和界面权威。
 
-## 原 Work 最新实际执行（固定源码 S，不等于上线）
+## 当前产品增量：固定资料检查、原准备事务及可看前端
+
+最新测试源码 S2 为 **`017cf2030836398513319a7c910c6ad732e43b16`**，tree `9829e53955063f5a4a321e14ae71d880b85276f8`。已修复点击会话固定资料 v1 却预览/下载当前 v2 的真实缺陷；缺失版本明确拒绝，旧产品 r1 检查当前 r2 时说明实际版本并要求显式重选。Muse 原准备意图在 Store 事务内重检同一 pinned input，普通删除竞态拒绝落单。没有另一个业务引擎或权限升级。
+
+在干净 S2、Node24.19 上实际执行 `npm run build` exit0、`npm test` 758总/751通过/0失败/7条件跳过，以及原会话三文件加新引用 DOM 19/19。固定资料/手填公共范围浏览器5流程通过、8截图、零模型/页面错误，仅生成一份 review_required 原订单、taskRef=null。原 SDK intake 与准备服务事务的不同测试边界在记录中明确，不虚称 prepare HTTP 或生产测试。
+
+按用户“完成前端构建让我看到”另补当前 App 的真实 Chromium 页面：主入口/资料库13流程29截图、待审委托10截图、本地 Pi 成果4截图，含390px/1440px及逐图状态。成果由原 Runtime/已安装 Pi SDK 的本地合成 provider 实际生成，1次本地 SDK 请求、0真实模型/Muse调用；真实浏览器预览/下载的原文件字节/SHA匹配，重开同 run/file 且不重放。截图期间只有新验证资料未跟踪，代码/测试/锁文件与 S2 一致；不把整个工作区写成干净。
+
+[本次源码与验收索引](validation/product-reference-closure-017cf20/README.md)、[逐图来源和状态](validation/product-reference-closure-017cf20/visible/VISIBLE-SCREENS-INDEX.json)、[当前实际前端构建包](../deliverables/frontend-visible-017cf20/Workspace-Frontend-Build-017cf20.zip)。构建包仅包含3个当前dist文件和构建回执，依赖原同源API，不能双击当成已连接的完整应用。当前没有已核实的用户可访问预览URL，未把localhost作为预览交付，也未创建部署。
+
+S2的 [CI38367556687](https://github.com/magicy565-web/workspace-agent/actions/runs/38367556687) 仍为 startup_failure、jobs=[]。Library保存助手在读取工具阶段报network错误，没有confirmed library_file_id；仓库截图/构建包与hash可供父会话准备原生附件。文档/证据/包在之后独立提交；代码、测试、锁及构建指纹继续与S2一致。本次不重跑未受影响的全TUI/小程序；新增原Pi专项的八文件复用范围有明确证明。
+
+## 保留：原 Work 组合基线实际执行（固定源码 S，不等于上线）
 
 源码 S 为 **`13b268edebbc3a26dd7e4197dfecb2dde37d3164`**，tree `3b45b5e34c13ee9d6deba594240961a213ee526c`，Node24.19/Python3.12。文档和证据属于之后的独立提交 D；D 未改变执行代码、测试或锁文件，源码包和每条新运行记录继续指向 S，不能把 D 声称为另一次测试。代码/构建指纹与逐文件例外清单见随附证明。
 
@@ -84,7 +96,7 @@
 
 隔离 V8 对旧版 `206bf8c` 与修复 `f236140` 的**真实 AgentProjection 类源码**注入同一组模拟 SQLite/文件依赖：旧版可在回滚前调用新文件写入，修复版无该调用；旧版不检查序列回退，新版按预期拒绝。**当时没有 Node24 的真实 SQLite/文件系统组合记录**；本轮固定源码 Agent41项已实际运行并通过这些投影回归。当前 GitHub Actions 的 `startup_failure` 仍不是测试通过的证据。完整验收前请保持 Draft/`release_blocked`，并保留原 Workspace/Pi/Shopify/Muse/Dot 现有权限和预算门禁。
 
-## 本轮固定源码已实际运行的命令
+## 保留：组合基线 13b268e 已实际运行的命令
 
 原 Work 环境使用固定源码 `13b268edebbc3a26dd7e4197dfecb2dde37d3164`。文档与证据后续单独提交，代码/测试/锁文件保持该源码，关联证明见 [SOURCE-PRESERVATION.json](validation/workspace-release-prep-13b268e/SOURCE-PRESERVATION.json)。实际原 runner 已执行以下构建与组合回归；依赖由原锁文件安装，源码包还完成干净离线重建：
 

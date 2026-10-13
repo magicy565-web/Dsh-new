@@ -1,0 +1,14 @@
+{
+  "baseline": "3f84eb0103db8b3e41e8cebdee8d1f37095c9ac5",
+  "frontendBaseline": "Before browser shows selected document v1 but actual preview/current version v2. Baseline new DOM tests intentionally fail 0/2.",
+  "frontendCandidate": "02c57c4 plus uncommitted frontend/test files, not a clean fixed-source result; retained only as intermediate evidence.",
+  "backendCandidate": "3f84eb0 plus two uncommitted source/test changes, affected tests 23/23, not relabeled as current source execution.",
+  "backendRegressionBoundary": "The ordinary Pi intake uses real signed HTTP and the original SDK synthetic provider. The delete-at-intent regression calls the original service.prepare transaction directly with confirmed fixture scope; it is not falsely represented as a prepare HTTP or production test.",
+  "piRejectedHypothesis": "Multiple-output problem was rejected by current done:false/artifact protocol. Fixture setup mistakes and rejected-protocol logs are preserved, no runtime or ConversationFiles patch was made.",
+  "exclusions": [
+    "Store JSON, runtime/Pi JSONL/checkpoint directories",
+    "session metadata and node_modules",
+    "actual secrets/credentials",
+    "compiled bundles or another recursive source ZIP"
+  ]
+}
