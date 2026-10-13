@@ -94,7 +94,7 @@ test('official Pi TUI PTY starts tasks and an owned child, reviews exact approva
   await until(() => run('pty-review').proposals[0].status === 'approved', 'Human confirmation did not approve the original payload');
   assert.equal(backend.app.capabilities.listConnectorRuns().length, 0, 'Approval alone is not execution');
   command('/ws-continue ' + reviewId + ' ' + proposal);
-  await until(() => settled('pty-review'), 'Approved action did not settle through original continuation');
+  await until(() => ['succeeded', 'failed', 'cancelled'].includes(run('pty-review')?.status), 'Approved action did not settle through original continuation');
   assert.equal(run('pty-review').status, 'succeeded', JSON.stringify(run('pty-review').error));
   assert.equal(backend.app.capabilities.listConnectorRuns().length, 1);
   assert.equal(backend.app.artifacts.list().artifacts.length, 1);
@@ -104,14 +104,15 @@ test('official Pi TUI PTY starts tasks and an owned child, reviews exact approva
   command('/ws-cancel ' + run('pty-cancel').id);
   await until(() => run('pty-cancel').status === 'cancelled', 'TUI cancellation did not stop the original run');
 
+  const beforeRestore = backend.faux.state.callCount;
   command('/ws-task ' + JSON.stringify({ title: 'Public restore fixture', content: 'WAIT_FOR_CANCEL', requestId: 'pty-restore' }));
-  await until(() => run('pty-restore')?.piNativeTaskId, 'Original restart fixture did not start');
+  await until(() => run('pty-restore')?.piNativeTaskId && backend.faux.state.callCount > beforeRestore, 'Original restart fixture did not start its actual model request');
   const original = structuredClone(run('pty-restore'));
   await backend.close();
   backend = await startPiDevelopment({ dataDirectory: path.join(directory, 'workspace'), port: Number(port), responses: [fauxAssistantMessage('Controlled recovered original TUI task.')] });
   assert.equal(run('pty-restore').status, 'interrupted'); assert.equal(backend.faux.state.callCount, 0);
   command('/ws-resume ' + original.id);
-  await until(() => settled('pty-restore'), 'TUI did not explicitly reattach the original checkpoint');
+  await until(() => ['succeeded', 'failed', 'cancelled'].includes(run('pty-restore')?.status), 'TUI did not explicitly reattach the original checkpoint');
   assert.equal(run('pty-restore').status, 'succeeded', JSON.stringify(run('pty-restore').error));
   assert.equal(run('pty-restore').piNativeTaskId, original.piNativeTaskId); assert.equal(run('pty-restore').assistantId, original.assistantId);
   assert.equal(backend.app.store.read().runs.length, 5); assert.equal(backend.faux.state.callCount, 1);
