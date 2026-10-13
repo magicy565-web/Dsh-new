@@ -19,6 +19,11 @@
 - 增加 Agent Bearer 与原 Dot/Muse/采购 Worker token SHA-256 的跨范围碰撞拒绝规则及普通测试。对应 Node 回归仍待实际运行，不能以代码提交冒充通过。
 - 新 `test/agent-service.acceptance.mjs` 只会运行当前源码的构建与回归，并将新原始日志写入临时隔离目录。无独立审查回执时无条件标记 `release_blocked`、退出非零。
 
+- 本轮已按原 PR59 固定源码逐字段核验 POLICY v4，并在新 `pi-provider.mjs` 中区分：原始端点的普通 Pi/Muse/供应商/Goal 会话保持 V4；Agent 研究预设独立 V5；新模型端点不具备 V4 恢复资格。
+- `server/runtime.mjs` 按每个 run 的准确类型计算新旧指纹，Agent 在**原 Store 入队事务**锁定 V5，恢复时仍检查原 run 的哈希；未添加第二个执行器或无审批重试。
+- 新增静态及普通回归：`test/pi-runtime.test.mjs` 固定原始 V4 canonical hash，验证普通 checkpoint 不丢 scope、另一个 HTTPS 端点拒绝恢复、run/submission/模型请求不重复；`test/agent-pi-runtime.test.mjs` 验证 Agent 采用单独 V5/端点指纹及原预算；`test/agent-unified-host.http.test.mjs` 验证即使 Agent 启用，普通 run 不获得 V5 工具授权。
+- 上述五个已修改源码/测试文件进行了独立 V8 静态解析，全部可解析；这是**源码语法检查，不是 Node 24 导入、SDK、SQLite 或业务回归通过**。
+
 **所有新增的 Node 测试均尚未在此候选上实际运行**。静态语法检查不能替代 Node 24、Pi Durable、SQLite、HTTP 或微信运行时测试。
 
 ## 下一次真实测试必须运行
