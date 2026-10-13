@@ -33,13 +33,16 @@ async function downloads(f, taskId, token = f.tokenA) {
 
 test('[acceptance 1] public install, manifest and downloadable Python expose the agreed connector and dynamic service host', { timeout: 20_000 }, async t => {
   const f = await serviceFixture(t, { env: { WS_AGENT_TRUST_PROXY: '1' } });
+  // PR59 owns the original root /health. The optional Agent v1 health is namespaced.
+  const health = await request(f.base, `${API}/health`);
+  assert.equal(health.status, 200);
+  assert.equal(health.json.mode, 'demo');
+  assert.equal(typeof health.json.version, 'string');
+  const ids = presetRows(health.json.presets)?.map(item => typeof item === 'string' ? item : item.id);
+  assert.deepEqual(ids?.sort(), [...PRESET_IDS].sort());
+  const hostHealth = await request(f.base, '/health');
+  assert.notEqual(hostHealth.json?.version, health.json.version, 'The original root route must not be replaced by the Agent projection.');
   for (const prefix of ['', API]) {
-    const health = await request(f.base, `${prefix}/health`);
-    assert.equal(health.status, 200);
-    assert.equal(health.json.mode, 'demo');
-    assert.equal(typeof health.json.version, 'string');
-    const ids = presetRows(health.json.presets)?.map(item => typeof item === 'string' ? item : item.id);
-    assert.deepEqual(ids?.sort(), [...PRESET_IDS].sort());
     const install = await request(f.base, `${prefix}/install`, { headers: { host: 'install-fixture.example.test:9443', 'x-forwarded-proto': 'https' } });
     assert.equal(install.status, 200);
     assert.match(String(install.headers['content-type']), /^text\/plain/);
