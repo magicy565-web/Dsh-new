@@ -110,9 +110,9 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
     const session = sessions.get(hash(token));
     return live(session) ? session : null;
   }
-  function checkBoundary(req, pathname) {
+  function checkBoundary(req, pathname, { serviceCredential = false } = {}) {
     // Duplicate security-relevant fields can be interpreted differently by proxies.
-    for (const name of ['host', 'origin', 'cookie', 'x-workspace-assertion', 'x-csrf-token', 'x-workspace-login', 'x-workspace-session', 'x-workspace-client']) {
+    for (const name of ['host', 'origin', 'authorization', 'idempotency-key', 'cookie', 'x-workspace-assertion', 'x-csrf-token', 'x-workspace-login', 'x-workspace-session', 'x-workspace-client']) {
       let count = 0;
       for (let i = 0; i < req.rawHeaders.length; i += 2) if (req.rawHeaders[i].toLowerCase() === name) count++;
       if (count > 1) throw new AccessError(400, 'AMBIGUOUS_HEADER', 'Duplicate security headers are not allowed.');
@@ -124,7 +124,7 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
       if (rawHost !== config.origin.host) throw new AccessError(403, 'HOST_REJECTED', 'The request host does not match this deployment.');
       if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress)) throw new AccessError(403, 'INGRESS_REQUIRED', 'Only the local trusted ingress may connect.');
       if (req.headers.origin && req.headers.origin !== config.publicOrigin) throw new AccessError(403, 'ORIGIN_REJECTED', 'The request origin does not match this deployment.');
-      if (!['GET', 'HEAD'].includes(req.method) && req.headers.origin !== config.publicOrigin) throw new AccessError(403, 'ORIGIN_REQUIRED', 'Mutating requests require the exact public origin.');
+      if (!serviceCredential && !['GET', 'HEAD'].includes(req.method) && req.headers.origin !== config.publicOrigin) throw new AccessError(403, 'ORIGIN_REQUIRED', 'Mutating requests require the exact public origin.');
     } else {
       if (!localHosts.has(host)) throw new AccessError(403, 'LOCAL_ONLY', 'This server only accepts localhost requests.');
       if (req.headers.origin && req.headers.origin !== `http://${rawHost}` && !config.origins.has(req.headers.origin)) throw new AccessError(403, 'ORIGIN_REJECTED', 'Requests from external origins are not allowed.');
@@ -155,6 +155,36 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
     // Reserve synchronously before awaiting disk, so concurrent duplicates fail.
     replay.set(claims.jti, claims.exp * 1000);
     return claims;
+  }
+  function serviceIdentity(binding, { write = false } = {}) {
+    if (closing || audit && !audit.healthy) throw new AccessError(503, 'ACCESS_UNAVAILABLE', 'Access control is unavailable.');
+    const workspaceId = enterprise ? config.workspaceId : 'local';
+    const role = enterprise ? config.members.get(binding.subject) : binding.subject === 'local-operator' ? 'admin' : null;
+    if (!role || binding.workspaceId !== workspaceId || binding.expiresAt && now() >= Date.parse(binding.expiresAt)) throw denied('SERVICE_CREDENTIAL_REVOKED', 'The credential no longer belongs to an active workspace member.');
+    if (!binding.scopes?.includes('agent:read') || write && (!binding.scopes.includes('agent:submit') || !['admin', 'operator'].includes(role))) throw new AccessError(403, 'ROLE_REQUIRED', 'Your workspace role or Agent scope cannot perform this operation.');
+    return { subject: binding.subject, workspaceId, role, scopes: [...binding.scopes] };
+  }
+  async function beginServiceCredential(req, res, pathname, binding) {
+    if (!pathname.startsWith('/api/agent/v1/')) throw denied('SERVICE_SCOPE_REJECTED');
+    checkBoundary(req, pathname, { serviceCredential: true });
+    // Bearer is an explicit service credential, never an ambient browser session.
+    if (req.headers.cookie || req.headers['x-workspace-session'] || req.headers['x-workspace-assertion']) throw new AccessError(400, 'AMBIGUOUS_CREDENTIAL', 'Use one credential transport.');
+    const identity = serviceIdentity(binding, { write: !['GET', 'HEAD'].includes(req.method) });
+    const context = { ...identity, requestId: randomUUID(), method: req.method, route: '/api/agent/v1/:resource', client: 'agent', finished: false, credentialBinding: binding };
+    const key = `agent:${identity.subject}`, bucket = rate.get(key);
+    const current = bucket && now() < bucket.until ? bucket : { until: now() + 60_000, count: 0 };
+    current.count++; rate.set(key, current);
+    if (current.count > 240) throw new AccessError(429, 'RATE_LIMITED', 'Request rate exceeded. Try again shortly.');
+    if (audit) {
+      await audit.append({ type: 'request.admitted', requestId: context.requestId, workspaceId: identity.workspaceId, actor: identity.subject, role: identity.role, method: req.method, route: context.route, targetHash: hash(req.url), credentialType: 'workspace-agent', scopes: identity.scopes });
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+    }
+    res.setHeader('X-Request-Id', context.requestId);
+    res.accessFinish = async status => {
+      if (context.finished) return; context.finished = true;
+      await audit?.append({ type: 'request.finished', requestId: context.requestId, actor: context.subject, status });
+    };
+    return context;
   }
   function sessionView(context) {
     if (!enterprise) return { mode: 'local', authenticated: true, workspaceId: 'local', user: { id: 'local-operator', role: 'admin' }, csrfToken: null, expiresAt: null, idleExpiresAt: null };
@@ -261,6 +291,12 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
     listAudit(options) {
       if (!audit) return { records: [], nextCursor: 0, latestSequence: 0, integrity: 'disabled-local-mode', externallyAnchored: false };
       try { return audit.list(options); } catch { throw new AccessError(400, 'INVALID_CURSOR', 'Audit cursor and limit must be bounded positive integers.'); }
+    },
+    serviceIdentity, beginServiceCredential,
+    watchServiceStream(context, close) {
+      const valid = () => { try { serviceIdentity(context.credentialBinding); return true; } catch { return false; } };
+      const timer = setInterval(() => { if (!valid()) close(); }, 250); timer.unref();
+      return { valid, stop: () => clearInterval(timer) };
     },
     watchStream(context, close) {
       if (!enterprise) return { valid: () => true, stop: () => {} };
