@@ -1,0 +1,14 @@
+{
+  "source": "a2e12994d68b36a9cffcc95e6e1239c8a0c2dfd1",
+  "attemptedAtUtc": "2026-10-13 09:40 UTC",
+  "preparedHelper": "official library_upload.py with bundled siblings",
+  "requestedFiles": 10,
+  "processExitCode": 1,
+  "failurePhase": "read-only hosted apps tools/list",
+  "message": "network",
+  "prepareOrFinalizeReached": false,
+  "confirmedLibraryFileIds": [],
+  "alternateUploadRouteUsed": false,
+  "fallback": "exact private GitHub repository paths and SHA-256 files per prior user instruction",
+  "helperSha256": "5bc473dadefe1f68ee8797baaed19d6662642d0ea4bcba128fa12938faa0d767"
+}

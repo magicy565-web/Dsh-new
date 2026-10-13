@@ -1,0 +1,63 @@
+{
+  "browserSource": "5c3e81d259658e0f1adfdf037ce9ecd3ae81a12c",
+  "finalEquivalentSource": "a2e12994d68b36a9cffcc95e6e1239c8a0c2dfd1",
+  "sourceStatus": "5c HEAD with unrelated DOM test/helper edits; raw browser receipt preserves actual dirty status",
+  "actualBrowser": "Chromium",
+  "provider": "original Pi SDK with local synthetic provider; 11 fixture dispatches, 0 external real model calls",
+  "screens": [
+    {
+      "path": "final/browser-5c/web/assistant-thread-desktop-1440.png",
+      "sha256": "d3af73b142b1154cf81a1bb0ea32d0c381d86c5b1ab1430aa42cd996f4962a0e",
+      "bytes": 160096,
+      "state": "Main assistant-ui task entry before execution."
+    },
+    {
+      "path": "final/browser-5c/web/assistant-thread-390.png",
+      "sha256": "e5e7624be609d0bd388d32d8b521d8ccf970ea79277fb02ca4e0f43062db97c9",
+      "bytes": 63982,
+      "state": "Completed local Pi task; expanded original tool/plan/input/files, 390px."
+    },
+    {
+      "path": "final/browser-5c/web/assistant-thread-1440.png",
+      "sha256": "a9d10f9dca6040947cbcbd6b5a9e2b9f8e34cc2661d17521376d2573821ae626",
+      "bytes": 112780,
+      "state": "Completed local Pi task; expanded original tool/plan/input/files, 1440px."
+    },
+    {
+      "path": "final/browser-5c/web/assistant-goal-pi-start.png",
+      "sha256": "0d0e82572dfd03afd523153e52c54fc141f3278fcc6c61dc4399819a83493acd",
+      "bytes": 83281,
+      "state": "Primary GoalFocus start accepted by original Pi; screenshot captures RUNNING. Later review_required and exact output download are asserted in acceptance.json."
+    },
+    {
+      "path": "final/browser-5c/web/assistant-exact-local-approval.png",
+      "sha256": "9006bab2d5e3aa7aea941b3f95008c37914948b8379aaadd3215e2b617a675c1",
+      "bytes": 191876,
+      "state": "Original exact action approval; continue remains a separate explicit step."
+    },
+    {
+      "path": "final/browser-5c/web/assistant-original-checkpoint-recovery.png",
+      "sha256": "c1a610c3f82aa3201eb4f34d4b62396c8a8046bebd542dd0dfb537a28355bf0b",
+      "bytes": 173226,
+      "state": "Original interrupted run recovery control; host restart alone performs no model dispatch."
+    },
+    {
+      "path": "final/browser-5c/web/assistant-unknown-submit-original-request.png",
+      "sha256": "e23f797195eb73ce6f278a86e99282eea897d7ab1d8c4150a09e96bade4e89e3",
+      "bytes": 184220,
+      "state": "Unknown HTTP acknowledgment; retry retains same original submission/body and produces no extra run."
+    },
+    {
+      "path": "final/browser-5c/web/assistant-unconfigured-blocked-390.png",
+      "sha256": "b12a677d3c47939db4a831b94fbf0634fa34b5eb5fccd25b04f20a2474c82121",
+      "bytes": 62475,
+      "state": "Actual unconfigured provider blocked state, zero dispatch/results."
+    },
+    {
+      "path": "final/browser-5c/web/assistant-actual-enterprise-viewer-390.png",
+      "sha256": "ca0863acf0df55ef6aa41ae34a01027e0b746a8031f3e26e10a6b669625893aa",
+      "bytes": 64184,
+      "state": "Actual original enterprise viewer session with disabled execution; original signed Host rejects 403."
+    }
+  ]
+}

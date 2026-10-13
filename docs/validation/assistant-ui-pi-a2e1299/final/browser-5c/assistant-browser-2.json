@@ -1,0 +1,34 @@
+{
+  "name": "assistant-browser-2",
+  "command": [
+    "env",
+    "CHROMIUM_PATH=/usr/bin/chromium",
+    "CHROMIUM_NO_SANDBOX=1",
+    "node",
+    "test/assistant-workspace.browser.mjs",
+    "/tmp/workspace-launch-20261013/assistant-final-5c3e81d/web-attempt-2"
+  ],
+  "sourceBefore": "5c3e81d259658e0f1adfdf037ce9ecd3ae81a12c",
+  "treeBefore": "c41b0e13f4fc7e1fa4dbc1f931077c5c7f65d42b",
+  "statusBefore": "M test/conversation-integration.dom.test.mjs\n M test/fixtures/conversation-ui.mjs\n M test/supply-commerce-ui.dom.test.mjs\n M test/ui.dom.test.mjs\n?? test/fixtures/browser-platform.mjs",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T09:25:05.385021+00:00",
+  "exitCode": 0,
+  "durationSeconds": 24.55,
+  "sourceAfter": "5c3e81d259658e0f1adfdf037ce9ecd3ae81a12c",
+  "statusAfter": "M test/conversation-integration.dom.test.mjs\n M test/fixtures/conversation-ui.mjs\n M test/supply-commerce-ui.dom.test.mjs\n M test/ui.dom.test.mjs\n?? test/fixtures/browser-platform.mjs",
+  "finishedAt": "2026-10-13T09:25:29.942747+00:00",
+  "log": "assistant-browser-2.log",
+  "logSha256": "16766bf60dfe98124b71ee64343b721ec8f09423b06a33a1e40512b60643a362",
+  "counts": {}
+}

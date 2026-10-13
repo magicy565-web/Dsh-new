@@ -1,0 +1,66 @@
+{
+  "gitHeadAtCheck": "e082e2a9d7a82f47dc548153f2283ce637737187",
+  "workingTreeCandidate": true,
+  "recordedAt": "2026-10-13T09:13:31.192815+00:00",
+  "assistantUiVersion": "0.15.28",
+  "sourceFiles": [
+    {
+      "path": "src/assistant/WorkspaceAssistantRuntime.tsx",
+      "sha256": "d63e3df002ef2488d09cc3a269959c5351f34f643ab2d94170bd7526af8aea9b"
+    },
+    {
+      "path": "src/assistant/workspaceRuntimeAdapter.ts",
+      "sha256": "c9641ab82f43559edafc22683f5cff69ec01133e604260dc5c8a86102fe1c4d3"
+    },
+    {
+      "path": "test/assistant-runtime-adapter.test.mjs",
+      "sha256": "fbfd85e1d71c0a074b9c50cca37676a4e89181035318459d9e22468da730641d"
+    }
+  ],
+  "checks": [
+    {
+      "command": "node node_modules/typescript/bin/tsc --ignoreConfig --noEmit --jsx react-jsx --moduleResolution bundler --module esnext --target es2022 --skipLibCheck --esModuleInterop --strict src/assistant/WorkspaceAssistantRuntime.tsx src/assistant/workspaceRuntimeAdapter.ts",
+      "exitCode": 0,
+      "log": "owned-types.log"
+    },
+    {
+      "command": "node --experimental-strip-types --test /tmp/workspace-launch-20261013/assistant-ui-adapter/owned-adapter.test.mjs",
+      "pass": 6,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0,
+      "log": "owned-adapter-tests.log"
+    },
+    {
+      "command": "node --test test/assistant-runtime-adapter.test.mjs",
+      "pass": 6,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0,
+      "log": "submittable-adapter-tests.log"
+    }
+  ],
+  "limitations": [
+    "Adapter tests are focused state/protocol tests; real browser/end-to-end Pi tests belong to the parent integration candidate.",
+    "No build, model call, credentials, external deployment, independent review or source commit/push was performed by this adapter agent."
+  ],
+  "payloadFiles": [
+    {
+      "path": "owned-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "owned-adapter-tests.log",
+      "sha256": "28de8e36ce9f81c463f18a33bc1639d48b4d6d8e4ccf51864d2ba446d0fa4228"
+    },
+    {
+      "path": "owned-adapter.test.mjs",
+      "sha256": "fde4de798058f4ab0b8dae3670b1a345b35fe91bafb9483832371848e64b7321"
+    },
+    {
+      "path": "submittable-adapter-tests.log",
+      "sha256": "0766737c96830d48515e31fe7ebc4f0f9aa37bfd35961c805e6d4cc687b65d47"
+    }
+  ],
+  "sourceWritingStopped": true
+}

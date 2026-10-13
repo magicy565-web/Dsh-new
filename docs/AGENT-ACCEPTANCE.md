@@ -2,14 +2,18 @@
 
 ## 当前状态
 
-**原 Work 环境的组合基线已通过；当前产品增量 `017cf20` 的构建、后端与会话回归及真实浏览器验证也已完成。整体仍为 release_blocked，独立审查与真实生产验收未完成。**
+**原 Work 环境的组合基线已通过；最新 assistant-ui / 原 Pi 产品流程已完成构建、全后端及真实 Chromium 合成验收。最终源码为 `a2e12994d68b36a9cffcc95e6e1239c8a0c2dfd1`。整体仍为 release_blocked，独立审查与真实生产验收未完成。**
+
+最新主入口使用 pinned `@assistant-ui/react 0.15.28` / ExternalStoreRuntime，默认结构化任务并保留原 Store/API/SSE/Pi Durable、身份、预算、同键重试和批准后独立继续。GoalFocus 主启动接纳原 Pi；真实工具阶段只来自原 ToolTask，不显示参数/结果私有内容。公司 Library 引用仍仅本地关联，原政策继续禁止私有字节发送，实际任务采用用户明确公共输入。
+
+干净 c7 实际构建通过、后端759通过/7条件跳过/0失败、Agent41/41、Python27/27；5c实际 Chromium 11流程/9截图/0页面错误、11次本地合成 SDK dispatch/0外部真实模型。最终干净 a2e DOM51/51。c7到a2e只有浏览器driver/DOM测试修正，应用和锁文件逐字节不变；记录保留各自真实SHA与dirty状态。[最新来源及验收索引](validation/assistant-ui-pi-a2e1299/README.md)、[手机成果](validation/assistant-ui-pi-a2e1299/final/browser-5c/web/assistant-thread-390.png)、[桌面成果](validation/assistant-ui-pi-a2e1299/final/browser-5c/web/assistant-thread-1440.png)、[当前构建包](../deliverables/assistant-ui-pi-a2e1299/Workspace-AssistantUI-Frontend-a2e1299.zip)。未部署、无已验证外部预览URL。S的CI38377402798仍startup_failure/jobs=[]。
 
 - 唯一集成 PR：[PR60](https://github.com/magicy565-web/workspace-agent/pull/60)。初始基线 PR59 `18cc80aca0f88a68fb96d2f1d960897f8a48dac2`，后通过双父提交 `9f808f202ce825a2ab647f11456eb5dbcf8fe76e` 同步 PR59 的原生 Host/Muse 新修复 `32c8ce98fe28cda1e22a16bf0d1088c768e081c8`，且未覆盖其源码。下列历史段落记录源码接口阶段；组合基线 `13b268edebbc3a26dd7e4197dfecb2dde37d3164` 及其文档交付 `3f84eb0103db8b3e41e8cebdee8d1f37095c9ac5` 保留原身份。最新源码和实际运行在下一节单列。
 - 选择性来源：PR47 `1e0cc43d973b5d10861561f2cd4979065d5f33f6`。
 - 本次的代码边界、唯一权威和部署限制见 [AGENT-UNIFIED-HANDOFF.md](AGENT-UNIFIED-HANDOFF.md)。
 - 未重建商城/供应商库/计划/通知、模型循环、商业 Task Store 或另一个后端；PR59 是业务和界面权威。
 
-## 当前产品增量：固定资料检查、原准备事务及可看前端
+## 保留：017cf20 固定资料检查、原准备事务及可看前端
 
 最新测试源码 S2 为 **`017cf2030836398513319a7c910c6ad732e43b16`**，tree `9829e53955063f5a4a321e14ae71d880b85276f8`。已修复点击会话固定资料 v1 却预览/下载当前 v2 的真实缺陷；缺失版本明确拒绝，旧产品 r1 检查当前 r2 时说明实际版本并要求显式重选。Muse 原准备意图在 Store 事务内重检同一 pinned input，普通删除竞态拒绝落单。没有另一个业务引擎或权限升级。
 

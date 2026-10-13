@@ -1,0 +1,31 @@
+{
+  "name": "python",
+  "command": [
+    "npm",
+    "run",
+    "test:agent:client"
+  ],
+  "sourceBefore": "c7ebab587c7e57708109b4ad825ab75b35a5f80e",
+  "treeBefore": "8ac9b751d5099591c32c3b94a9bbe0f453c13c71",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T09:19:15.377308+00:00",
+  "exitCode": 0,
+  "durationSeconds": 3.397,
+  "sourceAfter": "c7ebab587c7e57708109b4ad825ab75b35a5f80e",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T09:19:18.797153+00:00",
+  "log": "python.log",
+  "logSha256": "8828768762d30560b16d8df5dd2ab695105c72dd0a577134a570183b85b0a473",
+  "counts": {}
+}

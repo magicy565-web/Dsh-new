@@ -1,0 +1,25 @@
+{
+  "applicationAndBuildSource": "c7ebab587c7e57708109b4ad825ab75b35a5f80e",
+  "finalEquivalentSource": "a2e12994d68b36a9cffcc95e6e1239c8a0c2dfd1",
+  "sourceFingerprint": "e3d4ce4754cc9e5e12718d8e7f7b463f951ec67a8f41f86d153a78ea27aa5d58",
+  "buildReceipt": "docs/validation/assistant-ui-pi-a2e1299/final/core-c7/build.json",
+  "files": [
+    {
+      "path": "dist/assets/index-B4fFXIWI.css",
+      "bytes": 209841,
+      "sha256": "69b9f38891ba65e8189e450a7e13fc9585b1e606a90cb6176c5e042b11c0475a"
+    },
+    {
+      "path": "dist/assets/index-vQ-KKCMo.js",
+      "bytes": 862431,
+      "sha256": "0c4458ca7d4ea70041880c22082b7e5de534674e5e50ebf6f679b659ccf661d0"
+    },
+    {
+      "path": "dist/index.html",
+      "bytes": 541,
+      "sha256": "c329e1cd8bd7e42c2c657e733bf36d7ec05f9d52df1ca86943a0ad88ca32606c"
+    }
+  ],
+  "apiRequirement": "Original same-origin Workspace Host/API/identity; this is not a standalone offline delegated app.",
+  "deployment": "Not deployed; no verified user-accessible preview URL."
+}
