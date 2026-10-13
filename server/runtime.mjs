@@ -155,6 +155,10 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
   }
   function matchesExecution(state, run) { return Boolean(run && run.executionHash === capabilityPayloadHash(executionScope(state, run))); }
   const scopeChangedError = { code: 'EXECUTION_SCOPE_CHANGED', message: 'The model, runtime mode or reviewed permission profile changed after this run was admitted. Review it and explicitly retry; no request was started.' };
+  // Agent stages share the original Pi Host but not the ordinary chat/Goal
+  // mutation routes. The original business task is the sole coordinator.
+  const agentConversation = (state, id) => Boolean(state.workspaceAgentTasks?.tasks?.some(task => task.conversationId === id));
+  const agentConversationRouteError = () => new ApiError(409, 'AGENT_TASK_ROUTE_REQUIRED', 'Use the existing Agent business task for this Pi conversation; ordinary chat or Goal mutations cannot change it.');
   function addRun(state, run, admittedContext = null) {
     if (run.status === 'queued' && state.runs.filter(item => item.status === 'queued').length >= maxQueuedRuns) throw new ApiError(429, 'QUEUE_FULL', 'The run queue is full. Wait for work to finish.');
     const execution = executionScope(state, admittedContext || run);
@@ -527,8 +531,22 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       }
       return result;
     },
-    async retryRun(id, body = {}) { const run = required(store.read(), 'runs', id); if (pi && run.status === 'interrupted' && run.assistantId) return this.recoverPiRun(id, body); if (run.agentPresetContext) throw new ApiError(409, 'AGENT_RECOVERY_REQUIRED', 'Recover through the original Agent task; do not admit its context as ordinary chat.'); if (run.supplierDraftContext) throw new ApiError(409, 'SUPPLIER_CLARIFICATION_REQUIRED', 'Clarify through the original supplier service; never replay it as ordinary chat.'); if (run.museDraftContext) throw new ApiError(409, 'MUSE_DRAFT_CLARIFICATION_REQUIRED', 'Clarify the original draft with its current revision; do not retry it as ordinary Pi message.'); if (!['failed', 'blocked', 'interrupted', 'paused'].includes(run.status)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only stopped or failed runs can be retried.'); if (run.goalId) return this.updateGoal(run.goalId, { action: 'resume', requestId: body.requestId, queued: body.queued }); const message = store.read().messages.find(item => item.conversationId === run.conversationId && item.role === 'user' && item.requestId === run.requestId); if (!message) throw new ApiError(404, 'NOT_FOUND', 'The original input no longer exists.'); return this.sendMessage(run.conversationId, { content: message.content, requestId: body.requestId, queued: body.queued, ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true }); },
-    async resetSession(id) { ensureOpen(); return store.update(state => { const item = required(state, 'conversations', id); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current request before resetting native session continuity.'); const previous = item.nativeSessionId || null; item.nativeSessionId = null; item.updatedAt = now(); activity(state, 'session_reset', 'New native session requested', 'Future requests start a new native session using saved visible context.', { conversationId: id, previousNativeSessionId: previous }); return { conversation: item }; }); },
+    async retryRun(id, body = {}) {
+      const run = required(store.read(), 'runs', id);
+      // This HTTP-facing method must never reattach an Agent Pi submission:
+      // the business task coordinator requires a fresh authenticated /resume.
+      if (run.agentPresetContext || run.agentTaskId) throw new ApiError(409, 'AGENT_RECOVERY_REQUIRED', 'Recover through the original Agent task; do not admit its context as ordinary chat.');
+      if (pi && run.status === 'interrupted' && run.assistantId) return this.recoverPiRun(id, body);
+      if (run.supplierDraftContext) throw new ApiError(409, 'SUPPLIER_CLARIFICATION_REQUIRED', 'Clarify through the original supplier service; never replay it as ordinary chat.');
+      if (run.museDraftContext) throw new ApiError(409, 'MUSE_DRAFT_CLARIFICATION_REQUIRED', 'Clarify the original draft with its current revision; do not retry it as ordinary Pi message.');
+      if (!['failed', 'blocked', 'interrupted', 'paused'].includes(run.status)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only stopped or failed runs can be retried.');
+      if (run.goalId) return this.updateGoal(run.goalId, { action: 'resume', requestId: body.requestId, queued: body.queued });
+      const message = store.read().messages.find(item => item.conversationId === run.conversationId && item.role === 'user' && item.requestId === run.requestId);
+      if (!message) throw new ApiError(404, 'NOT_FOUND', 'The original input no longer exists.');
+      return this.sendMessage(run.conversationId, { content: message.content, requestId: body.requestId, queued: body.queued,
+        ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true });
+    },
+    async resetSession(id) { ensureOpen(); return store.update(state => { const item = required(state, 'conversations', id); if (agentConversation(state, id)) throw agentConversationRouteError(); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current request before resetting native session continuity.'); const previous = item.nativeSessionId || null; item.nativeSessionId = null; item.updatedAt = now(); activity(state, 'session_reset', 'New native session requested', 'Future requests start a new native session using saved visible context.', { conversationId: id, previousNativeSessionId: previous }); return { conversation: item }; }); },
     async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }) {
       ensureOpen();
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['title', 'inputContext', 'requestId'].includes(key))) throw new ApiError(400, 'INVALID_INPUT', 'Create a conversation with title, optional inputContext and requestId only.');
@@ -563,7 +581,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const inputContext = normalizeInputContext(body.inputContext);
       const snapshot = store.read(); required(snapshot, 'conversations', id);
       const prepared = await prepareRunInput(snapshot, id, inputContext);
-      return store.update(state => { const item = required(state, 'conversations', id); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop or finish this run before changing its selected inputs.'); assertInputContextSnapshot(state, id, prepared.inputContextSnapshot); bridge.assertGrants(state, prepared.connectorGrants); item.inputContext = inputContext; item.updatedAt = now(); return { conversation: item }; });
+      return store.update(state => { const item = required(state, 'conversations', id); if (agentConversation(state, id)) throw agentConversationRouteError(); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop or finish this run before changing its selected inputs.'); assertInputContextSnapshot(state, id, prepared.inputContextSnapshot); bridge.assertGrants(state, prepared.connectorGrants); item.inputContext = inputContext; item.updatedAt = now(); return { conversation: item }; });
     },
     async resolveRunAction(id, body) {
       ensureOpen();
@@ -610,6 +628,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       let runId;
       await store.update(state => {
         const item = required(state, 'conversations', id); runId = item.activeRunId;
+        if (agentConversation(state, id)) throw agentConversationRouteError();
         stopRun(state, runId);
         state.conversations = state.conversations.filter(item => item.id !== id);
         state.messages = state.messages.filter(item => item.conversationId !== id);
@@ -634,6 +653,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       let start = false; let queued = false;
       const result = await store.update(state => {
         const item = required(state, 'conversations', id);
+        if (agentConversation(state, id) && !agentPresetContext) throw agentConversationRouteError();
         const existing = state.messages.find(message => message.conversationId === id && message.role === 'user' && message.requestId === key);
         if (existing) {
           if (existing.content !== content || existing.inputHash && existing.inputHash !== inputHash) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'This requestId was already used for different content.');
@@ -694,6 +714,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
           return { goal: existing, duplicate: true };
         }
         const item = body.conversationId ? required(state, 'conversations', body.conversationId) : conversation(state, title);
+        if (agentConversation(state, item.id)) throw agentConversationRouteError();
         if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Wait for or stop the current request before adding a goal here.');
         const goal = { id: randomUUID(), ...(selected !== undefined ? { inputContext: selected } : {}), title, description, conversationId: item.id, status: 'draft', stepCount: 0, maxSteps, maxOutputTokens, outputTokens: 0, output: '', nextStep: '', lastError: null, createdAt: now(), updatedAt: now(), revision: 0, runId: null, requestId: key, actionRequests: [] };
         state.goals.push(goal);
