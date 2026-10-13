@@ -49,7 +49,8 @@
     "agent:start": "node --env-file-if-exists=.env server/agent-main.mjs",
     "test:agent": "node --test test/agent-service.http.test.mjs test/agent-workspace.integration.test.mjs test/agent-pi-runtime.test.mjs test/agent-pi-service.http.test.mjs test/agent-owner-policy.test.mjs test/agent-research.test.mjs test/agent-unified-host.http.test.mjs test/agent-coordinator-explicit-recovery.test.mjs test/agent-projection-linkage.test.mjs",
     "test:agent:acceptance": "node test/agent-service.acceptance.mjs",
-    "test:agent:client": "python3 test/agent-client.test.py"
+    "test:agent:client": "python3 test/agent-client.test.py",
+    "agent:tui": "node scripts/pi-workspace-tui.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.28",
@@ -58,7 +59,9 @@
     "@earendil-works/pi-ai": "1.1.0",
     "@earendil-works/pi-durable": "1.1.0",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "@earendil-works/pi-coding-agent": "1.1.0",
+    "@earendil-works/pi-tui": "1.1.0"
   },
   "devDependencies": {
     "@types/react": "18.3.31",
@@ -68,5 +71,16 @@
     "playwright": "1.61.1",
     "typescript": "6.0.3",
     "vite": "8.0.16"
+  },
+  "overrides": {
+    "@earendil-works/chord": "1.1.0",
+    "@earendil-works/pi-agent-core": "1.1.0",
+    "@earendil-works/pi-ai": "1.1.0",
+    "@earendil-works/pi-durable": "1.1.0",
+    "@earendil-works/pi-coding-agent": "1.1.0",
+    "@earendil-works/pi-codemode": "1.1.0",
+    "@earendil-works/pi-mcp": "1.1.0",
+    "@earendil-works/pi-tui": "1.1.0",
+    "@earendil-works/pi-telemetry": "1.1.0"
   }
 }

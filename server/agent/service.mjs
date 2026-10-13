@@ -7,6 +7,7 @@ import { createAgentCoordinator } from './engine.mjs';
 import { loadPresets, listPresets, getPreset, validateTaskInput } from './presets.mjs';
 import { renderInstall, pluginManifest } from './install.mjs';
 import { createAgentUiPolicy, createAgentUiHandler } from './ui.mjs';
+import { createPiTaskApi } from './pi-task.mjs';
 
 export const AGENT_VERSION = '1.1.0-pi';
 export const AGENT_API_BASE = '/api/agent/v1';
@@ -72,12 +73,14 @@ export async function createAgentService({ env = process.env, dataDir, principal
   const presets = await loadPresets({ directory: env.WS_AGENT_PRESETS_DIR || path.join(root, 'presets/agent') });
   const store = await openAgentStore(path.resolve(dataDir || env.WS_AGENT_DATA || path.join(root, '.data/agent')));
   const uiPolicy = createAgentUiPolicy({ env, auth, access, workspaceStore, artifacts, provider, presets });
-  let engine, releaseUiAuthority;
+  let engine, releaseUiAuthority, releasePiTaskAuthority;
   try {
     releaseUiAuthority = provider.bindAgentUiAuthorization?.(uiPolicy.authorizeInvocation);
+    releasePiTaskAuthority = provider.bindPiTaskAuthorization?.(auth.authorizePiTask);
     engine = await createAgentCoordinator({ store: workspaceStore, runtime, provider, projection: store, auth, env, validateUiApproval: uiPolicy.validateApproval });
   }
-  catch (error) { releaseUiAuthority?.(); await store.close(); throw error; }
+  catch (error) { releaseUiAuthority?.(); releasePiTaskAuthority?.(); await store.close(); throw error; }
+  const piTasks = createPiTaskApi({ auth, runtime, store: workspaceStore, provider });
   const streams = new Set(); let closing = false, closePromise;
   const mode = engine.demo ? 'demo' : 'model';
   const health = () => ({ status: closing ? 'stopping' : 'ok', version: AGENT_VERSION, mode, model: mode === 'model' ? provider.model || null : null,
@@ -136,6 +139,7 @@ export async function createAgentService({ env = process.env, dataDir, principal
         return true;
       }
       const actor = await auth.authenticate(req, res, AGENT_API_BASE + endpoint);
+      if (await piTasks.handle({ endpoint, req, res, actor, readJson, json })) return true;
       const query = new URL(req.url, 'http://localhost').searchParams;
       if (req.method === 'GET' && endpoint === '/presets') { await json(res, 200, listPresets(presets)); return true; }
       if (req.method === 'POST' && endpoint === '/tasks') {
@@ -210,7 +214,7 @@ export async function createAgentService({ env = process.env, dataDir, principal
   return { handle, handleUi, store, engine, presets, health,
     close() {
       if (closePromise) return closePromise;
-      closing = true; releaseUiAuthority?.();
+      closing = true; releaseUiAuthority?.(); releasePiTaskAuthority?.();
       closePromise = (async () => { for (const res of streams) res.end(); await engine.close(); await store.close(); })();
       return closePromise;
     },

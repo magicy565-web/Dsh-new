@@ -16,6 +16,7 @@ import { capabilityPayloadHash } from './capabilities.mjs';
 import { assertInputContextSnapshot } from './task-context.mjs';
 import { openAIUsage, explicitPiUsage, requestAllowance, invocationUsage, PI_REQUEST_LIMIT } from './pi-usage.mjs';
 import { MUSE_DRAFT_FIELDS, normalizeDraftProposal, assertDraftInvocation } from './muse-draft.mjs';
+import { createWorkspaceSubagentExtension } from './pi-subagent.mjs';
 
 export const PI_SOURCE = 'abe508e1b89912adde45528136c3221eb69acdd7';
 export const PI_VERSION = '1.1.0';
@@ -77,7 +78,11 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
   const modelRef = models.getModel(providerId, model);
   const opened = new Map(), opening = new Map(), activeCalls = new Map();
   let store, directory, closing = false, closePromise;
-  let agentUiAuthority = null, agentUiAuthorityBound = false;
+  let agentUiAuthority = null, agentUiAuthorityBound = false, piTaskAuthority = null, piTaskAuthorityBound = false;
+  const piTaskPermissionFingerprint = capabilityPayloadHash({ ...POLICY, endpointFingerprint, source: PI_SOURCE,
+    recipient: { provider: providerId, model, destination: modelRef?.baseUrl || endpoint },
+    tools: ['workspace_input', 'workspace_propose_action', 'workspace_delegate'], piTask: 'member-bound-v1',
+    delegation: 'official-owned-foreground-no-tools-same-budget-one-per-invocation' });
   function assertActive(active, dispatchModel) {
     if (closing || !active) fail('PI_NOT_ADMITTED', 'No active Workspace invocation authorizes this Pi operation.');
     const state = store.read(), run = state.runs.find(value => value.id === active.runId);
@@ -87,6 +92,11 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
     assertDraftInvocation(state, run);
     if (run.supplierDraftContext) { const row = state.workspaceSupplierServices?.services.find(item => item.id === run.supplierDraftContext.serviceId); if (!row || row.cancelledAt || row.rejectedAt || row.revision !== run.supplierDraftContext.revision) fail('PI_NOT_ADMITTED', 'The original supplier intake was stopped or changed.'); }
     assertAgentPresetInvocation(state, run);
+    if (run.piTaskContext) {
+      if (!piTaskAuthority) fail('PI_TASK_AUTHORIZATION_REVOKED', 'Original member-bound Pi task authorization is unavailable.');
+      try { piTaskAuthority(run.piTaskContext); } catch { fail('PI_TASK_AUTHORIZATION_REVOKED', 'The original Pi task member, role or permission binding changed.'); }
+      if (dispatchModel && (dispatchModel.provider !== providerId || dispatchModel.id !== model)) fail('EXECUTION_SCOPE_CHANGED', 'The original Pi task model destination changed.');
+    }
     const uiTask = run.agentPresetContext && state.workspaceAgentTasks?.tasks.find(task => task.id === run.agentPresetContext.taskId && task.uiApproval);
     if (uiTask) {
       if (!agentUiAuthority) fail('AGENT_UI_AUTHORITY_UNAVAILABLE', 'Original Agent UI authorization is unavailable.');
@@ -113,7 +123,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         return result;
       }
       async function observeTool(call, phase) {
-        if (!state.observer || !state.active || !['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research'].includes(call.name)
+        if (!state.observer || !state.active || !['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research', 'workspace_delegate'].includes(call.name)
           || typeof call.id !== 'string' || !call.id || call.id.length > 256) return;
         // Public progress only: never expose input bytes, arguments, results or reasoning.
         await state.observer({ type: `pi.tool.${phase}`, toolName: call.name,
@@ -404,6 +414,28 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         } }, abort: async (_task, runtime, taskContext) => {
           await runtime.commit(() => ({ status: 'terminal', outcome: { status: 'aborted' } }), taskContext);
         } });
+      const delegation = createWorkspaceSubagentExtension({
+        admit: async (_args, api, callContext) => {
+          const run = assertActive(state.active);
+          if (!run.piTaskContext?.allowSubagents) fail('PI_TOOL_PERMISSION', 'This original task did not authorize foreground delegation.');
+          await api.commit(async tx => {
+            const active = (await tx.doc(RecordDoc, state.root.id)).active;
+            const requests = active.delegationRequests || [];
+            if (!requests.includes(api.taskId)) {
+              if (requests.length >= 1) fail('TOKEN_BUDGET', 'Only one original foreground child is allowed per invocation.');
+              active.delegationRequests = [...requests, api.taskId];
+            }
+          }, callContext);
+        },
+        settle: async (receipt, api, callContext) => {
+          assertActive(state.active);
+          await api.commit(async tx => {
+            const active = (await tx.doc(RecordDoc, state.root.id)).active;
+            const receipts = active.delegations || [];
+            if (!receipts.some(item => item.ownerToolTaskId === receipt.ownerToolTaskId)) active.delegations = [...receipts, receipt];
+          }, callContext);
+        },
+      });
       const extension = defineExtension({ name: 'workspace-governed', tasks: [nativeTask], tools: [input, propose, draftProposal, supplierProposal, presetProposal, research], hooks: [
         hook(GenerationTask, { beforeRequest: async (request, api, callContext) => {
           assertActive(state.active);
@@ -416,6 +448,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         hook(ToolTask, { beforeTool: async call => {
           const run = assertActive(state.active);
           const allowed = run.agentPresetContext ? ['workspace_complete_preset_stage', ...(run.agentPresetContext.researchCapabilities.includes('web_search') ? ['workspace_research'] : [])] : run.supplierDraftContext ? ['workspace_input', 'workspace_propose_supplier_profile'] : run.museDraftContext ? ['workspace_input', 'workspace_propose_muse_draft'] : ['workspace_input', 'workspace_propose_action'];
+          if (run.piTaskContext?.allowSubagents) allowed.push('workspace_delegate');
           if (!allowed.includes(call.name)) return { block: 'Only the admitted Workspace input/proposal tools are permitted.' };
           await observeTool(call, 'started');
         }, afterTool: async (call, result) => {
@@ -423,6 +456,8 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         } }),
       ] });
       registry.install(extension);
+      registry.install(delegation.extension);
+      state.delegation = delegation;
       state.nativeTask = nativeTask; state.extension = extension; state.input = input; state.propose = propose; state.draftProposal = draftProposal; state.supplierProposal = supplierProposal; state.presetProposal = presetProposal; state.research = research;
       try {
         harness = await Harness.open(storage, { models: governedModels, registry, settings: { retry: { enabled: false, maxRetries: 0 }, compaction: { enabled: false }, toolExecution: 'sequential', stream: { timeoutMs, maxRetries: 0 } } }, context);
@@ -437,13 +472,18 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
   }
   return {
     kind: 'pi-durable', nativeAgentLoop: true, provider: 'pi', configured: Boolean(suppliedModels ? modelRef : apiKey.trim()), model, models: [model],
-    researchCapabilities, endpointFingerprint, legacyPolicyCompatible,
+    researchCapabilities, endpointFingerprint, legacyPolicyCompatible, piTaskPermissionFingerprint,
     // Exact non-secret recipient disclosure for the authenticated Agent UI.
     agentUiRecipient: Object.freeze({ kind: 'pi-durable', provider: providerId, model, destination: suppliedModels ? modelRef?.baseUrl || null : endpoint }),
     bindAgentUiAuthorization(check) {
       if (agentUiAuthorityBound || !store || typeof check !== 'function') throw new Error('Agent UI authority binds once to the initialized original Store.');
       agentUiAuthorityBound = true; agentUiAuthority = check;
       return () => { agentUiAuthority = null; };
+    },
+    bindPiTaskAuthorization(check) {
+      if (piTaskAuthorityBound || !store || typeof check !== 'function') throw new Error('Pi task authority binds once to the initialized original Store.');
+      piTaskAuthorityBound = true; piTaskAuthority = check;
+      return () => { piTaskAuthority = null; };
     },
     permissionFingerprint: ordinaryPermissionFingerprint,
     agentPermissionFingerprint,
@@ -483,7 +523,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
       }
       let abortPromise;
       const localStop = new AbortController();
-      const operation = { stop: () => localStop.abort('SHUTDOWN') };
+      const operation = { stop: () => localStop.abort('SHUTDOWN'), pendingAbort: () => abortPromise };
       activeCalls.set(conversationId, operation);
       state.observer = onEvent;
       const cancelled = () => {
@@ -508,8 +548,12 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
             : { role: 'user', content: value.content, timestamp: Date.now() });
           state.active = { ...scope, requestId, requests: [], messages: canonical, systemPrompt, nativeExecution: 'agent-prompt', nativeRounds: [], nativeTools: {},
             prompt: { role: 'user', content: 'Continue the admitted Workspace request using only its selected inputs and permissions.', timestamp: Date.now() } };
+          const selectedTools = scope.agentPreset ? [state.presetProposal, ...(run.agentPresetContext.researchCapabilities.includes('web_search') ? [state.research] : [])]
+            : scope.supplierDraft ? [state.input, state.supplierProposal] : scope.museDraft ? [state.input, state.draftProposal]
+              : json ? [state.input, state.propose] : [state.input];
+          if (run.piTaskContext?.allowSubagents) selectedTools.push(state.delegation.tool);
           await state.root.configure({ model: { provider: providerId, modelId: model }, instructions: systemPrompt,
-            tools: scope.agentPreset ? [state.presetProposal, ...(run.agentPresetContext.researchCapabilities.includes('web_search') ? [state.research] : [])] : scope.supplierDraft ? [state.input, state.supplierProposal] : scope.museDraft ? [state.input, state.draftProposal] : json ? [state.input, state.propose] : [state.input], extensions: [state.extension] }, context);
+            tools: selectedTools, extensions: [state.extension, ...(run.piTaskContext?.allowSubagents ? [state.delegation.extension] : [])] }, context);
           await state.root.commit(async tx => { (await tx.doc(RecordDoc, state.root.id)).active = state.active; }, context);
         }
         if (signal?.aborted) cancelled();
@@ -561,7 +605,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         if (!content?.trim() || content.length > 80000 || apiKey && content.includes(apiKey)) fail('INVALID_RESPONSE', 'Pi returned an invalid visible answer.');
         const totals = invocationUsage(finalDoc.active.requests);
         return { content, usage: totals, ...(!legacy ? { agentLoopComplete: true, actionProposal: Boolean(finalDoc.active.proposal) } : {}), ...(scope.museDraft ? { museDraftProposal: clone(finalDoc.active.museDraftProposal) } : {}), ...(scope.supplierDraft ? { supplierProposal: clone(finalDoc.active.supplierProposal) } : {}), ...(scope.agentPreset ? { agentPresetProposal: clone(finalDoc.active.agentPresetProposal), agentResearchReceipts: clone(finalDoc.active.researchReceipts || []) } : {}), runtime: { kind: 'pi-durable', version: PI_VERSION, source: PI_SOURCE,
-          ...(legacy ? { execution: 'legacy-submission', submissionId: submission.id } : { execution: 'agent-prompt', nativeTaskId, modelTurns: nativeOutcome.result.turns, providerSessionId: nativeOutcome.result.sessionId }), replayed: reattaching } };
+          ...(legacy ? { execution: 'legacy-submission', submissionId: submission.id } : { execution: 'agent-prompt', nativeTaskId, modelTurns: nativeOutcome.result.turns, providerSessionId: nativeOutcome.result.sessionId, ...(finalDoc.active.delegations?.length ? { delegations: clone(finalDoc.active.delegations) } : {}) }), replayed: reattaching } };
       } catch (error) {
         await abortPromise?.catch(() => {});
         if (localStop.signal.aborted || signal?.aborted) fail('CANCELLED', 'The request was stopped.');
@@ -572,9 +616,13 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
     close() {
       if (closePromise) return closePromise;
       closing = true;
-      for (const value of activeCalls.values()) value.stop();
+      const calls = [...activeCalls.values()];
+      for (const value of calls) value.stop();
       closePromise = (async () => {
         await Promise.allSettled([...opening.values()]);
+        // Explicit user cancellation already owns an upstream subtree abort.
+        // Join it before close freezes scheduling; normal shutdown still preserves work.
+        await Promise.all(calls.map(value => value.pendingAbort()));
         for (const state of opened.values()) { await state.harness.close(context); await privateDirectory(state.location); }
         opened.clear();
       })();

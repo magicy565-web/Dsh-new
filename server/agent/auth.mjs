@@ -71,6 +71,22 @@ export function createAgentAuth({ principals, env = process.env, access, reserve
       const context = await access.beginServiceCredential(req, res, pathname, selected.binding);
       return { ...context, legacyAccountId: selected.binding.legacyAccountId || null };
     },
+    piTaskContext(actor, { delegation = false } = {}) {
+      const identity = access.serviceIdentity(actor.credentialBinding, { write: true });
+      return { version: 1, subject: identity.subject, workspaceId: identity.workspaceId, role: identity.role,
+        authorityFingerprint: uiFingerprint(identity, actor.credentialBinding), allowSubagents: delegation === true };
+    },
+    authorizePiTask(context) {
+      if (!context || context.version !== 1) throw new AgentHttpError(403, '原 Pi 任务授权缺失。', { code: 'PI_TASK_AUTHORIZATION_REVOKED' });
+      const selected = rows.find(row => {
+        try { const identity = access.serviceIdentity(row.binding, { write: true });
+          return identity.subject === context.subject && identity.workspaceId === context.workspaceId && identity.role === context.role
+            && uiFingerprint(identity, row.binding) === context.authorityFingerprint;
+        } catch { return false; }
+      });
+      if (!selected) throw new AgentHttpError(403, '原成员、角色或本次 Pi 任务授权已变化。', { code: 'PI_TASK_AUTHORIZATION_REVOKED' });
+      return access.serviceIdentity(selected.binding, { write: true });
+    },
     watchStream(context, close) { return access.watchServiceStream(context, close); },
     sessionActor,
     watchSessionStream(context, close) {

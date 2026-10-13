@@ -7,9 +7,16 @@ export function agentOwnerScope(state, actor) {
   const taskIds = new Set(tasks.filter(task => !owned(task)).map(task => task.id).filter(validId));
   const conversations = new Set(tasks.filter(task => !owned(task)).map(task => task.conversationId).filter(validId));
   const ids = new Set([...taskIds, ...conversations]);
+  for (const conversation of state.conversations || []) if (conversation.piTaskOwner && !owned(conversation.piTaskOwner)) {
+    if (validId(conversation.id)) { ids.add(conversation.id); conversations.add(conversation.id); }
+  }
   const runTask = run => run?.agentTaskId || run?.agentPresetContext?.taskId;
   // An orphaned Agent run never turns into public ordinary conversation history.
   for (const run of state.runs || []) if (runTask(run) && !owned(byId.get(runTask(run)))) {
+    if (validId(run.id)) ids.add(run.id);
+    if (validId(run.conversationId)) { ids.add(run.conversationId); conversations.add(run.conversationId); }
+  }
+  for (const run of state.runs || []) if (run.piTaskContext && !owned(run.piTaskContext)) {
     if (validId(run.id)) ids.add(run.id);
     if (validId(run.conversationId)) { ids.add(run.conversationId); conversations.add(run.conversationId); }
   }
@@ -18,6 +25,8 @@ export function agentOwnerScope(state, actor) {
     || ids.has(item.taskId) || ids.has(item.agentTaskId) || ids.has(item.artifactId) || ids.has(item.outputArtifactId)
     || ids.has(item.metadata?.agentTaskId) || ids.has(item.metadata?.sourceRunId) || ids.has(item.agentPresetRef?.taskId)
     || item.agentPresetContext && !owned(byId.get(item.agentPresetContext.taskId))
+    || item.piTaskContext && !owned(item.piTaskContext)
+    || item.piTaskOwner && !owned(item.piTaskOwner)
     || item.binding && (ids.has(item.binding.runId) || ids.has(item.binding.conversationId) || ids.has(item.binding.goalId))
   ));
   let changed;

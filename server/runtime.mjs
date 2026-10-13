@@ -16,7 +16,7 @@ export class ApiError extends Error {
 }
 const now = () => new Date().toISOString();
 const setupError = { code: 'SETUP_REQUIRED', message: 'Set DEEPSEEK_API_KEY in the server environment and restart to enable DeepSeek. Your work is saved.' };
-const blockedCodes = new Set(['SETUP_REQUIRED', 'NATIVE_RESUME_UNSUPPORTED', 'NATIVE_BRIDGE_REQUIRED', 'NATIVE_APPROVAL_UNSUPPORTED', 'NATIVE_POLICY_CHANGED', 'NATIVE_BRIDGE_ERROR', 'NATIVE_BRIDGE_PROTOCOL', 'WORKER_SETUP_REQUIRED', 'EXECUTION_SCOPE_CHANGED', 'BUSINESS_LIBRARY_PRIVATE', 'AGENT_REQUIRED_CAPABILITY_MISSING', 'AGENT_EVIDENCE_MISSING', 'AGENT_CONTEXT_CHANGED', 'AGENT_INVOCATION_CHANGED']);
+const blockedCodes = new Set(['SETUP_REQUIRED', 'NATIVE_RESUME_UNSUPPORTED', 'NATIVE_BRIDGE_REQUIRED', 'NATIVE_APPROVAL_UNSUPPORTED', 'NATIVE_POLICY_CHANGED', 'NATIVE_BRIDGE_ERROR', 'NATIVE_BRIDGE_PROTOCOL', 'WORKER_SETUP_REQUIRED', 'EXECUTION_SCOPE_CHANGED', 'BUSINESS_LIBRARY_PRIVATE', 'AGENT_REQUIRED_CAPABILITY_MISSING', 'AGENT_EVIDENCE_MISSING', 'AGENT_CONTEXT_CHANGED', 'AGENT_INVOCATION_CHANGED', 'PI_TASK_AUTHORIZATION_REVOKED']);
 const stoppedError = { code: 'INTERRUPTED', message: 'The server stopped during this request. Nothing was automatically retried. Resume or send a new request when ready.' };
 function required(state, collection, id) {
   const value = state[collection].find(item => item.id === id);
@@ -158,10 +158,13 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     // original pinned endpoint is still selected. Agent preset stages always
     // require the independent V5 tool/source/endpoint fingerprint.
     const isAgentPreset = Boolean(run?.agentPresetContext);
-    const permissionFingerprint = isAgentPreset
+    const isPiTask = Boolean(run?.piTaskContext);
+    const permissionFingerprint = isPiTask
+      ? capabilityPayloadHash({ policy: provider.piTaskPermissionFingerprint || null, context: run.piTaskContext })
+      : isAgentPreset
       ? provider.agentPermissionFingerprint || provider.permissionFingerprint || null
       : provider.permissionFingerprint || null;
-    const endpointBound = isAgentPreset || provider.legacyPolicyCompatible !== true;
+    const endpointBound = isPiTask || isAgentPreset || provider.legacyPolicyCompatible !== true;
     return { kind: provider.kind || 'deepseek-api', model: provider.model || state.settings.model,
       permissionFingerprint, ...(endpointBound && provider.endpointFingerprint ? { endpointFingerprint: provider.endpointFingerprint } : {}) };
   }
@@ -216,7 +219,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     if (shuttingDown || typeof event?.type !== 'string') return;
     // Only progress metadata crosses this boundary, never reasoning, tool arguments or results.
     const tool = ['pi.tool.started', 'pi.tool.finished', 'pi.tool.failed'].includes(event.type)
-      && ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research'].includes(event.toolName)
+      && ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research', 'workspace_delegate'].includes(event.toolName)
       && typeof event.toolCallId === 'string' && /^[a-f0-9]{64}$/.test(event.toolCallId)
       ? { toolName: event.toolName, toolCallId: event.toolCallId } : null;
     await store.update(state => { const run = state.runs.find(item => item.id === runId && item.status === 'running'); if (run && run.events.length < 1000) {
@@ -597,14 +600,17 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true });
     },
     async resetSession(id) { ensureOpen(); return store.update(state => { const item = required(state, 'conversations', id); if (agentConversation(state, id)) throw agentConversationRouteError(); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current request before resetting native session continuity.'); const previous = item.nativeSessionId || null; item.nativeSessionId = null; item.updatedAt = now(); activity(state, 'session_reset', 'New native session requested', 'Future requests start a new native session using saved visible context.', { conversationId: id, previousNativeSessionId: previous }); return { conversation: item }; }); },
-    async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }) {
+    async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }, { piTaskContext } = {}) {
       ensureOpen();
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['title', 'inputContext', 'requestId'].includes(key))) throw new ApiError(400, 'INVALID_INPUT', 'Create a conversation with title, optional inputContext and requestId only.');
       const title = text(body.title, 'title', 160, 'New conversation');
       const selection = normalizeInputContext(body.inputContext ?? emptyInputContext());
       const key = body.requestId === undefined ? null : requestKey(body.requestId);
       const subject = text(actor.subject, 'subject', 128), workspaceId = text(actor.workspaceId || 'local', 'workspaceId', 128);
-      const fingerprint = capabilityPayloadHash({ title, inputContext: selection });
+      if (piTaskContext && (!pi || !provider.piTaskPermissionFingerprint || piTaskContext.subject !== subject || piTaskContext.workspaceId !== workspaceId))
+        throw new ApiError(409, 'PI_TASK_RUNTIME_REQUIRED', 'Pi conversations require their original host-bound member.');
+      const piTaskOwner = piTaskContext ? { subject, workspaceId } : null;
+      const fingerprint = capabilityPayloadHash({ title, inputContext: selection, ...(piTaskOwner ? { piTaskOwner } : {}) });
       return store.update(state => {
         const receipts = state.workspaceConversationCreations ||= { version: 1, receipts: [] };
         if (receipts.version !== 1 || !Array.isArray(receipts.receipts)) throw new ApiError(409, 'CREATION_RECEIPT_INVALID', 'Conversation creation receipts need operator review.');
@@ -618,6 +624,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         if (key && receipts.receipts.length >= 10000) throw new ApiError(409, 'CREATION_RECEIPT_LIMIT', 'Conversation creation receipt capacity requires operator review.');
         const item = conversation(state, title); item.inputContext = selection;
         item.createdBy = subject; item.workspaceId = workspaceId;
+        if (piTaskOwner) item.piTaskOwner = piTaskOwner;
         if (key) {
           item.creationRequestId = key;
           receipts.receipts.push({ subject, workspaceId, requestId: key, fingerprint, conversationId: item.id });
@@ -690,8 +697,10 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       jobs.get(runId)?.controller.abort();
       return { ok: true };
     },
-    async sendMessage(id, body, { museDraftContext, supplierDraftContext, agentPresetContext } = {}) {
+    async sendMessage(id, body, { museDraftContext, supplierDraftContext, agentPresetContext, piTaskContext } = {}) {
       ensureOpen();
+      if (piTaskContext && (!pi || !provider.piTaskPermissionFingerprint || museDraftContext || supplierDraftContext || agentPresetContext || body.workspaceExecution !== true))
+        throw new ApiError(409, 'PI_TASK_RUNTIME_REQUIRED', 'Pi tasks require the existing governed native Pi host.');
       if (agentPresetContext && (!pi || museDraftContext || supplierDraftContext || body.workspaceExecution !== true)) throw new ApiError(409, 'AGENT_PI_REQUIRED', 'Preset stages require the original governed Pi runtime and exclusive business context.');
       const content = text(body.content, 'content', 20_000);
       const key = requestKey(body.requestId);
@@ -701,7 +710,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const snapshot = store.read(), selected = Object.hasOwn(body, 'inputContext') ? normalizeInputContext(body.inputContext) : required(snapshot, 'conversations', id).inputContext;
       const admission = await prepareRunInput(snapshot, id, selected);
       const workspaceExecution = body.workspaceExecution === true || admission.connectorGrants.length > 0;
-      const inputHash = capabilityPayloadHash({ content, inputContext: admission.inputContext ?? null, workspaceExecution, ...(museDraftContext ? { museDraftFingerprint: museDraftContext.fingerprint } : {}), ...(supplierDraftContext ? { supplierDraftFingerprint: supplierDraftContext.fingerprint } : {}), ...(agentPresetContext ? { agentPresetFingerprint: agentPresetContext.fingerprint } : {}) });
+      const inputHash = capabilityPayloadHash({ content, inputContext: admission.inputContext ?? null, workspaceExecution, ...(piTaskContext ? { piTaskContext } : {}), ...(museDraftContext ? { museDraftFingerprint: museDraftContext.fingerprint } : {}), ...(supplierDraftContext ? { supplierDraftFingerprint: supplierDraftContext.fingerprint } : {}), ...(agentPresetContext ? { agentPresetFingerprint: agentPresetContext.fingerprint } : {}) });
       let start = false; let queued = false;
       const result = await store.update(state => {
         const item = required(state, 'conversations', id);
@@ -723,7 +732,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         if (item.title === 'New conversation') item.title = content.slice(0, 48);
         activity(state, provider.configured ? 'started' : 'blocked', provider.configured ? 'Chat started' : 'Chat saved; setup required', provider.configured ? 'A text generation request was started.' : currentSetupError.message, { conversationId: id });
         start = provider.configured;
-        addRun(state, { ...admission, workspaceExecution, ...(workspaceExecution ? { budget: agentPresetContext ? structuredClone(agentPresetContext.budget) : { maxSteps: 4, maxOutputTokens: 6400 }, outputTokens: 0, stepCount: 0 } : {}), id: runId, kind: 'chat', conversationId: id, assistantId: reply.id, requestId: key, status: start ? (queued ? 'queued' : 'running') : 'blocked', ...(!start ? { error: currentSetupError, finishedAt: now() } : {}) }, agentPresetContext ? { agentPresetContext } : null);
+        addRun(state, { ...admission, workspaceExecution, ...(piTaskContext ? { piTaskContext: structuredClone(piTaskContext) } : {}), ...(workspaceExecution ? { budget: agentPresetContext ? structuredClone(agentPresetContext.budget) : { maxSteps: 4, maxOutputTokens: 6400 }, outputTokens: 0, stepCount: 0 } : {}), id: runId, kind: 'chat', conversationId: id, assistantId: reply.id, requestId: key, status: start ? (queued ? 'queued' : 'running') : 'blocked', ...(!start ? { error: currentSetupError, finishedAt: now() } : {}) }, piTaskContext ? { piTaskContext } : agentPresetContext ? { agentPresetContext } : null);
         if (museDraftContext) {
           const run = required(state, 'runs', runId);
           run.museDraftContext = { ...museDraftContext, selection: admission.inputContext };
