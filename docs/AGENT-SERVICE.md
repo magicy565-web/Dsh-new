@@ -19,7 +19,7 @@
 
 ## 2. 既有接口
 
-Base：`/api/agent/v1`。下表公开入口同时支持 `/health`、`/install`、`/plugin/*` 根路径，便于既有安装地址使用；其余接口须 `Authorization: Bearer <用户 token>`。
+Base：`/api/agent/v1`。Agent 健康接口仅为 `/api/agent/v1/health`；原根路径 `/health` 由既有 Workspace Host 处理，不得被 Agent 接管。`/install` 和 `/plugin/*` 仍可使用根路径供旧版安装；其余 Agent 接口须 `Authorization: Bearer <用户 token>`。
 
 | 方法与路径 | 保留契约 |
 | --- | --- |
