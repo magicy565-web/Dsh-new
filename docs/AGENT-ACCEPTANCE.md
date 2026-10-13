@@ -22,6 +22,8 @@
 - 本轮已按原 PR59 固定源码逐字段核验 POLICY v4，并在新 `pi-provider.mjs` 中区分：原始端点的普通 Pi/Muse/供应商/Goal 会话保持 V4；Agent 研究预设独立 V5；新模型端点不具备 V4 恢复资格。
 - `server/runtime.mjs` 按每个 run 的准确类型计算新旧指纹，Agent 在**原 Store 入队事务**锁定 V5，恢复时仍检查原 run 的哈希；未添加第二个执行器或无审批重试。
 - 新增静态及普通回归：`test/pi-runtime.test.mjs` 固定原始 V4 canonical hash，验证普通 checkpoint 不丢 scope、另一个 HTTPS 端点拒绝恢复、run/submission/模型请求不重复；`test/agent-pi-runtime.test.mjs` 验证 Agent 采用单独 V5/端点指纹及原预算；`test/agent-unified-host.http.test.mjs` 验证即使 Agent 启用，普通 run 不获得 V5 工具授权。
+- 新发现并修复的中断重启风险：`server/agent/engine.mjs` 原来会在服务启动时直接 `recoverPiRun`。现在自动恢复被 fail-closed 门禁阻止，转为 `AGENT_EXPLICIT_RESUME_REQUIRED`，只允许经过原成员 HTTP `POST /tasks/{id}/resume` 后恢复同一 run/submission，且授权仅本进程有效。原 `test/agent-pi-service.http.test.mjs` 已同步要求重启后模型调用数为 0，用户明确操作后恰好一次恢复，历史文件与事件保留。
+- 对实际当前 `server/agent/engine.mjs` 采用 V8 隔离依赖的 Store/Scheduler 注入，执行两项源码级检查：重启后未授权调用数 0、任务 interrupted/resumable 且部分文件保留；明确恢复后调用数 1、原 run 与 Pi submission ID 不变。这不是 Node24/HTTP/SDK 集成验收。
 - 上述五个已修改源码/测试文件进行了独立 V8 静态解析，全部可解析；这是**源码语法检查，不是 Node 24 导入、SDK、SQLite 或业务回归通过**。
 
 **所有新增的 Node 测试均尚未在此候选上实际运行**。静态语法检查不能替代 Node 24、Pi Durable、SQLite、HTTP 或微信运行时测试。
