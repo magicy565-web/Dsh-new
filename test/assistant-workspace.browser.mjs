@@ -20,10 +20,19 @@ const sha = value => createHash('sha256').update(value).digest('hex');
 async function settled(check, label) { for (let i = 0; i < 400; i++) { const result = await check(); if (result) return result; await new Promise(resolve => setTimeout(resolve, 25)); } throw Error(`Timed out: ${label}`); }
 async function ready() { await page.locator('.app-shell[aria-busy="false"]').waitFor(); }
 async function capture(name) { const filename = `${name}.png`; await page.screenshot({ path: join(destination, filename), fullPage: true }); evidence.screenshots.push(filename); }
+async function exposeRunCard(run) {
+  const card = page.locator(`[data-run-id="${run.id}"]`);
+  await card.waitFor({ state: 'attached' });
+  const panel = page.locator('details.conversation-run').filter({ has: card });
+  if (await panel.count() && !await panel.evaluate(element => element.open)) await panel.locator(':scope > summary').click();
+  await card.waitFor();
+  return card;
+}
 async function downloadOutput(run, filename) {
   const file = fixture.app.store.read().artifacts.find(item => item.sourceRunId === run.id && item.filename === filename);
   assert.ok(file, 'Original Runtime persisted the result artifact.');
-  const link = page.getByRole('link', { name: `下载成果：${filename} · v1`, exact: true });
+  const card = await exposeRunCard(run);
+  const link = card.getByRole('link', { name: `下载成果：${filename} · v1`, exact: true });
   await link.waitFor();
   const href = await link.getAttribute('href');
   assert.equal(href, `/api/artifacts/${encodeURIComponent(file.id)}/download?version=1`);
@@ -91,8 +100,9 @@ try {
   assert.deepEqual(chatRun.events.filter(event => event.type.startsWith('pi.tool.')).map(event => [event.type, event.toolName]), [
     ['pi.tool.started', 'workspace_input'], ['pi.tool.finished', 'workspace_input'],
   ]);
-  await page.getByText('Read exact selected source', { exact: true }).first().waitFor();
-  await page.getByText('工具与运行活动', { exact: true }).first().click();
+  const chatCard = await exposeRunCard(chatRun);
+  await chatCard.getByText('Read exact selected source', { exact: true }).waitFor();
+  await chatCard.locator('.run-events > summary').click();
   await page.locator('.workspace-tool[data-tool-name="workspace_input"][data-tool-phase="finished"]').waitFor();
   evidence.chatArtifact = await downloadOutput(chatRun, 'assistant-result.md');
   evidence.checks.push('Library pins stay local; explicit public v1 selection reaches original Pi workspace_input tool, exact run snapshot and SHA/version result download through main send button.');
