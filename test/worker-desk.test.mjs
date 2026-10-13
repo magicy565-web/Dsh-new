@@ -180,3 +180,70 @@ test('duplicated buyer company/domain is rejected instead of inflating lead coun
   await assert.rejects(desk.refresh(order.id), { code: 'INVALID_WORKER_RESULT' });
   assert.equal(desk.get(order.id).status, 'running');
 });
+
+
+test('parallel lost-ack reconciliation binds exactly one remote Worker job before applying evidence or cost', async t => {
+  const pending = [];
+  let submissions = 0;
+  const adapter = readyAdapter({
+    async submit() { submissions++; throw new Error('Acknowledgement was lost after remote submission'); },
+    async reconcile(orderId) { return new Promise(resolve => pending.push({ orderId, resolve })); },
+  });
+  const { desk } = await harness(t, { partner: adapter });
+  const { order } = await desk.create(request('concurrent-reconcile-job-scope'), 'operator');
+  await desk.approve(order.id, 'admin', { confirmed: true, workerId: 'partner' });
+  await assert.rejects(desk.dispatch(order.id), { code: 'DISPATCH_UNCERTAIN' });
+  assert.equal(desk.get(order.id).remoteJobId, null);
+
+  // Both status lookups read the same unacknowledged task before either
+  // response returns. A different second result must never win the Store race.
+  const first = desk.refresh(order.id);
+  const second = desk.refresh(order.id);
+  assert.equal(pending.length, 2);
+  pending[0].resolve({ orderId: order.id, jobId: 'remote-job-one', status: 'working', costCredits: 2 });
+  const bound = await first;
+  assert.equal(bound.order.status, 'running');
+  assert.equal(bound.order.remoteJobId, 'remote-job-one');
+
+  pending[1].resolve({ orderId: order.id, jobId: 'remote-job-two', status: 'completed', costCredits: 12,
+    deliverables: [{ name: 'Wrong job report', type: 'table', summary: 'Must not be accepted' }],
+    evidence: [{ title: 'Wrong source', url: 'https://example.org', detail: 'Unrelated job' }],
+    prospects: [{ name: 'Wrong company', country: 'US', website: 'https://example.org',
+      fitReason: 'Different order', sourceUrl: 'https://example.org/about' }],
+  });
+  await assert.rejects(second, { code: 'WORKER_JOB_MISMATCH' });
+  const saved = desk.get(order.id);
+  assert.equal(saved.remoteJobId, 'remote-job-one');
+  assert.equal(saved.reportedCostCredits, 2);
+  assert.equal(saved.workerReport, null);
+  assert.equal(saved.status, 'running');
+  assert.equal(submissions, 1, 'A reconcile race must never resubmit the original external job.');
+});
+
+test('stale queued Worker observations cannot overwrite a confirmed running or input-required state', async t => {
+  const pending = [];
+  const adapter = readyAdapter({ async get(jobId) {
+    return new Promise(resolve => pending.push({ jobId, resolve }));
+  } });
+  const { desk } = await harness(t, { partner: adapter });
+  const { order } = await desk.create(request('queued-monotonic-observations'), 'operator');
+  await desk.approve(order.id, 'admin', { confirmed: true, workerId: 'partner' });
+  await desk.dispatch(order.id);
+
+  const recent = desk.refresh(order.id);
+  const oldQueue = desk.refresh(order.id);
+  assert.equal(pending.length, 2);
+  pending[0].resolve({ jobId: order.id, status: 'working' });
+  await recent;
+  pending[1].resolve({ jobId: order.id, status: 'queued' });
+  assert.equal((await oldQueue).order.status, 'running');
+  assert.equal(desk.get(order.id).status, 'running');
+
+  const needsInput = desk.refresh(order.id);
+  pending[2].resolve({ jobId: order.id, status: 'input_required' });
+  assert.equal((await needsInput).order.status, 'input_required');
+  const olderQueue = desk.refresh(order.id);
+  pending[3].resolve({ jobId: order.id, status: 'queued' });
+  assert.equal((await olderQueue).order.status, 'input_required');
+  assert.equal(desk.get(order.id).remoteJobId, order.id);
+});
