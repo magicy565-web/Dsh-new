@@ -39,6 +39,6 @@ npm run test:all
 npm run test:agent:acceptance
 ```
 
-The final acceptance runner intentionally remains release-blocked pending independent Shopify/commerce source review. Do not update historical source pins or remove failing evidence merely to pass a command. The additional Pi policy/endpoint fingerprint impacts recovery of preexisting runs; an independent reviewer must assess that change before making this branch the deployment source.
+The final acceptance runner intentionally remains release-blocked pending independent Shopify/commerce source review. Do not update historical source pins or remove failing evidence merely to pass a command. The added Pi V5 policy is now restricted to Agent preset stages (and non-original model endpoints); ordinary PR59 Pi/Muse/supplier/Goal runs retain the exact V4 fingerprint only on the original pinned model endpoint. Independent end-to-end old-run recovery and authorization review remain mandatory before this branch can deploy.
 
 Further required real gates: actual authenticated Host terminal, Muse/Dot execution receipt, production model/read-only research, approved Shopify draft/channel, exact product GA4 data, WeChat native subscription and real seven elapsed days. None is inferred from local fixtures. No credentials, live external writes, payment, production deployment or main merge were performed.
