@@ -120,7 +120,7 @@ test('same-conversation attachment preview verifies exact original bytes, refuse
   const ui = await f.render(`/chat/${actor.nativeAgentId}`);
   const control = () => ui.document.querySelector('.conversation-native button[aria-label="预览 result.json"]');
   await wait(() => control() && !control().disabled, 'original receipt preview control');
-  assert.equal(ui.document.querySelectorAll('.conversation-spirit .control-spirit-stage').length, 1);
+  assert.equal(ui.document.querySelectorAll('[data-testid="workspace-assistant"]').length, 1); assert.equal(ui.document.querySelector('.conversation-spirit'), null, 'original Muse files remain in the current task entry without a companion overlay');
   f.fileFault('tampered'); await click(ui, control()); await wait(() => ui.document.querySelector('[role="dialog"] [role="alert"]')?.textContent.includes('校验失败'), 'corrupted transport bytes rejected');
   assert.equal(ui.document.querySelector('[role="dialog"] pre'), null);
   await click(ui, ui.document.querySelector('[role="dialog"] button[aria-label="关闭弹窗"]'));

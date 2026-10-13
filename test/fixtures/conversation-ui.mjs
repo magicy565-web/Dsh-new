@@ -5,6 +5,7 @@ import { join, resolve, dirname, basename } from 'node:path';
 import { webcrypto } from 'node:crypto';
 import { JSDOM } from 'jsdom';
 import { createApp } from '../../server/index.mjs';
+import { installBrowserPlatform } from './browser-platform.mjs';
 
 export async function temporaryDirectory(t, prefix) {
   const root = resolve(tmpdir()), directory = await mkdtemp(join(root, prefix));
@@ -33,7 +34,7 @@ export async function bundleRenderer(t, transport) {
   t.after(() => windows.forEach(window => window.close()));
   async function render(route, { width = 390, storage = [] } = {}) {
     const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: 'http://fixture.test' + route, runScripts: 'outside-only', pretendToBeVisual: true });
-    const { window } = dom; windows.push(window);
+    const { window } = dom; windows.push(window); installBrowserPlatform(window);
     Object.defineProperty(window, 'innerWidth', { value: width, writable: true });
     Object.defineProperty(window, 'crypto', { value: webcrypto });
     window.TextEncoder = TextEncoder; window.TextDecoder = TextDecoder; window.AbortController = AbortController; window.scrollTo = () => {}; window.confirm = () => true;
@@ -41,7 +42,7 @@ export async function bundleRenderer(t, transport) {
     for (const [key, value] of storage) window.sessionStorage.setItem(key, value);
     const errors = []; window.addEventListener('error', event => errors.push(event.error?.message || event.message));
     window.fetch = async (path, options = {}) => { requests.push({ path: String(path), method: options.method || 'GET', body: options.body ? JSON.parse(options.body) : undefined }); return transport(String(path), options); };
-    window.eval(script); await wait(() => window.document.querySelector('.composer-region'), 'original conversation mounted');
+    window.eval(script); await wait(() => window.document.querySelector('.app-shell[aria-busy="false"]') && window.document.querySelector('[data-testid="workspace-assistant"], .composer-region'), 'current original conversation bootstrap loaded');
     return { window, document: window.document, errors, storage: () => Array.from({ length: window.sessionStorage.length }, (_, i) => { const key = window.sessionStorage.key(i); return [key, window.sessionStorage.getItem(key)]; }) };
   }
   return { render, requests };

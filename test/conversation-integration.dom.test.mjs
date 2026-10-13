@@ -7,6 +7,7 @@ import { randomUUID, createHash, webcrypto } from 'node:crypto';
 import { JSDOM } from 'jsdom';
 import { createApp } from '../server/index.mjs';
 import { openStore } from '../server/store.mjs';
+import { installBrowserPlatform } from './fixtures/browser-platform.mjs';
 
 // Production React, original local HTTP and temporary NTFS persistence. The
 // provider and optional native transport DTO are explicit offline fixtures.
@@ -40,7 +41,7 @@ async function fixture(t, { model = false, originalNative = false } = {}) {
   }
   async function render(route = '/', width = 1366, nativeView, beforeFirstBootstrap) {
     const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: url(route), runScripts: 'outside-only', pretendToBeVisual: true });
-    const { window } = dom; windows.push(window);
+    const { window } = dom; windows.push(window); installBrowserPlatform(window);
     Object.defineProperty(window, 'innerWidth', { value: width, writable: true });
     Object.defineProperty(window, 'crypto', { value: webcrypto });
     window.TextEncoder = TextEncoder; window.AbortController = AbortController; window.scrollTo = () => {}; window.confirm = () => true;
@@ -56,7 +57,7 @@ async function fixture(t, { model = false, originalNative = false } = {}) {
     };
     window.eval(script);
     await wait(() => window.document.querySelector('.app-shell'), 'original workspace mounted');
-    await wait(() => !window.document.querySelector('.loading-state'), 'bootstrap loaded');
+    await wait(() => window.document.querySelector('.app-shell[aria-busy="false"]'), 'bootstrap loaded');
     return { window, document: window.document, errors };
   }
   t.after(async () => { for (const window of windows) window.close(); await app.close(); assert.ok(resolve(directory).startsWith(resolve(join(tmpdir(), 'workspace-conversation-ui-')))); await rm(directory, { recursive: true, force: true }); });
@@ -75,7 +76,7 @@ test('conversation entry opens the actual latest conversation without creating o
   for (const label of ['工作', '产品托管', '云端专家', '业务任务']) assert.equal(aria(ui, label), null);
   assert.equal(ui.document.querySelector('.master-control'), null); assert.equal(ui.document.querySelector('.download-placeholder'), null);
   assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []);
-  assert.equal(ui.document.querySelectorAll('.conversation-spirit .control-spirit-stage').length, 1, 'existing central companion appears by default');
+  assert.equal(ui.document.querySelectorAll('[data-testid="workspace-assistant"]').length, 1, 'one actual task thread is the primary entry'); assert.equal(ui.document.querySelector('.conversation-spirit'), null, 'main Pi task flow has no companion overlay');
 });
 
 test('encoded slash/colon conversation routes retain the opaque ID for messages and each business API read', async t => {
@@ -122,9 +123,9 @@ test('initial latest-conversation selection preserves Goals clicked as the first
   const ui = await f.render('/', 1366, undefined, async window => {
     // Hold the first response until the initial UI is mounted, then click in
     // the first loaded DOM commit, before its passive auto-selection effect.
-    await wait(() => window.document.querySelector('.loading-state'), 'first bootstrap still loading');
+    await wait(() => window.document.querySelector('.app-shell[aria-busy="true"]'), 'first bootstrap still loading');
     const observer = new window.MutationObserver(() => {
-      if (window.document.querySelector('.loading-state')) return;
+      if (!window.document.querySelector('.app-shell[aria-busy="false"]')) return;
       observer.disconnect(); clicked = true;
       window.document.querySelector('button[aria-label="目标"]').click();
     });
@@ -179,7 +180,7 @@ test('original Goals and grouped activity open the corresponding conversation wi
   await f.app.store.update(state => state.activity.push({ id: randomUUID(), type: 'conversation', title: 'Fixture yesterday event', conversationId: current.id, createdAt: yesterday }));
   const ui = await f.render(); await click(ui, aria(ui, '目标')); await wait(() => ui.document.querySelector('.goal-list-item'), 'original simple goal list');
   assert.equal(ui.document.querySelector('.goal-categories'), null); await click(ui, ui.document.querySelector('.goal-list-item'));
-  await wait(() => ui.window.location.pathname === `/chat/${current.id}`, 'goal opens its actual conversation');
+  await wait(() => ui.window.location.pathname === `/goals/${goal.id}` && button(ui, '完整会话'), 'goal opens its actual task session'); await click(ui, button(ui, '完整会话')); await wait(() => ui.window.location.pathname === `/chat/${current.id}`, 'full conversation preserves the goal binding');
   assert.equal((await f.request('/bootstrap')).goals.find(item => item.id === goal.id).status, 'draft');
   await wait(() => [...ui.document.querySelectorAll('.assistant-panel .activity-date')].some(item => item.textContent === '昨天'), 'stored yesterday event grouped');
   assert.ok([...ui.document.querySelectorAll('.assistant-panel .activity-date')].some(item => item.textContent === '今天'));
@@ -194,7 +195,7 @@ test('320 and 390 px entry has one conversation and mutually exclusive original 
     await click(ui, aria(ui, '显示助手面板')); assert.equal(ui.document.querySelector('.conversation-sidebar'), null); assert.ok(ui.document.querySelector('.assistant-panel'));
     await click(ui, ui.document.querySelector('.chat-title-pill')); assert.ok(ui.document.querySelector('.conversation-sidebar')); assert.equal(ui.document.querySelector('.assistant-panel'), null);
     ui.window.dispatchEvent(new ui.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await wait(() => !ui.document.querySelector('.conversation-sidebar'), 'Escape closes mobile drawer');
-    assert.equal(ui.document.querySelectorAll('textarea[aria-label="输入消息"]').length, 1); assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.deepEqual(ui.errors, []);
+    assert.equal(ui.document.querySelectorAll('textarea[aria-label="输入目标任务"]').length, 1); assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0); assert.deepEqual(ui.errors, []);
   }
 });
 
@@ -211,8 +212,8 @@ test('original native task DTO and checked receipt stay in their conversation wi
   const ui = await f.render(`/chat/${current.id}`, 1366, view);
   await wait(() => ui.document.querySelector('.message-row .cloud-file'), 'original receipt hash and exact task linkage checked');
   const link = ui.document.querySelector('.message-row .cloud-file'); assert.equal(link.getAttribute('href'), `/api/muse-worker-files/${file.id}?version=1&sha256=${file.sha256}`);
-  assert.equal(ui.document.querySelector('.master-control'), null); assert.ok(ui.document.querySelector('.conversation-task-controls .conversation-task-list').textContent.includes('Fixture task objective'));
+  await wait(() => ui.document.querySelector('.conversation-task-controls .conversation-task-list')?.textContent.includes('Fixture task objective'), 'corresponding original task list loaded'); assert.equal(ui.document.querySelector('.master-control'), null); assert.ok(ui.document.querySelector('.conversation-task-controls .conversation-task-list').textContent.includes('Fixture task objective'));
   assert.equal(aria(ui, '准备云端委托').disabled, true); assert.equal(f.requests.filter(item => item.method !== 'GET').length, 0);
-  const unrelated = await f.render(`/chat/${other.id}`, 1366, view); assert.equal(unrelated.document.querySelector('.message-row .cloud-file'), null); assert.ok(!unrelated.document.querySelector('.conversation-task-controls .conversation-task-list').textContent.includes('Fixture task objective'));
+  const unrelated = await f.render(`/chat/${other.id}`, 1366, view); await wait(() => unrelated.document.querySelector('.conversation-task-controls .conversation-task-list'), 'unrelated original task list mounted'); assert.equal(unrelated.document.querySelector('.message-row .cloud-file'), null); assert.ok(!unrelated.document.querySelector('.conversation-task-controls .conversation-task-list').textContent.includes('Fixture task objective'));
   assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []); assert.deepEqual(unrelated.errors, []);
 });

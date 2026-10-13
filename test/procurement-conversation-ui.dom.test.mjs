@@ -48,7 +48,7 @@ async function associate(f, ui) {
 async function reply(ui, content) {
   await click(ui, button(ui, '回复原采购方')); const modal = ui.document.querySelector('[role="dialog"]');
   const textarea = field(ui, '给原采购方的回复'); assert.equal(textarea.maxLength, 2400);
-  await input(ui, textarea, content); await click(ui, modal.querySelector('input[type="checkbox"]')); await click(ui, button(ui, '确认提交原回复', modal));
+  await input(ui, textarea, content); await wait(() => !modal.querySelector('input[type="checkbox"]').disabled, 'original reply scope read settled'); await click(ui, modal.querySelector('input[type="checkbox"]')); await wait(() => !button(ui, '确认提交原回复', modal).disabled, 'explicit reply confirmation enabled'); await click(ui, button(ui, '确认提交原回复', modal));
 }
 test('conversation UI keeps buyer draft private, explicitly binds exact shared inquiry and persists one original merchant reply', async t => {
   const f = await fixture(t), privateUi = await f.render(`/chat/${f.own.id}`);
@@ -57,11 +57,11 @@ test('conversation UI keeps buyer draft private, explicitly binds exact shared i
   privateUi.window.close(); const shared = await f.share(), ui = await f.render(`/chat/${f.own.id}`); await associate(f, ui);
   const bind = f.requests.find(item => item.method === 'POST');
   assert.deepEqual(Object.keys(bind.body).sort(), ['confirmed', 'conversationId', 'expectedRevision', 'requestId']); assert.equal(bind.body.expectedRevision, shared.revision); assert.equal(bind.body.conversationId, f.own.id);
-  await wait(() => ui.document.querySelector('.message-row').textContent.includes('采购需求已关联到本会话'), 'inert original conversation reference');
+  await wait(() => ui.document.querySelector('.workspace-message')?.textContent.includes('采购需求已关联到本会话'), 'inert original conversation reference');
   const other = await f.render(`/chat/${f.other.id}`); await wait(() => !other.document.querySelector('.conversation-procurement'), 'bound inquiry absent from other conversation');
   assert.ok(!other.document.body.textContent.includes('PRIVATE_BUYER_FIXTURE_SCOPE'));
   await reply(ui, 'Persisted original merchant UI fixture reply'); await wait(() => !ui.document.querySelector('[role="dialog"]'), 'reply committed');
-  await wait(() => ui.document.querySelectorAll('.message-row').length === 2, 'reply saved as inert original conversation message');
+  await wait(() => ui.document.querySelectorAll('.workspace-message').length === 2, 'reply saved as inert original conversation message');
   const result = (await f.mcp('workspace_procurement_get', { inquiryId: f.inquiry.id })).inquiry;
   assert.equal(result.replies.length, 1); assert.equal(result.replies[0].content, 'Persisted original merchant UI fixture reply');
   const replyRequest = f.requests.find(item => item.method === 'POST' && item.path.endsWith('/reply'));

@@ -7,6 +7,7 @@ import { randomUUID, webcrypto } from 'node:crypto';
 import { JSDOM } from 'jsdom';
 import { createApp } from '../server/index.mjs';
 import { retiredSupplyComponentScript } from './fixtures/retired-supply-component.mjs';
+import { installBrowserPlatform } from './fixtures/browser-platform.mjs';
 
 // Current Library routes use the production App bundle and original HTTP/Store.
 // The seven retired Supply panel contracts use its real component in a separate
@@ -32,7 +33,7 @@ async function fixture(t) {
     const retiredComponent = route === undefined;
     const source = retiredComponent ? await retiredSupplyComponentScript() : script;
     const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: url(route || '/__test__/retired-supply-component'), runScripts: 'outside-only', pretendToBeVisual: true });
-    const { window } = dom; windows.push(window);
+    const { window } = dom; windows.push(window); installBrowserPlatform(window);
     Object.defineProperty(window, 'crypto', { value: webcrypto });
     window.TextEncoder = TextEncoder; window.TextDecoder = TextDecoder;
     window.AbortController = AbortController; window.scrollTo = () => {}; window.confirm = () => true;
