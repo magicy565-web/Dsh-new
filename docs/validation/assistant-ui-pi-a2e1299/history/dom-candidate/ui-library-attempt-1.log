@@ -1,0 +1,117 @@
+✔ retired Supply component contract: saves supplier/product, edits, and recovers from original durable Store restart (542.521775ms)
+✔ retired Supply component contract: pins edit revision, preserves conflicting input across reload, and requires explicit new revision (188.757748ms)
+✔ retired Supply component contract: restores unknown committed command after refresh and retries exact request without duplicates (143.301508ms)
+✔ retired Supply component contract: reports unsaved edits and clears its dirty callback when unmounted (71.323888ms)
+✔ retired Supply component contract: exposes read failures, disables invalid writes, and reloads real data (149.894379ms)
+✔ retired Supply component contract: never adopts another role scope pending command or mutates through viewer controls (121.850131ms)
+✔ retired Supply component contract: publishes only after explicit confirmation of exact supplier and listing revision (128.307982ms)
+✔ current Library UI creates private product facts, edits an exact revision and restores durable internal data (355.456984ms)
+✔ current Library UI keeps the edited revision and typed input through conflicts until explicit reload (175.483592ms)
+✔ current Library UI retries an unknown commit in the same editor with its original request and no duplicate (113.31063ms)
+✔ current Library UI uses the original App dirty navigation and beforeunload guard (106.549548ms)
+✔ current Library UI refuses edits while the original product detail is unreadable and recovers from actual API retry (83.390866ms)
+✔ current Library UI preserves viewer read-only controls and never adopts another role Supply pending command (158.699405ms)
+✖ production UI: navigation, interrupted goal intake, guarded chat, search, settings, notes and review (4987.611196ms)
+✔ production UI: real pending approvals are visible and approve/deny never execute an action (296.466362ms)
+✔ management UI: instruction registry, connector configuration, exact approvals and schedule gates use real HTTP (820.071828ms)
+✔ management UI: file bytes, versions, safe preview, optimistic conflict and memory scope controls (489.975666ms)
+✖ enterprise UI: explicit identity login, CSRF mutation, expiry erases workspace and logout revokes session (183.102188ms)
+✖ enterprise UI: viewer cannot submit chat, settings, skill or artifact mutations (4767.331446ms)
+✔ management UI: transport failure preserves editor, late mutation cannot undo navigation, blocked runs can explicitly retry (303.94409ms)
+✔ management UI: lost create response retries the same idempotency key without duplicate registry entries (227.846766ms)
+✔ relay UI: only the server-approved gpt-6-sol model is offered, no configuration fallback or live request (164.441616ms)
+✔ diagnostics UI: GET-only contract distinguishes configured, packaged fixture evidence and live acceptance (171.700151ms)
+✔ diagnostics UI: outages, stale snapshots, reconnect, duplicate refresh and interrupted navigation are honest (302.194665ms)
+✔ diagnostics UI: instance restart accepts lower store sequence and late old process responses cannot roll back state (4188.862641ms)
+✔ diagnostics UI: hung GET reads have bounded deadlines, recoverable controls and one bootstrap in flight (683.81577ms)
+✔ diagnostics UI: passed fixtures and successful provider return still do not claim current-deployment live verification (270.400714ms)
+✖ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (221.889281ms)
+✔ conversation context UI: stale reviewed skill fails closed and remains editable without sending a model request (205.355401ms)
+✖ conversation execution UI: inline exact approval, duplicate-click guard, receipt and real output artifact (137.590709ms)
+✖ draft goal UI follows its conversation file selection when started after intake (4730.149012ms)
+✔ template schedule UI makes fresh goal mode explicit, bounds standing approval and never auto-enables (292.193647ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 26
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24251.357581
+
+✖ failing tests:
+
+test at test/ui.dom.test.mjs:60:1
+✖ production UI: navigation, interrupted goal intake, guarded chat, search, settings, notes and review (4987.611196ms)
+  Error: Timed out: empty conversation
+      at waitFor (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:47:150)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:67:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at test/ui.dom.test.mjs:293:1
+✖ enterprise UI: explicit identity login, CSRF mutation, expiry erases workspace and logout revokes session (183.102188ms)
+  AssertionError [ERR_ASSERTION]: Expected editable element
+      at input (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:53:46)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:304:11)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/ui.dom.test.mjs:315:1
+✖ enterprise UI: viewer cannot submit chat, settings, skill or artifact mutations (4767.331446ms)
+  Error: Timed out: viewer workspace
+      at waitFor (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:47:150)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:318:94)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/ui.dom.test.mjs:538:1
+✖ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (221.889281ms)
+  AssertionError [ERR_ASSERTION]: Expected editable element
+      at input (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:53:46)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:560:11)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at listOnTimeout (node:internal/timers:597:9)
+      at process.processTimers (node:internal/timers:571:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/ui.dom.test.mjs:591:1
+✖ conversation execution UI: inline exact approval, duplicate-click guard, receipt and real output artifact (137.590709ms)
+  AssertionError [ERR_ASSERTION]: Expected editable element
+      at input (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:53:46)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:599:11)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at listOnTimeout (node:internal/timers:597:9)
+      at process.processTimers (node:internal/timers:571:7)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/ui.dom.test.mjs:616:1
+✖ draft goal UI follows its conversation file selection when started after intake (4730.149012ms)
+  Error: Timed out: initial ready state
+      at waitFor (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:47:150)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:623:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

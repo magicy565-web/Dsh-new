@@ -1,0 +1,14 @@
+✔ conversation authority excludes foreign messages and never derives a tool from model text (1.251888ms)
+✔ actual persisted whitelist observations display original call identity and explicit observation-only phase (0.230089ms)
+✔ one original call is shown once on the last assistant step without copying events into all replies (0.308135ms)
+✔ file output stays bound to exact original run, conversation, version, and SHA (0.350748ms)
+✔ cancelled and blocked messages retain original terminal state instead of becoming successful responses (0.30503ms)
+✔ SSE accepts only original refresh notifications and never treats them as provider/tool execution events (0.228518ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 124.216417

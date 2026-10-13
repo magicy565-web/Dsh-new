@@ -1,0 +1,2003 @@
+{"name": "assistant-browser-2", "command": ["env", "CHROMIUM_PATH=/usr/bin/chromium", "CHROMIUM_NO_SANDBOX=1", "node", "test/assistant-workspace.browser.mjs", "/tmp/workspace-launch-20261013/assistant-final-5c3e81d/web-attempt-2"], "sourceBefore": "5c3e81d259658e0f1adfdf037ce9ecd3ae81a12c", "treeBefore": "c41b0e13f4fc7e1fa4dbc1f931077c5c7f65d42b", "statusBefore": "M test/conversation-integration.dom.test.mjs\n M test/fixtures/conversation-ui.mjs\n M test/supply-commerce-ui.dom.test.mjs\n M test/ui.dom.test.mjs\n?? test/fixtures/browser-platform.mjs", "environmentNames": ["HOME", "LANG", "LC_ALL", "PATH", "TERM", "npm_config_cache", "npm_config_globalconfig", "npm_config_userconfig"], "cwd": "/workspace/workspace-release-20261013", "startedAt": "2026-10-13T09:25:05.385021+00:00"}
+{
+  "source": "5c3e81d259658e0f1adfdf037ce9ecd3ae81a12c",
+  "sourceStatus": "M test/conversation-integration.dom.test.mjs\n M test/fixtures/conversation-ui.mjs\n M test/supply-commerce-ui.dom.test.mjs\n M test/ui.dom.test.mjs\n?? test/fixtures/browser-platform.mjs",
+  "startedAt": "2026-10-13T09:25:05.955Z",
+  "actualBrowser": true,
+  "actualPiSdk": true,
+  "syntheticProvider": true,
+  "externalModelCalls": 0,
+  "checks": [
+    "Actual assistant-ui thread mounts with structured task mode selected by default.",
+    "Library pins stay local; explicit public v1 selection reaches original Pi workspace_input tool, exact run snapshot and SHA/version result download through main send button.",
+    "Browser reopen reads saved output and does not repeat Pi work.",
+    "Actual SSE connection loss reconnects a read endpoint without a mutation or model replay.",
+    "Actual GoalComposer save and GoalFocus primary start retain exact public inputs, admit configured Pi and finish one original goal run with review-required output.",
+    "Visible exact-action approval and separate continue buttons consume one original receipt; neither model output nor approval alone executes the connector.",
+    "Main assistant-ui cancel aborts the original Pi run; browser reopen does not resurrect it.",
+    "Host restart preserves one interrupted run/submission, complete input snapshot and original budget; only the visible original-run recovery button resumes it.",
+    "Lost HTTP acknowledgment retains an explicit original-request reconciliation; its exact body replays to the same run with no extra Pi call.",
+    "Actual unconfigured main submit preserves a blocked task, visible setup reason and zero provider calls/results.",
+    "Actual enterprise viewer session renders disabled execute controls; the same signed Host rejects execution with 403 and zero runs/provider calls."
+  ],
+  "screenshots": [
+    "assistant-thread-desktop-1440.png",
+    "assistant-thread-390.png",
+    "assistant-thread-1440.png",
+    "assistant-goal-pi-start.png",
+    "assistant-exact-local-approval.png",
+    "assistant-original-checkpoint-recovery.png",
+    "assistant-unknown-submit-original-request.png",
+    "assistant-unconfigured-blocked-390.png",
+    "assistant-actual-enterprise-viewer-390.png"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products?q=&status=draft&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/artifacts/5e7226c8-1743-423b-9c01-db56382cc9bd/content?version=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products?q=&status=draft&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents?q=&status=active&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/artifacts/5e7226c8-1743-423b-9c01-db56382cc9bd/content?version=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents?q=&status=active&limit=100"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references",
+      "bodySha256": "d95d49023d372bc496ebd3be82b6683739255fa6b1217ede56b02e1479de0203"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/input-context",
+      "bodySha256": "d66a955f9ff3bd789634f3c63007ad45d13f3efd6db9979b8fb6f96018bf7b35"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/messages",
+      "bodySha256": "3867f0903af171ded44b9dfdee04d5b86af3c01311ce6ebadb90f0a914f4208d"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "POST",
+      "path": "/api/goals",
+      "bodySha256": "802e4938ba979c8aa028d49d5e68c967e07455e1461a9bf44e2871cda5f580fa"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/goals/06f1577c-de79-4719-9fc4-bd1ddbed0ba4/commerce-context"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/goals/06f1577c-de79-4719-9fc4-bd1ddbed0ba4",
+      "bodySha256": "707fbeb18c4eb97f00163f2d2b234448af464ed34333551609c0b8e84eb5f35d"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/goals/06f1577c-de79-4719-9fc4-bd1ddbed0ba4/commerce-context"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/input-context",
+      "bodySha256": "37cfc35b0a4319611b33ad504e8fc1e9c6c4550d71fc1a8466bd8f8895a1d482"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/messages",
+      "bodySha256": "ad90656da2a011e55a86c8a33d1f075e8f047b25add7f691ba8eb1338ad6dce9"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "POST",
+      "path": "/api/runs/79645a5e-5997-4e02-a66d-e92de7c8be82/action-decision",
+      "bodySha256": "6fe8c903a61509201440f2a18db348428c17019ee6806f21e047cdeb04254660"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "POST",
+      "path": "/api/runs/79645a5e-5997-4e02-a66d-e92de7c8be82/resume",
+      "bodySha256": "0bbf75ff8dceee6303d648f3fec8b36b32d30846473b17524c38cd49b3b9be40"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/messages",
+      "bodySha256": "9ca5d20df00e30cad60f00aaaad17a6866abf983bedf6bdf6e364966523f1a17"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/cancel",
+      "bodySha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/messages",
+      "bodySha256": "e6925b2aaf3041b0dbb1ef499e25f789dbb49717efbc61ffa479929ca9a94158"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "POST",
+      "path": "/api/runs/8d8fde40-2e09-4868-ad2a-248582607297/retry",
+      "bodySha256": "ea218023e11334a7c8c28b5ffd00c9a988f8c4be9bce7e435fca45298e759231"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/messages",
+      "bodySha256": "1ef19acd90ec627f082e3a08ae60928f2e2f7d17e1ef403d55cfca9eec372764"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/messages",
+      "bodySha256": "1ef19acd90ec627f082e3a08ae60928f2e2f7d17e1ef403d55cfca9eec372764"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bootstrap"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/muse-delegations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/procurement"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supply/inquiries"
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/6cdb6968-3a00-47d3-9536-f48883a32ea3/library-references"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/products/e6a631c1-2c9e-46b7-8729-21c90105d169"
+    },
+    {
+      "method": "GET",
+      "path": "/api/library/documents/bb75c88d-534b-4d4f-9abd-13e1c7927e50"
+    }
+  ],
+  "consoleErrors": [],
+  "failures": [],
+  "sourceSha256": {
+    "src/App.tsx": "4443b645555bb79b6ba916e44de78892975ebe99f577b7058da1cead5acbd99c",
+    "src/TaskContext.tsx": "03acbb1d65abbc3e11e0a83f053844fc5d8ffa3af1423084e5a715f27b0944e6",
+    "src/experience/GoalFocus.tsx": "e901c4ffb54f1b26b0b4d66c13207df0503e61613aaed0dc8403daa7bc302481",
+    "src/experience/GoalComposer.tsx": "a7ba6295e5dcf6f80b66dfcaf71103512f7650a7e3fa7ade6abc3777afcd8a58",
+    "src/assistant/WorkspaceAssistant.tsx": "a0cf0862aa8dc84b1abbecbe8dcce1fb3f45f2db665d1848a0b3a3a9b82ed3ab",
+    "src/assistant/WorkspaceAssistantRuntime.tsx": "d63e3df002ef2488d09cc3a269959c5351f34f643ab2d94170bd7526af8aea9b",
+    "src/assistant/workspaceRuntimeAdapter.ts": "c9641ab82f43559edafc22683f5cff69ec01133e604260dc5c8a86102fe1c4d3",
+    "server/runtime.mjs": "5dcae00081e196c084f70edfec6ad1238670f15a08d69dc6da702d1f3ca04053",
+    "server/pi-provider.mjs": "ea3e895771ffdd51f54e763a937add39931c33ef52324ab8cbd88e75a87ceaff",
+    "package.json": "624674acdabdc5f5aa733d4024c14969d1cf8f401f1899a6434d276c39489b62",
+    "package-lock.json": "bf5ef0399c0d0627994c6271fde1ed8c0a150f2f4da4feb0a62251dce1a7862c",
+    "test/assistant-workspace.browser.mjs": "1f84f721260229f5d7b2256d2d0e7d25709a856b1c7c434a7e8e854a79ae1a2e",
+    "test/fixtures/assistant-workspace.mjs": "0a730ab41ce229d6893c2500b04c4d13073525b9c5409de265d2e95a9d75554d",
+    "dist/index.html": "c329e1cd8bd7e42c2c657e733bf36d7ec05f9d52df1ca86943a0ad88ca32606c"
+  },
+  "chatArtifact": {
+    "artifactId": "0bf25520-75c3-4fa4-b6eb-021e51262c8b",
+    "version": 1,
+    "sha256": "8e8680e1e965210af32b3bfc69ede489bf9d90367b14b7d72cf1ec0f538840f9",
+    "bytes": 108
+  },
+  "goalArtifact": {
+    "artifactId": "d100990a-f739-4127-918f-8958722009a2",
+    "version": 1,
+    "sha256": "8e8680e1e965210af32b3bfc69ede489bf9d90367b14b7d72cf1ec0f538840f9",
+    "bytes": 108
+  },
+  "approvedArtifact": {
+    "artifactId": "80ef1b76-4410-4608-97e2-10b3a573a116",
+    "version": 1,
+    "sha256": "8e8680e1e965210af32b3bfc69ede489bf9d90367b14b7d72cf1ec0f538840f9",
+    "bytes": 108
+  },
+  "recoveredArtifact": {
+    "artifactId": "c4571f3e-93a3-4cf8-86c4-48508b411fae",
+    "version": 1,
+    "sha256": "8e8680e1e965210af32b3bfc69ede489bf9d90367b14b7d72cf1ec0f538840f9",
+    "bytes": 108
+  },
+  "originalRuns": {
+    "task": "5d7d5b1a-c3fe-4e93-93ff-c3f39bfe13cf",
+    "goal": "cb1a84be-1bb9-4988-af71-3959ee8ab425",
+    "approval": "79645a5e-5997-4e02-a66d-e92de7c8be82",
+    "cancellation": "25fbe145-0976-4f34-84ec-7d9b98e6a144",
+    "recovery": "8d8fde40-2e09-4868-ad2a-248582607297",
+    "lostAcknowledgment": "0bbe101e-469a-48e0-9d19-8e9c88fc082b"
+  },
+  "selectedInput": {
+    "artifactId": "391a771f-ab1a-4f45-9b83-0c6010756309",
+    "version": 1,
+    "sha256": "b8245ac9f78109f7871a9455db280aa275fe8bcd3919f9e4676b5b91b0194a6b"
+  },
+  "persistedToolEvents": [
+    {
+      "sequence": 2,
+      "type": "pi.tool.started",
+      "toolName": "workspace_input",
+      "toolCallId": "a5ffbb6d552650597f8257516066f2769e0f1822c7aad0cef4a4967a7f53c95f"
+    },
+    {
+      "sequence": 3,
+      "type": "pi.tool.finished",
+      "toolName": "workspace_input",
+      "toolCallId": "a5ffbb6d552650597f8257516066f2769e0f1822c7aad0cef4a4967a7f53c95f"
+    }
+  ],
+  "localFixtureModelCalls": 11,
+  "result": "passed",
+  "finishedAt": "2026-10-13T09:25:29.828Z"
+}

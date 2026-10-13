@@ -1,0 +1,172 @@
+✖ conversation entry opens the actual latest conversation without creating or executing another one (437.264404ms)
+✖ encoded slash/colon conversation routes retain the opaque ID for messages and each business API read (116.545476ms)
+✔ retired commerce entry opens the original product Library without mounting the old supply panel (86.048004ms)
+✖ initial latest-conversation selection preserves an already opened original settings dialog (66.448635ms)
+✖ initial latest-conversation selection preserves Goals clicked as the first bootstrap becomes visible (6251.672016ms)
+✔ conversation references select exact original product/document versions, persist and reopen without sending (495.702001ms)
+✔ original task progress and actual persisted output appear only in their corresponding conversation (234.90953ms)
+✖ original Goals and grouped activity open the corresponding conversation without starting work (6203.60327ms)
+✖ 320 and 390 px entry has one conversation and mutually exclusive original side drawers (211.437588ms)
+✖ original native task DTO and checked receipt stay in their conversation with no automatic dispatch (220.729627ms)
+✔ selected Library references inspect their fixed document version and distinguish current product facts without rebinding (381.083699ms)
+✔ missing fixed document version stays explicit and cannot silently fall back or be selected (233.031917ms)
+✔ conversation UI prepares, separately approves/dispatches, reconciles one original task and accepts only its returned receipt (524.581736ms)
+✔ lost prepare response survives disk restart/browser reopen and explicit retry preserves exact original request (265.711884ms)
+✔ viewer and mismatched original conversation DTO fail closed without dispatch or fallback (145.570852ms)
+✖ same-conversation attachment preview verifies exact original bytes, refuses corrupted/denied reads and preserves viewer guard (140.787863ms)
+✔ same-conversation bootstrap refresh retains an in-flight exact attachment but a denied refresh removes it (4121.617413ms)
+✖ conversation UI keeps buyer draft private, explicitly binds exact shared inquiry and persists one original merchant reply (322.181364ms)
+✖ lost reply response reopens as same explicit request; revoked sharing blocks future reads and replies (226.746705ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 9
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21460.24024
+
+✖ failing tests:
+
+test at test/conversation-integration.dom.test.mjs:72:1
+✖ conversation entry opens the actual latest conversation without creating or executing another one (437.264404ms)
+  AssertionError [ERR_ASSERTION]: existing central companion appears by default
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:79:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/conversation-integration.dom.test.mjs:82:1
+✖ encoded slash/colon conversation routes retain the opaque ID for messages and each business API read (116.545476ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '聊天'
+  - 'Opaque ID fixture'
+  
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:87:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processTimers (node:internal/timers:568:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '聊天',
+    expected: 'Opaque ID fixture',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/conversation-integration.dom.test.mjs:107:1
+✖ initial latest-conversation selection preserves an already opened original settings dialog (66.448635ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(ui.document.querySelector('.settings-modal'))
+  
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:114:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processTimers (node:internal/timers:568:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/conversation-integration.dom.test.mjs:118:1
+✖ initial latest-conversation selection preserves Goals clicked as the first bootstrap becomes visible (6251.672016ms)
+  Error: Timed out: explicit Goals navigation survives bootstrap auto-selection
+      at wait (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:66:149)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:135:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:176:1
+✖ original Goals and grouped activity open the corresponding conversation without starting work (6203.60327ms)
+  Error: Timed out: goal opens its actual conversation
+      at wait (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:66:149)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:183:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:190:1
+✖ 320 and 390 px entry has one conversation and mutually exclusive original side drawers (211.437588ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:198:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/conversation-integration.dom.test.mjs:202:1
+✖ original native task DTO and checked receipt stay in their conversation with no automatic dispatch (220.729627ms)
+  TypeError: Cannot read properties of null (reading 'textContent')
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:217:250)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processTimers (node:internal/timers:568:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/muse-conversation-ui.dom.test.mjs:116:1
+✖ same-conversation attachment preview verifies exact original bytes, refuses corrupted/denied reads and preserves viewer guard (140.787863ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/muse-conversation-ui.dom.test.mjs:123:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processTimers (node:internal/timers:568:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/procurement-conversation-ui.dom.test.mjs:53:1
+✖ conversation UI keeps buyer draft private, explicitly binds exact shared inquiry and persists one original merchant reply (322.181364ms)
+  TypeError: Cannot read properties of null (reading 'textContent')
+      at file:///workspace/workspace-release-20261013/test/procurement-conversation-ui.dom.test.mjs:60:61
+      at wait (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:50:88)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/procurement-conversation-ui.dom.test.mjs:60:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/procurement-conversation-ui.dom.test.mjs:74:1
+✖ lost reply response reopens as same explicit request; revoked sharing blocks future reads and replies (226.746705ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to: true
+      at click (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:52:94)
+      at reply (file:///workspace/workspace-release-20261013/test/procurement-conversation-ui.dom.test.mjs:51:45)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/procurement-conversation-ui.dom.test.mjs:76:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

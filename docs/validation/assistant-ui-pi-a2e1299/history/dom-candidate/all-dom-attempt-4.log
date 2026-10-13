@@ -1,0 +1,69 @@
+✔ conversation entry opens the actual latest conversation without creating or executing another one (414.67128ms)
+✔ encoded slash/colon conversation routes retain the opaque ID for messages and each business API read (255.912508ms)
+✔ retired commerce entry opens the original product Library without mounting the old supply panel (77.490109ms)
+✔ initial latest-conversation selection preserves an already opened original settings dialog (184.860619ms)
+✔ initial latest-conversation selection preserves Goals clicked as the first bootstrap becomes visible (136.814498ms)
+✔ conversation references select exact original product/document versions, persist and reopen without sending (447.105999ms)
+✔ original task progress and actual persisted output appear only in their corresponding conversation (233.469683ms)
+✔ original Goals and grouped activity open the corresponding conversation without starting work (152.508344ms)
+✔ 320 and 390 px entry has one conversation and mutually exclusive original side drawers (291.561797ms)
+✔ original native task DTO and checked receipt stay in their conversation with no automatic dispatch (171.983197ms)
+✔ selected Library references inspect their fixed document version and distinguish current product facts without rebinding (358.890514ms)
+✔ missing fixed document version stays explicit and cannot silently fall back or be selected (203.997389ms)
+✔ conversation UI prepares, separately approves/dispatches, reconciles one original task and accepts only its returned receipt (528.581137ms)
+✔ lost prepare response survives disk restart/browser reopen and explicit retry preserves exact original request (243.414296ms)
+✔ viewer and mismatched original conversation DTO fail closed without dispatch or fallback (164.959672ms)
+✔ same-conversation attachment preview verifies exact original bytes, refuses corrupted/denied reads and preserves viewer guard (280.564546ms)
+✔ same-conversation bootstrap refresh retains an in-flight exact attachment but a denied refresh removes it (4168.789953ms)
+✔ conversation UI keeps buyer draft private, explicitly binds exact shared inquiry and persists one original merchant reply (586.242023ms)
+✔ lost reply response reopens as same explicit request; revoked sharing blocks future reads and replies (541.566898ms)
+✔ retired Supply component contract: saves supplier/product, edits, and recovers from original durable Store restart (290.804058ms)
+✔ retired Supply component contract: pins edit revision, preserves conflicting input across reload, and requires explicit new revision (182.370788ms)
+✔ retired Supply component contract: restores unknown committed command after refresh and retries exact request without duplicates (133.487377ms)
+✔ retired Supply component contract: reports unsaved edits and clears its dirty callback when unmounted (50.63574ms)
+✔ retired Supply component contract: exposes read failures, disables invalid writes, and reloads real data (81.711799ms)
+✔ retired Supply component contract: never adopts another role scope pending command or mutates through viewer controls (109.518691ms)
+✔ retired Supply component contract: publishes only after explicit confirmation of exact supplier and listing revision (134.453979ms)
+✔ current Library UI creates private product facts, edits an exact revision and restores durable internal data (222.160107ms)
+✔ current Library UI keeps the edited revision and typed input through conflicts until explicit reload (199.08807ms)
+✔ current Library UI retries an unknown commit in the same editor with its original request and no duplicate (119.707708ms)
+✔ current Library UI uses the original App dirty navigation and beforeunload guard (82.557378ms)
+✔ current Library UI refuses edits while the original product detail is unreadable and recovers from actual API retry (84.684885ms)
+✔ current Library UI preserves viewer read-only controls and never adopts another role Supply pending command (186.564903ms)
+✔ production UI: navigation, interrupted goal intake, guarded chat, search, settings, notes and review (2178.010003ms)
+✔ production UI: real pending approvals are visible and approve/deny never execute an action (161.44379ms)
+✔ management UI: instruction registry, connector configuration, exact approvals and schedule gates use real HTTP (769.760337ms)
+✔ management UI: file bytes, versions, safe preview, optimistic conflict and memory scope controls (480.255333ms)
+✔ enterprise UI: explicit identity login, CSRF mutation, expiry erases workspace and logout revokes session (2213.7641ms)
+✔ enterprise UI: viewer cannot submit chat, settings, skill or artifact mutations (191.683229ms)
+✔ management UI: transport failure preserves editor, late mutation cannot undo navigation, blocked runs can explicitly retry (341.170985ms)
+✔ management UI: lost create response retries the same idempotency key without duplicate registry entries (211.180538ms)
+✔ relay UI: only the server-approved gpt-6-sol model is offered, no configuration fallback or live request (139.255484ms)
+✔ diagnostics UI: GET-only contract distinguishes configured, packaged fixture evidence and live acceptance (169.483673ms)
+✔ diagnostics UI: outages, stale snapshots, reconnect, duplicate refresh and interrupted navigation are honest (302.102938ms)
+✔ diagnostics UI: instance restart accepts lower store sequence and late old process responses cannot roll back state (4113.812649ms)
+✔ diagnostics UI: hung GET reads have bounded deadlines, recoverable controls and one bootstrap in flight (655.328588ms)
+✔ diagnostics UI: passed fixtures and successful provider return still do not claim current-deployment live verification (199.090451ms)
+✖ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (6956.442561ms)
+✔ conversation context UI: stale reviewed skill fails closed and remains editable without sending a model request (196.240278ms)
+✔ conversation execution UI: inline exact approval, duplicate-click guard, receipt and real output artifact (4106.588852ms)
+✔ draft goal UI follows its conversation file selection when started after intake (282.245095ms)
+✔ template schedule UI makes fresh goal mode explicit, bounds standing approval and never auto-enables (261.587195ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 50
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36107.939421
+
+✖ failing tests:
+
+test at test/ui.dom.test.mjs:542:1
+✖ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (6956.442561ms)
+  Error: Timed out: conversation selection cleared durably
+      at waitFor (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:47:150)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:574:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

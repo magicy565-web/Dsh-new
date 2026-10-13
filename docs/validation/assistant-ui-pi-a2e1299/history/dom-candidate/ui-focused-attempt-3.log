@@ -1,0 +1,20 @@
+✔ enterprise UI: explicit identity login, CSRF mutation, expiry erases workspace and logout revokes session (2536.704064ms)
+✖ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (6926.090379ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10232.802486
+
+✖ failing tests:
+
+test at test/ui.dom.test.mjs:542:1
+✖ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (6926.090379ms)
+  Error: Timed out: conversation selection cleared durably
+      at waitFor (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:47:150)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:574:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

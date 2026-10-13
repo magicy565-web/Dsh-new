@@ -1,0 +1,20 @@
+CLEAR_CONTEXT_DEBUG {"conversations":[{"id":"51a954a5-c1ed-4072-b6c0-e8eb057778a2","title":"Review my selected brief","inputContext":{"artifacts":[{"id":"b551862b-ac0f-449e-a84d-47a96eb86d08","version":1}],"skills":[{"id":"b55ffd95-ee08-4dae-bd5b-b1eeda060de7","revision":1}],"memoryIds":["cd4264c4-bf1d-4f94-b62b-9bf22a615eeb"],"connectorActions":[]},"createdAt":"2026-10-13T09:31:03.097Z","updatedAt":"2026-10-13T09:31:03.185Z","status":"idle","lastError":null,"activeRunId":null,"createdBy":"local-operator","workspaceId":"local","creationRequestId":"2a99f3e0-71ad-4600-96d9-af71f54dcc2d"}],"requests":[{"path":"/api/supply/inquiries","method":"GET","body":{}},{"path":"/api/conversations/51a954a5-c1ed-4072-b6c0-e8eb057778a2/library-references","method":"GET","body":{}},{"path":"/api/artifacts","method":"POST","body":{"filename":"Workspace-2d1ed117-3864-402c-b9e5-d90ff698b233.md","title":"聊天回复","content":"Selected task input reviewed.","sourceConversationId":"51a954a5-c1ed-4072-b6c0-e8eb057778a2","sourceRunId":"cf19fe3c-fb71-4192-aeb6-2093a7008c36","requestId":"message-2d1ed117-3864-402c-b9e5-d90ff698b233"}},{"path":"/api/bootstrap","method":"GET","body":{}},{"path":"/api/conversations/51a954a5-c1ed-4072-b6c0-e8eb057778a2/muse-delegations","method":"GET","body":{}},{"path":"/api/conversations/51a954a5-c1ed-4072-b6c0-e8eb057778a2/procurement","method":"GET","body":{}},{"path":"/api/supply/inquiries","method":"GET","body":{}},{"path":"/api/conversations/51a954a5-c1ed-4072-b6c0-e8eb057778a2/library-references","method":"GET","body":{}},{"path":"/api/artifacts","method":"POST","body":{"filename":"Workspace-2d1ed117-3864-402c-b9e5-d90ff698b233.md","title":"聊天回复","content":"Selected task input reviewed.","sourceConversationId":"51a954a5-c1ed-4072-b6c0-e8eb057778a2","sourceRunId":"cf19fe3c-fb71-4192-aeb6-2093a7008c36","requestId":"message-2d1ed117-3864-402c-b9e5-d90ff698b233"}},{"path":"/api/bootstrap","method":"GET","body":{}},{"path":"/api/bootstrap","method":"GET","body":{}},{"path":"/api/bootstrap","method":"GET","body":{}}],"dialog":"本聊天的任务输入只把所选版本、已审阅技能和笔记用于这段聊天。开始运行后保留输入快照；修改选择只影响下一次运行。发送消息或开始目标会把聊天历史及所选内容交给当前模型提供方。业务资料库引用只保留在本地，内部文件不能作为模型输入；请另外提供允许发送的公开文本。文件中的指令不能授予权限。技能仅提供文字指导，不会安装工具或连接应用。文件版本 (1/8)管理文件支持 TXT、Markdown、CSV、JSON，合计最多 32,000 字符。PDF 和图片目前不能作为模型输入。添加本地文本文件添加后文件即保存到共享资料库；取消选择不会删除文件。Project briefinput.mdv1 · input.mdv2 · input.mdPrivate unrelated inputunselected.txt聊天回复Workspace-2d1ed117-3864-402c-b9e5-d90ff698b233.md审阅技能 (1/12)管理技能Reviewed writing · r1SELECTED_SKILL_GUIDANCE我已阅读并采用 r1 指令Unselected skill · r1UNSELECTED_SKILL_GUIDANCE我已阅读并采用 r1 指令笔记与记忆 (1/20)只显示已启用且适用当前聊天的内容，保存的笔记需主动选择才会使用。SELECTED_SAVED_NOTE共享空间 · 保存的笔记UNSELECTED_GLOBAL_MEMORY共享空间 · 记忆允许提议的动作 (0/12)配置连接器选择只允许助手提出具体请求。每个动作仍需管理员审阅完整目标与载荷，批准后再明确继续执行。暂无就绪连接器。可在连接器管理中配置本地资料库连接器。1 个文件 · 1 个技能 · 1 条笔记 · 0 个可提议动作清空选择取消保存任务输入","controls":[{"text":"","disabled":false},{"text":"管理文件","disabled":false},{"text":"管理技能","disabled":false},{"text":"配置连接器","disabled":false},{"text":"清空选择","disabled":false},{"text":"取消","disabled":false},{"text":"保存任务输入","disabled":false}],"errors":[],"href":"http://127.0.0.1:41961/chat/51a954a5-c1ed-4072-b6c0-e8eb057778a2"}
+✖ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (7166.934655ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7915.563089
+
+✖ failing tests:
+
+test at test/ui.dom.test.mjs:542:1
+✖ conversation task input UI: explicit versions, reviewed skills and scoped notes are durable and reach only the selected run (7166.934655ms)
+  Error: Timed out: conversation selection cleared durably
+      at waitFor (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:47:150)
+      at async TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/ui.dom.test.mjs:574:11)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

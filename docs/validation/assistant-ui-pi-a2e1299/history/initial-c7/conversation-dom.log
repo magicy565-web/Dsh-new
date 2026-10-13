@@ -1,0 +1,231 @@
+{"name": "conversation-dom", "command": ["node", "--test", "--test-isolation=none", "test/conversation-integration.dom.test.mjs", "test/muse-conversation-ui.dom.test.mjs", "test/procurement-conversation-ui.dom.test.mjs", "test/library-reference-inspection.dom.test.mjs"], "sourceBefore": "c7ebab587c7e57708109b4ad825ab75b35a5f80e", "treeBefore": "8ac9b751d5099591c32c3b94a9bbe0f453c13c71", "statusBefore": "", "environmentNames": ["HOME", "LANG", "LC_ALL", "PATH", "TERM", "npm_config_cache", "npm_config_globalconfig", "npm_config_userconfig"], "cwd": "/workspace/workspace-release-20261013", "startedAt": "2026-10-13T09:19:15.374624+00:00"}
+✖ conversation entry opens the actual latest conversation without creating or executing another one (768.206069ms)
+✖ encoded slash/colon conversation routes retain the opaque ID for messages and each business API read (133.029341ms)
+✖ retired commerce entry opens the original product Library without mounting the old supply panel (166.079131ms)
+✖ initial latest-conversation selection preserves an already opened original settings dialog (119.460825ms)
+✖ initial latest-conversation selection preserves Goals clicked as the first bootstrap becomes visible (168.758906ms)
+✖ conversation references select exact original product/document versions, persist and reopen without sending (104.42378ms)
+✖ original task progress and actual persisted output appear only in their corresponding conversation (129.204456ms)
+✖ original Goals and grouped activity open the corresponding conversation without starting work (67.284368ms)
+✖ 320 and 390 px entry has one conversation and mutually exclusive original side drawers (56.870435ms)
+✖ original native task DTO and checked receipt stay in their conversation with no automatic dispatch (68.185924ms)
+✖ selected Library references inspect their fixed document version and distinguish current product facts without rebinding (211.333288ms)
+✖ missing fixed document version stays explicit and cannot silently fall back or be selected (165.733807ms)
+✖ conversation UI prepares, separately approves/dispatches, reconciles one original task and accepts only its returned receipt (111.841953ms)
+✖ lost prepare response survives disk restart/browser reopen and explicit retry preserves exact original request (117.235057ms)
+✖ viewer and mismatched original conversation DTO fail closed without dispatch or fallback (115.290661ms)
+✖ same-conversation attachment preview verifies exact original bytes, refuses corrupted/denied reads and preserves viewer guard (251.967699ms)
+✖ same-conversation bootstrap refresh retains an in-flight exact attachment but a denied refresh removes it (258.247696ms)
+✖ conversation UI keeps buyer draft private, explicitly binds exact shared inquiry and persists one original merchant reply (248.261276ms)
+✖ lost reply response reopens as same explicit request; revoked sharing blocks future reads and replies (197.81926ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 0
+ℹ fail 19
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5424.171883
+
+✖ failing tests:
+
+test at test/conversation-integration.dom.test.mjs:71:1
+✖ conversation entry opens the actual latest conversation without creating or executing another one (768.206069ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:72:149)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at test/conversation-integration.dom.test.mjs:81:1
+✖ encoded slash/colon conversation routes retain the opaque ID for messages and each business API read (133.029341ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:85:22)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:94:1
+✖ retired commerce entry opens the original product Library without mounting the old supply panel (166.079131ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:95:44)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:106:1
+✖ initial latest-conversation selection preserves an already opened original settings dialog (119.460825ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:108:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:117:1
+✖ initial latest-conversation selection preserves Goals clicked as the first bootstrap becomes visible (168.758906ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:122:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:141:1
+✖ conversation references select exact original product/document versions, persist and reopen without sending (104.42378ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:146:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:163:1
+✖ original task progress and actual persisted output appear only in their corresponding conversation (129.204456ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:167:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:175:1
+✖ original Goals and grouped activity open the corresponding conversation without starting work (67.284368ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:180:22)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:189:1
+✖ 320 and 390 px entry has one conversation and mutually exclusive original side drawers (56.870435ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:192:24)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/conversation-integration.dom.test.mjs:201:1
+✖ original native task DTO and checked receipt stay in their conversation with no automatic dispatch (68.185924ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:211:22)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/library-reference-inspection.dom.test.mjs:15:1
+✖ selected Library references inspect their fixed document version and distinguish current product facts without rebinding (211.333288ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/library-reference-inspection.dom.test.mjs:25:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/library-reference-inspection.dom.test.mjs:49:1
+✖ missing fixed document version stays explicit and cannot silently fall back or be selected (165.733807ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/library-reference-inspection.dom.test.mjs:56:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/muse-conversation-ui.dom.test.mjs:63:1
+✖ conversation UI prepares, separately approves/dispatches, reconciles one original task and accepts only its returned receipt (111.841953ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at preparedUi (file:///workspace/workspace-release-20261013/test/muse-conversation-ui.dom.test.mjs:49:22)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/muse-conversation-ui.dom.test.mjs:64:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/muse-conversation-ui.dom.test.mjs:91:1
+✖ lost prepare response survives disk restart/browser reopen and explicit retry preserves exact original request (117.235057ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at preparedUi (file:///workspace/workspace-release-20261013/test/muse-conversation-ui.dom.test.mjs:49:22)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/muse-conversation-ui.dom.test.mjs:92:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/muse-conversation-ui.dom.test.mjs:107:1
+✖ viewer and mismatched original conversation DTO fail closed without dispatch or fallback (115.290661ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/muse-conversation-ui.dom.test.mjs:108:66)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/muse-conversation-ui.dom.test.mjs:116:1
+✖ same-conversation attachment preview verifies exact original bytes, refuses corrupted/denied reads and preserves viewer guard (251.967699ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/muse-conversation-ui.dom.test.mjs:120:22)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/muse-conversation-ui.dom.test.mjs:138:1
+✖ same-conversation bootstrap refresh retains an in-flight exact attachment but a denied refresh removes it (258.247696ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/muse-conversation-ui.dom.test.mjs:142:22)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/procurement-conversation-ui.dom.test.mjs:53:1
+✖ conversation UI keeps buyer draft private, explicitly binds exact shared inquiry and persists one original merchant reply (248.261276ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/procurement-conversation-ui.dom.test.mjs:54:51)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at test/procurement-conversation-ui.dom.test.mjs:74:1
+✖ lost reply response reopens as same explicit request; revoked sharing blocks future reads and replies (197.81926ms)
+  ReferenceError: TransformStream is not defined
+      at eval (eval at render (file:///workspace/workspace-release-20261013/test/conversation-integration.dom.test.mjs:57:12), <anonymous>:23:13109)
+      at eval (<anonymous>)
+      at Object.render (file:///workspace/workspace-release-20261013/test/fixtures/conversation-ui.mjs:44:12)
+      at TestContext.<anonymous> (file:///workspace/workspace-release-20261013/test/procurement-conversation-ui.dom.test.mjs:75:67)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
