@@ -58,6 +58,33 @@ class AgentProjection {
     this.pending = operation.catch(() => {});
     return operation;
   }
+  // Check the existing on-disk read model *before* writing an artifact file.
+  // A rejected historical event, owner change or stale Workspace backup must
+  // not create orphan files outside the SQLite transaction.
+  assertContinuity(task, authoritySequence) {
+    const previous = this.db.prepare('SELECT workspace_id,subject,authority_sequence FROM agent_task_projection WHERE task_id=?').get(task.id);
+    if (previous && (previous.workspace_id !== task.workspaceId || previous.subject !== task.subject))
+      throw new Error('Original Agent task owner changed; restore consistent authority, never reassign a projection.');
+    if (previous && previous.authority_sequence > authoritySequence)
+      throw new Error('Agent projection is ahead of the Workspace authority sequence; restore a consistent backup.');
+    const old = this.db.prepare('SELECT count(*) AS n FROM agent_event_projection WHERE task_id=?').get(task.id).n;
+    if (old > task.events.length) throw new Error('Projection is ahead of business authority; restore a consistent backup.');
+    for (let index = 0; index < task.events.length; index++) {
+      const { seq, kind, payload, ts } = task.events[index];
+      if (seq !== index + 1 || !AGENT_EVENT_KINDS.includes(kind)) throw new Error('Invalid authoritative event outbox.');
+      if (index < old) {
+        const stored = this.db.prepare('SELECT kind,payload_json,ts FROM agent_event_projection WHERE task_id=? AND seq=?').get(task.id, seq);
+        if (!stored || stored.kind !== kind || stored.payload_json !== JSON.stringify(payload) || stored.ts !== ts)
+          throw new Error('A previously delivered event cannot change.');
+      }
+    }
+    for (const file of task.deliverables) {
+      const existing = this.db.prepare('SELECT sha256,bytes,url FROM agent_artifact_projection WHERE task_id=? AND name=?').get(task.id, file.name);
+      if (existing && (existing.sha256 !== file.sha256 || existing.bytes !== file.bytes || existing.url !== file.url))
+        throw new Error('Published Agent artifact metadata cannot change; restore the original business authority.');
+    }
+    return old;
+  }
   async _sync(task, authoritySequence) {
     if (this.closed || !taskIdValid(task.id)) throw new Error('Invalid projection task.');
     const artifacts = task.deliverables.map(({ name, bytes, url }) => ({ name, bytes, url }));
@@ -73,31 +100,24 @@ class AgentProjection {
       events: task.events.map(({ seq, kind, payload, ts }) => [seq, kind, payload, ts]),
       artifacts: task.deliverables.map(({ name, sha256 }) => [name, sha256]),
     }), 'utf8'));
+    // Validate current read authority before any filesystem side effects,
+    // including a cache hit after the Workspace Store was rolled back.
+    this.assertContinuity(task, authoritySequence);
     if (this.last.get(task.id) === signature) return;
     // Materialize every file before making its already durable outbox event readable.
     for (const artifact of task.deliverables) await this.materialize(task.id, artifact);
     this.transaction(() => {
-      const owner = this.db.prepare('SELECT workspace_id,subject FROM agent_task_projection WHERE task_id=?').get(task.id);
-      if (owner && (owner.workspace_id !== task.workspaceId || owner.subject !== task.subject))
-        throw new Error('Original Agent task owner changed; restore consistent authority, never reassign a projection.');
+      // Recheck while holding SQLite's writer transaction as a second fence.
+      const old = this.assertContinuity(task, authoritySequence);
       this.db.prepare('INSERT INTO agent_task_projection VALUES(?,?,?,?,?,?) ON CONFLICT(task_id) DO UPDATE SET task_json=excluded.task_json,authority_sequence=excluded.authority_sequence,event_count=excluded.event_count')
         .run(task.id, task.workspaceId, task.subject, JSON.stringify(view), authoritySequence, task.events.length);
-      const old = this.db.prepare('SELECT count(*) AS n FROM agent_event_projection WHERE task_id=?').get(task.id).n;
-      if (old > task.events.length) throw new Error('Projection is ahead of business authority; restore a consistent backup.');
-      for (let index = 0; index < task.events.length; index++) {
+      for (let index = old; index < task.events.length; index++) {
         const { seq, kind, payload, ts } = task.events[index];
-        if (seq !== index + 1 || !AGENT_EVENT_KINDS.includes(kind)) throw new Error('Invalid authoritative event outbox.');
-        if (index < old) {
-          const stored = this.db.prepare('SELECT kind,payload_json,ts FROM agent_event_projection WHERE task_id=? AND seq=?').get(task.id, seq);
-          if (stored.kind !== kind || stored.payload_json !== JSON.stringify(payload) || stored.ts !== ts) throw new Error('A previously delivered event cannot change.');
-        } else this.db.prepare('INSERT INTO agent_event_projection VALUES(?,?,?,?,?)').run(task.id, seq, kind, JSON.stringify(payload), ts);
+        this.db.prepare('INSERT INTO agent_event_projection VALUES(?,?,?,?,?)').run(task.id, seq, kind, JSON.stringify(payload), ts);
       }
-      for (const file of task.deliverables) {
-        const previous = this.db.prepare('SELECT sha256,bytes,url FROM agent_artifact_projection WHERE task_id=? AND name=?').get(task.id, file.name);
-        if (previous && (previous.sha256 !== file.sha256 || previous.bytes !== file.bytes || previous.url !== file.url))
-          throw new Error('Published Agent artifact metadata cannot change; restore the original business authority.');
-        this.db.prepare('INSERT OR IGNORE INTO agent_artifact_projection VALUES(?,?,?,?,?)').run(task.id, file.name, file.bytes, file.sha256, file.url);
-      }
+      for (const file of task.deliverables)
+        this.db.prepare('INSERT OR IGNORE INTO agent_artifact_projection VALUES(?,?,?,?,?)')
+          .run(task.id, file.name, file.bytes, file.sha256, file.url);
     });
     this.last.set(task.id, signature); this.notify(task.id);
   }
