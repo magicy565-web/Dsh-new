@@ -1,0 +1,173 @@
+{
+  "validatedSource": "4e455e6a0a066bd10dd434615e9aa22c4ef2d593",
+  "previousGenericDelivery": "1779783232082452a8ae7e702e54f588c38da356",
+  "node": "v24.19.0",
+  "officialPiVersion": "1.1.0",
+  "checks": [
+    {
+      "receipt": "business-native-targeted.json",
+      "log": "business-native-targeted.log",
+      "exitCode": 0,
+      "counts": {
+        "tests": 74,
+        "suites": 0,
+        "pass": 74,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logSha256": "5e5d68842fe73216b3a0e7313870f81440b64f4d19b1d39b0a383a75d4064c02"
+    },
+    {
+      "receipt": "build.json",
+      "log": "build.log",
+      "exitCode": 0,
+      "counts": {},
+      "logSha256": "711435ad4ff2dd9a9e4efd76c8075c062b720ec7a0e3f8a68ab08e7fac3c9629"
+    },
+    {
+      "receipt": "backend-all.json",
+      "log": "backend-all.log",
+      "exitCode": 0,
+      "counts": {
+        "tests": 821,
+        "suites": 0,
+        "pass": 814,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 7,
+        "todo": 0
+      },
+      "logSha256": "0f722625802a66a45e11d8e9b333c975082f25ef670aad73eee293bbfcec1e62"
+    }
+  ],
+  "sourceIdentities": {
+    "pi/extensions/workspace.mjs": {
+      "gitBlob": "2ba8fe6e02de8868f2dd52e6e4e5bf8c2e547ad3",
+      "sha256": "e6f4c85ba2d90d305653ed81b7e2f0368f4b397ee53afb914cbfc7b3c3c1039a"
+    },
+    "scripts/pi-workspace-tui.mjs": {
+      "gitBlob": "fa9657c0d6e3977cb96fa53daf4abb12c86904a3",
+      "sha256": "0051b830fdc0a5c7fdb7fb8b1ee358203321769651140575ef293a7d4775c87b"
+    },
+    "server/pi-development.mjs": {
+      "gitBlob": "bb5308e69c3b9bdf60648803ee94544a88aeda91",
+      "sha256": "ce885dfc65d008b10adb6a1197804011ce0f7fd6aa398cdf8cbd5326f3136b42"
+    },
+    "test/pi-workspace-business.test.mjs": {
+      "gitBlob": "815903da4f878884b37d17463b66fc47ca267653",
+      "sha256": "f3b68c897c328024edea4e06d32a8756f75f1aeee7ac4ab91592564f3874a9a9"
+    },
+    "test/pi-workspace-business.pty.test.mjs": {
+      "gitBlob": "040fe6ed75b048593c26b61f5ebec9e766cb8aeb",
+      "sha256": "c180bcc72c693f6db656b25762eee4125bd678c4133c774a6b3ae1820ea88f19"
+    },
+    "test/pi-workspace-tui.test.mjs": {
+      "gitBlob": "f3b97bd307456ceb29708f478ef8f193634c83c2",
+      "sha256": "ebc40ecbf39e64a60f63eead02526ef0e1625bc717947bc29402fe7b36e67401"
+    },
+    "test/pi-workspace-tui.pty.test.mjs": {
+      "gitBlob": "e39c910b2929f98d4f37d03737ed6c6c9d1d3207",
+      "sha256": "8b9f301a60871f67c60247954ccec33f10a4d25cacadbf68f8a09ce25fd4fd9e"
+    },
+    "test/fixtures/pi-tui-pty-driver.py": {
+      "gitBlob": "fb8e20e5ad3287de94faaab27239e30a25df0094",
+      "sha256": "aa96951a9c472a7ae4f5d571f4f4b761cc1f08b5f76e0c64c4065e03e49f0938"
+    },
+    "server/agent/service.mjs": {
+      "gitBlob": "030fae39365b26ce983ac7a0df4742d8345e0727",
+      "sha256": "20caa161d97b627ec73a73337caac475d49698236ecdc60d24db200c0e694d99"
+    },
+    "server/agent/engine.mjs": {
+      "gitBlob": "e6b201722a28acc7ed5bc83d6d1a10d03d811ef8",
+      "sha256": "907e895118f4e30bec8aa69acf996e6fa413993428fbd36a4880a8ce45c0efff"
+    },
+    "server/agent/pi-preset.mjs": {
+      "gitBlob": "3a087fb4168d8534134a3e9466fbf326d9dbae09",
+      "sha256": "4205534c026941c521c5d6c3b013c99c9ad27bdfd6e09d6f9b89803fe6f091b3"
+    },
+    "server/agent/presets.mjs": {
+      "gitBlob": "a0be99ed5c00182abab81a92abb99d969f7c4229",
+      "sha256": "c6e3e4167419379529942a8f8a8d8762ad24c33df6e91b2011b58455fd1ecbde"
+    },
+    "server/agent/auth.mjs": {
+      "gitBlob": "d0db50db27bc0fb1b7f949ce12c9b1ecb9c68ccb",
+      "sha256": "03d69fcd0f1bc6b6b22d9043718ed32557cba484aa3d476a2ed91136ab467769"
+    },
+    "server/agent/store.mjs": {
+      "gitBlob": "af6e0b96947166ba44c40e789eb2847b3907db53",
+      "sha256": "12afcc0c84788e9a2c2f3b73240d5154a3facf1de08f5a99f3876569d789eb95"
+    },
+    "server/runtime.mjs": {
+      "gitBlob": "d3e1cbb67ef8dfcdf798b8dfd6c0fc24a521d0d7",
+      "sha256": "9d5f300bef46bf7671115b446742c4228aed632ca64ed4d906a02f0add3f770b"
+    },
+    "server/pi-provider.mjs": {
+      "gitBlob": "b0ec5f32ca862d848247682c91e26354ac0a4dcd",
+      "sha256": "d637116fe2e9c3c20167d6300a3c1472e233f1b447929119e6308c6e8dc9c239"
+    },
+    "server/index.mjs": {
+      "gitBlob": "cce9b2651ddedfffc4f39828e16e955a4845cc6e",
+      "sha256": "2f5a2afc279d8e557c1dc51ee03497eb477e742de402eb47538c30b661d08227"
+    },
+    "package.json": {
+      "gitBlob": "ade5cce9d23317f18aed526f987a6b426213715a",
+      "sha256": "40b83e3ad43dcf26299de1bfd795f0d431deb6459763bed2eca839ffcd868940"
+    },
+    "package-lock.json": {
+      "gitBlob": "cd40f9cceb9c0adca62ee9c1851b18091cd6270e",
+      "sha256": "2a7969eb6e35551c7d75cf9aa944d4f461de86d1e84e1afb28312d8187fa19bb"
+    }
+  },
+  "unchangedOriginalFilesSincePreviousDelivery": [
+    "server/agent/service.mjs",
+    "server/agent/engine.mjs",
+    "server/agent/pi-preset.mjs",
+    "server/agent/presets.mjs",
+    "server/agent/auth.mjs",
+    "server/agent/store.mjs",
+    "server/runtime.mjs",
+    "server/pi-provider.mjs",
+    "server/index.mjs",
+    "package.json",
+    "package-lock.json"
+  ],
+  "cleanInstallReference": {
+    "receipt": "../pi-tui/clean-npm-ci.json",
+    "log": "../pi-tui/clean-npm-ci.log",
+    "source": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+    "lockSha256": "2a7969eb6e35551c7d75cf9aa944d4f461de86d1e84e1afb28312d8187fa19bb",
+    "exactPackageAndLockUnchanged": true
+  },
+  "businessApi": "existing /api/agent/v1/presets and /tasks; explicit taskId; existing coordinator and original Pi stages",
+  "genericApi": "existing /api/agent/v1/pi/tasks; explicit runId; separately selected controlled owned child",
+  "businessSubagents": false,
+  "businessExternalActionAuthorityAdded": false,
+  "modelTransport": "finite keyless official faux; sample stage documents explicitly labeled 合成模型替身",
+  "realModelE2E": "not attempted; live/paid/production calls prohibited",
+  "githubCI": {
+    "runId": 38456638821,
+    "conclusion": "startup_failure",
+    "jobs": 0,
+    "verifiedSource": "4e455e6a0a066bd10dd434615e9aa22c4ef2d593"
+  },
+  "ptyCoverage": [
+    "original procurement four stages and three authenticated documents",
+    "stable request replay",
+    "host-context/public-schema/generic-vs-business identity refusal",
+    "missing-search failure and partial artifact",
+    "original comparison-stage interrupted checkpoint",
+    "canceled confirmation sends no resume",
+    "confirmed recovery keeps task/run/request/reply and prior inquiry SHA",
+    "completed task refuses further resume",
+    "expired original binding refuses status and admission"
+  ],
+  "environment": "Original /workspace remained executable after disconnection notices; no replacement environment or duplicate writer",
+  "limitations": [
+    "business research requires existing search configuration",
+    "Muse/supplier transaction workflows not newly exposed or authorized",
+    "original Runtime/business coordinator and legacy compatibility remain",
+    "sample directory ephemeral; persistent recovery proven with explicit synthetic directory"
+  ]
+}
