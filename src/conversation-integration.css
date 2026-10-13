@@ -3,6 +3,9 @@ body{min-width:320px}
 .conversation-workspace .main-content{min-width:0}
 .conversation-workspace .brand-button{flex-shrink:0}
 .conversation-workspace .message-scroll{overflow-x:hidden}
+.conversation-workspace .message-scroll.is-empty{flex-direction:column;align-items:stretch}
+.conversation-workspace .message-scroll.is-empty>*{flex-shrink:0}
+.conversation-workspace .message-scroll.is-empty>.welcome-conversation{margin-top:auto}
 .conversation-workspace .message-content pre{max-width:100%;overflow:auto}
 .conversation-workspace .conversation-run{margin:12px auto;max-width:760px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .conversation-run>summary,.conversation-task-list>summary{cursor:pointer;padding:12px 14px;font-size:13px}

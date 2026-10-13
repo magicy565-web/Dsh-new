@@ -20,7 +20,7 @@ const directory = await mkdtemp(join(tmpdir(), 'workspace-conversation-library-b
 let modelCalls = 0;
 const options = { dataDirectory: directory, capabilityEnvironment: {}, provider: { configured: false, kind: 'fixture', provider: 'disabled-browser-fixture', complete: async () => { modelCalls++; throw Error('Provider calls are forbidden in this browser driver'); } } };
 let app, browser, page, base, viewerSession = false;
-const checks = [], errors = [], requests = [], blockedExternalHosts = new Set();
+const checks = [], errors = [], requests = [], emptyLayoutMeasurements = [], blockedExternalHosts = new Set();
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 async function request(path, method = 'GET', body) {
   const response = await fetch(`${base}/api${path}`, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -33,6 +33,39 @@ async function capture(name) { await page.screenshot({ path: join(output, `${nam
 async function noOverflow(label) {
   const geometry = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, body: document.body.scrollWidth }));
   assert.ok(geometry.document <= geometry.viewport + 1 && geometry.body <= geometry.viewport + 1, `${label}: ${JSON.stringify(geometry)}`);
+}
+async function readableEmptyConversation(label) {
+  const measured = await page.locator('.message-scroll.is-empty').evaluate(scroll => {
+    const welcome = scroll.querySelector('.welcome-conversation'), native = scroll.querySelector('.conversation-native'), summary = native?.querySelector('.conversation-task-list > summary');
+    assertPresent(welcome, 'welcome'); assertPresent(native, 'native controls'); assertPresent(summary, 'native summary');
+    function assertPresent(element, name) { if (!element) throw Error(`Missing empty conversation ${name}`); }
+    const css = getComputedStyle(scroll), summaryCSS = getComputedStyle(summary), range = document.createRange(); range.selectNodeContents(summary);
+    const box = element => element.getBoundingClientRect().toJSON();
+    return { viewport: innerWidth, viewportHeight: innerHeight, direction: css.flexDirection, alignItems: css.alignItems, availableWidth: scroll.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight), scrollClientHeight: scroll.clientHeight, scrollHeight: scroll.scrollHeight, scroll: box(scroll), welcome: box(welcome), native: box(native), summary: { text: summary.textContent, box: box(summary), lineHeight: parseFloat(summaryCSS.lineHeight), lineRects: [...range.getClientRects()].map(rect => rect.toJSON()) } };
+  });
+  emptyLayoutMeasurements.push({ label, ...measured });
+  assert.equal(measured.direction, 'column', `${label}: original empty conversation siblings stack vertically`);
+  assert.equal(measured.alignItems, 'stretch', `${label}: original task controls use the available width`);
+  assert.ok(measured.native.width >= measured.availableWidth - 1, `${label}: native controls ${measured.native.width} px / available ${measured.availableWidth} px`);
+  assert.ok(measured.summary.box.width >= Math.min(180, measured.availableWidth - 2), `${label}: native summary has readable width`);
+  assert.equal(measured.summary.lineRects.length, 1, `${label}: original delegation summary is one readable text line`);
+  assert.ok(measured.summary.lineRects[0].height <= measured.summary.lineHeight + 1, `${label}: summary text is not vertically wrapped`);
+  assert.ok(measured.native.top >= measured.welcome.bottom - 1, `${label}: task controls follow the welcome content`);
+}
+async function accessibleEmptyScroll(label) {
+  const scroll = page.locator('.message-scroll.is-empty');
+  await scroll.evaluate(element => { element.scrollTo({ top: 0, behavior: 'instant' }); });
+  const top = await scroll.evaluate(element => ({ scrollTop: element.scrollTop, scroll: element.getBoundingClientRect().toJSON(), welcome: element.querySelector('.welcome-conversation').getBoundingClientRect().toJSON() }));
+  assert.equal(top.scrollTop, 0, `${label}: beginning of the original empty view is reachable`);
+  assert.ok(top.welcome.top >= top.scroll.top - 1 && top.welcome.top < top.scroll.bottom, `${label}: welcome begins inside the scroll viewport`);
+  await capture(`03a-empty-welcome-${label}`);
+  await scroll.evaluate(element => { element.scrollTo({ top: element.scrollHeight, behavior: 'instant' }); });
+  await page.waitForFunction(() => { const element = document.querySelector('.message-scroll.is-empty'); return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) <= 1; });
+  const bottom = await scroll.evaluate(element => ({ scroll: element.getBoundingClientRect().toJSON(), summary: element.querySelector('.conversation-native .conversation-task-list > summary').getBoundingClientRect().toJSON(), scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight }));
+  assert.ok(bottom.scrollHeight > bottom.clientHeight, `${label}: short-screen content uses the original vertical scroller`);
+  assert.ok(bottom.summary.top >= bottom.scroll.top - 1 && bottom.summary.bottom <= bottom.scroll.bottom + 1, `${label}: original delegation summary is fully reachable at the bottom`);
+  emptyLayoutMeasurements.push({ label: `scroll-${label}`, top, bottom });
+  await capture(`03b-empty-delegation-${label}`);
 }
 async function openGroup(label) {
   const summary = page.locator('summary').filter({ hasText: label }).first();
@@ -88,6 +121,7 @@ try {
   await page.goto(base); await ready(); await page.waitForURL(`${base}/chat/${encodeURIComponent(conversation.id)}`);
   assert.equal(await page.locator('.chat-title-pill span').innerText(), conversation.title);
   assert.equal(app.store.read().conversations.length, 2); assert.equal(app.store.read().runs.length, 0);
+  await readableEmptyConversation('desktop-1440');
   await page.locator('.chat-title-pill').click(); await page.locator('.conversation-sidebar').waitFor();
   assert.equal(await page.locator('.assistant-panel').isVisible(), true, '1440 px retains the original desktop assistant alongside its conversation sidebar');
   await noOverflow('desktop conversation sidebar'); await capture('01b-conversation-desktop-sidebar');
@@ -96,6 +130,7 @@ try {
 
   for (const width of [320, 390, 768]) {
     await page.setViewportSize({ width, height: 844 }); await page.goto(base); await ready();
+    await readableEmptyConversation(`empty-${width}`);
     await page.locator('.chat-title-pill').click(); await page.locator('.conversation-sidebar').waitFor();
     assert.equal(await page.locator('.assistant-panel').count(), 0);
     await noOverflow(`conversation drawer ${width}`); await capture(`02-conversation-drawer-${width}`);
@@ -108,6 +143,11 @@ try {
     await noOverflow(`conversation entry ${width}`); await capture(`03-conversation-mobile-${width}`);
   }
   checks.push('320, 390 and 768 px real-browser entry and both exclusive drawers open visibly, close and fit the viewport; desktop retains its original sidebar behavior.');
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 600 }); await page.goto(base); await ready();
+    await readableEmptyConversation(`short-${width}`); await accessibleEmptyScroll(`${width}-600`); await noOverflow(`empty short screen ${width}`);
+  }
+  checks.push('Original empty conversation welcome and native controls stack at full readable width with one summary text line; 320/390 px screens at 600 px height can scroll to both welcome and delegation controls.');
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.getByRole('button', { name: '资料库', exact: true }).click(); await page.getByRole('button', { name: '产品库', exact: true }).click();
@@ -230,7 +270,7 @@ try {
   }
   checks.push('Original product/document lists fit 320, 390 and 1440 px in actual Chromium.');
   assert.equal(modelCalls, 0); assert.equal(app.store.read().runs.length, 0); assert.deepEqual(errors, []);
-  const evidence = { result: 'passed', source, sourceStatus, actualBrowser: true, browserVersion: browser.version(), checks, checkCount: checks.length, errors, modelCalls, providerConfigured: false, noExternalExecution: true, externalHostsBlocked: [...blockedExternalHosts], storage: app.store.diagnostics().durability, documentDownloads: [firstDownload, secondDownload], productRevision: product.revision, documentCurrentVersion: document.currentVersion, requestCount: requests.length, browserWrites: requests.filter(item => item.method !== 'GET'), boundaries: ['Loopback HTTP, original persisted Workspace Store and current production React bundle.', 'Viewer behavior uses a synthetic browser session DTO; actual signed-session authorization is outside this driver.', 'No real account, model, native host, Shopify/GA4/WeChat or deployment acceptance.'] };
+  const evidence = { result: 'passed', source, sourceStatus, actualBrowser: true, browserVersion: browser.version(), checks, checkCount: checks.length, errors, modelCalls, emptyLayoutMeasurements, providerConfigured: false, noExternalExecution: true, externalHostsBlocked: [...blockedExternalHosts], storage: app.store.diagnostics().durability, documentDownloads: [firstDownload, secondDownload], productRevision: product.revision, documentCurrentVersion: document.currentVersion, requestCount: requests.length, browserWrites: requests.filter(item => item.method !== 'GET'), boundaries: ['Loopback HTTP, original persisted Workspace Store and current production React bundle.', 'Viewer behavior uses a synthetic browser session DTO; actual signed-session authorization is outside this driver.', 'No real account, model, native host, Shopify/GA4/WeChat or deployment acceptance.'] };
   await writeFile(join(output, 'VERIFICATION.json'), JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' });
   console.log(JSON.stringify(evidence, null, 2));
 } catch (error) {
@@ -239,7 +279,7 @@ try {
     const panel = document.querySelector('.assistant-panel');
     return { path: location.pathname, viewport: innerWidth, shell: document.querySelector('.app-shell')?.className, panelMounted: !!panel, panelDisplay: panel ? getComputedStyle(panel).display : null, panelBounds: panel?.getBoundingClientRect().toJSON(), bodyText: document.body.innerText.slice(0, 2000) };
   }).catch(() => null) : null;
-  await writeFile(join(output, 'FAILURE.json'), JSON.stringify({ result: 'failed', source, sourceStatus, checks, errors, modelCalls, error: error.stack, uiState, requests }, null, 2) + '\n', { flag: 'wx' });
+  await writeFile(join(output, 'FAILURE.json'), JSON.stringify({ result: 'failed', source, sourceStatus, checks, errors, modelCalls, emptyLayoutMeasurements, error: error.stack, uiState, requests }, null, 2) + '\n', { flag: 'wx' });
   throw error;
 } finally {
   await browser?.close(); await app?.close(); await rm(directory, { recursive: true, force: true });
