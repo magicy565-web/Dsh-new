@@ -27,7 +27,9 @@ export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sa
       const last = request.messages.at(-1);
       if (last?.role === 'toolResult') {
         const receipt = last.content.filter(block => block.type === 'text').map(block => block.text).join('\n');
-        return fauxAssistantMessage(`Original Workspace task receipt (controlled faux transport):\n${receipt}\nUse /ws-status RUN_ID to read its current persisted result.`);
+        let business = false;
+        try { const value = JSON.parse(receipt); business = value.profile === 'business-preset' && value.identity === 'taskId'; } catch { /* No business identity is inferred from prose. */ }
+        return fauxAssistantMessage(`Original Workspace task receipt (controlled faux transport):\n${receipt}\nUse ${business ? '/ws-business-status TASK_ID' : '/ws-status RUN_ID'} to read its current persisted result.`);
       }
       const input = typeof last?.content === 'string' ? last.content : (last?.content || []).filter(block => block.type === 'text').map(block => block.text).join('\n');
       if (input.startsWith('PUBLIC_BUSINESS_FIXTURE ')) {

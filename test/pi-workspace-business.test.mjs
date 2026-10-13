@@ -122,5 +122,7 @@ test('official frontend Agent dispatches a registered business tool to original 
   const transcript = runtime.session.agent.state.messages;
   assert.ok(transcript.some(row => row.role === 'assistant' && row.content.some(block => block.type === 'toolCall' && block.name === 'workspace_business_task')));
   assert.match(JSON.stringify(transcript.at(-1)), new RegExp(task.id));
+  assert.match(JSON.stringify(transcript.at(-1)), /\/ws-business-status TASK_ID/);
+  assert.doesNotMatch(JSON.stringify(transcript.at(-1)), /\/ws-status RUN_ID/);
   assert.equal(runtime.session.getActiveToolNames().some(name => /resume|approve|continue/.test(name)), false);
 });

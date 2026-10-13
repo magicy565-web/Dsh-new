@@ -36,6 +36,8 @@ test('official SDK Agent invokes only Workspace extension tools with measured ke
   assert.equal(answer.role, 'assistant');
   assert.match(answer.content[0].text, /original-run/);
   assert.match(answer.content[0].text, /running/);
+  assert.match(answer.content[0].text, /\/ws-status RUN_ID/);
+  assert.doesNotMatch(answer.content[0].text, /\/ws-business-status TASK_ID/);
   assert.ok(answer.usage.output > 0);
   assert.equal(f.runtime.session.agent.state.tools.some(tool => ['bash', 'read', 'write', 'edit', 'grep', 'find', 'ls', 'web_search'].includes(tool.name)), false);
 });
