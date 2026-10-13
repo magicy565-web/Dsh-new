@@ -9,9 +9,11 @@ relay. No key is requested in chat, browser, mini program or business API. Witho
 credentials the server still starts and saves blocked requests with setup status.
 
 Official pi-agent-core, pi-ai, pi-durable and chord 1.1.0 are pinned in package-lock.
-Agent's real state API canonicalizes the admitted context; durable Harness runs
-generation and tools via pi-ai. There is no additional Agent loop, cron, worker
-queue or application scheduler. Workspace remains the admission queue and source
+The actual `Agent.prompt` loop executes inside one registered Durable task,
+`workspace.pi-agent-prompt`. Model responses are memoized before native tool
+execution; each native tool call uses the original owned Durable `ToolTask`.
+There is no additional cron, worker queue, storage service or application
+scheduler. Workspace remains the admission queue and source
 of business authorization. Durable internal tasks are scoped to each admitted
 conversation and cannot discover other conversations or ambient files.
 
@@ -19,15 +21,22 @@ Each Workspace conversation owns a hashed private Pi JSONL directory. It opens
 only inside the original Store writer lifetime. JSONL fsync:true is enabled; a
 second process must acquire the original Store lock and is rejected. Pi itself
 has no cross-process lock. Reopen does not call resume. An interrupted chat's
-existing retry operation reattaches the same run/reply/submission under unchanged
-execution and input/grant checks. Completed submissions return their saved
-answer instead of repeating the model request, including a crash before the
-business Pi metadata acknowledgment. Recovery uses the stable original Run/reply
+existing retry operation reattaches the same run/reply/native task under unchanged
+execution and input/grant checks. Pre-upgrade submissions retain their original
+submission IDs and legacy Harness path. Completed native tasks and submissions
+return their saved answer instead of repeating the model request, including a
+crash before business Pi metadata acknowledgment. Native usage, business step
+accounting and the reply's task-ID marker are saved in one original Store commit;
+recovery reuses that result without a second charge to Workspace's budget.
+Recovery uses the stable original Run/reply
 identity, not the presence of an event as admission or execution evidence. Active business action attempts
 must be reconciled rather than replayed. Goal recovery preserves the reserved
 reply and token allowance. Shutdown closes Harness while preserving pending
 durable work. User cancellation explicitly calls conversation.abort and fences
-late results; cancelling a waiter alone would leave execution running.
+late results; cancelling a waiter alone would leave execution running. The
+original Durable `ProviderDoc.sessionId` supplies model affinity across turns
+and restart. Native text ends the invocation; JSON `done`/`nextStep` cannot
+schedule another Workspace call. Goal output still requires business review.
 
 Tools: workspace_input reads only original ID/version/SHA-verified selected
 snapshots. workspace_propose_action stores one proposal and terminates the Pi
@@ -44,13 +53,16 @@ allowance. A 1600-token invocation with missing usage grants 400/400/400/400,
 including an unsettled request left by a crash. Verified completion counts can
 release unused reservation for later rounds; absent/invalid counters cannot.
 Limits are applied at SDK dispatch, after durable hooks, with SDK retries disabled.
+The host timeout is forwarded and enforced by aborting the actual model signal;
+an unconfirmed request keeps its reservation.
 Raw OpenAI-compatible SDK events establish usage provenance; normalized default
 zeros are never measured usage. Missing counters remain null/unknown, and partial
 counters retain uncertainty. Prompt totals include cache-read/write tokens;
 validated cache counters remain separately inspectable. Other unverified APIs
 retain unknown usage. Official faux message counters are offline fixture evidence.
-The security policy fingerprint changes: pre-fix interrupted invocations require
-review instead of silently replaying their old permission scope.
+Ordinary PR59 scope fingerprints remain compatible only at their original
+endpoint. Agent preset tools retain their separate admission fingerprint, and
+changed endpoints or selected sources refuse recovery before model dispatch.
 
 Muse/Dot protocol modules and Secure Vault client remain original. Ordinary model
 messages requesting provider:muse reject rather than falling back to a model.
@@ -73,6 +85,8 @@ all enforce that boundary. Original owner receipt downloads still use the exact
 original Muse Session file protocol.
 Local faux-provider tests execute the real Pi packages, not a live model/account.
 Production is intentionally off and no live request is authorized.
+See [native Agent implementation and acceptance](PI-NATIVE-AGENT.md) for this
+branch's current evidence and limits.
 
 The source ZIP is a development deliverable, not deployment approval. Source
 hashes must be calculated from git cat-file/blob bytes, never converted working
