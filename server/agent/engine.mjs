@@ -278,27 +278,31 @@ export async function createAgentCoordinator({ store, runtime, provider, project
       return answer;
     },
     async resume(id, actor) {
-      const task = this.find(id, actor);
-      if (!task) throw new AgentHttpError(404, '任务不存在。');
-      if (active(task)) return task;
-      if (!task.result?.resumable || task.legacy) throw new AgentHttpError(409, '原任务当前不能自动恢复；已有回执与失败记录保留。', { code: 'AGENT_RECOVERY_BLOCKED' });
-      // Only the current unfinished interrupted Pi run may be reattached.
-      // The permit lives in this process, not in Store or a second queue.
-      const unfinished = task.steps.find(step => step.status !== 'succeeded');
-      const originalRun = unfinished?.runId && store.read().runs.find(run => run.id === unfinished.runId);
-      const approvedRunId = originalRun?.status === 'interrupted' ? originalRun.id : null;
-      if (approvedRunId) explicitRecoveryRequests.add(approvedRunId);
-      try {
-        await change(id, current => {
-          current.status = 'queued'; current.finishedAt = null; current.attempt++;
-          current.result = result(current, 'recovering', { resumeFrom: current.events.length });
-          for (const step of current.steps) if (step.runId) recoveryAttempts.delete(step.runId);
-        });
-      } catch (error) {
-        if (approvedRunId) explicitRecoveryRequests.delete(approvedRunId);
-        throw error;
+      // Admission must be serialized with other original Store mutations.
+      // Two simultaneous authenticated /resume requests cannot create two
+      // business attempts or race a stale read from an already resumed task.
+      const accepted = await store.update(state => {
+        const task = tasks(state).find(row => row.id === id && own(row, actor));
+        if (!task) throw new AgentHttpError(404, '任务不存在。');
+        if (active(task)) return { changed: false, runIds: [], interruptedRunId: null };
+        if (!task.result?.resumable || task.legacy) throw new AgentHttpError(409, '原任务当前不能自动恢复；已有回执与失败记录保留。', { code: 'AGENT_RECOVERY_BLOCKED' });
+        const unfinished = task.steps.find(step => step.status !== 'succeeded');
+        const originalRun = unfinished?.runId && state.runs.find(run => run.id === unfinished.runId);
+        const interruptedRunId = originalRun?.status === 'interrupted' ? originalRun.id : null;
+        const runIds = task.steps.map(step => step.runId).filter(Boolean);
+        task.status = 'queued'; task.finishedAt = null; task.attempt++;
+        task.result = result(task, 'recovering', { resumeFrom: task.events.length });
+        return { changed: true, runIds, interruptedRunId };
+      });
+      if (accepted.changed) {
+        // Permission is set only after the original transaction commits,
+        // before asynchronous projection work or any scheduled reconcile.
+        for (const runId of accepted.runIds) recoveryAttempts.delete(runId);
+        if (accepted.interruptedRunId) explicitRecoveryRequests.add(accepted.interruptedRunId);
+        await project(id);
+        wake();
       }
-      wake(); return this.find(id, actor);
+      return this.find(id, actor);
     },
     async close() {
       closing = true; unsubscribe(); if (scheduled) clearImmediate(scheduled);
