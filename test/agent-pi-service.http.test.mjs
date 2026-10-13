@@ -133,12 +133,18 @@ test('restart pauses without model replay until explicit resume reattaches the o
   await delay(60);
   assert.equal(f.faux.state.callCount, 3, 'A Host restart may not silently re-call the model.');
   assert.equal(f.app.store.read().runs.length, 3, 'No substitute run may be created by restart.');
-  const authorized = await f.api(API + '/tasks/' + id + '/resume', { method: 'POST', body: {} });
-  assert.equal(authorized.status, 200, authorized.text);
-  assert.equal(authorized.json.taskId, id, 'Explicit recovery must retain the original business task.');
+  const [authorized, sameRequest] = await Promise.all([
+    f.api(API + '/tasks/' + id + '/resume', { method: 'POST', body: {} }),
+    f.api(API + '/tasks/' + id + '/resume', { method: 'POST', body: {} }),
+  ]);
+  for (const response of [authorized, sameRequest]) {
+    assert.equal(response.status, 200, response.text);
+    assert.equal(response.json.taskId, id, 'Concurrent recovery must retain one business task.');
+  }
   const done = await f.terminal(id); assert.equal(done.json.status, 'done', JSON.stringify(done.json));
   const afterRun = f.app.runtime.getRun(beforeRun.id).run;
   assert.equal(afterRun.id, beforeRun.id); assert.equal(afterRun.piSubmissionId, beforeRun.piSubmissionId); assert.equal(afterRun.assistantId, beforeRun.assistantId);
+  assert.equal(f.task(id).attempt, 2, 'Two simultaneous resume requests must admit just one business attempt.');
   assert.equal(f.app.store.read().runs.length, 4); assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 1);
   assert.equal(sha((await f.api(API + '/tasks/' + id + '/artifacts/inquiry-pack.md')).bytes), sha(inquiry.bytes));
   const events = (await f.api(API + '/tasks/' + id + '/events?format=json')).json;
