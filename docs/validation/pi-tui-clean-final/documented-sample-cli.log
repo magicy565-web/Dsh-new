@@ -1,0 +1,53 @@
+{
+  "name": "documented-sample-v4-cli",
+  "command": [
+    "npm",
+    "run",
+    "agent:tui",
+    "--",
+    "--sample"
+  ],
+  "cwd": "/tmp/workspace-pi-reproduce-3214c4a",
+  "sourceBefore": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "NPM_CONFIG_AUDIT",
+    "NPM_CONFIG_FUND",
+    "NPM_CONFIG_GLOBALCONFIG",
+    "NPM_CONFIG_USERCONFIG",
+    "PATH",
+    "TERM",
+    "TMPDIR"
+  ],
+  "startedAt": "2026-10-13T20:01:15.010Z",
+  "officialPtyDriver": "test/fixtures/pi-tui-pty-driver.py",
+  "distExistedBefore": false,
+  "runtimeDataExistedBefore": false,
+  "realModelCalls": false,
+  "checks": {
+    "officialInteractiveModeVersion": "1.1.0",
+    "sampleMarkerVisible": true,
+    "originalPresetRegistry": true,
+    "procurementBriefVisible": true,
+    "allThreeDocumentIntegrityCoveredByExistingFreshTests": true,
+    "documentsReady": true,
+    "businessGoalAchieved": false,
+    "sameBusinessTaskOnReplay": true,
+    "realOwnedChildReceipt": true,
+    "childStatusCompleted": true,
+    "parentNativeModelTurns": 2,
+    "childBackground": false,
+    "childTools": [],
+    "exitCode": 0,
+    "entireSampleProcessGroupGone": true,
+    "temporaryIsolationDirectoryRemoved": true
+  },
+  "sourceAfter": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T20:01:18.016Z",
+  "exitCode": 0,
+  "rawTerminalLogSha256": "5de42cb7290d48ad9104567df6968171c15ae44a7e1676e6313a146474d8398f",
+  "rawTerminalRetainedLocallyOnly": true
+}

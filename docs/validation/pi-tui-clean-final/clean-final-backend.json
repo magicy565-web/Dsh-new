@@ -1,0 +1,38 @@
+{
+  "name": "clean-final-backend",
+  "command": [
+    "npm",
+    "test"
+  ],
+  "cwd": "/tmp/workspace-pi-reproduce-3214c4a",
+  "sourceBefore": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "NPM_CONFIG_AUDIT",
+    "NPM_CONFIG_FUND",
+    "PATH",
+    "TERM",
+    "TMPDIR",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "startedAt": "2026-10-13T19:53:18.819337+00:00",
+  "exitCode": 0,
+  "durationSeconds": 35.237,
+  "sourceAfter": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T19:53:54.062478+00:00",
+  "log": "clean-final-backend.log",
+  "logSha256": "8d15ebdbe7c6b29725158fa9482d1fb6c903bb28250552da5a9380738f775654",
+  "counts": {
+    "tests": 821,
+    "suites": 0,
+    "pass": 814,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 7,
+    "todo": 0
+  }
+}

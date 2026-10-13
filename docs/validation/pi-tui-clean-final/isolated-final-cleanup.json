@@ -1,0 +1,13 @@
+{
+  "name": "isolated-final-cleanup",
+  "source": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3",
+  "status": "",
+  "checkedAt": "2026-10-13T20:02:22.832033+00:00",
+  "ownedNodeNpmPythonProcesses": [],
+  "temporaryTuiDirectoriesRemaining": 0,
+  "runtimeDataPresent": false,
+  "uncommittedSourceFiles": false,
+  "exitCode": 0,
+  "log": "isolated-final-cleanup.log",
+  "logSha256": "44525557d70b1e32e2a3d3b6bc23e2653d615e470d4518b3ce482811aa202cc4"
+}

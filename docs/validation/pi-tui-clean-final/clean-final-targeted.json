@@ -1,0 +1,49 @@
+{
+  "name": "clean-final-targeted",
+  "command": [
+    "node",
+    "--test",
+    "test/pi-native-agent.test.mjs",
+    "test/pi-runtime.test.mjs",
+    "test/agent-pi-runtime.test.mjs",
+    "test/agent-pi-service.http.test.mjs",
+    "test/agent-owner-policy.test.mjs",
+    "test/pi-task.http.test.mjs",
+    "test/pi-subagent.test.mjs",
+    "test/pi-workspace-tui.test.mjs",
+    "test/pi-workspace-tui.pty.test.mjs",
+    "test/pi-workspace-business.test.mjs",
+    "test/pi-workspace-business.pty.test.mjs"
+  ],
+  "cwd": "/tmp/workspace-pi-reproduce-3214c4a",
+  "sourceBefore": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "NPM_CONFIG_AUDIT",
+    "NPM_CONFIG_FUND",
+    "PATH",
+    "TERM",
+    "TMPDIR",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "startedAt": "2026-10-13T19:51:34.867347+00:00",
+  "exitCode": 0,
+  "durationSeconds": 11.963,
+  "sourceAfter": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T19:51:46.837890+00:00",
+  "log": "clean-final-targeted.log",
+  "logSha256": "1681e871cf7ce28031b8252361022a11a290be3dc319c7852cd5d6b3c2006155",
+  "counts": {
+    "tests": 74,
+    "suites": 0,
+    "pass": 74,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  }
+}

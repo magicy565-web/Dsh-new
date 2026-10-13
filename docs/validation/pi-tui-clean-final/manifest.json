@@ -1,0 +1,181 @@
+{
+  "validatedSource": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3",
+  "cleanCheckout": "same execution environment, newly created detached worktree",
+  "cleanCheckoutPath": "/tmp/workspace-pi-reproduce-3214c4a",
+  "node": "v24.19.0",
+  "officialPiVersion": "1.1.0",
+  "checks": [
+    {
+      "receipt": "clean-final-install.json",
+      "log": "clean-final-install.log",
+      "exitCode": 0,
+      "counts": {},
+      "logSha256": "a2cc57264e8c260326e44cfdcc39b6eb3245f37b1d1e960d36eeb312cc8c1e79"
+    },
+    {
+      "receipt": "clean-final-targeted.json",
+      "log": "clean-final-targeted.log",
+      "exitCode": 0,
+      "counts": {
+        "tests": 74,
+        "suites": 0,
+        "pass": 74,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logSha256": "1681e871cf7ce28031b8252361022a11a290be3dc319c7852cd5d6b3c2006155"
+    },
+    {
+      "receipt": "clean-final-build.json",
+      "log": "clean-final-build.log",
+      "exitCode": 0,
+      "counts": {},
+      "logSha256": "af8df52eaf8e09486a17c23a23252380d716c6c016934812782708b2c3f6c62b"
+    },
+    {
+      "receipt": "clean-final-backend.json",
+      "log": "clean-final-backend.log",
+      "exitCode": 0,
+      "counts": {
+        "tests": 821,
+        "suites": 0,
+        "pass": 814,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 7,
+        "todo": 0
+      },
+      "logSha256": "8d15ebdbe7c6b29725158fa9482d1fb6c903bb28250552da5a9380738f775654"
+    },
+    {
+      "receipt": "documented-sample-cli.json",
+      "log": "documented-sample-cli.log",
+      "exitCode": 0,
+      "counts": {},
+      "logSha256": "5f6054d5dfa96b531f4279b5cbe4bf642c73cd7fb1dde3b88e66422b62d85c8d"
+    },
+    {
+      "receipt": "normal-profile-contract.json",
+      "log": "normal-profile-contract.log",
+      "exitCode": 0,
+      "counts": {},
+      "logSha256": "9599cd8baa0d15cc842129a13da7864de7629cc42a306a884ac7dee9e2945134"
+    },
+    {
+      "receipt": "isolated-final-cleanup.json",
+      "log": "isolated-final-cleanup.log",
+      "exitCode": 0,
+      "counts": {},
+      "logSha256": "44525557d70b1e32e2a3d3b6bc23e2653d615e470d4518b3ce482811aa202cc4"
+    }
+  ],
+  "sourceIdentities": {
+    "scripts/pi-workspace-tui.mjs": {
+      "gitBlob": "40394f05409ec2a1efda9bb1fc4ac522160b8953",
+      "sha256": "9d1df839810b7faa2b50d5332f85fe08c22cd84233290be6c591c6ca7f6de010"
+    },
+    "pi/extensions/workspace.mjs": {
+      "gitBlob": "2ba8fe6e02de8868f2dd52e6e4e5bf8c2e547ad3",
+      "sha256": "e6f4c85ba2d90d305653ed81b7e2f0368f4b397ee53afb914cbfc7b3c3c1039a"
+    },
+    "server/pi-development.mjs": {
+      "gitBlob": "bb5308e69c3b9bdf60648803ee94544a88aeda91",
+      "sha256": "ce885dfc65d008b10adb6a1197804011ce0f7fd6aa398cdf8cbd5326f3136b42"
+    },
+    "test/pi-workspace-business.test.mjs": {
+      "gitBlob": "241550ade4ff301259f1713a1ae732210348f1dd",
+      "sha256": "c4a9b3b5897c0c018a3141a00988a5e868024f94160c71a354e4d1806e88ec4b"
+    },
+    "test/pi-workspace-business.pty.test.mjs": {
+      "gitBlob": "040fe6ed75b048593c26b61f5ebec9e766cb8aeb",
+      "sha256": "c180bcc72c693f6db656b25762eee4125bd678c4133c774a6b3ae1820ea88f19"
+    },
+    "test/pi-workspace-tui.test.mjs": {
+      "gitBlob": "a90bb76e060fcd1664a8586216eb942060423e05",
+      "sha256": "ca8e1f8607a6cbffaa030c0d716345cace85afac3767ac51d4e4e3ab28d5bd2c"
+    },
+    "test/pi-workspace-tui.pty.test.mjs": {
+      "gitBlob": "e39c910b2929f98d4f37d03737ed6c6c9d1d3207",
+      "sha256": "8b9f301a60871f67c60247954ccec33f10a4d25cacadbf68f8a09ce25fd4fd9e"
+    },
+    "test/fixtures/pi-tui-pty-driver.py": {
+      "gitBlob": "fb8e20e5ad3287de94faaab27239e30a25df0094",
+      "sha256": "aa96951a9c472a7ae4f5d571f4f4b761cc1f08b5f76e0c64c4065e03e49f0938"
+    },
+    "package.json": {
+      "gitBlob": "ade5cce9d23317f18aed526f987a6b426213715a",
+      "sha256": "40b83e3ad43dcf26299de1bfd795f0d431deb6459763bed2eca839ffcd868940"
+    },
+    "package-lock.json": {
+      "gitBlob": "cd40f9cceb9c0adca62ee9c1851b18091cd6270e",
+      "sha256": "2a7969eb6e35551c7d75cf9aa944d4f461de86d1e84e1afb28312d8187fa19bb"
+    }
+  },
+  "freshInstall": {
+    "nodeModulesExistedBefore": false,
+    "runtimeDataExistedBefore": false,
+    "isolatedHome": true,
+    "separateEmptyNpmCache": true,
+    "command": [
+      "npm",
+      "ci",
+      "--ignore-scripts"
+    ],
+    "previousInstallEvidenceNotSubstituted": true
+  },
+  "documentedSample": {
+    "command": [
+      "npm",
+      "run",
+      "agent:tui",
+      "--",
+      "--sample"
+    ],
+    "withoutDist": true,
+    "withoutRuntimeData": true,
+    "officialPtyDriver": "test/fixtures/pi-tui-pty-driver.py",
+    "procurement": true,
+    "sameBusinessTaskOnReplay": true,
+    "realOwnedChildCompleted": true,
+    "processGroupGone": true,
+    "temporaryDirectoryRemoved": true,
+    "rawTerminalGeneratedContentNotCommitted": true
+  },
+  "normalProfile": {
+    "requiredClientEnvironmentNames": [
+      "WS_AGENT_URL",
+      "WS_AGENT_TOKEN"
+    ],
+    "missingConfigMessagesVerified": true,
+    "syntheticMetadataCheckOnly": true,
+    "serverConnectionVerified": false,
+    "liveModelVerified": false,
+    "realCredentialsRead": false,
+    "backendExistingConfigurationNamesInspectedInSourceOnly": [
+      "WS_AGENT_PRINCIPALS",
+      "WS_AGENT_ENABLED",
+      "FASTAITOKEN_API_KEY",
+      "PI_MODEL",
+      "PI_BASE_URL",
+      "WS_AGENT_RESEARCH_ENABLED",
+      "BRAVE_SEARCH_API_KEY"
+    ]
+  },
+  "modelTransport": "explicit finite keyless official faux; documents label 合成模型替身",
+  "githubCI": {
+    "runId": 38457918911,
+    "conclusion": "startup_failure",
+    "jobs": 0,
+    "verifiedSource": "3214c4a3e4031fe60f93b4e750daf11562bb0fa3"
+  },
+  "limitations": [
+    "large original JSON receipts show their tail in the default 42-line viewport; compact same-key replay verifies completion, existing tests verify all document bytes",
+    "sample temporary directory intentionally removed on exit; durable recovery uses original explicit synthetic directory in existing tests",
+    "normal real host configuration/account connectivity not tested",
+    "research without existing search remains blocked",
+    "business profile does not grant default subagent or supplier/Muse transaction permission",
+    "Runtime and business coordinator remain original; not an entire enterprise transaction backend migration"
+  ]
+}
