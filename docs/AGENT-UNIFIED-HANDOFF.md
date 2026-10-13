@@ -1,5 +1,14 @@
 # PR59 → PR47 Pi Agent API selected integration (2026-10-13)
 
+The original Work environment resumed at actual PR60 head
+`49d536007b18fa9f877ffcfe6280e28f2384c7d2` with Node 24.19.0 and Python 3.12.14.
+Checkout-wide execution is now available. See the
+[current whole-Workspace verification and release preparation](WORKSPACE-RELEASE-PREP-20261013.md)
+and its final source-bound evidence for executed checks. The earlier blocked
+environment and unexecuted-test statements below describe the source-interface
+handoff; they remain historical records rather than the latest execution status.
+Production and independent-review gates remain release-blocked.
+
 ## Fixed inputs and branch ownership
 
 - Single Workspace business/client baseline: [PR59](https://github.com/magicy565-web/workspace-agent/pull/59), tested application source `24c37b06284720b4b9d8d7b79dc19d56ef5d51b1` and evidence checkpoint `18cc80aca0f88a68fb96d2f1d960897f8a48dac2`. Subsequently integrated its new Native Host/Muse commits through `32c8ce98fe28cda1e22a16bf0d1088c768e081c8` in conflict-free two-parent merge `9f808f202ce825a2ab647f11456eb5dbcf8fe76e` (separate from Agent code).

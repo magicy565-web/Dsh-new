@@ -4,6 +4,13 @@ This is the `0.5.0-rc.2` development candidate. It is not production-ready.
 Preserve the Muse goal-first home, existing chat and expert flows, guarded
 execution runtime and source tree.
 
+Latest 2026-10-13 continuation: the current product entry is the single
+conversation App with its original Product/Company Library. See
+[whole-Workspace development verification and release preparation](docs/WORKSPACE-RELEASE-PREP-20261013.md)
+for the current PR60 source, mobile drawer correction, actual Work-environment
+tests and remaining release gates. Earlier counts and entry descriptions below
+remain historical and do not sign off this candidate or a production deployment.
+
 ## Cloud integration correction
 
 The deployed site uses personal Worker delegations, whereas the first V22 home

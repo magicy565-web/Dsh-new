@@ -38,6 +38,7 @@
     "test:control:activity": "node --test test/cloud-activity.test.mjs",
     "test:control:muse": "npm run build && npm run test:control:activity && node test/muse-control.browser.mjs && node test/muse-receipts.browser.mjs",
     "test:conversation:ui": "npm run build && node --test --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs",
+    "test:conversation:browser": "npm run build && node test/conversation-library.browser.mjs",
     "build:mini": "node scripts/build-miniprogram.mjs",
     "test:pi": "node --test test/pi-runtime.test.mjs",
     "package:pi": "python3 scripts/package-pi-source.py",
