@@ -58,6 +58,41 @@ test('real Pi package fixture: durable text execution, usage, persisted submissi
   assert.equal(f.faux.state.callCount, 1);
 });
 
+test('ordinary Pi checkpoint cannot resume after a different HTTPS model endpoint is configured', async t => {
+  const directory = await fs.mkdtemp('/tmp/workspace-pi-endpoint-scope-');
+  const faux = fauxProvider(), models = createModels();
+  models.setProvider(faux.provider);
+  const factory = baseUrl => createPiProvider({ models, providerId: 'faux', model: 'faux-1', baseUrl });
+  const originalProvider = factory('https://first-runtime.example/v1');
+  faux.setResponses([async (_request, options) => {
+    await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true }));
+    return fauxAssistantMessage('', { stopReason: 'aborted' });
+  }]);
+  let app;
+  try {
+    app = await createApp({ dataDirectory: directory, provider: originalProvider });
+    const conversation = (await app.runtime.createConversation({})).conversation;
+    const submitted = await app.runtime.sendMessage(conversation.id, { content: 'Keep original Pi work',
+      requestId: 'endpoint-change-ordinary-checkpoint' });
+    await until(() => app.runtime.getRun(submitted.run.id).run.piSubmissionId && faux.state.callCount === 1);
+    const saved = app.runtime.getRun(submitted.run.id).run;
+    assert.equal(saved.execution.endpointFingerprint, originalProvider.endpointFingerprint);
+    assert.equal(saved.execution.permissionFingerprint, originalProvider.agentPermissionFingerprint);
+    await app.close(); app = null;
+    const changedProvider = factory('https://another-runtime.example/v1');
+    app = await createApp({ dataDirectory: directory, provider: changedProvider });
+    assert.equal(app.runtime.getRun(saved.id).run.status, 'interrupted');
+    await assert.rejects(app.runtime.recoverPiRun(saved.id, { requestId: 'endpoint-not-same' }),
+      { code: 'EXECUTION_SCOPE_CHANGED' });
+    assert.equal(app.runtime.getRun(saved.id).run.piSubmissionId, saved.piSubmissionId);
+    assert.equal(app.runtime.listRuns().runs.length, 1, 'No new run may be created to evade scope checks.');
+    assert.equal(faux.state.callCount, 1, 'A mismatched scope cannot send another model request.');
+  } finally {
+    await app?.close();
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('real Pi package fixture: selected file tool uses original ID/version/SHA snapshot and cannot read ambient data', async t => {
   const f = await fixture(t);
   const artifact = (await f.app.artifacts.create({ filename: 'selected.txt', content: 'Selected fixture bytes', mimeType: 'text/plain' })).artifact;
