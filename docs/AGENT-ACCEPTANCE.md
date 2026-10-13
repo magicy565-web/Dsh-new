@@ -41,6 +41,15 @@
 - 新增“孤儿 Pi Run”回归：原任务 registry 丢失，但 `runs[].agentTaskId` 仍在时，原会话不得成为普通 chat 或 Goal。包括模拟历史已存在的 Goal 被错误指向 Agent 会话时，其 `action=start` 不得启动模型；已存在的原 Pi Run 和历史 messages 必须保留。
 - 对当前 GitHub 源码的 `agentConversation` 执行 5 种 V8 合成场景：正常 Agent 任务、孤儿 `agentTaskId`、孤儿 `agentPresetContext`、普通 Pi 会话、无关会话，**5/5 与预期相符**。对 `updateGoal` 源码的隔离调用验证：孤儿 Agent 会话在输入预检前返回 `AGENT_TASK_ROUTE_REQUIRED`，普通 Goal 则继续走原有输入预检。以上不代表任何 Node24/HTTP/SDK 测试通过。
 
+## 2026-10-13 Agent 只读投影完整性修复（未通过完整 Node 验收）
+
+- 原 `AgentProjection._sync` 的内存签名只比较事件数量、状态、结果及少数链接字段。相同事件数下的历史 `kind/payload/ts` 被改写时可能跳过 SQLite 的 append-only 校验；标题与原任务输入更改时也可能继续读到旧视图。已改为对**整个 API 任务只读视图 + 所有已发布事件的序号/种类/内容/时间 + 原企业成员 + artifact SHA**计算 SHA-256 缓存签名。缓存命中前不再遗漏这些字段。
+- 对同 taskId 的 `workspaceId` 或 `subject` 变化，SQLite 原有 UPSERT 不会更新 owner 字段，容易造成授权投影漂移。现在显式拒绝更换 owner，要求恢复一致备份，而不是静默将私有数据“转交”其他企业成员。
+- artifact projection 额外检查已发布下载项的 `sha256`、`bytes`、`url` 不可变。原实现只检查 SHA，可能导致任务详情返回新 URL，但 `/artifacts` 列表仍返回旧 URL。现在任一冲突均回滚，不产生第二份工件或链接。
+- `test/agent-projection-linkage.test.mjs` 增加 SQLite-backed 源码测试（仍待 Node24 执行），覆盖无事件的任务视图更新、同数量事件内容改写拒绝、冲突回滚、artifact URL 不可改写及所有权不可转移。
+- 本次已在隔离 V8 中运行当前 GitHub 精确类源码，以 SQL/哈希/Buffer stub 验证 7/7 个相关行为。额外比较旧/新精确源码：旧实现可制造详情 URL 与工件列表 URL 不一致，新实现明确拒绝且保留旧视图。**以上验证均非真实 Node24/SQLite/HTTP/Pi Durable 回归；不会据此解除 `release_blocked`。**
+- 当前工作容器只具备 Node 22.16.0，访问私有仓库的 git clone 因 `github.com` DNS 不通而失败；不能冒充已安装 Node24 或已通过全量 npm suites。GitHub Actions 仍由独立工单 [#16](https://github.com/magicy565-web/workspace-agent/issues/16) 追踪初始化前失败。
+
 ## 下一次真实测试必须运行
 
 从 PR60 最新固定提交（不是 PR47 或 PR59 的旧源码包）在具备 Node 24 / Python 的授权工作区执行：
