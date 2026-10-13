@@ -66,8 +66,8 @@ export function requestOrigin(req, env = {}) {
   return parsed.origin;
 }
 
-export async function createAgentService({ env = process.env, dataDir, principals, workspaceStore, runtime, provider, access } = {}) {
-  const auth = createAgentAuth({ principals, env, access });
+export async function createAgentService({ env = process.env, dataDir, principals, workspaceStore, runtime, provider, access, reservedTokenDigests = [] } = {}) {
+  const auth = createAgentAuth({ principals, env, access, reservedTokenDigests });
   const presets = await loadPresets({ directory: env.WS_AGENT_PRESETS_DIR || path.join(root, 'presets/agent') });
   const store = await openAgentStore(path.resolve(dataDir || env.WS_AGENT_DATA || path.join(root, '.data/agent')));
   let engine;
