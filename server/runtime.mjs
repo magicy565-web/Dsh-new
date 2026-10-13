@@ -742,11 +742,13 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const selection = Object.hasOwn(body, 'inputContext') ? normalizeInputContext(body.inputContext) : undefined;
       const before = store.read(), previous = required(before, 'goals', id);
       if (previous.serviceTask && ['start', 'resume'].includes(action)) throw new ApiError(409, 'SERVICE_TASK_MODEL_FORBIDDEN', 'This original service task runs through its approved schedule or explicit service check, without a model turn.');
+      if (['start', 'resume'].includes(action) && agentConversation(before, previous.conversationId)) throw agentConversationRouteError();
       const admissionInput = ['start', 'resume'].includes(action) ? await prepareRunInput(before, previous.conversationId, selection ?? previous.inputContext ?? required(before, 'conversations', previous.conversationId).inputContext) : null;
       const fingerprint = JSON.stringify({ action, title, description, maxSteps, maxOutputTokens, queued: body.queued, inputContext: selection });
       let stoppedRun; let newRun;
       const result = await store.update(state => {
         const goal = required(state, 'goals', id);
+        if (['start', 'resume'].includes(action) && agentConversation(state, goal.conversationId)) throw agentConversationRouteError();
         if (admission.scheduleClaim) {
           const claim = admission.scheduleClaim;
           const schedule = state.capabilities.schedules.find(item => item.id === claim.scheduleId);
