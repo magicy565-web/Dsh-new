@@ -96,7 +96,14 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
       await privateDirectory(location);
       const storage = await openNodeJsonlStorage(location, context, { fsync: true });
       let harness;
-      const state = { harness: null, root: null, active: null, location };
+      const state = { harness: null, root: null, active: null, observer: null, location };
+      async function observeTool(call, phase) {
+        if (!state.observer || !state.active || !['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research'].includes(call.name)
+          || typeof call.id !== 'string' || !call.id || call.id.length > 256) return;
+        // Public progress only: never expose input bytes, arguments, results or reasoning.
+        await state.observer({ type: `pi.tool.${phase}`, toolName: call.name,
+          toolCallId: hash(`${state.active.requestId}:${call.id}`) });
+      }
       const governedModels = new Proxy(models, { get(target, key) {
         if (key !== 'streamSimple') { const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value; }
         return (requested, transcript, options) => {
@@ -265,10 +272,13 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
           if (answers.length >= PI_REQUEST_LIMIT || !requestAllowance(doc.active)) fail('TOKEN_BUDGET', 'Pi reached the admitted request/output allowance.');
           return { messages: [request.messages[0], ...doc.active.messages, ...tail].filter(Boolean) };
         } }),
-        hook(ToolTask, { beforeTool: call => {
+        hook(ToolTask, { beforeTool: async call => {
           const run = assertActive(state.active);
           const allowed = run.agentPresetContext ? ['workspace_complete_preset_stage', ...(run.agentPresetContext.researchCapabilities.includes('web_search') ? ['workspace_research'] : [])] : run.supplierDraftContext ? ['workspace_input', 'workspace_propose_supplier_profile'] : run.museDraftContext ? ['workspace_input', 'workspace_propose_muse_draft'] : ['workspace_input', 'workspace_propose_action'];
           if (!allowed.includes(call.name)) return { block: 'Only the admitted Workspace input/proposal tools are permitted.' };
+          await observeTool(call, 'started');
+        }, afterTool: async (call, result) => {
+          await observeTool(call, result.isError || result.diagnostics?.some(item => item.severity === 'error') ? 'failed' : 'finished');
         } }),
       ] });
       registry.install(extension);
@@ -316,6 +326,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
       const localStop = new AbortController();
       const operation = { stop: () => localStop.abort('SHUTDOWN') };
       activeCalls.set(conversationId, operation);
+      state.observer = onEvent;
       const cancelled = () => {
         // Cancelling wait alone leaves durable work running. User cancellation
         // aborts the actual conversation; shutdown closes without aborting it.
@@ -376,7 +387,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         if (localStop.signal.aborted || signal?.aborted) fail('CANCELLED', 'The request was stopped.');
         if (error instanceof ProviderError || error?.code) throw error;
         const failure = new ProviderError('PI_RUNTIME_ERROR', 'Pi could not complete this invocation. Inspect saved local diagnostics; no unreviewed action was executed.'); failure.cause = error; throw failure;
-      } finally { signal?.removeEventListener('abort', cancelled); activeCalls.delete(conversationId); state.active = null; }
+      } finally { signal?.removeEventListener('abort', cancelled); activeCalls.delete(conversationId); state.active = null; state.observer = null; }
     },
     close() {
       if (closePromise) return closePromise;

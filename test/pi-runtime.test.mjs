@@ -104,6 +104,18 @@ test('real Pi package fixture: selected file tool uses original ID/version/SHA s
   await until(() => f.app.runtime.getRun(result.run.id).run.status !== 'running');
   assert.equal(f.app.runtime.getRun(result.run.id).run.status, 'succeeded', JSON.stringify(f.app.runtime.getRun(result.run.id).run.error));
   assert.equal(f.faux.state.callCount, 2);
+  const toolEvents = f.app.runtime.getRun(result.run.id).run.events.filter(event => event.type.startsWith('pi.tool.'));
+  assert.deepEqual(toolEvents.map(event => [event.type, event.toolName]), [
+    ['pi.tool.started', 'workspace_input'], ['pi.tool.finished', 'workspace_input'],
+  ]);
+  assert.match(toolEvents[0].toolCallId, /^[a-f0-9]{64}$/);
+  assert.equal(toolEvents[0].toolCallId, toolEvents[1].toolCallId);
+  assert.ok(!JSON.stringify(toolEvents).includes('Selected fixture bytes'));
+  assert.ok(!JSON.stringify(toolEvents).includes(artifact.id));
+  assert.deepEqual(Object.keys(toolEvents[0]).sort(), ['createdAt', 'sequence', 'toolCallId', 'toolName', 'type']);
+  await f.reopen();
+  assert.deepEqual(f.app.runtime.getRun(result.run.id).run.events.filter(event => event.type.startsWith('pi.tool.')), toolEvents);
+  assert.equal(f.faux.state.callCount, 2, 'Reading persisted tool progress never replays a model or tool');
 });
 
 test('real Pi package fixture: user cancellation explicitly aborts durable work; reopen does not resume it', async t => {
@@ -166,6 +178,12 @@ test('real Pi package fixture: connector proposal stops for original exact appro
   assert.equal(f.app.artifacts.list().artifacts.length, 0);
   assert.equal(f.faux.state.callCount, 1);
   const proposalId = run.proposals[0].id;
+  const observed = run.events.filter(event => event.type.startsWith('pi.tool.'));
+  assert.deepEqual(observed.map(event => [event.type, event.toolName]), [
+    ['pi.tool.started', 'workspace_propose_action'], ['pi.tool.finished', 'workspace_propose_action'],
+  ]);
+  assert.ok(!JSON.stringify(observed).includes('approved.md'));
+  assert.ok(!JSON.stringify(observed).includes('# Approved fixture bytes'));
   await assert.rejects(f.app.runtime.resumeRun(run.id, { proposalId }), { code: 'APPROVAL_REQUIRED' });
   await f.app.runtime.resolveRunAction(run.id, { proposalId, decision: 'approved', confirmed: true });
   assert.equal(f.app.artifacts.list().artifacts.length, 0);
@@ -190,6 +208,9 @@ test('real Pi package fixture: unknown tools, unselected inputs and unselected c
     assert.equal(f.app.capabilities.listApprovals().length, 0);
     assert.equal(f.app.capabilities.listConnectorRuns().length, 0);
     assert.equal(f.app.artifacts.list().artifacts.length, 0);
+    const observed = f.app.runtime.getRun(result.run.id).run.events.filter(event => event.type.startsWith('pi.tool.'));
+    assert.ok(!observed.some(event => event.type === 'pi.tool.finished'), 'Denied tool attempts never appear as successful tool execution');
+    assert.ok(!JSON.stringify(observed).includes('DO_NOT_RUN'));
   }
 });
 

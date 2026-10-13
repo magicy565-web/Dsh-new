@@ -188,8 +188,17 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
   }
   async function onRunEvent(runId, event) {
     if (shuttingDown || typeof event?.type !== 'string') return;
-    // Only event type and sequence cross this boundary, never native reasoning or tool arguments.
-    await store.update(state => { const run = state.runs.find(item => item.id === runId && item.status === 'running'); if (run && run.events.length < 1000) { run.events.push({ sequence: run.events.length + 1, type: event.type.slice(0, 120), createdAt: now() }); if (event.type === 'pi.submission') { run.piSubmissionId = event.piSubmissionId; run.piConversationId = event.piConversationId; run.piRequestId = event.piRequestId; } if (event.type === 'native.session' && typeof event.nativeSessionId === 'string' && /^[a-zA-Z0-9_.:-]{1,160}$/.test(event.nativeSessionId)) { run.nativeSessionId = event.nativeSessionId; const item = state.conversations.find(item => item.id === run.conversationId); if (item) item.nativeSessionId = event.nativeSessionId; } } });
+    // Only progress metadata crosses this boundary, never reasoning, tool arguments or results.
+    const tool = ['pi.tool.started', 'pi.tool.finished', 'pi.tool.failed'].includes(event.type)
+      && ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research'].includes(event.toolName)
+      && typeof event.toolCallId === 'string' && /^[a-f0-9]{64}$/.test(event.toolCallId)
+      ? { toolName: event.toolName, toolCallId: event.toolCallId } : null;
+    await store.update(state => { const run = state.runs.find(item => item.id === runId && item.status === 'running'); if (run && run.events.length < 1000) {
+      if (tool && run.events.some(item => item.type === event.type && item.toolCallId === tool.toolCallId)) return;
+      run.events.push({ sequence: run.events.length + 1, type: event.type.slice(0, 120), createdAt: now(), ...(tool || {}) });
+      if (event.type === 'pi.submission') { run.piSubmissionId = event.piSubmissionId; run.piConversationId = event.piConversationId; run.piRequestId = event.piRequestId; }
+      if (event.type === 'native.session' && typeof event.nativeSessionId === 'string' && /^[a-zA-Z0-9_.:-]{1,160}$/.test(event.nativeSessionId)) { run.nativeSessionId = event.nativeSessionId; const item = state.conversations.find(item => item.id === run.conversationId); if (item) item.nativeSessionId = event.nativeSessionId; }
+    } });
   }
   async function pumpQueue() {
     if (pumping || shuttingDown || !backgroundStarted) return;

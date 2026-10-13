@@ -50,6 +50,7 @@
     "test:agent:client": "python3 test/agent-client.test.py"
   },
   "dependencies": {
+    "@assistant-ui/react": "0.15.28",
     "@earendil-works/chord": "1.1.0",
     "@earendil-works/pi-agent-core": "1.1.0",
     "@earendil-works/pi-ai": "1.1.0",
