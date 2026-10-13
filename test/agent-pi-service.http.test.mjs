@@ -139,6 +139,11 @@ test('restart pauses without model replay until explicit resume reattaches the o
   const legacyRetry = await f.api('/api/runs/' + beforeRun.id + '/retry', { method: 'POST', body: {} });
   assert.equal(legacyRetry.status, 409, legacyRetry.text);
   assert.equal(legacyRetry.json.error.code, 'AGENT_RECOVERY_REQUIRED');
+  for (const alternative of ['resume', 'action-decision']) {
+    const blocked = await f.api('/api/runs/' + beforeRun.id + '/' + alternative, { method: 'POST', body: {} });
+    assert.equal(blocked.status, 409, blocked.text);
+    assert.equal(blocked.json.error.code, 'AGENT_TASK_ROUTE_REQUIRED', alternative);
+  }
   const ordinaryMessage = await f.api('/api/conversations/' + beforeRun.conversationId + '/messages', {
     method: 'POST', body: { content: 'Bypass original Agent task', requestId: 'forbidden-legacy-agent-chat' },
   });
@@ -183,6 +188,39 @@ test('restart pauses without model replay until explicit resume reattaches the o
   assert.ok(events.some(item => item.kind === 'thinking' && /检查点/.test(item.payload.text)));
   assert.ok(events.some(item => item.kind === 'error' && item.payload.result?.reason === 'AGENT_EXPLICIT_RESUME_REQUIRED'),
     'The original historical stream must show why automatic recovery was withheld.');
+});
+
+test('orphaned Agent Pi runs keep their conversation closed to ordinary chat/Goal changes', async t => {
+  const f = await fixture(t, { responses: [complete(), complete(), complete(), complete()] });
+  const created = await f.submit('procurement', 'orphan-guard-original-task');
+  assert.equal(created.status, 201, created.text);
+  await f.terminal(created.json.taskId);
+  const originalTask = f.task(created.json.taskId);
+  const conversationId = originalTask.conversationId;
+  const before = f.app.store.read();
+  assert.equal(before.runs.length, 4);
+  assert.ok(before.runs.some(run => run.conversationId === conversationId && run.agentTaskId === originalTask.id));
+
+  // Simulate a historical inconsistent backup. A missing business registry
+  // must not silently recast an original Agent Pi run as ordinary chat.
+  await f.app.store.update(state => { state.workspaceAgentTasks.tasks = []; });
+  const originalRuns = f.app.store.read().runs.map(run => run.id);
+  const messageCount = f.app.store.read().messages.length;
+  await assert.rejects(f.app.runtime.sendMessage(conversationId, {
+    content: 'Unauthorized conversion to ordinary Pi', requestId: 'orphaned-agent-ordinary-chat',
+  }), { code: 'AGENT_TASK_ROUTE_REQUIRED' });
+  await assert.rejects(f.app.runtime.createGoal({
+    title: 'Unauthorized ordinary Goal', description: '', maxSteps: 1, maxOutputTokens: 1600,
+    conversationId,
+  }), { code: 'AGENT_TASK_ROUTE_REQUIRED' });
+  await assert.rejects(f.app.runtime.resetSession(conversationId), { code: 'AGENT_TASK_ROUTE_REQUIRED' });
+  await assert.rejects(f.app.runtime.updateConversationInputContext(conversationId, { inputContext: {} }),
+    { code: 'AGENT_TASK_ROUTE_REQUIRED' });
+  await assert.rejects(f.app.runtime.deleteConversation(conversationId), { code: 'AGENT_TASK_ROUTE_REQUIRED' });
+  assert.deepEqual(f.app.store.read().runs.map(run => run.id), originalRuns);
+  assert.equal(f.app.store.read().messages.length, messageCount);
+  assert.equal(f.faux.state.callCount, 4, 'An orphan cannot gain a second model run.');
+  assert.equal(f.app.store.read().conversations.some(row => row.id === conversationId), true);
 });
 
 test('missing production model stays unconfigured, explicit demo stays visibly separate, same task can resume after configuration', async t => {
