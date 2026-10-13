@@ -29,7 +29,7 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     throw new Error('Use HTTPS or a loopback HTTP Workspace origin, without credentials or query parameters.');
   if (typeof token !== 'string' || !/^[\x21-\x7e]{1,8192}$/.test(token)) throw new Error('Workspace access is blocked until the existing WS_AGENT_TOKEN is injected into memory.');
   const origin = base.origin;
-  async function request(method, suffix = '', body, signal, { business = false, requestId, textOnly = false } = {}) {
+  async function request(method, suffix = '', body, signal, { business = false, requestId, textOnly = false, maxBytes = 2_000_000, expectedBytes } = {}) {
     let response;
     try {
       response = await fetchImpl(origin + (business ? BUSINESS_API : API) + suffix, { method, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
@@ -45,12 +45,13 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
       while (true) {
         const chunk = await reader.read(); if (chunk.done) break;
         bytes += chunk.value.byteLength;
-        if (bytes > 2_000_000) { await reader.cancel(); throw new Error('Workspace task receipt exceeded its transport limit.'); }
+        if (bytes > maxBytes) { await reader.cancel(); throw new Error('Workspace task receipt exceeded its transport limit.'); }
         text += decoder.decode(chunk.value, { stream: true });
       }
       text += decoder.decode();
     } finally { reader.releaseLock(); }
     if (!response.ok) throw new Error(`Workspace refused this operation (HTTP ${response.status}). No approval or task result is implied.`);
+    if (expectedBytes !== undefined && bytes !== expectedBytes) throw new Error('Original artifact bytes do not match their task receipt.');
     let value;
     if (textOnly) {
       if (!/^text\/(?:markdown|plain)(?:;|$)/i.test(response.headers.get('content-type') || '')) throw new Error('Workspace artifact is not an admitted text document.');
@@ -82,7 +83,7 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
         artifacts.push({ name: 'unavailable', status: 'blocked', detail: 'Artifact metadata exceeds the bounded text profile.' }); continue;
       }
       total += file.bytes;
-      try { artifacts.push({ name: file.name, bytes: file.bytes, status: 'available', content: await request('GET', '/tasks/' + id + '/artifacts/' + encodeURIComponent(file.name), undefined, signal, { business: true, textOnly: true }) }); }
+      try { artifacts.push({ name: file.name, bytes: file.bytes, status: 'available', content: await request('GET', '/tasks/' + id + '/artifacts/' + encodeURIComponent(file.name), undefined, signal, { business: true, textOnly: true, maxBytes: file.bytes, expectedBytes: file.bytes }) }); }
       catch { artifacts.push({ name: file.name, status: 'unavailable', detail: 'Original authenticated artifact could not be read; no document result is inferred.' }); }
     }
     return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false, task, events, artifacts };

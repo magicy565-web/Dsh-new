@@ -90,6 +90,13 @@ test('business artifact reads tolerate one original failure and cannot follow me
     return fetch(url, options);
   } });
   assert.equal((await bad.businessStatus(submitted.task.taskId)).artifacts.at(-1).status, 'blocked');
+  const mismatch = createWorkspaceClient({ baseURL: f.baseURL, token: f.token, fetchImpl: async (url, options) => {
+    if (url.endsWith('/tasks/' + submitted.task.taskId)) { const response = await fetch(url, options); const value = await response.json(); value.artifacts[0].bytes = 1; return Response.json(value); }
+    return fetch(url, options);
+  } });
+  const bounded = await mismatch.businessStatus(submitted.task.taskId);
+  assert.equal(bounded.artifacts[0].status, 'unavailable'); assert.equal(bounded.artifacts[0].content, undefined);
+  assert.equal(bounded.artifacts.filter(row => row.status === 'available').length, 2);
 });
 
 test('original enterprise task ownership, submit scope and expired binding refuse business reads and continuation', async t => {
