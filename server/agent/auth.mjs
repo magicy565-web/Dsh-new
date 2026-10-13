@@ -6,6 +6,7 @@ export class AgentHttpError extends Error {
 const sha = value => createHash('sha256').update(value).digest();
 const identifier = value => typeof value === 'string' && /^[A-Za-z0-9._@:+|/-]{1,128}$/.test(value);
 const allowedScopes = new Set(['agent:read', 'agent:submit']);
+const uiFingerprint = (identity, binding) => sha(JSON.stringify({ ...identity, expiresAt: binding.expiresAt || null, credentialDigest: binding.tokenSha256 })).toString('hex');
 
 /** Credentials bind existing Workspace members. They never establish accounts or roles. */
 export function createAgentAuth({ principals, env = process.env, access, reservedTokenDigests = [] } = {}) {
@@ -31,13 +32,34 @@ export function createAgentAuth({ principals, env = process.env, access, reserve
     seen.add(binding.tokenSha256);
     return { binding: Object.freeze(structuredClone(binding)), digest: Buffer.from(binding.tokenSha256, 'hex') };
   });
+  function sessionActor(context, { write = false } = {}) {
+    if (access.mode !== 'enterprise' || !context?.session || !context.claims)
+      throw new AgentHttpError(403, 'Agent UI 需要原企业 Session。', { code: 'AGENT_UI_SESSION_REQUIRED' });
+    const matches = rows.filter(row => row.binding.subject === context.subject && row.binding.workspaceId === context.workspaceId);
+    if (!matches.length) throw new AgentHttpError(403, '当前成员没有现有 Agent principal 绑定。', { code: 'AGENT_PRINCIPAL_REQUIRED' });
+    let selected;
+    for (const row of matches) {
+      try { access.serviceIdentity(row.binding); selected = row; if (!write || row.binding.scopes.includes('agent:submit')) break; }
+      catch { /* An expired or revoked binding never lends scopes to another row. */ }
+    }
+    if (!selected) throw new AgentHttpError(403, '当前成员的 Agent 绑定已过期或撤销。', { code: 'AGENT_BINDING_REVOKED' });
+    if (write && !selected.binding.scopes.includes('agent:submit'))
+      throw new AgentHttpError(403, '当前成员没有 agent:submit 授权。', { code: 'AGENT_SUBMIT_SCOPE_REQUIRED' });
+    if (write && !['admin', 'operator'].includes(context.role))
+      throw new AgentHttpError(403, '当前企业角色不能执行 Agent 任务。', { code: 'AGENT_SUBMIT_ROLE_REQUIRED' });
+    const identity = access.serviceIdentity(selected.binding, { write });
+    if (identity.role !== context.role) throw new AgentHttpError(403, '原 Session 成员角色已变化。', { code: 'AGENT_BINDING_REVOKED' });
+    return { ...identity, legacyAccountId: selected.binding.legacyAccountId || null,
+      uiPermissionFingerprint: uiFingerprint(identity, selected.binding) };
+  }
   return Object.freeze({
     configured: rows.length > 0,
     legacyBindings: rows.filter(row => row.binding.legacyAccountId).map(row => ({ subject: row.binding.subject, workspaceId: row.binding.workspaceId, legacyAccountId: row.binding.legacyAccountId })),
     resolveTaskActor(task) {
       const row = rows.find(row => row.binding.subject === task.subject && row.binding.workspaceId === task.workspaceId && row.binding.scopes.includes('agent:submit'));
       if (!row) throw new AgentHttpError(403, '原任务所属成员的 Agent 执行授权已撤销。', { code: 'AGENT_AUTHORIZATION_REVOKED' });
-      return access.serviceIdentity(row.binding, { write: true });
+      const identity = access.serviceIdentity(row.binding, { write: true });
+      return { ...identity, uiPermissionFingerprint: uiFingerprint(identity, row.binding) };
     },
     async authenticate(req, res, pathname) {
       const header = req.headers.authorization;
@@ -50,6 +72,13 @@ export function createAgentAuth({ principals, env = process.env, access, reserve
       return { ...context, legacyAccountId: selected.binding.legacyAccountId || null };
     },
     watchStream(context, close) { return access.watchServiceStream(context, close); },
+    sessionActor,
+    watchSessionStream(context, close) {
+      const sessionWatch = access.watchStream(context, close);
+      const valid = () => { try { sessionActor(context); return sessionWatch.valid(); } catch { return false; } };
+      const timer = setInterval(() => { if (!valid()) close(); }, 250); timer.unref();
+      return { valid, stop: () => { clearInterval(timer); sessionWatch.stop(); } };
+    },
     recordDenial(error) { return access.recordDenial(error); },
   });
 }

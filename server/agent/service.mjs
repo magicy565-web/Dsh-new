@@ -6,6 +6,7 @@ import { openAgentStore, artifactNameValid, TERMINAL_STATUSES } from './store.mj
 import { createAgentCoordinator } from './engine.mjs';
 import { loadPresets, listPresets, getPreset, validateTaskInput } from './presets.mjs';
 import { renderInstall, pluginManifest } from './install.mjs';
+import { createAgentUiPolicy, createAgentUiHandler } from './ui.mjs';
 
 export const AGENT_VERSION = '1.1.0-pi';
 export const AGENT_API_BASE = '/api/agent/v1';
@@ -66,13 +67,17 @@ export function requestOrigin(req, env = {}) {
   return parsed.origin;
 }
 
-export async function createAgentService({ env = process.env, dataDir, principals, workspaceStore, runtime, provider, access, reservedTokenDigests = [] } = {}) {
+export async function createAgentService({ env = process.env, dataDir, principals, workspaceStore, runtime, provider, access, artifacts, reservedTokenDigests = [] } = {}) {
   const auth = createAgentAuth({ principals, env, access, reservedTokenDigests });
   const presets = await loadPresets({ directory: env.WS_AGENT_PRESETS_DIR || path.join(root, 'presets/agent') });
   const store = await openAgentStore(path.resolve(dataDir || env.WS_AGENT_DATA || path.join(root, '.data/agent')));
-  let engine;
-  try { engine = await createAgentCoordinator({ store: workspaceStore, runtime, provider, projection: store, auth, env }); }
-  catch (error) { await store.close(); throw error; }
+  const uiPolicy = createAgentUiPolicy({ env, auth, access, workspaceStore, artifacts, provider, presets });
+  let engine, releaseUiAuthority;
+  try {
+    releaseUiAuthority = provider.bindAgentUiAuthorization?.(uiPolicy.authorizeInvocation);
+    engine = await createAgentCoordinator({ store: workspaceStore, runtime, provider, projection: store, auth, env, validateUiApproval: uiPolicy.validateApproval });
+  }
+  catch (error) { releaseUiAuthority?.(); await store.close(); throw error; }
   const streams = new Set(); let closing = false, closePromise;
   const mode = engine.demo ? 'demo' : 'model';
   const health = () => ({ status: closing ? 'stopping' : 'ok', version: AGENT_VERSION, mode, model: mode === 'model' ? provider.model || null : null,
@@ -80,7 +85,7 @@ export async function createAgentService({ env = process.env, dataDir, principal
     readiness: engine.demo ? 'demo' : provider.kind === 'pi-durable' && provider.configured ? 'configured_unverified' : 'unconfigured',
     research_capabilities: provider.researchCapabilities || [], projection: engine.readiness() });
 
-  async function stream(res, taskId, from, actor) {
+  async function stream(res, taskId, from, actor, sessionContext, transform = value => value) {
     let cursor = from, draining = false, again = false, ended = false;
     let heartbeat, unsubscribe = () => {}, accessWatch;
     const cleanup = () => { if (ended) return; ended = true; clearInterval(heartbeat); unsubscribe(); accessWatch?.stop(); streams.delete(res); };
@@ -95,7 +100,7 @@ export async function createAgentService({ env = process.env, dataDir, principal
           const batch = store.events(taskId, cursor, 256);
           for (const event of batch) {
             if (res.destroyed || res.writableLength > 128_000) { res.destroy(); return; }
-            res.write(`id: ${event.seq}\ndata: ${JSON.stringify(event)}\n\n`);
+            res.write(`id: ${event.seq}\ndata: ${JSON.stringify(transform(event))}\n\n`);
             cursor = event.seq;
           }
           if (batch.length === 256) again = true;
@@ -107,7 +112,7 @@ export async function createAgentService({ env = process.env, dataDir, principal
     // Register before the first database read: notifications are only wakeups, never event data.
     unsubscribe = store.subscribe(taskId, drain);
     res.on('close', cleanup); streams.add(res);
-    accessWatch = auth.watchStream(actor, () => { res.end(); cleanup(); });
+    accessWatch = sessionContext ? auth.watchSessionStream(sessionContext, () => { res.end(); cleanup(); }) : auth.watchStream(actor, () => { res.end(); cleanup(); });
     await res.accessFinish?.(200);
     res.writeHead(200, { ...commonHeaders, 'Content-Type': 'text/event-stream; charset=utf-8', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
     res.flushHeaders();
@@ -201,10 +206,11 @@ export async function createAgentService({ env = process.env, dataDir, principal
       return true;
     }
   }
-  return { handle, store, engine, presets, health,
+  const handleUi = createAgentUiHandler({ policy: uiPolicy, auth, access, engine, store, workspaceStore, presets, stream, closing: () => closing });
+  return { handle, handleUi, store, engine, presets, health,
     close() {
       if (closePromise) return closePromise;
-      closing = true;
+      closing = true; releaseUiAuthority?.();
       closePromise = (async () => { for (const res of streams) res.end(); await engine.close(); await store.close(); })();
       return closePromise;
     },

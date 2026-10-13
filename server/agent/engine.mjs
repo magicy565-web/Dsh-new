@@ -2,9 +2,11 @@ import { randomUUID, createHash } from 'node:crypto';
 import { AgentHttpError } from './auth.mjs';
 import { AGENT_EVENT_KINDS } from './store.mjs';
 import { buildAgentPresetContext, agentPresetHash } from './pi-preset.mjs';
+import { assertAgentUiApprovalSource } from './ui-source.mjs';
 import { ACTION_NOTICE, DEMO_NOTICE, RESEARCH_NOTICE, buildEvidenceTables, buildInputTable, collectInputEvidence, renderTemplate } from './presets.mjs';
 
 const now = () => new Date().toISOString();
+export const AGENT_TASK_BUDGET = Object.freeze({ maxSteps: 4, maxOutputTokens: 6400 });
 const tasks = state => state.workspaceAgentTasks.tasks;
 const own = (task, actor) => task.subject === actor.subject && task.workspaceId === actor.workspaceId;
 const active = task => ['queued', 'running'].includes(task.status);
@@ -68,7 +70,7 @@ function stopTask(task, state, code, message, step) {
  * the existing Runtime owns its queue, budgets, Pi loop and recovery. Store change
  * notifications drain the durable business outbox into a disposable SQLite view.
  */
-export async function createAgentCoordinator({ store, runtime, provider, projection, auth, env = {} }) {
+export async function createAgentCoordinator({ store, runtime, provider, projection, auth, env = {}, validateUiApproval }) {
   if (!store?.update || !runtime?.sendMessage) throw new Error('Agent requires the original Workspace Store and Runtime.');
   const demo = env.WS_AGENT_DEMO === '1';
   if (env.WS_AGENT_DEMO !== undefined && !['0', '1', ''].includes(env.WS_AGENT_DEMO)) throw new Error('WS_AGENT_DEMO must be explicit 0 or 1.');
@@ -113,6 +115,10 @@ export async function createAgentCoordinator({ store, runtime, provider, project
     let actor;
     try { actor = auth.resolveTaskActor(task); }
     catch { await change(id, task => stopTask(task, 'blocked', 'AGENT_AUTHORIZATION_REVOKED', '原成员权限或 Agent 执行授权已撤销；原任务与文件仍保留。')); return; }
+    if (task.uiApproval) {
+      try { await validateUiApproval?.(task, actor); if (!validateUiApproval) throw new Error(); }
+      catch (error) { await change(id, current => stopTask(current, 'blocked', error.extra?.code || 'AGENT_UI_APPROVAL_CHANGED', '本次公开材料的来源、接收模型或权限已变化；一次性许可不能用于新的发送。原任务与已有文书仍保留。', current.steps.find(step => step.status !== 'succeeded'))); return; }
+    }
     if (!task.conversationId && task.mode !== 'demo') {
       const created = await runtime.createConversation({ title: task.title.slice(0, 160), requestId: stableRequest(id, 'conversation') }, actor);
       await change(id, task => { task.conversationId = created.conversation.id; });
@@ -204,13 +210,13 @@ export async function createAgentCoordinator({ store, runtime, provider, project
     if (remaining.maxSteps < 1 || remaining.maxOutputTokens < 1) { await change(id, task => stopTask(task, 'blocked', 'AGENT_BUDGET_EXHAUSTED', '原业务任务预算已用尽；剩余阶段未执行，不能重置预算自动续跑。', task.steps.find(item => item.key === step.key))); return; }
     let context;
     try { context = buildAgentPresetContext({ state, taskId: id, stageKey: step.key, requestId: step.requestId, actor, researchCapabilities: provider.researchCapabilities || [], budget: remaining }); }
-    catch (error) { await change(id, task => stopTask(task, 'blocked', error.code || 'AGENT_CONTEXT_BLOCKED', '本阶段缺少已授权的真实检索工具或有效输入。原任务与部分材料已保存，缺项不能填为已完成。', task.steps.find(item => item.key === step.key))); return; }
+    catch (error) { await change(id, task => stopTask(task, 'blocked', error.extra?.code || error.code || 'AGENT_CONTEXT_BLOCKED', '本阶段缺少已授权的真实检索工具或有效输入。原任务与部分材料已保存，缺项不能填为已完成。', task.steps.find(item => item.key === step.key))); return; }
     try {
       await runtime.sendMessage(task.conversationId, { content: '执行已授权的研究文书阶段：' + stage.title, requestId: step.requestId, queued: true, workspaceExecution: true }, { agentPresetContext: context });
       await change(id, task => event(task, 'thinking:admitted:' + step.key, 'thinking', { stage: step.key, text: '本阶段已绑定原 Pi run；模型、工具权限、检查点和预算均由原 Runtime 管理。' }));
     } catch (error) {
       if (['BUSY', 'QUEUE_FULL'].includes(error.code)) return;
-      await change(id, task => stopTask(task, 'blocked', error.code || 'PI_ADMISSION_BLOCKED', '原 Pi Runtime 尚未接纳本阶段；原任务已保留，需核对执行条件。', task.steps.find(item => item.key === step.key)));
+      await change(id, task => stopTask(task, 'blocked', error.extra?.code || error.code || 'PI_ADMISSION_BLOCKED', '原 Pi Runtime 尚未接纳本阶段；原任务已保留，需核对执行条件。', task.steps.find(item => item.key === step.key)));
     }
   }
   async function reconcile() {
@@ -253,14 +259,16 @@ export async function createAgentCoordinator({ store, runtime, provider, project
       if (!requestKeyValid(key)) throw new AgentHttpError(400, '无效的 Idempotency-Key。');
       return tasks(store.read()).find(task => task.requestKey === key && own(task, actor)) || null;
     },
-    async submit({ actor, preset, title, input, requestKey }) {
+    async submit({ actor, preset, title, input, requestKey, uiApproval, admission }) {
       const key = requestKey ?? randomUUID();
       if (!requestKeyValid(key)) throw new AgentHttpError(400, 'Idempotency-Key 须为 1–128 个安全字符。');
       const fingerprint = agentPresetHash({ type: preset.id, title: title.trim(), input });
       const answer = await store.update(state => {
+        admission?.(state);
         const old = tasks(state).find(task => own(task, actor) && task.requestKey === key);
         if (old) {
           if (old.fingerprint !== fingerprint) throw new AgentHttpError(409, '相同 Idempotency-Key 已用于不同内容。', { code: 'IDEMPOTENCY_CONFLICT' });
+          if (uiApproval && old.uiApproval?.previewHash !== uiApproval.previewHash) throw new AgentHttpError(409, '原请求没有相同的一次性公开发送许可。', { code: 'AGENT_UI_APPROVAL_CONFLICT' });
           return { task: old, duplicate: true };
         }
         if (tasks(state).filter(task => own(task, actor) && active(task)).length >= 20) throw new AgentHttpError(429, '当前成员待完成任务已达上限。');
@@ -268,7 +276,7 @@ export async function createAgentCoordinator({ store, runtime, provider, project
         const task = { id, subject: actor.subject, workspaceId: actor.workspaceId, type: preset.id, title: title.trim(), input: structuredClone(input), preset: structuredClone(preset),
           fingerprint, requestKey: key, mode: demo ? 'demo' : 'model', status: 'queued', createdAt: now(), finishedAt: null, summary: null,
           conversationId: null, attempt: 1, steps: preset.stages.map(stage => ({ key: stage.key, title: stage.title, requestId: stableRequest(id, stage.key), status: 'pending', output: null })),
-          budget: { maxSteps: 4, maxOutputTokens: 6400 }, deliverables: [], events: [] };
+          budget: { ...AGENT_TASK_BUDGET }, deliverables: [], events: [], ...(uiApproval ? { uiApproval: structuredClone(uiApproval) } : {}) };
         task.result = result(task, 'queued');
         event(task, 'accepted', 'accepted', { taskId: id, type: preset.id, preset: preset.name, title: task.title, mode: task.mode, plan: preset.stages.map(stage => stage.title), result: task.result });
         tasks(state).push(task);
@@ -277,13 +285,17 @@ export async function createAgentCoordinator({ store, runtime, provider, project
       await project(answer.task.id); wake();
       return answer;
     },
-    async resume(id, actor) {
+    async resume(id, actor, { uiApprovalHash } = {}) {
       // Admission must be serialized with other original Store mutations.
       // Two simultaneous authenticated /resume requests cannot create two
       // business attempts or race a stale read from an already resumed task.
       const accepted = await store.update(state => {
         const task = tasks(state).find(row => row.id === id && own(row, actor));
         if (!task) throw new AgentHttpError(404, '任务不存在。');
+        if (task.uiApproval) {
+          if (!actor.uiPermissionFingerprint || uiApprovalHash !== task.uiApproval.previewHash) throw new AgentHttpError(409, '原公开发送许可任务必须经企业 Session 恢复。', { code: 'AGENT_UI_TASK_ROUTE_REQUIRED' });
+          assertAgentUiApprovalSource(state, task);
+        }
         if (active(task)) return { changed: false, runIds: [], interruptedRunId: null };
         if (!task.result?.resumable || task.legacy) throw new AgentHttpError(409, '原任务当前不能自动恢复；已有回执与失败记录保留。', { code: 'AGENT_RECOVERY_BLOCKED' });
         const unfinished = task.steps.find(step => step.status !== 'succeeded');

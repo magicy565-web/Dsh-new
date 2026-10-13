@@ -77,7 +77,8 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
   const modelRef = models.getModel(providerId, model);
   const opened = new Map(), opening = new Map(), activeCalls = new Map();
   let store, directory, closing = false, closePromise;
-  function assertActive(active) {
+  let agentUiAuthority = null, agentUiAuthorityBound = false;
+  function assertActive(active, dispatchModel) {
     if (closing || !active) fail('PI_NOT_ADMITTED', 'No active Workspace invocation authorizes this Pi operation.');
     const state = store.read(), run = state.runs.find(value => value.id === active.runId);
     if (!run || run.status !== 'running' || run.conversationId !== active.conversationId || run.executionHash !== active.executionHash || run.assistantId !== active.replyId)
@@ -86,6 +87,14 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
     assertDraftInvocation(state, run);
     if (run.supplierDraftContext) { const row = state.workspaceSupplierServices?.services.find(item => item.id === run.supplierDraftContext.serviceId); if (!row || row.cancelledAt || row.rejectedAt || row.revision !== run.supplierDraftContext.revision) fail('PI_NOT_ADMITTED', 'The original supplier intake was stopped or changed.'); }
     assertAgentPresetInvocation(state, run);
+    const uiTask = run.agentPresetContext && state.workspaceAgentTasks?.tasks.find(task => task.id === run.agentPresetContext.taskId && task.uiApproval);
+    if (uiTask) {
+      if (!agentUiAuthority) fail('AGENT_UI_AUTHORITY_UNAVAILABLE', 'Original Agent UI authorization is unavailable.');
+      agentUiAuthority(uiTask);
+      if (dispatchModel && (dispatchModel.provider !== providerId || dispatchModel.id !== model)) fail('AGENT_UI_RECIPIENT_CHANGED', 'The actual dispatched provider/model differs from the approved destination.');
+      const recipient = { kind: 'pi-durable', provider: providerId, model, destination: (dispatchModel || modelRef)?.baseUrl || endpoint };
+      if (agentPresetHash(recipient) !== agentPresetHash(uiTask.uiApproval.recipient)) fail('AGENT_UI_RECIPIENT_CHANGED', 'The exact originally approved model destination changed.');
+    }
     return run;
   }
   async function openConversation(conversationId) {
@@ -111,7 +120,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
           void (async () => {
             let observed = null;
             try {
-              assertActive(state.active);
+              assertActive(state.active, requested);
               const requestId = state.active.requestId;
               const reservation = await state.root.commit(async tx => {
                 const active = (await tx.doc(RecordDoc, state.root.id)).active;
@@ -122,7 +131,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
                 active.requests.push({ maxTokens, usage: null });
                 return { index, maxTokens };
               }, context);
-              assertActive(state.active);
+              assertActive(state.active, requested);
               // Enforce at dispatch, after durable beforeRequest hooks and even
               // when their checkpoint captured earlier stream settings.
               const events = models.streamSimple(requested, transcript, { ...options, maxTokens: reservation.maxTokens, maxRetries: 0,
@@ -297,6 +306,13 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
   return {
     kind: 'pi-durable', provider: 'pi', configured: Boolean(suppliedModels ? modelRef : apiKey.trim()), model, models: [model],
     researchCapabilities, endpointFingerprint, legacyPolicyCompatible,
+    // Exact non-secret recipient disclosure for the authenticated Agent UI.
+    agentUiRecipient: Object.freeze({ kind: 'pi-durable', provider: providerId, model, destination: suppliedModels ? modelRef?.baseUrl || null : endpoint }),
+    bindAgentUiAuthorization(check) {
+      if (agentUiAuthorityBound || !store || typeof check !== 'function') throw new Error('Agent UI authority binds once to the initialized original Store.');
+      agentUiAuthorityBound = true; agentUiAuthority = check;
+      return () => { agentUiAuthority = null; };
+    },
     permissionFingerprint: ordinaryPermissionFingerprint,
     agentPermissionFingerprint,
     capabilities: ['pi-agent-context', 'pi-durable-execution', 'durable-request-dedupe', 'explicit-interruption-recovery', 'explicit-durable-abort', 'selected-replay-safe-tools', 'inert-muse-draft-proposals', 'private-supplier-profile-proposals', 'source-checked-preset-stages', ...(researchCapabilities.length ? ['configured-read-only-research'] : [])],

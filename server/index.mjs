@@ -1,5 +1,6 @@
 import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
 import { createAgentService } from './agent/service.mjs';
+import { disabledAgentUiStatus } from './agent/ui.mjs';
 import { createAgentOwnerPolicy } from './agent/privacy.mjs';
 import { createBraveResearchAdapter } from './agent/research.mjs';
 import { openWechatIngress } from './wechat-ingress.mjs';
@@ -162,14 +163,14 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       throw new TypeError('External procurement buyers require this workspace and a distinct subject from enterprise members.');
     sourcingMcpAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
     const agentEnvironment = agentConfig?.env || capabilityEnvironment;
-    if (agentConfig !== false && (agentConfig || agentEnvironment.WS_AGENT_ENABLED === '1' || agentEnvironment.WS_AGENT_PRINCIPALS)) {
+    if (agentConfig !== false && (agentConfig || agentEnvironment.WS_AGENT_ENABLED === '1' || agentEnvironment.WS_AGENT_UI_ENABLED === '1' || agentEnvironment.WS_AGENT_PRINCIPALS)) {
       const projectionDirectory = path.resolve(dataDirectory, 'agent');
       if ([agentEnvironment.WS_AGENT_DATA, agentConfig?.dataDir].filter(Boolean).some(directory => path.resolve(directory) !== projectionDirectory))
         throw new Error('Agent projection must remain under the original Workspace data root.');
       // Prevent a Dot/Muse/sourcing Worker credential from becoming an
       // enterprise Agent submit credential through accidental digest reuse.
       builtinAgent = await createAgentService({ env: agentEnvironment, ...(agentConfig || {}), dataDir: projectionDirectory,
-        workspaceStore: store, runtime, provider, access,
+        workspaceStore: store, runtime, provider, access, artifacts,
         reservedTokenDigests: [...workerDigests, ...sourcingDigests] });
     }
   } catch (error) { await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
@@ -293,12 +294,14 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       musePrivacy.guardHttp(pathname, context);
       agentPrivacy.guardHttp(pathname, context);
       res.filterWorkspaceResponse = body => agentPrivacy.filterResponse(musePrivacy.filterResponse(body, context), context);
+      if (builtinAgent && await builtinAgent.handleUi(req, res, context)) return;
       if (await supplierOwnerMcpHttp({ req, res, pathname, context, access, readBody, guardBody: body => musePrivacy.guardHttp(pathname, context, body), filterResult: value => musePrivacy.filterResponse(value, context), service: supplierService, publication: supplierPublication, artifacts, store, binding: supplierOwnerMcpBinding, clock: accessClock })) return;
       if (!pathname.startsWith('/api/')) {
         if (method !== 'GET' && method !== 'HEAD') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
+        if (!builtinAgent && pathname === '/api/agent-ui/v1/status') return await respond(res, 200, disabledAgentUiStatus());
         if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, respond })) return;
         if (await supplierServiceHttp({ service: supplierService, access, req, res, pathname, context, respond })) return;
         if (await draftHttp(req, res, pathname, context)) return;

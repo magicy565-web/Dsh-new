@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { collectInputEvidence } from './presets.mjs';
 import { MODEL_SAFETY_PROMPT, validateModelOutput, renderModelOutput } from './output.mjs';
+import { assertAgentUiApprovalSource } from './ui-source.mjs';
 
 /** Business data only. This module has no model transport, scheduler or storage. */
 export const AGENT_PRESET_CONTEXT_VERSION = 1;
@@ -25,6 +26,7 @@ function taskAndStep(state, taskId, stageKey) {
   const index = task?.preset?.stages?.findIndex(stage => stage.key === stageKey) ?? -1;
   const step = task?.steps?.find(item => item.key === stageKey);
   if (!task || !step || index < 0) fail(404, 'AGENT_TASK_NOT_FOUND', 'The original Agent task or stage was not found.');
+  assertAgentUiApprovalSource(state, task);
   return { task, step, index, stage: task.preset.stages[index] };
 }
 export function requiredAgentPresetCapabilities(preset, stage) {
@@ -42,7 +44,8 @@ function scopeSnapshot(task, stageKey) {
   const index = task.preset.stages.findIndex(stage => stage.key === stageKey);
   return { taskId: task.id, subject: task.subject, workspaceId: task.workspaceId, conversationId: task.conversationId,
     type: task.type, title: task.title, presetHash: agentPresetHash(task.preset), inputHash: agentPresetHash(task.input), stageKey, stageIndex: index,
-    previousStageOutputs: Object.fromEntries(task.preset.stages.slice(0, index).map(stage => [stage.key, task.steps.find(step => step.key === stage.key)?.output ?? null])) };
+    previousStageOutputs: Object.fromEntries(task.preset.stages.slice(0, index).map(stage => [stage.key, task.steps.find(step => step.key === stage.key)?.output ?? null])),
+    ...(task.uiApproval ? { uiApprovalHash: task.uiApproval.previewHash } : {}) };
 }
 export function buildAgentPresetContext({ state, taskId, stageKey, requestId, actor, researchCapabilities = [], budget = { maxSteps: 1, maxOutputTokens: 1600 } }) {
   const { task, step, index, stage } = taskAndStep(state, taskId, stageKey);

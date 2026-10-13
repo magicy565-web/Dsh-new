@@ -16,13 +16,13 @@ const emptyHash = hash('');
 const cookieName = '__Host-workspace_session';
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const administrative = /^(?:\/api\/(settings|skills|connectors|approvals|schedules|access|commerce-shopify|worker-opportunities|cloud-experts|cloud-teams)(?:\/|$)|\/api\/runs\/[^/]+\/action-decision$|\/api\/worker-orders\/[^/]+\/promote$|\/api\/library\/documents\/[^/]+\/versions\/[^/]+\/reviews$)/;
-const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|library|commerce-projects|worker-orders|supply)(?:\/|$)/;
+const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|library|commerce-projects|worker-orders|supply|agent-ui)(?:\/|$)/;
 const iso = value => new Date(value).toISOString();
 function routeLabel(pathname) {
   const parts = pathname.split('/');
   if (parts[1] !== 'api') return 'static';
   const roots = new Set(['session', 'access', 'health', 'diagnostics', 'bootstrap', 'status', 'events', 'conversations', 'goals', 'runs', 'memories', 'artifacts', 'library', 'commerce-projects', 'commerce-status', 'commerce-shopify', 'settings', 'skills', 'connectors', 'approvals', 'schedules', 'activity', 'search', 'capabilities', 'schedule-runs', 'connector-runs', 'worker-services', 'worker-orders', 'worker-opportunities', 'cloud-expert-catalog', 'cloud-experts', 'cloud-teams']);
-  if (!roots.has(parts[2])) return '/api/unknown';
+  if (!roots.has(parts[2]) && parts[2] !== 'agent-ui') return '/api/unknown';
   return `/api/${parts[2]}${parts.length > 3 ? '/:resource' : ''}`;
 }
 function canonicalOrigin(value, enterprise = false) {
