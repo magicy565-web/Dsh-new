@@ -60,22 +60,26 @@ class AgentProjection {
   }
   async _sync(task, authoritySequence) {
     if (this.closed || !taskIdValid(task.id)) throw new Error('Invalid projection task.');
-    // The view exposes the original conversation and Pi run IDs. Update it
-    // even when no new public event/status was emitted during host admission.
-    const signature = JSON.stringify([
-      task.events.length, task.status, task.finishedAt, task.result, task.summary || null,
-      task.conversationId || null, task.steps.map(step => step.runId || null),
-      task.deliverables.map(item => [item.name, item.sha256, item.url]),
-    ]);
-    if (this.last.get(task.id) === signature) return;
-    // Materialize every file before making its already durable outbox event readable.
-    for (const artifact of task.deliverables) await this.materialize(task.id, artifact);
     const artifacts = task.deliverables.map(({ name, bytes, url }) => ({ name, bytes, url }));
     const view = { taskId: task.id, type: task.type, title: task.title, input: task.input, status: task.status,
       summary: task.summary || null, created_at: task.createdAt, finished_at: task.finishedAt || null, artifacts,
       result: task.result, request_key: task.requestKey || null,
       workspace: { conversationId: task.conversationId || null, runIds: task.steps.map(step => step.runId).filter(Boolean), authority: 'workspace-store' } };
+    // The cache must cover the entire public view, published event contents
+    // and immutable owner; equal event counts alone do not prove an outbox
+    // entry was unchanged. Hash, rather than retain, private task/input data.
+    const signature = digest(Buffer.from(JSON.stringify({
+      owner: [task.workspaceId, task.subject], view,
+      events: task.events.map(({ seq, kind, payload, ts }) => [seq, kind, payload, ts]),
+      artifacts: task.deliverables.map(({ name, sha256 }) => [name, sha256]),
+    }), 'utf8'));
+    if (this.last.get(task.id) === signature) return;
+    // Materialize every file before making its already durable outbox event readable.
+    for (const artifact of task.deliverables) await this.materialize(task.id, artifact);
     this.transaction(() => {
+      const owner = this.db.prepare('SELECT workspace_id,subject FROM agent_task_projection WHERE task_id=?').get(task.id);
+      if (owner && (owner.workspace_id !== task.workspaceId || owner.subject !== task.subject))
+        throw new Error('Original Agent task owner changed; restore consistent authority, never reassign a projection.');
       this.db.prepare('INSERT INTO agent_task_projection VALUES(?,?,?,?,?,?) ON CONFLICT(task_id) DO UPDATE SET task_json=excluded.task_json,authority_sequence=excluded.authority_sequence,event_count=excluded.event_count')
         .run(task.id, task.workspaceId, task.subject, JSON.stringify(view), authoritySequence, task.events.length);
       const old = this.db.prepare('SELECT count(*) AS n FROM agent_event_projection WHERE task_id=?').get(task.id).n;
