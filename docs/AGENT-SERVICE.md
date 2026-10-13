@@ -106,7 +106,7 @@ Python 客户端提交前将 request_key 写到 stderr 的 JSON 回执中，传�
 
 ## 6. 恢复与旧数据迁移
 
-原 Store 启动恢复标记原 run 后，Agent 依据原 task/step/run 关联调用 `recoverPiRun`。经过验证、可重放的同一 Pi submission 沿原检查点继续；已成功阶段及已交付文件保持原哈希。丢失原 run、检查点不匹配、预算耗尽或工具副作用未知时停止并保留记录。发布不由研究预设执行；Shopify 有副作用操作先核对持久回执，未知状态只读 reconcile。
+原 Store 启动恢复标记中断的 run 后，Agent **只保留并投影原 task/step/run 与 Pi checkpoint，不自动调用 `recoverPiRun` 或再次触发模型**。当前中断任务以 `AGENT_EXPLICIT_RESUME_REQUIRED` 和可恢复状态保留历史事件、部分文件；同一企业成员必须明确调用 `POST /api/agent/v1/tasks/{id}/resume`，才能为本进程的这一原 run 授予一次性恢复权限。权限不会跨进程重启自动继承。随后才在原 Runtime 中复核范围、预算、权限、审批和 submission，接续同一个 run；请求键对本次明确恢复尝试固定，旧事件仅追加不改写。若恢复前再次重启，必须再次明确授权。丢失原 run、检查点不匹配、预算耗尽或工具副作用未知时停止并保留记录。研究预设无发布权限；Shopify 副作用未知时仅只读 reconcile。
 
 旧 PR44 的 SQLite 不作为第二个执行权威保留。升级前停服备份整个原数据；在同一 `WORKSPACE_DATA_DIR/agent` 放入旧档案，通过 `WS_AGENT_PRINCIPALS[].legacyAccountId` 显式绑定原账号到真实既有成员，才能迁入原 Store。未映射档案不暴露。旧已完成任务保留事件、文件及来源标识；旧 queued/running 没有 Pi 检查点，标明无法自动恢复并保留原事件，不伪造恢复能力。数据迁移不是允许自动重做发布或重新收费的授权。
 
