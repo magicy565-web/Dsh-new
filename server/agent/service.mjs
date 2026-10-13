@@ -119,7 +119,7 @@ export async function createAgentService({ env = process.env, dataDir, principal
     const raw = (req.url || '/').split('?')[0].replace(/\/$/, '') || '/';
     const isApi = raw === AGENT_API_BASE || raw.startsWith(AGENT_API_BASE + '/');
     const endpoint = isApi ? raw.slice(AGENT_API_BASE.length) || '/' : raw;
-    if (!isApi && !publicPaths.has(endpoint)) return false;
+    if (!isApi && !['/install', '/plugin/manifest.json', '/plugin/client.py'].includes(endpoint)) return false;
     try {
       if (closing) throw new AgentHttpError(503, '服务正在停止，请稍后重试。');
       if (req.method === 'GET' && publicPaths.has(endpoint)) {
