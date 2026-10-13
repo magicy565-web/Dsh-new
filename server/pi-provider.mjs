@@ -22,6 +22,11 @@ export const PI_VERSION = '1.1.0';
 const context = BACKGROUND_CONTEXT;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const RecordDoc = defineDoc({ kind: 'workspace.pi-invocations', version: 1, scope: 'conversation', history: 'latest', fork: 'initial', initial: () => ({ records: {}, active: null }) });
+const ORIGINAL_PI_ENDPOINT = 'https://www.fastaitoken.com/v1';
+// Immutable PR59 V4 admission scope. Only eligible non-Agent runs on this exact
+// original destination can continue with it. Extra Agent tools are never
+// admitted to those runs by the original ToolTask/Run guards.
+const LEGACY_POLICY = { version: 4, tools: ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile'], externalExecution: 'original-workspace-approval', replay: 'safe-only', storage: 'jsonl-fsync', budget: 'durable-request-reservations-wire-usage', museInput: 'original-owner-provenance', museDraft: 'quote-verified-inert-v1', supplier: 'quote-verified-private-v1' };
 const POLICY = { version: 5, tools: ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_research', 'workspace_complete_preset_stage'], externalExecution: 'original-workspace-approval', replay: 'safe-only', storage: 'jsonl-fsync', budget: 'durable-request-reservations-wire-usage', museInput: 'original-owner-provenance', museDraft: 'quote-verified-inert-v1', supplier: 'quote-verified-private-v1', agentPreset: 'original-business-stage-source-checked-v1' };
 const fail = (code, message) => { throw new ProviderError(code, message); };
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -57,6 +62,13 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
   if (researchAdapter && (typeof researchAdapter.id !== 'string' || !/^[A-Za-z0-9_.-]{1,80}$/.test(researchAdapter.id) || !Number.isSafeInteger(researchAdapter.revision) || researchAdapter.revision < 1 || typeof researchAdapter.search !== 'function' || researchAdapter.replay !== 'safe' || !Array.isArray(researchAdapter.capabilities) || researchAdapter.capabilities.some(value => value !== 'web_search'))) throw new TypeError('A research adapter requires a pinned ID/revision, safe read-only search and explicit capabilities.');
   const researchCapabilities = researchAdapter?.configured === true ? [...new Set(researchAdapter.capabilities)] : [];
   const researchDescriptor = researchAdapter ? { id: researchAdapter.id, revision: researchAdapter.revision, capabilities: researchCapabilities, replay: 'safe' } : null;
+  const legacyPolicyCompatible = endpoint === ORIGINAL_PI_ENDPOINT;
+  const legacyPermissionFingerprint = capabilityPayloadHash({ ...LEGACY_POLICY, providerId, model, source: PI_SOURCE });
+  const agentPermissionFingerprint = capabilityPayloadHash({ ...POLICY, providerId, model, endpointFingerprint, source: PI_SOURCE, research: researchDescriptor });
+  // Do not invalidate an existing PR59 conversation, Goal or approved schedule
+  // merely because an Agent document tool was installed. For any changed
+  // endpoint, require the new endpoint-bound fingerprint even for ordinary runs.
+  const ordinaryPermissionFingerprint = legacyPolicyCompatible ? legacyPermissionFingerprint : agentPermissionFingerprint;
   const models = suppliedModels || createModels();
   if (!suppliedModels) models.setProvider(createProvider({ id: providerId, name: 'Workspace server-configured Pi model', baseUrl: endpoint,
     auth: { apiKey: { name: 'Host-managed FastAIToken key', resolve: async () => apiKey.trim() ? { auth: { apiKey } } : undefined } },
@@ -274,8 +286,9 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
   }
   return {
     kind: 'pi-durable', provider: 'pi', configured: Boolean(suppliedModels ? modelRef : apiKey.trim()), model, models: [model],
-    researchCapabilities, endpointFingerprint,
-    permissionFingerprint: capabilityPayloadHash({ ...POLICY, providerId, model, endpointFingerprint, source: PI_SOURCE, research: researchDescriptor }),
+    researchCapabilities, endpointFingerprint, legacyPolicyCompatible,
+    permissionFingerprint: ordinaryPermissionFingerprint,
+    agentPermissionFingerprint,
     capabilities: ['pi-agent-context', 'pi-durable-execution', 'durable-request-dedupe', 'explicit-interruption-recovery', 'explicit-durable-abort', 'selected-replay-safe-tools', 'inert-muse-draft-proposals', 'private-supplier-profile-proposals', 'source-checked-preset-stages', ...(researchCapabilities.length ? ['configured-read-only-research'] : [])],
     setupMessage: 'Configure the existing host-managed FASTAITOKEN_API_KEY, PI_MODEL and optional PI_BASE_URL for Pi. Credentials remain on the server. Your work is saved.',
     limitations: ['Pi 1.1.0 is pinned; model endpoint/account access remains unverified.', 'Only selected input snapshots and exact action proposals are available to Pi. Workspace executes approved actions.', 'Reopen does not resume work automatically. User cancellation explicitly aborts durable work; shutdown preserves checkpoints.', 'Muse and Dot remain independent original connectors. A receipt or write submission is not wake/execution evidence.'],
