@@ -1,4 +1,7 @@
 import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
+import { createAgentService } from './agent/service.mjs';
+import { createAgentOwnerPolicy } from './agent/privacy.mjs';
+import { createBraveResearchAdapter } from './agent/research.mjs';
 import { openWechatIngress } from './wechat-ingress.mjs';
 import { createMuseDraftService } from './muse-draft-service.mjs';
 import { createSupplierService, supplierServiceHttp } from './supplier-service.mjs';
@@ -87,13 +90,13 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, publicationAdapter, supplierPublication, supplierNotifications;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
   try {
     await provider.initialize?.({ store });
     recovery = await readRecoveryStatus(store.directory, provider.kind);
@@ -158,8 +161,17 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       (accessConfig.mode === 'enterprise' ? accessConfig.members.has(row.subject) : row.subject === 'local-operator')))
       throw new TypeError('External procurement buyers require this workspace and a distinct subject from enterprise members.');
     sourcingMcpAuth = createSourcingMcpAuth(sourcingMcpConfig || {});
-  } catch (error) { await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
+    const agentEnvironment = agentConfig?.env || capabilityEnvironment;
+    if (agentConfig !== false && (agentConfig || agentEnvironment.WS_AGENT_ENABLED === '1' || agentEnvironment.WS_AGENT_PRINCIPALS)) {
+      const projectionDirectory = path.resolve(dataDirectory, 'agent');
+      if ([agentEnvironment.WS_AGENT_DATA, agentConfig?.dataDir].filter(Boolean).some(directory => path.resolve(directory) !== projectionDirectory))
+        throw new Error('Agent projection must remain under the original Workspace data root.');
+      builtinAgent = await createAgentService({ env: agentEnvironment, ...(agentConfig || {}), dataDir: projectionDirectory,
+        workspaceStore: store, runtime, provider, access });
+    }
+  } catch (error) { await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
+  const agentPrivacy = createAgentOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
   const supplierMcpExtension = bridge => createSupplierWorkerMcpExtension({ bridge, service: supplierService, store, workspaceId: accessConfig.workspaceId || 'local', memberRole: subject => accessConfig.mode === 'enterprise' ? accessConfig.members.get(subject) : subject === 'local-operator' ? 'admin' : null });
   const supplierMcpEnabled = capabilityEnvironment.WORKSPACE_SUPPLIER_MCP_ENABLED === 'true';
   async function draftHttp(req, res, pathname, context, body) {
@@ -210,6 +222,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   }
   const server = http.createServer(async (req, res) => {
     try {
+      // The optional Agent API is a thin adapter over the original Workspace/Pi services.
+      if (builtinAgent && await builtinAgent.handle(req, res)) return;
       const url = new URL(req.url, 'http://localhost');
       const pathname = url.pathname.replace(/\/$/, '') || '/';
       const method = req.method;
@@ -274,7 +288,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       const context = await access.begin(req, res, pathname);
       musePrivacy.guardHttp(pathname, context);
-      res.filterWorkspaceResponse = body => musePrivacy.filterResponse(body, context);
+      agentPrivacy.guardHttp(pathname, context);
+      res.filterWorkspaceResponse = body => agentPrivacy.filterResponse(musePrivacy.filterResponse(body, context), context);
       if (await supplierOwnerMcpHttp({ req, res, pathname, context, access, readBody, guardBody: body => musePrivacy.guardHttp(pathname, context, body), filterResult: value => musePrivacy.filterResponse(value, context), service: supplierService, publication: supplierPublication, artifacts, store, binding: supplierOwnerMcpBinding, clock: accessClock })) return;
       if (!pathname.startsWith('/api/')) {
         if (method !== 'GET' && method !== 'HEAD') throw new ApiError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
@@ -377,6 +392,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const body = method === 'DELETE' ? {} : await readBody(req, /^\/api\/artifacts(?:\/[^/]+)?$/.test(pathname) ? 7_100_000 : 100_000);
       access.verifyBody(context, req.bodyBytes || Buffer.alloc(0));
       musePrivacy.guardHttp(pathname, context, body);
+      agentPrivacy.guardHttp(pathname, context, body);
       if (await draftHttp(req, res, pathname, context, body)) return;
       if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, body, respond })) return;
       if (await supplierServiceHttp({ service: supplierService, access, req, res, pathname, context, body, respond })) return;
@@ -513,7 +529,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, supplierService, supplierPublication, supplierNotifications, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');
@@ -533,7 +549,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         server.closeIdleConnections();
         try {
           // Signal both domains before waiting, so a connector cannot delay model cancellation.
-          const results = await Promise.allSettled([capabilities.close?.(), runtime.close(), museHost?.close(), piMuse?.close(), supplierMonitoring?.close()]);
+          const results = await Promise.allSettled([builtinAgent?.close(), capabilities.close?.(), runtime.close(), museHost?.close(), piMuse?.close(), supplierMonitoring?.close()]);
           await artifacts.close?.();
           const failure = results.find(result => result.status === 'rejected');
           if (failure) throw failure.reason;
@@ -549,7 +565,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   };
 }
 
-async function main() {
+export async function startWorkspaceServer() {
   const port = Number(process.env.PORT || 8787);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer from 1 to 65535.');
   // The key is read only on explicit server startup, never scanned from user files.
@@ -557,7 +573,7 @@ async function main() {
   if (mode !== 'pi') throw new Error('WORKSPACE_RUNTIME must be pi. Historical DSH startup is retired.');
   const access = await accessConfigFromEnvironment(process.env);
   const dataDirectory = path.resolve(process.env.WORKSPACE_DATA_DIR || path.join(root, '.data'));
-  const provider = createPiProvider({ apiKey: process.env.FASTAITOKEN_API_KEY || '', model: process.env.PI_MODEL || process.env.FASTAITOKEN_MODEL || 'gpt-6-sol' });
+  const provider = createPiProvider({ apiKey: process.env.FASTAITOKEN_API_KEY || '', model: process.env.PI_MODEL || process.env.FASTAITOKEN_MODEL || 'gpt-6-sol', baseUrl: process.env.PI_BASE_URL || 'https://www.fastaitoken.com/v1', researchAdapter: createBraveResearchAdapter({ environment: process.env }) });
   // No SDK, credentials, outbound requests or partner registration without a
   // pinned, privately stored deployment catalog. Web clients cannot edit it.
   const reviewedWorkers = await loadReviewedA2AWorkers({ environment: process.env });
@@ -626,4 +642,4 @@ async function main() {
     });
   });
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => { console.error(error.message); process.exitCode = 1; });
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) startWorkspaceServer().catch(error => { console.error(error.message); process.exitCode = 1; });
