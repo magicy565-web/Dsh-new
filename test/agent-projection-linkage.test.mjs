@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { openAgentStore } from '../server/agent/store.mjs';
@@ -61,10 +61,21 @@ test('Agent read projection tracks the original Pi conversation/run linkage with
   // A committed event is append-only, even if an old event changes its value
   // without changing the sequence/count. The former cache skipped this check.
   published.payload.done = true;
+  const orphanContent = '# Must never reach artifact disk';
+  const orphan = { name: 'orphan-before-commit.md', content: orphanContent,
+    bytes: Buffer.byteLength(orphanContent, 'utf8'),
+    sha256: createHash('sha256').update(orphanContent).digest('hex'),
+    url: '/api/agent/v1/tasks/' + task.id + '/artifacts/orphan-before-commit.md' };
+  task.deliverables.push(orphan);
   await assert.rejects(projection.sync(task, 6), /previously delivered event cannot change/i);
+  await assert.rejects(stat(path.join(projection.directory, 'artifacts', task.id, orphan.name)),
+    { code: 'ENOENT' }, 'Rejected event replay must not create orphan artifact files.');
   assert.deepEqual(projection.events(task.id), delivered, 'Failed event validation must roll back SQLite.');
 
+  task.deliverables.pop();
   published.payload.done = false;
+  await assert.rejects(projection.sync(task, 4), /projection is ahead of the Workspace authority sequence/i,
+    'An older Store backup is rejected even if its task content is unchanged.');
   const content = '# Immutable original artifact';
   const file = { name: 'evidence.md', content, bytes: Buffer.byteLength(content, 'utf8'),
     sha256: createHash('sha256').update(content).digest('hex'),
@@ -78,8 +89,13 @@ test('Agent read projection tracks the original Pi conversation/run linkage with
   assert.deepEqual(projection.listArtifacts(task.id), publishedFiles,
     'An altered download URL must not replace or fork an already published artifact.');
   file.url = publishedFiles[0].url;
+  const ownerDrift = { ...orphan, name: 'owner-drift.md',
+    url: '/api/agent/v1/tasks/' + task.id + '/artifacts/owner-drift.md' };
+  task.deliverables.push(ownerDrift);
   task.subject = 'other-member';
   await assert.rejects(projection.sync(task, 9), /original agent task owner changed/i);
+  await assert.rejects(stat(path.join(projection.directory, 'artifacts', task.id, ownerDrift.name)),
+    { code: 'ENOENT' }, 'Owner drift must not create another artifact on disk.');
   assert.equal(projection.getTask(task.id, { ...actor, subject: 'other-member' }), null,
     'The projection must never reassign a task by changing its owner columns.');
   assert.equal(projection.getTask(task.id, actor).workspace.runIds[0], 'original-pi-run');
