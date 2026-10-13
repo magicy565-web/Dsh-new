@@ -1,0 +1,28 @@
+✔ restarted Agent never reattaches Pi autonomously; explicit member resume reuses original run and checkpoint (124.939124ms)
+✔ Agent preset invokes real Pi SDK tool through the original Runtime and stores only a document result under the original budget (253.163908ms)
+✔ lost response and reopened original stage request deduplicate to the same run with no model call (183.04764ms)
+✔ interrupted preset recovers its original Pi submission and original budget without creating a new task or stage (198.595468ms)
+✔ preset scope changes block recovery while previously committed stage output remains available (144.771225ms)
+✔ production missing model or required real search remains blocked without a template result (30.259951ms)
+✔ real Pi research tool calls the selected read adapter, persists evidence and requires citations (141.547785ms)
+✔ unsupported plain text cannot substitute for a source checked preset result (91.757341ms)
+✔ recovery reuses a committed Pi research receipt after the following model response was interrupted (229.277533ms)
+✔ empty real search sources block the document stage and cannot become completed research (211.532776ms)
+✔ a changed server model endpoint cannot resume an admitted Pi checkpoint (99.068974ms)
+✔ unified Agent HTTP preserves the seven-event protocol, real Pi stage execution, three files and identical concurrent SSE/history (1262.205616ms)
+✔ stable submit key deduplicates concurrent/lost responses and conflicting contents return 409 (593.766585ms)
+✔ completed business outbox rebuilds its SQLite read projection and downloadable files after restart (474.818653ms)
+✔ restart pauses without model replay until explicit resume reattaches the original Pi run and inquiry file (592.388835ms)
+✔ orphaned Agent Pi runs keep their conversation closed to ordinary chat/Goal changes (338.329652ms)
+✔ missing production model stays unconfigured, explicit demo stays visibly separate, same task can resume after configuration (673.822008ms)
+✔ same enterprise member bindings isolate Agent and original Workspace APIs without separate accounts (886.438507ms)
+✔ missing search capability blocks sourcing and opportunity; prior model document output remains saved (129.452416ms)
+✔ supplier sourcing and opportunity run through the same Pi service and cite their actual admitted read-tool receipts (636.029514ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6249.096406

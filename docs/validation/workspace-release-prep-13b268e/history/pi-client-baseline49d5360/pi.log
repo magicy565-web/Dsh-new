@@ -1,0 +1,28 @@
+
+> workspace-agent@0.5.0-rc.2 test:pi
+> node --test test/pi-runtime.test.mjs
+
+✔ PR59 ordinary Pi policy fingerprint stays byte-compatible only on its original endpoint (2.550234ms)
+✔ real Pi package fixture: durable text execution, usage, persisted submission and business dedupe (205.483304ms)
+✔ ordinary Pi checkpoint cannot resume after a different HTTPS model endpoint is configured (116.409785ms)
+✔ real Pi package fixture: selected file tool uses original ID/version/SHA snapshot and cannot read ambient data (190.526269ms)
+✔ real Pi package fixture: user cancellation explicitly aborts durable work; reopen does not resume it (167.197166ms)
+✔ real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/submission (316.922315ms)
+✔ real Pi package fixture: default boot is DSH-free, private storage shares original exclusive writer and Muse never falls back (82.339841ms)
+✔ real Pi package fixture: connector proposal stops for original exact approval and explicit continuation (180.90919ms)
+✔ real Pi package fixture: unknown tools, unselected inputs and unselected connector proposals have no effects (241.208799ms)
+✔ real Pi package fixture: interrupted goal resumes its original reservation and reply without duplicating a step (107.766294ms)
+✔ real Pi package fixture: changed selected memory and execution scope block recovery without another model call (81.114124ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2270.622726
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

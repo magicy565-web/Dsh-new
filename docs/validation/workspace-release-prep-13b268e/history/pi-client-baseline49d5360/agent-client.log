@@ -1,0 +1,41 @@
+
+> workspace-agent@0.5.0-rc.2 test:agent:client
+> python3 test/agent-client.test.py
+
+test_auth_failure_does_not_retry_and_does_not_echo_secret (__main__.AgentClientTests.test_auth_failure_does_not_retry_and_does_not_echo_secret) ... ok
+test_cli_full_flow_and_stdin_input_without_credential_files (__main__.AgentClientTests.test_cli_full_flow_and_stdin_input_without_credential_files) ... ok
+test_cli_submit_not_follow_returns_only_acknowledgement (__main__.AgentClientTests.test_cli_submit_not_follow_returns_only_acknowledgement) ... ok
+test_completed_task_from_terminal_seq_returns_no_events (__main__.AgentClientTests.test_completed_task_from_terminal_seq_returns_no_events) ... ok
+test_credentials_are_not_read_from_dotenv (__main__.AgentClientTests.test_credentials_are_not_read_from_dotenv) ... ok
+test_disconnect_resumes_query_and_deduplicates (__main__.AgentClientTests.test_disconnect_resumes_query_and_deduplicates) ... ok
+test_download_does_not_follow_directory_or_target_symlink (__main__.AgentClientTests.test_download_does_not_follow_directory_or_target_symlink) ... ok
+test_download_list_url_cross_origin_refused_before_any_write (__main__.AgentClientTests.test_download_list_url_cross_origin_refused_before_any_write) ... ok
+test_download_redirect_and_incomplete_transfer_clean_partial_file (__main__.AgentClientTests.test_download_redirect_and_incomplete_transfer_clean_partial_file) ... ok
+test_download_registered_artifact_and_refuse_overwrite (__main__.AgentClientTests.test_download_registered_artifact_and_refuse_overwrite) ... ok
+test_download_rejects_traversal_and_unregistered_names (__main__.AgentClientTests.test_download_rejects_traversal_and_unregistered_names) ... ok
+test_error_event_causes_nonzero_cli_result (__main__.AgentClientTests.test_error_event_causes_nonzero_cli_result) ... ok
+test_health_public_presets_bearer_and_base_url (__main__.AgentClientTests.test_health_public_presets_bearer_and_base_url) ... ok
+test_install_manifest_contract_and_host_injection_rejection (__main__.AgentClientTests.test_install_manifest_contract_and_host_injection_rejection) ... ok
+test_lost_submission_response_looks_up_original_key_without_second_post (__main__.AgentClientTests.test_lost_submission_response_looks_up_original_key_without_second_post) ... ok
+test_no_token_cli_argument_no_plaintext_even_if_pasted (__main__.AgentClientTests.test_no_token_cli_argument_no_plaintext_even_if_pasted) ... ok
+test_partial_frame_not_emitted_before_resume (__main__.AgentClientTests.test_partial_frame_not_emitted_before_resume) ... ok
+test_polling_has_an_upper_bound_and_preserves_cursor (__main__.AgentClientTests.test_polling_has_an_upper_bound_and_preserves_cursor) ... ok
+test_protocol_rejects_unknown_kind_sequence_gap_and_wrong_sse_id (__main__.AgentClientTests.test_protocol_rejects_unknown_kind_sequence_gap_and_wrong_sse_id) ... ok
+test_redirect_cannot_forward_authorization_to_other_origin (__main__.AgentClientTests.test_redirect_cannot_forward_authorization_to_other_origin) ... ok
+test_remote_http_credentials_in_url_and_header_injection_refused (__main__.AgentClientTests.test_remote_http_credentials_in_url_and_header_injection_refused) ... ok
+test_replay_includes_historical_error_before_successful_resume (__main__.AgentClientTests.test_replay_includes_historical_error_before_successful_resume) ... ok
+test_resume_posts_empty_body_and_follows_original_cursor (__main__.AgentClientTests.test_resume_posts_empty_body_and_follows_original_cursor) ... ok
+test_sse_unavailable_polls_persisted_events (__main__.AgentClientTests.test_sse_unavailable_polls_persisted_events) ... ok
+test_submit_exact_body_and_complete_event_stream (__main__.AgentClientTests.test_submit_exact_body_and_complete_event_stream) ... ok
+test_two_simultaneous_subscribers_receive_same_sequence (__main__.AgentClientTests.test_two_simultaneous_subscribers_receive_same_sequence) ... ok
+test_unknown_submission_receipt_preserves_key_and_never_reposts (__main__.AgentClientTests.test_unknown_submission_receipt_preserves_key_and_never_reposts) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 1.532s
+
+OK
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

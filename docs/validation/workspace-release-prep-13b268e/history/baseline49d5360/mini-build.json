@@ -1,0 +1,31 @@
+{
+  "name": "mini-build",
+  "command": [
+    "npm",
+    "run",
+    "build:mini"
+  ],
+  "sourceBefore": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "treeBefore": "43e69c03613099227c49698601eed3b84ee09ccc",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:15:55.166505+00:00",
+  "exitCode": 0,
+  "durationSeconds": 1.87,
+  "sourceAfter": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T06:15:57.045789+00:00",
+  "log": "mini-build.log",
+  "logSha256": "f5a9e2eff23580e202ce42e5fae0dd6460607919a737f7af15d3e2898bafa849",
+  "counts": {}
+}

@@ -1,0 +1,39 @@
+{
+  "name": "library-dom",
+  "command": [
+    "node",
+    "--test",
+    "test/supply-commerce-ui.dom.test.mjs"
+  ],
+  "sourceBefore": "ba14e14502d404dae80c6964da4820425484a2e5",
+  "treeBefore": "af46064a152488ec1d4e8fd083f226043efa333a",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:31:27.821880+00:00",
+  "exitCode": 0,
+  "durationSeconds": 3.582,
+  "sourceAfter": "ba14e14502d404dae80c6964da4820425484a2e5",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T06:31:31.412393+00:00",
+  "log": "library-dom.log",
+  "logSha256": "597a985266ff5f34633c3c2890cecbdc461c93cee2564ac334800317bd91cded",
+  "counts": {
+    "tests": 13,
+    "suites": 0,
+    "pass": 13,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  }
+}

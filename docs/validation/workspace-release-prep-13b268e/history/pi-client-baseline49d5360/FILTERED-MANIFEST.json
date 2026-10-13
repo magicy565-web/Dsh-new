@@ -1,0 +1,124 @@
+{
+  "initialSourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "files": [
+    {
+      "path": "agent-client.log",
+      "bytes": 4359,
+      "sha256": "2b4d30b5a03cd63f0f1a498fab3fd21c6a4c31d4148e8e3b91c87d44f4c0940d",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/agent-client.log"
+    },
+    {
+      "path": "agent-pi-recovery.log",
+      "bytes": 2507,
+      "sha256": "98a2a6852ddc4ff1ab9f7887c5dace33ae8a3d27fb634f73eb921069b1657e35",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/agent-pi-recovery.log"
+    },
+    {
+      "path": "muse-consumer.log",
+      "bytes": 4184,
+      "sha256": "d1fc9e6455cd8589510fbfadef91fa0bb5bb05fc9799c6a501871e823bea8c23",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/muse-consumer.log"
+    },
+    {
+      "path": "overlay-native-session.log",
+      "bytes": 3089,
+      "sha256": "23716cf5550c701ab989fba9c07f6035064d3b92e33c6b58d689dd69d7715341",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/overlay-native-session.log"
+    },
+    {
+      "path": "pi-muse-dot-native.log",
+      "bytes": 6783,
+      "sha256": "b0d3c7f0dfc25fe84330dfdd31aa02d9fa38c83ea4572e31beeca195954cae0c",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/pi-muse-dot-native.log"
+    },
+    {
+      "path": "pi.log",
+      "bytes": 1778,
+      "sha256": "4f6f24e90c161bb6bc438f643ca359d960903acfbc92b5e16972dcd5cf054cf1",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/pi.log"
+    },
+    {
+      "path": "pr59-to-new-migration-initial-fixture-error.log",
+      "bytes": 1829,
+      "sha256": "aa7291e74a11299025f6707cd3903023f8889566807c61c05053c71a40813cae",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/pr59-to-new-migration-initial-fixture-error.log"
+    },
+    {
+      "path": "pr59-to-new-migration.log",
+      "bytes": 1263,
+      "sha256": "4dcfe70274c12a6b0e0a24d399dd0f97b2fc32d793fdd4f8d860239900ccdfdf",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/pr59-to-new-migration.log"
+    },
+    {
+      "path": "tui-agent-terminal.log",
+      "bytes": 1431,
+      "sha256": "da311f0918102017abc0ba0a1b2232c2554e9663588c24cb267c30a6d9783a63",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/tui-agent-terminal.log"
+    },
+    {
+      "path": "tui-agent.log",
+      "bytes": 656,
+      "sha256": "ad19fd0b958a0439ace9b58722df6b4a75117c1ab5c5a90b1c690500da85f1d5",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/tui-agent.log"
+    },
+    {
+      "path": "tui-supplier-terminal.log",
+      "bytes": 1155,
+      "sha256": "9ef128bfd4ac9c8e9a2c2d48f0699a31f9cdce4a55b1a30136e74d056f636c87",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/tui-supplier-terminal.log"
+    },
+    {
+      "path": "tui-supplier.log",
+      "bytes": 859,
+      "sha256": "bc4bfc4a1c46750d1fc3b63d537f5a01453af6f9f5843435d84f5fc1083b0007",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/tui-supplier.log"
+    },
+    {
+      "path": "tui-terminal.log",
+      "bytes": 1020,
+      "sha256": "27a696d70146e0221a3476365f8a5fb3885ad0d012bdbf460b74bfe18ca1ea7f",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/tui-terminal.log"
+    },
+    {
+      "path": "tui-unit.log",
+      "bytes": 1599,
+      "sha256": "1ca59185b398c60a70d2bcb7a38775fbf98eb31b47c3b2f8e725092334922257",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/tui-unit.log"
+    },
+    {
+      "path": "SOURCE-CHECKS.json",
+      "bytes": 10990,
+      "sha256": "12f5af43206400318bf3c5569e39993a42ce758db9c647589c316a7c73b95b95",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/SOURCE-CHECKS.json"
+    },
+    {
+      "path": "migration-test.mjs",
+      "bytes": 6175,
+      "sha256": "3827d86dac36556987cb3e1649e0711c29fa2e7aa30f0868a1f1628520db2b31",
+      "originalPath": "/tmp/workspace-launch-20261013/baseline49d5360/pi-client/pr59-source/migration-test.mjs"
+    },
+    {
+      "path": "REPRODUCE.txt",
+      "bytes": 1479,
+      "sha256": "e95ea81b520b1cf33588a3a67182e4faf9acc7b5dc1c1c9f1a26314359fdaf8b",
+      "originalPath": null
+    },
+    {
+      "path": "SOURCE-EQUIVALENCE-ba14e14.json",
+      "bytes": 5967,
+      "sha256": "8c5de9208bb9fca39e39bebed0b9c808da928c8b55ec46dc7be40a1d4c9a7774",
+      "originalPath": null
+    }
+  ],
+  "includesRuntimeData": false,
+  "exclusions": [
+    "pr59-source server/vendor archive",
+    "node_modules symlink",
+    "pr59-pending-checkpoint-* directories",
+    "pr59-completed-checkpoint-* directories",
+    "all temporary checkpoint/store/runtime contents"
+  ],
+  "scriptNote": "migration-test.mjs is retained as reproducible source with its original imports. Recreate the exact PR59 archive and original locked dependencies as described in REPRODUCE.txt; do not deliver the temporary archive or runtime directories.",
+  "finalSourceCommit": "ba14e14502d404dae80c6964da4820425484a2e5",
+  "sourceEquivalenceReport": "SOURCE-EQUIVALENCE-ba14e14.json"
+}

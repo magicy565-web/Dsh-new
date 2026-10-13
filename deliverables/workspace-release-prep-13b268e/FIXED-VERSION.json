@@ -1,0 +1,45 @@
+{
+  "schema": "workspace.fixed-source-delivery.v1",
+  "sourceCommit": "13b268edebbc3a26dd7e4197dfecb2dde37d3164",
+  "sourceTree": "3b45b5e34c13ee9d6deba594240961a213ee526c",
+  "backendCommit": "13b268edebbc3a26dd7e4197dfecb2dde37d3164",
+  "officialApiTypings": "miniprogram-api-typings@5.2.3",
+  "trackedFiles": 1244,
+  "exactGitTree": true,
+  "sourceExclusions": [],
+  "historicalArchives": [
+    "deliverables/Workspace-Agent-Integrated-6a204412f141-Source.zip",
+    "deliverables/Workspace-Agent-Pi-ee1ad6c-Source.zip",
+    "deliverables/Workspace-Agent-WeChat-Developer-Client.zip",
+    "deliverables/Workspace-Agent-WeChat-Muse-Draft-Client.zip",
+    "miniprogram/deliverables/Workspace-Agent-Combined-738000f-Source.zip",
+    "miniprogram/deliverables/Workspace-Agent-WeChat-Client.zip",
+    "miniprogram/deliverables/Workspace-Agent-WeChat-Muse-Draft-Client.zip",
+    "miniprogram/deliverables/Workspace-Agent-WeChat-Procurement-Client.zip",
+    "miniprogram/deliverables/Workspace-Agent-WeChat-Supplier-Service-Client-v2.zip",
+    "miniprogram/deliverables/Workspace-Agent-WeChat-Supplier-Service-Client.zip",
+    "miniprogram/deliverables/fixed-65252e2/Workspace-Agent-Source-65252e2.zip",
+    "miniprogram/deliverables/fixed-65252e2/Workspace-Agent-WeChat-Import-65252e2.zip"
+  ],
+  "historyIncluded": false,
+  "accountConfiguration": {
+    "appid": "touristappid",
+    "urlCheck": true,
+    "baseUrl": "",
+    "productionConfigured": false
+  },
+  "realWechatAcceptance": false,
+  "realShopifyAcceptance": false,
+  "liveDeployment": false,
+  "source": {
+    "file": "Workspace-Agent-Source-13b268e.zip",
+    "bytes": 62409525,
+    "sha256": "e5f30bce7fdd692a2fac89e40d56fb88a8db23e8d7bf425a35e85346133d298d"
+  },
+  "client": {
+    "file": "Workspace-Agent-WeChat-Import-13b268e.zip",
+    "bytes": 92963,
+    "sha256": "dd8c089e84957f309aa8c60d496204753460adad4d47d7e5fa3cb839d21de9a5",
+    "files": 39
+  }
+}

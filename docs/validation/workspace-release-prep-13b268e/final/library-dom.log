@@ -1,0 +1,22 @@
+{"name": "library-dom", "command": ["node", "--test", "test/supply-commerce-ui.dom.test.mjs"], "sourceBefore": "13b268edebbc3a26dd7e4197dfecb2dde37d3164", "treeBefore": "3b45b5e34c13ee9d6deba594240961a213ee526c", "statusBefore": "", "environmentNames": ["HOME", "LANG", "LC_ALL", "PATH", "TERM", "npm_config_cache", "npm_config_globalconfig", "npm_config_userconfig"], "cwd": "/workspace/workspace-release-20261013", "startedAt": "2026-10-13T06:44:50.878102+00:00"}
+✔ retired Supply component contract: saves supplier/product, edits, and recovers from original durable Store restart (486.805608ms)
+✔ retired Supply component contract: pins edit revision, preserves conflicting input across reload, and requires explicit new revision (190.527175ms)
+✔ retired Supply component contract: restores unknown committed command after refresh and retries exact request without duplicates (158.897213ms)
+✔ retired Supply component contract: reports unsaved edits and clears its dirty callback when unmounted (70.013755ms)
+✔ retired Supply component contract: exposes read failures, disables invalid writes, and reloads real data (121.611657ms)
+✔ retired Supply component contract: never adopts another role scope pending command or mutates through viewer controls (109.583273ms)
+✔ retired Supply component contract: publishes only after explicit confirmation of exact supplier and listing revision (118.620967ms)
+✔ current Library UI creates private product facts, edits an exact revision and restores durable internal data (336.324467ms)
+✔ current Library UI keeps the edited revision and typed input through conflicts until explicit reload (185.857534ms)
+✔ current Library UI retries an unknown commit in the same editor with its original request and no duplicate (180.648507ms)
+✔ current Library UI uses the original App dirty navigation and beforeunload guard (155.13378ms)
+✔ current Library UI refuses edits while the original product detail is unreadable and recovers from actual API retry (94.524813ms)
+✔ current Library UI preserves viewer read-only controls and never adopts another role Supply pending command (207.76175ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3232.047316

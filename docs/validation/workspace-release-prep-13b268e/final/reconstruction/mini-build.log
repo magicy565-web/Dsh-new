@@ -1,0 +1,6 @@
+{"name": "mini-build", "sourceCommit": "13b268edebbc3a26dd7e4197dfecb2dde37d3164", "sourceTree": "3b45b5e34c13ee9d6deba594240961a213ee526c", "command": ["npm", "run", "build:mini"], "cwd": "/tmp/workspace-launch-20261013/reconstruction-13b268e/source/Workspace-Agent", "environmentNames": ["HOME", "HTTPS_PROXY", "HTTP_PROXY", "LANG", "LC_ALL", "NODE_EXTRA_CA_CERTS", "NO_PROXY", "PATH", "REQUESTS_CA_BUNDLE", "SSL_CERT_FILE", "TERM", "http_proxy", "https_proxy", "no_proxy", "npm_config_cache", "npm_config_globalconfig", "npm_config_userconfig"], "startedAt": "2026-10-13T06:47:01.302298+00:00"}
+
+> workspace-agent@0.5.0-rc.2 build:mini
+> node scripts/build-miniprogram.mjs
+
+Mini program client compiled with official API typings 5.2.3: /tmp/workspace-launch-20261013/reconstruction-13b268e/source/Workspace-Agent/release/miniprogram. No upload/deploy/account action was run.

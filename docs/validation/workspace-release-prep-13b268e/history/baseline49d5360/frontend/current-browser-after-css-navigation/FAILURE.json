@@ -1,0 +1,444 @@
+{
+  "result": "failed",
+  "source": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "sourceStatus": "M 00_READ_FIRST_WORK_HANDOFF.md\n M src/conversation-integration.css\n?? docs/WORKSPACE-RELEASE-PREP-20261013.md\n?? test/conversation-library.browser.mjs",
+  "checks": [
+    "Current empty entry renders one original conversation and companion without creating a run or conversation.",
+    "Current entry selects the actual newest stored conversation without duplicating or executing it.",
+    "320, 390 and 768 px real-browser entry and both exclusive drawers open visibly, close and fit the viewport; desktop retains its original sidebar behavior.",
+    "Reachable Products UI saves exact SKU/pricing/private policy facts as one original internal draft with no public listing or run.",
+    "Original unsaved-navigation guard retains the typed product edit and saves its exact next revision.",
+    "Reachable Company UI uploads one real synthetic file, renders its content and downloads exact v1 bytes matching the stored SHA-256.",
+    "Original product editor explicitly pins the exact company document v1 and its purpose.",
+    "New document v2 preserves historical v1 download/content/SHA and the original product continues to use its fixed v1 association."
+  ],
+  "errors": [],
+  "modelCalls": 0,
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   {\n-     productId: 'dff0c85f-ed83-4e2d-982f-73c64251ef39',\n-     productRevision: 3\n-   }\n- ]\n\n    at file:///workspace/workspace-release-20261013/test/conversation-library.browser.mjs:194:10\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)",
+  "uiState": {
+    "path": "/chat/1da4c01a-137e-420b-9f28-65855e793cdd",
+    "viewport": 390,
+    "shell": "app-shell conversation-workspace chat-route  ",
+    "panelMounted": false,
+    "panelDisplay": null,
+    "bodyText": "主对话\n新的开始\n\n嗨，我是 Workspace，你的企业协作助手。我可以帮你梳理业务问题、明确成果和验收标准，真正执行请通过 AI Worker 委托。\n\n助手介绍\n\n今天想先聊点什么？\n\n理清今天的重点\n开始一个新目标\n聊聊一个想法\n原会话委托\n会话资料 · 1 个产品 / 1 份文件\n仅关联，未发送给模型\nSynthetic Library Product\n引用修订 3\nSynthetic Company Specification\n固定 v1 · 已有新版本\n任务输入 · 0 个文件 · 0 个技能 · 0 条笔记 · 0 个可提议动作\n生成计划与文件草稿"
+  },
+  "requests": [
+    {
+      "path": "/api/session",
+      "method": "GET"
+    },
+    {
+      "path": "/api/bootstrap",
+      "method": "GET"
+    },
+    {
+      "path": "/api/session",
+      "method": "GET"
+    },
+    {
+      "path": "/api/bootstrap",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/muse-delegations",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/procurement",
+      "method": "GET"
+    },
+    {
+      "path": "/api/supply/inquiries",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/library-references",
+      "method": "GET"
+    },
+    {
+      "path": "/api/session",
+      "method": "GET"
+    },
+    {
+      "path": "/api/bootstrap",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/muse-delegations",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/procurement",
+      "method": "GET"
+    },
+    {
+      "path": "/api/supply/inquiries",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/library-references",
+      "method": "GET"
+    },
+    {
+      "path": "/api/session",
+      "method": "GET"
+    },
+    {
+      "path": "/api/bootstrap",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/muse-delegations",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/procurement",
+      "method": "GET"
+    },
+    {
+      "path": "/api/supply/inquiries",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/library-references",
+      "method": "GET"
+    },
+    {
+      "path": "/api/session",
+      "method": "GET"
+    },
+    {
+      "path": "/api/bootstrap",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/muse-delegations",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/procurement",
+      "method": "GET"
+    },
+    {
+      "path": "/api/supply/inquiries",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/5ece2acd-ebfd-4b4e-990e-228952b1b7b2/library-references",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products?q=&status=draft&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&status=active&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products",
+      "method": "POST"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39/readiness",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&status=active&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "PATCH"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39/readiness",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products?q=&status=draft&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&limit=100&status=active",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/company",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts",
+      "method": "POST"
+    },
+    {
+      "path": "/api/library/documents",
+      "method": "POST"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/216a1515-21fd-4395-9dda-ad35c3cb3349/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&limit=100&status=active",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/company",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products?q=&status=draft&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39/readiness",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&status=active&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/216a1515-21fd-4395-9dda-ad35c3cb3349/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "PATCH"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39/readiness",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/216a1515-21fd-4395-9dda-ad35c3cb3349/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/bootstrap",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products?q=&status=draft&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&limit=100&status=active",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/company",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/216a1515-21fd-4395-9dda-ad35c3cb3349/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts",
+      "method": "POST"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447/versions",
+      "method": "POST"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/aa195c6b-07fb-4ac5-a59a-96dda4b96f09/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/216a1515-21fd-4395-9dda-ad35c3cb3349/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&limit=100&status=active",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/company",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products?q=&status=draft&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39/readiness",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/216a1515-21fd-4395-9dda-ad35c3cb3349/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations",
+      "method": "POST"
+    },
+    {
+      "path": "/api/bootstrap",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/1da4c01a-137e-420b-9f28-65855e793cdd/muse-delegations",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/1da4c01a-137e-420b-9f28-65855e793cdd/procurement",
+      "method": "GET"
+    },
+    {
+      "path": "/api/supply/inquiries",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/1da4c01a-137e-420b-9f28-65855e793cdd/library-references",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/1da4c01a-137e-420b-9f28-65855e793cdd/library-references",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products?q=&status=draft&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/216a1515-21fd-4395-9dda-ad35c3cb3349/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products?q=&status=draft&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&status=active&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/aa195c6b-07fb-4ac5-a59a-96dda4b96f09/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/artifacts/216a1515-21fd-4395-9dda-ad35c3cb3349/content?version=1",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents?q=&status=active&limit=100",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/1da4c01a-137e-420b-9f28-65855e793cdd/library-references",
+      "method": "PATCH"
+    },
+    {
+      "path": "/api/bootstrap",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/1da4c01a-137e-420b-9f28-65855e793cdd/muse-delegations",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/1da4c01a-137e-420b-9f28-65855e793cdd/procurement",
+      "method": "GET"
+    },
+    {
+      "path": "/api/supply/inquiries",
+      "method": "GET"
+    },
+    {
+      "path": "/api/conversations/1da4c01a-137e-420b-9f28-65855e793cdd/library-references",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/products/dff0c85f-ed83-4e2d-982f-73c64251ef39",
+      "method": "GET"
+    },
+    {
+      "path": "/api/library/documents/f5e43562-95b5-447b-8ee5-c470f492c447",
+      "method": "GET"
+    }
+  ]
+}

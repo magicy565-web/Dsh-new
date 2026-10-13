@@ -1,0 +1,31 @@
+{
+  "name": "agent-acceptance",
+  "command": [
+    "npm",
+    "run",
+    "test:agent:acceptance"
+  ],
+  "sourceBefore": "ba14e14502d404dae80c6964da4820425484a2e5",
+  "treeBefore": "af46064a152488ec1d4e8fd083f226043efa333a",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:28:52.868659+00:00",
+  "exitCode": 1,
+  "durationSeconds": 79.24,
+  "sourceAfter": "ba14e14502d404dae80c6964da4820425484a2e5",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T06:30:12.116618+00:00",
+  "log": "agent-acceptance.log",
+  "logSha256": "6e84d28c9babf10177ee128c9b1c93e542ff1c08da16689dd3d5de3418b8696b",
+  "counts": {}
+}

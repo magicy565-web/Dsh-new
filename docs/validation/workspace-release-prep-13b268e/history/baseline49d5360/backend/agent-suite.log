@@ -1,0 +1,58 @@
+
+> workspace-agent@0.5.0-rc.2 test:agent
+> node --test test/agent-service.http.test.mjs test/agent-workspace.integration.test.mjs test/agent-pi-runtime.test.mjs test/agent-pi-service.http.test.mjs test/agent-owner-policy.test.mjs test/agent-research.test.mjs test/agent-unified-host.http.test.mjs test/agent-coordinator-explicit-recovery.test.mjs test/agent-projection-linkage.test.mjs
+
+✔ restarted Agent never reattaches Pi autonomously; explicit member resume reuses original run and checkpoint (88.158506ms)
+✔ Agent ownership filters original bootstrap run/message/artifact relationships without hiding unrelated enterprise resources (2.300356ms)
+✔ original run/conversation endpoints and selected ID references return indistinguishable 404 for a different member (5.069876ms)
+✔ orphaned Agent invocation cannot leak as ordinary shared history after a corrupt or removed business link (0.302256ms)
+✔ queued and archived tasks without conversations do not hide unrelated shared records with empty references (0.199925ms)
+✔ Agent preset invokes real Pi SDK tool through the original Runtime and stores only a document result under the original budget (201.459639ms)
+✔ lost response and reopened original stage request deduplicate to the same run with no model call (134.663066ms)
+✔ interrupted preset recovers its original Pi submission and original budget without creating a new task or stage (162.082755ms)
+✔ preset scope changes block recovery while previously committed stage output remains available (142.015744ms)
+✔ production missing model or required real search remains blocked without a template result (28.380588ms)
+✔ real Pi research tool calls the selected read adapter, persists evidence and requires citations (124.242975ms)
+✔ unsupported plain text cannot substitute for a source checked preset result (49.696223ms)
+✔ recovery reuses a committed Pi research receipt after the following model response was interrupted (124.667197ms)
+✔ empty real search sources block the document stage and cannot become completed research (89.997367ms)
+✔ a changed server model endpoint cannot resume an admitted Pi checkpoint (44.118917ms)
+✔ unified Agent HTTP preserves the seven-event protocol, real Pi stage execution, three files and identical concurrent SSE/history (537.177318ms)
+✔ stable submit key deduplicates concurrent/lost responses and conflicting contents return 409 (457.123062ms)
+✔ completed business outbox rebuilds its SQLite read projection and downloadable files after restart (541.698699ms)
+✔ restart pauses without model replay until explicit resume reattaches the original Pi run and inquiry file (560.115646ms)
+✔ orphaned Agent Pi runs keep their conversation closed to ordinary chat/Goal changes (353.518304ms)
+✔ missing production model stays unconfigured, explicit demo stays visibly separate, same task can resume after configuration (584.142613ms)
+✔ same enterprise member bindings isolate Agent and original Workspace APIs without separate accounts (863.012914ms)
+✔ missing search capability blocks sourcing and opportunity; prior model document output remains saved (126.046802ms)
+✔ supplier sourcing and opportunity run through the same Pi service and cite their actual admitted read-tool receipts (687.385336ms)
+✔ Agent read projection tracks the original Pi conversation/run linkage without a synthetic event (31.024011ms)
+✔ real research transport is opt-in and missing credentials never causes an outbound request (1.571982ms)
+✔ official Web Search protocol is exercised against a local HTTP response with bounded source evidence (28.373377ms)
+✔ empty, failed and malformed search remain missing evidence without automatic repeated requests (2.866112ms)
+✔ [acceptance 1] public install, manifest and downloadable Python expose the agreed connector and dynamic service host (506.682033ms)
+✔ [acceptance 1, 2, 9] a freshly downloaded Python client performs health, presets, submit, replay, status and downloads without saving its token (635.400276ms)
+✔ [acceptance 2, 8, 9] procurement returns three real files, truthful template content, and identical durable SSE/JSON events (173.564994ms)
+✔ [acceptance 3, 8, 9] supplier-sourcing produces its complete source-conscious deliverable and event plan (118.340936ms)
+✔ [acceptance 3, 8, 9] opportunity-discovery produces its complete source-conscious deliverable and event plan (89.25275ms)
+✔ [acceptance 7] malformed requests and cursors use the string-error contract; unknown type lists valid presets (135.725523ms)
+✔ [acceptance 2] supplied quotes remain attributable and incomparable currencies/trade terms are not silently converted (121.309253ms)
+✔ [acceptance 6] artifact downloads reject invalid path segments and only expose registered files (113.915721ms)
+✔ [acceptance 2, 8] editing a preset JSON and restarting changes its stages, template and completion summary without code edits (261.415646ms)
+✔ default-off Agent API does not replace the original Workspace Host (71.017428ms)
+✔ explicit Agent adapter persists tasks in original Workspace Store on the same Host (62.300343ms)
+✔ Agent member Bearer rejects reused original Dot/Muse/sourcing token digests (0.743282ms)
+✔ input validation rejects invalid text/quantity fields and preserves both quote text and structured quotes (162.281212ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5144.876545
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

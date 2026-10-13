@@ -1,0 +1,13 @@
+
+> workspace-agent@0.5.0-rc.2 build
+> tsc --noEmit && vite build
+
+vite v8.0.16 building client environment for production...
+[2Ktransforming...✓ 61 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.54 kB │ gzip:   0.37 kB
+dist/assets/index-B488nmlF.css  204.19 kB │ gzip:  41.77 kB
+dist/assets/index-A3-SwxGg.js   501.67 kB │ gzip: 142.05 kB
+
+✓ built in 188ms

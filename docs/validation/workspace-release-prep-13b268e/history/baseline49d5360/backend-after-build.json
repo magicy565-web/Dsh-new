@@ -1,0 +1,38 @@
+{
+  "name": "backend-after-build",
+  "command": [
+    "npm",
+    "test"
+  ],
+  "sourceBefore": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "treeBefore": "43e69c03613099227c49698601eed3b84ee09ccc",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:16:56.829519+00:00",
+  "exitCode": 0,
+  "durationSeconds": 45.581,
+  "sourceAfter": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "statusAfter": "?? test/conversation-library.browser.mjs",
+  "finishedAt": "2026-10-13T06:17:42.429789+00:00",
+  "log": "backend-after-build.log",
+  "logSha256": "23605ccb8437f8f376f4715fe004a2004a0692475d4f2064b83ec8ac7c3298f6",
+  "counts": {
+    "tests": 757,
+    "suites": 0,
+    "pass": 750,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 7,
+    "todo": 0
+  }
+}

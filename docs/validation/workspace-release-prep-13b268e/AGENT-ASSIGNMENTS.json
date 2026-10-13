@@ -1,0 +1,21 @@
+{
+  "rootRole": "sole integration commit/push owner",
+  "requestedSubagentModel": "gpt-6.1-sol",
+  "requestedSubagentReasoningEffort": "xhigh",
+  "spawnCallsSucceeded": true,
+  "subagents": [
+    {
+      "task": "product_frontend_20261013",
+      "scope": "Current production App/mobile/Product and Company Library; real-browser regression and minimal CSS fixes"
+    },
+    {
+      "task": "business_backend_20261013",
+      "scope": "Existing Agent/SQLite projection/HTTP backend regression, no new authority or engine"
+    },
+    {
+      "task": "pi_clients_20261013",
+      "scope": "Existing Pi/Muse/Dot/client/PTY and original PR59 checkpoint upgrade"
+    }
+  ],
+  "independentSecurityReviewRestarted": false
+}

@@ -1,0 +1,30 @@
+{"oldSource":"32c8ce98fe28cda1e22a16bf0d1088c768e081c8","newSource":"49d536007b18fa9f877ffcfe6280e28f2384c7d2","directory":"/tmp/workspace-launch-20261013/baseline49d5360/pi-client/pr59-pending-checkpoint-sKDH6b","runId":"a67d0c97-1f1b-4e56-92ad-688c7475cb53","assistantId":"cff7e626-b9cb-4397-ab38-eca53ded701f","piSubmissionId":11,"executionHash":"ba24b291968c66da241d922f8024afea9ba4b2a5d583ca9b8751fb7af8d7021a","oldV4Fingerprint":"d45add0680228a7fd7e8a180e8acc2bf1eacc195620e4cb37d243c87cfea087d","newAgentV5Fingerprint":"0e2708fe42921e2a0ac2d6babfdf80b2336c3c5e64486d1c5999079377a0d518","actualSdkDispatches":2,"changedEndpointRejected":true,"automaticReplay":false}
+✔ exact PR59 32c8ce9 pending V4 disk checkpoint blocks changed endpoint and recovers on new 49d5360 with original identity (1383.776004ms)
+✖ exact PR59 completed disk checkpoint stays deduplicated on new source with zero further SDK dispatches (759.148746ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4040.11004
+
+✖ failing tests:
+
+test at ../../tmp/workspace-launch-20261013/baseline49d5360/pi-client/pr59-source/migration-test.mjs:63:1
+✖ exact PR59 completed disk checkpoint stays deduplicated on new source with zero further SDK dispatches (759.148746ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 11
+  
+      at TestContext.<anonymous> (file:///tmp/workspace-launch-20261013/baseline49d5360/pi-client/pr59-source/migration-test.mjs:80:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 11,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,129 @@
+{
+  "suite": "publication",
+  "sourceSHA": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "sourceState": "clean tracked source",
+  "driver": "miniprogram/test/publication-browser.mjs",
+  "driverSHA256": "590d0710f1eb48dfc8f519e361b88b29707a73c2d49dcfdea404f49ef307d690",
+  "command": [
+    "node",
+    "miniprogram/test/publication-browser.mjs",
+    "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication"
+  ],
+  "environment": {},
+  "environmentNames": [
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:18:57.870787+00:00",
+  "log": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication.log",
+  "destination": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication",
+  "temporarySourceHook": false,
+  "exitCode": 0,
+  "finishedAt": "2026-10-13T06:19:12.203702+00:00",
+  "durationSeconds": 14.333,
+  "sourceSHAAfter": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "driverResults": [
+    {
+      "sourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+      "evidenceKind": "Actual compiled Page/Component + original WXML/WXSS limited Chromium, actual signed local Workspace HTTP and local Shopify HTTP fixture; not WeChat/live shop",
+      "chromium": "151.0.7922.173",
+      "checks": [
+        "Draft/image checks default empty",
+        "Original approval does not execute",
+        "Independent execution creates one draft/upload",
+        "Draft receipt not published, remoteBytesVerified=false",
+        "Separate precise channel review/approval/execute",
+        "Unknown publish offers read-only reconcile, one publication mutation",
+        "Arbitrary-channel time null",
+        "Exit/reenter same operation",
+        "320px no horizontal overflow"
+      ],
+      "draftCreates": 1,
+      "imageUploads": 1,
+      "publishes": 1,
+      "syntheticModelCalls": 1,
+      "realModelExecuted": false,
+      "pageErrors": [],
+      "liveWechat": false,
+      "liveShopify": false,
+      "independentSecurityAudit": false,
+      "generatedAt": "2026-10-13T06:19:12.017Z"
+    }
+  ],
+  "acceptance": {
+    "sourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+    "evidenceKind": "Actual compiled Page/Component + original WXML/WXSS limited Chromium, actual signed local Workspace HTTP and local Shopify HTTP fixture; not WeChat/live shop",
+    "chromium": "151.0.7922.173",
+    "checks": [
+      "Draft/image checks default empty",
+      "Original approval does not execute",
+      "Independent execution creates one draft/upload",
+      "Draft receipt not published, remoteBytesVerified=false",
+      "Separate precise channel review/approval/execute",
+      "Unknown publish offers read-only reconcile, one publication mutation",
+      "Arbitrary-channel time null",
+      "Exit/reenter same operation",
+      "320px no horizontal overflow"
+    ],
+    "draftCreates": 1,
+    "imageUploads": 1,
+    "publishes": 1,
+    "syntheticModelCalls": 1,
+    "realModelExecuted": false,
+    "pageErrors": [],
+    "liveWechat": false,
+    "liveShopify": false,
+    "independentSecurityAudit": false,
+    "generatedAt": "2026-10-13T06:19:12.017Z"
+  },
+  "screenshots": [
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/actual-original-draft-receipt-390.png",
+      "bytes": 86644,
+      "sha256": "6d05843f485a8b8ba0beef28b3f0cd89b7a329ca85c5a80f13670f801bab9e03"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/approved-still-unexecuted-390.png",
+      "bytes": 78467,
+      "sha256": "561788b24480a275b4ddd32fe4dd8ba9c677641ff0ced42f0fe153d193d87d8f"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/compact-320.png",
+      "bytes": 75053,
+      "sha256": "d72e8ed4f692fa396b7e8d43567469d8f1e1934485ea0cf02be215054e4a6338"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/draft-transfer-explicit-scope-390.png",
+      "bytes": 91262,
+      "sha256": "cc25c241ab1a7efe4eb53bef53ae21d48e090bae9267c045cf8d06bbf5b88295"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/original-draft-approval-390.png",
+      "bytes": 93589,
+      "sha256": "2c350ac031025385ebdecc287c4bde5eec26ccc06f4fedf5f2dde19281fa9424"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/read-only-exact-channel-receipt-390.png",
+      "bytes": 91211,
+      "sha256": "963544074101369643ad4157b9d3afbe72ab2b3390c2155b74f92e3c6ed14936"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/separate-channel-approval-390.png",
+      "bytes": 94250,
+      "sha256": "f8bf296ddb31a5464d88f15ca9e0e57a4cbbaf4aa66e1f9cb1d3deffe48e4669"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/separate-exact-channel-review-390.png",
+      "bytes": 91682,
+      "sha256": "dea3e8d31908fca262b6168656246562725ed9fd86b99de0f3cf8e1a4c4aeeb8"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/publication/unknown-channel-result-390.png",
+      "bytes": 85530,
+      "sha256": "09a133dd3844edc5cc2434a3026ad0c55eba1a095663f9999086ad67805ce07d"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{"name": "mini-build", "command": ["npm", "run", "build:mini"], "sourceBefore": "49d536007b18fa9f877ffcfe6280e28f2384c7d2", "treeBefore": "43e69c03613099227c49698601eed3b84ee09ccc", "statusBefore": "", "environmentNames": ["HOME", "LANG", "LC_ALL", "PATH", "TERM", "npm_config_cache", "npm_config_globalconfig", "npm_config_userconfig"], "cwd": "/workspace/workspace-release-20261013", "startedAt": "2026-10-13T06:15:55.166505+00:00"}
+
+> workspace-agent@0.5.0-rc.2 build:mini
+> node scripts/build-miniprogram.mjs
+
+Mini program client compiled with official API typings 5.2.3: /workspace/workspace-release-20261013/release/miniprogram. No upload/deploy/account action was run.

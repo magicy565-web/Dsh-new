@@ -1,0 +1,31 @@
+{
+  "name": "launch-gates",
+  "command": [
+    "npm",
+    "run",
+    "check:launch"
+  ],
+  "sourceBefore": "13b268edebbc3a26dd7e4197dfecb2dde37d3164",
+  "treeBefore": "3b45b5e34c13ee9d6deba594240961a213ee526c",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:44:53.715540+00:00",
+  "exitCode": 1,
+  "durationSeconds": 0.618,
+  "sourceAfter": "13b268edebbc3a26dd7e4197dfecb2dde37d3164",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T06:44:54.340776+00:00",
+  "log": "launch-gates.log",
+  "logSha256": "01b538761c6515e44778295300b9eacd00e9aa12dc3062d4b1822f60af152e11",
+  "counts": {}
+}

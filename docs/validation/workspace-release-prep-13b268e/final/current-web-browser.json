@@ -1,0 +1,34 @@
+{
+  "name": "current-web-browser",
+  "command": [
+    "env",
+    "CHROMIUM_PATH=/usr/bin/chromium",
+    "CHROMIUM_NO_SANDBOX=1",
+    "node",
+    "test/conversation-library.browser.mjs",
+    "/tmp/workspace-launch-20261013/final-13b268e/web"
+  ],
+  "sourceBefore": "13b268edebbc3a26dd7e4197dfecb2dde37d3164",
+  "treeBefore": "3b45b5e34c13ee9d6deba594240961a213ee526c",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:44:52.249942+00:00",
+  "exitCode": 0,
+  "durationSeconds": 9.179,
+  "sourceAfter": "13b268edebbc3a26dd7e4197dfecb2dde37d3164",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T06:45:01.435070+00:00",
+  "log": "current-web-browser.log",
+  "logSha256": "23b33747e6a8a4012d0570f5ad0065d0c9eda91420c2a7c2b238b5ed8857d56c",
+  "counts": {}
+}

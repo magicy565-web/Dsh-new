@@ -1,0 +1,31 @@
+{
+  "name": "root-build",
+  "command": [
+    "npm",
+    "run",
+    "build"
+  ],
+  "sourceBefore": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "treeBefore": "43e69c03613099227c49698601eed3b84ee09ccc",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "npm_config_cache",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:15:31.606817+00:00",
+  "exitCode": 0,
+  "durationSeconds": 6.195,
+  "sourceAfter": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T06:15:37.808147+00:00",
+  "log": "root-build.log",
+  "logSha256": "e415b300335bf3ced59fcc2d71066908f22d6a1ddb2e0509bce0764e32d38cf6",
+  "counts": {}
+}

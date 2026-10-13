@@ -1,0 +1,102 @@
+{
+  "suite": "intake",
+  "sourceSHA": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "sourceState": "clean tracked source",
+  "driver": "miniprogram/test/intake-browser.mjs",
+  "driverSHA256": "c893c7f292211b711393e324a8f36cf95b60c2a2863c84fd8e76d85c28334580",
+  "command": [
+    "node",
+    "miniprogram/test/intake-browser.mjs"
+  ],
+  "environment": {
+    "WECHAT_BROWSER_OUTPUT": "file:///tmp/workspace-launch-20261013/baseline49d5360/browser/intake/"
+  },
+  "environmentNames": [
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "WECHAT_BROWSER_OUTPUT"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:18:57.868404+00:00",
+  "log": "/tmp/workspace-launch-20261013/baseline49d5360/browser/intake.log",
+  "destination": "/tmp/workspace-launch-20261013/baseline49d5360/browser/intake",
+  "temporarySourceHook": false,
+  "exitCode": 0,
+  "finishedAt": "2026-10-13T06:19:07.274032+00:00",
+  "durationSeconds": 9.406,
+  "sourceSHAAfter": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "driverResults": [
+    {
+      "mode": "Compiled Page/Component + source WXML/WXSS in limited Chromium renderer; real signed local HTTP/Pi faux/Store/original Worker protocol; not WeChat engine/device/live Muse",
+      "sourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+      "browserVersion": "151.0.7922.173",
+      "checks": [
+        "Two actual missing questions only",
+        "Three independent unchecked confirmations",
+        "Prepare creates one unapproved original order",
+        "Approve does not dispatch; separate dispatch creates one original task",
+        "Actual Worker receipt artifact ID and bytes verified by SHA",
+        "390/320px source rendering, no horizontal overflow"
+      ],
+      "modelCalls": 2,
+      "originalOrders": 1,
+      "originalTasks": 1,
+      "artifactId": "ba4a3f20-7f66-4a85-9366-c3f260c9b536",
+      "pageErrors": [],
+      "generatedAt": "2026-10-13T06:19:07.050Z"
+    }
+  ],
+  "acceptance": {
+    "mode": "Compiled Page/Component + source WXML/WXSS in limited Chromium renderer; real signed local HTTP/Pi faux/Store/original Worker protocol; not WeChat engine/device/live Muse",
+    "sourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+    "browserVersion": "151.0.7922.173",
+    "checks": [
+      "Two actual missing questions only",
+      "Three independent unchecked confirmations",
+      "Prepare creates one unapproved original order",
+      "Approve does not dispatch; separate dispatch creates one original task",
+      "Actual Worker receipt artifact ID and bytes verified by SHA",
+      "390/320px source rendering, no horizontal overflow"
+    ],
+    "modelCalls": 2,
+    "originalOrders": 1,
+    "originalTasks": 1,
+    "artifactId": "ba4a3f20-7f66-4a85-9366-c3f260c9b536",
+    "pageErrors": [],
+    "generatedAt": "2026-10-13T06:19:07.050Z"
+  },
+  "screenshots": [
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/intake/compact-320.png",
+      "bytes": 63208,
+      "sha256": "b71f5b925ac02f304b6e8031139ae51a5dfebb58150fd0051b5dcd3d2c74a2f5"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/intake/exact-draft-review-390.png",
+      "bytes": 81772,
+      "sha256": "b3c0aadb71a5f5441b4fa24e12e0fa10d54aaf7e28a6b20ddd30588cda9c3848"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/intake/necessary-questions-390.png",
+      "bytes": 83666,
+      "sha256": "72a0dac9a86331f09b3daaa39041d43cb27ad05387b8ef6e82dc75cd7b78b0fb"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/intake/original-file-sha-preview-390.png",
+      "bytes": 53343,
+      "sha256": "345af72c31d19098bff893dd6c7c6e9e9865953cd62e1d0e35f689d01f061671"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/intake/original-order-pending-approval-390.png",
+      "bytes": 76768,
+      "sha256": "fba8d3174121bd136f2196ec48030a702131a6f7f1930cdaadb66b86d4b2bcf0"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/intake/original-receipt-390.png",
+      "bytes": 66295,
+      "sha256": "831847d240178762fc5fcd793ab1d9816fa721678e8985c37be4e1275d44580f"
+    }
+  ]
+}

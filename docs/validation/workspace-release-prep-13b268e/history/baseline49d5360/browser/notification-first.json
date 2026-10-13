@@ -1,0 +1,125 @@
+{
+  "suite": "notification-first",
+  "sourceSHA": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "sourceState": "clean tracked source",
+  "driver": "miniprogram/test/notification-closure-browser.mjs",
+  "driverSHA256": "eaf88632b71f483ea5865d75cd6efbd297b6c15ca0c68740e41dcdf20067860a",
+  "command": [
+    "node",
+    "miniprogram/test/notification-closure-browser.mjs",
+    "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first"
+  ],
+  "environment": {},
+  "environmentNames": [
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:18:57.889740+00:00",
+  "log": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first.log",
+  "destination": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first",
+  "temporarySourceHook": false,
+  "exitCode": 0,
+  "finishedAt": "2026-10-13T06:19:12.928675+00:00",
+  "durationSeconds": 15.039,
+  "sourceSHAAfter": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "driverResults": [
+    {
+      "sourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+      "evidenceKind": "Actual compiled native Page/Component and original WXML/WXSS limited Chromium plus signed loopback Workspace/GA4/Shopify/WeChat HTTP; native popup callback and Session identity registration are explicit local fixture setup, not real WeChat login/engine/proof",
+      "chromium": "151.0.7922.173",
+      "checks": [
+        "Actual first completed original check before end of seven days, no summary",
+        "Existing public opaque login binding with AppID, no manual OpenID",
+        "Explicit server first template challenge followed by separate default-empty native click",
+        "Popup stored as authenticated_client_report and unverified_until_send, no independent subscription proof",
+        "First source request/hash/revision separately reviewed and approved",
+        "Approval alone zero fixture sends, exact first action independently executes",
+        "Provider accepted local_fixture only, device/read/business unknown/unrecorded",
+        "No seven-day outbox/summary grant/send created",
+        "Exit/reenter reads original first phase, same delivery one provider POST",
+        "320px no horizontal overflow"
+      ],
+      "nativeCallbackFixtureCalls": 1,
+      "providerFixturePosts": 1,
+      "sevenDaySummaryCreated": false,
+      "sevenDayOutboxCreated": false,
+      "pageErrors": [],
+      "liveWechat": false,
+      "liveModel": false,
+      "liveGA4": false,
+      "liveShopify": false,
+      "liveMessage": false,
+      "independentSecurityAudit": false,
+      "generatedAt": "2026-10-13T06:19:12.762Z"
+    }
+  ],
+  "acceptance": {
+    "sourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+    "evidenceKind": "Actual compiled native Page/Component and original WXML/WXSS limited Chromium plus signed loopback Workspace/GA4/Shopify/WeChat HTTP; native popup callback and Session identity registration are explicit local fixture setup, not real WeChat login/engine/proof",
+    "chromium": "151.0.7922.173",
+    "checks": [
+      "Actual first completed original check before end of seven days, no summary",
+      "Existing public opaque login binding with AppID, no manual OpenID",
+      "Explicit server first template challenge followed by separate default-empty native click",
+      "Popup stored as authenticated_client_report and unverified_until_send, no independent subscription proof",
+      "First source request/hash/revision separately reviewed and approved",
+      "Approval alone zero fixture sends, exact first action independently executes",
+      "Provider accepted local_fixture only, device/read/business unknown/unrecorded",
+      "No seven-day outbox/summary grant/send created",
+      "Exit/reenter reads original first phase, same delivery one provider POST",
+      "320px no horizontal overflow"
+    ],
+    "nativeCallbackFixtureCalls": 1,
+    "providerFixturePosts": 1,
+    "sevenDaySummaryCreated": false,
+    "sevenDayOutboxCreated": false,
+    "pageErrors": [],
+    "liveWechat": false,
+    "liveModel": false,
+    "liveGA4": false,
+    "liveShopify": false,
+    "liveMessage": false,
+    "independentSecurityAudit": false,
+    "generatedAt": "2026-10-13T06:19:12.762Z"
+  },
+  "screenshots": [
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first/first-approved-not-executed-390.png",
+      "bytes": 93765,
+      "sha256": "7238b5db2d097d258fbbe6f29dcb42a24f6173d7d9c64e002e56d875db1df44e"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first/first-fixture-provider-accept-not-device-delivery-390.png",
+      "bytes": 95062,
+      "sha256": "56da8aaa978b80f136f91cc7c645bfa918209cb73a475217f684c91b4e83961f"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first/first-native-popup-report-not-platform-proof-390.png",
+      "bytes": 99133,
+      "sha256": "e779d71d2eeffbdb765822d94c3569b06c21d0560a6314b4c1f89ef34ed237f3"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first/first-original-source-review-390.png",
+      "bytes": 97287,
+      "sha256": "0b1b35362ce8c51f803a3083d14de35e6f89d04f6d66f57ce97d3788c79c15f1"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first/first-real-original-check-no-seven-day-summary-390.png",
+      "bytes": 93668,
+      "sha256": "21769a268b6552f85bc26cb2ce3c64df957c73c7da9925fa094760804dcb52e6"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first/first-separate-exact-scope-approval-390.png",
+      "bytes": 99234,
+      "sha256": "baf639a6d547fbb72285e9769eafa13f5d2cf4ecdfcb223eb7842749a87a9862"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/notification-first/single-original-card-two-independent-phases-320.png",
+      "bytes": 78799,
+      "sha256": "313ed6e2811798f6ae8a847e38aacb659a7cff1492e3ea8668a915bc572f8b31"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "sourceCommit": "13b268edebbc3a26dd7e4197dfecb2dde37d3164",
+  "sourceTree": "3b45b5e34c13ee9d6deba594240961a213ee526c",
+  "originalSourceFiles": 1244,
+  "unchangedOriginalFiles": 1243,
+  "allOriginalCodeTestsLockFilesBytesModesUnchanged": true,
+  "postFreezeDocumentationChanges": [
+    {
+      "path": "docs/AGENT-ACCEPTANCE.md",
+      "frozenSourceSha256": "61d49e0a07e338521007409794f57e807f5f46ed43fd1bd83156e8ed9f3287b3",
+      "documentationCommitSha256": "91b20f0f87f7cc228dd5cc0535250e78516bd88022981411239f24d6abf1dbb5",
+      "originalGitBlob": "a52a39e140845f77c512c2542be0c7b6434c6817",
+      "reason": "Parent explicitly requested historical Node22/DNS/unexecuted claims be distinguished from completed source S evidence; no execution code changes."
+    }
+  ],
+  "addedDeliveryPrefixes": [
+    "docs/validation/workspace-release-prep-13b268e",
+    "deliverables/workspace-release-prep-13b268e"
+  ],
+  "codeBuildFingerprint": "50e6fc6af7e6818f5c80e6ec29f5204e98006ce8cff03b5295823aefa6bde37d",
+  "fingerprintMatchesFinalSourceAcceptance": true,
+  "fingerprintScope": "Original package/lock/server/src/dist/vendor/scripts; excludes documentation and delivery evidence.",
+  "noRuntimeDirectoriesOrCredentialFilesCopied": true,
+  "privateKeyHeaderOrProviderKeyMarkerHits": 0,
+  "sourceArchiveIncludesAllOriginalGitBlobs": true,
+  "documentationAndArtifactsAddedAfterSourceFreeze": true,
+  "noNewTestRunClaimedForDocumentationCommit": true
+}

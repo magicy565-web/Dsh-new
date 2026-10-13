@@ -1,0 +1,19 @@
+{"name": "web-build", "sourceCommit": "13b268edebbc3a26dd7e4197dfecb2dde37d3164", "sourceTree": "3b45b5e34c13ee9d6deba594240961a213ee526c", "command": ["npm", "run", "build"], "cwd": "/tmp/workspace-launch-20261013/reconstruction-13b268e/source/Workspace-Agent", "environmentNames": ["HOME", "HTTPS_PROXY", "HTTP_PROXY", "LANG", "LC_ALL", "NODE_EXTRA_CA_CERTS", "NO_PROXY", "PATH", "REQUESTS_CA_BUNDLE", "SSL_CERT_FILE", "TERM", "http_proxy", "https_proxy", "no_proxy", "npm_config_cache", "npm_config_globalconfig", "npm_config_userconfig"], "startedAt": "2026-10-13T06:46:55.420884+00:00"}
+
+> workspace-agent@0.5.0-rc.2 build
+> tsc --noEmit && vite build
+
+vite v8.0.16 building client environment for production...
+[2Ktransforming...✓ 61 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.54 kB │ gzip:   0.37 kB
+dist/assets/index-B488nmlF.css  204.19 kB │ gzip:  41.77 kB
+dist/assets/index-A3-SwxGg.js   501.67 kB │ gzip: 142.05 kB
+
+✓ built in 207ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

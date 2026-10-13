@@ -1,0 +1,142 @@
+{
+  "suite": "monitor",
+  "sourceSHA": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "sourceState": "clean tracked source",
+  "driver": "miniprogram/test/monitor-browser.mjs",
+  "driverSHA256": "95753f25ab3cd678ca0b7b39800554b3432eec4921742db1e02a81ca61dbf9ab",
+  "command": [
+    "node",
+    "miniprogram/test/monitor-browser.mjs"
+  ],
+  "environment": {
+    "WECHAT_BROWSER_OUTPUT": "file:///tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/"
+  },
+  "environmentNames": [
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TERM",
+    "WECHAT_BROWSER_OUTPUT"
+  ],
+  "cwd": "/workspace/workspace-release-20261013",
+  "startedAt": "2026-10-13T06:18:57.831676+00:00",
+  "log": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor.log",
+  "destination": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor",
+  "temporarySourceHook": false,
+  "exitCode": 0,
+  "finishedAt": "2026-10-13T06:19:20.380905+00:00",
+  "durationSeconds": 22.549,
+  "sourceSHAAfter": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+  "driverResults": [
+    {
+      "sourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+      "contractBaseline": "ad1545d0efebddadf24e545f93dbdb8571a1e4ab",
+      "evidenceKind": "Actual compiled Page/Component and original WXML/WXSS limited Chromium, signed local Workspace and local GA4/Shopify/WeChat HTTP; wx.requestSubscribeMessage is a labelled callback fixture, not WeChat runtime",
+      "chromium": "151.0.7922.173",
+      "checks": [
+        "Default trusted provider missing blocked, zero native call/send and no fake collected traffic",
+        "Actual product detail view events preserve null sessions and provisional quality",
+        "Separate native-template challenge, default empty check and explicit API callback",
+        "Original Session binding and authenticated client report then exact separate notification review/approval",
+        "Approval alone zero send",
+        "Independent execute only local provider acceptance, userRead unknown, businessAcceptance not_recorded",
+        "Correct same summary retaining submitted pointer, no second send",
+        "Cancellation after handoff cannot recall accepted delivery",
+        "Another exact original monitor unknown send has read-only status/cold reentry, no resend",
+        "320px no horizontal overflow"
+      ],
+      "defaultNativeCalls": 0,
+      "defaultProviderPosts": 0,
+      "providerFixturePosts": 2,
+      "nativeCallbackFixtureCalls": 2,
+      "pageErrors": [],
+      "liveWechat": false,
+      "liveGA4": false,
+      "liveShopify": false,
+      "liveMessage": false,
+      "independentSecurityAudit": false,
+      "generatedAt": "2026-10-13T06:19:20.254Z"
+    }
+  ],
+  "acceptance": {
+    "sourceCommit": "49d536007b18fa9f877ffcfe6280e28f2384c7d2",
+    "contractBaseline": "ad1545d0efebddadf24e545f93dbdb8571a1e4ab",
+    "evidenceKind": "Actual compiled Page/Component and original WXML/WXSS limited Chromium, signed local Workspace and local GA4/Shopify/WeChat HTTP; wx.requestSubscribeMessage is a labelled callback fixture, not WeChat runtime",
+    "chromium": "151.0.7922.173",
+    "checks": [
+      "Default trusted provider missing blocked, zero native call/send and no fake collected traffic",
+      "Actual product detail view events preserve null sessions and provisional quality",
+      "Separate native-template challenge, default empty check and explicit API callback",
+      "Original Session binding and authenticated client report then exact separate notification review/approval",
+      "Approval alone zero send",
+      "Independent execute only local provider acceptance, userRead unknown, businessAcceptance not_recorded",
+      "Correct same summary retaining submitted pointer, no second send",
+      "Cancellation after handoff cannot recall accepted delivery",
+      "Another exact original monitor unknown send has read-only status/cold reentry, no resend",
+      "320px no horizontal overflow"
+    ],
+    "defaultNativeCalls": 0,
+    "defaultProviderPosts": 0,
+    "providerFixturePosts": 2,
+    "nativeCallbackFixtureCalls": 2,
+    "pageErrors": [],
+    "liveWechat": false,
+    "liveGA4": false,
+    "liveShopify": false,
+    "liveMessage": false,
+    "independentSecurityAudit": false,
+    "generatedAt": "2026-10-13T06:19:20.254Z"
+  },
+  "screenshots": [
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/actual-product-view-events-not-sessions-390.png",
+      "bytes": 94710,
+      "sha256": "252eb2ce80e6463a319f7b58c3380435ac799ff595262df478928ec68757b224"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/default-provider-blocked-null-source-390.png",
+      "bytes": 91363,
+      "sha256": "3e268183cb7ebaabc5d58686d240d1e2959fbfac7ff120d6c1c6ebe3ca5faf69"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/exact-summary-subscription-review-390.png",
+      "bytes": 106603,
+      "sha256": "c6b895f92a9b8c5cf810cd014c60190f193688537dca008a724672ec5fa21d68"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/fixture-provider-accepted-read-unknown-390.png",
+      "bytes": 96787,
+      "sha256": "a5111fcea158551213895ab358d8313226990cbd4d7a06e86e96e4f664c26695"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/notification-approved-unexecuted-390.png",
+      "bytes": 96907,
+      "sha256": "b30aa28b472c8add024fc701426131fb171ce2fae0759f10fbb60086206a13c8"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/original-summary-approval-390.png",
+      "bytes": 102351,
+      "sha256": "fdcedfde59fb43f31a164a46d0cc8cdb6cd215d8cbe7efccea1cb4ce96e1899d"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/same-original-card-compact-320.png",
+      "bytes": 83098,
+      "sha256": "29f01b04fc7f2062723172bdc6ad6cad135b7f2c94ed4c1d77fab3f4fc511cdd"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/same-summary-corrected-without-resend-390.png",
+      "bytes": 92520,
+      "sha256": "a55990e4484583142a30e6e9e65a8c0baebf6c2f9fcf1fd2e281fe1f79a56618"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/separate-native-template-challenge-390.png",
+      "bytes": 103967,
+      "sha256": "2f86fafc009af0f1faa3a0d680b33a74f1a491ee1582f66dcd87f5f02939d79c"
+    },
+    {
+      "path": "/tmp/workspace-launch-20261013/baseline49d5360/browser/monitor/unknown-notification-status-no-resend-390.png",
+      "bytes": 96134,
+      "sha256": "4466dfc93bdea2564ecfcd1c2d46e681df257291110305bc82b3bf59344e918a"
+    }
+  ]
+}
