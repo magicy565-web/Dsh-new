@@ -6,6 +6,7 @@ import { createModels } from '@earendil-works/pi-ai';
 import { fauxProvider, fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { createApp } from '../server/index.mjs';
 import { createPiProvider, PI_SOURCE } from '../server/pi-provider.mjs';
+import { capabilityPayloadHash } from '../server/capabilities.mjs';
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check) { for (let i = 0; i < 500; i++) { if (await check()) return; await delay(10); } throw new Error('Pi fixture did not settle'); }
@@ -22,6 +23,25 @@ async function chat(f, content = 'Fixture input', extra = {}) {
   const result = await f.app.runtime.sendMessage(conversation.id, { content, requestId: 'pi-fixture-request', ...extra });
   return { conversation, result };
 }
+
+
+// PR59 used this exact policy digest for ordinary chat, Muse draft, supplier
+// draft and Goal runs. The original scope did not include an endpoint field.
+const PR59_POLICY_V4 = { version: 4, tools: ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile'], externalExecution: 'original-workspace-approval', replay: 'safe-only', storage: 'jsonl-fsync', budget: 'durable-request-reservations-wire-usage', museInput: 'original-owner-provenance', museDraft: 'quote-verified-inert-v1', supplier: 'quote-verified-private-v1' };
+test('PR59 ordinary Pi policy fingerprint stays byte-compatible only on its original endpoint', () => {
+  const faux = fauxProvider();
+  const models = createModels(); models.setProvider(faux.provider);
+  const options = { models, providerId: 'faux', model: 'faux-1' };
+  const p = createPiProvider(options);
+  const original = capabilityPayloadHash({ ...PR59_POLICY_V4, providerId: 'faux', model: 'faux-1', source: PI_SOURCE });
+  assert.equal(p.legacyPolicyCompatible, true);
+  assert.equal(p.permissionFingerprint, original, 'Unchanged PR59 runs must not inherit Agent-only permissions.');
+  assert.notEqual(p.agentPermissionFingerprint, original, 'Agent preset stages must have a separate V5 admission fingerprint.');
+  const otherEndpoint = createPiProvider({ ...options, baseUrl: 'https://changed-endpoint.example/v1' });
+  assert.equal(otherEndpoint.legacyPolicyCompatible, false);
+  assert.notEqual(otherEndpoint.permissionFingerprint, original, 'A changed endpoint must never be admitted by the old V4 policy.');
+  assert.equal(otherEndpoint.permissionFingerprint, otherEndpoint.agentPermissionFingerprint);
+});
 
 test('real Pi package fixture: durable text execution, usage, persisted submission and business dedupe', async t => {
   const f = await fixture(t, [fauxAssistantMessage('Pi fixture answer')]);
@@ -67,7 +87,11 @@ test('real Pi package fixture: close/reopen preserves pending durable execution;
   const f = await fixture(t, [async (_ctx, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }]);
   const { result } = await chat(f);
   await until(() => f.app.runtime.getRun(result.run.id).run.piSubmissionId && f.faux.state.callCount === 1);
-  const submissionId = f.app.runtime.getRun(result.run.id).run.piSubmissionId;
+  const originalRun = f.app.runtime.getRun(result.run.id).run;
+  const submissionId = originalRun.piSubmissionId;
+  assert.deepEqual(Object.keys(originalRun.execution).sort(), ['kind', 'model', 'permissionFingerprint'],
+    'PR59 ordinary execution scopes must have no Agent-only endpoint field.');
+  assert.equal(originalRun.executionHash, capabilityPayloadHash(originalRun.execution));
   await f.reopen();
   assert.equal(f.app.runtime.getRun(result.run.id).run.status, 'interrupted');
   await delay(40); assert.equal(f.faux.state.callCount, 1);
