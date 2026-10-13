@@ -141,12 +141,24 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     if (!run || !['running', 'queued', 'awaiting_approval'].includes(run.status)) return;
     run.status = status; run.error = error; run.finishedAt = now();
   }
-  function executionScope(state) { return { kind: provider.kind || 'deepseek-api', model: provider.model || state.settings.model, permissionFingerprint: provider.permissionFingerprint || null, ...(provider.endpointFingerprint ? { endpointFingerprint: provider.endpointFingerprint } : {}) }; }
-  function matchesExecution(state, run) { return run?.executionHash === capabilityPayloadHash(executionScope(state)); }
+  function executionScope(state, run = null) {
+    // PR59 ordinary runs use their unchanged V4 fingerprint only when the
+    // original pinned endpoint is still selected. Agent preset stages always
+    // require the independent V5 tool/source/endpoint fingerprint.
+    const isAgentPreset = Boolean(run?.agentPresetContext);
+    const permissionFingerprint = isAgentPreset
+      ? provider.agentPermissionFingerprint || provider.permissionFingerprint || null
+      : provider.permissionFingerprint || null;
+    const endpointBound = isAgentPreset || provider.legacyPolicyCompatible !== true;
+    return { kind: provider.kind || 'deepseek-api', model: provider.model || state.settings.model,
+      permissionFingerprint, ...(endpointBound && provider.endpointFingerprint ? { endpointFingerprint: provider.endpointFingerprint } : {}) };
+  }
+  function matchesExecution(state, run) { return Boolean(run && run.executionHash === capabilityPayloadHash(executionScope(state, run))); }
   const scopeChangedError = { code: 'EXECUTION_SCOPE_CHANGED', message: 'The model, runtime mode or reviewed permission profile changed after this run was admitted. Review it and explicitly retry; no request was started.' };
-  function addRun(state, run) {
+  function addRun(state, run, admittedContext = null) {
     if (run.status === 'queued' && state.runs.filter(item => item.status === 'queued').length >= maxQueuedRuns) throw new ApiError(429, 'QUEUE_FULL', 'The run queue is full. Wait for work to finish.');
-    state.runs.push({ execution: executionScope(state), executionHash: capabilityPayloadHash(executionScope(state)), createdAt: now(), startedAt: run.status === 'running' ? now() : null, finishedAt: null, events: [], usage: { promptTokens: null, completionTokens: null, totalTokens: null }, usageStatus: 'unknown', usageMissing: [], error: null, ...run });
+    const execution = executionScope(state, admittedContext || run);
+    state.runs.push({ execution, executionHash: capabilityPayloadHash(execution), createdAt: now(), startedAt: run.status === 'running' ? now() : null, finishedAt: null, events: [], usage: { promptTokens: null, completionTokens: null, totalTokens: null }, usageStatus: 'unknown', usageMissing: [], error: null, ...run });
   }
   function accumulateRun(state, runId, result) {
     const run = state.runs.find(item => item.id === runId);
@@ -639,7 +651,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         if (item.title === 'New conversation') item.title = content.slice(0, 48);
         activity(state, provider.configured ? 'started' : 'blocked', provider.configured ? 'Chat started' : 'Chat saved; setup required', provider.configured ? 'A text generation request was started.' : currentSetupError.message, { conversationId: id });
         start = provider.configured;
-        addRun(state, { ...admission, workspaceExecution, ...(workspaceExecution ? { budget: agentPresetContext ? structuredClone(agentPresetContext.budget) : { maxSteps: 4, maxOutputTokens: 6400 }, outputTokens: 0, stepCount: 0 } : {}), id: runId, kind: 'chat', conversationId: id, assistantId: reply.id, requestId: key, status: start ? (queued ? 'queued' : 'running') : 'blocked', ...(!start ? { error: currentSetupError, finishedAt: now() } : {}) });
+        addRun(state, { ...admission, workspaceExecution, ...(workspaceExecution ? { budget: agentPresetContext ? structuredClone(agentPresetContext.budget) : { maxSteps: 4, maxOutputTokens: 6400 }, outputTokens: 0, stepCount: 0 } : {}), id: runId, kind: 'chat', conversationId: id, assistantId: reply.id, requestId: key, status: start ? (queued ? 'queued' : 'running') : 'blocked', ...(!start ? { error: currentSetupError, finishedAt: now() } : {}) }, agentPresetContext ? { agentPresetContext } : null);
         if (museDraftContext) {
           const run = required(state, 'runs', runId);
           run.museDraftContext = { ...museDraftContext, selection: admission.inputContext };
