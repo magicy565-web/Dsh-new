@@ -7,7 +7,7 @@ The launcher uses the actual `@earendil-works/pi-coding-agent` 1.1.0 SDK `Intera
 Use Node 24 and the exact committed lockfile. The new official packages have no install/postinstall script; the reviewed installation used `--ignore-scripts` and pinned every Earendil package to 1.1.0.
 
 ```sh
-npm ci
+npm ci --ignore-scripts
 npm run agent:tui -- --sample
 ```
 
@@ -48,6 +48,6 @@ See [open-source selection](PI-OPEN-SOURCE-SELECTION.md). Official source was do
 
 ## Acceptance status
 
-This first TUI checkpoint includes source and tests. The TUI worker's preliminary focused checks passed 7/7; the backend worker's final new focused checks passed 16/16, with actual SIGKILL fixtures. The root must independently validate the fixed committed source through the real PTY closed loop, complete backend regression and build before claiming final acceptance. HTTP tests or a successful SDK `--check` alone do not establish TUI interaction acceptance.
+Independent root acceptance at fixed source `1418067c8de83b3de36c17d2ccfbeb4c487bb548` passed: actual official TUI POSIX PTY 1/1, focused native/Pi/task/permission/subagent/TUI tests 66/66 without skips, TypeScript/Vite build exit 0, and full backend 814 tests / 807 pass / 0 fail / 7 original environment skips. An isolated exact-lock `npm ci --ignore-scripts` also succeeded. The PTY sends actual keystrokes to the official editor and verifies original persisted task/child receipts, exact confirmation cancellation/approval, separate continuation, provider cancellation and explicit backend restart recovery. The SDK test independently exercises actual frontend Agent tool dispatch. Actual SIGKILL cases preserve original parent/child submission/task identity and budgets. [Raw evidence, source identities and the retained initial PTY timing failure](validation/pi-tui/README.md) are committed. GitHub CI for this source failed before starting any job; it is not passing evidence.
 
 The previous native Agent acceptance remains recorded separately in [PI-NATIVE-AGENT.md](PI-NATIVE-AGENT.md). The later user priority selected the official TUI/core backend; the incomplete native-versus-compatibility Runtime refactor was reverted. Existing Runtime queue/business-stage orchestration and legacy JSON continuation remain; this checkpoint does not claim a complete Pi-host-only architecture migration.

@@ -1,0 +1,190 @@
+{
+  "validatedSource": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+  "baseline": "06e5c51daa66a76c0f736126dab26ee1a551dae0",
+  "node": "v24.19.0",
+  "officialPiVersion": "1.1.0",
+  "reviewedPiSource": "abe508e1b89912adde45528136c3221eb69acdd7",
+  "registryGitHeadProvided": false,
+  "checks": [
+    {
+      "receipt": "failed-pty-before-wait-fix.json",
+      "log": "failed-pty-before-wait-fix.log",
+      "accepted": false,
+      "source": "518589fa147928e7c5b1b2ccf9bc675cc916ceef",
+      "exitCode": 1,
+      "counts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logSha256": "cf16d65a1e0c595f59cedf7470004c4a69354b40dd5701bb4b60729333a98464"
+    },
+    {
+      "receipt": "official-tui-pty.json",
+      "log": "official-tui-pty.log",
+      "accepted": true,
+      "source": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+      "exitCode": 0,
+      "counts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logSha256": "43813a5968b12332e501d4b4074b7494cdf4d5b409df2b2fded80c4c676ecc08"
+    },
+    {
+      "receipt": "native-targeted.json",
+      "log": "native-targeted.log",
+      "accepted": true,
+      "source": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+      "exitCode": 0,
+      "counts": {
+        "tests": 66,
+        "suites": 0,
+        "pass": 66,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logSha256": "9799fb2a63c3bbeb24836a8e158a9a848a99653e881d7b6c999be0f4c4c57296"
+    },
+    {
+      "receipt": "build.json",
+      "log": "build.log",
+      "accepted": true,
+      "source": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+      "exitCode": 0,
+      "counts": {},
+      "logSha256": "d3a076e146b11d1a9f643bd69300f5730a1970559fdd360dd1c26ff67309e7db"
+    },
+    {
+      "receipt": "backend-all.json",
+      "log": "backend-all.log",
+      "accepted": true,
+      "source": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+      "exitCode": 0,
+      "counts": {
+        "tests": 814,
+        "suites": 0,
+        "pass": 807,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 7,
+        "todo": 0
+      },
+      "logSha256": "0c287d0b43816cad10083b790f712c9b7dcc00433b9dfb7fdd7f786c083fa3f6"
+    },
+    {
+      "receipt": "clean-npm-ci.json",
+      "log": "clean-npm-ci.log",
+      "accepted": true,
+      "source": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+      "exitCode": 0,
+      "counts": {},
+      "logSha256": "b54d8b243a234673b04798cfdbe7b8ad415cf94b12670dddf79e66e865de837a"
+    }
+  ],
+  "sourceIdentities": {
+    "package.json": {
+      "gitBlob": "ade5cce9d23317f18aed526f987a6b426213715a",
+      "sha256": "40b83e3ad43dcf26299de1bfd795f0d431deb6459763bed2eca839ffcd868940"
+    },
+    "package-lock.json": {
+      "gitBlob": "cd40f9cceb9c0adca62ee9c1851b18091cd6270e",
+      "sha256": "2a7969eb6e35551c7d75cf9aa944d4f461de86d1e84e1afb28312d8187fa19bb"
+    },
+    "scripts/pi-workspace-tui.mjs": {
+      "gitBlob": "9dd9a8aff1b3d335cff1b1e3a1c8966b86fc6178",
+      "sha256": "25ded181510caf760f2ae012a169719f2b715a827536913941e912bb95a45bb0"
+    },
+    "pi/extensions/workspace.mjs": {
+      "gitBlob": "e06c49cac14fbc370f7cbccb06c9e4801e32c8ef",
+      "sha256": "f2c8bcf7a148d57781f742f57c2bc27f4a857babc80ed4dee4088cecebf7fede"
+    },
+    "server/agent/pi-task.mjs": {
+      "gitBlob": "7ed340506e328f83f384b5659feb58e05a48eae3",
+      "sha256": "3301f9a6c7ac55da1ca9e0dcf9c4c87f916371027bc6aa8cf5392dfc54698ea1"
+    },
+    "server/agent/auth.mjs": {
+      "gitBlob": "d0db50db27bc0fb1b7f949ce12c9b1ecb9c68ccb",
+      "sha256": "03d69fcd0f1bc6b6b22d9043718ed32557cba484aa3d476a2ed91136ab467769"
+    },
+    "server/agent/privacy.mjs": {
+      "gitBlob": "a46405a1b60a28935f2106cb1013b550462c28d3",
+      "sha256": "94bae14af777aa0817be179bb2234b2b979f95694ec0a7277604a9ab5293afa8"
+    },
+    "server/agent/service.mjs": {
+      "gitBlob": "030fae39365b26ce983ac7a0df4742d8345e0727",
+      "sha256": "20caa161d97b627ec73a73337caac475d49698236ecdc60d24db200c0e694d99"
+    },
+    "server/runtime.mjs": {
+      "gitBlob": "d3e1cbb67ef8dfcdf798b8dfd6c0fc24a521d0d7",
+      "sha256": "9d5f300bef46bf7671115b446742c4228aed632ca64ed4d906a02f0add3f770b"
+    },
+    "server/pi-provider.mjs": {
+      "gitBlob": "b0ec5f32ca862d848247682c91e26354ac0a4dcd",
+      "sha256": "d637116fe2e9c3c20167d6300a3c1472e233f1b447929119e6308c6e8dc9c239"
+    },
+    "server/pi-subagent.mjs": {
+      "gitBlob": "ddc188634dfb603c9b032dc95707ba42364ae821",
+      "sha256": "3d25971703a0adc34d2c974b5c173da0b7601120f1a4db3c4d4cfd0bbd772268"
+    },
+    "server/pi-development.mjs": {
+      "gitBlob": "394b2e6e122e5d2093d3cbacb1a3a06a21949a93",
+      "sha256": "a7e9758123abb80e6c479b66344aac7ae2c93923e22ed47b4e57fd279b0bdd33"
+    },
+    "test/pi-task.http.test.mjs": {
+      "gitBlob": "3f3db2f1a00d294f4bf9787d3ace7f9124be9567",
+      "sha256": "9931836ab5cf601246a64f7ea08ae2984ca8030163513dc0e2def10efa06afb4"
+    },
+    "test/pi-subagent.test.mjs": {
+      "gitBlob": "2a5520c6af5df965278ada0160af09606cd0c8d0",
+      "sha256": "a1e6eb2f64b1d81201569efbbf94bb798ece12b158599dd7ab6e1066c7ec3530"
+    },
+    "test/pi-workspace-tui.test.mjs": {
+      "gitBlob": "f3b97bd307456ceb29708f478ef8f193634c83c2",
+      "sha256": "ebc40ecbf39e64a60f63eead02526ef0e1625bc717947bc29402fe7b36e67401"
+    },
+    "test/pi-workspace-tui.pty.test.mjs": {
+      "gitBlob": "e39c910b2929f98d4f37d03737ed6c6c9d1d3207",
+      "sha256": "8b9f301a60871f67c60247954ccec33f10a4d25cacadbf68f8a09ce25fd4fd9e"
+    },
+    "test/fixtures/pi-tui-pty-driver.py": {
+      "gitBlob": "fb8e20e5ad3287de94faaab27239e30a25df0094",
+      "sha256": "aa96951a9c472a7ae4f5d571f4f4b761cc1f08b5f76e0c64c4065e03e49f0938"
+    },
+    "test/fixtures/pi-task-helpers.mjs": {
+      "gitBlob": "b2e760b150d7b5711c999b6e05b02c67cf4cbf9b",
+      "sha256": "3551ee30365ba88f28dfdd09ee3d7b060a1b44b0c1ce6982baecaf5be4abe046"
+    },
+    "test/fixtures/pi-subagent-crash-child.mjs": {
+      "gitBlob": "4e27d683a88ed463e30f8badc5aea7ba785558f4",
+      "sha256": "a02ebdd82001c90ad111bd973fb40f8657805544d19d04c7fd5ff0ac8e8e8488"
+    },
+    "third_party/pi/LICENSE": {
+      "gitBlob": "b0a8e9b81083294360c69b4ec45d3d39a2b28197",
+      "sha256": "0457f5bcec3b3b211605dfb5d1a49042fd638f3686a410fe099c24a25af13c48"
+    }
+  },
+  "officialTui": "@earendil-works/pi-coding-agent InteractiveMode, original editor/rendering/extensions",
+  "modelTransport": "explicit bounded keyless official faux; no live model account",
+  "realModelE2E": "not attempted under live/paid prohibition",
+  "githubCI": {
+    "runId": 38453641934,
+    "conclusion": "startup_failure",
+    "jobs": 0,
+    "verifiedSource": "1418067c8de83b3de36c17d2ccfbeb4c487bb548"
+  },
+  "architectureAssessment": "Original Workspace Runtime orchestration with actual Pi Agent execution kernel and official TUI; broader Pi-host/tools-only migration remains partial",
+  "persistence": "Original backend Store and Pi JSONL; sample launcher directory intentionally ephemeral; real PTY reopens an explicit synthetic directory and same original run/task/reply",
+  "externalEffects": "Only explicitly approved synthetic local file fixture; no production action/deployment/notification"
+}

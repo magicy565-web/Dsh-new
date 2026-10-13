@@ -1,0 +1,11 @@
+{"name": "official-tui-pty", "command": ["node", "--test", "test/pi-workspace-tui.pty.test.mjs"], "cwd": "/workspace/workspace-pi-native-agent-20261013", "sourceBefore": "1418067c8de83b3de36c17d2ccfbeb4c487bb548", "statusBefore": "", "environmentNames": ["HOME", "HTTPS_PROXY", "HTTP_PROXY", "LANG", "LC_ALL", "NODE_EXTRA_CA_CERTS", "NO_PROXY", "PATH", "SSL_CERT_FILE", "TERM", "npm_config_globalconfig", "npm_config_userconfig"], "startedAt": "2026-10-13T19:17:28.925484+00:00"}
+✔ official Pi TUI PTY starts tasks and an owned child, reviews exact approval, cancels and explicitly restores original checkpoints (2363.678086ms)
+ℹ Actual official Pi InteractiveMode PTY: task, owned child, status, exact human approval, separate continuation, cancellation, original checkpoint recovery and profile refusals. Model transport is controlled faux, never a live account.
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2715.568013

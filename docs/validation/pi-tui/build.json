@@ -1,0 +1,34 @@
+{
+  "name": "build",
+  "command": [
+    "npm",
+    "run",
+    "build"
+  ],
+  "cwd": "/workspace/workspace-pi-native-agent-20261013",
+  "sourceBefore": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+  "statusBefore": "",
+  "environmentNames": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "LANG",
+    "LC_ALL",
+    "NODE_EXTRA_CA_CERTS",
+    "NO_PROXY",
+    "PATH",
+    "SSL_CERT_FILE",
+    "TERM",
+    "npm_config_globalconfig",
+    "npm_config_userconfig"
+  ],
+  "startedAt": "2026-10-13T19:17:47.844740+00:00",
+  "exitCode": 0,
+  "durationSeconds": 6.547,
+  "sourceAfter": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T19:17:54.399002+00:00",
+  "log": "build.log",
+  "logSha256": "d3a076e146b11d1a9f643bd69300f5730a1970559fdd360dd1c26ff67309e7db",
+  "counts": {}
+}

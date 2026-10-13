@@ -1,0 +1,35 @@
+{
+  "name": "clean-npm-ci",
+  "command": [
+    "npm",
+    "--userconfig=/tmp/workspace-pi-native-20261013/clean-install-1418067/blank.npmrc",
+    "--globalconfig=/tmp/workspace-pi-native-20261013/clean-install-1418067/global.npmrc",
+    "ci",
+    "--ignore-scripts",
+    "--no-audit",
+    "--no-fund"
+  ],
+  "cwd": "/tmp/workspace-pi-native-20261013/clean-install-1418067",
+  "sourceBefore": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+  "statusBefore": "",
+  "environmentNames": [
+    "NODE_EXTRA_CA_CERTS",
+    "NPM_CONFIG_CACHE",
+    "NPM_CONFIG_FETCH_RETRIES",
+    "NPM_CONFIG_FETCH_TIMEOUT",
+    "NPM_CONFIG_HTTPS_PROXY",
+    "NPM_CONFIG_PROXY",
+    "NPM_CONFIG_REGISTRY",
+    "PATH"
+  ],
+  "startedAt": "2026-10-13T19:18:59.282244+00:00",
+  "lockSha256": "2a7969eb6e35551c7d75cf9aa944d4f461de86d1e84e1afb28312d8187fa19bb",
+  "scriptsExecuted": false,
+  "exitCode": 0,
+  "durationSeconds": 15.672,
+  "sourceAfter": "1418067c8de83b3de36c17d2ccfbeb4c487bb548",
+  "statusAfter": "",
+  "finishedAt": "2026-10-13T19:19:14.963489+00:00",
+  "log": "clean-npm-ci.log",
+  "logSha256": "b54d8b243a234673b04798cfdbe7b8ad415cf94b12670dddf79e66e865de837a"
+}
