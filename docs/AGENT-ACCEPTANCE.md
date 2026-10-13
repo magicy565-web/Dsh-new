@@ -50,6 +50,19 @@
 - 本次已在隔离 V8 中运行当前 GitHub 精确类源码，以 SQL/哈希/Buffer stub 验证 7/7 个相关行为。额外比较旧/新精确源码：旧实现可制造详情 URL 与工件列表 URL 不一致，新实现明确拒绝且保留旧视图。**以上验证均非真实 Node24/SQLite/HTTP/Pi Durable 回归；不会据此解除 `release_blocked`。**
 - 当前工作容器只具备 Node 22.16.0，访问私有仓库的 git clone 因 `github.com` DNS 不通而失败；不能冒充已安装 Node24 或已通过全量 npm suites。GitHub Actions 仍由独立工单 [#16](https://github.com/magicy565-web/workspace-agent/issues/16) 追踪初始化前失败。
 
+## 投影两阶段验证与旧 Workspace 备份安全（本轮）
+
+修复前在 `AgentProjection._sync` 中，工件文件 `materialize()` 先于 SQLite 中的历史事件连续性、企业成员归属、工件元信息校验发生。若某个已发布事件被改动，虽然 SQLite 会回滚，新增未登记的工件文件仍可能出现在磁盘上。并且原投影没有检测恢复的 Workspace `meta.sequence` 低于已投影 `authority_sequence` 的情况。
+
+现已复用同一个 SQLite 投影和原企业 Store，不增加任何第二套队列或状态：
+
+- 工件落盘**前**执行 `assertContinuity()`，检查原 owner、已发布的事件逐项不变、已发布工件元信息不变及历史 `authority_sequence` 单调性。
+- 即使内存签名命中，依旧验证来自较旧 Workspace 备份的回退，避免缓存隐藏回退。
+- 工件落盘后在 SQLite `BEGIN IMMEDIATE` 事务内再次执行相同校验，再追加新的事件和下载记录；校验失败不会提交新投影视图。
+- 新增 `test/agent-projection-linkage.test.mjs` 针对先前真实漏洞的回归：被修改的旧事件与同时新增的工件必须在新工件写盘前拒绝、旧 Store sequence 被拒绝、企业 owner 错误时不留下新文件。
+
+隔离 V8 对旧版 `206bf8c` 与修复 `f236140` 的**真实 AgentProjection 类源码**注入同一组模拟 SQLite/文件依赖：旧版可在回滚前调用新文件写入，修复版无该调用；旧版不检查序列回退，新版按预期拒绝。**仍没有运行 Node24 的真实 SQLite 与文件系统组合测试**，当前 GitHub Actions 的 `startup_failure` 也不是测试通过的证据。完整验收前请保持 Draft/`release_blocked`，并保留原 Workspace/Pi/Shopify/Muse/Dot 现有权限和预算门禁。
+
 ## 下一次真实测试必须运行
 
 从 PR60 最新固定提交（不是 PR47 或 PR59 的旧源码包）在具备 Node 24 / Python 的授权工作区执行：
