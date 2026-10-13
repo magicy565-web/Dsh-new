@@ -53,7 +53,7 @@ status、lookup、download 和 JSON replay 查询到失败任务时，只要读�
 
 SSE 根据最后一个完整帧 seq 重连，同时带 `from` 和 `Last-Event-ID`；重复帧去重，序号缺口明确报错。SSE 不可用或重试耗尽时回退有上限的 JSON 轮询。客户端停止不会取消服务端任务。
 
-重启由服务端按原任务 / run / Pi 检查点恢复。结果显示可恢复并补齐条件时使用 `resume TASK_ID`；它不产生替代任务，不修改业务输入或批准范围。原 error 保留，后来成功事件继续递增。因此 replay 不在第一条历史 error 处截断，而是读到服务端关闭并核对最终任务状态。
+服务重启后只读取并保留原任务 / run / Pi 检查点，**不会自动重新调用模型**。原任务会显示中断及可恢复原因（`AGENT_EXPLICIT_RESUME_REQUIRED`）；同一企业成员明确使用 `resume TASK_ID` 后，服务才在原权限与预算范围内尝试接续原 run。重复或并发恢复请求只接纳一次业务恢复尝试；它不产生替代任务，不修改业务输入或批准范围。原 error 保留，后来成功事件继续递增。因此 replay 不在第一条历史 error 处截断，而是读到服务端关闭并核对最终任务状态。
 
 Muse 应按 accepted.plan 呈现计划，按 thinking.text 呈现公开执行摘要。不要将其称为模型隐藏推理。读取 `result.version=1`：unconfigured / blocked / partial 必须如实告知；demo 的 demonstration_only、文书的 documents_ready 都不是发布、成交或七天经营目标达成。失败任务已保存的部分文件仍可下载交付。
 
