@@ -16,6 +16,7 @@
 - 补入此前漏带的 `scripts/agent-retention.mjs` 和 `test/fixtures/agent-service-child.mjs`，解决 Agent 测试的确定性缺失依赖。
 - 将旧用例的根 `/health` 预期改为**原 Workspace Host 根路径不被 Agent 接管**；Agent JSON health 位于 `/api/agent/v1/health`。
 - 新增 `test/agent-unified-host.http.test.mjs`，明确要求 API 默认关闭；开启后只通过原单 Host、原企业成员 scope 和原 Workspace Store，且不会卸载已有供应商/通知服务。
+- 增加 Agent Bearer 与原 Dot/Muse/采购 Worker token SHA-256 的跨范围碰撞拒绝规则及普通测试。对应 Node 回归仍待实际运行，不能以代码提交冒充通过。
 - 新 `test/agent-service.acceptance.mjs` 只会运行当前源码的构建与回归，并将新原始日志写入临时隔离目录。无独立审查回执时无条件标记 `release_blocked`、退出非零。
 
 **所有新增的 Node 测试均尚未在此候选上实际运行**。静态语法检查不能替代 Node 24、Pi Durable、SQLite、HTTP 或微信运行时测试。
