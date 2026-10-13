@@ -43,13 +43,13 @@ test('PR59 ordinary Pi policy fingerprint stays byte-compatible only on its orig
   assert.equal(otherEndpoint.permissionFingerprint, otherEndpoint.agentPermissionFingerprint);
 });
 
-test('real Pi package fixture: durable text execution, usage, persisted submission and business dedupe', async t => {
+test('real Pi package fixture: durable text execution, usage, persisted native task and business dedupe', async t => {
   const f = await fixture(t, [fauxAssistantMessage('Pi fixture answer')]);
   const { conversation, result } = await chat(f);
   await until(() => f.app.runtime.getRun(result.run.id).run.status !== 'running');
   const run = f.app.runtime.getRun(result.run.id).run;
   assert.equal(run.status, 'succeeded', JSON.stringify(run.error));
-  assert.ok(run.piSubmissionId); assert.ok(run.piRequestId);
+  assert.ok(run.piNativeTaskId); assert.ok(run.piRequestId);
   assert.equal(f.app.runtime.bootstrap().messages.at(-1).content, 'Pi fixture answer');
   assert.equal(f.app.runtime.bootstrap().messages.at(-1).runtime.source, PI_SOURCE);
   await f.reopen();
@@ -74,7 +74,7 @@ test('ordinary Pi checkpoint cannot resume after a different HTTPS model endpoin
     const conversation = (await app.runtime.createConversation({})).conversation;
     const submitted = await app.runtime.sendMessage(conversation.id, { content: 'Keep original Pi work',
       requestId: 'endpoint-change-ordinary-checkpoint' });
-    await until(() => app.runtime.getRun(submitted.run.id).run.piSubmissionId && faux.state.callCount === 1);
+    await until(() => app.runtime.getRun(submitted.run.id).run.piNativeTaskId && faux.state.callCount === 1);
     const saved = app.runtime.getRun(submitted.run.id).run;
     assert.equal(saved.execution.endpointFingerprint, originalProvider.endpointFingerprint);
     assert.equal(saved.execution.permissionFingerprint, originalProvider.agentPermissionFingerprint);
@@ -84,7 +84,7 @@ test('ordinary Pi checkpoint cannot resume after a different HTTPS model endpoin
     assert.equal(app.runtime.getRun(saved.id).run.status, 'interrupted');
     await assert.rejects(app.runtime.recoverPiRun(saved.id, { requestId: 'endpoint-not-same' }),
       { code: 'EXECUTION_SCOPE_CHANGED' });
-    assert.equal(app.runtime.getRun(saved.id).run.piSubmissionId, saved.piSubmissionId);
+    assert.equal(app.runtime.getRun(saved.id).run.piNativeTaskId, saved.piNativeTaskId);
     assert.equal(app.runtime.listRuns().runs.length, 1, 'No new run may be created to evade scope checks.');
     assert.equal(faux.state.callCount, 1, 'A mismatched scope cannot send another model request.');
   } finally {
@@ -130,12 +130,12 @@ test('real Pi package fixture: user cancellation explicitly aborts durable work;
   assert.equal(f.app.runtime.getRun(result.run.id).run.status, 'cancelled');
 });
 
-test('real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/submission', async t => {
+test('real Pi package fixture: close/reopen preserves pending durable execution; explicit retry reattaches same run/native task', async t => {
   const f = await fixture(t, [async (_ctx, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }]);
   const { result } = await chat(f);
-  await until(() => f.app.runtime.getRun(result.run.id).run.piSubmissionId && f.faux.state.callCount === 1);
+  await until(() => f.app.runtime.getRun(result.run.id).run.piNativeTaskId && f.faux.state.callCount === 1);
   const originalRun = f.app.runtime.getRun(result.run.id).run;
-  const submissionId = originalRun.piSubmissionId;
+  const nativeTaskId = originalRun.piNativeTaskId;
   assert.deepEqual(Object.keys(originalRun.execution).sort(), ['kind', 'model', 'permissionFingerprint'],
     'PR59 ordinary execution scopes must have no Agent-only endpoint field.');
   assert.equal(originalRun.executionHash, capabilityPayloadHash(originalRun.execution));
@@ -147,7 +147,7 @@ test('real Pi package fixture: close/reopen preserves pending durable execution;
   assert.equal(resumed.recovered, true); assert.equal(resumed.run.id, result.run.id);
   await until(() => f.app.runtime.getRun(result.run.id).run.status !== 'running');
   const run = f.app.runtime.getRun(result.run.id).run;
-  assert.equal(run.status, 'succeeded', JSON.stringify(run.error)); assert.equal(run.piSubmissionId, submissionId);
+  assert.equal(run.status, 'succeeded', JSON.stringify(run.error)); assert.equal(run.piNativeTaskId, nativeTaskId);
   assert.equal(f.app.runtime.bootstrap().messages.filter(value => value.role === 'user').length, 1);
 });
 
@@ -219,7 +219,7 @@ test('real Pi package fixture: interrupted goal resumes its original reservation
   const goal = (await f.app.runtime.createGoal({ title: 'Bounded durable fixture', maxSteps: 2 })).goal;
   const started = await f.app.runtime.updateGoal(goal.id, { action: 'start' });
   const runId = started.goal.runId;
-  await until(() => f.app.runtime.getRun(runId).run.piSubmissionId && f.faux.state.callCount === 1);
+  await until(() => f.app.runtime.getRun(runId).run.piNativeTaskId && f.faux.state.callCount === 1);
   const before = f.app.runtime.getRun(runId).run;
   await f.reopen();
   f.faux.setResponses([fauxAssistantMessage(JSON.stringify({ done: true, content: 'Recovered goal fixture' }))]);
@@ -236,7 +236,7 @@ test('real Pi package fixture: changed selected memory and execution scope block
   const f = await fixture(t, [async (_ctx, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }]);
   const memory = (await f.app.runtime.createMemory({ content: 'Original selected fixture' })).memory;
   const { result } = await chat(f, 'Use selected note', { inputContext: { artifacts: [], skills: [], memoryIds: [memory.id], connectorActions: [] } });
-  await until(() => f.app.runtime.getRun(result.run.id).run.piSubmissionId);
+  await until(() => f.app.runtime.getRun(result.run.id).run.piNativeTaskId);
   await f.reopen();
   await f.app.runtime.updateMemory(memory.id, { content: 'Changed fixture' });
   await assert.rejects(f.app.runtime.retryRun(result.run.id, { requestId: 'must-block-recovery' }), { code: 'INPUT_MEMORY_CHANGED' });

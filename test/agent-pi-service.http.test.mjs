@@ -84,7 +84,7 @@ test('unified Agent HTTP preserves the seven-event protocol, real Pi stage execu
   assert.equal(detail.json.status, 'done'); assert.equal(detail.json.result.version, 1); assert.equal(detail.json.result.businessGoalAchieved, false);
   assert.deepEqual(detail.json.artifacts.map(item => item.name), ARTIFACTS.procurement);
   assert.equal(f.faux.state.callCount, 4); assert.equal(f.app.store.read().runs.length, 4);
-  assert.ok(f.app.store.read().runs.every(run => run.execution.kind === 'pi-durable' && run.piSubmissionId && run.agentTaskId === id));
+  assert.ok(f.app.store.read().runs.every(run => run.execution.kind === 'pi-durable' && run.piNativeTaskId && run.agentTaskId === id));
   for (const file of detail.json.artifacts) { const download = await f.api(file.url); assert.equal(download.status, 200); assert.equal(download.bytes.length, file.bytes); assert.match(download.text, /不锈钢保温杯/); assert.match(download.text, /500ml/); assert.doesNotMatch(download.text, /演示模式/); }
 });
 
@@ -118,7 +118,7 @@ test('completed business outbox rebuilds its SQLite read projection and download
 test('restart pauses without model replay until explicit resume reattaches the original Pi run and inquiry file', async t => {
   const f = await fixture(t, { responses: [complete(), complete(), interruptedResponse()] });
   const submitted = await f.submit(), id = submitted.json.taskId;
-  await until(() => f.task(id)?.steps[2].runId && f.faux.state.callCount === 3 && f.app.runtime.getRun(f.task(id).steps[2].runId).run.piSubmissionId);
+  await until(() => f.task(id)?.steps[2].runId && f.faux.state.callCount === 3 && f.app.runtime.getRun(f.task(id).steps[2].runId).run.piNativeTaskId);
   const beforeRun = f.app.runtime.getRun(f.task(id).steps[2].runId).run;
   const inquiry = await f.api(API + '/tasks/' + id + '/artifacts/inquiry-pack.md'); assert.equal(inquiry.status, 200);
   const history = (await f.api(API + '/tasks/' + id + '/events?format=json')).json;
@@ -129,7 +129,7 @@ test('restart pauses without model replay until explicit resume reattaches the o
   assert.equal(paused.status, 200);
   assert.equal(paused.json.result.resumable, true);
   assert.equal(f.app.runtime.getRun(beforeRun.id).run.status, 'interrupted');
-  assert.equal(f.app.runtime.getRun(beforeRun.id).run.piSubmissionId, beforeRun.piSubmissionId);
+  assert.equal(f.app.runtime.getRun(beforeRun.id).run.piNativeTaskId, beforeRun.piNativeTaskId);
   await delay(60);
   assert.equal(f.faux.state.callCount, 3, 'A Host restart may not silently re-call the model.');
   assert.equal(f.app.store.read().runs.length, 3, 'No substitute run may be created by restart.');
@@ -168,7 +168,7 @@ test('restart pauses without model replay until explicit resume reattaches the o
   assert.equal(f.app.store.read().messages.length, messageCount, 'Blocked legacy routes cannot add model work.');
   assert.equal(f.app.store.read().runs.length, 3);
   assert.equal(f.faux.state.callCount, 3);
-  assert.equal(f.app.runtime.getRun(beforeRun.id).run.piSubmissionId, beforeRun.piSubmissionId);
+  assert.equal(f.app.runtime.getRun(beforeRun.id).run.piNativeTaskId, beforeRun.piNativeTaskId);
   const [authorized, sameRequest] = await Promise.all([
     f.api(API + '/tasks/' + id + '/resume', { method: 'POST', body: {} }),
     f.api(API + '/tasks/' + id + '/resume', { method: 'POST', body: {} }),
@@ -179,7 +179,7 @@ test('restart pauses without model replay until explicit resume reattaches the o
   }
   const done = await f.terminal(id); assert.equal(done.json.status, 'done', JSON.stringify(done.json));
   const afterRun = f.app.runtime.getRun(beforeRun.id).run;
-  assert.equal(afterRun.id, beforeRun.id); assert.equal(afterRun.piSubmissionId, beforeRun.piSubmissionId); assert.equal(afterRun.assistantId, beforeRun.assistantId);
+  assert.equal(afterRun.id, beforeRun.id); assert.equal(afterRun.piNativeTaskId, beforeRun.piNativeTaskId); assert.equal(afterRun.assistantId, beforeRun.assistantId);
   assert.equal(f.task(id).attempt, 2, 'Two simultaneous resume requests must admit just one business attempt.');
   assert.equal(f.app.store.read().runs.length, 4); assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 1);
   assert.equal(sha((await f.api(API + '/tasks/' + id + '/artifacts/inquiry-pack.md')).bytes), sha(inquiry.bytes));

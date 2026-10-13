@@ -27,13 +27,13 @@ test('actual SIGKILL fixture: recover pending Pi work and cached answer before b
     faux.setResponses(mode === 'pending' ? [fauxAssistantMessage('Recovered process-crash fixture')] : []);
     app = await createApp({ dataDirectory: directory, provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1' }) });
     assert.equal(app.runtime.getRun(ready.runId).run.status, 'interrupted');
-    if (mode === 'metadata-gap') assert.equal(app.runtime.getRun(ready.runId).run.piSubmissionId, undefined);
+    if (mode === 'metadata-gap') assert.equal(app.runtime.getRun(ready.runId).run.piNativeTaskId, undefined);
     assert.equal(faux.state.callCount, 0);
     await app.runtime.retryRun(ready.runId, { requestId: 'explicit-crash-recover' });
     for (let i = 0; i < 500 && app.runtime.getRun(ready.runId).run.status === 'running'; i++) await new Promise(resolve => setTimeout(resolve, 10));
     const run = app.runtime.getRun(ready.runId).run;
     assert.equal(run.status, 'succeeded', JSON.stringify(run.error));
-    assert.equal(run.piSubmissionId, ready.submissionId);
+    assert.equal(run.piNativeTaskId, ready.nativeTaskId);
     assert.equal(app.runtime.listRuns().runs.length, 1);
     assert.equal(app.runtime.bootstrap().messages.filter(value => value.role === 'user').length, 1);
     assert.equal(faux.state.callCount, mode === 'pending' ? 1 : 0);

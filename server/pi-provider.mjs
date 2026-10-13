@@ -6,7 +6,7 @@ import { Type, createModels, createProvider } from '@earendil-works/pi-ai';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { createAssistantMessageEventStream } from '@earendil-works/pi-ai/utils/event-stream';
 import { BACKGROUND_CONTEXT, withAbortSignal } from '@earendil-works/chord/context';
-import { AssistantEntry, Harness, GenerationTask, ToolTask, createRegistry, defineDoc, defineExtension, defineTool, hook } from '@earendil-works/pi-durable';
+import { AssistantEntry, ToolResultEntry, ProviderDoc, Harness, GenerationTask, ToolTask, createRegistry, defineDoc, defineTask, defineExtension, defineTool, hook } from '@earendil-works/pi-durable';
 import { openNodeJsonlStorage } from '@earendil-works/pi-durable/storage/jsonl/node';
 import { ProviderError } from './provider.mjs';
 import { SUPPLIER_FIELDS } from './supplier-profile.mjs';
@@ -105,7 +105,13 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
       await privateDirectory(location);
       const storage = await openNodeJsonlStorage(location, context, { fsync: true });
       let harness;
-      const state = { harness: null, root: null, active: null, observer: null, location };
+      const state = { harness: null, root: null, active: null, observer: null, nativeRuntime: null, agent: null, requestError: null, location };
+      async function commitActive(change) {
+        if (!state.nativeRuntime) return state.root.commit(change, context);
+        let result;
+        await state.nativeRuntime.commit(async tx => { result = await change(tx); }, context);
+        return result;
+      }
       async function observeTool(call, phase) {
         if (!state.observer || !state.active || !['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research'].includes(call.name)
           || typeof call.id !== 'string' || !call.id || call.id.length > 256) return;
@@ -118,11 +124,11 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         return (requested, transcript, options) => {
           const output = createAssistantMessageEventStream();
           void (async () => {
-            let observed = null;
+            let observed = null, timer, requestSignal, requestTimedOut = false;
             try {
               assertActive(state.active, requested);
               const requestId = state.active.requestId;
-              const reservation = await state.root.commit(async tx => {
+              const reservation = await commitActive(async tx => {
                 const active = (await tx.doc(RecordDoc, state.root.id)).active;
                 if (active.requestId !== requestId) fail('PI_NOT_ADMITTED', 'The Pi invocation changed before its model request.');
                 const maxTokens = requestAllowance(active);
@@ -130,36 +136,51 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
                 const index = active.requests.length;
                 active.requests.push({ maxTokens, usage: null });
                 return { index, maxTokens };
-              }, context);
+              });
               assertActive(state.active, requested);
               // Enforce at dispatch, after durable beforeRequest hooks and even
               // when their checkpoint captured earlier stream settings.
-              const events = models.streamSimple(requested, transcript, { ...options, maxTokens: reservation.maxTokens, maxRetries: 0,
+              const timeout = new AbortController();
+              timer = setTimeout(() => { requestTimedOut = true; timeout.abort('PI_MODEL_TIMEOUT'); }, timeoutMs); timer.unref();
+              requestSignal = options?.signal ? AbortSignal.any([options.signal, timeout.signal]) : timeout.signal;
+              const events = models.streamSimple(requested, transcript, { ...options, signal: requestSignal, timeoutMs, maxTokens: reservation.maxTokens, maxRetries: 0,
                 onProviderStreamEvent: async (event, ref) => {
                   if (requested.api === 'openai-completions' && (event?.usage || event?.choices?.[0]?.usage)) observed = openAIUsage(event);
                   await options?.onProviderStreamEvent?.(event, ref);
                 } });
-              for await (const event of events) {
+              // Cancel the actual provider transport and stop awaiting it even if
+              // a transport fails to settle promptly after its signal is aborted.
+              const iterator = events[Symbol.asyncIterator]();
+              let stopped;
+              const interrupted = new Promise((_, reject) => { stopped = () => reject(requestSignal.reason); requestSignal.addEventListener('abort', stopped, { once: true }); });
+              try { while (true) {
+                requestSignal.throwIfAborted();
+                const next = await Promise.race([iterator.next(), interrupted]);
+                if (next.done) break;
+                const event = next.value;
                 if (event.type === 'done' || event.type === 'error') {
                   // The official faux provider is a keyless, explicitly supplied
                   // test transport with message-owned counters, not wire billing.
                   if (requested.api === 'faux') observed = explicitPiUsage((event.message || event.error)?.usage);
                   if (observed?.completionTokens > reservation.maxTokens) fail('OUTPUT_LIMIT', 'The provider exceeded this request output allowance.');
-                  await state.root.commit(async tx => {
+                  requestSignal.throwIfAborted();
+                  await commitActive(async tx => {
                     const active = (await tx.doc(RecordDoc, state.root.id)).active;
                     if (active.requestId !== requestId) fail('PI_NOT_ADMITTED', 'The Pi invocation changed before usage settlement.');
                     active.requests[reservation.index].usage = observed;
-                  }, context);
+                  });
                 }
                 output.push(event);
-              }
+              } } finally { requestSignal.removeEventListener('abort', stopped); }
               output.end(await events.result());
             } catch (error) {
+              if (requestTimedOut) error = new ProviderError('TIMEOUT', 'The governed Pi model request reached its host time limit. Its unconfirmed reservation remains consumed.');
+              state.requestError = error instanceof ProviderError ? { code: error.code, message: error.message } : null;
               const message = { role: 'assistant', content: [], api: requested.api, provider: requested.provider, model: requested.id,
                 timestamp: Date.now(), stopReason: 'error', errorMessage: error instanceof ProviderError ? error.message : 'Pi request reservation could not be verified.',
                 usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
               output.push({ type: 'error', reason: 'error', error: message }); output.end();
-            }
+            } finally { clearTimeout(timer); }
           })();
           return output;
         };
@@ -272,7 +293,118 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
           await api.commit(async tx => { const doc = await tx.doc(RecordDoc, api.conversationId); doc.active.researchReceipts = [...(doc.active.researchReceipts || []), receipt]; }, callContext);
           return { content: [{ type: 'text', text: JSON.stringify(receipt) }] };
         } });
-      const extension = defineExtension({ name: 'workspace-governed', tools: [input, propose, draftProposal, supplierProposal, presetProposal, research], hooks: [
+      const nativeTask = defineTask({ name: 'workspace.pi-agent-prompt', version: 1, initial: () => ({ phase: 'prompt' }),
+        phases: { prompt: async (task, runtime, taskContext) => {
+          let agent;
+          const abort = () => agent?.abort();
+          state.nativeRuntime = runtime; state.requestError = null;
+          try {
+            const saved = await runtime.snapshot(RecordDoc, runtime.conversationId, taskContext);
+            if (saved.active?.requestId !== task.input.requestId || saved.active.nativeTaskId !== task.id) fail('EXECUTION_SCOPE_CHANGED', 'The original native Agent task changed.');
+            assertActive(state.active);
+            const resolved = await runtime.agent(taskContext);
+            const session = await runtime.snapshot(ProviderDoc, runtime.conversationId, taskContext);
+            if (!session?.sessionId) fail('PI_CHECKPOINT_MISSING', 'The original Pi provider session identity is missing.');
+            let round = 0, assistantEntryId;
+            const streamFn = (requested, transcript, options) => {
+              const output = createAssistantMessageEventStream();
+              const index = round++;
+              void (async () => {
+                try {
+                  runtime.signal.throwIfAborted(); assertActive(state.active, requested);
+                  const transcriptHash = hash(JSON.stringify(transcript, (key, value) => ['timestamp', 'durationMs'].includes(key) ? undefined : value));
+                  let cached = await runtime.memo(`response.${index}`, taskContext);
+                  if (cached && cached.transcriptHash !== transcriptHash) fail('EXECUTION_SCOPE_CHANGED', 'The recovered native Agent transcript changed.');
+                  if (!cached) {
+                    const events = governedModels.streamSimple(requested, transcript, options);
+                    for await (const _event of events) { /* Only the complete response becomes replayable. */ }
+                    const message = await events.result();
+                    runtime.signal.throwIfAborted();
+                    if (!message || ['error', 'aborted'].includes(message.stopReason)) {
+                      if (state.requestError) fail(state.requestError.code, state.requestError.message);
+                      fail(message?.stopReason === 'aborted' ? 'CANCELLED' : 'PI_MODEL_ERROR', 'The model did not return a confirmed native Agent response.');
+                    }
+                    cached = await runtime.memo(`response.${index}`, { transcriptHash, message: clone(message) }, taskContext);
+                  }
+                  await runtime.commit(async tx => {
+                    const active = (await tx.doc(RecordDoc, runtime.conversationId)).active;
+                    if (active.requestId !== task.input.requestId) fail('EXECUTION_SCOPE_CHANGED', 'The native invocation changed before response settlement.');
+                    if (!active.nativeRounds[index]) {
+                      const entry = await tx.appendEntry(AssistantEntry, runtime.conversationId, { model: [cached.message] });
+                      active.nativeRounds[index] = { entryId: entry.id, transcriptHash };
+                    }
+                    assistantEntryId = active.nativeRounds[index].entryId;
+                  }, taskContext);
+                  output.push({ type: 'done', reason: cached.message.stopReason, message: cached.message });
+                  output.end(cached.message);
+                } catch (error) {
+                  if (error instanceof ProviderError) state.requestError = { code: error.code, message: error.message };
+                  const message = { role: 'assistant', content: [], api: requested.api, provider: requested.provider, model: requested.id,
+                    timestamp: Date.now(), stopReason: runtime.signal.aborted ? 'aborted' : 'error', errorMessage: 'The governed native Agent request did not settle.',
+                    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+                  output.push({ type: 'error', reason: message.stopReason, error: message }); output.end(message);
+                }
+              })();
+              return output;
+            };
+            const tools = resolved.tools.map(tool => ({ name: tool.name, label: tool.name, description: tool.description, parameters: tool.parameters,
+              executionMode: 'sequential', execute: async (callId, _args, signal) => {
+                signal?.throwIfAborted(); assertActive(state.active);
+                if (!assistantEntryId) fail('PI_CHECKPOINT_MISSING', 'No persisted assistant tool intent exists.');
+                const key = `${assistantEntryId}:${callId}`;
+                let childId;
+                await runtime.commit(async tx => {
+                  const active = (await tx.doc(RecordDoc, runtime.conversationId)).active;
+                  childId = active.nativeTools[key];
+                  if (!childId) {
+                    childId = await tx.createTask(ToolTask, { assistant: assistantEntryId, callId }, { ownership: { kind: 'task', taskId: task.id } });
+                    active.nativeTools[key] = childId;
+                  }
+                }, taskContext);
+                const settled = await runtime.waitForTask(childId, taskContext);
+                signal?.throwIfAborted(); assertActive(state.active);
+                const outcome = settled.state.outcome;
+                const entry = outcome.result?.entryId ? await runtime.entry(ToolResultEntry, outcome.result.entryId, taskContext) : null;
+                const result = entry?.model?.[0];
+                if (!result || result.role !== 'toolResult') fail('PI_CHECKPOINT_MISSING', 'The original durable tool receipt is missing.');
+                return { content: clone(result.content), ...(result.details === undefined ? {} : { details: clone(result.details) }), isError: result.isError,
+                  terminate: outcome.result?.control?.terminate === true };
+              } }));
+            agent = new Agent({ initialState: { model: modelRef, systemPrompt: saved.active.systemPrompt, messages: clone(saved.active.messages), tools },
+              streamFn, sessionId: session.sessionId, toolExecution: 'sequential',
+              finishTurn: async () => {
+                const active = (await runtime.snapshot(RecordDoc, runtime.conversationId, taskContext)).active;
+                if (active.proposal || active.museDraftProposal || active.supplierProposal || active.agentPresetProposal) return { action: 'end' };
+              } });
+            state.agent = agent;
+            runtime.signal.addEventListener('abort', abort, { once: true });
+            if (runtime.signal.aborted) abort();
+            // This is the official Agent's awaited native tool loop. Its model responses
+            // are memoized before message_end/tool preflight; owned ToolTasks retain
+            // their original intent, safe replay policy, hooks and durable receipts.
+            await agent.prompt(saved.active.prompt);
+            runtime.signal.throwIfAborted(); assertActive(state.active);
+            const answer = agent.state.messages.filter(message => message.role === 'assistant').at(-1);
+            if (state.requestError) fail(state.requestError.code, state.requestError.message);
+            if (!answer || ['error', 'aborted'].includes(answer.stopReason)) fail('PI_MODEL_ERROR', 'The native Agent did not complete a confirmed response.');
+            await runtime.commit(async tx => {
+              const active = (await tx.doc(RecordDoc, runtime.conversationId)).active;
+              active.nativeTranscript = clone(agent.state.messages);
+              return { status: 'terminal', outcome: { status: 'completed', result: { answer: clone(answer), turns: round, sessionId: session.sessionId } } };
+            }, taskContext);
+          } catch (error) {
+            if (runtime.signal.aborted) throw error;
+            const failure = error instanceof ProviderError ? { code: error.code, message: error.message } : { code: 'PI_RUNTIME_ERROR', message: 'The native Agent could not finish its governed task.' };
+            await runtime.commit(() => ({ status: 'terminal', outcome: { status: 'failed', error: { message: failure.message }, result: { failure } } }), taskContext);
+          } finally {
+            runtime.signal.removeEventListener('abort', abort);
+            if (agent) { agent.abort(); await agent.waitForIdle(); }
+            state.agent = null; state.nativeRuntime = null;
+          }
+        } }, abort: async (_task, runtime, taskContext) => {
+          await runtime.commit(() => ({ status: 'terminal', outcome: { status: 'aborted' } }), taskContext);
+        } });
+      const extension = defineExtension({ name: 'workspace-governed', tasks: [nativeTask], tools: [input, propose, draftProposal, supplierProposal, presetProposal, research], hooks: [
         hook(GenerationTask, { beforeRequest: async (request, api, callContext) => {
           assertActive(state.active);
           const doc = await api.snapshot(RecordDoc, api.conversationId, callContext);
@@ -291,7 +423,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         } }),
       ] });
       registry.install(extension);
-      state.extension = extension; state.input = input; state.propose = propose; state.draftProposal = draftProposal; state.supplierProposal = supplierProposal; state.presetProposal = presetProposal; state.research = research;
+      state.nativeTask = nativeTask; state.extension = extension; state.input = input; state.propose = propose; state.draftProposal = draftProposal; state.supplierProposal = supplierProposal; state.presetProposal = presetProposal; state.research = research;
       try {
         harness = await Harness.open(storage, { models: governedModels, registry, settings: { retry: { enabled: false, maxRetries: 0 }, compaction: { enabled: false }, toolExecution: 'sequential', stream: { timeoutMs, maxRetries: 0 } } }, context);
         state.harness = harness; state.root = await harness.root(context);
@@ -304,7 +436,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
     try { return await operation; } finally { opening.delete(conversationId); }
   }
   return {
-    kind: 'pi-durable', provider: 'pi', configured: Boolean(suppliedModels ? modelRef : apiKey.trim()), model, models: [model],
+    kind: 'pi-durable', nativeAgentLoop: true, provider: 'pi', configured: Boolean(suppliedModels ? modelRef : apiKey.trim()), model, models: [model],
     researchCapabilities, endpointFingerprint, legacyPolicyCompatible,
     // Exact non-secret recipient disclosure for the authenticated Agent UI.
     agentUiRecipient: Object.freeze({ kind: 'pi-durable', provider: providerId, model, destination: suppliedModels ? modelRef?.baseUrl || null : endpoint }),
@@ -315,7 +447,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
     },
     permissionFingerprint: ordinaryPermissionFingerprint,
     agentPermissionFingerprint,
-    capabilities: ['pi-agent-context', 'pi-durable-execution', 'durable-request-dedupe', 'explicit-interruption-recovery', 'explicit-durable-abort', 'selected-replay-safe-tools', 'inert-muse-draft-proposals', 'private-supplier-profile-proposals', 'source-checked-preset-stages', ...(researchCapabilities.length ? ['configured-read-only-research'] : [])],
+    capabilities: ['pi-agent-context', 'native-agent-prompt', 'native-agent-tool-loop', 'pi-durable-execution', 'durable-request-dedupe', 'explicit-interruption-recovery', 'explicit-durable-abort', 'selected-replay-safe-tools', 'inert-muse-draft-proposals', 'private-supplier-profile-proposals', 'source-checked-preset-stages', ...(researchCapabilities.length ? ['configured-read-only-research'] : [])],
     setupMessage: 'Configure the existing host-managed FASTAITOKEN_API_KEY, PI_MODEL and optional PI_BASE_URL for Pi. Credentials remain on the server. Your work is saved.',
     limitations: ['Pi 1.1.0 is pinned; model endpoint/account access remains unverified.', 'Only selected input snapshots and exact action proposals are available to Pi. Workspace executes approved actions.', 'Reopen does not resume work automatically. User cancellation explicitly aborts durable work; shutdown preserves checkpoints.', 'Muse and Dot remain independent original connectors. A receipt or write submission is not wake/execution evidence.'],
     containsCredential: value => Boolean(apiKey && typeof value === 'string' && value.includes(apiKey)),
@@ -323,7 +455,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
       if (store || closing || !originalStore?.directory) throw new Error('Pi requires one original locked Workspace Store lifetime.');
       store = originalStore; directory = path.join(store.directory, 'pi'); await privateDirectory(directory);
     },
-    async complete({ messages, model: requestedModel, maxTokens = 1600, signal, json = false, runId, conversationId, replyId, onEvent }) {
+    async complete({ messages, model: requestedModel, maxTokens = 1600, signal, json = false, runId, conversationId, replyId, onEvent, accountedNativeTaskId }) {
       if (!store || closing) fail('PI_NOT_ADMITTED', 'Pi is not attached to an open Workspace Store.');
       if (!this.configured) fail('SETUP_REQUIRED', this.setupMessage);
       if (requestedModel !== model || !modelRef) fail('INVALID_MODEL', 'Select the server-pinned Pi model.');
@@ -338,6 +470,17 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
       const document = await state.harness.snapshot(RecordDoc, state.root.id, context);
       const previous = document?.records[requestId];
       const reattaching = Boolean(previous || document?.active?.requestId === requestId);
+      // Pre-upgrade submissions keep their original Harness Run/GenerationTask
+      // recovery path. New task identities are never disguised as submissions.
+      const legacy = Boolean(previous?.submissionId || reattaching && !document?.active?.nativeExecution && !previous?.nativeTaskId);
+      if (accountedNativeTaskId !== undefined) {
+        const originalId = previous?.nativeTaskId || document?.active?.nativeTaskId;
+        if (legacy || !Number.isSafeInteger(accountedNativeTaskId) || accountedNativeTaskId < 1 || accountedNativeTaskId !== originalId)
+          fail('PI_CHECKPOINT_MISSING', 'Previously accounted work must reuse its original native task identity.');
+        const original = await state.harness.getTask(originalId, context);
+        if (original?.state.status !== 'terminal' || original.state.outcome.status !== 'completed')
+          fail('PI_CHECKPOINT_MISSING', 'Previously accounted work requires a completed cached native task; no model request may be issued.');
+      }
       let abortPromise;
       const localStop = new AbortController();
       const operation = { stop: () => localStop.abort('SHUTDOWN') };
@@ -363,28 +506,48 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
           const canonical = messages.filter(value => value.role !== 'system').map(value => value.role === 'assistant'
             ? { role: 'assistant', content: [{ type: 'text', text: value.content }], api: modelRef.api, provider: providerId, model, stopReason: 'stop', timestamp: Date.now(), usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } }
             : { role: 'user', content: value.content, timestamp: Date.now() });
-          // Use the real Pi Agent state API for canonical context. pi-durable
-          // owns execution and tools; no second Agent loop/scheduler is started.
-          const agent = new Agent({ initialState: { model: modelRef, systemPrompt, messages: canonical }, streamFn: models.streamSimple.bind(models) });
-          state.active = { ...scope, requestId, requests: [], messages: clone(agent.state.messages.filter(value => value.role !== 'system')) };
+          state.active = { ...scope, requestId, requests: [], messages: canonical, systemPrompt, nativeExecution: 'agent-prompt', nativeRounds: [], nativeTools: {},
+            prompt: { role: 'user', content: 'Continue the admitted Workspace request using only its selected inputs and permissions.', timestamp: Date.now() } };
           await state.root.configure({ model: { provider: providerId, modelId: model }, instructions: systemPrompt,
             tools: scope.agentPreset ? [state.presetProposal, ...(run.agentPresetContext.researchCapabilities.includes('web_search') ? [state.research] : [])] : scope.supplierDraft ? [state.input, state.supplierProposal] : scope.museDraft ? [state.input, state.draftProposal] : json ? [state.input, state.propose] : [state.input], extensions: [state.extension] }, context);
           await state.root.commit(async tx => { (await tx.doc(RecordDoc, state.root.id)).active = state.active; }, context);
         }
         if (signal?.aborted) cancelled();
         if (localStop.signal.aborted) fail('CANCELLED', 'The request was stopped.');
-        const submission = previous ? await state.harness.submission(previous.submissionId, context)
-          : await state.root.submit({ type: 'input', content: 'Continue the admitted Workspace request using only its selected inputs and permissions.', requestId, whenBusy: 'reject' }, context);
-        if (!submission) fail('PI_CHECKPOINT_MISSING', 'The persisted Pi submission could not be found.');
-        if (!previous) await state.root.commit(async tx => { (await tx.doc(RecordDoc, state.root.id)).records[requestId] = { submissionId: submission.id }; }, context);
-        await onEvent?.({ type: 'pi.submission', piConversationId: state.root.id, piSubmissionId: submission.id, piRequestId: requestId });
-        const settled = await submission.wait(withAbortSignal(localStop.signal, context));
+        let submission, settled, nativeTaskId, nativeOutcome;
+        if (legacy) {
+          submission = previous ? await state.harness.submission(previous.submissionId, context)
+            : await state.root.submit({ type: 'input', content: 'Continue the admitted Workspace request using only its selected inputs and permissions.', requestId, whenBusy: 'reject' }, context);
+          if (!submission) fail('PI_CHECKPOINT_MISSING', 'The persisted Pi submission could not be found.');
+          if (!previous) await state.root.commit(async tx => { (await tx.doc(RecordDoc, state.root.id)).records[requestId] = { submissionId: submission.id }; }, context);
+          await onEvent?.({ type: 'pi.submission', piConversationId: state.root.id, piSubmissionId: submission.id, piRequestId: requestId });
+          settled = await submission.wait(withAbortSignal(localStop.signal, context));
+        } else {
+          await state.root.commit(async tx => {
+            const doc = await tx.doc(RecordDoc, state.root.id);
+            if (doc.active.requestId !== requestId) fail('EXECUTION_SCOPE_CHANGED', 'The native invocation changed before task admission.');
+            nativeTaskId = doc.records[requestId]?.nativeTaskId || doc.active.nativeTaskId;
+            if (!nativeTaskId) nativeTaskId = await tx.createTask(state.nativeTask, { requestId }, { ownership: { kind: 'conversation' } });
+            doc.active.nativeTaskId = nativeTaskId;
+            doc.records[requestId] = { nativeTaskId };
+            // ProviderDoc is the original durable conversation affinity identity.
+            await tx.doc(ProviderDoc, state.root.id);
+          }, context);
+          await onEvent?.({ type: 'pi.agent.task', piConversationId: state.root.id, piNativeTaskId: nativeTaskId, piRequestId: requestId });
+          const task = await state.harness.waitForTask(nativeTaskId, withAbortSignal(localStop.signal, context));
+          nativeOutcome = task.state.outcome;
+          if (nativeOutcome.status !== 'completed') {
+            const failure = nativeOutcome.result?.failure;
+            fail(failure?.code || (nativeOutcome.status === 'aborted' ? 'CANCELLED' : 'PI_RUNTIME_ERROR'), failure?.message || 'The native Agent task did not complete.');
+          }
+          settled = { status: 'done' };
+        }
         await abortPromise;
         if (localStop.signal.aborted || signal?.aborted) fail('CANCELLED', 'The request was stopped.');
         assertActive(state.active);
         const finalDoc = await state.harness.snapshot(RecordDoc, state.root.id, context);
         const entry = settled.answer ? await state.root.commit(tx => tx.entry(AssistantEntry, settled.answer), context) : null;
-        const answer = entry?.model?.[0];
+        const answer = nativeOutcome?.result?.answer || entry?.model?.[0];
         if (scope.museDraft && !finalDoc.active.museDraftProposal) fail('PI_MUSE_PROPOSAL_REQUIRED', 'Pi must use its admitted inert draft tool; text cannot substitute for a draft or Muse execution.');
         if (scope.supplierDraft && !finalDoc.active.supplierProposal) fail('PI_SUPPLIER_PROPOSAL_REQUIRED', 'Pi must use its private quote-verified supplier tool.');
         if (scope.agentPreset && !finalDoc.active.agentPresetProposal) {
@@ -397,7 +560,8 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
         if (answer?.stopReason === 'length') fail('OUTPUT_LIMIT', 'Pi reached the output limit. Review saved work before retrying.');
         if (!content?.trim() || content.length > 80000 || apiKey && content.includes(apiKey)) fail('INVALID_RESPONSE', 'Pi returned an invalid visible answer.');
         const totals = invocationUsage(finalDoc.active.requests);
-        return { content, usage: totals, ...(scope.museDraft ? { museDraftProposal: clone(finalDoc.active.museDraftProposal) } : {}), ...(scope.supplierDraft ? { supplierProposal: clone(finalDoc.active.supplierProposal) } : {}), ...(scope.agentPreset ? { agentPresetProposal: clone(finalDoc.active.agentPresetProposal), agentResearchReceipts: clone(finalDoc.active.researchReceipts || []) } : {}), runtime: { kind: 'pi-durable', version: PI_VERSION, source: PI_SOURCE, submissionId: submission.id, replayed: reattaching } };
+        return { content, usage: totals, ...(!legacy ? { agentLoopComplete: true, actionProposal: Boolean(finalDoc.active.proposal) } : {}), ...(scope.museDraft ? { museDraftProposal: clone(finalDoc.active.museDraftProposal) } : {}), ...(scope.supplierDraft ? { supplierProposal: clone(finalDoc.active.supplierProposal) } : {}), ...(scope.agentPreset ? { agentPresetProposal: clone(finalDoc.active.agentPresetProposal), agentResearchReceipts: clone(finalDoc.active.researchReceipts || []) } : {}), runtime: { kind: 'pi-durable', version: PI_VERSION, source: PI_SOURCE,
+          ...(legacy ? { execution: 'legacy-submission', submissionId: submission.id } : { execution: 'agent-prompt', nativeTaskId, modelTurns: nativeOutcome.result.turns, providerSessionId: nativeOutcome.result.sessionId }), replayed: reattaching } };
       } catch (error) {
         await abortPromise?.catch(() => {});
         if (localStop.signal.aborted || signal?.aborted) fail('CANCELLED', 'The request was stopped.');

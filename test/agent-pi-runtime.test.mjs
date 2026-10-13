@@ -54,7 +54,7 @@ test('Agent preset invokes real Pi SDK tool through the original Runtime and sto
   await until(() => f.runtime.getRun(admission.run.id).run.status === 'succeeded');
   const run = f.runtime.getRun(admission.run.id).run, saved = f.store.read().workspaceAgentTasks.tasks[0].steps[0];
   assert.equal(f.faux.state.callCount, 1);
-  assert.equal(saved.runId, run.id); assert.equal(saved.replyId, run.assistantId); assert.ok(run.piSubmissionId);
+  assert.equal(saved.runId, run.id); assert.equal(saved.replyId, run.assistantId); assert.ok(run.piNativeTaskId);
   assert.equal(f.provider.legacyPolicyCompatible, true);
   assert.equal(run.execution.permissionFingerprint, f.provider.agentPermissionFingerprint,
     'Agent document tool authority must bind V5, not inherit ordinary PR59 V4.');
@@ -79,10 +79,10 @@ test('lost response and reopened original stage request deduplicate to the same 
   assert.equal(f.faux.state.callCount, 1); assert.equal(f.store.read().runs.length, 1);
 });
 
-test('interrupted preset recovers its original Pi submission and original budget without creating a new task or stage', async t => {
+test('interrupted preset recovers its original Pi native task and original budget without creating a new task or stage', async t => {
   const f = await fixture(t, { responses: [async (_request, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }] }), task = await f.task();
   const admitted = await f.submit(task);
-  await until(() => f.runtime.getRun(admitted.run.id).run.piSubmissionId && f.faux.state.callCount === 1);
+  await until(() => f.runtime.getRun(admitted.run.id).run.piNativeTaskId && f.faux.state.callCount === 1);
   const previous = f.runtime.getRun(admitted.run.id).run;
   await f.reopen();
   assert.equal(f.runtime.getRun(previous.id).run.status, 'interrupted');
@@ -91,7 +91,7 @@ test('interrupted preset recovers its original Pi submission and original budget
   assert.equal(recovered.run.id, previous.id);
   await until(() => f.runtime.getRun(previous.id).run.status !== 'running');
   const after = f.runtime.getRun(previous.id).run;
-  assert.equal(after.status, 'succeeded', JSON.stringify(after.error)); assert.equal(after.piSubmissionId, previous.piSubmissionId);
+  assert.equal(after.status, 'succeeded', JSON.stringify(after.error)); assert.equal(after.piNativeTaskId, previous.piNativeTaskId);
   assert.equal(after.assistantId, previous.assistantId); assert.equal(after.reservedOutputTokens, previous.reservedOutputTokens);
   assert.equal(f.store.read().runs.length, 1); assert.equal(f.store.read().workspaceAgentTasks.tasks.length, 1);
 });
@@ -100,7 +100,7 @@ test('preset scope changes block recovery while previously committed stage outpu
   const f = await fixture(t, { responses: [complete(), async (_request, options) => { await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true })); return fauxAssistantMessage('', { stopReason: 'aborted' }); }] }), task = await f.task();
   const first = await f.submit(task); await until(() => f.runtime.getRun(first.run.id).run.status === 'succeeded');
   const saved = f.store.read().workspaceAgentTasks.tasks[0].steps[0].output;
-  const second = await f.submit(task, 1); await until(() => f.runtime.getRun(second.run.id).run.piSubmissionId && f.faux.state.callCount === 2);
+  const second = await f.submit(task, 1); await until(() => f.runtime.getRun(second.run.id).run.piNativeTaskId && f.faux.state.callCount === 2);
   await f.reopen();
   await f.store.update(state => { state.workspaceAgentTasks.tasks[0].input.spec = '750ml'; });
   await assert.rejects(f.runtime.recoverPiRun(second.run.id, { requestId: 'changed-stage-must-not-replay' }), { code: 'AGENT_CONTEXT_CHANGED' });
@@ -174,7 +174,7 @@ test('recovery reuses a committed Pi research receipt after the following model 
   await until(() => f.runtime.getRun(previous.id).run.status !== 'running');
   const after = f.runtime.getRun(previous.id).run;
   assert.equal(after.status, 'succeeded', JSON.stringify(after.error));
-  assert.equal(after.piSubmissionId, previous.piSubmissionId); assert.equal(reads, 1); assert.equal(f.faux.state.callCount, 3);
+  assert.equal(after.piNativeTaskId, previous.piNativeTaskId); assert.equal(reads, 1); assert.equal(f.faux.state.callCount, 3);
   assert.equal(after.agentPresetResult.researchReceipts[0].id, receipt.id);
 });
 
@@ -197,12 +197,12 @@ test('a changed server model endpoint cannot resume an admitted Pi checkpoint', 
     return fauxAssistantMessage('', { stopReason: 'aborted' });
   }] }), task = await f.task();
   const admitted = await f.submit(task);
-  await until(() => f.runtime.getRun(admitted.run.id).run.piSubmissionId && f.faux.state.callCount === 1);
+  await until(() => f.runtime.getRun(admitted.run.id).run.piNativeTaskId && f.faux.state.callCount === 1);
   const original = f.runtime.getRun(admitted.run.id).run;
   assert.equal(original.execution.endpointFingerprint, f.provider.endpointFingerprint);
   await f.reopen({ baseUrl: 'https://second.example.com/v1' });
   await assert.rejects(f.runtime.recoverPiRun(original.id, { requestId: 'different-endpoint-recovery' }), { code: 'EXECUTION_SCOPE_CHANGED' });
   assert.notEqual(original.execution.endpointFingerprint, f.provider.endpointFingerprint);
   assert.equal(f.faux.state.callCount, 1); assert.equal(f.store.read().runs.length, 1);
-  assert.equal(f.runtime.getRun(original.id).run.piSubmissionId, original.piSubmissionId);
+  assert.equal(f.runtime.getRun(original.id).run.piNativeTaskId, original.piNativeTaskId);
 });
