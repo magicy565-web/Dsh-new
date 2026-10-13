@@ -94,6 +94,9 @@ export async function createAgentCoordinator({ store, runtime, provider, project
   }
   let closing = false, scheduled = null, reconciling = false, dirty = false, pending = Promise.resolve(), lastFailure = null;
   const recoveryAttempts = new Set();
+  // Memory-only consent from the authenticated /tasks/:id/resume request.
+  // A server restart must not inherit authority to run a stopped Pi checkpoint.
+  const explicitRecoveryRequests = new Set();
   async function project(id) {
     const state = store.read(), task = tasks(state).find(item => item.id === id);
     if (task) await projection.sync(task, state.meta.sequence);
@@ -154,14 +157,27 @@ export async function createAgentCoordinator({ store, runtime, provider, project
       if (!run) { await change(id, task => stopTask(task, 'blocked', 'ORIGINAL_RUN_MISSING', '原 Pi 执行记录缺失；需恢复一致备份，不能新建替代执行。', task.steps.find(item => item.key === step.key))); return; }
       if (run.status === 'succeeded' && step.status === 'succeeded') return;
       if (run.status === 'interrupted') {
+        if (!explicitRecoveryRequests.has(run.id)) {
+          await change(id, current => stopTask(current, 'interrupted', 'AGENT_EXPLICIT_RESUME_REQUIRED',
+            '服务重启后原 Pi 检查点已保留；需要所属企业成员明确恢复原任务，不能后台自动重新调用模型。',
+            current.steps.find(item => item.key === step.key)));
+          return;
+        }
         if (recoveryAttempts.has(run.id)) return;
+        explicitRecoveryRequests.delete(run.id);
         recoveryAttempts.add(run.id);
         try {
-          await runtime.recoverPiRun(run.id, { requestId: randomUUID() });
+          // Stable for one user-approved resume attempt; never invent a new
+          // business run when the original Pi response is uncertain.
+          await runtime.recoverPiRun(run.id, { requestId: stableRequest(id, 'recover-' + task.attempt) });
           await change(id, task => event(task, 'thinking:recovery:' + run.id + ':' + (run.piRecoverRequests?.length || 0), 'thinking',
             { stage: step.key, text: '已重新连接原 Pi 执行记录与检查点，沿用相同输入、权限和预算。' }));
         } catch (error) {
-          if (['BUSY', 'CONVERSATION_BUSY'].includes(error.code)) { recoveryAttempts.delete(run.id); return; }
+          if (['BUSY', 'CONVERSATION_BUSY'].includes(error.code)) {
+            recoveryAttempts.delete(run.id);
+            explicitRecoveryRequests.add(run.id); // preserve this one explicit consent for a transient admission race
+            return;
+          }
           await change(id, task => stopTask(task, 'interrupted', error.code || 'RECOVERY_BLOCKED', '原任务恢复条件尚未满足；已保留原检查点和部分文件。核对配置、权限或外部回执后可恢复原任务。', task.steps.find(item => item.key === step.key)));
         }
         return;
@@ -266,11 +282,22 @@ export async function createAgentCoordinator({ store, runtime, provider, project
       if (!task) throw new AgentHttpError(404, '任务不存在。');
       if (active(task)) return task;
       if (!task.result?.resumable || task.legacy) throw new AgentHttpError(409, '原任务当前不能自动恢复；已有回执与失败记录保留。', { code: 'AGENT_RECOVERY_BLOCKED' });
-      await change(id, current => {
-        current.status = 'queued'; current.finishedAt = null; current.attempt++;
-        current.result = result(current, 'recovering', { resumeFrom: current.events.length });
-        for (const step of current.steps) if (step.runId) recoveryAttempts.delete(step.runId);
-      });
+      // Only the current unfinished interrupted Pi run may be reattached.
+      // The permit lives in this process, not in Store or a second queue.
+      const unfinished = task.steps.find(step => step.status !== 'succeeded');
+      const originalRun = unfinished?.runId && store.read().runs.find(run => run.id === unfinished.runId);
+      const approvedRunId = originalRun?.status === 'interrupted' ? originalRun.id : null;
+      if (approvedRunId) explicitRecoveryRequests.add(approvedRunId);
+      try {
+        await change(id, current => {
+          current.status = 'queued'; current.finishedAt = null; current.attempt++;
+          current.result = result(current, 'recovering', { resumeFrom: current.events.length });
+          for (const step of current.steps) if (step.runId) recoveryAttempts.delete(step.runId);
+        });
+      } catch (error) {
+        if (approvedRunId) explicitRecoveryRequests.delete(approvedRunId);
+        throw error;
+      }
       wake(); return this.find(id, actor);
     },
     async close() {
