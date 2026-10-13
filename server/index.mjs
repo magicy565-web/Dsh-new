@@ -166,8 +166,11 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const projectionDirectory = path.resolve(dataDirectory, 'agent');
       if ([agentEnvironment.WS_AGENT_DATA, agentConfig?.dataDir].filter(Boolean).some(directory => path.resolve(directory) !== projectionDirectory))
         throw new Error('Agent projection must remain under the original Workspace data root.');
+      // Prevent a Dot/Muse/sourcing Worker credential from becoming an
+      // enterprise Agent submit credential through accidental digest reuse.
       builtinAgent = await createAgentService({ env: agentEnvironment, ...(agentConfig || {}), dataDir: projectionDirectory,
-        workspaceStore: store, runtime, provider, access });
+        workspaceStore: store, runtime, provider, access,
+        reservedTokenDigests: [...workerDigests, ...sourcingDigests] });
     }
   } catch (error) { await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
