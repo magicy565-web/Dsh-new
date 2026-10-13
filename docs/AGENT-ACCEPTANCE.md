@@ -35,6 +35,12 @@
 - **CI 是更早的跨分支阻断**：2026-10-09 的 `main` [运行 37965153325](https://github.com/magicy565-web/workspace-agent/actions/runs/37965153325)、PR59 的 `32c8ce9` [运行 38328913909](https://github.com/magicy565-web/workspace-agent/actions/runs/38328913909)、PR60 的最新提交均报告 `path=BuildFailed`、`conclusion=startup_failure`；已查询 PR60 运行的作业列表，**0 jobs**。实际失败发生在测试执行前；不能归因于本轮源码，也不能判断仓库 Actions 设置、计费、策略或 GitHub 平台的具体根因。
 - 具备仓库管理权限的维护者需在 GitHub Actions 页面检查报错横幅、工作流有效性、组织/仓库 Actions 权限、Runner 和计费状态。只有出现真正的 job 执行回执后，才可按下述命令与原始 logs 记录新的结果；不要将 `startup_failure` 标为测试失败或测试通过。
 
+## 当前 HEAD 的额外安全回归（仍未完成 Node 24 验收）
+
+- `test/agent-pi-service.http.test.mjs` 现在要求原 `retry`、`resume`、`action-decision`、普通 `messages`、`createGoal`、`reset-session`、`PATCH input-context` 和 `DELETE conversation` 在受保护的 Agent Pi 执行上下文里拒绝，不增加 Run/模型调用。
+- 新增“孤儿 Pi Run”回归：原任务 registry 丢失，但 `runs[].agentTaskId` 仍在时，原会话不得成为普通 chat 或 Goal。包括模拟历史已存在的 Goal 被错误指向 Agent 会话时，其 `action=start` 不得启动模型；已存在的原 Pi Run 和历史 messages 必须保留。
+- 对当前 GitHub 源码的 `agentConversation` 执行 5 种 V8 合成场景：正常 Agent 任务、孤儿 `agentTaskId`、孤儿 `agentPresetContext`、普通 Pi 会话、无关会话，**5/5 与预期相符**。对 `updateGoal` 源码的隔离调用验证：孤儿 Agent 会话在输入预检前返回 `AGENT_TASK_ROUTE_REQUIRED`，普通 Goal 则继续走原有输入预检。以上不代表任何 Node24/HTTP/SDK 测试通过。
+
 ## 下一次真实测试必须运行
 
 从 PR60 最新固定提交（不是 PR47 或 PR59 的旧源码包）在具备 Node 24 / Python 的授权工作区执行：
