@@ -115,7 +115,7 @@ test('completed business outbox rebuilds its SQLite read projection and download
   assert.equal((await f.api(API + '/tasks/' + id)).json.status, 'done'); assert.equal(f.faux.state.callCount, 4);
 });
 
-test('restart reattaches original Pi run while keeping a completed inquiry file and ordered historical events', async t => {
+test('restart pauses without model replay until explicit resume reattaches the original Pi run and inquiry file', async t => {
   const f = await fixture(t, { responses: [complete(), complete(), interruptedResponse()] });
   const submitted = await f.submit(), id = submitted.json.taskId;
   await until(() => f.task(id)?.steps[2].runId && f.faux.state.callCount === 3 && f.app.runtime.getRun(f.task(id).steps[2].runId).run.piSubmissionId);
@@ -124,6 +124,18 @@ test('restart reattaches original Pi run while keeping a completed inquiry file 
   const history = (await f.api(API + '/tasks/' + id + '/events?format=json')).json;
   f.faux.setResponses([complete(), complete()]);
   await f.restart();
+  await until(() => f.task(id)?.status === 'interrupted', 'explicitly paused Agent task');
+  const paused = await f.api(API + '/tasks/' + id);
+  assert.equal(paused.status, 200);
+  assert.equal(paused.json.result.resumable, true);
+  assert.equal(f.app.runtime.getRun(beforeRun.id).run.status, 'interrupted');
+  assert.equal(f.app.runtime.getRun(beforeRun.id).run.piSubmissionId, beforeRun.piSubmissionId);
+  await delay(60);
+  assert.equal(f.faux.state.callCount, 3, 'A Host restart may not silently re-call the model.');
+  assert.equal(f.app.store.read().runs.length, 3, 'No substitute run may be created by restart.');
+  const authorized = await f.api(API + '/tasks/' + id + '/resume', { method: 'POST', body: {} });
+  assert.equal(authorized.status, 200, authorized.text);
+  assert.equal(authorized.json.taskId, id, 'Explicit recovery must retain the original business task.');
   const done = await f.terminal(id); assert.equal(done.json.status, 'done', JSON.stringify(done.json));
   const afterRun = f.app.runtime.getRun(beforeRun.id).run;
   assert.equal(afterRun.id, beforeRun.id); assert.equal(afterRun.piSubmissionId, beforeRun.piSubmissionId); assert.equal(afterRun.assistantId, beforeRun.assistantId);
@@ -132,6 +144,8 @@ test('restart reattaches original Pi run while keeping a completed inquiry file 
   const events = (await f.api(API + '/tasks/' + id + '/events?format=json')).json;
   assert.deepEqual(events.slice(0, history.length), history); assert.equal(events.at(-1).kind, 'done');
   assert.ok(events.some(item => item.kind === 'thinking' && /检查点/.test(item.payload.text)));
+  assert.ok(events.some(item => item.kind === 'error' && item.payload.result?.reason === 'AGENT_EXPLICIT_RESUME_REQUIRED'),
+    'The original historical stream must show why automatic recovery was withheld.');
 });
 
 test('missing production model stays unconfigured, explicit demo stays visibly separate, same task can resume after configuration', async t => {
