@@ -20,7 +20,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check) { for (let i = 0; i < 500; i++) { if (await check()) return; await delay(5); } throw new Error('Native Agent fixture did not settle.'); }
 async function fixture(t, responses = [], providerOptions = {}) {
   const directory = await fs.mkdtemp('/tmp/workspace-native-agent-');
-  const faux = fauxProvider(); faux.setResponses(responses);
+  const faux = fauxProvider({ api: 'faux' }); faux.setResponses(responses);
   const models = createModels(); models.setProvider(faux.provider);
   const app = await createApp({ dataDirectory: directory, provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1', ...providerOptions }) });
   t.after(async () => { await app.close(); await fs.rm(directory, { recursive: true, force: true }); });
@@ -155,10 +155,11 @@ test('actual SIGKILL after a completed owned ToolTask resumes Agent.prompt with 
   }
   const before = await inspect();
   assert.equal(before.doc.active.requests.length, 2); assert.equal(before.doc.active.requests[1].usage, null);
+  assert.ok(before.doc.active.requests[0].usage?.completionTokens > 0, 'The explicitly pinned faux transport must durably settle its first confirmed counter.');
   assert.equal(before.tools.length, 1); assert.equal(before.tools[0].kind, 'pi.tool'); assert.equal(before.tools[0].state.outcome.status, 'completed');
   assert.equal(before.tools[0].owner, ready.nativeTaskId);
   const originalReceipt = before.tools[0].state.outcome.result.entryId;
-  const faux = fauxProvider(), models = createModels(); models.setProvider(faux.provider);
+  const faux = fauxProvider({ api: 'faux' }), models = createModels(); models.setProvider(faux.provider);
   const consumed = before.doc.active.requests[0].usage.completionTokens + ready.interruptedCeiling;
   faux.setResponses([(request, options) => {
     assert.equal(options.sessionId, ready.sessionId); assert.equal(options.maxTokens, Math.floor((1600 - consumed) / 2));
@@ -196,7 +197,7 @@ test('actual pre-upgrade Harness submission recovers through its legacy path wit
     child.once('exit', () => { clearTimeout(timeout); reject(new Error('Legacy crash child exited: ' + stderr)); });
   });
   child.kill('SIGKILL'); assert.equal((await exited)[1], 'SIGKILL');
-  const faux = fauxProvider(), models = createModels(); models.setProvider(faux.provider);
+  const faux = fauxProvider({ api: 'faux' }), models = createModels(); models.setProvider(faux.provider);
   app = await createApp({ dataDirectory: directory, provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1' }) });
   assert.equal(app.runtime.getRun(ready.runId).run.status, 'interrupted');
   await app.runtime.recoverPiRun(ready.runId, { requestId: 'explicit-legacy-upgrade-recovery' });
@@ -224,8 +225,14 @@ test('actual SIGKILL after native accounting reuses the same pending chat/Goal r
       child.once('exit', () => { clearTimeout(timeout); reject(new Error('Accounting crash child exited: ' + stderr)); });
     });
     child.kill('SIGKILL'); assert.equal((await exited)[1], 'SIGKILL');
-    assert.equal(ready.stepCount, 1); if (mode.endsWith('-unknown')) assert.equal(ready.outputTokens, 1600);
-    const faux = fauxProvider(mode.endsWith('-unknown') ? { api: 'faux-unknown-wire' } : {}), models = createModels(); models.setProvider(faux.provider);
+    assert.equal(ready.stepCount, 1);
+    if (mode.endsWith('-unknown')) {
+      assert.equal(ready.outputTokens, 1600); assert.equal(ready.usage.completionTokens, null);
+    } else {
+      assert.ok(ready.usage.completionTokens > 0, 'Measured fixtures must carry confirmed faux counters before the accounting crash.');
+      assert.equal(ready.outputTokens, ready.usage.completionTokens);
+    }
+    const faux = fauxProvider(mode.endsWith('-unknown') ? { api: 'faux-unknown-wire' } : { api: 'faux' }), models = createModels(); models.setProvider(faux.provider);
     app = await createApp({ dataDirectory: directory, provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1' }) });
     const before = app.runtime.getRun(ready.runId).run;
     assert.equal(before.status, 'interrupted'); assert.equal(before.piNativeTaskId, ready.nativeTaskId);

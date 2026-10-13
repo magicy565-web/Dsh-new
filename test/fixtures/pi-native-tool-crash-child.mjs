@@ -5,7 +5,7 @@ import { createPiProvider } from '../../server/pi-provider.mjs';
 import { createApp } from '../../server/index.mjs';
 
 const [directory] = process.argv.slice(2);
-const faux = fauxProvider(), models = createModels(); models.setProvider(faux.provider);
+const faux = fauxProvider({ api: 'faux' }), models = createModels(); models.setProvider(faux.provider);
 const app = await createApp({ dataDirectory: directory, provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1' }) });
 const artifact = (await app.artifacts.create({ filename: 'crash-selected.txt', content: 'Original selected crash bytes', mimeType: 'text/plain' })).artifact;
 const conversation = (await app.runtime.createConversation({})).conversation;

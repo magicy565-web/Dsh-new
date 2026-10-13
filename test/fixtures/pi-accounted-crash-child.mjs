@@ -10,7 +10,7 @@ import { buildAgentPresetContext } from '../../server/agent/pi-preset.mjs';
 
 const [directory, mode] = process.argv.slice(2);
 const unknown = mode.endsWith('-unknown'), kind = mode.startsWith('goal') ? 'goal' : 'chat';
-const faux = fauxProvider(unknown ? { api: 'faux-unknown-wire' } : {}), models = createModels(); models.setProvider(faux.provider);
+const faux = fauxProvider(unknown ? { api: 'faux-unknown-wire' } : { api: 'faux' }), models = createModels(); models.setProvider(faux.provider);
 const provider = createPiProvider({ models, providerId: 'faux', model: 'faux-1' });
 const app = await createApp({ dataDirectory: directory, provider });
 const update = app.store.update.bind(app.store);
