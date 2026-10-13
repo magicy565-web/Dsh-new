@@ -93,8 +93,9 @@ class AgentProjection {
         } else this.db.prepare('INSERT INTO agent_event_projection VALUES(?,?,?,?,?)').run(task.id, seq, kind, JSON.stringify(payload), ts);
       }
       for (const file of task.deliverables) {
-        const previous = this.db.prepare('SELECT sha256 FROM agent_artifact_projection WHERE task_id=? AND name=?').get(task.id, file.name);
-        if (previous && previous.sha256 !== file.sha256) throw new Error('An artifact version cannot be overwritten.');
+        const previous = this.db.prepare('SELECT sha256,bytes,url FROM agent_artifact_projection WHERE task_id=? AND name=?').get(task.id, file.name);
+        if (previous && (previous.sha256 !== file.sha256 || previous.bytes !== file.bytes || previous.url !== file.url))
+          throw new Error('Published Agent artifact metadata cannot change; restore the original business authority.');
         this.db.prepare('INSERT OR IGNORE INTO agent_artifact_projection VALUES(?,?,?,?,?)').run(task.id, file.name, file.bytes, file.sha256, file.url);
       }
     });
