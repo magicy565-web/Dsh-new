@@ -60,7 +60,13 @@ class AgentProjection {
   }
   async _sync(task, authoritySequence) {
     if (this.closed || !taskIdValid(task.id)) throw new Error('Invalid projection task.');
-    const signature = JSON.stringify([task.events.length, task.status, task.finishedAt, task.result, task.deliverables.map(x => x.sha256)]);
+    // The view exposes the original conversation and Pi run IDs. Update it
+    // even when no new public event/status was emitted during host admission.
+    const signature = JSON.stringify([
+      task.events.length, task.status, task.finishedAt, task.result, task.summary || null,
+      task.conversationId || null, task.steps.map(step => step.runId || null),
+      task.deliverables.map(item => [item.name, item.sha256, item.url]),
+    ]);
     if (this.last.get(task.id) === signature) return;
     // Materialize every file before making its already durable outbox event readable.
     for (const artifact of task.deliverables) await this.materialize(task.id, artifact);
