@@ -200,10 +200,17 @@ test('orphaned Agent Pi runs keep their conversation closed to ordinary chat/Goa
   const before = f.app.store.read();
   assert.equal(before.runs.length, 4);
   assert.ok(before.runs.some(run => run.conversationId === conversationId && run.agentTaskId === originalTask.id));
-
+  // A Goal from an older snapshot might already exist before the Agent
+  // conversation is rebound. Admission must never use that stale route.
+  const separateGoal = (await f.app.runtime.createGoal({
+    title: 'Historical stale Goal', description: '', maxSteps: 1, maxOutputTokens: 1600,
+  })).goal;
   // Simulate a historical inconsistent backup. A missing business registry
   // must not silently recast an original Agent Pi run as ordinary chat.
-  await f.app.store.update(state => { state.workspaceAgentTasks.tasks = []; });
+  await f.app.store.update(state => {
+    state.workspaceAgentTasks.tasks = [];
+    state.goals.find(goal => goal.id === separateGoal.id).conversationId = conversationId;
+  });
   const originalRuns = f.app.store.read().runs.map(run => run.id);
   const messageCount = f.app.store.read().messages.length;
   await assert.rejects(f.app.runtime.sendMessage(conversationId, {
@@ -212,6 +219,9 @@ test('orphaned Agent Pi runs keep their conversation closed to ordinary chat/Goa
   await assert.rejects(f.app.runtime.createGoal({
     title: 'Unauthorized ordinary Goal', description: '', maxSteps: 1, maxOutputTokens: 1600,
     conversationId,
+  }), { code: 'AGENT_TASK_ROUTE_REQUIRED' });
+  await assert.rejects(f.app.runtime.updateGoal(separateGoal.id, {
+    action: 'start', requestId: 'historical-goal-start-must-not-submit',
   }), { code: 'AGENT_TASK_ROUTE_REQUIRED' });
   await assert.rejects(f.app.runtime.resetSession(conversationId), { code: 'AGENT_TASK_ROUTE_REQUIRED' });
   await assert.rejects(f.app.runtime.updateConversationInputContext(conversationId, { inputContext: {} }),
