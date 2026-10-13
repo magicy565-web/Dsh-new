@@ -12,6 +12,8 @@ The PR59 versions of the single `server/index.mjs` 8787 host, existing enterpris
 
 PR47's `/api/agent/v1` is a **thin transport and document-preset adapter**: accepts existing-member scoped credentials, submits the original Runtime runs, uses Workspace Store for business tasks and original Pi checkpoints for execution, and uses SQLite/files only as a reconstructible SSE/artifact view. The three preset types and Python client are copied from PR47, not recreated.
 
+The original Dot, Muse and procurement Worker token SHA-256 values are reserved. New Agent member Bearer bindings using any of those existing digests are rejected at startup. This uses the original host's scope configuration and does not create another login or grant system.
+
 Shared files are integrated selectively:
 - `server/runtime.mjs`: PR47's Agent preset context/proposal and resume checks, already including the original supplier context.
 - `server/pi-provider.mjs`: PR47's source-checked preset/research Pi tools **plus the newer PR59 supplier revision/cancellation check**. Normal supplier, Muse and ordinary Pi tools are retained.
