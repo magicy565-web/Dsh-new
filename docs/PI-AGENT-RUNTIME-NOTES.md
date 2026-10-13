@@ -35,7 +35,7 @@
 
 本次发现并修复 `server/agent/engine.mjs` 的一个真实风险：原协调器在 Store 启动时遇到中断 Pi run，会直接调用 `runtime.recoverPiRun()`，从而在用户未发出当次恢复指令前产生模型调用。现已改为：启动只投影历史并将任务标记为 `interrupted`、`resumable`，以 `AGENT_EXPLICIT_RESUME_REQUIRED` 解释原因；只有该任务既有成员明确调用已鉴权的 `POST /api/agent/v1/tasks/{id}/resume`，协调器才为该原 run 开通本进程一次性恢复许可，使用稳定本次 requestId 接续原 Pi submission。
 
-许可不写入第二个队列，也不作为持久授权跨重启生效。若再次断线或服务重启，需要再次显式授权；旧 event seq 和部分工件只追加不改写。针对实际 Agent 协调器源码，以注入合成原 Store/Scheduler 的 V8 隔离验证了重启无模型恢复 (0 次)、明确恢复一次 (1 次) 且 runId/piSubmissionId 不变。完整 Node24/SQLite/HTTP、真实外部模型和生产测试仍未进行，必须独立验收。
+许可不写入第二个队列，也不作为持久授权跨重启生效。若再次断线或服务重启，需要再次显式授权；旧 event seq 和部分工件只追加不改写。对重复或并发 `/resume`，原 Workspace Store 事务进行重新读取与单次 attempt admission，再发放仅本进程有效的原 run 恢复许可，避免一次网络重试被记成两次恢复尝试。针对实际 Agent 协调器源码，以注入合成原 Store/Scheduler 的 V8 隔离验证了重启无模型恢复 (0 次)、明确恢复一次 (1 次) 且 runId/piSubmissionId 不变。完整 Node24/SQLite/HTTP、真实外部模型和生产测试仍未进行，必须独立验收。
 
 ## 当前核对边界
 
