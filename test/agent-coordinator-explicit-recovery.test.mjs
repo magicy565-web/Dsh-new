@@ -94,8 +94,11 @@ test('restarted Agent never reattaches Pi autonomously; explicit member resume r
   await assert.rejects(coordinator.resume(task.id, { ...actor, subject: 'different-member' }),
     { status: 404 });
   assert.equal(recoveryCalls, 0);
-  const resumed = await coordinator.resume(task.id, actor);
+  const [resumed, repeated] = await Promise.all([
+    coordinator.resume(task.id, actor), coordinator.resume(task.id, actor),
+  ]);
   assert.equal(resumed.id, task.id);
+  assert.equal(repeated.id, task.id);
   await until(() => recoveryCalls === 1, 'one explicitly admitted resume');
   current = store.read().workspaceAgentTasks.tasks[0];
   assert.equal(store.read().runs.length, 1);
