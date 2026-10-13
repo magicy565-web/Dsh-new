@@ -165,7 +165,7 @@ sudo systemctl start workspace-agent
 
 恢复到新私有目录，核对原 Workspace、Pi、事件、文件和账号映射一致，再设置同一个 WORKSPACE_DATA_DIR、启动一个 writer。不能单独回滚 SQLite，或拼接不同时间的 workspace.json/Pi checkpoint；未确认原进程退出不能删除锁。
 
-原任务可查询恢复：同主体相同 Idempotency-Key/内容返回原任务；响应丢失后 GET /api/agent/v1/tasks/by-request/{key} 找回。POST /api/agent/v1/tasks/{id}/resume 用空对象恢复原任务，原执行范围、预算和 Pi checkpoint 决定可恢复性，不能借恢复改输入。历史事件和部分产物可读；发布等副作用按原外部回执核对，不由 Pi 自动重做。
+原任务可查询恢复：同主体相同 Idempotency-Key/内容返回原任务；响应丢失后 GET /api/agent/v1/tasks/by-request/{key} 找回。服务重启不会自动调用中断 Pi checkpoint：只保留原任务、事件与部分文件，并标记为需要用户显式恢复。所属企业成员明确调用 POST /api/agent/v1/tasks/{id}/resume（空 JSON 对象）时，原 Store 原子地只接纳一次恢复尝试，原执行范围、预算及 Pi checkpoint 决定是否真的允许恢复；再次重启仍需要再次授权，不能借恢复改输入。历史事件和部分产物可读；发布等副作用按原外部回执核对，不由 Pi 自动重做。
 
 旧 PR44 数据与失败验收继续保留。旧 agent/ 数据只在明确 legacyAccountId 成员映射后关联；旧终态记录保留 legacy_unverified；旧 queued/running 保留原记录并标记 interrupted，原因 LEGACY_CHECKPOINT_UNAVAILABLE，resumable=false，不冒充拥有 Pi checkpoint 或原生续跑。独立旧目录先只读备份，管理员核对归属与迁移位置，不能覆盖原 Workspace 记录。
 
