@@ -65,7 +65,8 @@ const viewer = { subject: 'offline-viewer', nativeAgentId: 'viewer-session' };
 const original = { id: actor.nativeAgentId, ...actor };
 const origin = 'https://native-bootstrap.test';
 
-async function fixture(t, { conversations = [original], nativeEnabled = true, subject = actor.subject } = {}) {
+async function fixture(t, { conversations = [original], nativeEnabled = true, subject = actor.subject, boundActor = actor } = {}) {
+  const actor = boundActor;
   const directory = await mkdtemp('/tmp/workspace-native-bootstrap-');
   const context = new AsyncLocalStorage();
   let epoch = 1, paused = false, businessWrites = 0;
@@ -87,7 +88,7 @@ async function fixture(t, { conversations = [original], nativeEnabled = true, su
     publicKey: pair.publicKey.export({ type: 'spki', format: 'pem' }), members: [
       { subject: actor.subject, role: 'admin' }, { subject: other.subject, role: 'admin' }, { subject: viewer.subject, role: 'viewer' }] };
   const projection = { ...state, runtime: {}, diagnostics: { blockers: [] }, capabilities: {} };
-  const muse = { enabled: true, ...bindService(binding) };
+  const muse = { enabled: true, ...bindService(binding), bindConversation: binding.bindConversation };
   const service = { muse, bindActor: () => ({}), bindNativeResults() {
     throw Object.assign(Error('Explicit absent Harness result fixture'), { code: 'WORKSPACE_NATIVE_RESULT_BINDING_REQUIRED' });
   }, bindFrontend: () => ({ snapshot: async () => structuredClone(projection) }) };
@@ -166,4 +167,46 @@ test('old overlay bootstrap fails closed across missing forwarding and binding c
   assert.equal(closed.status, 503); assert.equal(closed.body.error.code, 'MW_GATEWAY_CLOSED');
   assert.throws(() => bindService(null).readBinding(actor), { code: 'MW_GATEWAY_UNAVAILABLE' });
   assert.equal(f.writes(), 0);
+});
+
+
+test('Pi list keeps encoded original native conversation identifiers through old overlay routes (offline)', async t => {
+  for (const nativeAgentId of ['original:tui/conversation', 'original@session']) {
+    const boundActor = { ...actor, nativeAgentId };
+    const f = await fixture(t, { boundActor, conversations: [{ id: nativeAgentId, ...boundActor }] });
+    assert.equal((await f.client.connect()).conversationId, nativeAgentId);
+    assert.deepEqual(await f.client.list(), { delegations: [] });
+    assert.equal(f.writes(), 0);
+  }
+});
+
+
+test('old overlay decodes conversation segments once and retains original ownership denials (offline)', async t => {
+  const boundActor = { ...actor, nativeAgentId: 'original:tui/conversation' };
+  const f = await fixture(t, { boundActor, conversations: [{ id: boundActor.nativeAgentId, ...boundActor }] });
+  const encoded = encodeURIComponent(boundActor.nativeAgentId);
+  for (const segment of ['%GG', '%E0%A4%A']) {
+    const response = await f.api(`/api/conversations/${segment}/muse-delegations`);
+    assert.equal(response.status, 400); assert.equal(response.body.error.code, 'INVALID_PATH');
+    const message = await f.api(`/api/conversations/${segment}/messages`, { method: 'POST', body: { provider: 'muse' } });
+    assert.equal(message.status, 400); assert.equal(message.body.error.code, 'INVALID_PATH');
+  }
+  for (const segment of [encodeURIComponent(encoded), encodeURIComponent(other.nativeAgentId)]) {
+    const response = await f.api(`/api/conversations/${segment}/muse-delegations`);
+    assert.equal(response.status, 409); assert.equal(response.body.error.code, 'WORKSPACE_PLUGIN_OWNER');
+  }
+  for (const as of [viewer.subject, other.subject]) {
+    const response = await f.api(`/api/conversations/${encoded}/muse-delegations`, { as });
+    assert.ok(response.status >= 400); assert.equal(response.body.delegations, undefined);
+  }
+  // Route-only mutation probe: reach the original owned binding, then stop
+  // before preparation. This does not claim actual queue or model execution.
+  let prepareCalls = 0;
+  f.muse.bindConversation = owner => {
+    assert.deepEqual(owner, boundActor);
+    return { prepare() { prepareCalls++; throw new MuseWorkerError(409, 'OFFLINE_PREPARE_REACHED', 'Offline route probe; no execution'); } };
+  };
+  const message = await f.api(`/api/conversations/${encoded}/messages`, { method: 'POST', body: { provider: 'muse' } });
+  assert.equal(message.status, 409); assert.equal(message.body.error.code, 'OFFLINE_PREPARE_REACHED');
+  assert.equal(prepareCalls, 1); assert.equal(f.writes(), 0);
 });

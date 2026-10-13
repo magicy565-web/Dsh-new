@@ -40,6 +40,10 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
     if (matches.length !== 1) pluginFail('WORKSPACE_PLUGIN_OWNER', 'This frontend identity has no unique native Agent binding.');
     return matches[0];
   }
+  function decodeConversationId(segment) {
+    try { return decodeURIComponent(segment); }
+    catch { throw new ApiError(400, 'INVALID_PATH', 'Invalid conversation identifier encoding.'); }
+  }
   function resultHandle(actor) {
     try { return service.bindNativeResults(actor); }
     catch (error) { if (error.code === 'WORKSPACE_NATIVE_RESULT_BINDING_REQUIRED') return null; throw error; }
@@ -110,7 +114,7 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
       if (museConversation) {
         if (!service.muse?.enabled) throw new MuseWorkerError(409, 'MW_GATEWAY_UNAVAILABLE', 'Use the existing reviewed Muse binding on this original Host.');
         if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Only the reviewed owner may authorize or accept Muse work.');
-        if (museConversation[1] !== actor.nativeAgentId) pluginFail('WORKSPACE_PLUGIN_OWNER', 'Use the original owned business conversation.');
+        if (decodeConversationId(museConversation[1]) !== actor.nativeAgentId) pluginFail('WORKSPACE_PLUGIN_OWNER', 'Use the original owned business conversation.');
         const delegation = service.muse.bindConversation(actor);
         if (req.method === 'GET') return await respond(res, 200, museConversation[2] ? { delegation: await delegation.get(museConversation[2]) } : { delegations: await delegation.list() });
         if (req.method === 'POST') {
@@ -125,11 +129,11 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
         const body = await readBody(req); access.verifyBody(context, req.bodyBytes);
         if (body.provider === 'muse') {
           if (!service.muse?.enabled) throw new MuseWorkerError(409, 'MW_GATEWAY_UNAVAILABLE', 'Use the existing reviewed Muse binding on this original Host.');
-          if (context.role !== 'admin' || museMessage[1] !== actor.nativeAgentId) throw new ApiError(403, 'ROLE_REQUIRED', 'Use the original reviewed Muse owner and conversation.');
+          if (context.role !== 'admin' || decodeConversationId(museMessage[1]) !== actor.nativeAgentId) throw new ApiError(403, 'ROLE_REQUIRED', 'Use the original reviewed Muse owner and conversation.');
           return await respond(res, 201, await service.muse.bindConversation(actor).prepare(body));
         }
         if (!dotHost) throw new ApiError(409, 'NATIVE_PROVIDER_REQUIRED', 'Select an available original execution provider explicitly.');
-        if (museMessage[1] !== actor.nativeAgentId) pluginFail('WORKSPACE_PLUGIN_OWNER', 'Use the original owned conversation.');
+        if (decodeConversationId(museMessage[1]) !== actor.nativeAgentId) pluginFail('WORKSPACE_PLUGIN_OWNER', 'Use the original owned conversation.');
         return await respond(res, 200, { task: await dotHost.submitQuestion(actor, body) });
       }
       if (/^\/api\/(?:worker-services|worker-orders|worker-opportunities|muse-workers)(?:\/|$)/.test(pathname)) {
