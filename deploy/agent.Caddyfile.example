@@ -1,0 +1,15 @@
+workspace.cnsubscribe.xyz {
+    # Merge with the existing reviewed employee-authentication and signing
+    # ingress. A plain reverse proxy cannot supply enterprise identity.
+    # Retain its original per-request X-Workspace-Assertion adapter for the
+    # UI/private API and its header stripping before signing. Do not invent
+    # X-User/X-Email trust. Existing Bearer service routes retain their auth.
+    # All routes, including Agent and original Muse/Dot, use this one process.
+    reverse_proxy 127.0.0.1:8787 {
+        flush_interval -1
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    # No access-log directive: Authorization and request bodies are not logged.
+}

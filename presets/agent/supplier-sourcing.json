@@ -1,0 +1,288 @@
+{
+  "id": "supplier-sourcing",
+  "name": "供应商寻找",
+  "description": "整理寻找渠道、候选证据清单与核验分层；未连接外部检索源时明确给出检索计划和资料缺口。",
+  "required_inputs": [
+    "product",
+    "spec"
+  ],
+  "optional_inputs": [
+    "quantity",
+    "target_price",
+    "market",
+    "channels"
+  ],
+  "input_labels": {
+    "product": "目标产品",
+    "spec": "必要规格",
+    "quantity": "计划采购数量",
+    "target_price": "目标价格原文",
+    "market": "目标市场",
+    "channels": "用户指定渠道"
+  },
+  "system_prompt": "你负责企业采购与研究文书。只依据用户提交的条件和证据给出缺口分析、问题与条件式建议。没有外部检索或联系工具，不得声称已检索、联系、回收或核验。不得编造供应商、链接、数字或认证结果。金额保留用户原文，币种与 EXW/FOB 未提供时写待确认；不能把目标价当供应商报价，平台展示价不能当成交价。不代发询价、不联系供应商、不下单、不付款、不对外承诺数量与价格；外部动作均需用户确认后执行。合规只给风险提示，不给法律结论。输出可交付的分析与建议，不输出内部思维链。",
+  "business_redlines": [
+    "仅研究、整理与文书产物；不执行联系、询价发送、下单、付款或对外承诺。",
+    "外部动作均需用户确认后执行。",
+    "无来源数字和供应商信息写待确认；缺报价写待回收。",
+    "币种与 EXW/FOB 贸易口径分别列示，不擅自补全、不强行折算。",
+    "平台展示价不能作为成交价；关键数据须交叉核验。",
+    "合规内容仅提示风险，不给法律结论。"
+  ],
+  "evidence_tables": {
+    "candidates": {
+      "input": "candidates",
+      "columns": [
+        {
+          "key": "name",
+          "label": "候选名称",
+          "aliases": [
+            "supplier",
+            "supplier_name",
+            "名称",
+            "供应商"
+          ]
+        },
+        {
+          "key": "url",
+          "label": "链接",
+          "aliases": [
+            "source_url",
+            "link",
+            "链接"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "match",
+          "label": "主营匹配线索（未核验）",
+          "aliases": [
+            "fit",
+            "main_products",
+            "主营",
+            "匹配度"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "moq",
+          "label": "MOQ",
+          "aliases": [
+            "MOQ",
+            "起订量"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "quote_basis",
+          "label": "报价原文（非成交价）",
+          "aliases": [
+            "price",
+            "quote",
+            "报价口径",
+            "报价"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "currency",
+          "label": "币种",
+          "aliases": [
+            "币种"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "trade_term",
+          "label": "EXW/FOB 等贸易口径",
+          "aliases": [
+            "basis",
+            "incoterm",
+            "incoterms",
+            "贸易口径",
+            "贸易术语"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "source",
+          "label": "证据来源",
+          "aliases": [
+            "evidence",
+            "证据",
+            "来源"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "verification",
+          "label": "核验分层",
+          "aliases": [],
+          "constant": "C 仅线索（用户材料，未独立核验）"
+        }
+      ],
+      "empty_label": "待确认（尚无可核对候选）",
+      "empty_note": "未接真实外部检索源，未执行渠道搜索；当前没有可溯源的供应商候选，不提供虚构名称、链接、MOQ 或报价。",
+      "comparison_keys": [
+        "currency",
+        "trade_term"
+      ]
+    }
+  },
+  "stages": [
+    {
+      "key": "requirements",
+      "title": "需求解析",
+      "thinking": [
+        "正在读取目标产品、规格和用户指定的渠道条件。",
+        "供应商筛选条件与待补充字段已整理。"
+      ],
+      "prompt": "提取供应商必须满足的能力和资料缺口，区分硬性条件与可谈判条件，不擅自增加认证、数量或价格承诺。",
+      "output_template": "## 需求解析\n\n{{facts}}\n\n先核对主营产品、核心工艺、规格适配、计划数量和目标市场材料；未明确的条件保持待确认，不据此虚构候选。\n\n{{analysis}}",
+      "fallback_output": "建议先确认不可妥协的规格与可接受的替代方案，再确定候选筛选条件。"
+    },
+    {
+      "key": "channel_search",
+      "title": "渠道检索",
+      "thinking": [
+        "正在根据用户渠道条件编写可执行的检索与证据采集清单。",
+        "渠道检索计划已形成；本服务尚未执行外部渠道搜索。"
+      ],
+      "prompt": "生成适合当前产品的检索问题、筛选条件与证据采集建议。当前没有检索工具，必须明确这是检索计划，不是检索结果；不得从模型记忆给供应商名称或网址。",
+      "output_template": "## 渠道检索计划与覆盖范围\n\n用户指定渠道：{{input.channels}}。\n\n**执行状态：未执行外部检索，未连接可核验的真实检索数据源。** 以下为待执行计划，不代表已找到供应商。\n\n- 将产品、规格、工艺与供货条件组合为查询条件；渠道未指定时由用户确认。\n- 后续对供应商官网、公开目录、展会资料或用户已有线索逐项记录原始链接、访问时间与相关证据。\n- 分开记录平台展示信息和正式书面报价，平台展示价不视为成交价。\n- 本轮未覆盖：所有需要实际访问的外部渠道；候选及关键字段待确认。\n\n{{analysis}}",
+      "fallback_output": "建议用户先确认允许研究的渠道及筛选口径，再采集可追溯的候选资料；本次没有执行搜索或联系任何供应商。"
+    },
+    {
+      "key": "verification",
+      "title": "候选核验与分层",
+      "thinking": [
+        "正在整理已有候选材料，并检查每个字段是否有来源。",
+        "候选清单、核验分层规则与询价优先序的阶段内容已整理完成。"
+      ],
+      "prompt": "依据输入候选资料指出仍需核验的字段。没有独立访问或核验证据不能评为 A；不得把用户声称已核验的层级当作本服务的核验结果。没有候选就给检查规则和待确认清单。",
+      "output_template": "## 候选清单与核验分层\n\n{{tables.candidates}}\n\n### 分层规则\n\n- **A 已核验**：主体、主营匹配、核心供货条件与来源证据经实际核对且可复查。当前服务没有完成这种核验，不授予 A。\n- **B 部分核验**：部分关键项已实际核验，其余有明确缺口。仅提供链接不代表完成核验，当前服务不擅自授予 B。\n- **C 仅线索**：用户或渠道提供的信息，尚未独立核验。当前输入候选只能按此层级记录。\n\n### 询价优先序\n\n优先补证主营匹配明确、核心规格能回应、报价口径可追溯的线索。候选核验完成后，再由用户确认询价顺序与对外联系；没有候选时不编造排名。\n\n{{analysis}}",
+      "fallback_output": "当前资料不支持已核验供应商结论。建议逐项取得主体、主营、MOQ、报价口径与适用证据后再分层，所有对外联系需用户确认后执行。"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "suppliers.md",
+      "format": "md",
+      "title": "供应商候选与核验清单",
+      "stages": [
+        "requirements",
+        "channel_search",
+        "verification"
+      ],
+      "template": "# 供应商候选与核验清单\n\n结论：本次交付筛选条件、检索计划与候选资料核对表。真实渠道检索和供应商核验尚未执行。\n\n{{stages.requirements}}\n\n{{stages.channel_search}}\n\n{{stages.verification}}"
+    }
+  ],
+  "deliverables": [
+    "含来源与核验层级的候选清单",
+    "询价优先序与待核验项"
+  ],
+  "summary_template": "已为 {{input.product}} 整理供应商筛选、渠道研究计划与核验清单。未执行外部检索；候选及供货条件待确认，联系需用户确认后执行。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "product": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "spec": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "quantity": {
+        "anyOf": [
+          {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          {
+            "type": "string",
+            "pattern": "^\\s*\\+?(?:(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?|\\.\\d+)\\s*(?:[\\p{L}][\\p{L}\\s/.-]*)?\\s*$",
+            "maxLength": 128
+          }
+        ],
+        "x-positiveQuantity": true,
+        "description": "使用正数或含单位的正数字符串，例如 1000、1000个、1,000 pieces；不接受零、负数或无数字文本。"
+      },
+      "target_price": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          {
+            "type": "number",
+            "minimum": 0
+          }
+        ],
+        "description": "按原文提交；币种及贸易口径请明确说明，不自动推断或折算。"
+      },
+      "market": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "channels": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          }
+        ]
+      },
+      "candidates": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 65536
+          },
+          {
+            "type": "object"
+          },
+          {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 65536
+                },
+                {
+                  "type": "object"
+                }
+              ]
+            }
+          }
+        ],
+        "description": "接受原文、字段对象或二者混合数组；对象按字段整理，原文逐条保留为待结构化材料，不作为已核验事实。"
+      }
+    },
+    "required": [
+      "product",
+      "spec"
+    ],
+    "additionalProperties": true,
+    "description": "采用 type、anyOf、minLength、maxLength、minimum、exclusiveMinimum、pattern、maxItems、items 与 x-positiveQuantity 子集；JSON修改后重启生效。"
+  },
+  "input_extensions": {
+    "candidates": "可选兼容扩展，不改变既有必填/选填字段：接受用户已有候选原文、对象或混合数组。所有候选默认为 C 仅线索，不声称独立核验；字段可含 name、url、match、moq、quote_basis、source。"
+  }
+}

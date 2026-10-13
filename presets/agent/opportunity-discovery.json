@@ -1,0 +1,241 @@
+{
+  "id": "opportunity-discovery",
+  "name": "产品机会发现",
+  "description": "围绕目标市场整理价格证据、竞争问题与验证方案；关键数字无交叉来源时降级为待确认。",
+  "required_inputs": [
+    "product",
+    "market"
+  ],
+  "optional_inputs": [
+    "spec",
+    "own_price"
+  ],
+  "input_labels": {
+    "product": "研究产品",
+    "market": "目标市场",
+    "spec": "规格",
+    "own_price": "用户自有价格原文（币种与贸易口径待核对）"
+  },
+  "system_prompt": "你负责企业采购与研究文书。只依据用户提交的条件和证据给出缺口分析、问题与条件式建议。没有外部检索或联系工具，不得声称已检索、联系、回收或核验。不得编造供应商、链接、数字或认证结果。金额保留用户原文，币种与 EXW/FOB 未提供时写待确认；不能把目标价当供应商报价，平台展示价不能当成交价。不代发询价、不联系供应商、不下单、不付款、不对外承诺数量与价格；外部动作均需用户确认后执行。合规只给风险提示，不给法律结论。输出可交付的分析与建议，不输出内部思维链。",
+  "business_redlines": [
+    "仅研究、整理与文书产物；不执行联系、询价发送、下单、付款或对外承诺。",
+    "外部动作均需用户确认后执行。",
+    "无来源数字和供应商信息写待确认；缺报价写待回收。",
+    "币种与 EXW/FOB 贸易口径分别列示，不擅自补全、不强行折算。",
+    "平台展示价不能作为成交价；关键数据须交叉核验。",
+    "合规内容仅提示风险，不给法律结论。"
+  ],
+  "evidence_tables": {
+    "market": {
+      "input": "evidence",
+      "columns": [
+        {
+          "key": "name",
+          "label": "产品 / 竞品原文",
+          "aliases": [
+            "product",
+            "title",
+            "产品",
+            "竞品"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "channel",
+          "label": "渠道",
+          "aliases": [
+            "platform",
+            "渠道"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "price",
+          "label": "价格原文",
+          "aliases": [
+            "display_price",
+            "own_price",
+            "价格"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "currency",
+          "label": "币种",
+          "aliases": [
+            "币种"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "basis",
+          "label": "报价 / 贸易口径",
+          "aliases": [
+            "trade_term",
+            "口径"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "price_type",
+          "label": "价格性质",
+          "aliases": [
+            "价格性质"
+          ],
+          "missing": "待确认（不能认定成交价）"
+        },
+        {
+          "key": "source",
+          "label": "来源链接或材料",
+          "aliases": [
+            "url",
+            "source_url",
+            "来源",
+            "链接"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "observed_at",
+          "label": "记录时间",
+          "aliases": [
+            "date",
+            "时间"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "verification",
+          "label": "核验状态",
+          "aliases": [],
+          "constant": "用户材料；未交叉核验"
+        }
+      ],
+      "empty_label": "待确认（尚无可交叉核验材料）",
+      "empty_note": "未提供可追溯的价格或竞品证据，未访问外部渠道。市场价格带、销量与竞争强度均待确认，不按模型记忆填写。"
+    }
+  },
+  "stages": [
+    {
+      "key": "price_bands",
+      "title": "价格带与锚点",
+      "thinking": [
+        "正在读取产品、目标市场和用户自有价格条件。",
+        "价格证据表和待核验锚点已整理，缺失数字保持待确认。"
+      ],
+      "prompt": "根据输入说明建立价格带研究所需的同规格、同渠道与价格性质条件。不得编造价格区间或销量，不把 own_price 转写为市场成交价；关键数字没有多个可追溯来源就待确认。",
+      "output_template": "## 价格带与锚点\n\n{{facts}}\n\n{{tables.market}}\n\n### 当前可得结论\n\n- 市场成交价格带：**待确认**。尚未取得足以交叉核验的市场成交证据。\n- 用户自有价格仅反映输入条件；币种、计价单位、EXW/FOB、运费与税费缺项均需确认。\n- 平台展示价仅作线索；不得据此认定成交价、利润空间或销售表现。\n- 后续应按相同规格、渠道、币种、记录日期及价格性质核验锚点，互相矛盾的数字降级为待确认。\n\n{{analysis}}",
+      "fallback_output": "建议先定义可比较的规格与价格口径，再取得可追溯的独立材料；证据不足时不输出虚假的价格带或利润估算。"
+    },
+    {
+      "key": "competition",
+      "title": "竞品格局与差评雷区",
+      "thinking": [
+        "正在按当前产品条件整理竞品与评价研究问题。",
+        "竞品研究问题和待验证的差评风险清单已形成。"
+      ],
+      "prompt": "提出本产品适合核对的竞争维度和可能的用户体验问题，必须表述为待验证问题，不能声称实际竞品、差评、评分或销量已经观察到。",
+      "output_template": "## 竞品格局与差评雷区\n\n**当前状态：未执行外部渠道检索，未收集或核验真实竞品与评价。** 以下为待验证问题，不是对市场差评的事实描述。\n\n- 规格与功能承诺是否清晰，用户如何验证核心性能？\n- 外观、材料、尺寸、耐用性或使用体验哪些方面值得通过真实评价核对？\n- 包装、运输破损、说明书、标签及售后流程是否可能影响体验？\n- 评论对应的型号、时间、购买背景与来源是否可追溯，是否存在样本偏差？\n- 竞争者数量、销量、评价占比及渠道排名目前均为待确认。\n\n{{analysis}}",
+      "fallback_output": "建议按核心性能、材料工艺、包装交付与售后体验整理真实评价证据，区分假设和已观察事实；当前没有真实差评样本。"
+    },
+    {
+      "key": "conclusion",
+      "title": "结论与下一步",
+      "thinking": [
+        "正在汇总证据缺口、未覆盖渠道和下一步验证条件。",
+        "结论、待确认项与验证计划已整理，未核实数字未进入确定结论。"
+      ],
+      "prompt": "结论先行，基于现有证据给条件式下一步研究建议。不能保证机会、出单或利润。单列未覆盖渠道与待确认项；不得用平台展示价或用户目标价推导成交与盈利结论。",
+      "output_template": "## 结论与下一步\n\n**结论：目前证据不足以确认 {{input.product}} 在 {{input.market}} 的成交价格带、销量或盈利机会，以上均待确认。** 可以先开展有限范围的证据补充和产品验证设计，交易行为需用户确认后执行。\n\n### 下一步\n\n- 确认目标细分用户、核心规格及可比较的报价口径。\n- 在用户确认的渠道采集带链接、日期与价格性质的材料，核对关键数字的独立来源与差异。\n- 使用真实竞品、评价或访谈材料检验差异化假设；样本不足时不下确定结论。\n- 证据补齐后再由用户决定是否打样、试销或投入预算。\n\n### 未覆盖渠道\n\n本轮未实际访问任何外部电商平台、供应商官网、公开目录、广告或评价渠道；各渠道覆盖情况待确认。\n\n### 待确认项\n\n市场成交价、独立来源、币种与贸易口径、计价单位、规格一致性、真实销量、竞争者与真实差评、物流和售后成本、适用合规材料。相互冲突的数字保留原始来源并标为待确认，不强行取平均。\n\n{{analysis}}",
+      "fallback_output": "建议先以证据是否齐全和口径是否一致作为继续研究的门槛，不把资料整理误写为机会验证完成；后续采购或试销需用户确认后执行。"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "opportunity-report.md",
+      "format": "md",
+      "title": "产品机会研究报告",
+      "stages": [
+        "conclusion",
+        "price_bands",
+        "competition"
+      ],
+      "template": "# 产品机会研究报告\n\n{{stages.conclusion}}\n\n{{stages.price_bands}}\n\n{{stages.competition}}"
+    }
+  ],
+  "deliverables": [
+    "结论先行的产品机会报告",
+    "未覆盖渠道与待确认清单"
+  ],
+  "summary_template": "已为 {{input.product}} 在 {{input.market}} 的机会研究整理报告。未连接真实检索源，关键市场数字与机会结论待确认；后续行动需用户确认后执行。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "product": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "market": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "spec": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "own_price": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          {
+            "type": "number",
+            "minimum": 0
+          }
+        ],
+        "description": "按原文提交；币种及贸易口径请明确说明，不自动推断或折算。"
+      },
+      "evidence": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 65536
+          },
+          {
+            "type": "object"
+          },
+          {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 65536
+                },
+                {
+                  "type": "object"
+                }
+              ]
+            }
+          }
+        ],
+        "description": "接受原文、字段对象或二者混合数组；对象按字段整理，原文逐条保留为待结构化材料，不作为已核验事实。"
+      }
+    },
+    "required": [
+      "product",
+      "market"
+    ],
+    "additionalProperties": true,
+    "description": "采用 type、anyOf、minLength、maxLength、minimum、exclusiveMinimum、pattern、maxItems、items 与 x-positiveQuantity 子集；JSON修改后重启生效。"
+  },
+  "input_extensions": {
+    "evidence": "可选兼容扩展，不改变既有必填/选填字段：接受用户已有市场材料原文、对象或混合数组；不执行链接抓取。字段可含 name、channel、price、currency、basis、price_type、source、observed_at，关键数字仍待交叉核验。"
+  }
+}

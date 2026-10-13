@@ -1,0 +1,347 @@
+{
+  "id": "procurement",
+  "name": "产品批发采购",
+  "description": "将采购条件整理为统一询价包、原口径比价表与采购风险简报；只提供文书，不代发询价或交易。",
+  "required_inputs": [
+    "product",
+    "spec",
+    "quantity"
+  ],
+  "optional_inputs": [
+    "target_price",
+    "market",
+    "requirements",
+    "quotes"
+  ],
+  "input_labels": {
+    "product": "产品",
+    "spec": "规格",
+    "quantity": "计划采购数量（非对外承诺）",
+    "target_price": "目标价格原文（不是供应商报价）",
+    "market": "目标市场",
+    "requirements": "其他要求",
+    "quotes": "用户提供的报价"
+  },
+  "system_prompt": "你负责企业采购与研究文书。只依据用户提交的条件和证据给出缺口分析、问题与条件式建议。没有外部检索或联系工具，不得声称已检索、联系、回收或核验。不得编造供应商、链接、数字或认证结果。金额保留用户原文，币种与 EXW/FOB 未提供时写待确认；不能把目标价当供应商报价，平台展示价不能当成交价。不代发询价、不联系供应商、不下单、不付款、不对外承诺数量与价格；外部动作均需用户确认后执行。合规只给风险提示，不给法律结论。输出可交付的分析与建议，不输出内部思维链。",
+  "business_redlines": [
+    "仅研究、整理与文书产物；不执行联系、询价发送、下单、付款或对外承诺。",
+    "外部动作均需用户确认后执行。",
+    "无来源数字和供应商信息写待确认；缺报价写待回收。",
+    "币种与 EXW/FOB 贸易口径分别列示，不擅自补全、不强行折算。",
+    "平台展示价不能作为成交价；关键数据须交叉核验。",
+    "合规内容仅提示风险，不给法律结论。"
+  ],
+  "evidence_tables": {
+    "quotes": {
+      "input": "quotes",
+      "columns": [
+        {
+          "key": "supplier",
+          "label": "供应商（用户提供）",
+          "aliases": [
+            "name",
+            "supplier_name",
+            "供应商",
+            "名称"
+          ]
+        },
+        {
+          "key": "spec",
+          "label": "规格/计价单位",
+          "aliases": [
+            "specification",
+            "unit",
+            "规格",
+            "计价单位"
+          ]
+        },
+        {
+          "key": "unit_price",
+          "label": "单价原文",
+          "aliases": [
+            "price",
+            "单价",
+            "报价"
+          ]
+        },
+        {
+          "key": "currency",
+          "label": "币种",
+          "aliases": [
+            "币种"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "trade_term",
+          "label": "EXW/FOB 等口径",
+          "aliases": [
+            "basis",
+            "incoterm",
+            "incoterms",
+            "贸易口径",
+            "贸易术语"
+          ],
+          "missing": "待确认"
+        },
+        {
+          "key": "moq",
+          "label": "MOQ",
+          "aliases": [
+            "minimum_order_quantity",
+            "MOQ",
+            "起订量"
+          ]
+        },
+        {
+          "key": "sample_cost",
+          "label": "打样费用",
+          "aliases": [
+            "sample",
+            "sample_fee",
+            "打样",
+            "打样费",
+            "样品费"
+          ]
+        },
+        {
+          "key": "sample_lead_time",
+          "label": "打样周期",
+          "aliases": [
+            "sample_time",
+            "sample_days",
+            "打样周期"
+          ]
+        },
+        {
+          "key": "lead_time",
+          "label": "大货交期",
+          "aliases": [
+            "delivery",
+            "production_lead_time",
+            "交期",
+            "大货交期"
+          ]
+        },
+        {
+          "key": "payment",
+          "label": "付款方式",
+          "aliases": [
+            "payment_terms",
+            "付款方式",
+            "付款条件"
+          ]
+        },
+        {
+          "key": "certification",
+          "label": "认证材料（未核验）",
+          "aliases": [
+            "certifications",
+            "certs",
+            "认证",
+            "证书"
+          ]
+        },
+        {
+          "key": "validity",
+          "label": "报价有效期",
+          "aliases": [
+            "quote_validity",
+            "valid_until",
+            "报价有效期"
+          ]
+        },
+        {
+          "key": "source",
+          "label": "证据来源",
+          "aliases": [
+            "url",
+            "source_url",
+            "evidence",
+            "来源",
+            "链接"
+          ],
+          "missing": "待确认"
+        }
+      ],
+      "comparison_keys": [
+        "spec",
+        "currency",
+        "trade_term"
+      ],
+      "empty_label": "待回收（尚无供应商报价）",
+      "empty_note": "未提供可逐项核对的报价，所有报价栏均待回收。没有向任何供应商发出询价；表格不是已回收报价的证明。"
+    }
+  },
+  "stages": [
+    {
+      "key": "requirements",
+      "title": "需求确认",
+      "thinking": [
+        "正在读取用户提交的产品、规格和计划采购数量。",
+        "需求核对文书已整理，后续询价包将沿用同一份条件。"
+      ],
+      "prompt": "检查 product、spec、quantity 与选填条件，找出可能影响同口径报价的缺项。不要自行确定产品材质、认证标准、币种、贸易口径或成交数量。目标价是用户目标，不是供应商报价。",
+      "output_template": "## 需求确认与统一规格书\n\n{{facts}}\n\n### 统一口径\n\n- 将上述规格作为各供应商共同的询价基线；任何替代材质、尺寸、容量、工艺、计价单位或包装差异，均须单列偏差。\n- 采购数量为用户计划量，不构成对外承诺；分批、容差与验收条件待确认。\n- 目标价格仅作为用户目标展示。未提供的币种、EXW/FOB、含税/运费条件均为待确认，不按中文输入推断币种。\n\n{{analysis}}",
+      "fallback_output": "建议先确认规格的检验方法、可接受偏差、包装方式及贸易口径；未确认项保留待确认，不把采购目标补写成供应商承诺。"
+    },
+    {
+      "key": "inquiry_pack",
+      "title": "生成询价包",
+      "thinking": [
+        "正在以已提交的规格和数量整理统一询价问题。",
+        "统一询价问题清单已形成，可由用户确认后对外发送。"
+      ],
+      "prompt": "补充本产品需要向供应商追问的规格、报价口径和交付问题，围绕统一需求生成自然语言建议。每家使用同一询价包；不声称已经发送或收到答复。",
+      "output_template": "## 统一询价问题清单\n\n适用产品：{{input.product}}；规格：{{input.spec}}；计划首批数量：{{input.quantity}}。以下问题供用户确认后执行，服务未发送询价。\n\n1. **Q1 价格阶梯与计价口径**：请按相同规格列出可提供的数量阶梯、各档单价、币种、计价单位、EXW/FOB 等贸易口径，以及税费与运费是否包含。没有给定阶梯时请供应商列明，不自行编造。\n2. **Q2 MOQ**：常规款、颜色、包装与定制款的最小起订量分别如何？是否存在混色或混款条件？\n3. **Q3 打样费与周期**：样品费、运费、打样周期、退款或抵扣条件分别是什么？周期从哪个确认节点开始？\n4. **Q4 大货交期**：材料确认、样品确认、付款后各节点如何计算？请列明产能约束、交付地点与可能影响交期的条件。\n5. **Q5 付款方式**：支持的方式、币种、分期节点、收款主体与款项保障安排是什么？不预设比例或同意付款。\n6. **Q6 认证与材料**：面向目标市场可提供哪些适用的检测、认证或追溯材料？请给出文件、主体、对应型号与有效性信息供核验，不以自述认定合规。\n7. **Q7 标签与包装**：产品标签、语言、说明书、单品包装、外箱标识、尺寸重量与包装测试如何确认？相关费用是否包含？\n8. **Q8 定制选项**：颜色、Logo、材料、工艺和包装有哪些可选项？模具或制版费、起订要求、周期和知识产权归属如何约定？\n9. **Q9 报价有效期**：本次报价的有效期、调价条件、原料或汇率条款是什么？请给书面版本及更新日期。\n10. **Q10 偏差与验收**：与统一规格有何偏差？样品确认、抽检、质量异常、补货或索赔如何处理？所有承诺待双方确认。\n\n{{analysis}}",
+      "fallback_output": "建议要求供应商按同一清单逐项回答，并明确不能满足的项。后续发送与沟通均需用户确认后执行。"
+    },
+    {
+      "key": "comparison",
+      "title": "比价表",
+      "thinking": [
+        "正在读取用户提供的报价材料，按相同字段并列整理。",
+        "比价表已按原始口径形成，缺项与口径差异已分别标注。"
+      ],
+      "prompt": "只评价输入 quotes 中的差异、缺项和可比性，不添加任何供应商或报价。币种、EXW/FOB、规格或计价单位不同就单独标注，不计算汇率、税费、运费或推荐虚假的最低价。",
+      "output_template": "## 归一化比价表\n\n归一化只指字段逐项对齐，不代表价格已经换算。金额按用户原文展示，币种及贸易口径在独立列中核对；空缺写待回收或待确认。\n\n{{tables.quotes}}\n\n### 可比性检查\n\n- 同规格、同计价单位、同币种及同贸易口径确认前，不排出“最低成交价”。\n- 样品费与周期、大货交期、付款条件、认证材料和报价有效期逐项核对。\n- 供应商自报、平台展示价与正式书面报价须分别识别；平台展示价不能作为成交价结论。\n- 材料缺少来源、日期或适用规格时，仅作为待核验线索。\n\n{{analysis}}",
+      "fallback_output": "当前只做材料整理。建议优先追问未回收字段与不一致口径；取得同规格、同币种、同贸易口径的书面答复后再比较。"
+    },
+    {
+      "key": "risk",
+      "title": "风险与建议",
+      "thinking": [
+        "正在按已知条件及缺失信息整理采购风险和下一步动作。",
+        "采购风险、询价优先序与样品决策条件已整理完成。"
+      ],
+      "prompt": "给出与用户输入相关的风险、询价优先序、谈判要点、打样和追问/淘汰条件。无实际候选时只能给排序方法，不编造供应商名次。不作法律结论或保证盈利。",
+      "output_template": "## 风险与下一步建议\n\n### 风险清单\n\n- **规格风险**：材质、尺寸、工艺、包装和验收方法未明确时，报价可能不可比。\n- **价格风险**：币种、EXW/FOB、计价单位、税费与运费未对齐前，总采购成本待确认。\n- **履约风险**：样品确认节点、大货排期、收款主体和质量异常处理须取得可核对材料。\n- **认证与合规风险**：仅收集并核对适用材料，不把供应商自述或模型分析当作法律结论。\n\n### 询价优先序\n\n优先考虑能完整回应统一规格、提供来源材料并明确报价口径的候选；信息不全的先追问，无法回应核心需求的暂缓。尚无候选或证据时不虚构供应商排名。\n\n### 谈判要点\n\n围绕规格边界、数量阶梯、样品费处理、付款节点、交期起算、包装费用和报价有效期逐项确认；不代表用户接受价格或承诺数量。\n\n### 打样 / 追问 / 淘汰标准\n\n- **打样**：核心规格、样品费用、周期及验收方法明确后，由用户确认是否执行。\n- **追问**：报价口径、材料或交期存在缺口时，要求同口径补充。\n- **暂缓或淘汰**：无法提供核心规格或证据、拒绝澄清重大偏差时，建议用户评估退出；不基于未经核验的推断作最终结论。\n\n{{analysis}}\n\n所有询价发送、联系、下单、付款及对外承诺均需用户确认后执行。",
+      "fallback_output": "建议先补齐影响可比性的资料，再确认样品与谈判顺序。没有真实报价或候选证据时，不给出虚假的供应商优胜结论。"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "inquiry-pack.md",
+      "format": "md",
+      "title": "统一询价包",
+      "stages": [
+        "requirements",
+        "inquiry_pack"
+      ],
+      "template": "# 统一询价包\n\n{{stages.requirements}}\n\n{{stages.inquiry_pack}}"
+    },
+    {
+      "name": "comparison.md",
+      "format": "md",
+      "title": "归一化比价表",
+      "stages": [
+        "comparison"
+      ],
+      "template": "# 归一化比价表\n\n产品：{{input.product}}；规格：{{input.spec}}；计划采购数量：{{input.quantity}}。\n\n{{stages.comparison}}"
+    },
+    {
+      "name": "procurement-brief.md",
+      "format": "md",
+      "title": "采购简报",
+      "stages": [
+        "requirements",
+        "risk"
+      ],
+      "template": "# 采购简报\n\n结论：询价文书与决策条件已整理。成交条件、供应商能力及未取得的报价仍待确认，后续行动需用户确认后执行。\n\n{{stages.requirements}}\n\n{{stages.risk}}"
+    }
+  ],
+  "deliverables": [
+    "统一规格书与编号询价清单",
+    "归一化比价表",
+    "采购风险与下一步简报"
+  ],
+  "summary_template": "已为 {{input.product}} 整理统一询价包、比价表与采购简报。未回收报价及缺失口径保留待确认；后续对外行动需用户确认后执行。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "product": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "spec": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "quantity": {
+        "anyOf": [
+          {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          {
+            "type": "string",
+            "pattern": "^\\s*\\+?(?:(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?|\\.\\d+)\\s*(?:[\\p{L}][\\p{L}\\s/.-]*)?\\s*$",
+            "maxLength": 128
+          }
+        ],
+        "x-positiveQuantity": true,
+        "description": "使用正数或含单位的正数字符串，例如 1000、1000个、1,000 pieces；不接受零、负数或无数字文本。"
+      },
+      "target_price": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          {
+            "type": "number",
+            "minimum": 0
+          }
+        ],
+        "description": "按原文提交；币种及贸易口径请明确说明，不自动推断或折算。"
+      },
+      "market": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "requirements": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "quotes": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 65536
+          },
+          {
+            "type": "object"
+          },
+          {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 65536
+                },
+                {
+                  "type": "object"
+                }
+              ]
+            }
+          }
+        ],
+        "description": "接受原文、字段对象或二者混合数组；对象按字段整理，原文逐条保留为待结构化材料，不作为已核验事实。"
+      }
+    },
+    "required": [
+      "product",
+      "spec",
+      "quantity"
+    ],
+    "additionalProperties": true,
+    "description": "采用 type、anyOf、minLength、maxLength、minimum、exclusiveMinimum、pattern、maxItems、items 与 x-positiveQuantity 子集；JSON修改后重启生效。"
+  }
+}
