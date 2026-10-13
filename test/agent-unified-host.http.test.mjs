@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createApp } from '../server/index.mjs';
 import { createPiProvider } from '../server/pi-provider.mjs';
+import { createAgentAuth } from '../server/agent/auth.mjs';
 
 const base = server => {
   const address = server.address();
@@ -89,4 +90,22 @@ test('explicit Agent adapter persists tasks in original Workspace Store on the s
     try { await app?.close?.(); }
     finally { await rm(dir, { recursive: true, force: true }); }
   }
+});
+
+test('Agent member Bearer rejects reused original Dot/Muse/sourcing token digests', () => {
+  const token = randomBytes(32).toString('base64url');
+  const tokenSha256 = createHash('sha256').update(token).digest('hex');
+  const principal = { subject: 'local-operator', workspaceId: 'local', tokenSha256,
+    scopes: ['agent:read', 'agent:submit'] };
+  const access = {
+    serviceIdentity: binding => ({ subject: binding.subject, workspaceId: binding.workspaceId, role: 'admin' }),
+    beginServiceCredential: async () => { throw new Error('No HTTP request expected in construction test.'); },
+  };
+  assert.throws(
+    () => createAgentAuth({ principals: [principal], access, env: {}, reservedTokenDigests: [tokenSha256] }),
+    /must not reuse an existing Dot, Muse or sourcing Worker token digest/,
+  );
+  const anotherDigest = createHash('sha256').update('another independent fixture credential').digest('hex');
+  assert.equal(createAgentAuth({ principals: [principal], access, env: {},
+    reservedTokenDigests: [anotherDigest] }).configured, true);
 });
