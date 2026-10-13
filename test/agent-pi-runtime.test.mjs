@@ -55,6 +55,12 @@ test('Agent preset invokes real Pi SDK tool through the original Runtime and sto
   const run = f.runtime.getRun(admission.run.id).run, saved = f.store.read().workspaceAgentTasks.tasks[0].steps[0];
   assert.equal(f.faux.state.callCount, 1);
   assert.equal(saved.runId, run.id); assert.equal(saved.replyId, run.assistantId); assert.ok(run.piSubmissionId);
+  assert.equal(f.provider.legacyPolicyCompatible, true);
+  assert.equal(run.execution.permissionFingerprint, f.provider.agentPermissionFingerprint,
+    'Agent document tool authority must bind V5, not inherit ordinary PR59 V4.');
+  assert.notEqual(run.execution.permissionFingerprint, f.provider.permissionFingerprint);
+  assert.equal(run.execution.endpointFingerprint, f.provider.endpointFingerprint,
+    'Agent stages must always bind the exact model endpoint.');
   assert.equal(run.budget.maxOutputTokens, 1200); assert.equal(run.budget.maxSteps, 1);
   assert.equal(saved.status, 'succeeded'); assert.match(saved.output, /报价与交期仍需核对/);
   assert.equal(saved.result.completion, 'partial'); assert.equal(saved.result.businessGoalAchieved, false);
