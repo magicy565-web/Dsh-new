@@ -37,6 +37,14 @@
 
 许可不写入第二个队列，也不作为持久授权跨重启生效。若再次断线或服务重启，需要再次显式授权；旧 event seq 和部分工件只追加不改写。对重复或并发 `/resume`，原 Workspace Store 事务进行重新读取与单次 attempt admission，再发放仅本进程有效的原 run 恢复许可，避免一次网络重试被记成两次恢复尝试。针对实际 Agent 协调器源码，以注入合成原 Store/Scheduler 的 V8 隔离验证了重启无模型恢复 (0 次)、明确恢复一次 (1 次) 且 runId/piSubmissionId 不变。完整 Node24/SQLite/HTTP、真实外部模型和生产测试仍未进行，必须独立验收。
 
+## Agent 专属恢复与原 Workspace 旧接口隔离（新增安全修复）
+
+原 `runtime.retryRun()` 曾先判断 Pi 中断并立即调用 `recoverPiRun()`，随后才检查 `agentPresetContext`；因此既有成员通过旧 `POST /api/runs/{runId}/retry` 有机会绕过 Agent Coordinator 的显式恢复门禁，尤其是重启后原业务任务尚未完成 `interrupted` 投影时。已调整为**首先检查原 run 的 `agentPresetContext` / `agentTaskId`**，立即返回 `AGENT_RECOVERY_REQUIRED`，不恢复 Pi、不创建新 run；普通 Pi/Goal 的既有中断恢复分支保持不变。
+
+原 `Workspace` 的 Agent 会话仍可按现有成员权限**只读访问**历史 Pi 运行与产物，但不可从旧通用接口注入第二条业务执行流。原 Runtime 的事务内增加 Agent 会话绑定防护：拒绝普通 `messages`、并行 `createGoal`、`reset-session`、`input-context` 修改和 `deleteConversation`；只有带原审查版 `agentPresetContext` 的 Coordinator 阶段可通过 `sendMessage`。已有 `cancel` 路径未在本次重定义；没有新建队列、身份或额外恢复入口。
+
+新增原有统一 Host 的 HTTP 回归断言：`/api/runs/:id/retry` 返回 `AGENT_RECOVERY_REQUIRED`；上述普通会话破坏性路径返回 `AGENT_TASK_ROUTE_REQUIRED`；检查没有第二次模型调用、新 messages/run 或历史 `piSubmissionId` 改动；随后原 `POST /api/agent/v1/tasks/:id/resume` 仍必须复用原 run。当前只有直接提取源码的 V8 隔离检查，真实 Node 24 / HTTP 回归未执行。
+
 ## 当前核对边界
 
 本轮已恢复 Agent 测试缺少的 `scripts/agent-retention.mjs` 和 `test/fixtures/agent-service-child.mjs`，并新增单 Host/原 Store 的普通 HTTP 回归。在缺乏私有仓库的可运行 Node 24 工作树时，不能把静态语法、GitHub diff 或 PR47 旧版测试结果当作 PR60 的完整回归。GitHub Actions 目前仍在 `startup_failure` 阶段阻挡，无执行 job 回执。
