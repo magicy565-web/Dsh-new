@@ -45,6 +45,14 @@
 
 新增原有统一 Host 的 HTTP 回归断言：`/api/runs/:id/retry` 返回 `AGENT_RECOVERY_REQUIRED`；上述普通会话破坏性路径返回 `AGENT_TASK_ROUTE_REQUIRED`；检查没有第二次模型调用、新 messages/run 或历史 `piSubmissionId` 改动；随后原 `POST /api/agent/v1/tasks/:id/resume` 仍必须复用原 run。当前只有直接提取源码的 V8 隔离检查，真实 Node 24 / HTTP 回归未执行。
 
+### 异常历史数据与其他原 Runtime 入口
+
+原任务记录被误删、旧备份内容不一致或升级过程不完整时，`agentConversation(state, conversationId)` 同时查询现存的 Agent 业务任务和原 `runs[].agentTaskId / agentPresetContext`。因此**即使企业任务 registry 缺失**，只要旧 Pi Run 有可确认的 Agent 标识，同一会话仍不能被普通聊天、Goal、重试、恢复、审批决策、会话重置、输入上下文更新或删除接管。
+
+特别检查了三个与原 Agent /resume 不同的旧运行控制路径：`POST /api/runs/{runId}/retry`、`/resume`、`/action-decision`。这三者在当前源码中均要求 Agent 操作走原任务协调器；对一个碰巧指向 Agent 会话的**历史普通 Run**也采取 fail-closed 拒绝，而不是让旧命令获得替代执行资格。取消原 Run 仍保留原 Workspace 中止机制，本轮没有扩大取消接口权限。
+
+对于历史已存在且后来与 Agent 会话发生异常关联的 Goal，`updateGoal(action=start|resume)` 在输入预检前和**原 Store 入队事务中**分别检查原 Agent 会话绑定；不能在该会话启动新的普通 Goal Pi 请求。其他普通 Pi/Goal 仍使用旧路径。新增 HTTP / isolated-V8 断言用于覆盖该边界；**完整 Node 24 集成测试仍未运行**。
+
 ## 当前核对边界
 
 本轮已恢复 Agent 测试缺少的 `scripts/agent-retention.mjs` 和 `test/fixtures/agent-service-child.mjs`，并新增单 Host/原 Store 的普通 HTTP 回归。在缺乏私有仓库的可运行 Node 24 工作树时，不能把静态语法、GitHub diff 或 PR47 旧版测试结果当作 PR60 的完整回归。GitHub Actions 目前仍在 `startup_failure` 阶段阻挡，无执行 job 回执。
