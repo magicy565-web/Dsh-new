@@ -43,7 +43,7 @@
     "package:pi": "python3 scripts/package-pi-source.py",
     "test:pi:browser": "npm run build && node test/pi-conversation.browser.mjs",
     "agent:start": "node --env-file-if-exists=.env server/agent-main.mjs",
-    "test:agent": "node --test test/agent-service.http.test.mjs test/agent-workspace.integration.test.mjs test/agent-pi-runtime.test.mjs test/agent-pi-service.http.test.mjs test/agent-owner-policy.test.mjs test/agent-research.test.mjs",
+    "test:agent": "node --test test/agent-service.http.test.mjs test/agent-workspace.integration.test.mjs test/agent-pi-runtime.test.mjs test/agent-pi-service.http.test.mjs test/agent-owner-policy.test.mjs test/agent-research.test.mjs test/agent-unified-host.http.test.mjs test/agent-coordinator-explicit-recovery.test.mjs test/agent-projection-linkage.test.mjs",
     "test:agent:acceptance": "node test/agent-service.acceptance.mjs",
     "test:agent:client": "python3 test/agent-client.test.py"
   },
