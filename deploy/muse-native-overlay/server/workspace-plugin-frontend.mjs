@@ -219,8 +219,17 @@ export async function createWorkspacePluginFrontend({ service, operators, dataDi
       }
       if (req.method === 'GET') {
         const state = await business.snapshot(access.health());
+        if (pathname === '/api/bootstrap') {
+          let museBinding = { originalBinding: false };
+          if (context.role === 'admin' && access.sessionView(context).authenticated &&
+              service.muse?.enabled && typeof service.muse.readBinding === 'function') {
+            try { museBinding = await service.muse.readBinding(actor); }
+            catch (error) { if (error.code !== 'MUSE_OWNER_REQUIRED') throw error; }
+          }
+          return await respond(res, 200, { ...state, museBinding });
+        }
         const resources = {
-          '/api/bootstrap': state, '/api/status': state.runtime, '/api/diagnostics': state.diagnostics,
+          '/api/status': state.runtime, '/api/diagnostics': state.diagnostics,
           '/api/health': { status: state.diagnostics.blockers.length ? 'degraded' : 'ok', storage: state.diagnostics.storage,
             access: state.diagnostics.access, plugin: state.runtime.plugin, provider: state.diagnostics.provider,
             fileIO: { requests: fileRequests.status(), bodyMaxBytes: FILE_BODY_MAX_BYTES } },

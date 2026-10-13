@@ -232,7 +232,20 @@ export function createNativeMuseBinding({ store, artifacts, config, actor, opera
     return Object.freeze(Object.fromEntries(Object.entries(conversation).map(([name, method]) =>
       [name, (...args) => scoped(() => method(...args), ['prepare', 'approve', 'dispatch'].includes(name))])));
   }
-  return Object.freeze({ workerId: host.workerId, bindDesk, bindSession, bindConversation, bindControl,
+  // Read-only proof from the original guarded store. Never creates a conversation
+  // or uses an enabled flag as proof; reads retain the captured native epoch.
+  function readBinding(requestActor) {
+    if (requestActor?.subject !== actor.subject || requestActor.nativeAgentId !== actor.nativeAgentId)
+      throw new WorkerDeskError(403, 'MUSE_OWNER_REQUIRED', 'Use the original reviewed Muse conversation.');
+    return scoped(() => {
+      const conversations = store.read().conversations;
+      const matches = Array.isArray(conversations) ? conversations.filter(item => item?.id === actor.nativeAgentId) : [];
+      if (matches.length !== 1 || matches[0].subject !== actor.subject || matches[0].nativeAgentId !== actor.nativeAgentId)
+        return { originalBinding: false };
+      return { originalBinding: true, conversationId: actor.nativeAgentId, onlineVerified: false };
+    });
+  }
+  return Object.freeze({ workerId: host.workerId, bindDesk, bindSession, bindConversation, bindControl, readBinding,
     async supplierMcp(req, res, extensionFactory) {
       boundary(req);
       const authorize = createDotWorkerAuth({ tokenDigest: config.tokenDigest });

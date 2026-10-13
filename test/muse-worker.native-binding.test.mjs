@@ -241,3 +241,37 @@ test('private reconciliation review only remounts an exact paused scope without 
     assert.throws(() => validateNativeMuseReconciliationReview({ ...review, ...changed }, status), { code: 'MW_RECONCILIATION_REVIEW' });
   assert.throws(() => validateNativeMuseReconciliationReview(review, { ...status, phase: 'active' }), { code: 'MW_RECONCILIATION_REVIEW' });
 });
+
+test('original binding projection proves one existing owned conversation without creating state', async t => {
+  const f = await setup(t), before = f.store.read();
+  assert.deepEqual(await f.binding.readBinding(actor), { originalBinding: false });
+  assert.equal(f.writes(), 0); assert.deepEqual(f.store.read(), before);
+  const original = { id: actor.nativeAgentId, ...actor };
+  for (const conversations of [null, {}, [], [{ ...original, id: 'foreign' }],
+    [{ ...original, subject: foreignActor.subject }], [{ ...original, nativeAgentId: 'foreign' }],
+    [original, original], [original, { ...original, subject: foreignActor.subject }]]) {
+    await f.addForeign(state => { state.conversations = conversations; });
+    const writes = f.writes(), state = f.store.read();
+    assert.deepEqual(await f.binding.readBinding(actor), { originalBinding: false });
+    assert.equal(f.writes(), writes); assert.deepEqual(f.store.read(), state);
+  }
+  await f.addForeign(state => { state.conversations = [original, { id: 'other', ...foreignActor }]; });
+  const writes = f.writes();
+  assert.deepEqual(await f.binding.readBinding(actor), { originalBinding: true, conversationId: actor.nativeAgentId, onlineVerified: false });
+  assert.equal(f.writes(), writes);
+});
+
+test('original binding projection rechecks exact actor, parent epoch, pause and close on every read', async t => {
+  const f = await setup(t);
+  await f.addForeign(state => { state.conversations = [{ id: actor.nativeAgentId, ...actor }]; });
+  const writes = f.writes();
+  for (const wrong of [undefined, foreignActor, { ...actor, subject: foreignActor.subject }, { ...actor, nativeAgentId: foreignActor.nativeAgentId }])
+    assert.throws(() => f.binding.readBinding(wrong), { code: 'MUSE_OWNER_REQUIRED' });
+  f.pause(); // Read-only identity proof is not approval to execute while paused.
+  assert.equal((await f.binding.readBinding(actor)).originalBinding, true);
+  f.revoke();
+  await assert.rejects(f.binding.readBinding(actor), { code: 'WORKSPACE_PLUGIN_STALE' });
+  assert.equal(f.writes(), writes);
+  await f.binding.close();
+  assert.throws(() => f.binding.readBinding(actor), { code: 'MW_GATEWAY_CLOSED' });
+});

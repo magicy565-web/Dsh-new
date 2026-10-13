@@ -500,6 +500,10 @@ export async function openWorkspacePluginService({ config: input, workerConfigur
         if (!museRest) throw new MuseWorkerError(503, 'MW_GATEWAY_UNAVAILABLE', 'The original Muse binding is unavailable.');
         return museRest.bindDesk(actor);
       },
+      readBinding(actor) {
+        if (!museRest) throw new MuseWorkerError(503, 'MW_GATEWAY_UNAVAILABLE', 'The original Muse binding is unavailable.');
+        return museRest.readBinding(actor);
+      },
       bindConversation(actor) {
         if (!museRest) throw new MuseWorkerError(503, "MW_GATEWAY_UNAVAILABLE", "The original Muse binding is unavailable.");
         return museRest.bindConversation(actor);
