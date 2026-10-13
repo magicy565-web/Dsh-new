@@ -85,7 +85,7 @@ npm start
 
 ## 3. 模式与健康回执
 
-生产默认 `WS_AGENT_DEMO=0`。未配置模型时 `/health.mode` 仍表示生产选择 `model`，`readiness` 为 `unconfigured`。配置存在只代表 `configured_unverified`，不证明真实调用已通过。缺少必要模型/工具时有明确 error 和版本化 result 完成度；模板不能把业务目标标成达成。
+生产默认 `WS_AGENT_DEMO=0`。未配置模型时 `/api/agent/v1/health` 的 `mode` 仍表示生产选择 `model`，`readiness` 为 `unconfigured`。配置存在只代表 `configured_unverified`，不证明真实调用已通过。缺少必要模型/工具时有明确 error 和版本化 result 完成度；模板不能把业务目标标成达成。
 
 只有显式 `WS_AGENT_DEMO=1` 才允许结构模板演示。摘要与产物标明“演示模式：未接模型与真实数据源，内容为结构模板，数字为待确认”。演示和正式成果以模式、完成度与证据记录区分，不能拿演示截图验收真实 Shopify 或供应商研究。
 
