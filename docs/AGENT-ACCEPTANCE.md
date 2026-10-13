@@ -4,7 +4,7 @@
 
 **开发代码已提交；组合运行和独立审查尚未完成。不得作为生产发布凭据。**
 
-- 唯一集成 PR：[PR60](https://github.com/magicy565-web/workspace-agent/pull/60)，基于 PR59 确定提交 `18cc80aca0f88a68fb96d2f1d960897f8a48dac2`。
+- 唯一集成 PR：[PR60](https://github.com/magicy565-web/workspace-agent/pull/60)。初始基线 PR59 `18cc80aca0f88a68fb96d2f1d960897f8a48dac2`，后通过双父提交 `9f808f202ce825a2ab647f11456eb5dbcf8fe76e` 同步 PR59 的原生 Host/Muse 新修复 `32c8ce98fe28cda1e22a16bf0d1088c768e081c8`，且未覆盖其源码；新组合仍未运行完整回归。
 - 选择性来源：PR47 `1e0cc43d973b5d10861561f2cd4979065d5f33f6`。
 - 本次的代码边界、唯一权威和部署限制见 [AGENT-UNIFIED-HANDOFF.md](AGENT-UNIFIED-HANDOFF.md)。
 - 未重建商城/供应商库/计划/通知、模型循环、商业 Task Store 或另一个后端；PR59 是业务和界面权威。
