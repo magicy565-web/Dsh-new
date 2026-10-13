@@ -89,7 +89,7 @@ npm start
 
 只有显式 `WS_AGENT_DEMO=1` 才允许结构模板演示。摘要与产物标明“演示模式：未接模型与真实数据源，内容为结构模板，数字为待确认”。演示和正式成果以模式、完成度与证据记录区分，不能拿演示截图验收真实 Shopify 或供应商研究。
 
-公开 `/health` 不做付费探测，可从正式 HTTPS 地址检查版本、`runtime: pi-durable`、业务权威、配置状态与预设。原 `/api/health` 继续受企业认证保护。失败和部分成果保留；SSE 七种事件名继续兼容，thinking 仅是简短执行摘要。
+公开 `/api/agent/v1/health` 不做付费探测，可从正式 HTTPS 地址检查 Agent 版本、`runtime: pi-durable`、业务权威、配置状态与预设。原 Host 根路径 `/health` 保留其既有处理，不返回 Agent JSON；原 `/api/health` 继续受企业认证保护。失败和部分成果保留；SSE 七种事件名继续兼容，thinking 仅是简短执行摘要。
 
 ## 4. 同机 HTTPS 与流式反代
 
