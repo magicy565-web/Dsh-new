@@ -40,6 +40,8 @@
     "test:conversation:ui": "npm run build && node --test --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs",
     "test:conversation:browser": "npm run build && node test/conversation-library.browser.mjs",
     "test:references:browser": "npm run build && node test/library-reference-scope.browser.mjs",
+    "test:assistant:adapter": "node --test test/assistant-runtime-adapter.test.mjs",
+    "test:assistant:browser": "npm run build && node test/assistant-workspace.browser.mjs",
     "build:mini": "node scripts/build-miniprogram.mjs",
     "test:pi": "node --test test/pi-runtime.test.mjs",
     "package:pi": "python3 scripts/package-pi-source.py",
