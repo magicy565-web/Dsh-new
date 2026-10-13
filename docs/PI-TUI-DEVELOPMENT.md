@@ -34,9 +34,11 @@ For an already configured original backend, inject its **existing** service URL/
 
 The sample frontend also has a finite official faux model for exercising native tool dispatch from explicit public text; its tool receipts are actual backend responses. This is separate from the backend's actual Agent and the child model transport. Neither faux model is a real service connection.
 
+The later [business-preset adapter](PI-TUI-BUSINESS.md) adds `/ws-presets`, `/ws-business`, `/ws-business-status` and human-confirmed `/ws-business-resume` over the original business task API. Business `taskId` and generic `runId` remain separate. It reads original stage events and authenticated text documents, preserves original input/identity/approval boundaries, and grants no default business subagent or supplier/Muse transaction authority. Procurement can execute its existing stages with source-checked synthetic sample responses; missing search still blocks research. Its new verification is separate from the historical generic acceptance below.
+
 ## Tool and policy boundary
 
-- Official TUI extension tools: `workspace_task`, `workspace_status`, `workspace_delegate`. Models cannot approve, continue, cancel or recover through these tools; those are explicit human commands.
+- Official TUI extension tools: generic `workspace_task`, `workspace_status`, `workspace_delegate`, and business `workspace_business_presets`, `workspace_business_task`, `workspace_business_status`. Models cannot approve, continue, cancel or recover through these tools; those are explicit human commands.
 - Backend API: `/api/agent/v1/pi/tasks`, original Agent credential/member scope, original Runtime runs. The public-text surface accepts no file, skill or memory IDs. Connector actions require explicit selection and the original exact approval pipeline.
 - `piTaskContext` is set only by trusted host code, included in the original execution fingerprint and checked against current original member/binding/role before model and tool execution. Other members cannot read the linked runs, conversations, artifacts or approval records through generic Workspace APIs, including the conversation/run admission gap.
 - Backend `workspace-subagent` is a native Pi extension with an original owned ToolTask/child conversation, stable submission ID, fresh persisted provider session and bounded text receipt. The original durable ownership index and submission dedupe do the scheduling and replay.

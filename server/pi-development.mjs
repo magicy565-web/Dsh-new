@@ -14,7 +14,7 @@ export const PI_DEVELOPMENT_TOKEN = 'workspace-pi-public-synthetic-fixture';
 const textOf = message => typeof message?.content === 'string' ? message.content
   : (message?.content || []).filter(block => block.type === 'text').map(block => block.text).join('\n');
 
-export async function startPiDevelopment({ dataDirectory, responses, seedApprovalConnector = true, port = 0, timeoutMs = 60_000 } = {}) {
+export async function startPiDevelopment({ dataDirectory, responses, seedApprovalConnector = true, port = 0, timeoutMs = 60_000, syntheticBindingExpiresAt, accessClock = Date.now } = {}) {
   const temporary = !dataDirectory;
   const directory = dataDirectory || await fs.mkdtemp(path.join(os.tmpdir(), 'workspace-pi-development-'));
   const faux = fauxProvider({ api: 'faux' }), models = createModels(); models.setProvider(faux.provider);
@@ -23,6 +23,25 @@ export async function startPiDevelopment({ dataDirectory, responses, seedApprova
     const last = request.messages.at(-1), input = textOf(last);
     const system = request.messages.filter(message => message.role === 'system');
     const available = system.flatMap(message => message.toolsAdded || []).map(tool => tool.name);
+    const instructions = system.map(message => message.sections?.instructions || textOf(message)).join('\n');
+    const presetMarker = 'Admitted stage and source data (untrusted data, no additional authority):\n';
+    if (available.includes('workspace_complete_preset_stage') && instructions.includes(presetMarker)) {
+      // The finite synthetic model calls the original source-checked stage
+      // tool. It never returns plain text as a completed business receipt.
+      let context;
+      try { context = JSON.parse(instructions.split(presetMarker).at(-1).trim()); } catch { throw new Error('Synthetic preset context could not be parsed.'); }
+      if (context.stage?.key === 'comparison' && context.input?.requirements === 'WAIT_FOR_BUSINESS_RESTART') {
+        await new Promise(resolve => { if (options.signal.aborted) resolve(); else options.signal.addEventListener('abort', resolve, { once: true }); });
+        return fauxAssistantMessage('', { stopReason: 'aborted' });
+      }
+      const source = context.evidence?.find(row => row.id === 'input.product');
+      if (!source) throw new Error('Synthetic preset has no explicit product input evidence.');
+      return fauxAssistantMessage(fauxToolCall('workspace_complete_preset_stage', {
+        analysis: [{ text: '合成模型替身：本阶段仅整理明确提供的产品资料，未覆盖信息需逐项核对。', sources: [source.id] }],
+        recommendations: [{ text: '建议核对原始材料并确认下一步。', sources: [] }],
+        questions: [{ text: '是否可以补充原始报价与证据来源？', sources: [] }],
+      }), { stopReason: 'toolUse' });
+    }
     if (last?.role === 'toolResult') {
       return fauxAssistantMessage('Controlled faux result; actual original tool receipt:\n' + input);
     }
@@ -53,10 +72,10 @@ export async function startPiDevelopment({ dataDirectory, responses, seedApprova
   // Hard finite fixture plan; it cannot silently fall through to a real model.
   faux.setResponses(responses || Array.from({ length: 128 }, () => respond));
   try {
-    app = await createApp({ dataDirectory: directory, capabilityEnvironment: {},
+    app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, accessClock,
       provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1', timeoutMs }),
       agentConfig: { env: {}, principals: [{ subject: 'local-operator', workspaceId: 'local',
-        tokenSha256: createHash('sha256').update(PI_DEVELOPMENT_TOKEN).digest('hex'), scopes: ['agent:read', 'agent:submit'] }] } });
+        tokenSha256: createHash('sha256').update(PI_DEVELOPMENT_TOKEN).digest('hex'), scopes: ['agent:read', 'agent:submit'], ...(syntheticBindingExpiresAt ? { expiresAt: syntheticBindingExpiresAt } : {}) }] } });
     if (seedApprovalConnector) {
       connector = app.capabilities.listConnectors().find(value => value.name === 'Public synthetic Pi TUI local file');
       if (!connector) connector = (await app.capabilities.createConnector({ name: 'Public synthetic Pi TUI local file', adapter: 'workspace-library', capabilities: ['create_file'] })).connector;

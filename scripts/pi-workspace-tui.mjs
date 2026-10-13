@@ -30,6 +30,12 @@ export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sa
         return fauxAssistantMessage(`Original Workspace task receipt (controlled faux transport):\n${receipt}\nUse /ws-status RUN_ID to read its current persisted result.`);
       }
       const input = typeof last?.content === 'string' ? last.content : (last?.content || []).filter(block => block.type === 'text').map(block => block.text).join('\n');
+      if (input.startsWith('PUBLIC_BUSINESS_FIXTURE ')) {
+        // Explicit sample-only native tool-dispatch fixture, never inferred
+        // business data, a backend model configuration or permission grant.
+        let task; try { task = JSON.parse(input.slice('PUBLIC_BUSINESS_FIXTURE '.length)); } catch { return fauxAssistantMessage('Provide valid explicit public fixture JSON; no business task was submitted.'); }
+        return fauxAssistantMessage(fauxToolCall('workspace_business_task', task), { stopReason: 'toolUse' });
+      }
       return fauxAssistantMessage(fauxToolCall('workspace_delegate', { title: 'Public synthetic TUI sample', content: input }), { stopReason: 'toolUse' });
     };
     // Bounded deterministic test transport. This is not evidence of an actual
@@ -72,7 +78,7 @@ async function isolatedMain({ sample, check, isolationDirectory }) {
       return;
     }
     const mode = new InteractiveMode(runtime, { startupDiagnostics: [{ type: 'info', message: sample
-      ? 'Workspace public synthetic sample · official Pi TUI · keyless controlled faux · actual backend task receipts'
+      ? 'Workspace public synthetic sample · official Pi TUI · keyless controlled faux · actual backend task receipts · business documents are synthetic and unverified'
       : 'Workspace command profile · original backend authority · TUI natural-language model calls blocked' }] });
     await mode.run();
   } finally { await runtime.dispose(); await close(); }
@@ -80,7 +86,7 @@ async function isolatedMain({ sample, check, isolationDirectory }) {
 
 export async function main(args = process.argv.slice(2)) {
   if (args.includes('--help')) {
-    console.log('Official Pi Workspace TUI\n  npm run agent:tui -- --sample   Public synthetic, keyless controlled faux development sample\n  npm run agent:tui               Original WS_AGENT_URL / WS_AGENT_TOKEN injected in memory; command profile\n  --check                        Inspect installed official runtime and plugin tools without model calls\n\n/ws-task {"title":"Public task","content":"Explicit public text"}\n/ws-delegate {"title":"Public task","content":"Explicit public text"}\n/ws-status RUN_ID\n/ws-cancel RUN_ID\n/ws-resume RUN_ID\n/ws-approve RUN_ID PROPOSAL_ID\n/ws-continue RUN_ID PROPOSAL_ID\n/ws-quit');
+    console.log('Official Pi Workspace TUI\n  npm run agent:tui -- --sample   Public synthetic, keyless controlled faux development sample\n  npm run agent:tui               Original WS_AGENT_URL / WS_AGENT_TOKEN injected in memory; command profile\n  --check                        Inspect installed official runtime and plugin tools without model calls\n\n/ws-task {"title":"Public task","content":"Explicit public text"}\n/ws-delegate {"title":"Public task","content":"Explicit public text"}\n/ws-status RUN_ID\n/ws-cancel RUN_ID\n/ws-resume RUN_ID\n/ws-approve RUN_ID PROPOSAL_ID\n/ws-continue RUN_ID PROPOSAL_ID\n/ws-presets\n/ws-business {"type":"procurement","title":"Public procurement","input":{"product":"Public cup","spec":"Public specification","quantity":10},"requestId":"public-business-1"}\n/ws-business-status TASK_ID\n/ws-business-resume TASK_ID\n/ws-quit');
     return;
   }
   if (args.some(arg => !['--sample', '--check', '--isolated-child'].includes(arg))) throw new Error('Invalid TUI options. Use --help; credentials cannot be command-line arguments.');

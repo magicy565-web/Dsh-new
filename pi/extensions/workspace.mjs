@@ -2,10 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { Type } from '@earendil-works/pi-ai';
 import { matchesKey } from '@earendil-works/pi-tui';
+import { looksLikeCredential } from '../../server/security.mjs';
 
 const API = '/api/agent/v1/pi/tasks';
-export const WORKSPACE_TOOLS = Object.freeze(['workspace_task', 'workspace_status', 'workspace_delegate']);
-const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-quit', 'quit']);
+const BUSINESS_API = '/api/agent/v1';
+export const WORKSPACE_TOOLS = Object.freeze(['workspace_task', 'workspace_status', 'workspace_delegate', 'workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
+const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-presets', 'ws-business', 'ws-business-status', 'ws-business-resume', 'ws-quit', 'quit']);
 const requestIdentifier = value => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(value)) throw new Error('Use a requestId of at most 96 letters, numbers, underscores or dashes.');
   return value;
@@ -27,11 +29,11 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     throw new Error('Use HTTPS or a loopback HTTP Workspace origin, without credentials or query parameters.');
   if (typeof token !== 'string' || !/^[\x21-\x7e]{1,8192}$/.test(token)) throw new Error('Workspace access is blocked until the existing WS_AGENT_TOKEN is injected into memory.');
   const origin = base.origin;
-  async function request(method, suffix = '', body, signal) {
+  async function request(method, suffix = '', body, signal, { business = false, requestId, textOnly = false } = {}) {
     let response;
     try {
-      response = await fetchImpl(origin + API + suffix, { method, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      response = await fetchImpl(origin + (business ? BUSINESS_API : API) + suffix, { method, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
+        headers: { Authorization: `Bearer ${token}`, Accept: textOnly ? 'text/markdown, text/plain' : 'application/json', ...(requestId ? { 'Idempotency-Key': requestId } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     } catch { throw new Error('Workspace request did not settle. Check the original task status before retrying.'); }
     // Bound the response while reading; do not expose arbitrary remote error text
@@ -50,11 +52,40 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     } finally { reader.releaseLock(); }
     if (!response.ok) throw new Error(`Workspace refused this operation (HTTP ${response.status}). No approval or task result is implied.`);
     let value;
-    try { value = JSON.parse(text); } catch { throw new Error('Workspace returned an invalid task receipt.'); }
+    if (textOnly) {
+      if (!/^text\/(?:markdown|plain)(?:;|$)/i.test(response.headers.get('content-type') || '')) throw new Error('Workspace artifact is not an admitted text document.');
+      value = text;
+    } else try { value = JSON.parse(text); } catch { throw new Error('Workspace returned an invalid task receipt.'); }
     const redact = input => typeof input === 'string' ? input.replaceAll(token, '[REDACTED]')
       : Array.isArray(input) ? input.map(redact)
         : input && typeof input === 'object' ? Object.fromEntries(Object.entries(input).map(([key, item]) => [key.replaceAll(token, '[REDACTED]'), redact(item)])) : input;
     return redact(value);
+  }
+  const businessPresets = signal => request('GET', '/presets', undefined, signal, { business: true });
+  async function businessSubmit(input, signal) {
+    const value = await businessInput(input, await businessPresets(signal));
+    const { requestId, ...body } = value;
+    const task = await request('POST', '/tasks', body, signal, { business: true, requestId });
+    return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false, task };
+  }
+  async function businessStatus(taskId, signal) {
+    const id = encodeURIComponent(identifier(taskId));
+    const task = await request('GET', '/tasks/' + id, undefined, signal, { business: true });
+    if (task.taskId !== taskId || !Array.isArray(task.artifacts) || task.artifacts.length > 40) throw new Error('Workspace returned an invalid business task receipt.');
+    const events = await request('GET', '/tasks/' + id + '/events?format=json', undefined, signal, { business: true });
+    const artifacts = [];
+    let total = 0;
+    // Only original task metadata selects authenticated text artifacts. Ignore
+    // its URL field: never fetch arbitrary URLs, paths or user artifact IDs.
+    for (const file of task.artifacts) {
+      if (typeof file.name !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,123}\.(?:md|txt)$/.test(file.name) || file.name.includes('..') || !Number.isSafeInteger(file.bytes) || file.bytes < 0 || file.bytes > 256_000 || total + file.bytes > 512_000) {
+        artifacts.push({ name: 'unavailable', status: 'blocked', detail: 'Artifact metadata exceeds the bounded text profile.' }); continue;
+      }
+      total += file.bytes;
+      try { artifacts.push({ name: file.name, bytes: file.bytes, status: 'available', content: await request('GET', '/tasks/' + id + '/artifacts/' + encodeURIComponent(file.name), undefined, signal, { business: true, textOnly: true }) }); }
+      catch { artifacts.push({ name: file.name, status: 'unavailable', detail: 'Original authenticated artifact could not be read; no document result is inferred.' }); }
+    }
+    return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false, task, events, artifacts };
   }
   return Object.freeze({
     submit: (input, signal) => request('POST', '', input, signal),
@@ -63,7 +94,38 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     resume: (runId, requestId = randomUUID(), signal) => request('POST', '/' + encodeURIComponent(identifier(runId)) + '/resume', { requestId: requestIdentifier(requestId) }, signal),
     decision: (runId, proposalId, decision, signal) => request('POST', '/' + encodeURIComponent(identifier(runId)) + '/decision', { proposalId: identifier(proposalId), decision, confirmed: true }, signal),
     continue: (runId, proposalId, requestId = randomUUID(), signal) => request('POST', '/' + encodeURIComponent(identifier(runId)) + '/continue', { proposalId: identifier(proposalId), requestId: requestIdentifier(requestId) }, signal),
+    businessPresets,
+    businessSubmit,
+    businessStatus,
+    businessResume: async (taskId, signal) => ({ profile: 'business-preset', identity: 'taskId', delegatedExecution: false,
+      task: await request('POST', '/tasks/' + encodeURIComponent(identifier(taskId)) + '/resume', {}, signal, { business: true }) }),
   });
+}
+
+async function businessInput(input, presets) {
+  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['type', 'title', 'input', 'requestId'].includes(key)))
+    throw new Error('Business JSON allows only type, title, input and a stable requestId.');
+  requestIdentifier(input.requestId);
+  if (typeof input.title !== 'string' || !input.title.trim() || input.title.length > 300 || /[\x00-\x1f]/.test(input.title) || looksLikeCredential(input.title))
+    throw new Error('Provide a bounded public business title without credentials.');
+  const rows = Array.isArray(presets) ? presets : presets?.presets;
+  const preset = rows?.find(row => row.id === input.type);
+  if (!preset || !Array.isArray(preset.required_inputs) || !Array.isArray(preset.optional_inputs)) throw new Error('Select an original business preset from /ws-presets.');
+  const allowed = new Set([...preset.required_inputs, ...preset.optional_inputs]);
+  if (!input.input || typeof input.input !== 'object' || Array.isArray(input.input) || Object.keys(input.input).some(key => !allowed.has(key))
+    || preset.required_inputs.some(key => !['string', 'number'].includes(typeof input.input[key]) || !String(input.input[key]).trim()))
+    throw new Error('Use only the public input fields listed by this original preset; all required fields must be supplied.');
+  const forbidden = /^(?:__proto__|prototype|constructor|agentPresetContext|piTaskContext|tools|model|budget|artifact(?:s|Ids?|_ids?)?|skill(?:s|Ids?|_ids?)?|memory(?:Ids?|_ids?)?|file(?:s|Path|_path|Ids?)?)$/i;
+  function publicTree(value, depth = 0) {
+    if (depth > 8 || typeof value === 'number' && !Number.isFinite(value) || typeof value === 'string' && (value.length > 65536 || looksLikeCredential(value))) throw new Error('Use bounded explicit public text without credentials.');
+    if (value && typeof value === 'object') {
+      if (Array.isArray(value) && value.length > 100) throw new Error('Public business lists are limited to 100 items.');
+      for (const [key, item] of Object.entries(value)) { if (forbidden.test(key)) throw new Error('Business input cannot set files, models, tools, budget or host context.'); publicTree(item, depth + 1); }
+    }
+  }
+  publicTree(input.input);
+  if (Buffer.byteLength(JSON.stringify(input.input)) > 96_000) throw new Error('Public business input exceeds this profile limit.');
+  return input;
 }
 
 function taskInput(input, delegation = false) {
@@ -103,7 +165,7 @@ export function workspaceExtension(client, { sample = false, close = async () =>
       });
       pi.setActiveTools([...WORKSPACE_TOOLS]);
       ctx.ui.setStatus('workspace', sample ? 'Workspace · controlled faux sample' : 'Workspace · original task authority');
-      ctx.ui.notify('Use /ws-task, /ws-delegate, /ws-status, /ws-cancel, /ws-resume, /ws-approve, /ws-continue or /ws-quit. Task JSON contains explicit public text only.', 'info');
+      ctx.ui.notify('Use /ws-task for generic runs; /ws-presets and /ws-business for original business tasks. /ws-status takes RUN_ID; /ws-business-status takes TASK_ID. Explicit public input only.', 'info');
     });
     pi.on('session_shutdown', async () => { removeTerminalPolicy(); await close(); });
     pi.on('user_bash', () => ({ result: { output: 'Shell execution is unavailable in the Workspace TUI profile.', exitCode: 1, cancelled: false, truncated: false } }));
@@ -135,6 +197,16 @@ export function workspaceExtension(client, { sample = false, close = async () =>
     pi.registerTool({ name: 'workspace_status', label: 'Workspace task status', parameters: Type.Object({ runId: Type.String() }, { additionalProperties: false }),
       description: 'Read actual persisted Workspace task, reply, proposal, usage and event state for the original run.',
       async execute(_id, input, signal) { return result(await client.status(input.runId, signal)); } });
+    pi.registerTool({ name: 'workspace_business_presets', label: 'Workspace business presets', parameters: Type.Object({}, { additionalProperties: false }),
+      description: 'List the existing authenticated business presets, required public inputs and document deliverables. This is capability discovery, not proof of connected research or task completion.',
+      async execute(_id, _input, signal) { return result(await client.businessPresets(signal)); } });
+    pi.registerTool({ name: 'workspace_business_task', label: 'Workspace business task', parameters: Type.Object({ type: Type.String(), title: Type.String({ minLength: 1, maxLength: 300 }),
+      input: Type.Record(Type.String(), Type.Unknown()), requestId: Type.String({ minLength: 1, maxLength: 96, pattern: '^[A-Za-z0-9_-]+$' }) }, { additionalProperties: false }),
+      description: 'Submit explicitly supplied public input to an original business preset under a stable requestId. The original coordinator, stages, Pi tools and approvals remain authoritative. It has no default subagent capability.',
+      async execute(_id, input, signal) { return result(await client.businessSubmit(input, signal)); } });
+    pi.registerTool({ name: 'workspace_business_status', label: 'Workspace business task results', parameters: Type.Object({ taskId: Type.String() }, { additionalProperties: false }),
+      description: 'Read an original business taskId, stage events and authenticated text documents. It does not take a generic runId, arbitrary URL, file or artifact ID.',
+      async execute(_id, input, signal) { return result(await client.businessStatus(input.taskId, signal)); } });
     const command = (name, description, handler) => pi.registerCommand(name, { description, handler: async (args, ctx) => {
       try { const value = await handler(args, ctx); if (value !== undefined) show(value); }
       catch (error) { ctx.ui.notify(error.message, 'error'); }
@@ -157,6 +229,17 @@ export function workspaceExtension(client, { sample = false, close = async () =>
     command('ws-continue', 'Explicitly execute an already approved action: /ws-continue RUN_ID PROPOSAL_ID', args => {
       const [runId, proposalId, extra] = args.trim().split(/\s+/); if (extra) throw new Error('Use an original run and proposal ID.');
       return client.continue(runId, proposalId);
+    });
+    command('ws-presets', 'List original business presets and public inputs', () => client.businessPresets());
+    command('ws-business', 'Submit an original business task: /ws-business {"type":"procurement","title":"...","input":{...},"requestId":"stable-key"}', args => client.businessSubmit(parseInput(args)));
+    command('ws-business-status', 'Read original business stages and documents: /ws-business-status TASK_ID', args => client.businessStatus(args.trim()));
+    command('ws-business-resume', 'Explicitly resume the unchanged original business task: /ws-business-resume TASK_ID', async (args, ctx) => {
+      const taskId = identifier(args.trim());
+      const receipt = await client.businessStatus(taskId);
+      if (!receipt.task.result?.resumable || !['failed', 'interrupted'].includes(receipt.task.status)) throw new Error('The original business task has no eligible explicit recovery checkpoint. No continuation was sent.');
+      if (!await ctx.ui.confirm('Resume this unchanged original business task?', JSON.stringify({ taskId, type: receipt.task.type, status: receipt.task.status, result: receipt.task.result }, null, 2)))
+        return { profile: 'business-preset', taskId, resumed: false, detail: 'No continuation was sent.' };
+      return client.businessResume(taskId);
     });
     command('ws-quit', 'Close the official Pi TUI and its sample backend', async (_args, ctx) => { await close(); ctx.shutdown(); });
   };
