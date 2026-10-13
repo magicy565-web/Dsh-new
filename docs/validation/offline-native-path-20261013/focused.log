@@ -1,0 +1,25 @@
+✔ Pi client accepts actual old overlay bootstrap only for existing original owned binding (offline) (74.611876ms)
+✔ old overlay does not infer original binding from enabled gates or invalid stored rows (offline) (68.602095ms)
+✔ old overlay bootstrap does not expose native binding to viewer, foreign admin or unsigned session (offline) (19.135137ms)
+✔ old overlay bootstrap fails closed across missing forwarding and binding closure (offline) (18.413882ms)
+✔ Pi list keeps encoded original native conversation identifiers through old overlay routes (offline) (34.906745ms)
+✔ old overlay decodes conversation segments once and retains original ownership denials (offline) (22.933754ms)
+✔ native binding requires reviewed exact owner and explicit boolean gates before any write (3.666632ms)
+✔ REST uses parent native actor and rejects Host, browser credentials and duplicate headers (27.681347ms)
+✔ fixed Muse owner cannot inspect or mutate another WorkerDesk order (2.373825ms)
+✔ parent pause blocks admission and captured epoch revocation blocks cached REST and business handles (3.820925ms)
+✔ owned upload, manual acceptance and opportunity import retain owner and preserve foreign data (14.065683ms)
+✔ disabled approval gates allow identity and empty inbox without admitting an order (3.720483ms)
+✔ native restart quarantine expires the original lease without replacing the attempt or receipt (9.359005ms)
+✔ native owner and session IDs keep their original syntax without widening public task IDs (3.630848ms)
+✔ private reconciliation review only remounts an exact paused scope without Dot grants or resume authority (0.893816ms)
+✔ original binding projection proves one existing owned conversation without creating state (2.559574ms)
+✔ original binding projection rechecks exact actor, parent epoch, pause and close on every read (1.439628ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 353.018679

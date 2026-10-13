@@ -1,0 +1,23 @@
+✖ Pi list keeps encoded original native conversation identifiers through old overlay routes (offline) (48.601443ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 168.187691
+
+✖ failing tests:
+
+test at test/muse-native-bootstrap.test.mjs:173:1
+✖ Pi list keeps encoded original native conversation identifiers through old overlay routes (offline) (48.601443ms)
+  Error: WORKSPACE_PLUGIN_OWNER
+      at fail (file:///workspace/scratch/f716ab68d7ea/integration-recovery-20261012/repo/tui/workspace-client.mjs:9:30)
+      at api (file:///workspace/scratch/f716ab68d7ea/integration-recovery-20261012/repo/tui/workspace-client.mjs:49:7)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///workspace/scratch/f716ab68d7ea/integration-recovery-20261012/repo/test/muse-native-bootstrap.test.mjs:178:22)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    code: 'WORKSPACE_PLUGIN_OWNER'
+  }

@@ -1,0 +1,22 @@
+✔ native Pi proposal definitions reuse original supplier services and prepare only a separately reviewed Muse draft (683.017874ms)
+✔ model arguments do not approve: No/nonboolean/no-UI/RPC/cancel/stale revision all fail closed (131.592452ms)
+✔ same Pi extension registers all 15 original supplier tools and completes initialize/list/upload/intake/get/preview over signed native HTTP (1040.042296ms)
+✔ supplier command confirms writes, journals exact UUID/body before dispatch, and reads same task after lost response without automatic retry (131.746212ms)
+✔ original permission/privacy/ownership/approval and unknown-image guards remain enforced through supplier MCP (136.304342ms)
+✔ TUI command → signed owner HTTP → original Muse claim/upload/submit → same Session result; cold recovery preserves request and task (931.11829ms)
+✔ built-in host transport reuses original native ingress/session signing and CSRF; expiry does not reauthenticate (236.216448ms)
+✔ existing trusted host launches read-only diagnostic over private RPC; TUI never receives token, CSRF or signing key (248.690262ms)
+✔ original native ingress mounts the Host-only launcher, derives its owner and rejects Worker/viewer/foreign-owner sessions (226.322945ms)
+✔ TUI rejects missing owner, worker token, wrong tenant, other owner, revoked session and declined approval (190.72207ms)
+✔ focused TUI cannot approve through noninteractive/model input; transport defaults closed and rejects remote local-mode URLs (1.029039ms)
+✔ checked-in Muse Python v4 CLI consumes the same TUI-created task with real current v1 bodies and preserved lease (375.760999ms)
+✔ journal must persist before prepare and recovery is isolated by original owner/workspace/conversation (53.264138ms)
+✔ TUI handoff writes one exact approved public order guide without credentials, external sending or another claim (266.034841ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3059.121264
