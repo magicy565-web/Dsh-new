@@ -157,7 +157,11 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
   const scopeChangedError = { code: 'EXECUTION_SCOPE_CHANGED', message: 'The model, runtime mode or reviewed permission profile changed after this run was admitted. Review it and explicitly retry; no request was started.' };
   // Agent stages share the original Pi Host but not the ordinary chat/Goal
   // mutation routes. The original business task is the sole coordinator.
-  const agentConversation = (state, id) => Boolean(state.workspaceAgentTasks?.tasks?.some(task => task.conversationId === id));
+  const agentConversation = (state, id) => Boolean(
+    state.workspaceAgentTasks?.tasks?.some(task => task.conversationId === id)
+    // Fail closed if a business task was lost but its original Pi run remains.
+    || state.runs?.some(run => run.conversationId === id && (run.agentTaskId || run.agentPresetContext))
+  );
   const agentConversationRouteError = () => new ApiError(409, 'AGENT_TASK_ROUTE_REQUIRED', 'Use the existing Agent business task for this Pi conversation; ordinary chat or Goal mutations cannot change it.');
   function addRun(state, run, admittedContext = null) {
     if (run.status === 'queued' && state.runs.filter(item => item.status === 'queued').length >= maxQueuedRuns) throw new ApiError(429, 'QUEUE_FULL', 'The run queue is full. Wait for work to finish.');
@@ -586,6 +590,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     async resolveRunAction(id, body) {
       ensureOpen();
       const state = store.read(), run = required(state, 'runs', id);
+      if (run.agentTaskId || run.agentPresetContext) throw agentConversationRouteError();
       if (!matchesExecution(state, run)) throw new ApiError(409, scopeChangedError.code, scopeChangedError.message);
       await bridge.decideAction(id, body, (next, proposal) => {
         if (proposal.status !== 'denied') return;
@@ -603,6 +608,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       let launch;
       const result = await store.update(state => {
         const run = required(state, 'runs', id);
+        if (run.agentTaskId || run.agentPresetContext) throw agentConversationRouteError();
         const prior = key && run.resumeRequests?.find(item => item.key === key);
         if (prior) { if (body.proposalId && body.proposalId !== prior.proposalId) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'This resume requestId belongs to a different proposal.'); return { run, duplicate: true }; }
         if (jobs.has(id)) throw new ApiError(409, 'RUNTIME_BUSY', 'The previous run step is still shutting down. Wait briefly and resume again.');
