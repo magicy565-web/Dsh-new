@@ -8,13 +8,15 @@ import { isBusinessLibraryArtifact } from './business-library-policy.mjs';
 import { isOriginalMuseArtifact, isOriginalMuseMessage, originalMuseScope } from './muse-owner-policy.mjs';
 import { MuseDraftError, registerDraft, publishDraft, museDraftInstructions, assertDraftInvocation } from './muse-draft.mjs';
 import { registerSupplierDraft, publishSupplierDraft, supplierInstructions, supplierFind } from './supplier-draft.mjs';
+import { AgentPresetError, registerAgentPresetRun, publishAgentPresetStage, agentPresetInstructions, assertAgentPresetInvocation } from './agent/pi-preset.mjs';
+import { ModelOutputError } from './agent/output.mjs';
 
 export class ApiError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 const now = () => new Date().toISOString();
 const setupError = { code: 'SETUP_REQUIRED', message: 'Set DEEPSEEK_API_KEY in the server environment and restart to enable DeepSeek. Your work is saved.' };
-const blockedCodes = new Set(['SETUP_REQUIRED', 'NATIVE_RESUME_UNSUPPORTED', 'NATIVE_BRIDGE_REQUIRED', 'NATIVE_APPROVAL_UNSUPPORTED', 'NATIVE_POLICY_CHANGED', 'NATIVE_BRIDGE_ERROR', 'NATIVE_BRIDGE_PROTOCOL', 'WORKER_SETUP_REQUIRED', 'EXECUTION_SCOPE_CHANGED', 'BUSINESS_LIBRARY_PRIVATE']);
+const blockedCodes = new Set(['SETUP_REQUIRED', 'NATIVE_RESUME_UNSUPPORTED', 'NATIVE_BRIDGE_REQUIRED', 'NATIVE_APPROVAL_UNSUPPORTED', 'NATIVE_POLICY_CHANGED', 'NATIVE_BRIDGE_ERROR', 'NATIVE_BRIDGE_PROTOCOL', 'WORKER_SETUP_REQUIRED', 'EXECUTION_SCOPE_CHANGED', 'BUSINESS_LIBRARY_PRIVATE', 'AGENT_REQUIRED_CAPABILITY_MISSING', 'AGENT_EVIDENCE_MISSING', 'AGENT_CONTEXT_CHANGED', 'AGENT_INVOCATION_CHANGED']);
 const stoppedError = { code: 'INTERRUPTED', message: 'The server stopped during this request. Nothing was automatically retried. Resume or send a new request when ready.' };
 function required(state, collection, id) {
   const value = state[collection].find(item => item.id === id);
@@ -47,7 +49,7 @@ function conversation(state, title) {
   return item;
 }
 function safeError(error) {
-  if (error instanceof ProviderError || error instanceof ApiError || error instanceof CapabilityError || error instanceof MuseDraftError) return { code: error.code, message: error.message };
+  if (error instanceof ProviderError || error instanceof ApiError || error instanceof CapabilityError || error instanceof MuseDraftError || error instanceof AgentPresetError || error instanceof ModelOutputError) return { code: error.code, message: error.message };
   return { code: 'RUNTIME_ERROR', message: 'This request could not finish. Your saved work is safe. Please retry.' };
 }
 function runUsesBusinessLibraryArtifact(state, run) {
@@ -119,6 +121,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
   const status = () => ({
     provider: provider.provider || 'deepseek', kind: provider.kind || 'deepseek-api', configured: provider.configured, model: provider.model || store.read().settings.model,
     status: provider.configured ? 'ready' : 'setup_required', readiness: provider.configured ? 'configured_unverified' : 'setup_required', onlineVerified: false, lastObservation: { ...lastObservation }, models: provider.models || SUPPORTED_MODELS,
+    researchCapabilities: [...(provider.researchCapabilities || [])],
     capabilities: [...(provider.capabilities || ['text_chat', 'bounded_text_goal_loop', 'conversation_history', 'explicit_memory_crud', 'saved_text_outputs']), 'selected_input_context', 'structured_workspace_tasks', ...(capabilities ? ['exact_approved_connector_bridge'] : []), ...(saveOutput ? ['generated_text_artifacts'] : [])],
     backendCapabilities: ['durable-runs', 'persisted-queue', 'restart-recovery', 'scoped-memory', 'artifact-files', 'approval-gates', 'local-opt-in-schedules', 'connector-registry', 'skill-registry', 'change-events'],
     queue: { active: jobs.size, waiting: store.read().runs.filter(run => run.status === 'queued').length, maximum: maxQueuedRuns },
@@ -128,7 +131,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
   function assertMemorySafe(content) { if (looksLikeCredential(content) || provider.containsCredential?.(content)) throw new ApiError(400, 'RAW_CREDENTIAL_REJECTED', 'Credentials cannot be stored in workspace memory. Use reviewed server-side environment references.'); validateMemory(content); }
   function bootstrap() {
     const state = store.read();
-    const { businessLibrary: _businessLibrary, commerceProjects: _commerceProjects, workspaceConversationCreations: _creations, workspaceWechatLoginAttempts: _wechatAttempts, workspaceMuseDrafts: _museDrafts, workspaceSupplierServices: _supplierServices, ...snapshot } = state;
+    const { businessLibrary: _businessLibrary, commerceProjects: _commerceProjects, workspaceConversationCreations: _creations, workspaceWechatLoginAttempts: _wechatAttempts, workspaceMuseDrafts: _museDrafts, workspaceSupplierServices: _supplierServices, workspaceAgentTasks: _agentTasks, ...snapshot } = state;
     snapshot.artifacts = (state.artifacts || []).filter(artifact => !isBusinessLibraryArtifact(state, artifact));
     snapshot.activity = (state.activity || []).filter(event => !isBusinessLibraryArtifact(state, event.artifactId));
     return { ...snapshot, settings: { ...snapshot.settings, model: provider.model || snapshot.settings.model }, runtime: status() };
@@ -138,7 +141,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     if (!run || !['running', 'queued', 'awaiting_approval'].includes(run.status)) return;
     run.status = status; run.error = error; run.finishedAt = now();
   }
-  function executionScope(state) { return { kind: provider.kind || 'deepseek-api', model: provider.model || state.settings.model, permissionFingerprint: provider.permissionFingerprint || null }; }
+  function executionScope(state) { return { kind: provider.kind || 'deepseek-api', model: provider.model || state.settings.model, permissionFingerprint: provider.permissionFingerprint || null, ...(provider.endpointFingerprint ? { endpointFingerprint: provider.endpointFingerprint } : {}) }; }
   function matchesExecution(state, run) { return run?.executionHash === capabilityPayloadHash(executionScope(state)); }
   const scopeChangedError = { code: 'EXECUTION_SCOPE_CHANGED', message: 'The model, runtime mode or reviewed permission profile changed after this run was admitted. Review it and explicitly retry; no request was started.' };
   function addRun(state, run) {
@@ -214,6 +217,11 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       reply.status = item.status; reply.error = error;
       bridge.cancelPending(state, state.runs.find(run => run.id === runId));
       finishRun(state, runId, item.status, error);
+      const failedRun = state.runs.find(run => run.id === runId);
+      if (failedRun?.agentPresetContext) {
+        const step = state.workspaceAgentTasks?.tasks.find(task => task.id === failedRun.agentPresetContext.taskId)?.steps.find(value => value.key === failedRun.agentPresetContext.stageKey && value.runId === runId);
+        if (step) { step.status = item.status; step.error = error; }
+      }
       activity(state, item.status, 'Chat could not finish', error.message, { conversationId: id });
     });
   }
@@ -303,10 +311,12 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
           state = store.read(); run = required(state, 'runs', runId);
           if (!validChat(state, id, runId)) return;
           if (!matchesExecution(state, run)) throw new ProviderError(scopeChangedError.code, scopeChangedError.message);
+          assertAgentPresetInvocation(state, run);
           const messages = runMessages(state, run);
           if (structured) messages[0].content += workspaceResponseInstructions({ grants: run.connectorGrants });
           if (run.museDraftContext) messages[0].content += museDraftInstructions(run.museDraftContext);
           if (run.supplierDraftContext) messages[0].content += supplierInstructions(run.supplierDraftContext);
+          if (run.agentPresetContext) messages[0].content += agentPresetInstructions(run.agentPresetContext);
           attachNativeRunData(messages, run);
           const result = await completeObserved({ messages, model: run.execution.model, maxTokens: reservation, json: structured, signal: controller.signal, replyId, nativeSessionId: required(state, 'conversations', id).nativeSessionId || undefined, runId, conversationId: id, onEvent: event => onRunEvent(runId, event) });
           if (controller.signal.aborted || !validChat(store.read(), id, runId)) return;
@@ -315,6 +325,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
           const parsed = structured ? parseWorkspaceResponse(result.content) : { done: true, content: result.content };
           if (run.museDraftContext && (!parsed.done || parsed.action || parsed.artifact || !result.museDraftProposal)) throw new ProviderError('PI_MUSE_PROPOSAL_REQUIRED', 'Only an inert Pi draft proposal can finish this request.');
           if (run.supplierDraftContext && (!parsed.done || parsed.action || parsed.artifact || !result.supplierProposal)) throw new ProviderError('PI_SUPPLIER_PROPOSAL_REQUIRED', 'Only quote-verified private supplier facts can finish this request.');
+          if (run.agentPresetContext && (!parsed.done || parsed.action || parsed.artifact || !result.agentPresetProposal)) throw new ProviderError('PI_PRESET_PROPOSAL_REQUIRED', 'Only the original Pi preset result tool can finish this document stage.');
           if (parsed.action) { await bridge.requestAction(runId, parsed.action, next => { if (!validChat(next, id, runId)) throw new ApiError(409, 'RUN_NOT_ACTIVE', 'The run was stopped.'); markWaiting(next, runId, replyId, parsed, result); }); return; }
           const output = await persistOutput(runId, replyId, parsed, controller.signal);
           const nextReply = await store.update(next => {
@@ -324,6 +335,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
             reply.content = parsed.content; reply.status = 'complete'; reply.usage = result.usage || null;
             if (current.museDraftContext) publishDraft(next, current, reply, result.museDraftProposal);
             if (current.supplierDraftContext) publishSupplierDraft(next, current, reply, result.supplierProposal);
+            if (current.agentPresetContext) publishAgentPresetStage(next, current, reply, result.agentPresetProposal, result.agentResearchReceipts || []);
             if (result.nativeSessionId) reply.nativeSessionId = result.nativeSessionId;
             if (result.nativeEvents) reply.nativeEvents = result.nativeEvents;
             if (result.runtime) reply.runtime = result.runtime;
@@ -473,6 +485,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         if (run.status !== 'interrupted' || !run.assistantId || jobs.has(id)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only an interrupted, settled Pi run can recover its original submission.');
         if (!matchesExecution(state, run)) throw new ApiError(409, scopeChangedError.code, scopeChangedError.message);
         assertDraftInvocation(state, run);
+        assertAgentPresetInvocation(state, run);
         if (run.supplierDraftContext) { const context = run.supplierDraftContext; if (supplierFind(state, { ...context, role: 'operator' }, context.conversationId, context.serviceId).revision !== context.revision) throw new ApiError(409, 'SUPPLIER_REVISION_CONFLICT', 'Recover only the unchanged original intake.'); }
         if (!provider.configured) throw new ApiError(409, 'SETUP_REQUIRED', currentSetupError.message);
         const item = required(state, 'conversations', run.conversationId);
@@ -502,7 +515,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       }
       return result;
     },
-    async retryRun(id, body = {}) { const run = required(store.read(), 'runs', id); if (pi && run.status === 'interrupted' && run.assistantId) return this.recoverPiRun(id, body); if (run.supplierDraftContext) throw new ApiError(409, 'SUPPLIER_CLARIFICATION_REQUIRED', 'Clarify through the original supplier service; never replay it as ordinary chat.'); if (run.museDraftContext) throw new ApiError(409, 'MUSE_DRAFT_CLARIFICATION_REQUIRED', 'Clarify the original draft with its current revision; do not retry it as an ordinary Pi message.'); if (!['failed', 'blocked', 'interrupted', 'paused'].includes(run.status)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only stopped or failed runs can be retried.'); if (run.goalId) return this.updateGoal(run.goalId, { action: 'resume', requestId: body.requestId, queued: body.queued }); const message = store.read().messages.find(item => item.conversationId === run.conversationId && item.role === 'user' && item.requestId === run.requestId); if (!message) throw new ApiError(404, 'NOT_FOUND', 'The original input no longer exists.'); return this.sendMessage(run.conversationId, { content: message.content, requestId: body.requestId, queued: body.queued, ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true }); },
+    async retryRun(id, body = {}) { const run = required(store.read(), 'runs', id); if (pi && run.status === 'interrupted' && run.assistantId) return this.recoverPiRun(id, body); if (run.agentPresetContext) throw new ApiError(409, 'AGENT_RECOVERY_REQUIRED', 'Recover through the original Agent task; do not admit its context as ordinary chat.'); if (run.supplierDraftContext) throw new ApiError(409, 'SUPPLIER_CLARIFICATION_REQUIRED', 'Clarify through the original supplier service; never replay it as ordinary chat.'); if (run.museDraftContext) throw new ApiError(409, 'MUSE_DRAFT_CLARIFICATION_REQUIRED', 'Clarify the original draft with its current revision; do not retry it as ordinary Pi message.'); if (!['failed', 'blocked', 'interrupted', 'paused'].includes(run.status)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only stopped or failed runs can be retried.'); if (run.goalId) return this.updateGoal(run.goalId, { action: 'resume', requestId: body.requestId, queued: body.queued }); const message = store.read().messages.find(item => item.conversationId === run.conversationId && item.role === 'user' && item.requestId === run.requestId); if (!message) throw new ApiError(404, 'NOT_FOUND', 'The original input no longer exists.'); return this.sendMessage(run.conversationId, { content: message.content, requestId: body.requestId, queued: body.queued, ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true }); },
     async resetSession(id) { ensureOpen(); return store.update(state => { const item = required(state, 'conversations', id); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current request before resetting native session continuity.'); const previous = item.nativeSessionId || null; item.nativeSessionId = null; item.updatedAt = now(); activity(state, 'session_reset', 'New native session requested', 'Future requests start a new native session using saved visible context.', { conversationId: id, previousNativeSessionId: previous }); return { conversation: item }; }); },
     async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }) {
       ensureOpen();
@@ -594,8 +607,9 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       jobs.get(runId)?.controller.abort();
       return { ok: true };
     },
-    async sendMessage(id, body, { museDraftContext, supplierDraftContext } = {}) {
+    async sendMessage(id, body, { museDraftContext, supplierDraftContext, agentPresetContext } = {}) {
       ensureOpen();
+      if (agentPresetContext && (!pi || museDraftContext || supplierDraftContext || body.workspaceExecution !== true)) throw new ApiError(409, 'AGENT_PI_REQUIRED', 'Preset stages require the original governed Pi runtime and exclusive business context.');
       const content = text(body.content, 'content', 20_000);
       const key = requestKey(body.requestId);
       const runId = randomUUID();
@@ -604,7 +618,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const snapshot = store.read(), selected = Object.hasOwn(body, 'inputContext') ? normalizeInputContext(body.inputContext) : required(snapshot, 'conversations', id).inputContext;
       const admission = await prepareRunInput(snapshot, id, selected);
       const workspaceExecution = body.workspaceExecution === true || admission.connectorGrants.length > 0;
-      const inputHash = capabilityPayloadHash({ content, inputContext: admission.inputContext ?? null, workspaceExecution, ...(museDraftContext ? { museDraftFingerprint: museDraftContext.fingerprint } : {}), ...(supplierDraftContext ? { supplierDraftFingerprint: supplierDraftContext.fingerprint } : {}) });
+      const inputHash = capabilityPayloadHash({ content, inputContext: admission.inputContext ?? null, workspaceExecution, ...(museDraftContext ? { museDraftFingerprint: museDraftContext.fingerprint } : {}), ...(supplierDraftContext ? { supplierDraftFingerprint: supplierDraftContext.fingerprint } : {}), ...(agentPresetContext ? { agentPresetFingerprint: agentPresetContext.fingerprint } : {}) });
       let start = false; let queued = false;
       const result = await store.update(state => {
         const item = required(state, 'conversations', id);
@@ -625,13 +639,14 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         if (item.title === 'New conversation') item.title = content.slice(0, 48);
         activity(state, provider.configured ? 'started' : 'blocked', provider.configured ? 'Chat started' : 'Chat saved; setup required', provider.configured ? 'A text generation request was started.' : currentSetupError.message, { conversationId: id });
         start = provider.configured;
-        addRun(state, { ...admission, workspaceExecution, ...(workspaceExecution ? { budget: { maxSteps: 4, maxOutputTokens: 6400 }, outputTokens: 0, stepCount: 0 } : {}), id: runId, kind: 'chat', conversationId: id, assistantId: reply.id, requestId: key, status: start ? (queued ? 'queued' : 'running') : 'blocked', ...(!start ? { error: currentSetupError, finishedAt: now() } : {}) });
+        addRun(state, { ...admission, workspaceExecution, ...(workspaceExecution ? { budget: agentPresetContext ? structuredClone(agentPresetContext.budget) : { maxSteps: 4, maxOutputTokens: 6400 }, outputTokens: 0, stepCount: 0 } : {}), id: runId, kind: 'chat', conversationId: id, assistantId: reply.id, requestId: key, status: start ? (queued ? 'queued' : 'running') : 'blocked', ...(!start ? { error: currentSetupError, finishedAt: now() } : {}) });
         if (museDraftContext) {
           const run = required(state, 'runs', runId);
           run.museDraftContext = { ...museDraftContext, selection: admission.inputContext };
           registerDraft(state, run.museDraftContext, run, reply);
         }
         if (supplierDraftContext) { const run = required(state, 'runs', runId); run.supplierDraftContext = { ...supplierDraftContext, selection: admission.inputContext }; registerSupplierDraft(state, run.supplierDraftContext, run, reply); }
+        if (agentPresetContext) { const run = required(state, 'runs', runId); run.agentPresetContext = structuredClone(agentPresetContext); registerAgentPresetRun(state, run.agentPresetContext, run, reply); }
         return { message, run: { id: runId, status: queued ? 'queued' : reply.status, requestId: key }, assistantId: reply.id };
       });
       if (start && !queued) launchChat(id, runId, result.assistantId);
