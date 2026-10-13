@@ -8,7 +8,7 @@ const identifier = value => typeof value === 'string' && /^[A-Za-z0-9._@:+|/-]{1
 const allowedScopes = new Set(['agent:read', 'agent:submit']);
 
 /** Credentials bind existing Workspace members. They never establish accounts or roles. */
-export function createAgentAuth({ principals, env = process.env, access } = {}) {
+export function createAgentAuth({ principals, env = process.env, access, reservedTokenDigests = [] } = {}) {
   if (!access?.serviceIdentity || !access?.beginServiceCredential) throw new Error('Agent credentials require the original Workspace access controller.');
   if (env.WS_AGENT_TOKENS || env.WS_AGENT_TOKEN_DIGESTS) throw new Error('Legacy Agent account maps are not identities. Bind their credential digests to existing members with WS_AGENT_PRINCIPALS.');
   let configured = principals;
@@ -17,6 +17,8 @@ export function createAgentAuth({ principals, env = process.env, access } = {}) 
     catch { throw new Error('WS_AGENT_PRINCIPALS must be a JSON array of existing member bindings.'); }
   }
   if (!Array.isArray(configured) || configured.length > 500) throw new Error('Agent principal bindings must be a bounded array.');
+  if (!Array.isArray(reservedTokenDigests) || reservedTokenDigests.some(digest => digest != null && typeof digest !== 'string')) throw new Error('Reserved worker credential digests must be an array.');
+  const reserved = new Set(reservedTokenDigests.filter(Boolean).map(digest => digest.toLowerCase()));
   const seen = new Set();
   const rows = configured.map(binding => {
     if (!binding || Object.keys(binding).some(key => !['subject', 'workspaceId', 'tokenSha256', 'scopes', 'expiresAt', 'legacyAccountId'].includes(key)) ||
@@ -24,6 +26,7 @@ export function createAgentAuth({ principals, env = process.env, access } = {}) 
       !Array.isArray(binding.scopes) || !binding.scopes.includes('agent:read') || binding.scopes.some(scope => !allowedScopes.has(scope)) ||
       binding.expiresAt !== undefined && (!Number.isFinite(Date.parse(binding.expiresAt)) || new Date(binding.expiresAt).toISOString() !== binding.expiresAt) ||
       binding.legacyAccountId !== undefined && !identifier(binding.legacyAccountId)) throw new Error('Invalid Agent member/scopes/digest binding.');
+    if (reserved.has(binding.tokenSha256)) throw new Error('Agent member credentials must not reuse an existing Dot, Muse or sourcing Worker token digest.');
     access.serviceIdentity(binding);
     seen.add(binding.tokenSha256);
     return { binding: Object.freeze(structuredClone(binding)), digest: Buffer.from(binding.tokenSha256, 'hex') };
