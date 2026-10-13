@@ -536,10 +536,11 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       return result;
     },
     async retryRun(id, body = {}) {
-      const run = required(store.read(), 'runs', id);
+      const state = store.read(), run = required(state, 'runs', id);
       // This HTTP-facing method must never reattach an Agent Pi submission:
       // the business task coordinator requires a fresh authenticated /resume.
       if (run.agentPresetContext || run.agentTaskId) throw new ApiError(409, 'AGENT_RECOVERY_REQUIRED', 'Recover through the original Agent task; do not admit its context as ordinary chat.');
+      if (agentConversation(state, run.conversationId)) throw agentConversationRouteError();
       if (pi && run.status === 'interrupted' && run.assistantId) return this.recoverPiRun(id, body);
       if (run.supplierDraftContext) throw new ApiError(409, 'SUPPLIER_CLARIFICATION_REQUIRED', 'Clarify through the original supplier service; never replay it as ordinary chat.');
       if (run.museDraftContext) throw new ApiError(409, 'MUSE_DRAFT_CLARIFICATION_REQUIRED', 'Clarify the original draft with its current revision; do not retry it as ordinary Pi message.');
@@ -590,7 +591,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     async resolveRunAction(id, body) {
       ensureOpen();
       const state = store.read(), run = required(state, 'runs', id);
-      if (run.agentTaskId || run.agentPresetContext) throw agentConversationRouteError();
+      if (agentConversation(state, run.conversationId) || run.agentTaskId || run.agentPresetContext) throw agentConversationRouteError();
       if (!matchesExecution(state, run)) throw new ApiError(409, scopeChangedError.code, scopeChangedError.message);
       await bridge.decideAction(id, body, (next, proposal) => {
         if (proposal.status !== 'denied') return;
@@ -608,7 +609,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       let launch;
       const result = await store.update(state => {
         const run = required(state, 'runs', id);
-        if (run.agentTaskId || run.agentPresetContext) throw agentConversationRouteError();
+        if (agentConversation(state, run.conversationId) || run.agentTaskId || run.agentPresetContext) throw agentConversationRouteError();
         const prior = key && run.resumeRequests?.find(item => item.key === key);
         if (prior) { if (body.proposalId && body.proposalId !== prior.proposalId) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'This resume requestId belongs to a different proposal.'); return { run, duplicate: true }; }
         if (jobs.has(id)) throw new ApiError(409, 'RUNTIME_BUSY', 'The previous run step is still shutting down. Wait briefly and resume again.');
