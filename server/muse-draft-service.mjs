@@ -63,7 +63,12 @@ export function createMuseDraftService({ store, runtime, piMuse, artifacts, prov
       await store.update(next => {
         const current = findMuseDraft(next, actor, conversationId, id), latest = checkScope(current, body);
         if (current.prepare && current.prepare.fingerprint !== fingerprint) fail(409, 'MUSE_DRAFT_PREPARE_PENDING', 'Use the original preparation request.');
-        if (!cachedOrder) assertDraftProduct(next, conversationId, latest.context.productReference, latest.context.productSnapshot);
+        if (!cachedOrder) {
+          const run = next.runs.find(item => item.id === latest.runId && item.conversationId === conversationId);
+          if (!run) fail(409, 'MUSE_DRAFT_INPUT_CHANGED', 'The original input run no longer belongs to this draft conversation.');
+          assertDraftProduct(next, conversationId, latest.context.productReference, latest.context.productSnapshot);
+          assertInputContextSnapshot(next, conversationId, run.inputContextSnapshot);
+        }
         current.prepare ||= { requestId: body.requestId, fingerprint, revision: latest.context.revision, scopeHash: latest.scopeHash,
           orderRequestId, orderId: null, reviewHash: null, confirmedBy: actor.subject, budgetConfirmed: true, deadlineConfirmed: true, publicDataConfirmed: true, error: null };
       });

@@ -110,6 +110,52 @@ test('selected original product resolves locally for review, never enters Pi, an
   assert.equal((f.app.store.read().workerOrders || []).length, 0);
 });
 
+test('selected exact input deleted after read checks blocks the original Muse preparation transaction', async t => {
+  const f = await fixture(t), input = readyInput('artifact-source-intake');
+  const { artifact } = await f.app.artifacts.create({ filename: 'public-intake.txt', content: input.content });
+  const source = { kind: 'artifact', id: artifact.id, version: 1, sha256: artifact.sha256, quote: input.content };
+  f.faux.setResponses([fauxAssistantMessage(fauxToolCall('workspace_propose_muse_draft', {
+    scope: input.scope, sources: Object.keys(input.scope).map(field => ({ field, ...source })),
+  }), { stopReason: 'toolUse' })]);
+  const made = await f.call(f.path, 'POST', {
+    requestId: input.requestId, content: 'Prepare only from the reviewed exact public intake file.',
+    inputContext: { artifacts: [{ id: artifact.id, version: 1 }] },
+  });
+  assert.equal(made.status, 202, JSON.stringify(made.data));
+  const draft = await f.settled(made.data.draftId);
+  assert.equal(draft.phase, 'ready_for_review');
+  const originalRun = f.app.store.read().runs.find(run => run.id === made.data.run.id);
+  const pinned = originalRun.inputContextSnapshot.artifacts[0];
+  assert.equal(originalRun.conversationId, actor.nativeAgentId);
+  assert.equal(pinned.content, input.content);
+  assert.equal(pinned.sha256, artifact.sha256);
+  // The ordinary delete wins writer admission after the asynchronous input
+  // checks, immediately before the preparation intent can be committed.
+  const originalUpdate = f.app.store.update.bind(f.app.store);
+  let deleteBeforeIntent = true;
+  f.app.store.update = async callback => {
+    if (deleteBeforeIntent) {
+      deleteBeforeIntent = false;
+      await f.app.artifacts.delete(artifact.id);
+    }
+    return originalUpdate(callback);
+  };
+  try {
+    await assert.rejects(f.app.museDrafts.prepare(actor.nativeAgentId, draft.id, confirm(draft, 'prepare-exact-file')),
+      { status: 409, code: 'INPUT_ARTIFACT_CHANGED' });
+    const after = f.app.store.read();
+    assert.equal(after.artifacts.some(item => item.id === artifact.id), false);
+    assert.equal((after.workerOrders || []).length, 0);
+    assert.equal((after.museTasks || []).length, 0);
+    assert.equal(after.workspaceMuseDrafts.drafts.find(item => item.id === draft.id).prepare, null);
+    assert.deepEqual(after.runs.find(run => run.id === originalRun.id).inputContextSnapshot, originalRun.inputContextSnapshot,
+      'The original input snapshot is retained unchanged after rejecting preparation.');
+    assert.equal(f.faux.state.callCount, 1, 'Rejection cannot invoke Pi again.');
+  } finally {
+    f.app.store.update = originalUpdate;
+  }
+});
+
 test('lost original prepare acknowledgment reopens the same receipt/order; explicit rejection blocks its old review', async t => {
   const f = await fixture(t), input = readyInput(); f.faux.setResponses([proposal(input.scope, input.requestId, input.content)]);
   const made = await f.call(f.path, 'POST', { requestId: input.requestId, content: input.content }), draft = await f.settled(made.data.draftId);
