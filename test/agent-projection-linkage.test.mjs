@@ -40,6 +40,33 @@ test('Agent read projection tracks the original Pi conversation/run linkage with
     conversationId: 'original-conversation', runIds: ['original-pi-run'], authority: 'workspace-store',
   });
   assert.deepEqual(projection.events(task.id), [], 'Linkage changes must not fabricate progress events.');
+  // All publicly materialized fields must be tracked, even if no new event,
+  // run ID, task status or result field accompanies an authoritative edit.
+  task.title = 'Corrected authoritative title';
+  task.input.product = 'Corrected original product';
+  await projection.sync(task, 4);
+  const updated = projection.getTask(task.id, actor);
+  assert.equal(updated.title, task.title);
+  assert.equal(updated.input.product, task.input.product);
+  assert.deepEqual(projection.events(task.id), []);
+
+  const published = { seq: 1, kind: 'progress', payload: { stage: 'requirements', done: false },
+    ts: new Date().toISOString(), sourceKey: 'requirements:progress' };
+  task.events.push(published);
+  await projection.sync(task, 5);
+  assert.deepEqual(projection.events(task.id).map(({ seq, kind, payload, ts }) => ({ seq, kind, payload, ts })),
+    [{ seq: published.seq, kind: published.kind, payload: published.payload, ts: published.ts }]);
+  const delivered = structuredClone(projection.events(task.id));
+  // A committed event is append-only, even if an old event changes its value
+  // without changing the sequence/count. The former cache skipped this check.
+  published.payload.done = true;
+  await assert.rejects(projection.sync(task, 6), /previously delivered event cannot change/i);
+  assert.deepEqual(projection.events(task.id), delivered, 'Failed event validation must roll back SQLite.');
+
+  published.payload.done = false;
+  task.subject = 'other-member';
+  await assert.rejects(projection.sync(task, 7), /original agent task owner changed/i);
   assert.equal(projection.getTask(task.id, { ...actor, subject: 'other-member' }), null,
-    'The projection remains scoped to the existing Workspace member.');
+    'The projection must never reassign a task by changing its owner columns.');
+  assert.equal(projection.getTask(task.id, actor).workspace.runIds[0], 'original-pi-run');
 });
