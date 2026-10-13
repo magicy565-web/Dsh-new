@@ -46,7 +46,7 @@ const report = {
   },
   lineage: {
     integratedFrom: '1e0cc43d973b5d10861561f2cd4979065d5f33f6',
-    businessBase: '18cc80aca0f88a68fb96d2f1d960897f8a48dac2',
+    businessBase: '32c8ce98fe28cda1e22a16bf0d1088c768e081c8',
   },
   localAutomatedResult: allLocalPassed ? 'passed' : 'failed',
   releaseReady: false,
