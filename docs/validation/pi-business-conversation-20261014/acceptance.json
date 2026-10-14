@@ -127,7 +127,7 @@
     "test/pi-workspace-agent.pty.test.mjs": "bdf8985cc3c1a5e0798e1269ce7a1b72922cd54a44b72f401b9bba55253533fa",
     "test/pi-workspace-lifecycle.pty.test.mjs": "b3e11d48af50148f683d11833ea79cae0cab9d89b708f9b1cda22df0779ec1cf",
     "test/pi-workspace-plugins.pty.test.mjs": "bd74cb433d19eb91aaec750d137db6960b2f392211aeaf5313c07013316ccc08",
-    "docs/PI-BUSINESS-CONVERSATION-ADAPTER.md": "6679336c834c94eb437d4d2886886501e8e2b0bd30a0cbf13a1fbf4a38b29308"
+    "docs/PI-BUSINESS-CONVERSATION-ADAPTER.md": "04287a06ce77f67ac3fd8da75875c807b3b3f4b0b1fa5d70a0ba6df3d2a9e170"
   },
   "boundaries": {
     "normalHostOptions": "null/default disabled",
@@ -160,5 +160,12 @@
     "taskGraphNullKeepsGraphCardsAbsent": true,
     "frontendResultsAndHumanResumeWiringStillRequired": true,
     "pr66SourceModifiedOrBrowserTested": false
+  },
+  "furtherReadOnlyPr66Sha": "8d0640f07e39a53dbbf32bd6e0aa94d07ec8a1e1",
+  "furtherPr66Delta": {
+    "newMarkdownWorkbenchPreview": true,
+    "composerCancellationTaskGraphClientRoutesChanged": false,
+    "businessResultsOrBusinessTasksRouteReferencesPresent": false,
+    "backendResultResumeHooksRemainFrontendWork": true
   }
 }
