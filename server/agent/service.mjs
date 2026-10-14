@@ -142,6 +142,14 @@ export async function createAgentService({ env = process.env, dataDir, principal
       if (await piTasks.handle({ endpoint, req, res, actor, readJson, json })) return true;
       const query = new URL(req.url, 'http://localhost').searchParams;
       if (req.method === 'GET' && endpoint === '/presets') { await json(res, 200, listPresets(presets)); return true; }
+      if (req.method === 'GET' && endpoint === '/tasks') {
+        if ([...query.keys()].some(key => !['limit', 'status', 'withArtifacts'].includes(key)) || [...query.keys()].some(key => query.getAll(key).length !== 1))
+          throw new AgentHttpError(400, '任务列表只接受 limit、status 和 withArtifacts；不能指定其他成员或企业。');
+        const rawLimit = query.get('limit') ?? '20', status = query.get('status') ?? undefined, withArtifacts = query.get('withArtifacts');
+        if (!/^(?:[1-9]|1[0-9]|20)$/.test(rawLimit) || status !== undefined && !['queued', 'running', 'done', 'failed', 'interrupted', 'cancelled'].includes(status)
+          || withArtifacts !== null && !['0', '1'].includes(withArtifacts)) throw new AgentHttpError(400, '使用 1–20 的 limit、原任务状态与 0/1 的 withArtifacts。');
+        await json(res, 200, engine.list(actor, { limit: Number(rawLimit), status, withArtifacts: withArtifacts === '1' })); return true;
+      }
       if (req.method === 'POST' && endpoint === '/tasks') {
         const body = await readJson(req);
         if (typeof body.type !== 'string' || !getPreset(body.type, presets))

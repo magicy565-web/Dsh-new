@@ -4,7 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createWorkspaceClient, workspaceExtension, WORKSPACE_TOOLS, WORKSPACE_BUSINESS_TOOLS } from '../pi/extensions/workspace.mjs';
+import { createWorkspaceClient, workspaceExtension, WORKSPACE_TOOLS, WORKSPACE_AGENT_TOOLS } from '../pi/extensions/workspace.mjs';
+import { WORKSPACE_READ_GUIDANCE } from '../pi/extensions/workspace-read.mjs';
 
 const launcher = fileURLToPath(import.meta.url);
 
@@ -21,7 +22,7 @@ export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sa
   if (agent && (sample || !suppliedModelRuntime || !suppliedModel)) throw new Error('The development Agent requires an explicitly configured official model runtime; no sample fallback is available.');
   const modelRuntime = suppliedModelRuntime || await ModelRuntime.create({ credentials: new InMemoryCredentialStore(), modelsPath: null, refreshOnCreate: false, allowModelNetwork: false });
   let faux, model = suppliedModel;
-  const activeTools = agent ? WORKSPACE_BUSINESS_TOOLS : WORKSPACE_TOOLS;
+  const activeTools = agent ? WORKSPACE_AGENT_TOOLS : WORKSPACE_TOOLS;
   if (sample) {
     const { fauxProvider, fauxAssistantMessage, fauxToolCall } = await import('@earendil-works/pi-ai/providers/faux');
     faux = fauxProvider({ api: 'faux', provider: 'workspace-tui-controlled-faux', models: [{ id: 'workspace-tui-sample', name: 'Controlled faux sample (no model account)', maxTokens: 1600 }] });
@@ -53,7 +54,7 @@ export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sa
     noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true,
     extensionFactories: [workspaceExtension(client, { sample, agent, close })],
     systemPrompt: agent
-      ? 'You are a Workspace business development Agent. Use only explicitly supplied public text. Discover the original presets and ask for missing required inputs before submitting a task. Use one stable requestId per submission; after an uncertain receipt, read its original task status rather than create a duplicate. Admission is not completion. Read taskId, stage events and authenticated documents with workspace_business_status. Report incomplete evidence, failures and partial documents honestly. The original Workspace service controls tasks, model budgets, native children, exact approvals and durable results. Never infer business achievement, approve an action or claim external Muse/dot delegation. No shell, filesystem, browser or arbitrary HTTP tool is available.'
+      ? 'You are a Workspace business development Agent. Use only explicitly supplied public text. Discover the original presets and ask for missing required inputs before submitting a task. Use one stable requestId per submission; after an uncertain receipt, read its original task status rather than create a duplicate. Admission is not completion. Read taskId, stage events and authenticated documents with workspace_business_status. Report incomplete evidence, failures and partial documents honestly. The original Workspace service controls tasks, model budgets, native children, exact approvals and durable results. Never infer business achievement, approve an action or claim external Muse/dot delegation. No shell, filesystem, browser or arbitrary HTTP tool is available. ' + WORKSPACE_READ_GUIDANCE
       : 'You are a Workspace task client. Use only explicitly supplied public text. The original Workspace service controls tasks, model budgets, native children, exact approvals and durable results. Never infer success or approve an action. No shell, filesystem, browser or arbitrary HTTP tool is available.' });
   await resourceLoader.reload();
   const services = { cwd: isolationDirectory, agentDir, modelRuntime, settingsManager, resourceLoader, diagnostics: [] };

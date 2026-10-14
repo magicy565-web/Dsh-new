@@ -22,7 +22,7 @@ The frontend transport uses the existing official OpenAI-compatible provider pro
 
 ## Business conversation
 
-The Agent has exactly these model tools:
+The original three core execution tools are retained below. The [built-in business plugins](PI-BUILTIN-BUSINESS-PLUGINS.md) add task-list/result reads plus three deny-only enterprise/product capability tools, for eight active tools in total. The added library tools report the existing authorization gap without fetching private data.
 
 | Tool | Existing operation |
 | --- | --- |
@@ -51,7 +51,7 @@ node --test test/pi-workspace-agent.test.mjs test/pi-workspace-agent.pty.test.mj
 node --test test/pi-workspace-business.test.mjs test/pi-workspace-normal.test.mjs
 ```
 
-The new checks cover natural input through the official Agent, only the three registered business tools, four original procurement stages, original document hashes, official SessionManager reopen followed by fresh HTTP, denied cached receipt replay into another member's model context, missing-search failure, another member's task denial, read-only submit denial, unavailable owner tool authority and frontend cancellation without new admission. Startup checks cover absent configuration, zero-call original readiness, and mocked official provider wire options and error redaction. Set an explicit absolute `PI_AGENT_TEST_EVIDENCE_DIR` to save public synthetic PTY output and result metadata.
+The new checks cover natural input through the official Agent, the original three core execution tools (now accompanied by the five read/capability tools documented in the built-in plugin guide), four original procurement stages, original document hashes, official SessionManager reopen followed by fresh HTTP, denied cached receipt replay into another member's model context, missing-search failure, another member's task denial, read-only submit denial, unavailable owner tool authority and frontend cancellation without new admission. Startup checks cover absent configuration, zero-call original readiness, and mocked official provider wire options and error redaction. Set an explicit absolute `PI_AGENT_TEST_EVIDENCE_DIR` to save public synthetic PTY output and result metadata.
 
 On 2026-10-14, the three development Agent test files above passed 11/11 checks with zero failures or skips in the selected Linux workspace. Default binding-partition `continueRecent` and credential-shaped input rejection were also verified. The related targeted regressions passed 35/35 and the TypeScript/Vite build passed with its existing large-chunk warning. Compact evidence is in [acceptance.json](validation/pi-agent-development-20261014/acceptance.json). Both frontend and backend model responses were explicit synthetic faux, and the provider-wire check used a mocked official transport. These results do not imply GitHub CI or live-model acceptance.
 

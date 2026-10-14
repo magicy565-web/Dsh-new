@@ -7,7 +7,8 @@ import { InMemoryCredentialStore } from '@earendil-works/pi-ai';
 import { ModelRuntime, SessionManager } from '@earendil-works/pi-coding-agent';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { lazyStream } from '@earendil-works/pi-ai/api/lazy';
-import { createWorkspaceClient } from '../pi/extensions/workspace.mjs';
+import { createWorkspaceClient, WORKSPACE_AGENT_TOOLS } from '../pi/extensions/workspace.mjs';
+import { WORKSPACE_PLUGIN_CAPABILITIES } from '../pi/extensions/workspace-read.mjs';
 import { createWorkspaceTuiRuntime } from './pi-workspace-tui.mjs';
 import { loadPiProviderConfig } from '../server/pi-provider-config.mjs';
 import { createWorkspacePiModelProfile } from '../server/pi-model-profile.mjs';
@@ -45,10 +46,11 @@ export async function createWorkspaceAgentRuntime({ client, isolationDirectory, 
   const previousTasks = new Set();
   for (const entry of manager.getEntries()) {
     const message = entry.message;
-    if (message?.role !== 'toolResult' || !['workspace_business_task', 'workspace_business_status'].includes(message.toolName)) continue;
+    if (message?.role !== 'toolResult' || !['workspace_business_task', 'workspace_business_status', 'workspace_business_tasks', 'workspace_business_result'].includes(message.toolName)) continue;
     let receipt;
     try { receipt = JSON.parse(message.content.filter(block => block.type === 'text').map(block => block.text).join('\n')); } catch { continue; }
     if (receipt?.profile === 'business-preset' && typeof receipt.task?.taskId === 'string') previousTasks.add(receipt.task.taskId);
+    if (receipt?.profile === 'business-preset' && Array.isArray(receipt.tasks)) for (const task of receipt.tasks) if (typeof task?.taskId === 'string') previousTasks.add(task.taskId);
   }
   for (const taskId of previousTasks) await client.businessStatus(taskId);
   const created = await createWorkspaceTuiRuntime({ client, isolationDirectory, agent: true, modelRuntime, model, sessionManager: manager, close });
@@ -92,7 +94,7 @@ export async function main(args = process.argv.slice(2), environment = process.e
   const backend = await client.check();
   if (args.includes('--check')) {
     console.log(JSON.stringify({ runtime: 'official-pi-coding-agent', version: '1.1.0', profile: 'workspace-business-agent',
-      tools: ['workspace_business_presets', 'workspace_business_task', 'workspace_business_status'],
+      tools: [...WORKSPACE_AGENT_TOOLS], plugins: WORKSPACE_PLUGIN_CAPABILITIES,
       frontend: { provider: configuration.providerId, model: configuration.model, configured: true, onlineVerified: false, modelCalls: 0 },
       backend: { ...backend, naturalLanguage: 'official-frontend-agent' }, paidCalls: 0 }));
     return;

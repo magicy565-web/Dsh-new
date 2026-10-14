@@ -256,6 +256,15 @@ export async function createAgentCoordinator({ store, runtime, provider, project
     wake, project, demo,
     readiness: () => ({ projection: lastFailure ? 'degraded' : 'ready', reason: lastFailure }),
     find(id, actor) { return tasks(store.read()).find(task => task.id === id && own(task, actor)) || null; },
+    list(actor, { limit = 20, status, withArtifacts = false } = {}) {
+      const rows = tasks(store.read()).filter(task => own(task, actor) && (!status || task.status === status) && (!withArtifacts || task.deliverables.length))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+      return { tasks: rows.slice(0, limit).map(task => ({ taskId: task.id, type: task.type, title: task.title, status: task.status,
+        created_at: task.createdAt, finished_at: task.finishedAt, artifactCount: task.deliverables.length,
+        result: { state: task.result.state, completion: task.result.completion, businessGoalAchieved: false,
+          resumable: task.result.resumable === true, ...(task.result.reason ? { reason: task.result.reason } : {}) } })),
+        limit, hasMore: rows.length > limit, order: 'created_at_desc' };
+    },
     byRequest(key, actor) {
       if (!requestKeyValid(key)) throw new AgentHttpError(400, '无效的 Idempotency-Key。');
       return tasks(store.read()).find(task => task.requestKey === key && own(task, actor)) || null;

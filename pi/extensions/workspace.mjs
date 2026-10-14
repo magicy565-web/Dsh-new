@@ -3,11 +3,13 @@ import { isIP } from 'node:net';
 import { Type } from '@earendil-works/pi-ai';
 import { matchesKey } from '@earendil-works/pi-tui';
 import { looksLikeCredential } from '../../server/security.mjs';
+import { registerWorkspaceReadTools, WORKSPACE_READ_TOOLS } from './workspace-read.mjs';
 
 const API = '/api/agent/v1/pi/tasks';
 const BUSINESS_API = '/api/agent/v1';
 export const WORKSPACE_TOOLS = Object.freeze(['workspace_task', 'workspace_status', 'workspace_delegate', 'workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
 export const WORKSPACE_BUSINESS_TOOLS = Object.freeze(['workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
+export const WORKSPACE_AGENT_TOOLS = Object.freeze([...WORKSPACE_BUSINESS_TOOLS, ...WORKSPACE_READ_TOOLS]);
 const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-presets', 'ws-procurement', 'ws-business', 'ws-business-status', 'ws-business-cancel', 'ws-business-resume', 'ws-quit', 'quit']);
 const requestIdentifier = value => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(value)) throw new Error('Use a requestId of at most 96 letters, numbers, underscores or dashes.');
@@ -64,6 +66,32 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     return redact(value);
   }
   const businessPresets = signal => request('GET', '/presets', undefined, signal, { business: true });
+  const privateLibraryGap = capability => ({ plugin: 'workspace-library', capability, status: 'blocked', reason: 'MODEL_LIBRARY_DISCLOSURE_NOT_AUTHORIZED', sources: [],
+    detail: 'The original enterprise library uses Session access and denies model disclosure. This Agent binding cannot read company/product records; no private data was fetched. This does not mean the library is empty.' });
+  async function businessTasks(input = {}, signal) {
+    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['limit', 'status', 'withArtifacts'].includes(key))
+      || input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 20)
+      || input.status !== undefined && !['queued', 'running', 'done', 'failed', 'interrupted', 'cancelled'].includes(input.status)
+      || input.withArtifacts !== undefined && typeof input.withArtifacts !== 'boolean') throw new Error('Use a bounded original task list; no member, workspace or arbitrary filter can be supplied.');
+    const query = new URLSearchParams({ limit: String(input.limit ?? 20), ...(input.status ? { status: input.status } : {}), ...(input.withArtifacts ? { withArtifacts: '1' } : {}) });
+    const value = await request('GET', '/tasks?' + query, undefined, signal, { business: true, maxBytes: 128_000 });
+    if (!Array.isArray(value.tasks) || value.tasks.length > (input.limit ?? 20) || value.order !== 'created_at_desc'
+      || value.limit !== (input.limit ?? 20) || typeof value.hasMore !== 'boolean' || value.tasks.some(row => typeof row?.taskId !== 'string'
+        || typeof row.title !== 'string' || row.title.length > 300 || typeof row.type !== 'string' || row.type.length > 128
+        || !['queued', 'running', 'done', 'failed', 'interrupted', 'cancelled'].includes(row.status)
+        || !Number.isSafeInteger(row.artifactCount) || row.artifactCount < 0 || row.artifactCount > 40
+        || !row.result || typeof row.result.state !== 'string' || row.result.state.length > 100 || typeof row.result.completion !== 'string' || row.result.completion.length > 100
+        || row.result.reason !== undefined && (typeof row.result.reason !== 'string' || row.result.reason.length > 100)
+        || row.result.businessGoalAchieved !== false || typeof row.created_at !== 'string' || !Number.isFinite(Date.parse(row.created_at))
+        || row.finished_at != null && (typeof row.finished_at !== 'string' || !Number.isFinite(Date.parse(row.finished_at))))) throw new Error('Workspace returned an invalid original task list.');
+    if (looksLikeCredential(JSON.stringify(value))) throw new Error('Original task metadata contains credential-like text and cannot be disclosed to the model.');
+    const tasks = value.tasks.map(row => ({ taskId: identifier(row.taskId), type: row.type, title: row.title, status: row.status,
+      created_at: row.created_at, finished_at: row.finished_at ?? null, artifactCount: row.artifactCount,
+      result: { state: row.result.state, completion: row.result.completion, businessGoalAchieved: false,
+        resumable: row.result.resumable === true, ...(typeof row.result.reason === 'string' ? { reason: row.result.reason } : {}) } }));
+    return { profile: 'business-preset', identity: 'taskId', status: tasks.length ? 'available' : 'empty', tasks, limit: value.limit, hasMore: value.hasMore, order: value.order,
+      sources: tasks.map(row => ({ kind: 'task', recordId: row.taskId, api: BUSINESS_API + '/tasks/' + encodeURIComponent(row.taskId) })) };
+  }
   async function check(signal) {
     // Readiness is configuration evidence only. Never submit a probe task or
     // make a model request, and authenticate against the original registry.
@@ -83,7 +111,8 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     const value = await businessInput(input, await businessPresets(signal));
     const { requestId, ...body } = value;
     const task = await request('POST', '/tasks', body, signal, { business: true, requestId });
-    return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false, task };
+    return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false,
+      sources: [{ kind: 'task', recordId: identifier(task.taskId), api: BUSINESS_API + '/tasks/' + encodeURIComponent(task.taskId) }], task };
   }
   async function businessStatus(taskId, signal) {
     const id = encodeURIComponent(identifier(taskId));
@@ -99,16 +128,43 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
         artifacts.push({ name: 'unavailable', status: 'blocked', detail: 'Artifact metadata exceeds the bounded text profile.' }); continue;
       }
       total += file.bytes;
-      try { artifacts.push({ name: file.name, bytes: file.bytes, status: 'available', content: await request('GET', '/tasks/' + id + '/artifacts/' + encodeURIComponent(file.name), undefined, signal, { business: true, textOnly: true, maxBytes: file.bytes, expectedBytes: file.bytes }) }); }
+      try {
+        const content = await request('GET', '/tasks/' + id + '/artifacts/' + encodeURIComponent(file.name), undefined, signal, { business: true, textOnly: true, maxBytes: file.bytes, expectedBytes: file.bytes });
+        if (Buffer.byteLength(content, 'utf8') !== file.bytes) throw new Error('Redacted or decoded text is not the exact original artifact bytes.');
+        artifacts.push({ name: file.name, bytes: file.bytes, status: 'available', content });
+      }
       catch { artifacts.push({ name: file.name, status: 'unavailable', detail: 'Original authenticated artifact could not be read; no document result is inferred.' }); }
     }
-    return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false, task, events, artifacts };
+    if (looksLikeCredential(JSON.stringify({ task, events, artifacts }))) throw new Error('Original task records contain credential-like text and cannot be disclosed to the model.');
+    return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false,
+      sources: [{ kind: 'task', recordId: taskId, api: BUSINESS_API + '/tasks/' + id }, ...artifacts.filter(file => file.status === 'available').map(file => ({
+        kind: 'artifact', recordId: taskId, name: file.name, sha256: createHash('sha256').update(file.content).digest('hex'), api: BUSINESS_API + '/tasks/' + id + '/artifacts/' + encodeURIComponent(file.name) }))], task, events, artifacts };
+  }
+  async function businessResult(input = {}, signal) {
+    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => key !== 'taskId')) throw new Error('Use only an original taskId for saved results.');
+    let taskId = input.taskId;
+    if (taskId === undefined) {
+      const listing = await businessTasks({ limit: 1, withArtifacts: true }, signal);
+      if (!listing.tasks.length) return { profile: 'business-preset', identity: 'taskId', status: 'empty', selection: 'latest-created-owner-task-with-artifacts', tasks: [], artifacts: [], sources: [], detail: 'No authorized original task has recorded artifacts; no example or completed result is inferred.' };
+      taskId = listing.tasks[0].taskId;
+    }
+    const receipt = await businessStatus(identifier(taskId), signal);
+    return { ...receipt, status: receipt.task.result?.completion === 'documents_ready' && receipt.artifacts.length && receipt.artifacts.every(file => file.status === 'available') ? 'available' : 'partial',
+      selection: input.taskId === undefined ? 'latest-created-owner-task-with-artifacts' : 'explicit-task' };
   }
   return Object.freeze({
     // Local transcript partition only; authentication remains the original
     // Bearer binding on every HTTP request. Never persist the token itself.
     bindingFingerprint: createHash('sha256').update(origin).update('\0').update(token).digest('hex'),
     check,
+    companyProfile: () => privateLibraryGap('company-profile'),
+    products: (input = {}) => {
+      if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => key !== 'limit') || input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 20)) throw new Error('Use only a product-list limit from 1 to 20.');
+      return privateLibraryGap('product-list');
+    },
+    product: productId => { if (typeof productId !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(productId)) throw new Error('Use an exact original product UUID.'); return privateLibraryGap('product-detail'); },
+    businessTasks,
+    businessResult,
     submit: (input, signal) => request('POST', '', input, signal),
     status: (runId, signal) => request('GET', '/' + encodeURIComponent(identifier(runId)), undefined, signal),
     cancel: (runId, signal) => request('POST', '/' + encodeURIComponent(identifier(runId)) + '/cancel', {}, signal),
@@ -178,7 +234,7 @@ export function workspaceTerminalInputPolicy(data, editorText = '') {
 
 export function workspaceExtension(client, { sample = false, agent = false, close = async () => {} } = {}) {
   return pi => {
-    const activeTools = agent ? WORKSPACE_BUSINESS_TOOLS : WORKSPACE_TOOLS;
+    const activeTools = agent ? WORKSPACE_AGENT_TOOLS : WORKSPACE_TOOLS;
     let removeTerminalPolicy = () => {};
     const show = value => pi.sendMessage({ customType: 'workspace-receipt', content: JSON.stringify(value, null, 2), display: true }, { triggerTurn: false });
     pi.on('session_start', (_event, ctx) => {
@@ -229,7 +285,12 @@ export function workspaceExtension(client, { sample = false, agent = false, clos
       async execute(_id, input, signal) { return result(await client.status(input.runId, signal)); } });
     pi.registerTool({ name: 'workspace_business_presets', label: 'Workspace business presets', parameters: Type.Object({}, { additionalProperties: false }),
       description: 'List the existing authenticated business presets, required public inputs and document deliverables. This is capability discovery, not proof of connected research or task completion.',
-      async execute(_id, _input, signal) { return result(await client.businessPresets(signal)); } });
+      async execute(_id, _input, signal) {
+        const value = await client.businessPresets(signal);
+        const presets = Array.isArray(value) ? value : value?.presets;
+        if (!Array.isArray(presets) || presets.some(row => typeof row?.id !== 'string' || !Array.isArray(row.required_inputs) || !Array.isArray(row.optional_inputs))) throw new Error('Workspace returned an invalid preset registry; no capability or execution result is inferred.');
+        return result({ presets, sources: [{ kind: 'preset-registry', api: BUSINESS_API + '/presets' }] });
+      } });
     pi.registerTool({ name: 'workspace_business_task', label: 'Workspace business task', parameters: Type.Object({ type: Type.String(), title: Type.String({ minLength: 1, maxLength: 300 }),
       input: Type.Record(Type.String(), Type.Unknown()), requestId: Type.String({ minLength: 1, maxLength: 96, pattern: '^[A-Za-z0-9_-]+$' }) }, { additionalProperties: false }),
       description: 'Submit explicitly supplied public input to an original business preset under a stable requestId. The original coordinator, stages, Pi tools and approvals remain authoritative. It has no default subagent capability.',
@@ -237,6 +298,7 @@ export function workspaceExtension(client, { sample = false, agent = false, clos
     pi.registerTool({ name: 'workspace_business_status', label: 'Workspace business task results', parameters: Type.Object({ taskId: Type.String() }, { additionalProperties: false }),
       description: 'Read an original business taskId, stage events and authenticated text documents. It does not take a generic runId, arbitrary URL, file or artifact ID.',
       async execute(_id, input, signal) { return result(await client.businessStatus(input.taskId, signal)); } });
+    if (agent) registerWorkspaceReadTools(pi, client);
     const command = (name, description, handler) => pi.registerCommand(name, { description, handler: async (args, ctx) => {
       try { const value = await handler(args, ctx); if (value !== undefined) show(value); }
       catch (error) { ctx.ui.notify(error.message, 'error'); }

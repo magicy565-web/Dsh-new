@@ -3,7 +3,8 @@ import { InMemoryCredentialStore } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { fauxProvider, fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 
-export const BUSINESS_TOOL_NAMES = ['workspace_business_presets', 'workspace_business_task', 'workspace_business_status'];
+export const BUSINESS_TOOL_NAMES = ['workspace_business_presets', 'workspace_business_task', 'workspace_business_status',
+  'workspace_company_profile', 'workspace_products', 'workspace_product', 'workspace_business_tasks', 'workspace_business_result'];
 export const PUBLIC_PROCUREMENT = Object.freeze({ type: 'procurement', title: 'Public synthetic agent procurement',
   input: { product: 'Public synthetic cup', spec: 'Public synthetic specification', quantity: 10 }, requestId: 'agent-public-procurement' });
 

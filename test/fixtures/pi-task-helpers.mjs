@@ -34,12 +34,12 @@ export async function terminal(f, id) {
   const response = await api(f, PI_API + '/tasks/' + id);
   assert.equal(response.status, 200, JSON.stringify(response.json)); return response.json;
 }
-export async function taskFixture(t, { directory: selectedDirectory, enterprise = false, responses = [], principals: selectedPrincipals, accessClock, timeoutMs = 60000 } = {}) {
+export async function taskFixture(t, { directory: selectedDirectory, enterprise = false, workspaceId = 'pi-enterprise-test', responses = [], principals: selectedPrincipals, accessClock, timeoutMs = 60000 } = {}) {
   const directory = selectedDirectory || await fs.mkdtemp('/tmp/workspace-pi-task-test-');
   const faux = fauxProvider({ api: 'faux' }); faux.setResponses(responses);
   const models = createModels(); models.setProvider(faux.provider);
   const keys = enterprise ? generateKeyPairSync('ed25519') : null;
-  const access = enterprise ? { mode: 'enterprise', publicOrigin: 'https://workspace.example', workspaceId: 'pi-enterprise-test', issuer: 'pi-test-ingress', keyId: 'pi-test-key',
+  const access = enterprise ? { mode: 'enterprise', publicOrigin: 'https://workspace.example', workspaceId, issuer: 'pi-test-ingress', keyId: 'pi-test-key',
     publicKey: keys.publicKey.export({ type: 'spki', format: 'pem' }), members: [{ subject: 'member-a', role: 'admin' }, { subject: 'member-b', role: 'operator' }] } : {};
   const principals = selectedPrincipals || (enterprise ? [
     { subject: 'member-a', workspaceId: access.workspaceId, tokenSha256: sha(TOKEN_A), scopes: ['agent:read', 'agent:submit'] },
