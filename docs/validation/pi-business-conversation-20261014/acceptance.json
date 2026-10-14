@@ -127,7 +127,7 @@
     "test/pi-workspace-agent.pty.test.mjs": "bdf8985cc3c1a5e0798e1269ce7a1b72922cd54a44b72f401b9bba55253533fa",
     "test/pi-workspace-lifecycle.pty.test.mjs": "b3e11d48af50148f683d11833ea79cae0cab9d89b708f9b1cda22df0779ec1cf",
     "test/pi-workspace-plugins.pty.test.mjs": "bd74cb433d19eb91aaec750d137db6960b2f392211aeaf5313c07013316ccc08",
-    "docs/PI-BUSINESS-CONVERSATION-ADAPTER.md": "fa3a086d6fcc881748b348612a89a187501b36ca05c2fb26fad1225a94a01b34"
+    "docs/PI-BUSINESS-CONVERSATION-ADAPTER.md": "6679336c834c94eb437d4d2886886501e8e2b0bd30a0cbf13a1fbf4a38b29308"
   },
   "boundaries": {
     "normalHostOptions": "null/default disabled",
@@ -146,5 +146,19 @@
     "pr66Pr67MainModified": false,
     "deployedMergedForcePushed": false,
     "freshInstallOrGithubCiClaimed": false
+  },
+  "laterReadOnlyPr66Sha": "281691b49058c3a01dccfb276acceb5874b2597e",
+  "laterPr66ContractAudit": {
+    "composerAndStopRoutesUnchanged": true,
+    "newAdvancedDecisionRoutes": [
+      "/threads/:id/pause",
+      "/controls/approve",
+      "/threads/:id/resume",
+      "/goals/:id/threads"
+    ],
+    "advancedControlsSupportedByThisAdapter": false,
+    "taskGraphNullKeepsGraphCardsAbsent": true,
+    "frontendResultsAndHumanResumeWiringStillRequired": true,
+    "pr66SourceModifiedOrBrowserTested": false
   }
 }
