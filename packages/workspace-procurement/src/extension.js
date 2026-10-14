@@ -1,9 +1,11 @@
-import { createWorkspaceClient, registerWorkspaceBusinessTools } from './workspace.mjs';
+import { createWorkspaceClient } from './workspace.mjs';
 import { registerWorkspaceReadTools } from './workspace-read.mjs';
-import { registerProcurementTools, PROCUREMENT_GUIDANCE } from './procurement.mjs';
+import { registerFactoryTools, FACTORY_GUIDANCE } from './factory.mjs';
 
-export const ORDINARY_PROCUREMENT_TOOLS = Object.freeze(['workspace_business_presets', 'workspace_business_task', 'workspace_business_status',
-  'workspace_business_tasks', 'workspace_business_result', 'workspace_procurement_capabilities', 'workspace_procurement_requirements', 'workspace_procurement_compare']);
+export const ORDINARY_FACTORY_TOOLS = Object.freeze(['workspace_business_tasks', 'workspace_business_result',
+  'workspace_factory_capabilities', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare']);
+// Name retained for existing consumers; its value is the corrected default set.
+export const ORDINARY_PROCUREMENT_TOOLS = ORDINARY_FACTORY_TOOLS;
 
 // No credential creation, login or new persistence. The host supplies an
 // EXISTING original member Bearer binding in memory; absence stays unconfigured.
@@ -19,19 +21,19 @@ function existingBinding(env) {
   return { configuration, client: client || Object.freeze({ businessPresets: gap, businessSubmit: gap, businessStatus: gap, businessTasks: gap, businessResult: gap }) };
 }
 
-export function procurementExtension({ client, configuration = 'configured_unverified' }) {
+export function factoryExtension({ client, configuration = 'configured_unverified' }) {
   return pi => {
-    registerWorkspaceBusinessTools(pi, client);
     registerWorkspaceReadTools(pi, client, { library: false });
-    registerProcurementTools(pi, client, configuration);
+    registerFactoryTools(pi, client, configuration);
     // Append instructions through the official hook. Leave the ordinary host's
     // tools, commands, terminal, model and session operations untouched.
-    pi.on('before_agent_start', event => ({ systemPrompt: event.systemPrompt + '\n\n' + PROCUREMENT_GUIDANCE }));
+    pi.on('before_agent_start', event => ({ systemPrompt: event.systemPrompt + '\n\n' + FACTORY_GUIDANCE }));
   };
 }
+export const procurementExtension = factoryExtension;
 
 // Official Pi package/extension entry. Controlled workspaceExtension is a
 // separate explicit host choice, exported by ./client using the SAME tools.
 export default function extension(pi) {
-  return procurementExtension(existingBinding(process.env))(pi);
+  return factoryExtension(existingBinding(process.env))(pi);
 }

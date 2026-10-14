@@ -6,11 +6,12 @@ export default function extension(pi) {
   const faux = fauxProvider({ api: 'faux', provider: 'workspace-agent-test-faux', models: [{ id: 'workspace-agent-test', maxTokens: 1000 }] });
   faux.setResponses([
     () => {
-      for (const name of ['read', 'bash', 'other_plugin_tool', 'workspace_procurement_capabilities']) assert.ok(pi.getActiveTools().includes(name), name);
-      return fauxAssistantMessage(fauxToolCall('workspace_procurement_capabilities', {}), { stopReason: 'toolUse' });
+      for (const name of ['read', 'bash', 'other_plugin_tool', 'workspace_factory_capabilities']) assert.ok(pi.getActiveTools().includes(name), name);
+      return fauxAssistantMessage(fauxToolCall('workspace_factory_capabilities', {}), { stopReason: 'toolUse' });
     },
     context => {
       const receipt = JSON.parse(context.messages.at(-1).content[0].text);
+      assert.equal(receipt.audience, 'Chinese-factory'); assert.equal(receipt.defaultSupplierComparison, false);
       assert.equal(receipt.configuration, 'unconfigured'); assert.equal(receipt.privateLibrary.status, 'disabled');
       return fauxAssistantMessage(fauxToolCall('other_plugin_tool', {}), { stopReason: 'toolUse' });
     },

@@ -1,4 +1,18 @@
-# Standalone procurement package acceptance
+# Chinese factory standalone package — current contract and historical acceptance
+
+The current audience is **Chinese factories seeking overseas customer/distribution opportunities**. This supersedes the buyer-side positioning of the historical checkpoint below. The retained directory name is a compatibility path; the manifest name is `@workspace-agent/pi-factory`. Existing source and data are retained.
+
+Current ordinary default tools: `workspace_factory_capabilities`, `workspace_factory_rfq_requirements`, `workspace_factory_match_prepare`, `workspace_business_tasks`, `workspace_business_result`. There is no default supplier comparison, procurement submission or private Library tool. The default skill is `skills/factory`; the buyer procurement skill/code remains excluded from default discovery/registration. Factory RFQs use supplied product/spec/quantity/target_market/requested_delivery/requirements. Matching preparation accepts only supplied public material of **this factory**, leaves unknown capacity/quantity/lead time pending, and returns pending human review instead of manufactured suitability or a commitment. Drafts are not persisted inquiry records and are not task execution.
+
+Current clean-package gate is **3/3**: official Pi install/discovery/`-e --print`/coexistence/remove and unconfigured state; Chinese-factory default RFQ/supply-preparation with zero original task/Run/backend-model calls; explicit non-default historical original procurement regression. All frontend responses are keyless finite faux. The original four-stage flow remains only a compatibility regression. Reproduce with `node --test test/pi-procurement-package.test.mjs`.
+
+Community candidate verification is separate and optional. Only reviewed fixed npm package versions may be loaded explicitly in a clean development profile; no community collection is automatically installed. Public candidate research must preserve source evidence and never certify a buyer, inquiry, private-file scope or permission to contact. The ordinary package itself does not provide web search, PDF/OCR or child-agent engines. Its actual configuration/capability report is scoped to this package; an optional external tool must be inspected and verified independently.
+
+No enterprise private-file read, new credentials, paid model, external inquiry/contact/order/payment, Shopify write or deployment occurs. Original member bindings, human approvals, Library exact-receiver/cache guard, Runtime/Store and Pi Durable remain unchanged.
+
+## Historical checkpoint 4600031 — compatibility evidence only
+
+The text below records the earlier independentization acceptance. Its old default procurement tool set and buyer workflow are historical, not the current factory contract. The counts and fixed synthetic receipts refer to that snapshot, not to newly integrated community plugins.
 
 This increment continues PR68 from `f51345e7e036d0bf27745a3ec7adef82a90bf263` on `codex/pi-business-thread-adapter-20261014`; first executable package checkpoint is `468067ab9a786324ee9a1974df8bcf55480755b7`, pushed and checked against the remote. PR65, the original Runtime/business coordinator, its Store, Pi Durable stage tools and existing identities/approvals remain authoritative. No Pi TUI, readiness, shared `server/index.mjs` or peer branch source changed in this increment.
 

@@ -1,9 +1,9 @@
 {
-  "name": "@workspace-agent/pi-procurement",
+  "name": "@workspace-agent/pi-factory",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Pi procurement tools backed by the original authorized Workspace service",
+  "description": "Chinese factory customer RFQ and supply preparation tools using original Workspace authorization",
   "keywords": ["pi-package"],
   "engines": { "node": ">=24" },
   "files": ["src", "skills", "README.md"],
@@ -14,7 +14,7 @@
   },
   "pi": {
     "extensions": ["./src/extension.js"],
-    "skills": ["./skills"]
+    "skills": ["./skills/factory"]
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

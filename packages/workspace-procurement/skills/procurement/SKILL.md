@@ -1,9 +1,9 @@
 ---
 name: workspace-procurement
-description: Organize explicitly supplied public procurement requirements and supplier quote materials, then use original Workspace tasks for procurement documents and saved results.
+description: Historical buyer-side compatibility guidance, excluded from the Chinese factory package default skill manifest.
 ---
 
-Use this skill for procurement planning based on materials supplied by the user. The original authenticated Workspace service is required; missing binding is unconfigured, not an empty catalog. This plugin does not perform market research or read private Library records.
+This is retained historical buyer-side compatibility material, not the factory product or a default package skill. Do not apply it to a Chinese factory choosing suppliers; the default manifest selects `skills/factory`. Existing source is retained for original regression coverage. The original authenticated Workspace service is required; missing binding is unconfigured, not an empty catalog.
 
 1. Read `workspace_business_presets`. Use the original `procurement` preset's required/optional fields. Current required inputs are product, spec and quantity; optional inputs are target_price, market, requirements and quotes. The live registry is authoritative.
 2. Organize known public fields with `workspace_procurement_requirements`. Ask for missing required fields. A returned draft is neither persisted nor submitted; readiness of fields is not server acceptance. A target price is the user's goal, never a supplier quote.

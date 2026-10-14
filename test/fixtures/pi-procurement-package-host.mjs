@@ -29,17 +29,18 @@ modelRuntime.registerNativeProvider(faux.provider);
 const settingsManager = SettingsManager.create(config.directory, config.agentDir);
 settingsManager.setCompactionEnabled(false);
 const resourceLoader = new DefaultResourceLoader({ cwd: config.directory, agentDir: config.agentDir, settingsManager,
-  noContextFiles: true, additionalExtensionPaths: [config.otherExtension] });
+  noContextFiles: true, additionalExtensionPaths: [config.otherExtension, ...(config.compatibilityExtension ? [config.compatibilityExtension] : [])] });
 await resourceLoader.reload();
 assert.deepEqual(resourceLoader.getExtensions().errors, []);
-assert.ok(resourceLoader.getSkills().skills.some(row => row.name === 'workspace-procurement'));
+assert.ok(resourceLoader.getSkills().skills.some(row => row.name === 'workspace-factory'));
 const created = await createAgentSession({ cwd: config.directory, agentDir: config.agentDir, settingsManager, resourceLoader,
   modelRuntime, model: faux.getModel(), sessionManager: SessionManager.inMemory(config.directory) });
 const session = created.session;
 try {
   await session.bindExtensions({});
   const active = session.getActiveToolNames();
-  for (const name of ['read', 'bash', 'other_plugin_tool', 'workspace_procurement_requirements', 'workspace_business_result']) assert.ok(active.includes(name), name);
+  for (const name of ['read', 'bash', 'other_plugin_tool', 'workspace_factory_rfq_requirements', 'workspace_business_result']) assert.ok(active.includes(name), name);
+  if (!config.compatibilityExtension) for (const name of ['workspace_procurement_compare', 'workspace_procurement_requirements', 'workspace_business_task', 'workspace_business_presets']) assert.ok(!active.includes(name), name);
   assert.ok(!active.includes('workspace_products') && !active.includes('workspace_company_profile') && !active.includes('workspace_product'));
   const hooks = resourceLoader.getExtensions().extensions.find(row => row.path.endsWith('/src/extension.js')).handlers;
   for (const name of ['session_start', 'input', 'user_bash', 'tool_call', 'session_before_switch', 'session_before_fork']) assert.ok(!hooks.has(name), name);
@@ -49,26 +50,46 @@ try {
   const read = async (tool, args) => {
     faux.setResponses([fauxAssistantMessage(fauxToolCall(tool, args), { stopReason: 'toolUse' }),
       context => { assert.equal(context.messages.at(-1).role, 'toolResult'); return fauxAssistantMessage('Explicit keyless synthetic receipt checked.'); }]);
-    await session.prompt('Synthetic procurement acceptance: execute exactly the supplied test call.');
+    await session.prompt('Synthetic Chinese factory acceptance: execute exactly the supplied test call.');
     const row = session.messages.filter(row => row.role === 'toolResult').at(-1);
     const text = row.content.filter(block => block.type === 'text').map(block => block.text).join('\n');
     return { row, value: (() => { try { return JSON.parse(text); } catch { return text; } })() };
   };
-  const capabilities = (await read('workspace_procurement_capabilities', {})).value;
+  const capabilities = (await read('workspace_factory_capabilities', {})).value;
   assert.equal(capabilities.privateLibrary.status, 'disabled');
   assert.equal(capabilities.onlineVerified, false);
+  assert.equal(capabilities.audience, 'Chinese-factory'); assert.equal(capabilities.defaultSupplierComparison, false);
   if (config.mode === 'unconfigured') {
     assert.equal(capabilities.configuration, 'unconfigured');
-    for (const name of ['workspace_business_presets', 'workspace_procurement_requirements', 'workspace_business_task']) {
-      const { row, value } = await read(name, name.endsWith('requirements') ? { input: {} } : name.endsWith('task') ? config.task : {});
+    for (const name of ['workspace_business_tasks', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare']) {
+      const { row, value } = await read(name, name.startsWith('workspace_factory_') ? { rfq: {} } : {});
       assert.equal(row.isError, false); assert.equal(value.status, 'unconfigured'); assert.deepEqual(value.sources, []);
     }
   } else if (config.mode === 'refused') {
-    const { row } = await read('workspace_procurement_requirements', { input: { product: 'Public synthetic cup' } });
+    const { row } = await read('workspace_factory_rfq_requirements', { rfq: { product: 'Public synthetic factory cup' } });
     assert.equal(row.isError, true);
   } else if (config.mode === 'foreign-result') {
     const { row, value } = await read('workspace_business_result', { taskId: config.taskId });
     assert.equal(row.isError, true); assert.match(value, /HTTP 404/);
+  } else if (config.mode === 'factory') {
+    const rfq = { product: 'Public synthetic factory cup', quantity: 100, target_market: 'Public synthetic target market' };
+    const draft = (await read('workspace_factory_rfq_requirements', { rfq })).value;
+    assert.equal(draft.status, 'draft'); assert.equal(draft.persisted, false); assert.equal(draft.submitted, false);
+    assert.deepEqual(draft.customerRequirements, rfq); assert.deepEqual(draft.pending, ['spec', 'requested_delivery', 'requirements']);
+    assert.ok(draft.sources.every(row => row.kind === 'user-provided' && row.recordId.startsWith('input.rfq.')));
+    const pending = (await read('workspace_factory_match_prepare', { rfq })).value;
+    assert.deepEqual(pending.suppliedFactoryMaterials, {}); assert.ok(pending.pendingFactoryFields.includes('production_capacity'));
+    assert.ok(pending.pendingFactoryFields.includes('lead_time')); assert.equal(pending.matchingDecision, 'pending-human-review');
+    const factoryOffer = { product: rfq.product, spec: 'Supplied synthetic factory spec', source: 'Public synthetic factory material' };
+    const prepared = (await read('workspace_factory_match_prepare', { rfq, factoryOffer })).value;
+    assert.deepEqual(prepared.suppliedFactoryMaterials, factoryOffer); assert.ok(prepared.pendingFactoryFields.includes('available_quantity'));
+    assert.ok(prepared.pendingFactoryFields.includes('production_capacity')); assert.ok(prepared.pendingFactoryFields.includes('lead_time'));
+    assert.equal(prepared.matchingDecision, 'pending-human-review'); assert.equal(prepared.persisted, false);
+    const rejected = await read('workspace_factory_rfq_requirements', { rfq: { ...rfq, filePath: '/private-enterprise/catalog.pdf' } });
+    assert.equal(rejected.row.isError, true);
+    await fs.writeFile(config.evidenceFile, JSON.stringify({ audience: 'Chinese-factory', defaultSupplierComparison: false,
+      defaultTaskSubmission: false, publicRFQDraft: true, factoryCapacityInvented: false, persisted: false,
+      model: 'explicit-keyless-faux', paidModelCalls: 0, privateLibraryReads: 0, tools: active }));
   } else {
     const draft = (await read('workspace_procurement_requirements', { input: { product: 'Public synthetic cup' } })).value;
     assert.equal(draft.status, 'draft', JSON.stringify(draft)); assert.equal(draft.persisted, false); assert.equal(draft.submitted, false);

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { taskFixture, TOKEN_A, TOKEN_B } from './fixtures/pi-task-helpers.mjs';
 
+// Historical directory/import names retained; default audience is Chinese factory.
 const source = fileURLToPath(new URL('../packages/workspace-procurement', import.meta.url));
 const cli = fileURLToPath(new URL('../node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js', import.meta.url));
 const publicTask = { type: 'procurement', title: 'Public synthetic standalone package procurement', requestId: 'standalone-procurement-synthetic',
@@ -68,9 +69,22 @@ test('copied private package installs/discovers through official Pi and its actu
   assert.ok(!(await p.invoke('list')).includes(p.packageDir));
 });
 
-test('outside-repository default plugin drives original procurement stages/documents with explicit faux models and original authorization', async t => {
+test('Chinese factory default organizes customer RFQ and supplied factory materials without buyer-side tools or task execution', async t => {
+  const p = await setup(t), f = await taskFixture(t, { enterprise: true });
+  const config = await p.run('factory', { WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: TOKEN_A }, { enterpriseHost: 'workspace.example' });
+  const evidence = JSON.parse(await fs.readFile(config.evidenceFile, 'utf8'));
+  assert.equal(evidence.audience, 'Chinese-factory'); assert.equal(evidence.defaultSupplierComparison, false);
+  assert.equal(evidence.defaultTaskSubmission, false); assert.equal(evidence.factoryCapacityInvented, false);
+  assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0); assert.equal(f.app.store.read().runs.length, 0);
+  assert.equal(f.faux.state.callCount, 0);
+  if (process.env.PI_FACTORY_EVIDENCE_FILE) await fs.writeFile(process.env.PI_FACTORY_EVIDENCE_FILE, JSON.stringify(evidence, null, 2) + '\n');
+});
+
+test('explicit non-default historical procurement compatibility retains original stages/documents and authorization', async t => {
   const p = await setup(t), f = await taskFixture(t, { enterprise: true, responses: Array.from({ length: 4 }, complete) });
-  const config = await p.run('procurement', { WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: TOKEN_A }, { enterpriseHost: 'workspace.example' });
+  const compatibilityExtension = path.join(p.dir, 'explicit-legacy-compatibility.js');
+  await fs.writeFile(compatibilityExtension, "import { createWorkspaceClient, registerWorkspaceBusinessTools } from './package/src/workspace.mjs';\nimport { registerProcurementTools } from './package/src/procurement.mjs';\nexport default pi => { const client = createWorkspaceClient({baseURL:process.env.WS_AGENT_URL,token:process.env.WS_AGENT_TOKEN}); registerWorkspaceBusinessTools(pi,client); registerProcurementTools(pi,client,'configured_unverified'); };\n");
+  const config = await p.run('historical-compatibility', { WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: TOKEN_A }, { enterpriseHost: 'workspace.example', compatibilityExtension });
   const evidence = JSON.parse(await fs.readFile(config.evidenceFile, 'utf8'));
   const state = f.app.store.read(), tasks = state.workspaceAgentTasks.tasks;
   assert.equal(tasks.length, 1); assert.equal(tasks[0].id, evidence.taskId); assert.deepEqual(tasks[0].input, publicTask.input);
@@ -82,7 +96,7 @@ test('outside-repository default plugin drives original procurement stages/docum
   }
   if (process.env.PI_PROCUREMENT_EVIDENCE_FILE) await fs.writeFile(process.env.PI_PROCUREMENT_EVIDENCE_FILE,
     JSON.stringify({ version: 1, syntheticOnly: true, officialPiVersion: '1.1.0', nodeVersion: process.version,
-      standalonePackage: 'packages/workspace-procurement', packageCopiedOutsideRepository: true, packageHasNodeModules: false,
+      standalonePackage: 'packages/workspace-procurement', purpose: 'historical-buyer-procurement-regression-only', packageCopiedOutsideRepository: true, packageHasNodeModules: false,
       transport: 'actual-original-http', frontend: 'official-sdk-explicit-faux', backend: 'original-pi-durable-explicit-faux',
       originalTaskId: evidence.taskId, originalTaskCount: tasks.length, originalRunCount: state.runs.length,
       originalSuccessfulStages: tasks[0].steps.filter(row => row.status === 'succeeded').length,
@@ -92,5 +106,5 @@ test('outside-repository default plugin drives original procurement stages/docum
   await p.run('foreign-result', { WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: TOKEN_B }, { taskId: evidence.taskId, enterpriseHost: 'workspace.example' });
   await p.run('refused', { WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: 'synthetic-invalid-existing-binding' }, { enterpriseHost: 'workspace.example' });
   assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 1); assert.equal(f.faux.state.callCount, 4);
-  t.diagnostic('Copied package has no node_modules/server/scripts dependency. Real official Pi package install + SDK default entry; original four Pi Durable stages and three exact SHA documents. Frontend/backend explicit faux only; no paid model, supplier research or external action.');
+  t.diagnostic('Copied package has no node_modules/server/scripts dependency. Real official Pi package install + SDK with explicit non-default historical compatibility; original four Pi Durable stages and three exact SHA documents, not factory core behavior. Frontend/backend explicit faux only; no paid model, supplier research or external action.');
 });
