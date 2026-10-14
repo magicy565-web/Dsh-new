@@ -68,7 +68,7 @@ export function requestOrigin(req, env = {}) {
   return parsed.origin;
 }
 
-export async function createAgentService({ env = process.env, dataDir, principals, workspaceStore, runtime, provider, access, artifacts, reservedTokenDigests = [] } = {}) {
+export async function createAgentService({ env = process.env, dataDir, principals, workspaceStore, runtime, provider, access, artifacts, instanceId = null, reservedTokenDigests = [] } = {}) {
   const auth = createAgentAuth({ principals, env, access, reservedTokenDigests });
   const presets = await loadPresets({ directory: env.WS_AGENT_PRESETS_DIR || path.join(root, 'presets/agent') });
   const store = await openAgentStore(path.resolve(dataDir || env.WS_AGENT_DATA || path.join(root, '.data/agent')));
@@ -139,6 +139,9 @@ export async function createAgentService({ env = process.env, dataDir, principal
         return true;
       }
       const actor = await auth.authenticate(req, res, AGENT_API_BASE + endpoint);
+      if (req.method === 'GET' && endpoint === '/identity') {
+        await json(res, 200, { subject: actor.subject, workspaceId: actor.workspaceId, role: actor.role, scopes: actor.scopes, instanceId }); return true;
+      }
       if (await piTasks.handle({ endpoint, req, res, actor, readJson, json })) return true;
       const query = new URL(req.url, 'http://localhost').searchParams;
       if (req.method === 'GET' && endpoint === '/presets') { await json(res, 200, listPresets(presets)); return true; }

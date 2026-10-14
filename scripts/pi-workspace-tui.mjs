@@ -15,8 +15,7 @@ export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sa
   if (!path.isAbsolute(isolationDirectory)) throw new Error('The TUI requires an explicit isolated directory.');
   const agentDir = path.join(isolationDirectory, 'agent');
   await fs.mkdir(agentDir, { recursive: true, mode: 0o700 });
-  process.env.PI_CODING_AGENT_DIR = agentDir;
-  process.env.PI_OFFLINE = '1';
+  // Explicit factory paths/settings replace process-global discovery mutation.
   const { createAgentSession, createAgentSessionRuntime, DefaultResourceLoader, InteractiveMode, ModelRuntime, SessionManager, SettingsManager } = await import('@earendil-works/pi-coding-agent');
   const { InMemoryCredentialStore } = await import('@earendil-works/pi-ai');
   if (agent && (sample || !suppliedModelRuntime || !suppliedModel)) throw new Error('The development Agent requires an explicitly configured official model runtime; no sample fallback is available.');

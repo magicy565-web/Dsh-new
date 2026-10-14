@@ -1,6 +1,7 @@
 import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
 import { createAgentService } from './agent/service.mjs';
 import { createLibraryModelRead } from './library-model-read.mjs';
+import { createPiBusinessAgentAdapter } from './pi-business-agent.mjs';
 import { disabledAgentUiStatus } from './agent/ui.mjs';
 import { createAgentOwnerPolicy } from './agent/privacy.mjs';
 import { createBraveResearchAdapter } from './agent/research.mjs';
@@ -93,14 +94,18 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
+  const businessAgent = businessAgentOptions && createPiBusinessAgentAdapter({ provider, options: businessAgentOptions });
+  if (businessAgent) provider = businessAgent.provider;
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
   let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
   try {
+    if (businessAgent && Object.values(store.read().workspaceThreadHarness || {}).some(value => Array.isArray(value) && value.length))
+      throw new Error('Existing alpha ThreadHarness records are retained. Review their archive/migration before enabling this adapter; no second executor or automatic state synchronization will adopt them.');
     await provider.initialize?.({ store });
     recovery = await readRecoveryStatus(store.directory, provider.kind);
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
@@ -173,8 +178,12 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       // Prevent a Dot/Muse/sourcing Worker credential from becoming an
       // enterprise Agent submit credential through accidental digest reuse.
       builtinAgent = await createAgentService({ env: agentEnvironment, ...(agentConfig || {}), dataDir: projectionDirectory,
-        workspaceStore: store, runtime, provider, access, artifacts,
+        workspaceStore: store, runtime, provider, access, artifacts, instanceId,
         reservedTokenDigests: [...workerDigests, ...sourcingDigests] });
+    }
+    if (businessAgent) {
+      if (!builtinAgent) throw new Error('The business conversation adapter requires the original configured Agent member service.');
+      businessAgent.attach({ store, runtime, access, instanceId });
     }
   } catch (error) { await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
@@ -297,6 +306,12 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       musePrivacy.guardHttp(pathname, context);
       agentPrivacy.guardHttp(pathname, context);
       res.filterWorkspaceResponse = body => agentPrivacy.filterResponse(musePrivacy.filterResponse(body, context), context);
+      if (businessAgent && await businessAgent.handle({ req, res, pathname, context, respond, readBody: async request => {
+        const body = await readBody(request);
+        access.verifyBody(context, request.bodyBytes || Buffer.alloc(0));
+        musePrivacy.guardHttp(pathname, context, body); agentPrivacy.guardHttp(pathname, context, body);
+        return body;
+      } })) return;
       if (await libraryModelRead.handle({ req, res, pathname, query: url.searchParams, context, respond })) return;
       if (builtinAgent && await builtinAgent.handleUi(req, res, context)) return;
       if (await supplierOwnerMcpHttp({ req, res, pathname, context, access, readBody, guardBody: body => musePrivacy.guardHttp(pathname, context, body), filterResult: value => musePrivacy.filterResponse(value, context), service: supplierService, publication: supplierPublication, artifacts, store, binding: supplierOwnerMcpBinding, clock: accessClock })) return;
@@ -539,7 +554,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, businessLibrary, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, businessAgent, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');

@@ -18,7 +18,7 @@ async function launcher(t, backend) {
   const isolated = await fs.mkdtemp('/tmp/workspace-pi-plugin-pty-');
   const child = spawn('python3', [path.join(root, 'test/fixtures/pi-tui-pty-driver.py'), process.execPath, path.join(root, 'test/fixtures/pi-workspace-plugins-pty.mjs')],
     { cwd: root, env: { PATH: process.env.PATH, LANG: 'C.UTF-8', TERM: 'xterm-256color', WS_AGENT_URL: backend.baseURL,
-      WS_AGENT_TOKEN: backend.token, PI_PLUGIN_TEST_DIRECTORY: isolated }, stdio: ['pipe', 'pipe', 'pipe'] });
+      WS_AGENT_TOKEN: backend.token, PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(isolated, 'agent'), PI_PLUGIN_TEST_DIRECTORY: isolated }, stdio: ['pipe', 'pipe', 'pipe'] });
   const driver = { child, closed: once(child, 'exit'), raw: '', stderr: '', code: undefined }; let buffer = '';
   child.stderr.on('data', data => { driver.stderr += data; });
   child.stdout.on('data', data => { buffer += data; while (buffer.includes('\n')) {

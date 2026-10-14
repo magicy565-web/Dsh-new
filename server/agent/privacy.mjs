@@ -7,7 +7,7 @@ export function agentOwnerScope(state, actor) {
   const taskIds = new Set(tasks.filter(task => !owned(task)).map(task => task.id).filter(validId));
   const conversations = new Set(tasks.filter(task => !owned(task)).map(task => task.conversationId).filter(validId));
   const ids = new Set([...taskIds, ...conversations]);
-  for (const conversation of state.conversations || []) if (conversation.piTaskOwner && !owned(conversation.piTaskOwner)) {
+  for (const conversation of state.conversations || []) if ((conversation.piTaskOwner || conversation.businessAgentOwner) && !owned(conversation.piTaskOwner || conversation.businessAgentOwner)) {
     if (validId(conversation.id)) { ids.add(conversation.id); conversations.add(conversation.id); }
   }
   const runTask = run => run?.agentTaskId || run?.agentPresetContext?.taskId;
@@ -16,7 +16,7 @@ export function agentOwnerScope(state, actor) {
     if (validId(run.id)) ids.add(run.id);
     if (validId(run.conversationId)) { ids.add(run.conversationId); conversations.add(run.conversationId); }
   }
-  for (const run of state.runs || []) if (run.piTaskContext && !owned(run.piTaskContext)) {
+  for (const run of state.runs || []) if ((run.piTaskContext || run.businessAgentContext) && !owned(run.piTaskContext || run.businessAgentContext)) {
     if (validId(run.id)) ids.add(run.id);
     if (validId(run.conversationId)) { ids.add(run.conversationId); conversations.add(run.conversationId); }
   }
@@ -27,6 +27,8 @@ export function agentOwnerScope(state, actor) {
     || item.agentPresetContext && !owned(byId.get(item.agentPresetContext.taskId))
     || item.piTaskContext && !owned(item.piTaskContext)
     || item.piTaskOwner && !owned(item.piTaskOwner)
+    || item.businessAgentContext && !owned(item.businessAgentContext)
+    || item.businessAgentOwner && !owned(item.businessAgentOwner)
     || item.binding && (ids.has(item.binding.runId) || ids.has(item.binding.conversationId) || ids.has(item.binding.goalId))
   ));
   let changed;
@@ -45,7 +47,7 @@ export function createAgentOwnerPolicy({ read, error = (status, code, message) =
     if (Array.isArray(value)) return value.map(item => filter(item, scope)).filter(item => item !== undefined);
     if (!value || typeof value !== 'object') return value;
     if (scope.privateRecord(value)) return undefined;
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, filter(item, scope)]).filter(([, item]) => item !== undefined));
+    return Object.fromEntries(Object.entries(value).filter(([key]) => !['businessAgentSession', 'businessAgentContext'].includes(key)).map(([key, item]) => [key, filter(item, scope)]).filter(([, item]) => item !== undefined));
   }
   return {
     filterResponse(value, actor) { return filter(value, agentOwnerScope(read(), actor)); },

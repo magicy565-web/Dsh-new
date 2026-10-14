@@ -166,6 +166,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       : provider.permissionFingerprint || null;
     const endpointBound = isPiTask || isAgentPreset || provider.legacyPolicyCompatible !== true;
     return { kind: provider.kind || 'deepseek-api', model: provider.model || state.settings.model,
+      ...(run?.businessAgentContext ? { businessAgentRecipient: provider.businessAgentRecipientFingerprint || null } : {}),
       permissionFingerprint, ...(endpointBound && provider.endpointFingerprint ? { endpointFingerprint: provider.endpointFingerprint } : {}) };
   }
   function matchesExecution(state, run) { return Boolean(run && run.executionHash === capabilityPayloadHash(executionScope(state, run))); }
@@ -219,7 +220,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     if (shuttingDown || typeof event?.type !== 'string') return;
     // Only progress metadata crosses this boundary, never reasoning, tool arguments or results.
     const tool = ['pi.tool.started', 'pi.tool.finished', 'pi.tool.failed'].includes(event.type)
-      && ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research', 'workspace_delegate'].includes(event.toolName)
+      && ['workspace_input', 'workspace_propose_action', 'workspace_propose_muse_draft', 'workspace_propose_supplier_profile', 'workspace_complete_preset_stage', 'workspace_research', 'workspace_delegate', 'workspace_business_presets', 'workspace_business_task', 'workspace_business_status', 'workspace_business_tasks', 'workspace_business_result', 'workspace_company_profile', 'workspace_products', 'workspace_product'].includes(event.toolName)
       && typeof event.toolCallId === 'string' && /^[a-f0-9]{64}$/.test(event.toolCallId)
       ? { toolName: event.toolName, toolCallId: event.toolCallId } : null;
     await store.update(state => { const run = state.runs.find(item => item.id === runId && item.status === 'running'); if (run && run.events.length < 1000) {
@@ -550,6 +551,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const result = await store.update(state => {
         const run = required(state, 'runs', id);
         if (key && run.piRecoverRequests?.includes(key)) return { run, duplicate: true };
+        if (run.businessAgentContext) throw new ApiError(409, 'BUSINESS_AGENT_CHECKPOINT_UNAVAILABLE', 'An AgentSession transcript is not a Pi Durable checkpoint. Read the original business task and explicitly continue that task; do not replay this uncertain frontend turn.');
         if (run.status !== 'interrupted' || !run.assistantId || jobs.has(id)) throw new ApiError(409, 'RUN_NOT_RETRYABLE', 'Only an interrupted, settled Pi run can recover its original submission.');
         if (!matchesExecution(state, run)) throw new ApiError(409, scopeChangedError.code, scopeChangedError.message);
         assertDraftInvocation(state, run);
@@ -585,6 +587,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     },
     async retryRun(id, body = {}) {
       const state = store.read(), run = required(state, 'runs', id);
+      if (run.businessAgentContext) throw new ApiError(409, 'BUSINESS_AGENT_CHECKPOINT_UNAVAILABLE', 'Read the original task receipt and explicitly continue it. This frontend turn cannot be automatically resubmitted.');
       // This HTTP-facing method must never reattach an Agent Pi submission:
       // the business task coordinator requires a fresh authenticated /resume.
       if (run.agentPresetContext || run.agentTaskId) throw new ApiError(409, 'AGENT_RECOVERY_REQUIRED', 'Recover through the original Agent task; do not admit its context as ordinary chat.');
@@ -600,7 +603,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true });
     },
     async resetSession(id) { ensureOpen(); return store.update(state => { const item = required(state, 'conversations', id); if (agentConversation(state, id)) throw agentConversationRouteError(); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current request before resetting native session continuity.'); const previous = item.nativeSessionId || null; item.nativeSessionId = null; item.updatedAt = now(); activity(state, 'session_reset', 'New native session requested', 'Future requests start a new native session using saved visible context.', { conversationId: id, previousNativeSessionId: previous }); return { conversation: item }; }); },
-    async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }, { piTaskContext } = {}) {
+    async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }, { piTaskContext, businessAgentOwner } = {}) {
       ensureOpen();
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['title', 'inputContext', 'requestId'].includes(key))) throw new ApiError(400, 'INVALID_INPUT', 'Create a conversation with title, optional inputContext and requestId only.');
       const title = text(body.title, 'title', 160, 'New conversation');
@@ -610,7 +613,9 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       if (piTaskContext && (!pi || !provider.piTaskPermissionFingerprint || piTaskContext.subject !== subject || piTaskContext.workspaceId !== workspaceId))
         throw new ApiError(409, 'PI_TASK_RUNTIME_REQUIRED', 'Pi conversations require their original host-bound member.');
       const piTaskOwner = piTaskContext ? { subject, workspaceId } : null;
-      const fingerprint = capabilityPayloadHash({ title, inputContext: selection, ...(piTaskOwner ? { piTaskOwner } : {}) });
+      if (businessAgentOwner && (piTaskContext || !provider.businessAgentRecipientFingerprint || businessAgentOwner.subject !== subject || businessAgentOwner.workspaceId !== workspaceId))
+        throw new ApiError(409, 'BUSINESS_AGENT_BINDING_REQUIRED', 'Use the original reviewed member-bound business Agent adapter.');
+      const fingerprint = capabilityPayloadHash({ title, inputContext: selection, ...(piTaskOwner ? { piTaskOwner } : {}), ...(businessAgentOwner ? { businessAgentOwner } : {}) });
       return store.update(state => {
         const receipts = state.workspaceConversationCreations ||= { version: 1, receipts: [] };
         if (receipts.version !== 1 || !Array.isArray(receipts.receipts)) throw new ApiError(409, 'CREATION_RECEIPT_INVALID', 'Conversation creation receipts need operator review.');
@@ -625,6 +630,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         const item = conversation(state, title); item.inputContext = selection;
         item.createdBy = subject; item.workspaceId = workspaceId;
         if (piTaskOwner) item.piTaskOwner = piTaskOwner;
+        if (businessAgentOwner) item.businessAgentOwner = structuredClone(businessAgentOwner);
         if (key) {
           item.creationRequestId = key;
           receipts.receipts.push({ subject, workspaceId, requestId: key, fingerprint, conversationId: item.id });
@@ -697,8 +703,13 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       jobs.get(runId)?.controller.abort();
       return { ok: true };
     },
-    async sendMessage(id, body, { museDraftContext, supplierDraftContext, agentPresetContext, piTaskContext } = {}) {
+    async sendMessage(id, body, { museDraftContext, supplierDraftContext, agentPresetContext, piTaskContext, businessAgentContext } = {}) {
       ensureOpen();
+      const businessOwner = required(store.read(), 'conversations', id).businessAgentOwner;
+      if (businessOwner && (!businessAgentContext || businessAgentContext.subject !== businessOwner.subject || businessAgentContext.workspaceId !== businessOwner.workspaceId))
+        throw new ApiError(403, 'BUSINESS_AGENT_BINDING_REQUIRED', 'Use this conversation member\'s original Session binding.');
+      if (businessAgentContext && (!businessOwner || museDraftContext || supplierDraftContext || agentPresetContext || piTaskContext || !provider.businessAgentRecipientFingerprint))
+        throw new ApiError(409, 'BUSINESS_AGENT_CONTEXT_CONFLICT', 'Use one original public-business conversation execution context.');
       if (piTaskContext && (!pi || !provider.piTaskPermissionFingerprint || museDraftContext || supplierDraftContext || agentPresetContext || body.workspaceExecution !== true))
         throw new ApiError(409, 'PI_TASK_RUNTIME_REQUIRED', 'Pi tasks require the existing governed native Pi host.');
       if (agentPresetContext && (!pi || museDraftContext || supplierDraftContext || body.workspaceExecution !== true)) throw new ApiError(409, 'AGENT_PI_REQUIRED', 'Preset stages require the original governed Pi runtime and exclusive business context.');
@@ -710,7 +721,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const snapshot = store.read(), selected = Object.hasOwn(body, 'inputContext') ? normalizeInputContext(body.inputContext) : required(snapshot, 'conversations', id).inputContext;
       const admission = await prepareRunInput(snapshot, id, selected);
       const workspaceExecution = body.workspaceExecution === true || admission.connectorGrants.length > 0;
-      const inputHash = capabilityPayloadHash({ content, inputContext: admission.inputContext ?? null, workspaceExecution, ...(piTaskContext ? { piTaskContext } : {}), ...(museDraftContext ? { museDraftFingerprint: museDraftContext.fingerprint } : {}), ...(supplierDraftContext ? { supplierDraftFingerprint: supplierDraftContext.fingerprint } : {}), ...(agentPresetContext ? { agentPresetFingerprint: agentPresetContext.fingerprint } : {}) });
+      const inputHash = capabilityPayloadHash({ content, inputContext: admission.inputContext ?? null, workspaceExecution, ...(businessAgentContext ? { businessAgentOwner: businessOwner, allowBusinessSubmit: businessAgentContext.allowBusinessSubmit } : {}), ...(piTaskContext ? { piTaskContext } : {}), ...(museDraftContext ? { museDraftFingerprint: museDraftContext.fingerprint } : {}), ...(supplierDraftContext ? { supplierDraftFingerprint: supplierDraftContext.fingerprint } : {}), ...(agentPresetContext ? { agentPresetFingerprint: agentPresetContext.fingerprint } : {}) });
       let start = false; let queued = false;
       const result = await store.update(state => {
         const item = required(state, 'conversations', id);
@@ -740,6 +751,11 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         }
         if (supplierDraftContext) { const run = required(state, 'runs', runId); run.supplierDraftContext = { ...supplierDraftContext, selection: admission.inputContext }; registerSupplierDraft(state, run.supplierDraftContext, run, reply); }
         if (agentPresetContext) { const run = required(state, 'runs', runId); run.agentPresetContext = structuredClone(agentPresetContext); registerAgentPresetRun(state, run.agentPresetContext, run, reply); }
+        if (businessAgentContext) {
+          const run = required(state, 'runs', runId); run.businessAgentContext = structuredClone(businessAgentContext);
+          run.budget = { maxSteps: 1, maxOutputTokens: 1600 };
+          const execution = executionScope(state, run); run.execution = execution; run.executionHash = capabilityPayloadHash(execution);
+        }
         return { message, run: { id: runId, status: queued ? 'queued' : reply.status, requestId: key }, assistantId: reply.id };
       });
       if (start && !queued) launchChat(id, runId, result.assistantId);
@@ -775,6 +791,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
           return { goal: existing, duplicate: true };
         }
         const item = body.conversationId ? required(state, 'conversations', body.conversationId) : conversation(state, title);
+        if (item.businessAgentOwner) throw new ApiError(409, 'BUSINESS_AGENT_CONVERSATION_ONLY', 'This public-business conversation uses original messages and task references; it cannot be adopted by a separate Goal loop.');
         if (agentConversation(state, item.id)) throw agentConversationRouteError();
         if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Wait for or stop the current request before adding a goal here.');
         const goal = { id: randomUUID(), ...(selected !== undefined ? { inputContext: selected } : {}), title, description, conversationId: item.id, status: 'draft', stepCount: 0, maxSteps, maxOutputTokens, outputTokens: 0, output: '', nextStep: '', lastError: null, createdAt: now(), updatedAt: now(), revision: 0, runId: null, requestId: key, actionRequests: [] };

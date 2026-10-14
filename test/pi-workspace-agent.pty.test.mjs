@@ -22,7 +22,7 @@ test('official agent PTY submits natural input, reads four original stages and r
   function launch(sessionFile) {
     const child = spawn('python3', [path.join(root, 'test/fixtures/pi-tui-pty-driver.py'), process.execPath, path.join(root, 'test/fixtures/pi-workspace-agent-pty.mjs')],
       { cwd: root, env: { PATH: process.env.PATH, LANG: 'C.UTF-8', TERM: 'xterm-256color', WS_AGENT_URL: backend.baseURL, WS_AGENT_TOKEN: backend.token,
-        PI_AGENT_TEST_DIRECTORY: isolated, ...(sessionFile ? { PI_AGENT_TEST_SESSION_FILE: sessionFile } : {}) }, stdio: ['pipe', 'pipe', 'pipe'] });
+        PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(isolated, 'agent'), PI_AGENT_TEST_DIRECTORY: isolated, ...(sessionFile ? { PI_AGENT_TEST_SESSION_FILE: sessionFile } : {}) }, stdio: ['pipe', 'pipe', 'pipe'] });
     const driver = { child, closed: once(child, 'exit'), raw: '', stderr: '', code: undefined }; drivers.push(driver);
     let buffer = '';
     child.stderr.on('data', data => { driver.stderr += data; });

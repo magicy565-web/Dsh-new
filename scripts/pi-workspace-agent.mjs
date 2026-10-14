@@ -96,7 +96,7 @@ export async function createWorkspaceAgentModel(configuration, secrets = []) {
   const original = openAICompletionsApi();
   const guarded = method => (model, context, options) => lazyStream(model, async () => {
     const signal = options?.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000);
-    const source = original[method](model, context, { ...options, signal, env: {}, maxTokens: 1600, maxRetries: 0, timeoutMs: 60_000, reasoning: 'off' });
+    const source = original[method](model, context, { ...options, signal, env: {}, maxTokens: Math.min(1600, options?.maxTokens ?? 1600), maxRetries: 0, timeoutMs: 60_000, reasoning: 'off' });
     return {
       async *[Symbol.asyncIterator]() { try { for await (const event of source) yield redact(event); } catch { throw new Error('The configured model transport failed. No task completion is implied.'); } },
       async result() { try { return redact(await source.result()); } catch { throw new Error('The configured model transport failed. No task completion is implied.'); } },
@@ -129,6 +129,10 @@ export async function main(args = process.argv.slice(2), environment = process.e
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('Start agent:dev in an interactive terminal, or use --check.');
   const isolationDirectory = environment.WS_AGENT_SESSION_DIR || path.join(os.homedir(), '.local', 'state', 'workspace-pi-development');
   process.umask(0o077);
+  // This CLI owns its process. InteractiveMode still uses these SDK discovery
+  // settings; shared web/session factories must leave process globals alone.
+  process.env.PI_CODING_AGENT_DIR = path.join(isolationDirectory, 'agent');
+  process.env.PI_OFFLINE = '1';
   const { runtime, InteractiveMode } = await createWorkspaceAgentRuntime({ client, isolationDirectory, ...frontend, continueSession: args.includes('--continue') });
   try {
     await new InteractiveMode(runtime, { startupDiagnostics: [{ type: 'info', message: 'Workspace development Agent · official Pi AgentSession · original business task authority · no live provider verification' }] }).run();

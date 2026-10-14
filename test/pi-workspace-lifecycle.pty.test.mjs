@@ -29,7 +29,7 @@ test('agent:dev official PTY preserves human approval, separate stable continuat
   capture();
   const child = spawn('python3', [path.join(root, 'test/fixtures/pi-tui-pty-driver.py'), process.execPath, path.join(root, 'test/fixtures/pi-workspace-lifecycle-pty.mjs')],
     { cwd: root, env: { PATH: process.env.PATH, LANG: 'C.UTF-8', TERM: 'xterm-256color', WS_AGENT_URL: backend.baseURL, WS_AGENT_TOKEN: backend.token,
-      PI_AGENT_TEST_DIRECTORY: path.join(directory, 'agent') }, stdio: ['pipe', 'pipe', 'pipe'] });
+      PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(directory, 'agent', 'agent'), PI_AGENT_TEST_DIRECTORY: path.join(directory, 'agent') }, stdio: ['pipe', 'pipe', 'pipe'] });
   const closed = once(child, 'exit'); let raw = '', buffer = '', stderr = '', code;
   child.stderr.on('data', data => { stderr += data; });
   child.stdout.on('data', data => { buffer += data; while (buffer.includes('\n')) {

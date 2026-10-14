@@ -157,6 +157,12 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch, libra
     // Bearer binding on every HTTP request. Never persist the token itself.
     bindingFingerprint: createHash('sha256').update(origin).update('\0').update(token).digest('hex'),
     check,
+    async bindingIdentity(signal) {
+      const value = await request('GET', '/identity', undefined, signal, { business: true, maxBytes: 16_000 });
+      if (typeof value.subject !== 'string' || typeof value.workspaceId !== 'string' || !['admin', 'operator', 'viewer'].includes(value.role)
+        || !Array.isArray(value.scopes) || !value.scopes.includes('agent:read') || value.scopes.some(scope => !['agent:read', 'agent:submit'].includes(scope))) throw new Error('Workspace returned an invalid original member binding.');
+      return { subject: value.subject, workspaceId: value.workspaceId, role: value.role, scopes: [...value.scopes], instanceId: value.instanceId };
+    },
     companyProfile: (signal, model) => libraryClient ? libraryClient.companyProfile(signal, model) : privateLibraryGap('company-profile'),
     revalidateLibraryReceipt: (receipt, model, signal) => { if (!libraryClient) throw new Error('Library cached receipt has no current reviewed Session binding.'); return libraryClient.revalidateReceipt(receipt, model, signal); },
     products: (input = {}, signal, model) => {
