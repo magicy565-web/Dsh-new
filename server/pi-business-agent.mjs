@@ -211,11 +211,17 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     provider,
     attach(dependencies) { ({ store, runtime, access, instanceId } = dependencies); },
     async handle({ req, res, pathname, context, readBody, respond }) {
+      if (req.method === 'GET' && pathname === '/api/conversations/runtime') {
+        actor(context);
+        await respond(res, 200, { engine: engineAdapter ? 'omp' : 'pi', engineScope: engineAdapter?.scope || 'pi:1.1.0',
+          frontend: 'original-workspace-conversation-run', privateLibrary: engineAdapter ? 'disabled' : 'original-controlled-policy' });
+        return true;
+      }
       if (req.method === 'POST' && pathname === '/api/conversations') {
         const identity = actor(context, true), body = await readBody(req); publicContext(body.inputContext);
         await respond(res, 201, await runtime.createConversation(body, identity, { businessAgentOwner: { subject: identity.subject, workspaceId: identity.workspaceId } })); return true;
       }
-      const match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/(messages|cancel|task-graph|business-results)|\/business-tasks\/([^/]+)\/(resume))?$/);
+      const match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/(messages|cancel|task-graph|business-results|terminal-status)|\/business-tasks\/([^/]+)\/(resume))?$/);
       if (!match) return false;
       const conversationId = decoded(match[1]);
       if (!current(conversationId).businessAgentOwner) {
@@ -227,6 +233,20 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         return false;
       }
       const identity = actor(context, req.method !== 'GET'), conversation = owned(conversationId, identity);
+      if (req.method === 'GET' && match[2] === 'terminal-status') {
+        const query = new URL(req.url, 'http://localhost').searchParams;
+        if ([...query.keys()].some(key => key !== 'runId') || query.getAll('runId').length !== 1 || !id(query.get('runId')))
+          fail(400, 'INVALID_INPUT', 'Use one exact original runId for this public conversation.');
+        await bindingFor(identity, conversation);
+        const run = store.read().runs.find(row => row.id === query.get('runId') && row.conversationId === conversationId && row.businessAgentContext);
+        if (!run) fail(404, 'NOT_FOUND', 'This conversation has no such original frontend run.');
+        const reply = store.read().messages.find(row => row.id === run.assistantId && row.conversationId === conversationId && row.role === 'assistant');
+        if (reply && looksLikeCredential(reply.content)) fail(403, 'PUBLIC_RECEIPT_REQUIRED', 'The original reply cannot be disclosed as public text.');
+        await respond(res, 200, { conversationId, run: { id: run.id, status: run.status, events: run.events,
+          usage: run.usage, budget: run.budget, executionRefs: run.executionRefs || [], error: run.error ? { code: run.error.code } : null },
+          reply: reply ? { id: reply.id, runId: run.id, status: reply.status, content: reply.content } : null });
+        return true;
+      }
       if (req.method === 'POST' && match[2] === 'messages') {
         const body = await readBody(req);
         if (Object.keys(body).some(key => !['content', 'requestId', 'workspaceExecution', 'inputContext', 'provider'].includes(key)) || body.provider !== undefined && !['builtin', 'pi'].includes(body.provider)

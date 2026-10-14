@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createServer } from 'node:http';
+import { WORKSPACE_OMP_PUBLIC_BROWSER_ARGS } from '../../server/workspace-omp-public-tools.mjs';
 const root = process.env.OMP_BUILTINS_SDK_ROOT;
 const load = relative => import(pathToFileURL(path.join(root, relative)).href);
 assert.equal(JSON.parse(await fs.readFile(path.join(root, 'package.json'))).version, '18.10.4');
@@ -60,7 +61,8 @@ try {
 
   server = createServer((req, res) => {
     res.setHeader('Content-Type', 'text/html');
-    res.end('<!doctype html><title>Public synthetic factory catalog</title><h1>Synthetic cup</h1><p id="conditions">Capacity unknown; human review required.</p>');
+    res.end('<!doctype html><title>Public synthetic factory catalog</title><h1>Synthetic cup</h1><p id="conditions">Capacity unknown; human review required.</p>'
+      + (req.url === '/no-scripts' ? '<script>document.body.textContent="SYNTHETIC_SCRIPT_EXECUTED_NOT_ALLOWED";</script>' : ''));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${server.address().port}/synthetic-catalog`;
@@ -75,6 +77,18 @@ try {
   await prelude.invoke({ action: 'close', all: true, kill: true }, {});
   const tabs = await prelude.invoke({ action: 'tabs' }, {});
   assert.equal(tabs.details.value.length, 0); result.browser.closedTabs = true;
+  await prelude.invoke({ action: 'open', name: 'factory-script-policy', url: url.replace('/synthetic-catalog', '/no-scripts'),
+    allowed_domains: ['127.0.0.1'], app: { path: '/usr/bin/chromium', relay: false, tern: false,
+      args: [...WORKSPACE_OMP_PUBLIC_BROWSER_ARGS, `--user-data-dir=${path.join(process.cwd(), 'public-browser-profile')}`] }, timeout: 15 }, {});
+  const policyBody = await prelude.invoke({ action: 'call', name: 'factory-script-policy', chain: [{ method: 'text', args: ['body'] }], timeout: 10 }, {});
+  assert.ok(JSON.stringify(policyBody).includes('Capacity unknown'));
+  assert.ok(!JSON.stringify(policyBody).includes('SYNTHETIC_SCRIPT_EXECUTED_NOT_ALLOWED'));
+  const observedRequests = await prelude.invoke({ action: 'call', name: 'factory-script-policy', chain: [{ method: 'requests', args: [{ type: 'document', limit: 10 }] }], timeout: 10 }, {});
+  assert.ok(observedRequests.details.value.some(row => row.method === 'GET' && row.status === 200));
+  await prelude.invoke({ action: 'close', all: true, kill: true }, {});
+  assert.equal((await prelude.invoke({ action: 'tabs' }, {})).details.value.length, 0);
+  result.browser.controlledScriptPolicy = { status: 'actual-existing-chromium-synthetic-script-disabled-pass',
+    pageScriptsExecuted: false, isolatedProfile: true, closedTabs: true, productionPublicURLAdmissionClaim: false };
   const evalTool = new EvalTool(session);
   const evaluated = await evalTool.execute('browser-via-builtin-eval', { language: 'js', timeout: 15,
     code: `const t = await browser.open(${JSON.stringify({ name: 'factory-eval', url, allowed_domains: ['127.0.0.1'], app: { relay: false, tern: false } })}); console.log(await t.text('body')); await browser.close({all:true,kill:true});` });

@@ -14,6 +14,9 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const response = value => ({ content: [{ type: 'text', text: JSON.stringify(value) }], details: value });
 const denied = reason => { throw new Error(reason); };
 const abort = signal => { if (signal?.aborted) denied('Public tool cancelled.'); };
+export const WORKSPACE_OMP_PUBLIC_BROWSER_ARGS = Object.freeze(['--headless=new', '--no-sandbox', '--disable-dev-shm-usage',
+  '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-sync', '--disable-quic',
+  '--disable-extensions', '--use-mock-keychain', '--password-store=basic', '--blink-settings=scriptEnabled=false']);
 const publicText = (value, maximum) => {
   if (typeof value !== 'string' || value.length > maximum || looksLikeCredential(value)) denied('Only bounded public text without credentials is admitted.');
   validatePublicBusinessInput(value); return value;
@@ -61,6 +64,23 @@ export async function snapshotWorkspaceOmpPublicFiles({ root, files = [] } = {})
     result.push({ id: file.id, sha256: file.sha256, content });
   }
   return result;
+}
+
+// Acceptance seam only: finite, keyless and explicitly requested by a trusted
+// test caller. No environment option, implicit replacement or network fallback.
+export function createWorkspaceOmpSyntheticPublicFetch({ responses = null, explicitFaux = false } = {}) {
+  if (responses === null) return undefined;
+  if (!explicitFaux || !Array.isArray(responses) || !responses.length || responses.length > 4
+    || responses.some(row => !row || typeof row.body !== 'string' || Buffer.byteLength(row.body) > 262144
+      || !Number.isInteger(row.status) || row.status < 200 || row.status > 599)) denied('Public synthetic HTTP requires explicit finite keyless acceptance responses.');
+  let count = 0;
+  return async (target, init) => {
+    abort(init?.signal); const url = new URL(String(target));
+    if (!['https://html.duckduckgo.com/html/', 'https://www.startpage.com/', 'https://www.startpage.com/sp/search'].includes(url.origin + url.pathname))
+      denied('Explicit synthetic public HTTP cannot access any other endpoint.');
+    const response = responses[count++]; if (!response) denied('Explicit public HTTP responses exhausted. No real fallback.');
+    return new Response(response.body, { status: response.status, headers: { 'content-type': 'text/html' } });
+  };
 }
 
 export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, configuration = {},
@@ -151,25 +171,32 @@ export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, 
       parameters: Type.Object({ url: Type.String({ maxLength: 2000 }) }, { additionalProperties: false }),
       async execute(_id, input, signal) {
         await checked(signal); if (Object.keys(input).length !== 1) denied('Only a public URL is admitted.');
-        const url = workspaceOmpPublicURL(input.url), addresses = await lookupImpl(url.hostname, { all: true, family: 4 });
-        if (!addresses.length || addresses.some(row => !workspaceOmpPublicIPv4(row.address))) denied('Public hostname resolution includes a private or reserved address.');
+        const url = workspaceOmpPublicURL(input.url);
         if (++browserCalls > 2) denied('Original Run public browser allowance exceeded.');
+        const addresses = await lookupImpl(url.hostname, { all: true, family: 4 });
+        if (!addresses.length || addresses.some(row => !workspaceOmpPublicIPv4(row.address))) denied('Public hostname resolution includes a private or reserved address.');
         const name = `public-${randomUUID()}`, profile = path.join(toolSession.cwd, `public-browser-${name}`);
         await fs.mkdir(profile, { mode: 0o700 });
         try {
           await checked(signal);
           const opened = await browser.invoke({ action: 'open', name, url: url.href, allowed_domains: [url.hostname],
-            app: { path: executable, relay: false, tern: false, args: ['--headless=new', '--no-sandbox', '--disable-dev-shm-usage',
-              '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-sync', '--disable-quic',
-              '--disable-extensions', '--use-mock-keychain', '--password-store=basic', '--blink-settings=scriptEnabled=false',
+            app: { path: executable, relay: false, tern: false, args: [...WORKSPACE_OMP_PUBLIC_BROWSER_ARGS,
               `--host-resolver-rules=MAP ${url.hostname} ${addresses[0].address}, MAP * ~NOTFOUND`, `--user-data-dir=${profile}`] },
             allow_file_access: false, ignore_https_errors: false, dialogs: 'dismiss', timeout: 15 }, { signal });
           const finalURL = workspaceOmpPublicURL(opened.details.url || url.href);
           if (finalURL.hostname !== url.hostname) denied('Public browser navigation left its admitted hostname.');
+          const network = await browser.invoke({ action: 'call', name, chain: [{ method: 'requests', args: [{ type: 'document', limit: 10 }] }], timeout: 10 }, { signal });
+          const main = Array.isArray(network.details.value) ? network.details.value.findLast(row => row.url === finalURL.href && row.method === 'GET') : null;
+          if (!main || !Number.isInteger(main.status) || main.status < 200 || main.status >= 300)
+            return { ...response({ status: 'unavailable', url: finalURL.href, sources: [], failure: 'PUBLIC_PAGE_HTTP_UNCONFIRMED',
+              ...(Number.isInteger(main?.status) ? { httpStatus: main.status } : {}), verifiedBuyer: false, contactPermission: false }), isError: true };
           const body = await browser.invoke({ action: 'call', name, chain: [{ method: 'text', args: ['body'] }], timeout: 10 }, { signal });
           await checked(signal);
           const excerpt = publicText(String(body.details.value || '').slice(0, 12000), 12000);
-          return response({ status: 'page_observed', url: finalURL.href, observedAt: new Date().toISOString(), excerpt,
+          if (/verify (?:that )?you are human|automated (?:queries|traffic)|unusual traffic|captcha challenge/iu.test(excerpt))
+            return { ...response({ status: 'unavailable', url: finalURL.href, sources: [], failure: 'PUBLIC_PAGE_CHALLENGE',
+              challengeBypass: false, verifiedBuyer: false, contactPermission: false }), isError: true };
+          return response({ status: 'page_observed', url: finalURL.href, httpStatus: main.status, observedAt: new Date().toISOString(), excerpt,
             provenance: 'public-web-unverified', verifiedBuyer: false, contactPermission: false, pageScripts: false });
         } finally { await browser.invoke({ action: 'close', name, kill: true }, {}).catch(() => {}); }
       } });

@@ -31,7 +31,8 @@ function clientFor(f, token = TOKEN_A) {
 async function fixture(t, responses, backend = [], token = TOKEN_A, options = {}) {
   let f;
   f = await taskFixture(t, { ...options, enterprise: true, responses: backend, businessAgentOptions: { recipient,
-    engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, syntheticResponses: responses, onWorkerLifecycle: options.onWorkerLifecycle }),
+    engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools: options.publicTools,
+      syntheticResponses: responses, syntheticPublicSearchResponses: options.syntheticPublicSearchResponses, onWorkerLifecycle: options.onWorkerLifecycle }),
     resolveBinding: async () => ({ client: clientFor(f, token), model }),
   } });
   return f;
@@ -53,6 +54,87 @@ async function finished(f, id) {
   }
   throw new Error('Original OMP frontend run did not settle');
 }
+test('actual OMP public file and source receipts feed original factory documents with one original frontend Run', { skip: !configured, timeout: 90000 }, async t => {
+  const directory = await fs.mkdtemp('/tmp/omp-public-factory-flow-'); t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const material = 'Public synthetic cup\nSpecification: explicitly supplied synthetic cup.\nCapacity and price unknown.\n';
+  const file = directory + '/product.md'; await fs.writeFile(file, material);
+  const source = 'Public synthetic distributor catalog; https://example.com/synthetic-catalog; original public-search receipt, unverified candidate, not buyer demand or contact consent.';
+  const draft = { title: 'Public synthetic factory source-to-draft', requestId: 'omp-public-source-task',
+    input: { product: 'Public synthetic cup', spec: 'Explicitly supplied synthetic cup', target_market: 'Public synthetic overseas target market',
+      factory_materials: material, customer_materials: source } };
+  const f = await fixture(t, [
+    { tool: 'workspace_public_document', arguments: { documentId: 'product' } },
+    { tool: 'workspace_public_search', arguments: { query: 'public synthetic cup distributor catalog', limit: 1 }, expectedContextText: 'Capacity and price unknown.' },
+    { tool: 'workspace_factory_task', arguments: draft, expectedContextText: 'https://example.com/synthetic-catalog' },
+    { text: 'The original task received the public synthetic source; outreach remains a human-review draft, not sent.' },
+  ], Array.from({ length: 4 }, completeStage), TOKEN_A, {
+    publicTools: { files: [{ id: 'product', path: file, sha256: createHash('sha256').update(material).digest('hex') }], publicDocumentRoot: directory },
+    syntheticPublicSearchResponses: [{ status: 200, body: '<div class="result"><a class="result__a" href="https://example.com/synthetic-catalog">Public synthetic distributor catalog</a><a class="result__snippet">Public synthetic candidate; not a real buyer.</a></div>' }],
+  });
+  const cid = await conversation(f, 'omp-public-source-conversation'), accepted = await send(f, cid, 'omp-public-source-run', true);
+  const run = await finished(f, accepted.run.id); assert.equal(run.status, 'succeeded', JSON.stringify(run));
+  const frontendReply = f.app.store.read().messages.find(row => row.id === run.assistantId);
+  assert.equal(frontendReply.runtime.engine, 'omp'); assert.equal(frontendReply.runtime.modelCalls, 4);
+  assert.equal(run.executionRefs.length, 1); const taskId = run.executionRefs[0].taskId;
+  await until(() => f.app.store.read().workspaceAgentTasks.tasks.find(row => row.id === taskId)?.status === 'done');
+  const state = f.app.store.read(), task = state.workspaceAgentTasks.tasks.find(row => row.id === taskId);
+  assert.equal(state.runs.length, 5); assert.equal(state.workspaceAgentTasks.tasks.length, 1); assert.equal(f.faux.state.callCount, 4);
+  assert.equal(task.input.customer_materials, source); assert.equal(task.result.businessGoalAchieved, false);
+  assert.equal(task.result.evidenceStatus, 'user_supplied_only', 'Backend document stages received public inputs; do not pretend these stages independently searched.');
+  const mapping = state.conversations.find(row => row.id === cid).businessAgentSession;
+  const entries = (await fs.readFile(mapping.sessionFile, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  const search = entries.find(row => row.message?.role === 'toolResult' && row.message.toolName === 'workspace_public_search');
+  assert.equal(search.message.details.sources[0].url, 'https://example.com/synthetic-catalog'); assert.equal(search.message.details.verifiedBuyer, false);
+  const selected = entries.find(row => row.message?.role === 'toolResult' && row.message.toolName === 'workspace_public_document');
+  assert.equal(selected.message.details.documentId, 'product'); assert.equal(selected.message.details.sha256, createHash('sha256').update(material).digest('hex'));
+  for (const name of ['workspace_public_document', 'workspace_public_search', 'workspace_factory_task'])
+    assert.ok(run.events.some(row => row.type === 'pi.tool.finished' && row.toolName === name), name);
+  const result = await workspace(f, `/api/conversations/${cid}/business-results`); assert.equal(result.status, 200);
+  assert.equal(result.json.results[0].artifacts.length, 3);
+  assert.ok(result.json.results[0].artifacts.some(row => row.content.includes('https://example.com/synthetic-catalog')));
+  const letter = result.json.results[0].artifacts.find(row => row.name === 'outreach-review-draft.md');
+  assert.match(letter.content, /未发送|没有发送或批准/); assert.match(letter.content, /recipient to confirm/);
+  assert.equal(state.workspaceThreadHarness, undefined); assert.equal(state.artifacts.length, 0);
+});
+test('original OMP Run persists a real SDK search refusal and reports partial without fabricated candidates or replacement tasks', { skip: !configured, timeout: 90000 }, async t => {
+  const f = await fixture(t, [{ tool: 'workspace_public_search', arguments: { query: 'public synthetic product catalog', limit: 1 } },
+    { text: 'Public source retrieval refused; zero sources. Customer evidence and outreach remain incomplete; no candidate invented.', expectedContextText: 'Public search did not return admissible sources' }], [], TOKEN_A,
+  { syntheticPublicSearchResponses: [{ status: 403, body: 'Synthetic public provider refusal.' }] });
+  const cid = await conversation(f, 'omp-public-failure'), accepted = await send(f, cid, 'omp-public-failure-run', true), run = await finished(f, accepted.run.id);
+  assert.equal(run.status, 'succeeded', JSON.stringify(run));
+  assert.equal(f.app.store.read().messages.find(row => row.id === run.assistantId).runtime.modelCalls, 2);
+  assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0); assert.equal(f.faux.state.callCount, 0);
+  assert.ok(run.events.some(row => row.type === 'pi.tool.failed' && row.toolName === 'workspace_public_search'));
+  const mapping = f.app.store.read().conversations.find(row => row.id === cid).businessAgentSession;
+  const transcript = (await fs.readFile(mapping.sessionFile, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  const receipt = transcript.find(row => row.message?.role === 'toolResult' && row.message.toolName === 'workspace_public_search').message;
+  assert.equal(receipt.isError, true); assert.equal(receipt.details.status, 'unavailable'); assert.equal(receipt.details.sources.length, 0);
+});
+test('revoked selected public document rejects original OMP cached receipt before the next model call', { skip: !configured, timeout: 90000 }, async t => {
+  const directory = await fs.mkdtemp('/tmp/omp-public-file-revoke-'); t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const file = directory + '/product.md', material = 'Public synthetic product; capacity unknown.'; await fs.writeFile(file, material);
+  const publicTools = { publicDocumentRoot: directory, files: [{ id: 'product', path: file, sha256: createHash('sha256').update(material).digest('hex') }] };
+  const f = await fixture(t, [{ tool: 'workspace_public_document', arguments: { documentId: 'product' } }, { text: 'Only selected public material read.' }], [], TOKEN_A, { publicTools });
+  const cid = await conversation(f, 'omp-public-file-revoke'), first = await send(f, cid, 'omp-public-file-first');
+  assert.equal((await finished(f, first.run.id)).status, 'succeeded');
+  publicTools.files = [];
+  const second = await send(f, cid, 'omp-public-file-after-revoke'), refused = await finished(f, second.run.id);
+  assert.equal(refused.status, 'failed'); assert.equal(refused.events.filter(row => row.type === 'pi.agent-session.request').length, 0);
+  assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0);
+});
+test('changed selection hash for the same public document ID rejects the old cached content before inference', { skip: !configured, timeout: 90000 }, async t => {
+  const directory = await fs.mkdtemp('/tmp/omp-public-file-repin-'); t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const file = directory + '/product.md', material = 'Public synthetic initial product; capacity unknown.'; await fs.writeFile(file, material);
+  const publicTools = { publicDocumentRoot: directory, files: [{ id: 'product', path: file, sha256: createHash('sha256').update(material).digest('hex') }] };
+  const f = await fixture(t, [{ tool: 'workspace_public_document', arguments: { documentId: 'product' } }, { text: 'Initial public selection read.' }], [], TOKEN_A, { publicTools });
+  const cid = await conversation(f, 'omp-public-file-repin'), first = await send(f, cid, 'omp-public-file-old-pin');
+  assert.equal((await finished(f, first.run.id)).status, 'succeeded');
+  await fs.writeFile(file, 'Public synthetic new product; changed exact selected bytes.');
+  publicTools.files[0].sha256 = createHash('sha256').update(await fs.readFile(file)).digest('hex');
+  const second = await send(f, cid, 'omp-public-file-new-pin'), refused = await finished(f, second.run.id);
+  assert.equal(refused.status, 'failed'); assert.match(refused.error.message, /cached public document was revoked|selected bytes changed/);
+  assert.equal(refused.events.filter(row => row.type === 'pi.agent-session.request').length, 0);
+});
 test('actual OMP SDK subprocess uses original Workspace identity, ledger and factory tools', { skip: !configured, timeout: 90000 }, async t => {
   const f = await fixture(t, [{ tool: 'workspace_factory_capabilities', arguments: {} }, { text: 'Public factory configuration inspected; Library is disabled.' }]);
   const id = await conversation(f, 'omp-native-public'), admitted = await send(f, id, 'omp-native-first');

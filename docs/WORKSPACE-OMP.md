@@ -14,7 +14,11 @@ npm run build
 npm run workspace
 ```
 
-`npm run workspace` 一次启动原网页服务。`npm start` 和 `npm run agent:dev` 使用同一默认入口。已有静态页面从原服务交付；本分支没有新增前端。打开服务打印的本机地址，新公开会话走OMP前端。
+`npm run workspace` 一次启动原服务；交互 TTY 自动打开官方 OMP InteractiveMode，普通自然输入走原 HTTP Conversation/Run，终端 UI 不另调用模型。无 TTY 时只保留原服务。`npm start` 等同 `--serve` 网页服务；`npm run agent:dev` 使用同一默认交互入口。也可明确运行 `npm run workspace -- --terminal` 或 `--serve`。已有静态页面仍从原服务交付；本分支没有新建网页。
+
+交互终端目前使用原 loopback local-operator Session。它先核对原服务的固定 OMP engineScope；旧 Pi 服务不能成为隐式回退。企业身份仍走原网页/nativeSession/CSRF，不把 Agent Bearer 标记为 Session。`/ws-front-status` 显示当前原 Run 与回复，`/ws-stop` 由原人工确认停止当前前台回答；已受理业务任务保持单独取消/恢复。终端 UI 不持模型密钥、不执行自己的模型流，也不导入旧终端历史。
+
+UI-only终端不能证明后台模型现金余额，因此不从通用 `/ws-task`、`/ws-resume`、`/ws-continue`、`/ws-business-resume` 命令派发执行；它们准确返回未配置。自然输入统一经过原OMP宿主准入，后台恢复/分别继续仍用原已审核网页/API。原状态、确认取消和仅记录决定的审批保持原权限；批准决定不等于已执行。UI子进程不继承模型密钥或公网代理，原宿主的公网/模型路由未改变。
 
 没有现有模型、成员绑定、已审价格或可确认剩余预算时，服务可以启动保存工作，模型执行明确返回未配置；不会生成凭据、选免费模型或默认启用合成替身。
 
@@ -35,7 +39,15 @@ node scripts/workspace-omp-install.mjs --check
 
 公开产品资料、客户来源材料和RFQ进入原任务四阶段，生成产品材料、客户匹配证据及待审核开发信。保留稳定requestId、原taskId、原阶段Run、原文书字节／SHA；重载不自动恢复或再提交。来源未独立核验、供货缺项和部分失败保持可见。文书完成不是获客、供货承诺、发送或销售证明。
 
-原网页的人工批准、取消和符合条件的恢复继续走原接口；模型没有批准、恢复、付款或发送工具。受控OMP默认不暴露任意本机read/bash/eval/task，不授予私库访问，也不读取旧Pi缓存给新引擎。选定公开工厂Skill通过官方加载器加载，包含简短社区写作方法改编和来源记录。
+原网页的人工批准、取消和符合条件的恢复继续走原接口；模型没有批准、恢复、付款或发送工具。受控OMP不暴露任意本机read/bash/eval/task，不授予私库访问，也不读取旧Pi缓存给新引擎。选定公开工厂Skill通过官方加载器加载，包含简短社区写作方法改编和来源记录。
+
+宿主默认注册 `workspace_public_search`：只用固定的官方无密钥 DuckDuckGo provider，每原 Run 最多两次；可由可信宿主明确选择 `WORKSPACE_OMP_PUBLIC_SEARCH_PROVIDER=startpage` 或 `disabled`。拒绝、挑战、超时和空结果保留零来源，不能宣称已连接或发现客户。本轮两 provider 的真实公开查询都不可用；合成来源与 403 回执、原 Run 持久化和文书输入传递已实测。
+
+有已存在的 `/usr/bin/chromium` 时，注册 `workspace_public_browser`；否则准确报告缺少现有浏览器，不自动安装。`WORKSPACE_OMP_BROWSER_BIN=disabled` 可关闭。它只检查公开 HTTPS 页，解析须为公开 IPv4，固定 hostname/IP、独立 profile、禁用页面脚本，确认真实 HTTP 成功才返回页面；不附着用户浏览器、不开放表单/任意代码/下载参数、不忽略证书。已有 Chromium 的脚本禁用、HTTP回执及关闭已在自有合成页验证；未宣称真实客户页面导航成功。
+
+资料工具 `workspace_public_document` 仅在宿主明确设置独立公开目录 `WORKSPACE_OMP_PUBLIC_DOCUMENT_ROOT` 和 `WORKSPACE_OMP_PUBLIC_FILES_JSON` 后注册。JSON 是最多八项 `{id,path,sha256}`，每文件至多64 KiB，只支持md/txt/csv。工具只接受 documentId；目录、符号链接、字节变更、凭据样文本与任意路径均拒绝，原宿主路径不进入工具正文。重载前按当前 ID/SHA复查缓存；撤销选择或更换同ID字节时，旧正文不能再次进入模型。这里没有默认PDF/OCR承诺。
+
+`workspace_factory_public_review` 用官方 TaskTool 执行最多两项明确提供的公开文字审阅。固定与父 Run 相同的模型/provider；child工具为空、不递归、不发现私库/项目插件，父子共享原四次模型请求及1600输出 token 额度。原 TaskTool 返回的结果仍属于该原 Run，不产生第二业务任务。外部模型真实价格与余额未验证时，原宿主仍不执行任何自然输入模型调用。
 
 ## 实测与缺口
 
@@ -51,6 +63,6 @@ node scripts/workspace-omp-install.mjs --check
 
 当前没有真实付费模型、真实海外候选或完整商业链路验收。五元总额的可控剩余预算没有验证，付费调用为零；价格／预算配置标志不能当本轮实际消费证明。七天未来通知的持续同意和持久收件人权限机制仍待另行批准，未开发或激活。未部署、未合并main、未发送、未创建账户或扩展Worker权限。
 
-OMP内置搜索、浏览器和子代理的隔离诊断已执行，默认受控网页尚未开放这三类工具；真实公网搜索仍受阻。完整Pi私库guard没有迁到OMP，也没有为迁移开放私库或任意文件工具。OMP交互TUI与原Run账本没有完成衔接，未作为默认入口交付；原Pi终端仅显式回退。
+公开工具的逐次原授权、指定文件/来源→原任务三文书、搜索失败与缓存撤销检查见 [受控公开工具](validation/omp-public-tools-20261014/README.md)。默认受控宿主已显式接入上述有限工具；支持但不可达或未配置时保持准确状态。完整Pi私库guard未迁到OMP，也没有为迁移开放私库或任意文件工具。原Pi终端仅显式回退。
 
-前端协作接口沿用原路由：公开 `POST /api/conversations/:id/messages` 需稳定requestId、空inputContext；文书执行意图明确给 `workspaceExecution:true`。用 `GET /api/conversations/:id/business-results` 读取原任务／阶段／文书状态，人工恢复用 `POST /api/conversations/:id/business-tasks/:taskId/resume` 的稳定requestId与 `confirmed:true`。本分支实测这些HTTP接口；没有加入或验收同伴分支的结果／恢复UI。`server/index.mjs` 仅最小补OMP启动选项和未配置受信adapter接线，未修改供应商traffic loader、readiness或原PiProvider业务引擎。
+前端协作接口沿用原路由：公开 `POST /api/conversations/:id/messages` 需稳定requestId、空inputContext；文书执行意图明确给 `workspaceExecution:true`。用 `GET /api/conversations/:id/business-results` 读取原任务／阶段／文书状态，人工恢复用 `POST /api/conversations/:id/business-tasks/:taskId/resume` 的稳定requestId与 `confirmed:true`。终端只补同鉴权的 `GET /api/conversations/runtime` 公开引擎标识与 `GET /api/conversations/:id/terminal-status?runId=…` 窄回执，严格核对会话/Run/成员归属，避免读取整个bootstrap。没有新Store或任务注册表。本分支未加入或验收同伴分支的结果／恢复UI。`server/index.mjs` 仅最小启动接线，未修改供应商traffic loader、readiness或原PiProvider业务引擎。

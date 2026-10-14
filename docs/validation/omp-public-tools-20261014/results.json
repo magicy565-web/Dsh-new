@@ -28,7 +28,15 @@
   },
   "browser": {
     "status": "private-URL-and-DNS-admission-rejected-before-browser",
-    "realPublicNavigation": "not-executed"
+    "realPublicNavigation": "not-executed",
+    "controlledScriptPolicy": {
+      "status": "actual-existing-chromium-synthetic-script-disabled-pass",
+      "pageScriptsExecuted": false,
+      "isolatedProfile": true,
+      "closedTabs": true,
+      "productionPublicURLAdmissionClaim": false
+    },
+    "nativeGETStatusObserved": 200
   },
   "authorizations": 9,
   "livePublicChecks": [
@@ -49,5 +57,42 @@
       "noBuyerVerification": true
     }
   ],
-  "scope": "Synthetic tool contracts plus two separately executed keyless public search attempts; not a model-session or production-business claim."
+  "scope": "Actual original HTTP/OMP sessions and native tools with finite keyless synthetic models; two separately failed keyless public search attempts; no production-business claim.",
+  "originalLedgerIntegration": {
+    "status": "actual-original-http-sdk-finite-keyless-pass",
+    "frontendRuns": 1,
+    "backendStageRuns": 4,
+    "originalBusinessTasks": 1,
+    "savedDocuments": 3,
+    "frontendModelCalls": 4,
+    "backendModelCalls": 4,
+    "sourceReceiptInModelContext": true,
+    "sourceURLPreservedInOriginalTask": true,
+    "backendStageIndependentSearchClaim": false,
+    "externalSending": false,
+    "sameIdChangedHashBeforeModelRejected": true,
+    "revokedSelectionBeforeModelRejected": true,
+    "failedSearchSources": 0
+  },
+  "acceptanceGroups": [
+    {
+      "command": "node --test test/workspace-omp.test.mjs test/workspace-omp-launch.test.mjs test/workspace-omp-public-tools.test.mjs test/workspace-omp-task.test.mjs test/workspace-omp-terminal.test.mjs",
+      "tests": 27,
+      "passed": 27,
+      "skipped": 0
+    },
+    {
+      "scope": "original Pi/Library/package combination",
+      "tests": 53,
+      "passed": 53,
+      "skipped": 0
+    },
+    {
+      "scope": "original factory/business/Agent service combination",
+      "tests": 17,
+      "passed": 17,
+      "skipped": 0
+    }
+  ],
+  "recordedAt": "2026-10-14T19:43:37.869230+00:00"
 }

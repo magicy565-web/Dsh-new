@@ -16,7 +16,8 @@ async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
   created = await createWorkspaceOmpSession({ ...config, client, factoryTasks: true,
     authorize: () => request('authorize'), onModelRequest: event => request('modelRequest', [event]),
-    onModelAbort: () => { if (config.syntheticResponses) write({ type: 'nativeModelAbort' }); } });
+    onModelAbort: () => { if (config.syntheticResponses) write({ type: 'nativeModelAbort' }); },
+    onModelWaiting: () => { if (config.syntheticResponses) write({ type: 'nativeModelWaiting' }); } });
   created.session.subscribe(event => {
     if (['tool_execution_start', 'tool_execution_end'].includes(event.type)) write({ type: 'event', event: {
       type: event.type, toolName: event.toolName, toolCallId: event.toolCallId, isError: event.isError } });
@@ -30,11 +31,10 @@ async function start(config) {
   await request('authorize'); await created.manager.flush();
   const messages = created.session.messages.slice(startIndex), last = messages.at(-1);
   if (last?.role !== 'assistant' || last.stopReason !== 'stop') throw new Error('The official OMP session did not produce a complete new answer.');
-  const answers = messages.filter(row => row.role === 'assistant');
-  const sum = key => answers.every(row => Number.isSafeInteger(row.usage?.[key]) && row.usage[key] >= 0) ? answers.reduce((n, row) => n + row.usage[key], 0) : null;
-  if (sum('output') !== null && sum('output') > config.maxTokens) throw new Error('OMP exceeded the original reserved output allowance.');
+  const usage = created.usage();
+  if (usage.completionTokens !== null && usage.completionTokens > config.maxTokens) throw new Error('OMP exceeded the original reserved output allowance.');
   write({ type: 'result', result: { content: JSON.stringify({ done: true, content: created.session.getLastAssistantText() }),
-    usage: { promptTokens: sum('input'), completionTokens: sum('output'), totalTokens: sum('totalTokens') },
+    usage,
     runtime: { kind: 'pi-durable', execution: 'agent-session', engine: 'omp', engineScope: OMP_ENGINE_SCOPE,
       agentSessionId: created.manager.getSessionId(), modelCalls: created.modelCalls(), originalRunId: config.runId } } });
   await created.close(); input.close(); process.exit(0);

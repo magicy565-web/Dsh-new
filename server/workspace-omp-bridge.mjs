@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { privateDirectory } from './store.mjs';
 import { ProviderError } from './provider.mjs';
+import { snapshotWorkspaceOmpPublicFiles } from './workspace-omp-public-tools.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
 export function workspaceOmpPaths(env = {}) {
@@ -18,7 +19,9 @@ export async function checkWorkspaceOmpPaths(paths) {
   const manifest = JSON.parse(await fs.readFile(path.join(paths.packageRoot, 'package.json')));
   if (manifest.name !== '@oh-my-pi/pi-coding-agent' || manifest.version !== '18.10.4') throw new Error('Install the fixed official OMP 18.10.4 package; no Node or alternate engine fallback is implicit.');
 }
-export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheticResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
+export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, syntheticResponses = null,
+  syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
+  if (syntheticPublicSearchResponses && !syntheticResponses) throw new Error('Public HTTP fixtures require the explicit finite keyless model fixture; production cannot select them.');
   return Object.freeze({ scope: OMP_ENGINE_SCOPE,
     async complete({ input, run, binding, client, authorize, isolationDirectory, savedSession, saveSession }) {
       await checkWorkspaceOmpPaths(paths); await authorize();
@@ -27,6 +30,10 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheti
       const sessionDirectory = path.join(isolationDirectory, 'sessions', binding.client.bindingFingerprint), agentDir = path.join(isolationDirectory, 'agent');
       await privateDirectory(sessionDirectory); await privateDirectory(agentDir);
       const home = path.join(isolationDirectory, 'home'); await privateDirectory(home);
+      const publicFiles = await snapshotWorkspaceOmpPublicFiles({ root: publicTools.publicDocumentRoot, files: publicTools.files || [] });
+      await authorize();
+      const publicToolConfiguration = { searchProvider: publicTools.searchProvider || 'duckduckgo',
+        browserExecutable: publicTools.browserExecutable || null, publicFiles };
       const childEnv = { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: home, TMPDIR: isolationDirectory,
         PI_CODING_AGENT_DIR: agentDir, PI_NO_TITLE: '1', NO_COLOR: '1', TERM: 'dumb' };
       for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS']) if (typeof infrastructure[key] === 'string') childEnv[key] = infrastructure[key];
@@ -38,9 +45,12 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheti
         const channel = child.stdio[3]; let settled = false, bytes = 0, modelCalls = 0, childClosed = false, pendingResult = null, resultVerified = false;
         const lines = createInterface({ input: channel, crlfDelay: Infinity });
         const send = value => { if (!channel.destroyed) channel.write(JSON.stringify(value) + '\n'); };
-        let killTimer;
-        const stop = () => { if (childClosed) return; send({ type: 'abort' }); child.kill('SIGTERM');
-          if (!killTimer) { killTimer = setTimeout(() => { if (!childClosed) { try { process.kill(-child.pid, 'SIGKILL'); } catch {} } }, 1500); killTimer.unref(); } };
+        let terminateTimer, killTimer;
+        const stop = () => { if (childClosed || killTimer) return; send({ type: 'abort' });
+          // Let the official root/child AbortSignals settle first. Escalation
+          // remains bounded and targets only this owned worker/process group.
+          terminateTimer = setTimeout(() => { if (!childClosed) child.kill('SIGTERM'); }, 250); terminateTimer.unref();
+          killTimer = setTimeout(() => { if (!childClosed) { try { process.kill(-child.pid, 'SIGKILL'); } catch {} } }, 1500); killTimer.unref(); };
         const timer = setTimeout(stop, 65000);
         const finish = (error, result) => { if (settled) return; settled = true; clearTimeout(timer); input.signal?.removeEventListener('abort', stop);
           if (error) { stop(); reject(error); } else resolve(result); };
@@ -77,16 +87,18 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheti
             try { await authorize(); const result = pendingResult; if (result?.runtime?.engineScope !== OMP_ENGINE_SCOPE || result.runtime.originalRunId !== run.id || result.runtime.modelCalls !== modelCalls) throw new Error(); resultVerified = true; finishSuccess(); }
             catch { finish(new ProviderError('OMP_RECEIPT_INVALID', 'OMP returned an invalid original-run receipt.')); }
           } else if (message.type === 'nativeModelAbort' && syntheticResponses) onWorkerLifecycle({ phase: 'nativeModelAbort', pid: child.pid });
+          else if (message.type === 'nativeModelWaiting' && syntheticResponses) onWorkerLifecycle({ phase: 'nativeModelWaiting', pid: child.pid });
           else if (message.type === 'error') finish(new ProviderError('OMP_SESSION_FAILED', message.error + (syntheticResponses && message.diagnostic ? ' Explicit synthetic fixture diagnostic: ' + message.diagnostic : '')));
         };
         lines.on('line', line => { void handleLine(line).catch(() => finish(new ProviderError('OMP_SESSION_FAILED', 'The original OMP host operation stopped.'))); });
         child.on('error', () => finish(new ProviderError('OMP_UNAVAILABLE', 'The reviewed OMP runtime could not start.')));
-        child.on('close', code => { childClosed = true; clearTimeout(killTimer); lines.close();
+        child.on('close', code => { childClosed = true; clearTimeout(terminateTimer); clearTimeout(killTimer); lines.close();
           onWorkerLifecycle({ phase: 'exit', pid: child.pid, code });
           if (pendingResult && code === 0) finishSuccess();
           else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.')); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, syntheticResponses, content: user.content, runId: run.id, maxTokens: input.maxTokens } });
+          configuration, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       });
     },
   });
