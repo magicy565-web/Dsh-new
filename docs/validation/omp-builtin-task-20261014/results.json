@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "ompVersion": "18.10.4",
+  "bunVersion": "1.3.14",
+  "syntheticOnly": true,
+  "executor": "published-OMP-TaskTool-and-original-child-AgentSession",
+  "paidModelCalls": 0,
+  "originalWorkspaceBusinessExecution": false,
+  "hostCredentialReads": 0,
+  "childPrivateLibrary": false,
+  "division": {
+    "status": "synthetic-two-child-read-pass",
+    "modelCalls": 4,
+    "tool": "task",
+    "childTools": [
+      "read"
+    ],
+    "recursiveSpawns": false,
+    "actualChildCount": 2,
+    "observedMaxActiveChildren": 2,
+    "finishedReadReceipts": 2
+  },
+  "cancellation": {
+    "status": "synthetic-original-child-signal-abort-pass",
+    "providerObservedAbort": true,
+    "returnedCancellation": true,
+    "activeChildrenAfterStop": 0,
+    "osSubprocessClaim": false
+  },
+  "modelCalls": 5
+}
