@@ -72,7 +72,7 @@ try {
   } else {
     const draft = (await read('workspace_procurement_requirements', { input: { product: 'Public synthetic cup' } })).value;
     assert.equal(draft.status, 'draft', JSON.stringify(draft)); assert.equal(draft.persisted, false); assert.equal(draft.submitted, false);
-    assert.deepEqual(draft.missingRequired, ['spec', 'quantity']); assert.equal(draft.readyForOriginalTaskInput, false);
+    assert.deepEqual(draft.missingRequired, ['spec', 'quantity']); assert.equal(draft.requiredFieldsPresent, false);
     const compared = (await read('workspace_procurement_compare', { quotes: config.task.input.quotes })).value;
     assert.equal(compared.alignment, 'pending'); assert.equal(compared.rows[0].cells.moq.status, 'pending');
     assert.equal(compared.rows[0].cells.unit_price.status, 'pending'); assert.equal(compared.rows[1].cells.lead_time.status, 'pending');
@@ -83,7 +83,7 @@ try {
     const invalid = await read('workspace_procurement_compare', { quotes: [{ supplier: 'Public supplied fixture', api_key: 'do-not-send-credential-text' }] });
     assert.equal(invalid.row.isError, true);
     const prepared = (await read('workspace_procurement_requirements', { input: config.task.input })).value;
-    assert.equal(prepared.readyForOriginalTaskInput, true); assert.deepEqual(prepared.provided, config.task.input);
+    assert.equal(prepared.requiredFieldsPresent, true); assert.deepEqual(prepared.provided, config.task.input);
     const submitted = (await read('workspace_business_task', config.task)).value;
     assert.ok(submitted.task.taskId); const taskId = submitted.task.taskId;
     let finished;
@@ -101,7 +101,7 @@ try {
       return { name: row.name, bytes: row.bytes, sha256 };
     });
     await fs.writeFile(config.evidenceFile, JSON.stringify({ mode: config.mode, taskId, artifacts,
-      frontendModelCalls: faux.state.callCount, tools: active, privateLibrary: 'disabled', sharedImplementation: true }));
+      frontendModelCallsThroughDocumentRead: faux.state.callCount, tools: active, privateLibrary: 'disabled', sharedImplementation: true }));
   }
   const other = await read('other_plugin_tool', {}); assert.equal(other.value.otherPlugin, true);
   // Ordinary package contributes no session veto. Exercise official hook paths.

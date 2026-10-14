@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "syntheticOnly": true,
+  "officialPiVersion": "1.1.0",
+  "nodeVersion": "v24.19.0",
+  "standalonePackage": "packages/workspace-procurement",
+  "packageCopiedOutsideRepository": true,
+  "packageHasNodeModules": false,
+  "transport": "actual-original-http",
+  "frontend": "official-sdk-explicit-faux",
+  "backend": "original-pi-durable-explicit-faux",
+  "originalTaskId": "18a85f09-b022-459d-8a49-fb6aad3ec023",
+  "originalTaskCount": 1,
+  "originalRunCount": 4,
+  "originalSuccessfulStages": 4,
+  "businessGoalAchieved": false,
+  "documents": [
+    {
+      "name": "inquiry-pack.md",
+      "bytes": 4115,
+      "sha256": "3d00726b6fe145517b08ee648f2b572489aeac7a9e112c8c0d1dcefbe4609fcc"
+    },
+    {
+      "name": "comparison.md",
+      "bytes": 2594,
+      "sha256": "23cf2adc11eb16b33d54853f6642bd56ebb33f560ddff5a6fdb058ff65105bfb"
+    },
+    {
+      "name": "procurement-brief.md",
+      "bytes": 3828,
+      "sha256": "fcf9944b3ac32990b5de3a794b21c35164260fa5499d6fb498f5f8dca71ad9aa"
+    }
+  ],
+  "frontendModelCallsThroughDocumentRead": 16,
+  "backendModelCalls": 4,
+  "paidModelCalls": 0,
+  "privateLibraryReads": 0,
+  "externalSupplierResearch": false,
+  "originalApprovalsRetained": true
+}

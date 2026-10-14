@@ -56,6 +56,12 @@ test('copied private package installs/discovers through official Pi and its actu
   // after resource load and makes no model request.
   const output = await p.invoke('--offline', '--no-extensions', '-e', p.packageDir, '-e', p.otherExtension, '--help');
   assert.match(output, /Usage|Options|extension/i);
+  const fixture = path.join(p.dir, 'cli-keyless-faux.js');
+  await fs.copyFile(new URL('./fixtures/pi-procurement-cli-faux.js', import.meta.url), fixture);
+  const printed = await p.invoke('--offline', '--no-extensions', '-e', p.packageDir, '-e', p.otherExtension, '-e', fixture,
+    '--no-session', '--model', 'workspace-agent-test-faux/workspace-agent-test', '--print', 'Run the explicit keyless acceptance fixture.');
+  assert.match(printed, /SYNTHETIC_CLI_PACKAGE_AND_OTHER_PLUGIN_VERIFIED/);
+  assert.ok(!/Failed to load extension/.test(printed));
   await p.invoke('remove', p.packageDir);
   const settings = JSON.parse(await fs.readFile(path.join(p.agentDir, 'settings.json'), 'utf8'));
   assert.ok(!settings.packages?.some(row => path.resolve(p.agentDir, typeof row === 'string' ? row : row.source) === p.packageDir));
@@ -74,6 +80,15 @@ test('outside-repository default plugin drives original procurement stages/docum
     const original = tasks[0].deliverables.find(row => row.name === artifact.name);
     assert.equal(artifact.sha256, original.sha256); assert.equal(artifact.bytes, original.bytes);
   }
+  if (process.env.PI_PROCUREMENT_EVIDENCE_FILE) await fs.writeFile(process.env.PI_PROCUREMENT_EVIDENCE_FILE,
+    JSON.stringify({ version: 1, syntheticOnly: true, officialPiVersion: '1.1.0', nodeVersion: process.version,
+      standalonePackage: 'packages/workspace-procurement', packageCopiedOutsideRepository: true, packageHasNodeModules: false,
+      transport: 'actual-original-http', frontend: 'official-sdk-explicit-faux', backend: 'original-pi-durable-explicit-faux',
+      originalTaskId: evidence.taskId, originalTaskCount: tasks.length, originalRunCount: state.runs.length,
+      originalSuccessfulStages: tasks[0].steps.filter(row => row.status === 'succeeded').length,
+      businessGoalAchieved: tasks[0].result.businessGoalAchieved, documents: evidence.artifacts,
+      frontendModelCallsThroughDocumentRead: evidence.frontendModelCallsThroughDocumentRead, backendModelCalls: f.faux.state.callCount,
+      paidModelCalls: 0, privateLibraryReads: 0, externalSupplierResearch: false, originalApprovalsRetained: true }, null, 2) + '\n');
   await p.run('foreign-result', { WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: TOKEN_B }, { taskId: evidence.taskId, enterpriseHost: 'workspace.example' });
   await p.run('refused', { WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: 'synthetic-invalid-existing-binding' }, { enterpriseHost: 'workspace.example' });
   assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 1); assert.equal(f.faux.state.callCount, 4);

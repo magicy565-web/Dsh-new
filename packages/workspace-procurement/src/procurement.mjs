@@ -38,7 +38,7 @@ export function registerProcurementTools(pi, client, configuration) {
         throw new Error('Use only fields from the original procurement preset. No draft was saved.');
       validatePublicBusinessInput(input);
       const missingRequired = preset.required_inputs.filter(key => !['string', 'number'].includes(typeof input[key]) || !String(input[key]).trim());
-      return result({ status: 'draft', persisted: false, submitted: false, readyForOriginalTaskInput: missingRequired.length === 0,
+      return result({ status: 'draft', persisted: false, submitted: false, requiredFieldsPresent: missingRequired.length === 0,
         type: 'procurement', provided: input, missingRequired, pendingOptional: preset.optional_inputs.filter(key => !present(input[key])),
         provenance: 'user_provided_unverified', supportedFields: { required: preset.required_inputs, optional: preset.optional_inputs },
         sources: [{ kind: 'preset-registry', api: '/api/agent/v1/presets', recordId: 'procurement' }],

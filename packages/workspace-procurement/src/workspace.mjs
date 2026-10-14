@@ -196,7 +196,7 @@ export async function businessInput(input, presets) {
     throw new Error('Provide a bounded public business title without credentials.');
   const rows = Array.isArray(presets) ? presets : presets?.presets;
   const preset = rows?.find(row => row.id === input.type);
-  if (!preset || !Array.isArray(preset.required_inputs) || !Array.isArray(preset.optional_inputs)) throw new Error('Select an original business preset from /ws-presets.');
+  if (!preset || !Array.isArray(preset.required_inputs) || !Array.isArray(preset.optional_inputs)) throw new Error('Select an original business preset from workspace_business_presets.');
   const allowed = new Set([...preset.required_inputs, ...preset.optional_inputs]);
   if (!input.input || typeof input.input !== 'object' || Array.isArray(input.input) || Object.keys(input.input).some(key => !allowed.has(key))
     || preset.required_inputs.some(key => !['string', 'number'].includes(typeof input.input[key]) || !String(input.input[key]).trim()))
