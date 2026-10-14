@@ -28,7 +28,7 @@
   },
   "browser": {
     "status": "private-URL-and-DNS-admission-rejected-before-browser",
-    "realPublicNavigation": "not-executed",
+    "realPublicNavigation": "attempted-unavailable",
     "controlledScriptPolicy": {
       "status": "actual-existing-chromium-synthetic-script-disabled-pass",
       "pageScriptsExecuted": false,
@@ -36,7 +36,17 @@
       "closedTabs": true,
       "productionPublicURLAdmissionClaim": false
     },
-    "nativeGETStatusObserved": 200
+    "nativeGETStatusObserved": 200,
+    "livePublicCheck": {
+      "url": "https://www.iana.org/help/example-domains",
+      "status": "unavailable",
+      "sources": [],
+      "paidModelCalls": 0,
+      "customerEvidence": false,
+      "networkRouteChanged": false,
+      "failure": "PUBLIC_PAGE_READ_FAILED",
+      "authorizations": 1
+    }
   },
   "authorizations": 9,
   "livePublicChecks": [
