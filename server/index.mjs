@@ -26,6 +26,7 @@ import { promises as fs } from 'node:fs';
 import { openStore, openPrivateFile } from './store.mjs';
 import { readRecoveryStatus } from './recovery-status.mjs';
 import { createPiProvider } from './pi-provider.mjs';
+import { loadPiProviderConfig } from './pi-provider-config.mjs';
 import { createPiMuseBinding } from './pi-muse-binding.mjs';
 import { ApiError, createRuntime } from './runtime.mjs';
 import { createArtifactService } from './artifacts.mjs';
@@ -579,7 +580,7 @@ export async function startWorkspaceServer() {
   if (mode !== 'pi') throw new Error('WORKSPACE_RUNTIME must be pi. Historical DSH startup is retired.');
   const access = await accessConfigFromEnvironment(process.env);
   const dataDirectory = path.resolve(process.env.WORKSPACE_DATA_DIR || path.join(root, '.data'));
-  const provider = createPiProvider({ apiKey: process.env.FASTAITOKEN_API_KEY || '', model: process.env.PI_MODEL || process.env.FASTAITOKEN_MODEL || 'gpt-6-sol', baseUrl: process.env.PI_BASE_URL || 'https://www.fastaitoken.com/v1', researchAdapter: createBraveResearchAdapter({ environment: process.env }) });
+  const provider = createPiProvider({ ...loadPiProviderConfig(process.env), researchAdapter: createBraveResearchAdapter({ environment: process.env }) });
   // No SDK, credentials, outbound requests or partner registration without a
   // pinned, privately stored deployment catalog. Web clients cannot edit it.
   const reviewedWorkers = await loadReviewedA2AWorkers({ environment: process.env });

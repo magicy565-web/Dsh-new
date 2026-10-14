@@ -57,6 +57,8 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
     if (url.protocol !== 'https:' || !url.hostname || url.username || url.password || url.search || url.hash) throw new Error();
     endpoint = url.href.replace(/\/+$/, '');
   } catch { throw new TypeError('Pi baseUrl must be a server-configured HTTPS URL without credentials, query or fragment.'); }
+  const deepseek = providerId === 'workspace-deepseek';
+  if (deepseek && endpoint !== 'https://api.deepseek.com') throw new TypeError('The DeepSeek profile requires its pinned official HTTPS API origin.');
   // Bind recovery to the admitted destination without exposing configuration in
   // public run descriptors. A changed endpoint requires a fresh explicit scope.
   const endpointFingerprint = hash(endpoint);
@@ -72,8 +74,11 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
   const ordinaryPermissionFingerprint = legacyPolicyCompatible ? legacyPermissionFingerprint : agentPermissionFingerprint;
   const models = suppliedModels || createModels();
   if (!suppliedModels) models.setProvider(createProvider({ id: providerId, name: 'Workspace server-configured Pi model', baseUrl: endpoint,
-    auth: { apiKey: { name: 'Host-managed FastAIToken key', resolve: async () => apiKey.trim() ? { auth: { apiKey } } : undefined } },
-    models: [{ id: model, name: model, api: 'openai-completions', provider: providerId, baseUrl: endpoint, reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 1600 }],
+    auth: { apiKey: { name: deepseek ? 'Host-managed DeepSeek key' : 'Host-managed FastAIToken key', resolve: async () => apiKey.trim() ? { auth: { apiKey } } : undefined } },
+    // SDK cost placeholders are not prices or a claim that provider calls are
+    // free. Original admission records wire tokens, not a monetary hard cap.
+    models: [{ id: model, name: model, api: 'openai-completions', provider: providerId, baseUrl: endpoint, reasoning: deepseek, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 1600,
+      ...(deepseek ? { compat: { supportsStore: false, supportsDeveloperRole: false, supportsStrictMode: false, maxTokensField: 'max_tokens', thinkingFormat: 'deepseek', supportsLongCacheRetention: false } } : {}) }],
     api: openAICompletionsApi() }));
   const modelRef = models.getModel(providerId, model);
   const opened = new Map(), opening = new Map(), activeCalls = new Map();
@@ -153,7 +158,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
               const timeout = new AbortController();
               timer = setTimeout(() => { requestTimedOut = true; timeout.abort('PI_MODEL_TIMEOUT'); }, timeoutMs); timer.unref();
               requestSignal = options?.signal ? AbortSignal.any([options.signal, timeout.signal]) : timeout.signal;
-              const events = models.streamSimple(requested, transcript, { ...options, signal: requestSignal, timeoutMs, maxTokens: reservation.maxTokens, maxRetries: 0,
+              const events = models.streamSimple(requested, transcript, { ...options, ...(deepseek ? { reasoning: 'off' } : {}), signal: requestSignal, timeoutMs, maxTokens: reservation.maxTokens, maxRetries: 0,
                 onProviderStreamEvent: async (event, ref) => {
                   if (requested.api === 'openai-completions' && (event?.usage || event?.choices?.[0]?.usage)) observed = openAIUsage(event);
                   await options?.onProviderStreamEvent?.(event, ref);
@@ -488,7 +493,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
     permissionFingerprint: ordinaryPermissionFingerprint,
     agentPermissionFingerprint,
     capabilities: ['pi-agent-context', 'native-agent-prompt', 'native-agent-tool-loop', 'pi-durable-execution', 'durable-request-dedupe', 'explicit-interruption-recovery', 'explicit-durable-abort', 'selected-replay-safe-tools', 'inert-muse-draft-proposals', 'private-supplier-profile-proposals', 'source-checked-preset-stages', ...(researchCapabilities.length ? ['configured-read-only-research'] : [])],
-    setupMessage: 'Configure the existing host-managed FASTAITOKEN_API_KEY, PI_MODEL and optional PI_BASE_URL for Pi. Credentials remain on the server. Your work is saved.',
+    setupMessage: deepseek ? 'Configure host-managed DEEPSEEK_API_KEY and explicit PI_MODEL for the selected DeepSeek provider. Credentials remain on the server; connection and paid execution are unverified.' : 'Configure the existing host-managed FASTAITOKEN_API_KEY, PI_MODEL and optional PI_BASE_URL for Pi. Credentials remain on the server. Your work is saved.',
     limitations: ['Pi 1.1.0 is pinned; model endpoint/account access remains unverified.', 'Only selected input snapshots and exact action proposals are available to Pi. Workspace executes approved actions.', 'Reopen does not resume work automatically. User cancellation explicitly aborts durable work; shutdown preserves checkpoints.', 'Muse and Dot remain independent original connectors. A receipt or write submission is not wake/execution evidence.'],
     containsCredential: value => Boolean(apiKey && typeof value === 'string' && value.includes(apiKey)),
     async initialize({ store: originalStore }) {
