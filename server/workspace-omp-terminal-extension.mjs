@@ -35,6 +35,7 @@ export function workspaceOmpTerminalExtension(transport) {
         if (!receipt.run || !['queued', 'running'].includes(receipt.run.status)) { show('workspace-original-status', receipt); return; }
         if (ctx.hasUI && await ctx.ui.confirm('Stop this original Workspace frontend Run?', JSON.stringify({ runId: receipt.run.id, status: receipt.run.status, backendTasksCancelled: false })) === true)
           show('workspace-original-stopped', await transport.stop());
+        else show('workspace-original-stop-declined', { runId: receipt.run.id, stopped: false, reason: 'HUMAN_CONFIRMATION_DECLINED' });
       } catch (error) { ctx.ui.notify(error.message, 'error'); }
     } });
     pi.registerCommand('ws-front-status', { description: 'Read the exact current original frontend Run and reply.', handler: async (_args, ctx) => {

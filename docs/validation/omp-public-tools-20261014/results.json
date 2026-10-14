@@ -77,8 +77,8 @@
   "acceptanceGroups": [
     {
       "command": "node --test test/workspace-omp.test.mjs test/workspace-omp-launch.test.mjs test/workspace-omp-public-tools.test.mjs test/workspace-omp-task.test.mjs test/workspace-omp-terminal.test.mjs",
-      "tests": 27,
-      "passed": 27,
+      "tests": 28,
+      "passed": 28,
       "skipped": 0
     },
     {
@@ -94,5 +94,13 @@
       "skipped": 0
     }
   ],
-  "recordedAt": "2026-10-14T19:43:37.869230+00:00"
+  "recordedAt": "2026-10-14T19:59:04.870025+00:00",
+  "terminalHumanStop": {
+    "status": "actual-official-PTY-pass",
+    "escape": "declined-with-original-run-still-running",
+    "confirmed": "same-original-run-cancelled",
+    "nativeProviderAbortObserved": true,
+    "workerExitObserved": true,
+    "paidModelCalls": 0
+  }
 }

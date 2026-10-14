@@ -126,3 +126,37 @@ test('default official terminal stays interactive without credentials and displa
   command('/quit'); await until(() => terminalExit !== undefined, 'Unconfigured official UI did not close.'); assert.equal(terminalExit, 0); assert.equal((await exit)[0], 0);
 });
 
+test('official terminal human stop confirmation preserves the original Run on Escape, then natively cancels that exact Run', { timeout: 45000 }, async t => {
+  const directory = await fs.mkdtemp('/tmp/workspace-omp-terminal-stop-'), lifecycle = []; let f;
+  f = await taskFixture(t, { businessAgentOptions: { recipient: { kind: 'pi-coding-agent', provider: model.provider, model: model.id, destination: model.baseUrl },
+    engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, syntheticResponses: [{ wait: 60000, text: 'Must not complete before cancellation.' }], onWorkerLifecycle: event => lifecycle.push(event) }),
+    resolveBinding: async () => ({ client: createWorkspaceClient({ baseURL: f.baseURL, token: TOKEN_A }), model }) } });
+  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp.mjs'], {
+    cwd: directory, env: { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory, LANG: 'C.UTF-8', TERM: 'xterm-256color',
+      PI_NO_TITLE: '1', WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WS_AGENT_URL: f.baseURL }, stdio: ['pipe', 'pipe', 'pipe'] });
+  const exit = once(driver, 'close'); let raw = '', buffer = '', terminalExit;
+  driver.stdout.on('data', data => { buffer += data;
+    while (buffer.includes('\n')) { const cut = buffer.indexOf('\n'), event = JSON.parse(buffer.slice(0, cut)); buffer = buffer.slice(cut + 1);
+      if (event.type === 'output') raw += event.data; if (event.type === 'exit') terminalExit = event.code; }
+  });
+  const write = text => driver.stdin.write(JSON.stringify({ type: 'write', text }) + '\n');
+  const command = text => write('\x15' + text + '\r');
+  t.after(async () => { if (driver.exitCode === null) driver.stdin.write(JSON.stringify({ type: 'stop' }) + '\n'); await exit; await fs.rm(directory, { recursive: true, force: true }); });
+  await until(() => raw.includes('terminal model disabled'), () => 'Official stop UI did not initialize: ' + raw.slice(-1500));
+  command('Public synthetic frontend stop check.');
+  await until(() => lifecycle.some(event => event.phase === 'nativeModelWaiting'), 'The actual OMP provider did not enter its synthetic wait.');
+  const runId = f.app.store.read().runs[0].id;
+  let marker = raw.length; command('/ws-stop');
+  await until(() => raw.slice(marker).includes('Stop this original Workspace frontend Run?'), () => 'Official human stop confirmation did not open: ' + raw.slice(-2000));
+  write('\x1b');
+  await until(() => raw.includes('HUMAN_CONFIRMATION_DECLINED'), () => 'Escape did not finish the official confirmation handler: ' + raw.slice(-2500));
+  assert.equal(f.app.store.read().runs[0].status, 'running');
+  marker = raw.length; command('/ws-stop');
+  await until(() => raw.slice(marker).includes('Stop this original Workspace frontend Run?'), () => 'Second original human stop confirmation did not open: ' + raw.slice(-2500));
+  write('\r'); await until(() => f.app.store.read().runs[0].status === 'cancelled', 'Confirmed original stop did not cancel the exact Run.');
+  await until(() => lifecycle.some(event => event.phase === 'exit'), 'Cancelled official worker did not close.');
+  assert.ok(lifecycle.some(event => event.phase === 'nativeModelAbort')); assert.equal(f.app.store.read().runs.length, 1); assert.equal(f.app.store.read().runs[0].id, runId);
+  assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0); assert.equal(f.faux.state.callCount, 0);
+  await until(() => raw.includes('"status": "cancelled"'), 'Original cancellation receipt was not displayed in the official UI.');
+  command('/quit'); await until(() => terminalExit !== undefined, 'Official stop UI did not close.'); assert.equal(terminalExit, 0); assert.equal((await exit)[0], 0);
+});
