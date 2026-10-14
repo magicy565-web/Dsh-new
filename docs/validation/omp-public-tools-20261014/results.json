@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "testedAt": "2026-10-14T19:15:36.487Z",
+  "ompVersion": "18.10.4",
+  "bunVersion": "1.3.14",
+  "syntheticToolTests": true,
+  "paidModelCalls": 0,
+  "productionBusinessCalls": 0,
+  "credentialCreation": false,
+  "externalActions": false,
+  "search": {
+    "status": "actual-native-provider-synthetic-transport-pass",
+    "sourceCount": 1,
+    "requests": 1
+  },
+  "documents": {
+    "status": "actual-native-read-pass",
+    "exactIDAndHash": true,
+    "pathNotDisclosed": true,
+    "changeRejected": true,
+    "privateLibrary": "disabled"
+  },
+  "deniedNetworkCalls": 0,
+  "refusal": {
+    "status": "synthetic-403-refusal-pass",
+    "sources": 0,
+    "fallback": false
+  },
+  "browser": {
+    "status": "private-URL-and-DNS-admission-rejected-before-browser",
+    "realPublicNavigation": "not-executed"
+  },
+  "authorizations": 9,
+  "livePublicChecks": [
+    {
+      "provider": "duckduckgo",
+      "status": "unavailable",
+      "sources": [],
+      "noPaidCalls": true,
+      "challengeBypass": false,
+      "noBuyerVerification": true
+    },
+    {
+      "provider": "startpage",
+      "status": "unavailable",
+      "sources": [],
+      "noPaidCalls": true,
+      "challengeBypass": false,
+      "noBuyerVerification": true
+    }
+  ],
+  "scope": "Synthetic tool contracts plus two separately executed keyless public search attempts; not a model-session or production-business claim."
+}
