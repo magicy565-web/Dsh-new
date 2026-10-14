@@ -7,7 +7,7 @@ import { looksLikeCredential } from '../../server/security.mjs';
 const API = '/api/agent/v1/pi/tasks';
 const BUSINESS_API = '/api/agent/v1';
 export const WORKSPACE_TOOLS = Object.freeze(['workspace_task', 'workspace_status', 'workspace_delegate', 'workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
-const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-presets', 'ws-business', 'ws-business-status', 'ws-business-resume', 'ws-quit', 'quit']);
+const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-presets', 'ws-procurement', 'ws-business', 'ws-business-status', 'ws-business-resume', 'ws-quit', 'quit']);
 const requestIdentifier = value => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(value)) throw new Error('Use a requestId of at most 96 letters, numbers, underscores or dashes.');
   return value;
@@ -63,6 +63,21 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     return redact(value);
   }
   const businessPresets = signal => request('GET', '/presets', undefined, signal, { business: true });
+  async function check(signal) {
+    // Readiness is configuration evidence only. Never submit a probe task or
+    // make a model request, and authenticate against the original registry.
+    const health = await request('GET', '/health', undefined, signal, { business: true, maxBytes: 64_000 });
+    const presets = await businessPresets(signal);
+    const rows = Array.isArray(presets) ? presets : presets?.presets;
+    if (!Array.isArray(rows) || !rows.some(row => row.id === 'procurement' && Array.isArray(row.required_inputs) && Array.isArray(row.optional_inputs)))
+      throw new Error('Workspace readiness failed: original procurement preset is unavailable.');
+    if (health.status !== 'ok' || health.projection?.projection !== 'ready') throw new Error('Workspace readiness failed: original backend health or task projection requires review.');
+    if (health.runtime !== 'pi-durable' || health.mode !== 'model' || health.readiness !== 'configured_unverified' || health.configured !== true || typeof health.model !== 'string' || !health.model)
+      throw new Error('Workspace readiness failed: the original Pi backend model is not configured. No task or model call was sent.');
+    return { backend: 'original-workspace', health: health.status, version: health.version, mode: health.mode, runtime: health.runtime, model: health.model,
+      configured: true, onlineVerified: false, readiness: health.readiness, projection: health.projection.projection,
+      presets: rows.map(row => row.id), naturalLanguage: 'blocked-command-profile', modelCalls: 0 };
+  }
   async function businessSubmit(input, signal) {
     const value = await businessInput(input, await businessPresets(signal));
     const { requestId, ...body } = value;
@@ -89,6 +104,7 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false, task, events, artifacts };
   }
   return Object.freeze({
+    check,
     submit: (input, signal) => request('POST', '', input, signal),
     status: (runId, signal) => request('GET', '/' + encodeURIComponent(identifier(runId)), undefined, signal),
     cancel: (runId, signal) => request('POST', '/' + encodeURIComponent(identifier(runId)) + '/cancel', {}, signal),
@@ -232,6 +248,22 @@ export function workspaceExtension(client, { sample = false, close = async () =>
       return client.continue(runId, proposalId);
     });
     command('ws-presets', 'List original business presets and public inputs', () => client.businessPresets());
+    command('ws-procurement', 'Collect three public fields: /ws-procurement STABLE_REQUEST_ID', async (args, ctx) => {
+      const requestId = requestIdentifier(args.trim());
+      ctx.ui.notify('Public procurement input only: no private files, credentials or supplier claims. Escape cancels. Keep this requestId and identical fields when retrying an uncertain submission.', 'info');
+      const input = {};
+      for (const [field, label] of [['product', 'Public product'], ['spec', 'Public specification'], ['quantity', 'Public quantity (positive integer)']]) {
+        const value = await ctx.ui.input(label);
+        if (value === undefined) return { profile: 'business-preset', requestId, submitted: false, detail: 'Canceled. No business task was submitted.' };
+        if (!value.trim() || value.length > 4000 || /[\x00-\x1f]/.test(value) || looksLikeCredential(value)) throw new Error('Use bounded explicit public fields without credentials. No business task was submitted.');
+        input[field] = value.trim();
+      }
+      if (!/^[1-9][0-9]*$/.test(input.quantity) || !Number.isSafeInteger(Number(input.quantity))) throw new Error('Public quantity must be a positive safe integer. No business task was submitted.');
+      input.quantity = Number(input.quantity);
+      const draft = { type: 'procurement', title: `Procurement: ${input.product}`.slice(0, 300), input, requestId };
+      show({ profile: 'business-preset', requestId, publicSubmission: draft, detail: 'For an uncertain result, retry the same requestId and identical fields. Admission is not completion.' });
+      return client.businessSubmit(draft);
+    });
     command('ws-business', 'Submit an original business task: /ws-business {"type":"procurement","title":"...","input":{...},"requestId":"stable-key"}', args => client.businessSubmit(parseInput(args)));
     command('ws-business-status', 'Read original business stages and documents: /ws-business-status TASK_ID', args => client.businessStatus(args.trim()));
     command('ws-business-resume', 'Explicitly resume the unchanged original business task: /ws-business-resume TASK_ID', async (args, ctx) => {

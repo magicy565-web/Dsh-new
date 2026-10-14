@@ -23,3 +23,11 @@ Safe presence-only audit in the selected environment found `DEEPSEEK_API_KEY`, `
 The user authorized a **total RMB 5** for this round of DeepSeek model tests only. It does not authorize top-up, subscription, other paid services or unlimited calls. Before any real dispatch, verify safe new-key injection, current official prices and a minimal fixed physical-request/input/output ceiling with conservative cumulative reservation. Unknown/timed-out requests still consume the reservation. Existing token caps and SDK zero-cost placeholders alone are not a monetary guarantee. Use only short, non-sensitive, explicitly public test input; no enterprise private file or automatic sample fallback.
 
 No new billing/permission framework, PostgreSQL/pg-boss migration, Shopify refactor, production deployment, main change, merge or force push is part of this work. Missing safe configuration or an unverified aggregate bound pauses paid requests while keyless engineering continues.
+
+## Final controlled acceptance
+
+The combined CLI/Pi/DeepSeek-wire/original Agent UI/normal TUI suite passes 52/52 with zero skips; existing native owner Agent tool contracts pass 2/2, and the actual native Agent PTY passes eight checkpoints. The latter uses 15 deterministic loopback model requests and zero external/model-account requests. Build passes with the existing large-bundle warning. See [compact acceptance](validation/pi-normal-20261014/acceptance.json). Raw generated business documents, task IDs and terminal transcripts remain local, excluded from Git.
+
+A fresh optional `tui/` install failed because npm registry DNS returned EAI_AGAIN. The native Agent PTY was subsequently run using the existing installed official 1.1.0 SDK: its exact TUI lockfile and every required installed dependency version matched. This is reuse of the same dependencies and official CLI, not a replacement entry or a successful fresh-install claim. No production profile was opened.
+
+Normal commands and exact limits are in [PI-TUI-NORMAL-MODE.md](PI-TUI-NORMAL-MODE.md). `npm run agent:tui -- --check` currently fails honestly with missing WS_AGENT_URL; it does not switch to a fixture. Help leads with normal mode. No live call, credential creation, frontend development or deployment occurred.

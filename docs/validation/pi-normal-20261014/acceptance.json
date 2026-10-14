@@ -1,0 +1,132 @@
+{
+  "sourceBase": "f9b95f631f2c6ef22545b7556cc3b37c53663bc4",
+  "branch": "codex/pi-business-normal-20261014",
+  "environment": {
+    "node": "24.19.0",
+    "officialPi": "1.1.0",
+    "platform": "Linux"
+  },
+  "acceptanceKind": "actual-official-TUI-with-explicit-synthetic-model-backends",
+  "cliSample": false,
+  "normalFrontendModel": false,
+  "liveModelCalls": 0,
+  "checks": {
+    "combinedNodeTests": {
+      "pass": 52,
+      "fail": 0,
+      "skip": 0
+    },
+    "existingNativeAgentToolContracts": {
+      "pass": 2,
+      "fail": 0
+    },
+    "existingNativeAgentTerminalCheckpoints": 8,
+    "build": "pass (existing large-bundle warning)"
+  },
+  "readOnlyReadiness": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/api/agent/v1/health"
+      },
+      {
+        "method": "GET",
+        "url": "/api/agent/v1/presets"
+      }
+    ],
+    "onlineVerified": false,
+    "tasksCreated": 0,
+    "modelCalls": 0
+  },
+  "procurement": {
+    "status": "done",
+    "result": {
+      "version": 1,
+      "state": "completed",
+      "completion": "documents_ready",
+      "businessGoalAchieved": false,
+      "execution": "original-pi-runtime",
+      "mode": "model",
+      "attempt": 1,
+      "evidenceStatus": "user_supplied_only",
+      "resumable": false
+    },
+    "savedStages": 4,
+    "artifacts": [
+      {
+        "name": "inquiry-pack.md",
+        "bytes": 4057,
+        "sha256": "040f41050730bf18bb213942cc5087877b6a1c57c403cd8f7a631b2731620831"
+      },
+      {
+        "name": "comparison.md",
+        "bytes": 2317,
+        "sha256": "a9431d940c7d918ee60f4cc49419debdf23de3e55e486b11e76fe644e7f128bc"
+      },
+      {
+        "name": "procurement-brief.md",
+        "bytes": 3799,
+        "sha256": "becc0eef5435f4f6d9c646aa6ca8aeb0d71195355f3308723cb16d847b376933"
+      }
+    ],
+    "checks": [
+      "natural-language refusal",
+      "official three-field public input",
+      "cancel without admission",
+      "stable requestId replay",
+      "persisted documents and events",
+      "missing-search error and partial documents",
+      "restart and explicit recovery",
+      "expired identity refusal"
+    ]
+  },
+  "recovery": {
+    "status": "done",
+    "attempt": 2,
+    "preservedInquirySha256": "4eeb99fc7c476da90aeb223913f371ef3ed4799fb39afc4ef156b5ec7fd79232"
+  },
+  "researchMissing": {
+    "version": 1,
+    "state": "blocked",
+    "completion": "incomplete",
+    "businessGoalAchieved": false,
+    "execution": "original-pi-runtime",
+    "mode": "model",
+    "attempt": 1,
+    "reason": "AGENT_REQUIRED_CAPABILITY_MISSING",
+    "partialArtifacts": true,
+    "resumable": true
+  },
+  "terminalTranscriptSha256": {
+    "normal-profile-pty.txt": "36acc60a75e70e5f938b2b00d76eea5351176a94d7363a49ab890c957cb2551b",
+    "normal-generic-pty.txt": "43e66b71e128fb847d51b59ed56100ffb2667972aa05df6148d2b021c0a99b9b"
+  },
+  "nativeAgent": {
+    "modelTransport": "deterministic-loopback-only",
+    "checkpoints": 8,
+    "providerRequests": 15,
+    "realModelVerified": false,
+    "externalRequests": 0
+  },
+  "dependencies": {
+    "freshOptionalTuiInstall": "failed: npm registry DNS EAI_AGAIN; not a fresh-install acceptance",
+    "testsUseExistingSameLockSdk": true,
+    "requiredInstalledVersionsMismatch": 0,
+    "tuiLockSha256": "4a4e2f165cde67ec5a2db52f36d7e206dfec634536e66f83d70530bad95fc0d8"
+  },
+  "configurationPresence": {
+    "DEEPSEEK_API_KEY": false,
+    "PI_PROVIDER": false,
+    "PI_MODEL": false,
+    "WS_AGENT_URL": false,
+    "WS_AGENT_TOKEN": false,
+    "WS_AGENT_PRINCIPALS": false
+  },
+  "remaining": [
+    "User must safely inject a new key; no prior chat key may be used.",
+    "Original authorized service/member binding is not configured here.",
+    "Verify a minimal fixed cumulative request/token reservation within RMB5 before paid tests.",
+    "Existing owner Agent frontend profile and foreground Host attachment are not live-verified."
+  ],
+  "excludedRuntimeData": "No Store, JSONL, SQLite, private profile, task IDs, token, or generated document body committed. Raw synthetic PTY traces remain local."
+}

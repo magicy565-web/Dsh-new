@@ -39,6 +39,13 @@ test('official TUI PTY uses existing procurement stages and artifacts, refuses u
   const submit = (requestId, extras = {}) => command('/ws-business ' + JSON.stringify({ type: 'procurement', title: '公开合成采购资料', input, requestId, ...extras }));
   t.after(async () => { if (driver.exitCode === null && driver.signalCode === null) driver.stdin.write(JSON.stringify({ type: 'stop' }) + '\n'); await exit; await backend.close(); await fs.rm(directory, { recursive: true, force: true }); });
   await until(() => raw.includes('Use /ws-task'), 'Official TUI did not initialize: ' + stderr); assert.ok(raw.includes('v1.1.0'));
+  command('Please buy a public cup');
+  await until(() => raw.includes('Natural-language model execution is blocked'), 'Normal profile did not explain the absent frontend model');
+  assert.equal(backend.faux.state.callCount, 0);
+  command('/ws-procurement canceled-public');
+  await until(() => raw.includes('Public product'), 'Official public product input did not open');
+  write('\x1b'); await until(() => raw.includes('Canceled. No business task was submitted.'), 'Cancel did not preserve no-submission boundary');
+  assert.equal(backend.app.store.read().workspaceAgentTasks.tasks.length, 0);
   command('/ws-presets'); await until(() => raw.includes('supplier-sourcing') && raw.includes('required_inputs'), 'Original preset registry was not displayed');
   submit('forbidden-host-context', { agentPresetContext: { tools: ['arbitrary'] } });
   await until(() => raw.includes('Business JSON allows only'), 'TUI did not refuse host authority input');
@@ -47,10 +54,19 @@ test('official TUI PTY uses existing procurement stages and artifacts, refuses u
   await until(() => raw.includes('HTTP 400'), 'Original preset specification did not refuse zero quantity');
   assert.equal(backend.app.store.read().workspaceAgentTasks.tasks.length, 0);
 
-  submit('pty-business'); await until(() => terminal('pty-business'), 'Original procurement task did not finish');
+  async function procurement(requestId) {
+    let marker = raw.length; command('/ws-procurement ' + requestId);
+    await until(() => raw.slice(marker).includes('Public product'), 'Official product input did not open');
+    marker = raw.length; write(input.product + '\r');
+    await until(() => raw.slice(marker).includes('Public specification'), 'Official specification input did not open');
+    marker = raw.length; write(input.spec + '\r');
+    await until(() => raw.slice(marker).includes('Public quantity'), 'Official quantity input did not open');
+    write(String(input.quantity) + '\r');
+  }
+  await procurement('pty-business'); await until(() => terminal('pty-business'), 'Original procurement task did not finish');
   assert.equal(task('pty-business').status, 'done'); assert.equal(backend.faux.state.callCount, 4);
   const id = task('pty-business').id, originalCount = backend.app.store.read().workspaceAgentTasks.tasks.length;
-  submit('pty-business'); await until(() => raw.includes(id), 'Stable business receipt was not displayed'); await delay(100);
+  const replayMarker = raw.length; await procurement('pty-business'); await until(() => raw.slice(replayMarker).includes(id), 'Stable business receipt was not displayed'); await delay(100);
   assert.equal(backend.app.store.read().workspaceAgentTasks.tasks.length, originalCount); assert.equal(backend.faux.state.callCount, 4);
   command('/ws-business-status ' + id);
   await until(() => raw.includes('procurement-brief.md') && raw.includes('合成模型替身') && raw.includes('documents_ready'), 'Official TUI did not show actual persisted stage/document results');
@@ -88,6 +104,19 @@ test('official TUI PTY uses existing procurement stages and artifacts, refuses u
   const revokedSubmitMarker = raw.length; submit('revoked-business');
   await until(() => raw.slice(revokedSubmitMarker).includes('HTTP 401') || raw.slice(revokedSubmitMarker).includes('HTTP 403'), 'Expired original service binding did not refuse TUI admission');
   assert.equal(backend.app.store.read().workspaceAgentTasks.tasks.length, 3); assert.equal(backend.faux.state.callCount, 2);
+  if (process.env.PI_TUI_TEST_EVIDENCE_DIR) {
+    const evidenceDirectory = process.env.PI_TUI_TEST_EVIDENCE_DIR;
+    assert.ok(path.isAbsolute(evidenceDirectory), 'Evidence directory must be explicit and absolute');
+    await fs.mkdir(evidenceDirectory, { recursive: true });
+    await fs.writeFile(path.join(evidenceDirectory, 'normal-profile-pty.txt'), raw.replaceAll(backend.token, '[REDACTED]'));
+    await fs.writeFile(path.join(evidenceDirectory, 'normal-profile-results.json'), JSON.stringify({
+      transport: 'explicit-public-synthetic-backend-faux', cliSample: false, frontendModel: false, liveModelCalls: 0,
+      procurement: { taskId: id, status: task('pty-business').status, result: task('pty-business').result, steps: task('pty-business').steps, deliverables: task('pty-business').deliverables },
+      researchFailure: task('pty-search-gap').result,
+      recovery: { taskId: saved.id, attempt: recovered.attempt, status: recovered.status, preservedInquirySha256: inquiry.sha256 },
+      checks: ['natural-language refusal', 'official three-field public input', 'cancel without admission', 'stable requestId replay', 'persisted documents and events', 'missing-search error and partial documents', 'restart and explicit recovery', 'expired identity refusal'],
+    }, null, 2));
+  }
   command('/ws-quit'); await until(() => exited !== undefined, 'Official business TUI did not close'); assert.equal(exited, 0); assert.equal((await exit)[0], 0, stderr); assert.ok(!raw.includes(backend.token));
   t.diagnostic('Actual official Pi PTY: original procurement task, four real Pi stages, events/documents, public-input/identity/research/auth refusal, canceled and confirmed original checkpoint recovery. Model responses are finite explicitly labeled synthetic faux; no live model or business achievement is proved.');
 });

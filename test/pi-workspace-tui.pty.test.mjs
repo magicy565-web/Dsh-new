@@ -122,5 +122,16 @@ test('official Pi TUI PTY starts tasks and an owned child, reviews exact approva
   await until(() => exited !== undefined, 'Official TUI did not shut down');
   assert.equal(exited, 0); assert.equal((await exit)[0], 0, stderr);
   assert.ok(!raw.includes(backend.token), 'The official TUI must not print the service credential');
+  if (process.env.PI_TUI_TEST_EVIDENCE_DIR) {
+    const evidenceDirectory = process.env.PI_TUI_TEST_EVIDENCE_DIR;
+    assert.ok(path.isAbsolute(evidenceDirectory)); await fs.mkdir(evidenceDirectory, { recursive: true });
+    await fs.writeFile(path.join(evidenceDirectory, 'normal-generic-pty.txt'), raw.replaceAll(backend.token, '[REDACTED]'));
+    await fs.writeFile(path.join(evidenceDirectory, 'normal-generic-results.json'), JSON.stringify({
+      transport: 'explicit-public-synthetic-backend-faux', cliSample: false, frontendModel: false, liveModelCalls: 0,
+      runs: backend.app.store.read().runs.map(row => ({ id: row.id, status: row.status, piNativeTaskId: row.piNativeTaskId, assistantId: row.assistantId })),
+      recovery: { originalRunId: original.id, originalNativeTaskId: original.piNativeTaskId, resumedStatus: run('pty-restore').status },
+      connectorRuns: backend.app.capabilities.listConnectorRuns().length,
+    }, null, 2));
+  }
   t.diagnostic('Actual official Pi InteractiveMode PTY: task, owned child, status, exact human approval, separate continuation, cancellation, original checkpoint recovery and profile refusals. Model transport is controlled faux, never a live account.');
 });

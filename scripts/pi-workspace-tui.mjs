@@ -71,12 +71,17 @@ async function isolatedMain({ sample, check, isolationDirectory }) {
     host = { baseURL: development.baseURL, token: development.token };
   } else host = { baseURL: process.env.WS_AGENT_URL, token: process.env.WS_AGENT_TOKEN };
   const client = createWorkspaceClient(host);
+  // Fail before initializing the editor when a normal-mode check cannot reach
+  // the original configured backend. This never starts a development fallback.
+  let backend;
+  try { backend = check ? await client.check() : undefined; }
+  catch (error) { await close(); throw error; }
   const { runtime, faux, InteractiveMode } = await createWorkspaceTuiRuntime({ client, isolationDirectory, sample, close });
   try {
     if (check) {
       await runtime.session.bindExtensions({});
       console.log(JSON.stringify({ runtime: 'official-pi-coding-agent', version: '1.1.0', transport: sample ? 'controlled-faux' : 'workspace-command-profile',
-        tools: runtime.session.getActiveToolNames(), sessionFile: runtime.session.sessionFile || null, modelCalls: faux?.state.callCount || 0 }));
+        tools: runtime.session.getActiveToolNames(), sessionFile: runtime.session.sessionFile || null, modelCalls: faux?.state.callCount || 0, backend }));
       return;
     }
     const mode = new InteractiveMode(runtime, { startupDiagnostics: [{ type: 'info', message: sample
@@ -88,7 +93,7 @@ async function isolatedMain({ sample, check, isolationDirectory }) {
 
 export async function main(args = process.argv.slice(2)) {
   if (args.includes('--help')) {
-    console.log('Official Pi Workspace TUI\n  npm run agent:tui -- --sample   Public synthetic, keyless controlled faux development sample\n  npm run agent:tui               Original WS_AGENT_URL / WS_AGENT_TOKEN injected in memory; command profile\n  --check                        Inspect installed official runtime and plugin tools without model calls\n\n/ws-task {"title":"Public task","content":"Explicit public text"}\n/ws-delegate {"title":"Public task","content":"Explicit public text"}\n/ws-status RUN_ID\n/ws-cancel RUN_ID\n/ws-resume RUN_ID\n/ws-approve RUN_ID PROPOSAL_ID\n/ws-continue RUN_ID PROPOSAL_ID\n/ws-presets\n/ws-business {"type":"procurement","title":"Public procurement","input":{"product":"Public cup","spec":"Public specification","quantity":10},"requestId":"public-business-1"}\n/ws-business-status TASK_ID\n/ws-business-resume TASK_ID\n/ws-quit');
+    console.log('Official Pi Workspace TUI\n  npm run agent:tui               Original WS_AGENT_URL / WS_AGENT_TOKEN injected in memory; command profile\n  --check                        GET original backend health/presets and inspect official tools; no model calls\n\n/ws-task {"title":"Public task","content":"Explicit public text"}\n/ws-delegate {"title":"Public task","content":"Explicit public text"}\n/ws-status RUN_ID\n/ws-cancel RUN_ID\n/ws-resume RUN_ID\n/ws-approve RUN_ID PROPOSAL_ID\n/ws-continue RUN_ID PROPOSAL_ID\n/ws-presets\n/ws-procurement STABLE_REQUEST_ID   Official inputs: public product, specification, quantity\n/ws-business {"type":"procurement","title":"Public procurement","input":{"product":"Public cup","spec":"Public specification","quantity":10},"requestId":"public-business-1"}\n/ws-business-status TASK_ID\n/ws-business-resume TASK_ID\n/ws-quit');
     return;
   }
   if (args.some(arg => !['--sample', '--check', '--isolated-child'].includes(arg))) throw new Error('Invalid TUI options. Use --help; credentials cannot be command-line arguments.');
