@@ -55,3 +55,14 @@ export function registerFactoryTools(pi, client, configuration) {
         detail: 'Preparation is not a verified product fit, capacity check, quotation or delivery commitment. No factory material is fetched, stored or invented.' });
     } });
 }
+
+// Controlled Workspace host opt-in only. Admission, presets, permissions,
+// stage execution, cancellation and documents remain the original HTTP engine.
+export function registerFactoryDocumentTask(pi, client) {
+  pi.registerTool({ name: 'workspace_factory_task', label: 'Prepare original factory export documents',
+    description: 'Submit only the original factory-export document preset for explicitly requested public factory material preparation. Requires stable requestId. No private Library, buyer procurement, customer verification, sending, orders or external actions.',
+    parameters: Type.Object({ title: Type.String(), input: Type.Record(Type.String(), Type.Unknown()), requestId: Type.String() }, { additionalProperties: false }),
+    async execute(_id, input, signal) {
+      return result(await client.businessSubmit({ ...input, type: 'factory-export' }, signal));
+    } });
+}

@@ -11,11 +11,11 @@ export const WORKSPACE_TOOLS = Object.freeze(['workspace_task', 'workspace_statu
 export const WORKSPACE_BUSINESS_TOOLS = Object.freeze(['workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
 export const WORKSPACE_AGENT_TOOLS = Object.freeze([...WORKSPACE_BUSINESS_TOOLS, ...WORKSPACE_READ_TOOLS]);
 const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-presets', 'ws-procurement', 'ws-business', 'ws-business-status', 'ws-business-cancel', 'ws-business-resume', 'ws-quit', 'quit']);
-const requestIdentifier = value => {
+export const requestIdentifier = value => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(value)) throw new Error('Use a requestId of at most 96 letters, numbers, underscores or dashes.');
   return value;
 };
-const identifier = value => {
+export const identifier = value => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value)) throw new Error('Use an original Workspace task or proposal ID.');
   return value;
 };
@@ -205,7 +205,7 @@ export async function businessInput(input, presets) {
   return input;
 }
 
-function taskInput(input, delegation = false) {
+export function taskInput(input, delegation = false) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['title', 'content', 'requestId', 'connectorActions'].includes(key)))
     throw new Error('Task JSON allows only title, content, requestId and explicitly selected connectorActions.');
   if (typeof input.title !== 'string' || !input.title.trim() || input.title.length > 160 || typeof input.content !== 'string' || !input.content.trim() || input.content.length > 16000)

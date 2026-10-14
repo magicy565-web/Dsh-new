@@ -32,9 +32,13 @@ function publicContext(value) {
 // every Run, Message, scheduler, cancellation and token reservation. No turns,
 // commands, graph, task queue or second execution-state registry is introduced.
 export function createPiBusinessAgentAdapter({ provider: original, options }) {
-  if (original.kind !== 'pi-durable' || !options || Object.keys(options).some(key => !['recipient', 'resolveBinding'].includes(key)) || typeof options.resolveBinding !== 'function')
+  if (original.kind !== 'pi-durable' || !options || Object.keys(options).some(key => !['recipient', 'resolveBinding', 'engineAdapter'].includes(key)) || typeof options.resolveBinding !== 'function')
     throw new TypeError('Use the existing Pi provider and a trusted existing member binding resolver.');
+  const engineAdapter = options.engineAdapter;
+  if (engineAdapter && (engineAdapter.scope !== 'omp:18.10.4:public-v1' || typeof engineAdapter.complete !== 'function'))
+    throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
+  const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
   let store, runtime, access, instanceId;
   function current(idValue) { const record = store.read().conversations.find(row => row.id === idValue); if (!record) fail(404, 'NOT_FOUND', 'Conversation not found.'); return record; }
   function actor(context, write = false) {
@@ -54,7 +58,9 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   async function bindingFor(identity, conversation, signal) {
     actor(identity);
     const binding = await options.resolveBinding({ actor: identity, conversation: { id: conversation.id, title: conversation.title } });
-    if (!binding?.client?.bindingIdentity || !binding.modelRuntime || !binding.model) fail(409, 'BUSINESS_AGENT_UNCONFIGURED', 'The existing Host member/model binding is not configured.');
+    if (!binding?.client?.bindingIdentity || !engineAdapter && !binding.modelRuntime || !binding?.model) fail(409, 'BUSINESS_AGENT_UNCONFIGURED', 'The existing Host member/model binding is not configured.');
+    if (conversation.businessAgentSession && (conversation.businessAgentSession.engineScope || 'pi:1.1.0') !== (engineAdapter?.scope || 'pi:1.1.0'))
+      fail(403, 'BUSINESS_AGENT_ENGINE_CHANGED', 'This transcript belongs to another engine scope. Start a fresh public-only conversation; private Pi history cannot migrate.');
     let proof;
     try { proof = await binding.client.bindingIdentity(signal); }
     catch (error) {
@@ -106,6 +112,28 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       }
       return result;
     }]));
+    if (engineAdapter) {
+      // The original adapter retains identity, Session, instance, authorization,
+      // executionRefs and Run ownership. The trusted seam supplies only the
+      // official OMP SDK transport; it introduces no business queue or ledger.
+      const isolated = path.join(store.directory, 'omp-agent-context', hash(conversation.id));
+      await privateDirectory(isolated);
+      return engineAdapter.complete({ input, run, binding, client, authorize, isolationDirectory: isolated,
+        savedSession: current(conversation.id).businessAgentSession || null,
+        async saveSession(mapping) {
+          await authorize();
+          const expected = path.join(isolated, 'sessions', binding.client.bindingFingerprint);
+          if (!mapping || !id(mapping.agentSessionId) || path.dirname(mapping.sessionFile || '') !== expected)
+            fail(409, 'BUSINESS_AGENT_SESSION_PATH_CHANGED', 'The OMP public transcript mapping is invalid.');
+          const file = await openPrivateFile(mapping.sessionFile); await file.close();
+          await store.update(state => {
+            const record = state.conversations.find(row => row.id === conversation.id);
+            if (!record || record.activeRunId !== run.id) throw new ProviderError('CANCELLED', 'The original run stopped.');
+            record.businessAgentSession = { agentSessionId: mapping.agentSessionId, sessionFile: mapping.sessionFile,
+              bindingFingerprint: binding.client.bindingFingerprint, recipientFingerprint, engineScope: engineAdapter.scope };
+          });
+        } });
+    }
     const isolated = path.join(store.directory, 'pi-agent-context', hash(conversation.id));
     await privateDirectory(isolated);
     const sessionDirectory = path.join(isolated, 'sessions', binding.client.bindingFingerprint); await privateDirectory(sessionDirectory);
@@ -175,7 +203,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     } finally { input.signal?.removeEventListener('abort', stop); unsubscribe(); await created.runtime.dispose(); }
   }
   const provider = new Proxy({}, { get(_target, key) {
-    if (key === 'businessAgentRecipientFingerprint') return recipientFingerprint;
+    if (key === 'businessAgentRecipientFingerprint') return executionFingerprint;
     if (key === 'complete') return complete;
     const value = Reflect.get(original, key, original); return typeof value === 'function' ? value.bind(original) : value;
   } });

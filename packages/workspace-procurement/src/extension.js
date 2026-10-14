@@ -1,6 +1,7 @@
 import { createWorkspaceClient } from './workspace.mjs';
 import { registerWorkspaceReadTools } from './workspace-read.mjs';
-import { registerFactoryTools, FACTORY_GUIDANCE } from './factory.mjs';
+import { registerFactoryTools, registerFactoryDocumentTask, FACTORY_GUIDANCE } from './factory.mjs';
+import { registerWorkspaceHumanControls } from './human-controls.mjs';
 
 export const ORDINARY_FACTORY_TOOLS = Object.freeze(['workspace_business_tasks', 'workspace_business_result',
   'workspace_factory_capabilities', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare']);
@@ -9,7 +10,7 @@ export const ORDINARY_PROCUREMENT_TOOLS = ORDINARY_FACTORY_TOOLS;
 
 // No credential creation, login or new persistence. The host supplies an
 // EXISTING original member Bearer binding in memory; absence stays unconfigured.
-function existingBinding(env) {
+export function existingBinding(env) {
   let configuration = 'unconfigured', client;
   if (env.WS_AGENT_URL && env.WS_AGENT_TOKEN) {
     try { client = createWorkspaceClient({ baseURL: env.WS_AGENT_URL, token: env.WS_AGENT_TOKEN }); configuration = 'configured_unverified'; }
@@ -21,10 +22,12 @@ function existingBinding(env) {
   return { configuration, client: client || Object.freeze({ businessPresets: gap, businessSubmit: gap, businessStatus: gap, businessTasks: gap, businessResult: gap }) };
 }
 
-export function factoryExtension({ client, configuration = 'configured_unverified' }) {
+export function factoryExtension({ client, configuration = 'configured_unverified', humanControls = false, factoryTasks = false }) {
   return pi => {
     registerWorkspaceReadTools(pi, client, { library: false });
     registerFactoryTools(pi, client, configuration);
+    if (humanControls) registerWorkspaceHumanControls(pi, client, configuration);
+    if (factoryTasks) registerFactoryDocumentTask(pi, client);
     // Append instructions through the official hook. Leave the ordinary host's
     // tools, commands, terminal, model and session operations untouched.
     pi.on('before_agent_start', event => ({ systemPrompt: event.systemPrompt + '\n\n' + FACTORY_GUIDANCE }));

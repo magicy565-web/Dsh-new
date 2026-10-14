@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "syntheticOnly": true,
+  "ompVersion": "18.10.4",
+  "bunVersion": "1.3.14",
+  "nodeVersion": "24.19.0",
+  "coreChecks": { "passed": 3, "failed": 0, "skipped": 0 },
+  "originalRegressionChecks": { "passed": 33, "failed": 0, "skipped": 0 },
+  "typeScriptPassed": true,
+  "transport": "original-enterprise-HTTP-and-private-fd-official-OMP-SDK",
+  "factoryDocumentFlow": { "originalTasks": 1, "originalRuns": 5, "originalStageRuns": 4, "originalHashMatchingDocuments": 3 },
+  "secondBusinessLedger": false,
+  "ordinaryFactoryPrivateLibrary": "disabled",
+  "oldPiTranscriptMigration": "refused",
+  "readOnlyBusinessSubmission": "refused",
+  "paidModelCalls": 0,
+  "externalActions": 0,
+  "businessGoalAchieved": false,
+  "defaultLauncherComplete": false,
+  "builtinSubagentVerified": false,
+  "realCustomerDiscoveryVerified": false
+}
