@@ -87,8 +87,8 @@
   "acceptanceGroups": [
     {
       "command": "node --test test/workspace-omp.test.mjs test/workspace-omp-launch.test.mjs test/workspace-omp-public-tools.test.mjs test/workspace-omp-public-pdf.test.mjs test/workspace-omp-task.test.mjs test/workspace-omp-terminal.test.mjs",
-      "tests": 31,
-      "passed": 31,
+      "tests": 33,
+      "passed": 33,
       "skipped": 0
     },
     {
@@ -104,7 +104,7 @@
       "skipped": 0
     }
   ],
-  "recordedAt": "2026-10-14T20:04:16.499743+00:00",
+  "recordedAt": "2026-10-14T20:15:23.705002+00:00",
   "terminalHumanStop": {
     "status": "actual-official-PTY-pass",
     "escape": "declined-with-original-run-still-running",
@@ -119,11 +119,51 @@
     "realPublishedReadTool": true,
     "syntheticPublicFixtures": true,
     "documentRead": "document_read",
+    "ocrHints": {
+      "status": "native_hint_only",
+      "modelVisibleHeuristicNotice": true
+    },
     "scan": {
       "status": "partial_ocr_required",
       "pagesNeedingOcr": [
         1
-      ]
+      ],
+      "ocrStatus": "native_hint_only"
+    },
+    "long": {
+      "status": "partial_truncated",
+      "pagesNeedingOcr": null,
+      "ocrStatus": "unknown_after_truncation",
+      "textTruncated": true,
+      "nativeFullInspection": {
+        "pageCount": 21,
+        "pagesNeedingOcr": [],
+        "knownSyntheticImageOnlyPage": 21,
+        "completeOcrAssessmentClaim": false
+      },
+      "nativeTruncation": {
+        "truncated": true,
+        "truncatedBy": "bytes",
+        "totalLines": 79,
+        "totalBytes": 168369,
+        "outputLines": 26,
+        "outputBytes": 50524,
+        "lastLinePartial": false,
+        "firstLineExceedsLimit": false
+      },
+      "nativeMetaTruncation": {
+        "direction": "head",
+        "truncatedBy": "bytes",
+        "totalLines": 79,
+        "totalBytes": 168369,
+        "outputLines": 26,
+        "outputBytes": 50524,
+        "shownRange": {
+          "start": 1,
+          "end": 26
+        },
+        "nextOffset": 27
+      }
     },
     "malformed": "unavailable",
     "credentialTextRejected": true,
@@ -134,7 +174,7 @@
     "imageReturned": false,
     "fetchCalls": 0,
     "paidModelCalls": 0,
-    "authorizations": 11,
+    "authorizations": 13,
     "fixtures": [
       {
         "id": "product",
@@ -155,12 +195,20 @@
         "id": "malformed",
         "bytes": 39,
         "sha256": "5de8545cb64bb4253fc1e880d7add8f9e7e6cb180de3fc6956bdfd0fabf7066c"
+      },
+      {
+        "id": "long",
+        "bytes": 4292,
+        "sha256": "591994c5428efe0fb983ea5e7f97197644ba948a0b74ecb1330a83d70ede1b10"
       }
     ],
     "originalHttpToFactoryDocuments": "actual-original-http-sdk-finite-keyless-pass",
     "extractedTextInModelContext": true,
     "binaryInSessionJournal": false,
     "ocrExecuted": false,
-    "uploaded": false
+    "uploaded": false,
+    "modelVisibleTruncationAndUnknownOcr": true,
+    "obsoleteCachedPolicyRejectedBeforeInference": true,
+    "extractionPolicy": "native-text-hints-v2"
   }
 }

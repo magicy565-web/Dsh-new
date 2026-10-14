@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { factoryExtension } from '../packages/workspace-procurement/src/extension.js';
 import { ORDINARY_FACTORY_TOOLS } from '../packages/workspace-procurement/src/extension.js';
 import { workspaceOmpPublicProfile } from './workspace-omp-public-profile.mjs';
-import { createWorkspaceOmpPublicTools, createWorkspaceOmpSyntheticPublicFetch } from './workspace-omp-public-tools.mjs';
+import { createWorkspaceOmpPublicTools, createWorkspaceOmpSyntheticPublicFetch, WORKSPACE_OMP_PUBLIC_PDF_POLICY } from './workspace-omp-public-tools.mjs';
 import { createWorkspaceOmpPublicTask } from './workspace-omp-public-task.mjs';
 
 export const OMP_VERSION = '18.10.4';
@@ -141,9 +141,12 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       if (message?.role === 'toolResult' && !admittedTools.includes(message.toolName)
         || message?.role === 'assistant' && message.content?.some(block => block.type === 'toolCall' && !admittedTools.includes(block.name)))
         throw new Error('A public-only OMP transcript cannot inherit private or non-admitted tool receipts.');
-      if (message?.role === 'toolResult' && message.toolName === 'workspace_public_document'
-        && !(publicTools.publicFiles || []).some(file => file.id === message.details?.documentId && file.sha256 === message.details?.sha256))
-        throw new Error('The cached public document was revoked or its exact selected bytes changed. No model request is admitted.');
+      if (message?.role === 'toolResult' && message.toolName === 'workspace_public_document') {
+        const selected = (publicTools.publicFiles || []).find(file => file.id === message.details?.documentId && file.sha256 === message.details?.sha256);
+        if (!selected) throw new Error('The cached public document was revoked or its exact selected bytes changed. No model request is admitted.');
+        if (selected.format === 'pdf' && message.details?.extractionPolicy !== WORKSPACE_OMP_PUBLIC_PDF_POLICY)
+          throw new Error('The cached public PDF extraction predates the current text/OCR policy. Start a fresh public conversation; no model request is admitted.');
+      }
     }
   }
   // A public-only session never discovers enterprise files, ambient auth, MCP,

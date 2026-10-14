@@ -10,7 +10,7 @@ import { createWorkspaceClient } from '../packages/workspace-procurement/src/wor
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
 import { taskFixture, TOKEN_A, TOKEN_B, until, api } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
-import { publicPdfBytes } from './fixtures/workspace-omp-public-pdf.mjs';
+import { publicPdfBytes, publicLongPdfBytes } from './fixtures/workspace-omp-public-pdf.mjs';
 const paths = workspaceOmpPaths(process.env);
 const configured = await fs.stat(paths.packageRoot + '/package.json').then(() => true).catch(() => false);
 const model = { provider: 'workspace-omp-test', id: 'finite', api: 'openai-completions', baseUrl: 'https://synthetic.invalid' };
@@ -101,6 +101,25 @@ for (const format of ['md', 'pdf']) test(`actual OMP public ${format} and source
   assert.match(letter.content, /未发送|没有发送或批准/); assert.match(letter.content, /recipient to confirm/);
   assert.equal(state.workspaceThreadHarness, undefined); assert.equal(state.artifacts.length, 0);
 });
+test('original OMP model receives explicit truncation and unknown OCR notice for a long native PDF extraction', { skip: !configured, timeout: 90000 }, async t => {
+  const directory = await fs.mkdtemp('/tmp/omp-public-pdf-partial-flow-'); t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const bytes = publicLongPdfBytes(), file = directory + '/long.pdf'; await fs.writeFile(file, bytes);
+  const f = await fixture(t, [{ tool: 'workspace_public_document', arguments: { documentId: 'long' } },
+    { text: 'Only part of the public PDF was read. Remaining text and OCR requirements are unknown; no complete review is claimed.',
+      expectedContextText: 'Remaining text and OCR requirements are unknown.' }], [], TOKEN_A, {
+    publicTools: { searchProvider: 'disabled', files: [{ id: 'long', path: file, sha256: createHash('sha256').update(bytes).digest('hex') }], publicDocumentRoot: directory },
+  });
+  const cid = await conversation(f, 'omp-partial-pdf-conversation'), accepted = await send(f, cid, 'omp-partial-pdf-run');
+  const run = await finished(f, accepted.run.id); assert.equal(run.status, 'succeeded', JSON.stringify(run));
+  const state = f.app.store.read(), mapping = state.conversations.find(row => row.id === cid).businessAgentSession;
+  const journal = await fs.readFile(mapping.sessionFile, 'utf8');
+  const receipt = journal.trim().split('\n').map(line => JSON.parse(line)).find(row => row.message?.role === 'toolResult' && row.message.toolName === 'workspace_public_document').message;
+  assert.equal(receipt.details.status, 'partial_truncated'); assert.equal(receipt.details.pagesNeedingOcr, null);
+  assert.equal(receipt.details.ocrStatus, 'unknown_after_truncation'); assert.equal(receipt.details.textTruncated, true);
+  assert.ok(receipt.content.some(block => block.text.includes('Remaining text and OCR requirements are unknown.')));
+  assert.equal(journal.includes(bytes.toString('base64')), false);
+  assert.equal(state.workspaceAgentTasks.tasks.length, 0); assert.equal(state.runs.length, 1); assert.equal(f.faux.state.callCount, 0);
+});
 test('original OMP Run persists a real SDK search refusal and reports partial without fabricated candidates or replacement tasks', { skip: !configured, timeout: 90000 }, async t => {
   const f = await fixture(t, [{ tool: 'workspace_public_search', arguments: { query: 'public synthetic product catalog', limit: 1 } },
     { text: 'Public source retrieval refused; zero sources. Customer evidence and outreach remain incomplete; no candidate invented.', expectedContextText: 'Public search did not return admissible sources' }], [], TOKEN_A,
@@ -114,6 +133,25 @@ test('original OMP Run persists a real SDK search refusal and reports partial wi
   const transcript = (await fs.readFile(mapping.sessionFile, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
   const receipt = transcript.find(row => row.message?.role === 'toolResult' && row.message.toolName === 'workspace_public_search').message;
   assert.equal(receipt.isError, true); assert.equal(receipt.details.status, 'unavailable'); assert.equal(receipt.details.sources.length, 0);
+});
+test('reopening a selected PDF rejects obsolete cached extraction policy before inference even when its ID and SHA still match', { skip: !configured, timeout: 90000 }, async t => {
+  const directory = await fs.mkdtemp('/tmp/omp-public-pdf-policy-'); t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const bytes = publicPdfBytes('PUBLIC SYNTHETIC PRODUCT. Capacity unknown.'), file = directory + '/product.pdf'; await fs.writeFile(file, bytes);
+  const f = await fixture(t, [{ tool: 'workspace_public_document', arguments: { documentId: 'product' } }, { text: 'Only native PDF text was extracted, without complete OCR assessment.' }], [], TOKEN_A, {
+    publicTools: { searchProvider: 'disabled', files: [{ id: 'product', path: file, sha256: createHash('sha256').update(bytes).digest('hex') }], publicDocumentRoot: directory },
+  });
+  const cid = await conversation(f, 'omp-pdf-policy-conversation'), first = await send(f, cid, 'omp-pdf-policy-first');
+  assert.equal((await finished(f, first.run.id)).status, 'succeeded');
+  const mapping = f.app.store.read().conversations.find(row => row.id === cid).businessAgentSession;
+  const rows = (await fs.readFile(mapping.sessionFile, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  const cached = rows.find(row => row.message?.role === 'toolResult' && row.message.toolName === 'workspace_public_document');
+  assert.equal(cached.message.details.extractionPolicy, 'native-text-hints-v2');
+  delete cached.message.details.extractionPolicy; // Explicit synthetic pre-fix cache fixture, never production data.
+  await fs.writeFile(mapping.sessionFile, rows.map(row => JSON.stringify(row)).join('\n') + '\n');
+  const second = await send(f, cid, 'omp-pdf-policy-second'), refused = await finished(f, second.run.id);
+  assert.equal(refused.status, 'failed'); assert.match(refused.error.message, /cached public PDF extraction predates/);
+  assert.equal(refused.events.filter(row => row.type === 'pi.agent-session.request').length, 0);
+  assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0); assert.equal(f.faux.state.callCount, 0);
 });
 test('revoked selected public document rejects original OMP cached receipt before the next model call', { skip: !configured, timeout: 90000 }, async t => {
   const directory = await fs.mkdtemp('/tmp/omp-public-file-revoke-'); t.after(() => fs.rm(directory, { recursive: true, force: true }));

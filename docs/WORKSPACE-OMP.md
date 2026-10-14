@@ -45,7 +45,7 @@ node scripts/workspace-omp-install.mjs --check
 
 有已存在的 `/usr/bin/chromium` 时，注册 `workspace_public_browser`；否则准确报告缺少现有浏览器，不自动安装。`WORKSPACE_OMP_BROWSER_BIN=disabled` 可关闭。它只检查公开 HTTPS 页，解析须为公开 IPv4，固定 hostname/IP、独立 profile、禁用页面脚本，确认真实 HTTP 成功才返回页面；不附着用户浏览器、不开放表单/任意代码/下载参数、不忽略证书。已有 Chromium 的脚本禁用、HTTP回执及关闭已在自有合成页验证；未宣称真实客户页面导航成功。
 
-资料工具 `workspace_public_document` 仅在宿主明确设置独立公开目录 `WORKSPACE_OMP_PUBLIC_DOCUMENT_ROOT` 和 `WORKSPACE_OMP_PUBLIC_FILES_JSON` 后注册。JSON 是最多八项 `{id,path,sha256}`，每文件至多64 KiB，支持md/txt/csv及PDF。工具只接受 documentId；目录、符号链接、字节变更、凭据样文本与任意路径均拒绝，原宿主路径不进入工具正文。PDF另校验文件头，复用官方ReadTool内置原生文字提取，不安装解析依赖、不上传、不把二进制或图片给模型。纯文字提取成功为 `document_read`，扫描页返回 `partial_ocr_required` 与 `pagesNeedingOcr`，损坏PDF为 `unavailable`；OCR尚未执行。重载前按当前 ID/SHA复查缓存；撤销选择或更换同ID字节时，旧正文不能再次进入模型。
+资料工具 `workspace_public_document` 仅在宿主明确设置独立公开目录 `WORKSPACE_OMP_PUBLIC_DOCUMENT_ROOT` 和 `WORKSPACE_OMP_PUBLIC_FILES_JSON` 后注册。JSON 是最多八项 `{id,path,sha256}`，每文件至多64 KiB，支持md/txt/csv及PDF。工具只接受 documentId；目录、符号链接、字节变更、凭据样文本与任意路径均拒绝，原宿主路径不进入工具正文。PDF另校验文件头，复用官方ReadTool内置原生文字提取，不安装解析依赖、不上传、不把二进制或图片给模型。文字提取成功为 `document_read`；原生报告扫描页时返回 `partial_ocr_required` 与 `pagesNeedingOcr`；损坏PDF为 `unavailable`。原生OCR页提示是启发式，`native_hint_only` 和模型可见说明均明确：空提示不证明每页可读或已完整审阅。正文被原ReadTool截断时优先返回 `partial_truncated`、`textTruncated:true`、`pagesNeedingOcr:null` 和 `ocrStatus:unknown_after_truncation`，向模型说明剩余正文与OCR要求未知。OCR尚未执行。重载前按当前 ID/SHA复查缓存；撤销选择或更换同ID字节时，旧正文不能再次进入模型。
 
 `workspace_factory_public_review` 用官方 TaskTool 执行最多两项明确提供的公开文字审阅。固定与父 Run 相同的模型/provider；child工具为空、不递归、不发现私库/项目插件，父子共享原四次模型请求及1600输出 token 额度。原 TaskTool 返回的结果仍属于该原 Run，不产生第二业务任务。外部模型真实价格与余额未验证时，原宿主仍不执行任何自然输入模型调用。
 
@@ -75,10 +75,12 @@ node scripts/workspace-omp-install.mjs --check
 | 原任务／审批／取消／恢复／结果 | 完成 | 原HTTP与账本、原ID和预算、准确人工决定／继续及重载均已验 |
 | 社区Skill辅助文书 | 部分完成 | 选定简短MIT改编实际加载，覆盖产品／客户／RFQ／报价和跟进草稿原则；上游不可变commit未核验，未接发送序列 |
 | 公开资料→候选来源→开发信→人工审核 | 部分完成 | 合成来源及文本／PDF完整链路通过；真实客户来源与真人文书验收未完成 |
-| 回归、固定版本与中文交付 | 完成 | 最新31/31，原Pi／Library53/53，原业务17/17，typecheck通过；不冒称生产上线 |
+| 回归、固定版本与中文交付 | 完成 | 最新33/33，原Pi／Library53/53，原业务17/17，typecheck通过；不冒称生产上线 |
 
 剩余阻塞是未审查的真实模型配置与剩余预算、不可用的真实公开搜索，以及未批准的未来通知机制。企业终端目前未接入企业Session；企业用户继续用原认证网页/API。同伴分支的结果／恢复UI未在本分支验收。
 
 公开工具的逐次原授权、指定文件/来源→原任务三文书、搜索失败与缓存撤销检查见 [受控公开工具](validation/omp-public-tools-20261014/README.md)。默认受控宿主已显式接入上述有限工具；支持但不可达或未配置时保持准确状态。完整Pi私库guard未迁到OMP，也没有为迁移开放私库或任意文件工具。原Pi终端仅显式回退。
+
+PDF回执标记 `extractionPolicy:native-text-hints-v2`。继续会话时除了当前文件ID/SHA，还校验该标记；旧提取策略回执不能带着不准确的完整读取声明再次进入模型。拒绝不会自动重写历史或重跑任务，需要新建公开会话；原历史查看与已受理后台任务的人工控制不变。
 
 前端协作接口沿用原路由：公开 `POST /api/conversations/:id/messages` 需稳定requestId、空inputContext；文书执行意图明确给 `workspaceExecution:true`。用 `GET /api/conversations/:id/business-results` 读取原任务／阶段／文书状态，人工恢复用 `POST /api/conversations/:id/business-tasks/:taskId/resume` 的稳定requestId与 `confirmed:true`。终端只补同鉴权的 `GET /api/conversations/runtime` 公开引擎标识与 `GET /api/conversations/:id/terminal-status?runId=…` 窄回执，严格核对会话/Run/成员归属，避免读取整个bootstrap。没有新Store或任务注册表。本分支未加入或验收同伴分支的结果／恢复UI。`server/index.mjs` 仅最小启动接线，未修改供应商traffic loader、readiness或原PiProvider业务引擎。

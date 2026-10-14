@@ -14,6 +14,7 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const response = value => ({ content: [{ type: 'text', text: JSON.stringify(value) }], details: value });
 const denied = reason => { throw new Error(reason); };
 const abort = signal => { if (signal?.aborted) denied('Public tool cancelled.'); };
+export const WORKSPACE_OMP_PUBLIC_PDF_POLICY = 'native-text-hints-v2';
 export const WORKSPACE_OMP_PUBLIC_BROWSER_ARGS = Object.freeze(['--headless=new', '--no-sandbox', '--disable-dev-shm-usage',
   '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-sync', '--disable-quic',
   '--disable-extensions', '--use-mock-keychain', '--password-store=basic', '--blink-settings=scriptEnabled=false']);
@@ -163,13 +164,14 @@ export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, 
     }
     const { ReadTool } = await load('tools/read.ts'), read = new ReadTool(toolSession);
     register({ name: 'workspace_public_document', label: 'Selected public material',
-      description: `Read only explicitly selected public text or PDF snapshots through the official OMP ReadTool. Exact IDs: ${[...selected.keys()].join(', ')}. PDF text extraction only; scanned pages remain partial and require OCR. No private Library, arbitrary path, network upload or OCR.`,
+      description: `Read only explicitly selected public text or PDF snapshots through the official OMP ReadTool. Exact IDs: ${[...selected.keys()].join(', ')}. PDF text extraction only; native OCR hints are heuristic and do not verify every page. Truncation means unknown remaining text and OCR requirements. No private Library, arbitrary path, network upload or OCR.`,
       parameters: Type.Object({ documentId: Type.String() }, { additionalProperties: false }),
       async execute(id, input, signal) {
         await checked(signal); const file = selected.get(input.documentId);
         if (Object.keys(input).length !== 1 || !file) denied('This document was not explicitly selected as public material.');
         if (await fs.realpath(file.filename) !== file.filename || digest(await fs.readFile(file.filename)) !== file.sha256) denied('The selected public snapshot changed.');
-        const details = { documentId: file.id, sha256: file.sha256, provenance: 'explicit-public-material', independentVerification: false };
+        const details = { documentId: file.id, sha256: file.sha256, provenance: 'explicit-public-material', independentVerification: false,
+          ...(file.format === 'pdf' ? { extractionPolicy: WORKSPACE_OMP_PUBLIC_PDF_POLICY } : {}) };
         let result;
         try { result = await read.execute(id, { path: file.filename }, signal); }
         catch (error) {
@@ -181,12 +183,19 @@ export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, 
         const content = result.content;
         if (!Array.isArray(content) || content.some(block => block.type !== 'text')) denied('Only extracted public text is admitted.');
         for (const block of content) publicText(block.text, 65536);
+        const textTruncated = Boolean(result.details?.truncation?.truncated || result.details?.meta?.truncation);
         if (file.format !== 'pdf') return { ...result, details };
         if (result.isError || content.some(block => /^\[Cannot read \.pdf file:/u.test(block.text)))
           return { ...response({ ...details, format: 'pdf', status: 'unavailable', reason: 'Selected public PDF text extraction failed. No OCR or upload ran.' }), isError: true };
+        // The native converter's OCR notice can be outside ReadTool's retained
+        // head. Never interpret its absence from truncated text as a clean PDF.
+        if (textTruncated) return { ...result,
+          content: [...content, { type: 'text', text: 'Selected public PDF text extraction is truncated. Remaining text and OCR requirements are unknown. Do not claim complete document review. No OCR or upload ran.' }],
+          details: { ...details, format: 'pdf', status: 'partial_truncated', textTruncated: true, pagesNeedingOcr: null, ocrStatus: 'unknown_after_truncation' } };
         const pagesNeedingOcr = [...new Set(content.flatMap(block => [...block.text.matchAll(/Text extraction is incomplete for PDF pages ([\d, ]+)\./gu)]
           .flatMap(match => match[1].split(',').map(value => Number(value.trim())).filter(value => Number.isSafeInteger(value) && value > 0))))];
-        return { ...result, content, details: { ...details, format: 'pdf', status: pagesNeedingOcr.length ? 'partial_ocr_required' : 'document_read', pagesNeedingOcr } };
+        return { ...result, content: [...content, { type: 'text', text: 'Native PDF text extraction only. OCR page hints are heuristic; absence of hints does not verify every page or complete document review.' }],
+          details: { ...details, format: 'pdf', status: pagesNeedingOcr.length ? 'partial_ocr_required' : 'document_read', pagesNeedingOcr, ocrStatus: 'native_hint_only' } };
       } });
   }
   if (configuration.browserExecutable) {
