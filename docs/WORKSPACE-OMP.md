@@ -25,6 +25,8 @@ node scripts/workspace-omp-install.mjs --check
 
 配置检查不调用模型；配置存在仍不等于在线模型已验证。运行器检查核对Bun版本／SHA和OMP固定版本。依赖缺失则给准确安装缺口。
 
+沿用原 `PI_PROVIDER`／`PI_MODEL`／`PI_BASE_URL` 与该provider现有安全密钥配置，以及原已授权 `WS_AGENT_URL`／`WS_AGENT_TOKEN`。不接受租约Worker凭据代替成员绑定、不创建principals。额外的 `WORKSPACE_OMP_PROVIDER_COST_JSON` 必须有每百万token美元计价的input/output/cacheRead/cacheWrite；剩余预算未由可信Host确认时保留 `WORKSPACE_OMP_LIVE_BUDGET_VERIFIED=0`。这两个配置不是余额查询或货币支出硬上限。本轮未读取或填入真实密钥，未启用该标志。
+
 原Pi1.1.0保留显式 `npm run agent:pi` 回退，需要它原有的服务绑定和配置。默认入口不会启动回退。旧Pi／私库会话不得自动迁入OMP；历史读取和原已受理后台任务保持原授权边界。
 
 ## 工厂能力与审核
@@ -50,3 +52,5 @@ node scripts/workspace-omp-install.mjs --check
 当前没有真实付费模型、真实海外候选或完整商业链路验收。五元总额的可控剩余预算没有验证，付费调用为零；价格／预算配置标志不能当本轮实际消费证明。七天未来通知的持续同意和持久收件人权限机制仍待另行批准，未开发或激活。未部署、未合并main、未发送、未创建账户或扩展Worker权限。
 
 OMP内置搜索、浏览器和子代理的隔离诊断已执行，默认受控网页尚未开放这三类工具；真实公网搜索仍受阻。完整Pi私库guard没有迁到OMP，也没有为迁移开放私库或任意文件工具。OMP交互TUI与原Run账本没有完成衔接，未作为默认入口交付；原Pi终端仅显式回退。
+
+前端协作接口沿用原路由：公开 `POST /api/conversations/:id/messages` 需稳定requestId、空inputContext；文书执行意图明确给 `workspaceExecution:true`。用 `GET /api/conversations/:id/business-results` 读取原任务／阶段／文书状态，人工恢复用 `POST /api/conversations/:id/business-tasks/:taskId/resume` 的稳定requestId与 `confirmed:true`。本分支实测这些HTTP接口；没有加入或验收同伴分支的结果／恢复UI。`server/index.mjs` 仅最小补OMP启动选项和未配置受信adapter接线，未修改供应商traffic loader、readiness或原PiProvider业务引擎。
