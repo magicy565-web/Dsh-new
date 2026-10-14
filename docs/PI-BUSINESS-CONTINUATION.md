@@ -8,6 +8,8 @@ The CLI smoke previously queried `/healthz` while the original server exposes `/
 
 The root entry is `npm run agent:tui`, with **no `--sample`**. Existing `WS_AGENT_URL` / `WS_AGENT_TOKEN` must be injected by the authorized host. This official Pi InteractiveMode profile submits commands through the original member-bound API; its frontend has no model account and natural-language model execution is disabled. The original backend Pi executes the existing business stages and tools and retains task/result authority.
 
+Recommended sequence: first run `npm run agent:tui -- --check`; after a successful exit, run `npm run agent:tui`. Plain startup does not execute readiness checks and an open editor does not prove connectivity or model availability. The unavailable-service/demo/unconfigured-model failure exits described in the normal-mode guide apply specifically to `--check`.
+
 The separate existing owner Agent profile is `npm --prefix tui run agent`. It uses the official Pi CLI, its existing `/login`, `/model` and profile, and five native owner business proposal tools. It also requires the original owner Host/Session transport. Backend configuration does not automatically configure this frontend profile. See `tui/AGENT-MODE.md` and `tui/OWNER-CONNECTION.md`; the host's foreground terminal attachment remains an unverified integration prerequisite. Neither entry is a webpage or a new executor. Do not claim command-mode natural-language Agent execution, owner transport, frontend model login or actual model success without their own evidence.
 
 ## Explicit server DeepSeek configuration

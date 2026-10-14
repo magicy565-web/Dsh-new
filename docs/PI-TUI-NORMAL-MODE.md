@@ -14,10 +14,18 @@ memory. Normal launch does not create an identity, read `.env` or user `.pi`
 auth/session files, load model keys into the frontend, or enable a fallback sample.
 Keep the backend's original persistent data directory and member binding.
 
+First run the read-only check. Only after it exits successfully, open the normal
+TUI in an interactive terminal:
+
 ```sh
 npm run agent:tui -- --check
+# Continue only if the check above succeeded.
 npm run agent:tui
 ```
+
+Plain `npm run agent:tui` does not run the readiness check. Opening its editor
+does not establish backend connectivity, model configuration or live model
+availability. Original request errors remain visible when commands are used.
 
 `--check` sends only `GET /api/agent/v1/health` and authenticated
 `GET /api/agent/v1/presets`. It verifies the original service reports `mode=model`,
@@ -29,11 +37,20 @@ model. A successful check explicitly returns `onlineVerified=false`; it verifies
 configuration and authorized reads, not a live provider connection or permission
 to complete every business action.
 
-Missing URL/token, unreachable service, denied identity, a degraded projection,
-demo mode or unconfigured backend model exits with failure. No automatic
-`--sample` switch occurs. Model/provider configuration belongs to the backend's
+During `--check`, missing URL/token, unreachable service, denied identity, a
+degraded projection, demo mode or unconfigured backend model exits with failure.
+This exit behavior describes `--check`, not an automatic readiness check during
+plain TUI startup. No automatic `--sample` switch occurs. Model/provider configuration belongs to the backend's
 existing configuration path; this frontend does not configure it. In this work
 environment, real credentials and a live provider are not configured or tested.
+
+For natural-language Agent interaction, the separate existing command is
+`npm --prefix tui run agent`. That owner profile needs its own configured Pi
+model/profile and original owner Host/Session service binding; see
+[AGENT-MODE.md](../tui/AGENT-MODE.md) and
+[OWNER-CONNECTION.md](../tui/OWNER-CONNECTION.md). Configuring backend DeepSeek
+alone does not make this natural-language entry usable, and the root `--check`
+does not verify that separate profile or its foreground Host attachment.
 
 ## Public procurement in three official inputs
 
