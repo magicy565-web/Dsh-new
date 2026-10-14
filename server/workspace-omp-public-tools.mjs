@@ -42,9 +42,10 @@ function plainPath(value) {
     denied('Choose public material files in a separate visible public directory.');
   return value;
 }
-// Trusted startup selects exact public text files and pins their bytes. Neither
+// Trusted startup selects exact public material files and pins their bytes. Neither
 // the model nor a tool argument can select a new path or widen the selection.
 export async function snapshotWorkspaceOmpPublicFiles({ root, files = [] } = {}) {
+  if (!Array.isArray(files) || files.length > 8) denied('Select at most eight exact public material files.');
   if (!files.length) return [];
   plainPath(root);
   if (!Array.isArray(files) || files.length > 8 || await fs.realpath(root) !== root) denied('The public file root must be explicit and must not be a symlink.');
@@ -54,12 +55,18 @@ export async function snapshotWorkspaceOmpPublicFiles({ root, files = [] } = {})
       || !/^[a-z][a-z0-9-]{0,63}$/u.test(file.id) || seen.has(file.id) || !/^[a-f0-9]{64}$/u.test(file.sha256)) denied('Use unique public document IDs and exact SHA256 pins.');
     plainPath(file.path);
     const relative = path.relative(root, file.path);
-    if (!relative || relative.startsWith('..') || path.isAbsolute(relative) || !/\.(?:md|txt|csv)$/iu.test(file.path)
-      || await fs.realpath(file.path) !== file.path) denied('Only explicitly pinned public Markdown, text or CSV within that root is admitted.');
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative) || !/\.(?:md|txt|csv|pdf)$/iu.test(file.path)
+      || await fs.realpath(file.path) !== file.path) denied('Only explicitly pinned public Markdown, text, CSV or PDF within that root is admitted.');
     const stat = await fs.lstat(file.path);
-    if (!stat.isFile() || stat.size > 65536) denied('Public material exceeds its text file allowance.');
-    const bytes = await fs.readFile(file.path), content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (!stat.isFile() || stat.size > 65536) denied('Public material exceeds its file allowance.');
+    const bytes = await fs.readFile(file.path);
     if (digest(bytes) !== file.sha256) denied('Public material changed after selection.');
+    if (/\.pdf$/iu.test(file.path)) {
+      if (bytes.subarray(0, 5).toString() !== '%PDF-') denied('Selected PDF requires PDF magic.');
+      result.push({ id: file.id, sha256: file.sha256, format: 'pdf', contentBase64: bytes.toString('base64') });
+      seen.add(file.id); continue;
+    }
+    const content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     publicText(content, 65536); seen.add(file.id);
     result.push({ id: file.id, sha256: file.sha256, content });
   }
@@ -145,20 +152,41 @@ export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, 
     const directory = await fs.mkdtemp(path.join(toolSession.cwd, 'selected-public-materials-')); await fs.chmod(directory, 0o700);
     const selected = new Map();
     for (const file of files) {
-      if (!/^[a-z][a-z0-9-]{0,63}$/u.test(file.id) || selected.has(file.id) || digest(file.content) !== file.sha256) denied('Invalid exact public material snapshot.');
-      publicText(file.content, 65536); const filename = path.join(directory, file.id + '.txt');
-      await fs.writeFile(filename, file.content, { mode: 0o600, flag: 'wx' }); selected.set(file.id, { ...file, filename });
+      if (!/^[a-z][a-z0-9-]{0,63}$/u.test(file.id) || selected.has(file.id)) denied('Invalid exact public material snapshot.');
+      const pdf = file.format === 'pdf';
+      if (pdf && (typeof file.contentBase64 !== 'string' || file.contentBase64.length > 87384)) denied('Invalid bounded public PDF snapshot.');
+      const bytes = pdf ? Buffer.from(file.contentBase64, 'base64') : Buffer.from(publicText(file.content, 65536));
+      if (bytes.length > 65536 || digest(bytes) !== file.sha256 || pdf && (bytes.toString('base64') !== file.contentBase64
+        || bytes.subarray(0, 5).toString() !== '%PDF-')) denied('Invalid exact public material snapshot.');
+      const filename = path.join(directory, file.id + (pdf ? '.pdf' : '.txt'));
+      await fs.writeFile(filename, bytes, { mode: 0o600, flag: 'wx' }); selected.set(file.id, { ...file, filename });
     }
     const { ReadTool } = await load('tools/read.ts'), read = new ReadTool(toolSession);
     register({ name: 'workspace_public_document', label: 'Selected public material',
-      description: `Read only explicitly selected public text snapshots through the official OMP ReadTool. Exact IDs: ${[...selected.keys()].join(', ')}. No private Library, arbitrary path, PDF conversion or OCR.`,
+      description: `Read only explicitly selected public text or PDF snapshots through the official OMP ReadTool. Exact IDs: ${[...selected.keys()].join(', ')}. PDF text extraction only; scanned pages remain partial and require OCR. No private Library, arbitrary path, network upload or OCR.`,
       parameters: Type.Object({ documentId: Type.String() }, { additionalProperties: false }),
       async execute(id, input, signal) {
         await checked(signal); const file = selected.get(input.documentId);
         if (Object.keys(input).length !== 1 || !file) denied('This document was not explicitly selected as public material.');
         if (await fs.realpath(file.filename) !== file.filename || digest(await fs.readFile(file.filename)) !== file.sha256) denied('The selected public snapshot changed.');
-        const result = await read.execute(id, { path: file.filename }, signal); await checked(signal);
-        return { ...result, details: { documentId: file.id, sha256: file.sha256, provenance: 'explicit-public-material', independentVerification: false } };
+        const details = { documentId: file.id, sha256: file.sha256, provenance: 'explicit-public-material', independentVerification: false };
+        let result;
+        try { result = await read.execute(id, { path: file.filename }, signal); }
+        catch (error) {
+          await checked(signal);
+          if (file.format !== 'pdf') throw error;
+          return { ...response({ ...details, format: 'pdf', status: 'unavailable', reason: 'Selected public PDF text extraction failed. No OCR or upload ran.' }), isError: true };
+        }
+        await checked(signal);
+        const content = result.content;
+        if (!Array.isArray(content) || content.some(block => block.type !== 'text')) denied('Only extracted public text is admitted.');
+        for (const block of content) publicText(block.text, 65536);
+        if (file.format !== 'pdf') return { ...result, details };
+        if (result.isError || content.some(block => /^\[Cannot read \.pdf file:/u.test(block.text)))
+          return { ...response({ ...details, format: 'pdf', status: 'unavailable', reason: 'Selected public PDF text extraction failed. No OCR or upload ran.' }), isError: true };
+        const pagesNeedingOcr = [...new Set(content.flatMap(block => [...block.text.matchAll(/Text extraction is incomplete for PDF pages ([\d, ]+)\./gu)]
+          .flatMap(match => match[1].split(',').map(value => Number(value.trim())).filter(value => Number.isSafeInteger(value) && value > 0))))];
+        return { ...result, content, details: { ...details, format: 'pdf', status: pagesNeedingOcr.length ? 'partial_ocr_required' : 'document_read', pagesNeedingOcr } };
       } });
   }
   if (configuration.browserExecutable) {

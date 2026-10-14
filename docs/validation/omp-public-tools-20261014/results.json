@@ -76,9 +76,9 @@
   },
   "acceptanceGroups": [
     {
-      "command": "node --test test/workspace-omp.test.mjs test/workspace-omp-launch.test.mjs test/workspace-omp-public-tools.test.mjs test/workspace-omp-task.test.mjs test/workspace-omp-terminal.test.mjs",
-      "tests": 28,
-      "passed": 28,
+      "command": "node --test test/workspace-omp.test.mjs test/workspace-omp-launch.test.mjs test/workspace-omp-public-tools.test.mjs test/workspace-omp-public-pdf.test.mjs test/workspace-omp-task.test.mjs test/workspace-omp-terminal.test.mjs",
+      "tests": 31,
+      "passed": 31,
       "skipped": 0
     },
     {
@@ -94,7 +94,7 @@
       "skipped": 0
     }
   ],
-  "recordedAt": "2026-10-14T19:59:04.870025+00:00",
+  "recordedAt": "2026-10-14T20:04:16.499743+00:00",
   "terminalHumanStop": {
     "status": "actual-official-PTY-pass",
     "escape": "declined-with-original-run-still-running",
@@ -102,5 +102,55 @@
     "nativeProviderAbortObserved": true,
     "workerExitObserved": true,
     "paidModelCalls": 0
+  },
+  "selectedPdf": {
+    "ompVersion": "18.10.4",
+    "bunVersion": "1.3.14",
+    "realPublishedReadTool": true,
+    "syntheticPublicFixtures": true,
+    "documentRead": "document_read",
+    "scan": {
+      "status": "partial_ocr_required",
+      "pagesNeedingOcr": [
+        1
+      ]
+    },
+    "malformed": "unavailable",
+    "credentialTextRejected": true,
+    "unselectedRejected": true,
+    "alteredSnapshotRejected": true,
+    "allOutputTextOnly": true,
+    "binaryReturned": false,
+    "imageReturned": false,
+    "fetchCalls": 0,
+    "paidModelCalls": 0,
+    "authorizations": 11,
+    "fixtures": [
+      {
+        "id": "product",
+        "bytes": 997,
+        "sha256": "97a241d6602c3a4d63f31ebfbea86707b6219fe0844482aa59bc5500ad6fad59"
+      },
+      {
+        "id": "scan",
+        "bytes": 914,
+        "sha256": "c0c4a28ecdcdedb435e71c9d43ebe887aef9f0953a4309d49f4aff820758f3e8"
+      },
+      {
+        "id": "credential",
+        "bytes": 946,
+        "sha256": "5f6fb64d3bf5db3cad0cfe21c9ccebdb2988de9abf6d87f3a000d73f4405f46d"
+      },
+      {
+        "id": "malformed",
+        "bytes": 39,
+        "sha256": "5de8545cb64bb4253fc1e880d7add8f9e7e6cb180de3fc6956bdfd0fabf7066c"
+      }
+    ],
+    "originalHttpToFactoryDocuments": "actual-original-http-sdk-finite-keyless-pass",
+    "extractedTextInModelContext": true,
+    "binaryInSessionJournal": false,
+    "ocrExecuted": false,
+    "uploaded": false
   }
 }

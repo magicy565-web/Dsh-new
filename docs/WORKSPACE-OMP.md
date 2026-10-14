@@ -45,7 +45,7 @@ node scripts/workspace-omp-install.mjs --check
 
 有已存在的 `/usr/bin/chromium` 时，注册 `workspace_public_browser`；否则准确报告缺少现有浏览器，不自动安装。`WORKSPACE_OMP_BROWSER_BIN=disabled` 可关闭。它只检查公开 HTTPS 页，解析须为公开 IPv4，固定 hostname/IP、独立 profile、禁用页面脚本，确认真实 HTTP 成功才返回页面；不附着用户浏览器、不开放表单/任意代码/下载参数、不忽略证书。已有 Chromium 的脚本禁用、HTTP回执及关闭已在自有合成页验证；未宣称真实客户页面导航成功。
 
-资料工具 `workspace_public_document` 仅在宿主明确设置独立公开目录 `WORKSPACE_OMP_PUBLIC_DOCUMENT_ROOT` 和 `WORKSPACE_OMP_PUBLIC_FILES_JSON` 后注册。JSON 是最多八项 `{id,path,sha256}`，每文件至多64 KiB，只支持md/txt/csv。工具只接受 documentId；目录、符号链接、字节变更、凭据样文本与任意路径均拒绝，原宿主路径不进入工具正文。重载前按当前 ID/SHA复查缓存；撤销选择或更换同ID字节时，旧正文不能再次进入模型。这里没有默认PDF/OCR承诺。
+资料工具 `workspace_public_document` 仅在宿主明确设置独立公开目录 `WORKSPACE_OMP_PUBLIC_DOCUMENT_ROOT` 和 `WORKSPACE_OMP_PUBLIC_FILES_JSON` 后注册。JSON 是最多八项 `{id,path,sha256}`，每文件至多64 KiB，支持md/txt/csv及PDF。工具只接受 documentId；目录、符号链接、字节变更、凭据样文本与任意路径均拒绝，原宿主路径不进入工具正文。PDF另校验文件头，复用官方ReadTool内置原生文字提取，不安装解析依赖、不上传、不把二进制或图片给模型。纯文字提取成功为 `document_read`，扫描页返回 `partial_ocr_required` 与 `pagesNeedingOcr`，损坏PDF为 `unavailable`；OCR尚未执行。重载前按当前 ID/SHA复查缓存；撤销选择或更换同ID字节时，旧正文不能再次进入模型。
 
 `workspace_factory_public_review` 用官方 TaskTool 执行最多两项明确提供的公开文字审阅。固定与父 Run 相同的模型/provider；child工具为空、不递归、不发现私库/项目插件，父子共享原四次模型请求及1600输出 token 额度。原 TaskTool 返回的结果仍属于该原 Run，不产生第二业务任务。外部模型真实价格与余额未验证时，原宿主仍不执行任何自然输入模型调用。
 
@@ -54,7 +54,7 @@ node scripts/workspace-omp-install.mjs --check
 | 范围 | 实际证据／限制 |
 | --- | --- |
 | 原Conversation→原Run→OMP→工厂原任务 | [核心检查](validation/workspace-omp-core-20261014/README.md)：合成模型，真实HTTP／SDK，单原任务、四阶段、三文书精确SHA |
-| 默认入口、独立manifest加载、续聊、取消、恢复和审批 | [最新11项验收](validation/workspace-omp-core-20261014/default-acceptance.json)：真实子进程退出、原预算／stage ID／文书SHA保留；批准与继续分别执行 |
+| 默认入口、独立manifest加载、续聊、取消、恢复和审批 | [初版11项验收](validation/workspace-omp-core-20261014/default-acceptance.json)：真实子进程退出、原预算／stage ID／文书SHA保留；批准与继续分别执行；后续完整组合见受控公开工具检查 |
 | 原文书重载、租户／成员／只读拒绝、部分失败 | [工厂文书检查](validation/factory-export-20261014/README.md)，未发送或接单 |
 | 内置搜索／read／eval浏览器／取消 | [内置工具检查](validation/omp-builtins-factory-20261014/README.md)；真实DDG连接失败、零来源 |
 | 原生OMP子代理分工／取消／回传 | [Task检查](validation/omp-builtin-task-20261014/README.md)：两真实child AgentSession、最大并发2、合成模型、原abort回执 |
@@ -62,6 +62,22 @@ node scripts/workspace-omp-install.mjs --check
 | 普通独立工厂包 | [包契约](PI-PROCUREMENT-PACKAGE.md)，普通模式保留宿主其他工具／命令，但不激活受控私库授权 |
 
 当前没有真实付费模型、真实海外候选或完整商业链路验收。五元总额的可控剩余预算没有验证，付费调用为零；价格／预算配置标志不能当本轮实际消费证明。七天未来通知的持续同意和持久收件人权限机制仍待另行批准，未开发或激活。未部署、未合并main、未发送、未创建账户或扩展Worker权限。
+
+本轮九项交付状态（所有模型流程验收均为明确有限、无密钥合成模型）：
+
+| 项目 | 状态 | 可交付结果与剩余限制 |
+| --- | --- | --- |
+| 固定OMP默认统一入口 | 完成 | 官方交互终端与原服务统一启动；固定版本、准确缺配置拒绝 |
+| 独立工厂插件加载 | 完成 | 官方manifest实际加载；普通五工具和受控第六提交工具分开 |
+| 内置公开搜索／浏览器 | 部分完成 | 原工具接入及拒绝、页面策略已验；真实无密钥搜索失败，零真实候选 |
+| 选定公开资料读取 | 完成 | 精确文本／PDF与SHA、撤销与缓存校验；扫描页部分完成，OCR未执行 |
+| 原生OMP子代理 | 完成 | 两原生child会话、受限公开文字、共享额度、取消及回传已验 |
+| 原任务／审批／取消／恢复／结果 | 完成 | 原HTTP与账本、原ID和预算、准确人工决定／继续及重载均已验 |
+| 社区Skill辅助文书 | 部分完成 | 选定简短MIT改编实际加载，覆盖产品／客户／RFQ／报价和跟进草稿原则；上游不可变commit未核验，未接发送序列 |
+| 公开资料→候选来源→开发信→人工审核 | 部分完成 | 合成来源及文本／PDF完整链路通过；真实客户来源与真人文书验收未完成 |
+| 回归、固定版本与中文交付 | 完成 | 最新31/31，原Pi／Library53/53，原业务17/17，typecheck通过；不冒称生产上线 |
+
+剩余阻塞是未审查的真实模型配置与剩余预算、不可用的真实公开搜索，以及未批准的未来通知机制。企业终端目前未接入企业Session；企业用户继续用原认证网页/API。同伴分支的结果／恢复UI未在本分支验收。
 
 公开工具的逐次原授权、指定文件/来源→原任务三文书、搜索失败与缓存撤销检查见 [受控公开工具](validation/omp-public-tools-20261014/README.md)。默认受控宿主已显式接入上述有限工具；支持但不可达或未配置时保持准确状态。完整Pi私库guard未迁到OMP，也没有为迁移开放私库或任意文件工具。原Pi终端仅显式回退。
 

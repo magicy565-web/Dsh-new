@@ -10,6 +10,7 @@ import { createWorkspaceClient } from '../packages/workspace-procurement/src/wor
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
 import { taskFixture, TOKEN_A, TOKEN_B, until, api } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
+import { publicPdfBytes } from './fixtures/workspace-omp-public-pdf.mjs';
 const paths = workspaceOmpPaths(process.env);
 const configured = await fs.stat(paths.packageRoot + '/package.json').then(() => true).catch(() => false);
 const model = { provider: 'workspace-omp-test', id: 'finite', api: 'openai-completions', baseUrl: 'https://synthetic.invalid' };
@@ -54,10 +55,12 @@ async function finished(f, id) {
   }
   throw new Error('Original OMP frontend run did not settle');
 }
-test('actual OMP public file and source receipts feed original factory documents with one original frontend Run', { skip: !configured, timeout: 90000 }, async t => {
+for (const format of ['md', 'pdf']) test(`actual OMP public ${format} and source receipts feed original factory documents with one original frontend Run`, { skip: !configured, timeout: 90000 }, async t => {
   const directory = await fs.mkdtemp('/tmp/omp-public-factory-flow-'); t.after(() => fs.rm(directory, { recursive: true, force: true }));
   const material = 'Public synthetic cup\nSpecification: explicitly supplied synthetic cup.\nCapacity and price unknown.\n';
-  const file = directory + '/product.md'; await fs.writeFile(file, material);
+  const bytes = format === 'pdf' ? publicPdfBytes(material.replaceAll('\n', ' ')) : Buffer.from(material);
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  const file = directory + '/product.' + format; await fs.writeFile(file, bytes);
   const source = 'Public synthetic distributor catalog; https://example.com/synthetic-catalog; original public-search receipt, unverified candidate, not buyer demand or contact consent.';
   const draft = { title: 'Public synthetic factory source-to-draft', requestId: 'omp-public-source-task',
     input: { product: 'Public synthetic cup', spec: 'Explicitly supplied synthetic cup', target_market: 'Public synthetic overseas target market',
@@ -68,7 +71,7 @@ test('actual OMP public file and source receipts feed original factory documents
     { tool: 'workspace_factory_task', arguments: draft, expectedContextText: 'https://example.com/synthetic-catalog' },
     { text: 'The original task received the public synthetic source; outreach remains a human-review draft, not sent.' },
   ], Array.from({ length: 4 }, completeStage), TOKEN_A, {
-    publicTools: { files: [{ id: 'product', path: file, sha256: createHash('sha256').update(material).digest('hex') }], publicDocumentRoot: directory },
+    publicTools: { files: [{ id: 'product', path: file, sha256 }], publicDocumentRoot: directory },
     syntheticPublicSearchResponses: [{ status: 200, body: '<div class="result"><a class="result__a" href="https://example.com/synthetic-catalog">Public synthetic distributor catalog</a><a class="result__snippet">Public synthetic candidate; not a real buyer.</a></div>' }],
   });
   const cid = await conversation(f, 'omp-public-source-conversation'), accepted = await send(f, cid, 'omp-public-source-run', true);
@@ -86,7 +89,9 @@ test('actual OMP public file and source receipts feed original factory documents
   const search = entries.find(row => row.message?.role === 'toolResult' && row.message.toolName === 'workspace_public_search');
   assert.equal(search.message.details.sources[0].url, 'https://example.com/synthetic-catalog'); assert.equal(search.message.details.verifiedBuyer, false);
   const selected = entries.find(row => row.message?.role === 'toolResult' && row.message.toolName === 'workspace_public_document');
-  assert.equal(selected.message.details.documentId, 'product'); assert.equal(selected.message.details.sha256, createHash('sha256').update(material).digest('hex'));
+  assert.equal(selected.message.details.documentId, 'product'); assert.equal(selected.message.details.sha256, sha256);
+  if (format === 'pdf') { assert.equal(selected.message.details.format, 'pdf'); assert.equal(selected.message.details.status, 'document_read');
+    assert.deepEqual(selected.message.details.pagesNeedingOcr, []); assert.equal(JSON.stringify(entries).includes(bytes.toString('base64')), false); }
   for (const name of ['workspace_public_document', 'workspace_public_search', 'workspace_factory_task'])
     assert.ok(run.events.some(row => row.type === 'pi.tool.finished' && row.toolName === name), name);
   const result = await workspace(f, `/api/conversations/${cid}/business-results`); assert.equal(result.status, 200);

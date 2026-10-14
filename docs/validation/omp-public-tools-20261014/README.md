@@ -7,14 +7,14 @@
 | 工具 | 允许输入 | 配置与限制 |
 | --- | --- | --- |
 | `workspace_public_search` | `query`，可选 `limit`（1–5） | 固定 DuckDuckGo，或宿主明确选择 Startpage；每原 Run 最多两次、15 秒、256 KiB；403/429/挑战保留失败，零来源，禁止自动换 provider、付费或解挑战 |
-| `workspace_public_document` | 精确 `documentId` | 宿主选定公开 md/txt/csv 与 SHA256 后快照；每文件 64 KiB、最多八个；拒绝隐藏目录、凭据文本、路径外文件、符号链接与变更字节；没有私库、PDF/OCR或任意路径 |
+| `workspace_public_document` | 精确 `documentId` | 宿主选定公开 md/txt/csv/pdf 与 SHA256 后快照；每文件 64 KiB、最多八个；拒绝隐藏目录、凭据文本、路径外文件、符号链接与变更字节；PDF复用原生文字提取，扫描页明确部分完成；没有私库、OCR、上传或任意路径 |
 | `workspace_public_browser` | 公开 HTTPS `url` | 已有 Chromium、独立 profile、固定解析到公开 IPv4、精确 hostname 限制、禁用页面脚本；没有账户附着、表单、任意 JS、忽略证书、私有地址或自动下载 |
 
 每次调用和来源返回前均调用原 `authorize`。搜索来源及页面内容是未核验的公开证据，不能表示真实买家、库存、制造能力或联系同意。资料回执仅含 ID 与 SHA256，不向模型暴露宿主原路径。
 
 已实际运行 `node --test test/workspace-omp-public-tools.test.mjs`：3/3，通过固定 Bun 1.3.14 调用真正发布包中的搜索 provider 与 ReadTool。搜索 HTTP 使用明确合成响应；验证来源、403 空来源、撤权零网络请求、指定文本读、变更字节拒绝，以及浏览器私地址/DNS在启动前拒绝。这里不宣称生产模型执行、真实客户发现或公开浏览器导航成功。
 
-后续同入口整合检查实际28/28、零跳过：`workspace-omp.test.mjs`、`workspace-omp-launch.test.mjs`、`workspace-omp-public-tools.test.mjs`、`workspace-omp-task.test.mjs`、`workspace-omp-terminal.test.mjs`。真实官方SDK在原HTTP/Store中接收文件正文与搜索来源，再提交唯一原factory-export任务，四个原阶段保存三份文书；前台一Run，后台四Run，没有第二账本。公开来源保持未核验；后台文书阶段仅接收已提供的公开输入，不能冒充这些阶段自行检索。搜索拒绝保留零来源与工具失败；撤销文件或同ID更换SHA时在下次模型前拒绝旧缓存。
+后续同入口整合检查实际31/31、零跳过：`workspace-omp.test.mjs`、`workspace-omp-launch.test.mjs`、`workspace-omp-public-tools.test.mjs`、`workspace-omp-public-pdf.test.mjs`、`workspace-omp-task.test.mjs`、`workspace-omp-terminal.test.mjs`。真实官方SDK在原HTTP/Store中接收文件正文与搜索来源，再提交唯一原factory-export任务，四个原阶段保存三份文书；前台一Run，后台四Run，没有第二账本。公开来源保持未核验；后台文书阶段仅接收已提供的公开输入，不能冒充这些阶段自行检索。搜索拒绝保留零来源与工具失败；撤销文件或同ID更换SHA时在下次模型前拒绝旧缓存。
 
 同组合验证默认Node启动命令真实PTY→官方InteractiveMode→原Run→原回复，UI模型流禁用；缺模型/绑定时409且零Run/任务；窄回执保留原企业Session、成员/Run归属及凭据样文本拒绝。原生TaskTool以两个无工具child执行公开文字审阅，父子总四模型请求/1600输出额度、合成usage全部计入原Run；原取消传至实际child/provider并观察Bun worker退出。原Pi/Library/包53/53、原factory/business/service17/17亦独立通过。已有Chromium上脚本禁用、真实合成页面HTTP200及关闭另实际通过；这些是不同范围，不将组件诊断当真实客户获客。
 
@@ -22,4 +22,6 @@
 
 未调用付费模型，未读/创建真实密钥，未发布、发送、下单、付款或开发七天未来通知。未来通知仍须原持续同意与持久收件人机制获批。
 
-官方终端停止的真实PTY检查：Escape返回明确未停止回执并保持原Run运行；再确认才取消同一Run，实际provider收到abort、worker退出，未生成后台任务。全新28项组合已独立重跑、全部通过且零跳过；不是以等待时长代替取消证据。
+官方终端停止的真实PTY检查：Escape返回明确未停止回执并保持原Run运行；再确认才取消同一Run，实际provider收到abort、worker退出，未生成后台任务。全新31项组合已独立重跑、全部通过且零跳过；不是以等待时长代替取消证据。
+
+公开PDF增量实测：纯JavaScript生成明确合成的文字、扫描、损坏和凭据样PDF；固定官方ReadTool实际提取文字，扫描页 `partial_ocr_required` 与页码 `[1]`，损坏为 `unavailable`，凭据样提取文本、未选文件、额外路径及变化字节被拒绝。PDF组件网络与付费模型请求为零，输出只有文本。原HTTP完整流程另以选定PDF重跑，正文确实进入下一模型上下文，再由原唯一任务产出三文书；会话journal未包含PDF base64。没有安装解析依赖、OCR或上传。固定包实际提取成功不代表所有PDF均可解析；64 KiB上限和OCR缺口保持可见。
