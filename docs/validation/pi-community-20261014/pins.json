@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-14",
+  "officialPiVersion": "1.1.0",
+  "nodeVersion": "24.19.0",
+  "packages": [
+    {
+      "name": "pi-web-access",
+      "version": "0.40.0",
+      "metadataURL": "https://registry.npmjs.org/pi-web-access/0.40.0",
+      "repository": {
+        "url": "git+https://github.com/nicobailon/pi-web-access.git",
+        "type": "git"
+      },
+      "gitHead": "9861ad72a11c9af419b39f9b00860708407f7025",
+      "githubManifestURL": "https://raw.githubusercontent.com/nicobailon/pi-web-access/9861ad72a11c9af419b39f9b00860708407f7025/package.json",
+      "githubManifestVersionMatched": true,
+      "githubManifestRuntimeDependenciesMatched": true,
+      "tarball": "https://registry.npmjs.org/pi-web-access/-/pi-web-access-0.40.0.tgz",
+      "integrity": "sha512-eybqc4Agn1QZIFggtW0YMIma9K/Jqa6WFPnBQ854yi7GrISs9Lt2kRQmv402CYWaAdSPS8MbMB3kX2d3lZ7KAQ==",
+      "shasum": "ad0dba86a2ed7410639eb912f575240e7b449a05",
+      "sha256": "5cc18966bd4697a099d311972c60cd3fa2a9ad01b71930e552a9fdfa7e440b34",
+      "integrityVerified": true,
+      "engines": {
+        "node": ">=22.19.0"
+      },
+      "scripts": {
+        "test": "node --import ./test/isolate-env.mjs --test",
+        "build": "node scripts/build.js",
+        "release": "node scripts/publish.js",
+        "typecheck": "tsc",
+        "postpublish": "node scripts/pi-extensions-dist.js index.ts",
+        "audit:runtime": "npm audit --omit=dev --omit=peer",
+        "prepublishOnly": "npm run build && node scripts/pi-extensions-dist.js dist"
+      },
+      "dependencies": {
+        "unpdf": "^1.6.2",
+        "undici": "^8.11.2",
+        "p-limit": "^6.1.0",
+        "defuddle": "0.19.3",
+        "linkedom": "^0.16.0",
+        "turndown": "^7.2.0",
+        "promise.try": "^2.0.1",
+        "@mozilla/readability": "^0.6.0",
+        "@modelcontextprotocol/sdk": "1.32.1"
+      },
+      "peerDependencies": {
+        "typebox": "*",
+        "@earendil-works/pi-ai": "*",
+        "@earendil-works/pi-tui": "*",
+        "@earendil-works/pi-coding-agent": "*"
+      },
+      "peerDependenciesMeta": {
+        "@earendil-works/pi-ai": {
+          "optional": true
+        },
+        "@earendil-works/pi-tui": {
+          "optional": true
+        },
+        "@earendil-works/pi-coding-agent": {
+          "optional": true
+        }
+      },
+      "devDependencies": {
+        "esbuild": "^0.28.1",
+        "typebox": "1.3.27",
+        "typescript": "^7.0.2",
+        "@types/turndown": "^5.0.6",
+        "@earendil-works/pi-ai": "1.0.4",
+        "@earendil-works/pi-tui": "1.0.4",
+        "@earendil-works/pi-coding-agent": "1.0.4"
+      },
+      "entry": {
+        "video": "https://github.com/nicobailon/pi-web-access/raw/refs/heads/main/pi-web-fetch-demo.mp4",
+        "extensions": [
+          "./dist"
+        ]
+      },
+      "bin": {
+        "pi-web-access-mcp": "dist/mcp-cli.js"
+      },
+      "npmAttestations": null,
+      "npmSignatureVerification": "not-executed",
+      "notes": [],
+      "githubManifestComparison": "Semantic object comparison (key ordering ignored), exact names and version ranges."
+    },
+    {
+      "name": "pi-quiver",
+      "version": "6.13.2",
+      "metadataURL": "https://registry.npmjs.org/pi-quiver/6.13.2",
+      "repository": {
+        "url": "git+https://github.com/jjuraszek/pi-quiver.git",
+        "type": "git"
+      },
+      "gitHead": "241357453037815699287f4735947edd69de5248",
+      "githubManifestURL": "https://raw.githubusercontent.com/jjuraszek/pi-quiver/241357453037815699287f4735947edd69de5248/package.json",
+      "githubManifestVersionMatched": true,
+      "githubManifestRuntimeDependenciesMatched": true,
+      "tarball": "https://registry.npmjs.org/pi-quiver/-/pi-quiver-6.13.2.tgz",
+      "integrity": "sha512-mNHzDuWCKW1XVVoHfaHIdJRwttXnqVp3ctBkEYL3/2Gb3RAnsrTmja17azVJIvksNqKJRlCU0Jf+k8bor4qNew==",
+      "shasum": "855a2a6825842b95ce3c0a4a2e244dfb054aaa52",
+      "sha256": "b2988743b1b16d90ff920763a8f6bbe80047c71ba79b87b17dc8f77c4cd4918e",
+      "integrityVerified": true,
+      "engines": {
+        "node": ">=20"
+      },
+      "scripts": {
+        "test": "node --test \"test/*.test.ts\"",
+        "build": "esbuild bin/pi-quiver.ts lib/unpdf-worker.ts --bundle --packages=external --format=esm --platform=node --outdir=dist --outbase=.",
+        "prepack": "npm run build",
+        "test:all": "npm run check:agents-core && npm run test && npm run typecheck",
+        "typecheck": "npx -y tsc --noEmit",
+        "check:agents-core": "node scripts/check-agents-core.mjs"
+      },
+      "dependencies": {
+        "jsdom": "^26.0.0",
+        "unpdf": "^1.8.1",
+        "turndown": "^7.2.0",
+        "turndown-plugin-gfm": "^1.0.2",
+        "@mozilla/readability": "^0.6.0"
+      },
+      "peerDependencies": {
+        "@sinclair/typebox": "*",
+        "@earendil-works/pi-ai": "*",
+        "@earendil-works/pi-tui": "*",
+        "@earendil-works/pi-coding-agent": "*"
+      },
+      "peerDependenciesMeta": {
+        "@sinclair/typebox": {
+          "optional": true
+        },
+        "@earendil-works/pi-ai": {
+          "optional": true
+        },
+        "@earendil-works/pi-tui": {
+          "optional": true
+        },
+        "@earendil-works/pi-coding-agent": {
+          "optional": true
+        }
+      },
+      "devDependencies": {
+        "esbuild": "^0.28.2",
+        "typescript": "^6.0.3",
+        "@types/node": "^26.1.0",
+        "@types/jsdom": "^28.0.3",
+        "@types/turndown": "^5.0.6",
+        "@sinclair/typebox": "^0.34.49",
+        "@earendil-works/pi-ai": "^0.87.1",
+        "@earendil-works/pi-tui": "^0.87.1",
+        "@earendil-works/pi-coding-agent": "^0.87.1"
+      },
+      "entry": {
+        "image": "https://raw.githubusercontent.com/jjuraszek/pi-quiver/main/pi-quiver.png",
+        "prompts": [
+          "./prompts/rebase-worktree.md"
+        ],
+        "extensions": [
+          "./extensions"
+        ]
+      },
+      "bin": {
+        "pi-quiver": "dist/bin/pi-quiver.js"
+      },
+      "npmAttestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/pi-quiver@6.13.2",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "npmSignatureVerification": "not-executed",
+      "notes": [
+        "Development Pi dependencies are ^0.87.1; actual official 1.1.0 load is tested.",
+        "Required older @sinclair/typebox peer separately audited and installed only in isolation."
+      ],
+      "githubManifestComparison": "Semantic object comparison (key ordering ignored), exact names and version ranges."
+    },
+    {
+      "name": "pi-subagents",
+      "version": "0.78.0",
+      "metadataURL": "https://registry.npmjs.org/pi-subagents/0.78.0",
+      "repository": {
+        "url": "git+https://github.com/nicobailon/pi-subagents.git",
+        "type": "git"
+      },
+      "gitHead": "a4c8ced69a8176cdf4179b127feddc8875e3418f",
+      "githubManifestURL": "https://raw.githubusercontent.com/nicobailon/pi-subagents/a4c8ced69a8176cdf4179b127feddc8875e3418f/package.json",
+      "githubManifestVersionMatched": true,
+      "githubManifestRuntimeDependenciesMatched": true,
+      "tarball": "https://registry.npmjs.org/pi-subagents/-/pi-subagents-0.78.0.tgz",
+      "integrity": "sha512-AsOvPL1xaVFV4bqIlheQKNI2LmAoiAKTPXXxi39/BsWJTdMJIqAkZJ3iLi6bTsh2PZHG7Ur08b7VJOtgAMIAig==",
+      "shasum": "0ea458dd0942d1f37eb25c374b84091cb2ec23f7",
+      "sha256": "9c4562f66c595d9878c04aae31d76727087db6e025b19eeba92d3bab1ac812cc",
+      "integrityVerified": true,
+      "engines": null,
+      "scripts": {},
+      "dependencies": {
+        "jiti": "2.7.0",
+        "yaml": "2.8.3",
+        "acorn": "8.18.0",
+        "undici": "8.10.2",
+        "@js-temporal/polyfill": "0.5.1"
+      },
+      "peerDependencies": {
+        "typebox": "*",
+        "@earendil-works/pi-ai": ">=0.86.1",
+        "@earendil-works/pi-tui": "*",
+        "@earendil-works/pi-agent-core": "*",
+        "@earendil-works/pi-coding-agent": "*"
+      },
+      "peerDependenciesMeta": {
+        "typebox": {
+          "optional": true
+        },
+        "@earendil-works/pi-ai": {
+          "optional": true
+        },
+        "@earendil-works/pi-tui": {
+          "optional": true
+        },
+        "@earendil-works/pi-agent-core": {
+          "optional": true
+        },
+        "@earendil-works/pi-coding-agent": {
+          "optional": true
+        }
+      },
+      "devDependencies": {},
+      "entry": {
+        "skills": [
+          "./skills"
+        ],
+        "prompts": [
+          "./prompts"
+        ],
+        "extensions": [
+          "./index.js"
+        ]
+      },
+      "bin": {
+        "pi-subagents": "install.mjs"
+      },
+      "npmAttestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/pi-subagents@0.78.0",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "npmSignatureVerification": "not-executed",
+      "notes": [],
+      "githubManifestComparison": "Semantic object comparison (key ordering ignored), exact names and version ranges."
+    }
+  ],
+  "requiredQuiverPeer": {
+    "name": "@sinclair/typebox",
+    "version": "0.34.49",
+    "metadataURL": "https://registry.npmjs.org/@sinclair%2ftypebox/0.34.49",
+    "dist": {
+      "shasum": "4f1369234f2ecf693866476c3b2e1b54d2a9d68e",
+      "tarball": "https://registry.npmjs.org/@sinclair/typebox/-/typebox-0.34.49.tgz",
+      "fileCount": 1070,
+      "integrity": "sha512-brySQQs7Jtn0joV8Xh9ZV/hZb9Ozb0pmazDIASBkYKCjXrXU3mpcFahmK/z4YDhGkQvP9mWJbVyahdtU5wQA+A==",
+      "signatures": [
+        {
+          "sig": "MEYCIQCT/Ksob6xNM4dgmQXlZHQPlloIv+JgmmgcuhIW6T5kZgIhAOHTopuigHLpOdO8S9KSalo9cItid1r5AAOGU+jkSlfL",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        }
+      ],
+      "attestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/@sinclair%2ftypebox@0.34.49",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "unpackedSize": 1905909
+    },
+    "scripts": {
+      "test": "echo test"
+    },
+    "dependencies": {}
+  },
+  "installPolicy": {
+    "ignoreScripts": true,
+    "omit": [
+      "dev",
+      "peer"
+    ],
+    "legacyPeerDeps": true,
+    "reason": "Prevent auto-installation of floating Pi peers; fixed official host peers are explicitly reused and tested. This option is not evidence of compatibility."
+  }
+}

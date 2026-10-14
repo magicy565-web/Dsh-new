@@ -1,0 +1,38 @@
+{
+  "tools": {
+    "sourceCheck": {
+      "enabled": false
+    },
+    "getSearchContent": {
+      "enabled": false
+    }
+  },
+  "webSearch": {
+    "enabled": true,
+    "allowedProviders": [
+      "duckduckgo"
+    ]
+  },
+  "searchRouting": {
+    "providers": [
+      "duckduckgo"
+    ],
+    "useCurrentModel": false,
+    "fallbackOn": [
+      "network"
+    ]
+  },
+  "fetchRouting": {
+    "providers": [
+      "http"
+    ],
+    "allowRemoteHostedProviders": false
+  },
+  "fetch": {
+    "defaultMode": "raw",
+    "allowedModes": [
+      "raw"
+    ]
+  },
+  "workflow": "none"
+}
