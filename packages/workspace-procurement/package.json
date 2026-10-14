@@ -1,0 +1,24 @@
+{
+  "name": "@workspace-agent/pi-procurement",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pi procurement tools backed by the original authorized Workspace service",
+  "keywords": ["pi-package"],
+  "engines": { "node": ">=24" },
+  "files": ["src", "skills", "README.md"],
+  "exports": {
+    ".": "./src/extension.js",
+    "./client": "./src/workspace.mjs",
+    "./library-client": "./src/workspace-library-client.mjs"
+  },
+  "pi": {
+    "extensions": ["./src/extension.js"],
+    "skills": ["./skills"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}
