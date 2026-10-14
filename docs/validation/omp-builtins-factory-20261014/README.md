@@ -13,9 +13,12 @@ node --test test/omp-builtins.factory.test.mjs
 
 - 内置 `WebSearchTool` 的 DuckDuckGo 路径：合成 HTTP 响应经过原解析和格式化，保留来源 URL；合成 403 显式报错、来源为空，未切换入口或绕过拒绝。
 - 内置 `ReadTool`：读取本测试生成的公开 Markdown，保留未知产能文字；没有声称 PDF 转换或 OCR 通过。
-- 内置 browser eval prelude：使用已有 `/usr/bin/chromium`，访问自有合成 HTTP 产品页，读取正文并关闭所有受测标签。不下载浏览器、不附着用户浏览器、不用宿主账号。
+- 内置 browser eval prelude：使用已有 `/usr/bin/chromium`，访问自有合成 HTTP 产品页，读取正文并关闭所有受测标签。后续离线增强检查还实际执行 `EvalTool → JavaScript内核 → browser prelude → Chromium`，不是只调用浏览器底层接口。不下载浏览器、不附着用户浏览器、不用宿主账号。
+- 原JavaScript内核取消：中断十秒合成等待，三秒内返回带取消原因的 `isError` 结果；复用官方按owner清理VM。不是子代理取消证明。
 - 真实 DuckDuckGo 查询：连接错误，返回零来源；没有真实候选或独立客户证据。
 
 所有 HOME、OMP 配置、空鉴权数据库、浏览器会话和合成文件均在独立临时目录；没有读取真实密钥、企业文件或调用付费模型。源码测试会校验 Bun 二进制 SHA256 和 OMP 固定版本。提交的 results.json 仅包含紧凑事实，无运行日志或凭据。
+
+results.json 保留第一轮真实查询连接失败事实与第二轮离线增强的eval／取消事实；第二轮没有重复外网查询。两轮相同固定版本、每轮 1/1 通过、无跳过。
 
 这一检查没有模型 session、子代理、真实客户开发或 Workspace 原账本衔接证明；这些必须由各自的端到端验收确认。社区插件默认文档转换缺依赖的既有阻挡也未因此解除。

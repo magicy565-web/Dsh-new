@@ -13,19 +13,23 @@ const { ModelRegistry } = await load('src/config/model-registry.ts');
 const { WebSearchTool } = await load('src/web/search/index.ts');
 const { createBrowserPrelude } = await load('src/tools/browser.ts');
 const { ReadTool } = await load('src/tools/read.ts');
+const { EvalTool } = await load('src/tools/eval.ts');
+const { disposeVmContextsByOwner } = await load('src/eval/js/context-manager.ts');
 const settings = await Settings.init({ inMemory: true, overrides: {
   'browser.relay': false, 'browser.tern': false, 'browser.cmux': false,
-  'browser.headless': true, 'eval.autoProvision': false } });
+  'browser.headless': true, 'eval.py': false, 'eval.js': true, 'eval.autoProvision': false } });
 const auth = new AuthStorage(await SqliteAuthCredentialStore.open(path.join(process.cwd(), 'empty-auth.db')));
 const modelRegistry = new ModelRegistry(auth, path.join(process.cwd(), 'absent-models.yml'), {
   ignoreLocalModelConfig: true, settings, fetch: async () => { throw new Error('Model discovery forbidden in keyless fixture'); } });
 const session = { cwd: process.cwd(), settings, authStorage: auth, modelRegistry,
-  getSessionId: () => 'public-synthetic-factory-builtins', getArtifactsDir: () => process.cwd() };
+  getSessionId: () => 'public-synthetic-factory-builtins', getArtifactsDir: () => process.cwd(),
+  getEvalKernelOwnerId: () => 'public-synthetic-factory-builtins-owner' };
 const result = { version: 1, ompVersion: '18.10.4', bunVersion: Bun.version,
   syntheticOnly: true, paidModelCalls: 0, hostCredentialReads: 0, hostBrowserAttach: false,
   toolInvocation: 'official-tool-class-and-eval-browser-prelude; no model session claimed' };
 let server;
 const prelude = createBrowserPrelude(session);
+session.getEvalPreludes = () => [prelude];
 try {
   const search = new WebSearchTool(session), savedFetch = globalThis.fetch;
   let requests = 0;
@@ -71,6 +75,20 @@ try {
   await prelude.invoke({ action: 'close', all: true, kill: true }, {});
   const tabs = await prelude.invoke({ action: 'tabs' }, {});
   assert.equal(tabs.details.value.length, 0); result.browser.closedTabs = true;
+  const evalTool = new EvalTool(session);
+  const evaluated = await evalTool.execute('browser-via-builtin-eval', { language: 'js', timeout: 15,
+    code: `const t = await browser.open(${JSON.stringify({ name: 'factory-eval', url, allowed_domains: ['127.0.0.1'], app: { relay: false, tern: false } })}); console.log(await t.text('body')); await browser.close({all:true,kill:true});` });
+  assert.ok(evaluated.content.some(row => row.text?.includes('Capacity unknown')));
+  result.browser.evalToolChain = 'official-EvalTool → JavaScript kernel → browser prelude → existing Chromium';
+  const aborter = new AbortController();
+  const cancelledAt = Date.now();
+  const cancellation = evalTool.execute('cancel-synthetic-eval', { language: 'js', timeout: 10,
+    code: 'await new Promise(resolve => setTimeout(resolve, 10000));' }, aborter.signal);
+  setTimeout(() => aborter.abort(), 75);
+  const cancelled = await cancellation;
+  assert.equal(cancelled.isError, true); assert.match(JSON.stringify(cancelled.content), /abort|cancel/i);
+  assert.ok(Date.now() - cancelledAt < 3000, 'Cancellation must stop the wait rather than complete its ten-second timer.');
+  result.evalCancellation = { status: 'synthetic-kernel-abort-pass', noSubagentClaim: true };
   if (process.env.OMP_BUILTINS_LIVE_SEARCH === '1') {
     try {
       const live = await search.execute('public-live-source-receipt', { query: 'ceramic tableware distributor public product catalog',
@@ -85,5 +103,6 @@ try {
 } finally {
   await prelude.invoke({ action: 'close', all: true, kill: true }, {}).catch(() => {});
   if (server) await new Promise(resolve => server.close(resolve));
+  await disposeVmContextsByOwner('public-synthetic-factory-builtins-owner');
   auth.close();
 }

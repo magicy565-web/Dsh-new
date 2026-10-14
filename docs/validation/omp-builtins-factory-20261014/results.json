@@ -29,7 +29,12 @@
     "existingChromium": "/usr/bin/chromium",
     "browserDownload": false,
     "externalCustomerResearch": false,
-    "closedTabs": true
+    "closedTabs": true,
+    "evalToolChain": "official-EvalTool → JavaScript kernel → browser prelude → existing Chromium"
+  },
+  "evalCancellation": {
+    "status": "synthetic-kernel-abort-pass",
+    "noSubagentClaim": true
   },
   "liveSearch": {
     "status": "blocked",

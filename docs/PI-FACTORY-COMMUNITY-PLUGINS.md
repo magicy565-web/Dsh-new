@@ -25,4 +25,6 @@
 
 不自动复用宿主账号，不从旧聊天或配置搜集密钥，不安装未选候选，不部署、不合并 main、不发布 npm。真实模型配置和五元总预算仍需安全确认及剩余额度；合成验收不会消耗该预算。
 
-Oh My Pi 只作为主会话提供的后续对照线索：[仓库](https://github.com/can1357/oh-my-pi)、[extension-loading 说明](https://github.com/can1357/oh-my-pi/blob/main/docs/extension-loading.md)。本轮未安装、未验证，也没有底座迁移决定。不能把其 `pi.extensions`／legacy 加载说明当作 Pi 1.1.0 的完整 API 兼容证明；本轮仍固定官方 Pi 1.1.0 与上述三个候选，不新增运行引擎或适配器。
+后续授权已选择固定 Oh My Pi 作为开发默认入口方向：[官方仓库](https://github.com/can1357/oh-my-pi)，npm `@oh-my-pi/pi-coding-agent@18.10.4`。必要SDK依赖在隔离目录安装，Bun 1.3.14 单独校验、固定且禁安装hooks；默认启动和原Conversation账本适配仍在开发。原 Pi 1.1.0 保留显式回退，不同时执行同一任务；上面三个候选的 Pi 1.1.0 验收不冒充 OMP 兼容证明，也不默认叠加重复的搜索/子代理组件。
+
+OMP内置搜索来源/403、公开Markdown、已有Chromium及实际eval浏览器/取消检查见 [内置工具验收](validation/omp-builtins-factory-20261014/README.md)。真实DDG连接失败、零来源；不能声称客户研究已完成。原账本文书 `factory-export` 与简短社区Skill改编见 [工厂文书验收](validation/factory-export-20261014/README.md)。这些已测组件仍不等于默认入口端到端或商业成果。
