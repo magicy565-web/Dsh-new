@@ -1,0 +1,9 @@
+{
+  "name": "workspace-omp-bun-linux-x64",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Fixed official Bun prerequisite for the Workspace OMP entry; no lifecycle scripts",
+  "dependencies": {
+    "@oven/bun-linux-x64-baseline": "1.3.14"
+  }
+}
