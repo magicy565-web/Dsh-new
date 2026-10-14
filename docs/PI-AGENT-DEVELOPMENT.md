@@ -40,6 +40,8 @@ The development Agent exposes no generic task/delegation tool, shell, filesystem
 
 ## Compatibility and evidence
 
+Human lifecycle controls are documented in [PI-TASK-LIFECYCLE.md](PI-TASK-LIFECYCLE.md): exact approval followed by separate stable continuation, confirmed original task cancellation, and stable original-checkpoint recovery. The active model tools remain unchanged. Business document presets do not gain an external action approval state. The external Personal Worker audit and next minimal reuse plan are in [PI-PERSONAL-WORKER-NEXT.md](PI-PERSONAL-WORKER-NEXT.md).
+
 `npm run agent:tui` remains the original command profile: natural-language frontend model execution is blocked there. Its existing normal and sample behavior is covered by the original suites. The separate owner Host/Session and owner UI remain compatibility surfaces with their original authority; they are not merged into this development Agent or granted to a Workspace bearer token.
 
 Tests deliberately inject the official keyless faux provider into both the frontend SDK and original backend. The PTY test runs real official InteractiveMode through the existing POSIX PTY bridge; its fixture launcher is test-only and is not a `--sample` user entry. Finite scripted tool selections demonstrate dispatch, authenticated HTTP, original stages, document bytes and session reopen. They do not demonstrate real-model reasoning or live provider access.

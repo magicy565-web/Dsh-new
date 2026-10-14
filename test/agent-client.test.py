@@ -121,7 +121,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
             return
         if path == PREFIX + "/tasks/task-001":
             running = self.state["mode"] == "poll-limit" or (self.state["mode"] in {"reconnect", "partial-frame"} and self.state["sse_calls"] < 2)
-            self.json_response({"taskId": "task-001", "status": "running" if running else "done", "artifacts": self.state["artifacts"]})
+            self.json_response({"taskId": "task-001", "status": self.state.get("status", "running" if running else "done"), "artifacts": self.state["artifacts"]})
             return
         if path == PREFIX + "/tasks/task-001/events":
             cursor = int(query.get("from", ["0"])[0])
@@ -304,6 +304,16 @@ class AgentClientTests(unittest.TestCase):
     def test_completed_task_from_terminal_seq_returns_no_events(self):
         with fixture() as (origin, _):
             self.assertEqual(list(ws.Client(origin, TOKEN).event_stream("task-001", from_seq=7, retry_delay=0)), [])
+
+    def test_cancelled_task_stream_ends_without_reconnection_or_resubmission(self):
+        with fixture() as (origin, state):
+            state["status"] = "cancelled"
+            state["events"] = [event(1, "accepted", {"taskId": "task-001"}),
+                               event(2, "error", {"result": {"state": "cancelled", "reason": "AGENT_TASK_CANCELLED"}})]
+            self.assertEqual(list(ws.Client(origin, TOKEN).event_stream("task-001", from_seq=2,
+                                                                       retry_delay=0, poll_interval=0, max_polls=1)), [])
+            self.assertEqual(state["sse_calls"], 1)
+            self.assertTrue(all(row["method"] == "GET" for row in state["requests"]))
 
     def test_two_simultaneous_subscribers_receive_same_sequence(self):
         with fixture() as (origin, state), ThreadPoolExecutor(max_workers=2) as pool:

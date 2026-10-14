@@ -28,7 +28,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 API_BASE = "/api/agent/v1"
 KINDS = frozenset({"accepted", "stage", "thinking", "progress", "artifact", "done", "error"})
-TERMINAL = frozenset({"done", "failed", "interrupted"})
+TERMINAL = frozenset({"done", "failed", "interrupted", "cancelled"})
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_EVENT_BYTES = 1024 * 1024
 MAX_ARTIFACT_BYTES = 64 * 1024 * 1024

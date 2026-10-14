@@ -104,7 +104,8 @@ export async function createAgentCoordinator({ store, runtime, provider, project
     if (task) await projection.sync(task, state.meta.sequence);
   }
   async function change(id, fn) {
-    await store.update(state => { const task = tasks(state).find(item => item.id === id); if (task) fn(task, state); });
+    // A stale reconciliation callback cannot reopen a committed cancellation.
+    await store.update(state => { const task = tasks(state).find(item => item.id === id); if (task && task.status !== 'cancelled') fn(task, state); });
     await project(id);
   }
   async function reconcileTask(id) {
@@ -285,7 +286,32 @@ export async function createAgentCoordinator({ store, runtime, provider, project
       await project(answer.task.id); wake();
       return answer;
     },
-    async resume(id, actor, { uiApprovalHash } = {}) {
+    async cancel(id, actor) {
+      await store.update(state => {
+        const task = tasks(state).find(row => row.id === id && own(row, actor));
+        if (!task) throw new AgentHttpError(404, '任务不存在。');
+        if (task.status === 'cancelled') return;
+        if (task.legacy || !active(task) && !task.result?.resumable) throw new AgentHttpError(409, '原任务已停止且没有可取消的执行或恢复许可。', { code: 'AGENT_CANCEL_BLOCKED' });
+        task.status = 'cancelled'; task.finishedAt = now();
+        task.summary = '用户已取消原任务；已有文书与预算回执保留，不会自动恢复或创建替代任务。';
+        task.result = result(task, 'cancelled', { reason: 'AGENT_TASK_CANCELLED', resumable: false, partialArtifacts: task.deliverables.length > 0 });
+        event(task, 'cancelled', 'error', { message: task.summary, result: task.result });
+      });
+      // Admission already in progress must settle behind the cancelled task
+      // fence before acknowledging cancellation. The original Runtime owns
+      // provider aborts and ledger settlement; no new executor is introduced.
+      await pending;
+      const task = this.find(id, actor);
+      for (const step of task.steps) if (step.runId) {
+        recoveryAttempts.delete(step.runId); explicitRecoveryRequests.delete(step.runId);
+        const run = store.read().runs.find(row => row.id === step.runId);
+        if (run && ['queued', 'running', 'awaiting_approval'].includes(run.status)) await runtime.cancelRun(run.id);
+      }
+      await project(id);
+      return this.find(id, actor);
+    },
+    async resume(id, actor, { uiApprovalHash, requestId } = {}) {
+      if (requestId !== undefined && !requestKeyValid(requestId)) throw new AgentHttpError(400, '恢复需有效的稳定 requestId。');
       // Admission must be serialized with other original Store mutations.
       // Two simultaneous authenticated /resume requests cannot create two
       // business attempts or race a stale read from an already resumed task.
@@ -296,6 +322,7 @@ export async function createAgentCoordinator({ store, runtime, provider, project
           if (!actor.uiPermissionFingerprint || uiApprovalHash !== task.uiApproval.previewHash) throw new AgentHttpError(409, '原公开发送许可任务必须经企业 Session 恢复。', { code: 'AGENT_UI_TASK_ROUTE_REQUIRED' });
           assertAgentUiApprovalSource(state, task);
         }
+        if (requestId && task.resumeRequests?.some(item => item.key === requestId)) return { changed: false, runIds: [], interruptedRunId: null };
         if (active(task)) return { changed: false, runIds: [], interruptedRunId: null };
         if (!task.result?.resumable || task.legacy) throw new AgentHttpError(409, '原任务当前不能自动恢复；已有回执与失败记录保留。', { code: 'AGENT_RECOVERY_BLOCKED' });
         const unfinished = task.steps.find(step => step.status !== 'succeeded');
@@ -303,6 +330,7 @@ export async function createAgentCoordinator({ store, runtime, provider, project
         const interruptedRunId = originalRun?.status === 'interrupted' ? originalRun.id : null;
         const runIds = task.steps.map(step => step.runId).filter(Boolean);
         task.status = 'queued'; task.finishedAt = null; task.attempt++;
+        if (requestId) (task.resumeRequests ||= []).push({ key: requestId, attempt: task.attempt });
         task.result = result(task, 'recovering', { resumeFrom: task.events.length });
         return { changed: true, runIds, interruptedRunId };
       });

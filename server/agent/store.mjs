@@ -5,7 +5,7 @@ import path from 'node:path';
 import { privateDirectory, syncDirectory, openPrivateFile, acquireWriterLock } from '../store.mjs';
 
 export const AGENT_EVENT_KINDS = Object.freeze(['accepted', 'stage', 'thinking', 'progress', 'artifact', 'done', 'error']);
-export const TERMINAL_STATUSES = new Set(['done', 'failed', 'interrupted']);
+export const TERMINAL_STATUSES = new Set(['done', 'failed', 'interrupted', 'cancelled']);
 export const artifactNameValid = name => typeof name === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name) && !name.includes('..');
 const taskIdValid = id => typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id);
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');

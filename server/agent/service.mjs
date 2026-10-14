@@ -164,12 +164,12 @@ export async function createAgentService({ env = process.env, dataDir, principal
         if (!found) throw new AgentHttpError(404, '任务不存在。');
         await engine.project(found.id); await json(res, 200, store.getTask(found.id, actor)); return true;
       }
-      const resume = endpoint.match(/^\/tasks\/([^/]+)\/resume$/);
-      if (req.method === 'POST' && resume) {
+      const lifecycle = endpoint.match(/^\/tasks\/([^/]+)\/(resume|cancel)$/);
+      if (req.method === 'POST' && lifecycle) {
         const body = await readJson(req);
-        if (Object.keys(body).length) throw new AgentHttpError(400, '恢复原任务不能更改输入、模型或权限。');
-        const resumed = await engine.resume(decodeSegment(resume[1]), actor);
-        await engine.project(resumed.id); await json(res, 200, store.getTask(resumed.id, actor)); return true;
+        if (Object.keys(body).some(key => lifecycle[2] !== 'resume' || key !== 'requestId')) throw new AgentHttpError(400, '原任务操作不能更改输入、模型或权限。');
+        const changed = lifecycle[2] === 'resume' ? await engine.resume(decodeSegment(lifecycle[1]), actor, { requestId: body.requestId }) : await engine.cancel(decodeSegment(lifecycle[1]), actor);
+        await engine.project(changed.id); await json(res, 200, store.getTask(changed.id, actor)); return true;
       }
       const match = endpoint.match(/^\/tasks\/([^/]+)(?:\/(events|artifacts)(?:\/([^/]+))?)?$/);
       if (!match || req.method !== 'GET') throw new AgentHttpError(404, '任务或接口不存在。');

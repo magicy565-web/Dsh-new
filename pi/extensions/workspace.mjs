@@ -8,7 +8,7 @@ const API = '/api/agent/v1/pi/tasks';
 const BUSINESS_API = '/api/agent/v1';
 export const WORKSPACE_TOOLS = Object.freeze(['workspace_task', 'workspace_status', 'workspace_delegate', 'workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
 export const WORKSPACE_BUSINESS_TOOLS = Object.freeze(['workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
-const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-presets', 'ws-procurement', 'ws-business', 'ws-business-status', 'ws-business-resume', 'ws-quit', 'quit']);
+const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-presets', 'ws-procurement', 'ws-business', 'ws-business-status', 'ws-business-cancel', 'ws-business-resume', 'ws-quit', 'quit']);
 const requestIdentifier = value => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(value)) throw new Error('Use a requestId of at most 96 letters, numbers, underscores or dashes.');
   return value;
@@ -118,8 +118,10 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     businessPresets,
     businessSubmit,
     businessStatus,
-    businessResume: async (taskId, signal) => ({ profile: 'business-preset', identity: 'taskId', delegatedExecution: false,
-      task: await request('POST', '/tasks/' + encodeURIComponent(identifier(taskId)) + '/resume', {}, signal, { business: true }) }),
+    businessCancel: async (taskId, signal) => ({ profile: 'business-preset', identity: 'taskId', delegatedExecution: false,
+      task: await request('POST', '/tasks/' + encodeURIComponent(identifier(taskId)) + '/cancel', {}, signal, { business: true }) }),
+    businessResume: async (taskId, signal, requestId) => ({ profile: 'business-preset', identity: 'taskId', delegatedExecution: false,
+      task: await request('POST', '/tasks/' + encodeURIComponent(identifier(taskId)) + '/resume', requestId === undefined ? {} : { requestId: requestIdentifier(requestId) }, signal, { business: true }) }),
   });
 }
 
@@ -187,7 +189,9 @@ export function workspaceExtension(client, { sample = false, agent = false, clos
       });
       pi.setActiveTools([...activeTools]);
       ctx.ui.setStatus('workspace', agent ? 'Workspace · development Agent · original business tasks' : sample ? 'Workspace · controlled faux sample' : 'Workspace · original task authority');
-      ctx.ui.notify('Use /ws-task for generic runs; /ws-presets and /ws-business for original business tasks. /ws-status takes RUN_ID; /ws-business-status takes TASK_ID. Explicit public input only.', 'info');
+      ctx.ui.notify(agent
+        ? 'Use public natural text for business documents. /ws-business-status takes TASK_ID. Human controls: /ws-business-cancel TASK_ID; /ws-business-resume TASK_ID STABLE_REQUEST_ID. Generic Pi controls use RUN_ID; approval and continuation remain separate.'
+        : 'Use /ws-task for generic runs; /ws-presets and /ws-business for original business tasks. /ws-status takes RUN_ID; /ws-business-status takes TASK_ID. Explicit public input only.', 'info');
     });
     pi.on('session_shutdown', async () => { removeTerminalPolicy(); await close(); });
     pi.on('user_bash', () => ({ result: { output: 'Shell execution is unavailable in the Workspace TUI profile.', exitCode: 1, cancelled: false, truncated: false } }));
@@ -240,8 +244,25 @@ export function workspaceExtension(client, { sample = false, agent = false, clos
     command('ws-task', 'Submit an original Workspace task: /ws-task {"title":"...","content":"..."}', args => client.submit(taskInput(parseInput(args))));
     command('ws-delegate', 'Submit a task with an original bounded native child: /ws-delegate {"title":"...","content":"..."}', args => client.submit(taskInput(parseInput(args), true)));
     command('ws-status', 'Read original task state: /ws-status RUN_ID', args => client.status(args.trim()));
-    command('ws-cancel', 'Cancel original task: /ws-cancel RUN_ID', args => client.cancel(args.trim()));
-    command('ws-resume', 'Explicitly recover original checkpoint: /ws-resume RUN_ID', args => client.resume(args.trim()));
+    command('ws-cancel', 'Cancel original Pi task: /ws-cancel RUN_ID', async (args, ctx) => {
+      const runId = identifier(args.trim());
+      if (agent) {
+        const receipt = await client.status(runId);
+        if (!await ctx.ui.confirm('Cancel this original Pi task?', JSON.stringify({ runId, status: receipt.status, budget: receipt.budget, detail: 'Stops pending execution; cannot undo an external action already started.' }, null, 2)))
+          return { runId, cancelled: false, detail: 'No cancellation was sent.' };
+      }
+      return client.cancel(runId);
+    });
+    command('ws-resume', 'Recover original checkpoint: /ws-resume RUN_ID STABLE_REQUEST_ID in agent:dev', async (args, ctx) => {
+      if (!agent) return client.resume(args.trim());
+      const [runId, key, extra] = args.trim().split(/\s+/); identifier(runId); requestIdentifier(key);
+      if (extra) throw new Error('Use the original runId and one stable recovery requestId.');
+      const receipt = await client.status(runId);
+      if (receipt.status !== 'interrupted') throw new Error('Only an interrupted original Pi checkpoint can recover; no replacement task was submitted.');
+      if (!await ctx.ui.confirm('Recover this original Pi checkpoint?', JSON.stringify({ runId, requestId: key, status: receipt.status, budget: receipt.budget }, null, 2)))
+        return { runId, resumed: false, detail: 'No recovery was sent.' };
+      return client.resume(runId, key);
+    });
     command('ws-approve', 'Review exact original proposal: /ws-approve RUN_ID PROPOSAL_ID', async (args, ctx) => {
       const [runId, proposalId, extra] = args.trim().split(/\s+/); identifier(runId); identifier(proposalId); if (extra) throw new Error('Use an original run and proposal ID.');
       const receipt = await client.status(runId);
@@ -252,9 +273,17 @@ export function workspaceExtension(client, { sample = false, agent = false, clos
       if (!confirmed) return { approved: false, runId, proposalId, detail: 'No approval was sent.' };
       return client.decision(runId, proposalId, 'approved');
     });
-    command('ws-continue', 'Explicitly execute an already approved action: /ws-continue RUN_ID PROPOSAL_ID', args => {
-      const [runId, proposalId, extra] = args.trim().split(/\s+/); if (extra) throw new Error('Use an original run and proposal ID.');
-      return client.continue(runId, proposalId);
+    command('ws-continue', 'Execute an approved action: /ws-continue RUN_ID PROPOSAL_ID STABLE_REQUEST_ID in agent:dev', async (args, ctx) => {
+      const [runId, proposalId, key, extra] = args.trim().split(/\s+/); identifier(runId); identifier(proposalId);
+      if (!agent) { if (key) throw new Error('Use an original run and proposal ID.'); return client.continue(runId, proposalId); }
+      requestIdentifier(key); if (extra) throw new Error('Use the original runId, proposalId and one stable continuation requestId.');
+      const receipt = await client.status(runId), proposal = receipt.proposals?.find(value => value.id === proposalId);
+      if (!proposal) throw new Error('The exact original proposal is unavailable. No continuation was sent.');
+      // The original API also accepts an already completed identical request:
+      // do not invent a new key or reject its authoritative duplicate receipt.
+      if (!await ctx.ui.confirm('Continue this exact approved Pi action?', JSON.stringify({ runId, requestId: key, proposal, budget: receipt.budget }, null, 2)))
+        return { runId, continued: false, detail: 'No continuation was sent.' };
+      return client.continue(runId, proposalId, key);
     });
     command('ws-presets', 'List original business presets and public inputs', () => client.businessPresets());
     command('ws-procurement', 'Collect three public fields: /ws-procurement STABLE_REQUEST_ID', async (args, ctx) => {
@@ -275,14 +304,24 @@ export function workspaceExtension(client, { sample = false, agent = false, clos
     });
     command('ws-business', 'Submit an original business task: /ws-business {"type":"procurement","title":"...","input":{...},"requestId":"stable-key"}', args => client.businessSubmit(parseInput(args)));
     command('ws-business-status', 'Read original business stages and documents: /ws-business-status TASK_ID', args => client.businessStatus(args.trim()));
-    command('ws-business-resume', 'Explicitly resume the unchanged original business task: /ws-business-resume TASK_ID', async (args, ctx) => {
-      const taskId = identifier(args.trim());
+    command('ws-business-cancel', 'Cancel an original business task: /ws-business-cancel TASK_ID', async (args, ctx) => {
+      const taskId = identifier(args.trim()), receipt = await client.businessStatus(taskId);
+      if (!await ctx.ui.confirm('Cancel this original business task?', JSON.stringify({ taskId, type: receipt.task.type, status: receipt.task.status, result: receipt.task.result,
+        detail: 'Original stage is stopped; saved documents and consumed budget are retained. Cancellation cannot recover or create a replacement task.' }, null, 2)))
+        return { profile: 'business-preset', taskId, cancelled: false, detail: 'No cancellation was sent.' };
+      return client.businessCancel(taskId);
+    });
+    command('ws-business-resume', 'Recover the original business task: /ws-business-resume TASK_ID STABLE_REQUEST_ID in agent:dev', async (args, ctx) => {
+      const [id, key, extra] = args.trim().split(/\s+/);
+      const taskId = identifier(id);
+      if (agent) { requestIdentifier(key); if (extra) throw new Error('Use the original taskId and one stable recovery requestId.'); }
+      else if (key) throw new Error('Use the original taskId.');
       const receipt = await client.businessStatus(taskId);
       if (!receipt.task.result?.resumable || !['failed', 'interrupted'].includes(receipt.task.status)) throw new Error('The original business task has no eligible explicit recovery checkpoint. No continuation was sent.');
       if (!await ctx.ui.confirm('Resume this unchanged original business task?', JSON.stringify({ taskId, type: receipt.task.type, status: receipt.task.status, result: receipt.task.result }, null, 2)))
         return { profile: 'business-preset', taskId, resumed: false, detail: 'No continuation was sent.' };
-      return client.businessResume(taskId);
+      return client.businessResume(taskId, undefined, agent ? key : undefined);
     });
-    command('ws-quit', 'Close the official Pi TUI and its sample backend', async (_args, ctx) => { await close(); ctx.shutdown(); });
+    command('ws-quit', 'Close the official Pi session', async (_args, ctx) => { await close(); ctx.shutdown(); });
   };
 }

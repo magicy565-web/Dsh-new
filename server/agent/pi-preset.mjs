@@ -78,6 +78,7 @@ function assertContextSnapshot(state, context) {
 }
 export function registerAgentPresetRun(state, context, run, reply) {
   const { task, step } = assertContextSnapshot(state, context);
+  if (!['queued', 'running'].includes(task.status)) fail(409, 'AGENT_TASK_STOPPED', 'A stopped original business task cannot admit a new stage.');
   if (run.conversationId !== context.conversationId || run.requestId !== context.requestId || run.museDraftContext || run.supplierDraftContext || run.connectorGrants?.length) fail(409, 'AGENT_SCOPE_CONFLICT', 'A preset stage cannot share another business context or external action grants.');
   if (agentPresetHash(run.budget) !== agentPresetHash(context.budget)) fail(409, 'AGENT_BUDGET_REQUIRED', 'The Pi run must retain the admitted business budget.');
   if (step.runId && step.runId !== run.id || step.contextFingerprint && step.contextFingerprint !== context.fingerprint) fail(409, 'AGENT_STAGE_ALREADY_ADMITTED', 'Recover the existing original stage run.');
