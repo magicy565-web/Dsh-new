@@ -1,5 +1,9 @@
 # Pi business conversation adapter
 
+Current read-only dependency snapshots at handoff: PR66 `9306f2939892fec4011752600babc6106be06ba2`; PR67 `eb9fb0878aeca91750f03f5c2726cff87ca2c5f2`, followed by the fetched PR head `e9bfc11a999116c96c529ed536e4fed8d4f5d4c2`. The following original `a5f1f59` ThreadHarness audit is historical. Current PR67 has removed that independent host/turn/message/event/SSE implementation and delegates messages to original `runtime.sendMessage`, original `/api/events` invalidation and conversation cancellation. The old message-field rejection, thread-turn cancellation mismatch and wholesale removal of managed conversations from bootstrap are **not listed as current blockers**. Its optional Goal/Conversation links and read-only Run/Artifact projection are not prerequisites for this public business lane.
+
+Current remaining integration work is the frontend's explicit business-results/confirmed-task-resume hooks and review of shared `server/index.mjs`/access wiring between the independent branches. Current PR67's document reports22 synthetic fixture tests and explicitly lacks original createApp/SDK/auth acceptance; this PR68 native business gate does not certify that separate branch. PR66's9306f delta adds process-message/workbench presentation, with unchanged composer/cancel/taskGraphClient routes and no business-results/task-resume hooks. Peer branches were kept read-only.
+
 Date: 2026-10-14. This document records the source audit, minimal integration contract and native synthetic acceptance below. The adapter's native suite passes; broader original regressions and independent integration review are separate gates. Configuration, admission, a model answer, and document completion are separate facts.
 
 ## Pinned sources and scope

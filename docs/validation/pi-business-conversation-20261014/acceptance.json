@@ -127,7 +127,7 @@
     "test/pi-workspace-agent.pty.test.mjs": "bdf8985cc3c1a5e0798e1269ce7a1b72922cd54a44b72f401b9bba55253533fa",
     "test/pi-workspace-lifecycle.pty.test.mjs": "b3e11d48af50148f683d11833ea79cae0cab9d89b708f9b1cda22df0779ec1cf",
     "test/pi-workspace-plugins.pty.test.mjs": "bd74cb433d19eb91aaec750d137db6960b2f392211aeaf5313c07013316ccc08",
-    "docs/PI-BUSINESS-CONVERSATION-ADAPTER.md": "04287a06ce77f67ac3fd8da75875c807b3b3f4b0b1fa5d70a0ba6df3d2a9e170"
+    "docs/PI-BUSINESS-CONVERSATION-ADAPTER.md": "bc7b5a211ad2bdb82763c5d8fc73d9c32d30f2ddc9ef4d4da7fc1ef8230d562a"
   },
   "boundaries": {
     "normalHostOptions": "null/default disabled",
@@ -167,5 +167,14 @@
     "composerCancellationTaskGraphClientRoutesChanged": false,
     "businessResultsOrBusinessTasksRouteReferencesPresent": false,
     "backendResultResumeHooksRemainFrontendWork": true
+  },
+  "handoffDependencySnapshots": {
+    "pr66": "9306f2939892fec4011752600babc6106be06ba2",
+    "pr67Requested": "eb9fb0878aeca91750f03f5c2726cff87ca2c5f2",
+    "pr67FetchedCurrent": "e9bfc11a999116c96c529ed536e4fed8d4f5d4c2",
+    "oldThreadHarnessMismatchIsHistorical": true,
+    "currentPr67DelegatesOriginalRuntime": true,
+    "currentPr67SeparateOriginalAppSdkAuthAcceptanceVerifiedByThisTask": false,
+    "currentPr66BusinessResultResumeHooksPresent": false
   }
 }
