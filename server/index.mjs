@@ -1,5 +1,6 @@
 import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
 import { createAgentService } from './agent/service.mjs';
+import { createLibraryModelRead } from './library-model-read.mjs';
 import { disabledAgentUiStatus } from './agent/ui.mjs';
 import { createAgentOwnerPolicy } from './agent/privacy.mjs';
 import { createBraveResearchAdapter } from './agent/research.mjs';
@@ -92,19 +93,20 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
   try {
     await provider.initialize?.({ store });
     recovery = await readRecoveryStatus(store.directory, provider.kind);
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
     businessLibrary = createBusinessLibraryService({ store, artifacts, clock: accessClock });
+    libraryModelRead = createLibraryModelRead({ library: businessLibrary, access, policy: libraryModelReadPolicy, clock: accessClock });
     dotAuth = dotWorkerConfig && createDotWorkerAuth({ tokenDigest: dotWorkerConfig.tokenDigest });
     if (dotWorkerConfig?.enabled === true && !dotAuth)
       throw new TypeError('A reviewed dot Worker cannot be enabled without a pinned plugin bearer token.');
@@ -295,6 +297,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       musePrivacy.guardHttp(pathname, context);
       agentPrivacy.guardHttp(pathname, context);
       res.filterWorkspaceResponse = body => agentPrivacy.filterResponse(musePrivacy.filterResponse(body, context), context);
+      if (await libraryModelRead.handle({ req, res, pathname, query: url.searchParams, context, respond })) return;
       if (builtinAgent && await builtinAgent.handleUi(req, res, context)) return;
       if (await supplierOwnerMcpHttp({ req, res, pathname, context, access, readBody, guardBody: body => musePrivacy.guardHttp(pathname, context, body), filterResult: value => musePrivacy.filterResponse(value, context), service: supplierService, publication: supplierPublication, artifacts, store, binding: supplierOwnerMcpBinding, clock: accessClock })) return;
       if (!pathname.startsWith('/api/')) {

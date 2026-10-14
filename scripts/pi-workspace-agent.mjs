@@ -13,6 +13,21 @@ import { createWorkspaceTuiRuntime } from './pi-workspace-tui.mjs';
 import { loadPiProviderConfig } from '../server/pi-provider-config.mjs';
 import { createWorkspacePiModelProfile } from '../server/pi-model-profile.mjs';
 
+const libraryTools = new Set(['workspace_company_profile', 'workspace_products', 'workspace_product']);
+function cachedLibraryReceipts(messages) {
+  return messages.flatMap(message => {
+    if (message?.role !== 'toolResult' || !libraryTools.has(message.toolName)) return [];
+    let value;
+    try { value = JSON.parse(message.content.filter(block => block.type === 'text').map(block => block.text).join('\n')); }
+    catch { throw new Error('Library cached receipt cannot be reauthorized. Start a fresh transcript.'); }
+    if (['available', 'empty'].includes(value?.status)) {
+      if (value.plugin !== 'workspace-library' || !value.authorization) throw new Error('Library cached receipt lacks its original authorization.');
+      return [value];
+    }
+    return [];
+  });
+}
+
 async function privateDirectory(directory) {
   if (!path.isAbsolute(directory)) throw new Error('Use an absolute private Workspace Agent session directory.');
   await fs.mkdir(directory, { recursive: true, mode: 0o700 });
@@ -53,7 +68,19 @@ export async function createWorkspaceAgentRuntime({ client, isolationDirectory, 
     if (receipt?.profile === 'business-preset' && Array.isArray(receipt.tasks)) for (const task of receipt.tasks) if (typeof task?.taskId === 'string') previousTasks.add(task.taskId);
   }
   for (const taskId of previousTasks) await client.businessStatus(taskId);
-  const created = await createWorkspaceTuiRuntime({ client, isolationDirectory, agent: true, modelRuntime, model, sessionManager: manager, close });
+  const prepareSession = async session => {
+    const receipts = () => cachedLibraryReceipts(session.sessionManager.getEntries().map(entry => entry.message));
+    for (const receipt of receipts()) await client.revalidateLibraryReceipt(receipt, session.model);
+    // Official Agent context hook runs BEFORE every model call. Scanning the
+    // original transcript also covers compacted branches and cached summaries.
+    // The runtime factory reinstalls this guard on switch/import/fork/new.
+    const originalTransform = session.agent.transformContext;
+    session.agent.transformContext = async (messages, signal) => {
+      for (const receipt of receipts()) await client.revalidateLibraryReceipt(receipt, session.model, signal);
+      return originalTransform ? originalTransform(messages, signal) : messages;
+    };
+  };
+  const created = await createWorkspaceTuiRuntime({ client, isolationDirectory, agent: true, modelRuntime, model, sessionManager: manager, prepareSession, close });
   return { ...created, backend };
 }
 

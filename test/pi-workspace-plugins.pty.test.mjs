@@ -50,7 +50,7 @@ test('real official Pi PTY calls built-in plugins for product questions and orig
   backend.app.server.on('request', (req, res) => { calls.push({ method: req.method, route: req.url }); handler(req, res); });
   const driver = await launcher(t, backend);
   for (const [question, tool] of [['有哪些产品？', 'workspace_products'], [`产品详情 ${product.id} 是什么？`, 'workspace_product'], ['公司资料是什么？', 'workspace_company_profile']]) {
-    const output = await driver.question(question, tool); assert.match(output, /MODEL_LIBRARY_DISCLOSURE_NOT_AUTHORIZED/); assert.match(output, /blocked/);
+    const output = await driver.question(question, tool); assert.match(output, /LIBRARY_SESSION_READ_UNCONFIGURED/); assert.match(output, /unconfigured/);
   }
   const progress = await driver.question('任务进度是什么？', 'workspace_business_tasks');
   assert.ok(progress.includes(saved.task.taskId)); assert.match(progress, /done/);
@@ -70,7 +70,7 @@ test('real official Pi PTY calls built-in plugins for product questions and orig
       taskId: saved.task.taskId, status: task().status, calls, artifacts: task().deliverables.map(row => ({ name: row.name, sha256: row.sha256 })),
       terminalSha256: createHash('sha256').update(driver.raw).digest('hex'), privateLibraryDisclosed: false }, null, 2));
   }
-  t.diagnostic('Official v1.1.0 InteractiveMode with explicit finite faux frontend answered five typical questions through original tools/HTTP; private library blocked, one original task, three original text artifacts, no live model call.');
+  t.diagnostic('Official v1.1.0 InteractiveMode with explicit finite faux frontend answered five typical questions through original tools/HTTP; private library unconfigured, one original task, three original text artifacts, no live model call.');
 });
 
 test('official Pi PTY answers empty task/result queries honestly without synthetic production fallback', { skip: process.platform === 'win32', timeout: 30_000 }, async t => {

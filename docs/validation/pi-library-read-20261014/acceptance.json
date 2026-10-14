@@ -1,0 +1,152 @@
+{
+  "createdAt": "2026-10-14T10:39:25.908316+00:00",
+  "sourceBase": "5e27dcebe691a1122e504b7a582c08fb67665d3c",
+  "branch": "codex/pi-business-normal-20261014",
+  "mainObservedSha": "b9546e1d7e6d7ac1381f84327a4f15cbfc60598f",
+  "scope": "actual original enterprise Session/HTTP/Store adapters; only isolated synthetic records activated",
+  "normalCliLibraryBinding": "unconfigured",
+  "runtime": "official Pi1.1.0 AgentSession / ExtensionAPI / ModelRuntime / InteractiveMode; original Workspace service",
+  "uniqueCounts": {
+    "nodeIncludingPty": 161,
+    "nodeWithoutPty": 153,
+    "actualOfficialPty": 8,
+    "python": 28
+  },
+  "checks": [
+    {
+      "command": "node --test test/pi-workspace-plugins.test.mjs test/pi-workspace-plugins.http.test.mjs test/pi-workspace-agent.test.mjs test/pi-workspace-agent-startup.test.mjs test/pi-workspace-tui.test.mjs test/pi-workspace-normal.test.mjs test/pi-workspace-business.test.mjs test/pi-task.http.test.mjs test/library-api.test.mjs test/library-recovery.test.mjs test/library-containment.test.mjs test/access.test.mjs test/access-startup.test.mjs test/access-audit.test.mjs",
+      "passed": 93,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "node --test test/pi-native-agent.test.mjs test/pi-process-crash.test.mjs test/pi-subagent.test.mjs test/pi-provider-config.test.mjs test/pi-startup-config.test.mjs test/agent-pi-service.http.test.mjs test/agent-pi-runtime.test.mjs",
+      "passed": 46,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "node --test test/pi-workspace-plugins.pty.test.mjs test/pi-workspace-lifecycle.pty.test.mjs test/pi-workspace-agent.pty.test.mjs test/pi-workspace-business.pty.test.mjs test/pi-workspace-tui.pty.test.mjs",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "type": "actual official POSIX PTY"
+    },
+    {
+      "command": "node --test test/pi-library-read.test.mjs test/pi-library-read.pty.test.mjs",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "unitHttpStoreChecks": 14,
+      "actualOfficialPtyChecks": 2
+    },
+    {
+      "command": "python3 test/agent-client.test.py",
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run build",
+      "passed": true,
+      "note": "TypeScript/Vite passed; existing chunk-size warning. No deployment."
+    }
+  ],
+  "libraryFacts": {
+    "toolNames": [
+      "workspace_company_profile",
+      "workspace_products",
+      "workspace_product"
+    ],
+    "getOnly": true,
+    "sourceKinds": [
+      "company",
+      "product"
+    ],
+    "sourceEvidence": [
+      "recordId",
+      "revision",
+      "projectionSha256"
+    ],
+    "persistedOriginalStoreReload": true,
+    "crossMemberAndTwoEnterpriseDenial": true,
+    "bearerNotSession": true,
+    "defaultUnconfigured": true,
+    "authorizedEmpty": true,
+    "partialFailureDoesNotDiscloseEarlierRow": true,
+    "revisionChangeDenied": true,
+    "cachedReceiptsReauthorizedBeforeModel": true,
+    "sameSessionModelChangeStoppedBeforeProviderCall": true,
+    "unsafeAndTamperedProjectionDenied": true,
+    "domainLibraryAndOperationReceiptsUnchangedOnReadDenial": true,
+    "originalIngressAuditMayWrite": true,
+    "terminalSha256": "5b29e16016b9c8a7098bef7351995b3dd5a9e5efec84ffe319d0d46008f773ac"
+  },
+  "disclosureFields": {
+    "company": [
+      "legalName",
+      "displayName",
+      "description"
+    ],
+    "product": [
+      "name",
+      "description",
+      "category",
+      "status"
+    ],
+    "metadata": [
+      "id",
+      "revision",
+      "projectionSha256",
+      "workspaceId",
+      "subject",
+      "scopeFingerprint",
+      "expiresAt",
+      "recipient"
+    ]
+  },
+  "recipientTestOnly": {
+    "kind": "pi-coding-agent",
+    "provider": "workspace-agent-test-faux",
+    "model": "workspace-agent-test",
+    "destination": "faux://keyless-synthetic"
+  },
+  "liveModelCalls": 0,
+  "paidModelCalls": 0,
+  "realPrivateLibraryReads": 0,
+  "realWorkerCalls": 0,
+  "keysOrProfilesRead": false,
+  "runtimeDataCommitted": false,
+  "newAccountsCredentialsPermissions": false,
+  "mainModifiedMergedDeployed": false,
+  "cleanInstallClaimed": false,
+  "githubCiClaimed": false,
+  "retainedTestCorrections": [
+    "Old default denial reason changed to truthful unconfigured",
+    "Synthetic fixture closed its Store before removing temporary directory",
+    "Long CJK PTY rendering assertions use IDs/hash and short facts; Node verifies exact complete text",
+    "Denied POST can write original ingress audit; assertions check original business records/operation receipts instead of global audit sequence"
+  ],
+  "sourceSha256": {
+    "server/index.mjs": "88f5c25f831584acab3f4cc7f9d0368f053267f98290e496145892093a10b773",
+    "server/library-model-read.mjs": "e66a6e7cdee01db0f9a3d5e3456bd19a2564371764393cc5d7452f38b633bdad",
+    "server/library-model-read-contract.mjs": "af51e7502f3dc5ef0667b4bdefceafbb460c5b1b8758d4d5d1e660358da8ea22",
+    "pi/extensions/workspace-library-client.mjs": "ee682224afd90a70ea621cd25ac9185848aba2d914f2ff14549d18ac14f94045",
+    "pi/extensions/workspace.mjs": "56153d70853efab6b6c450c6ce769d7f98c53bc1fe074650d60ef189ce4efbc2",
+    "pi/extensions/workspace-read.mjs": "8ad1dd4f925dfc88fe7420dd31f7939e1916ec3fd2a51cee448dadcec1eafc88",
+    "scripts/pi-workspace-agent.mjs": "023a5f8d65b014b1f50574ed4c7144e2d55f7ff7618fbab27ced6319fa58c0c9",
+    "scripts/pi-workspace-tui.mjs": "591ec7efd65fa27312adf03b0c683ff4301bdc81754b46cfe73fef70a4b9fd46",
+    "test/fixtures/pi-task-helpers.mjs": "5dce3dd6e08457901ee1c3e7e125b69964cf80fe5328c4ef3fd98b9b88cbc5c1",
+    "test/fixtures/pi-library-read.mjs": "7a54a17164816180f7171979b1ecc787254302ce882f54bd5cc2e0c521ea02cb",
+    "test/fixtures/pi-library-read-pty.mjs": "d1e46ba681140079dd16a1e28f5d207446553ab270ab3180626757d94fa3a2fb",
+    "test/pi-library-read.test.mjs": "085044598dabd4e8c84cebaa152d62f8ff382965979318dd48d71818bcf99074",
+    "test/pi-library-read.pty.test.mjs": "594b611c00de9dc2a9aae5d53b6f8d6cf6a6a0f808ca41a133262a461acc0e07",
+    "docs/PI-LIBRARY-MODEL-READ.md": "e4e6689dd9f036c2d69c9fa34ad2083c665c4bc71a6a5be9cc5780444ca6f0ff"
+  },
+  "overlappingFollowup": {
+    "command": "node --test test/pi-workspace-agent.test.mjs test/pi-workspace-agent-startup.test.mjs test/pi-workspace-plugins.test.mjs",
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0
+  }
+}

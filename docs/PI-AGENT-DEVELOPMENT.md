@@ -22,7 +22,7 @@ The frontend transport uses the existing official OpenAI-compatible provider pro
 
 ## Business conversation
 
-The original three core execution tools are retained below. The [built-in business plugins](PI-BUILTIN-BUSINESS-PLUGINS.md) add task-list/result reads plus three deny-only enterprise/product capability tools, for eight active tools in total. The added library tools report the existing authorization gap without fetching private data.
+The original three core execution tools are retained below. The [built-in business plugins](PI-BUILTIN-BUSINESS-PLUGINS.md) add task-list/result reads plus three controlled enterprise/product read tools, for eight active tools in total. Library reads are default unconfigured; a reviewed, expiring field/revision/model scope and original enterprise Session transport are required. See [controlled library reads](PI-LIBRARY-MODEL-READ.md). The normal CLI does not activate this binding.
 
 | Tool | Existing operation |
 | --- | --- |

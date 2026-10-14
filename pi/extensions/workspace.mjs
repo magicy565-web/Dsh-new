@@ -22,7 +22,7 @@ const identifier = value => {
 
 // This is a transport adapter, not a task registry. The original authenticated
 // Workspace service owns admission, identities, approvals, budgets and output.
-export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}) {
+export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch, libraryClient = null } = {}) {
   let base;
   try { base = new URL(baseURL); } catch { throw new Error('Set WS_AGENT_URL to the original Workspace service origin.'); }
   const host = base.hostname.replace(/^\[|\]$/g, '');
@@ -66,8 +66,8 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     return redact(value);
   }
   const businessPresets = signal => request('GET', '/presets', undefined, signal, { business: true });
-  const privateLibraryGap = capability => ({ plugin: 'workspace-library', capability, status: 'blocked', reason: 'MODEL_LIBRARY_DISCLOSURE_NOT_AUTHORIZED', sources: [],
-    detail: 'The original enterprise library uses Session access and denies model disclosure. This Agent binding cannot read company/product records; no private data was fetched. This does not mean the library is empty.' });
+  const privateLibraryGap = capability => ({ plugin: 'workspace-library', capability, status: 'unconfigured', reason: 'LIBRARY_SESSION_READ_UNCONFIGURED', sources: [],
+    detail: 'No reviewed library projection/Session transport is bound to this Agent; no private record was read. This does not mean the catalog is empty.' });
   async function businessTasks(input = {}, signal) {
     if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['limit', 'status', 'withArtifacts'].includes(key))
       || input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 20)
@@ -157,12 +157,13 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     // Bearer binding on every HTTP request. Never persist the token itself.
     bindingFingerprint: createHash('sha256').update(origin).update('\0').update(token).digest('hex'),
     check,
-    companyProfile: () => privateLibraryGap('company-profile'),
-    products: (input = {}) => {
+    companyProfile: (signal, model) => libraryClient ? libraryClient.companyProfile(signal, model) : privateLibraryGap('company-profile'),
+    revalidateLibraryReceipt: (receipt, model, signal) => { if (!libraryClient) throw new Error('Library cached receipt has no current reviewed Session binding.'); return libraryClient.revalidateReceipt(receipt, model, signal); },
+    products: (input = {}, signal, model) => {
       if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => key !== 'limit') || input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 20)) throw new Error('Use only a product-list limit from 1 to 20.');
-      return privateLibraryGap('product-list');
+      return libraryClient ? libraryClient.products(input, signal, model) : privateLibraryGap('product-list');
     },
-    product: productId => { if (typeof productId !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(productId)) throw new Error('Use an exact original product UUID.'); return privateLibraryGap('product-detail'); },
+    product: (productId, signal, model) => { if (typeof productId !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(productId)) throw new Error('Use an exact original product UUID.'); return libraryClient ? libraryClient.product(productId, signal, model) : privateLibraryGap('product-detail'); },
     businessTasks,
     businessResult,
     submit: (input, signal) => request('POST', '', input, signal),

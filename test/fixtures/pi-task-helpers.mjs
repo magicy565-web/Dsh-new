@@ -34,7 +34,7 @@ export async function terminal(f, id) {
   const response = await api(f, PI_API + '/tasks/' + id);
   assert.equal(response.status, 200, JSON.stringify(response.json)); return response.json;
 }
-export async function taskFixture(t, { directory: selectedDirectory, enterprise = false, workspaceId = 'pi-enterprise-test', responses = [], principals: selectedPrincipals, accessClock, timeoutMs = 60000 } = {}) {
+export async function taskFixture(t, { directory: selectedDirectory, enterprise = false, workspaceId = 'pi-enterprise-test', responses = [], principals: selectedPrincipals, accessClock, libraryModelReadPolicy = null, timeoutMs = 60000 } = {}) {
   const directory = selectedDirectory || await fs.mkdtemp('/tmp/workspace-pi-task-test-');
   const faux = fauxProvider({ api: 'faux' }); faux.setResponses(responses);
   const models = createModels(); models.setProvider(faux.provider);
@@ -45,12 +45,12 @@ export async function taskFixture(t, { directory: selectedDirectory, enterprise 
     { subject: 'member-a', workspaceId: access.workspaceId, tokenSha256: sha(TOKEN_A), scopes: ['agent:read', 'agent:submit'] },
     { subject: 'member-b', workspaceId: access.workspaceId, tokenSha256: sha(TOKEN_B), scopes: ['agent:read', 'agent:submit'] },
   ] : [{ subject: 'local-operator', workspaceId: 'local', tokenSha256: sha(TOKEN_A), scopes: ['agent:read', 'agent:submit'] }]);
-  const app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, access, accessClock,
+  const app = await createApp({ dataDirectory: directory, capabilityEnvironment: {}, access, accessClock, libraryModelReadPolicy,
     provider: createPiProvider({ models, providerId: 'faux', model: 'faux-1', timeoutMs }), agentConfig: { env: {}, principals } });
   const address = await app.listen(0);
   const sessions = new Map();
   const f = { directory, app, faux, enterprise, token: TOKEN_A, baseURL: `http://127.0.0.1:${address.port}`,
-    async workspace(route, { subject = 'member-b', body } = {}) {
+    async workspace(route, { subject = 'member-b', body, headers = {} } = {}) {
       if (!sessions.has(subject)) {
         const target = '/api/session/login';
         const login = await request(this.baseURL, target, { method: 'POST', body: {}, headers: { Host: 'workspace.example', Origin: access.publicOrigin, 'X-Workspace-Login': '1',
@@ -60,7 +60,7 @@ export async function taskFixture(t, { directory: selectedDirectory, enterprise 
       }
       const method = body === undefined ? 'GET' : 'POST';
       return request(this.baseURL, route, { method, headers: { Host: 'workspace.example', ...(method === 'POST' ? { Origin: access.publicOrigin } : {}),
-        ...sessions.get(subject), 'content-type': 'application/json', 'X-Workspace-Assertion': signWorkspaceRequest({ privateKey: keys.privateKey, ...access, subject, method, target: route, body: body === undefined ? '' : JSON.stringify(body) }) },
+        ...sessions.get(subject), ...headers, 'content-type': 'application/json', 'X-Workspace-Assertion': signWorkspaceRequest({ privateKey: keys.privateKey, ...access, subject, method, target: route, body: body === undefined ? '' : JSON.stringify(body) }) },
         ...(body === undefined ? {} : { body }) });
     },
   };

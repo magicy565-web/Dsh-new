@@ -51,7 +51,7 @@ const complete = () => fauxAssistantMessage(fauxToolCall('workspace_complete_pre
   questions: [{ text: '是否可以补充原始报价与证据来源？', sources: [] }],
 }), { stopReason: 'toolUse' });
 
-test('official built-in plugins answer product questions with disclosure block and task/result questions with original records', async t => {
+test('official built-in plugins answer product questions with default unconfigured library and task/result questions with original records', async t => {
   const f = await startPiDevelopment({ seedApprovalConnector: false }); t.after(() => f.close());
   const product = await seedPrivateLibrary(f), calls = [], client = tracedClient(f, f.token, calls);
   const submitted = await client.businessSubmit({ ...PUBLIC_PROCUREMENT, requestId: 'plugins-original-public-task' });
@@ -66,8 +66,8 @@ test('official built-in plugins answer product questions with disclosure block a
   assert.deepEqual(a.runtime.session.getActiveToolNames().sort(), [...TOOLS].sort());
   for (const question of ['有哪些产品？', `产品 ${product.id} 的详情是什么？`]) {
     await a.runtime.session.prompt(question);
-    assert.equal(receipt(a.runtime).status, 'blocked');
-    assert.equal(receipt(a.runtime).reason, 'MODEL_LIBRARY_DISCLOSURE_NOT_AUTHORIZED');
+    assert.equal(receipt(a.runtime).status, 'unconfigured');
+    assert.equal(receipt(a.runtime).reason, 'LIBRARY_SESSION_READ_UNCONFIGURED');
     assert.deepEqual(receipt(a.runtime).sources, []);
   }
   await a.runtime.session.prompt('任务进度如何？请查我已经完成的任务。');
@@ -85,7 +85,7 @@ test('official built-in plugins answer product questions with disclosure block a
     assert.equal(createHash('sha256').update(artifact.content).digest('hex'), original.sha256);
     assert.ok(JSON.stringify(value.sources).includes(artifact.name));
   }
-  await a.runtime.session.prompt('公司资料是什么？'); assert.equal(receipt(a.runtime).status, 'blocked');
+  await a.runtime.session.prompt('公司资料是什么？'); assert.equal(receipt(a.runtime).status, 'unconfigured');
   assert.deepEqual(results(a.runtime).map(row => row.toolName), ['workspace_products', 'workspace_product', 'workspace_business_tasks', 'workspace_business_result', 'workspace_company_profile']);
   assert.ok(calls.some(row => row.route === '/api/agent/v1/tasks?limit=5&status=done'));
   assert.ok(calls.some(row => row.route === '/api/agent/v1/tasks?limit=1&withArtifacts=1'));
@@ -95,7 +95,7 @@ test('official built-in plugins answer product questions with disclosure block a
   const transcript = JSON.stringify(a.runtime.session.agent.state.messages);
   assert.ok(!transcript.includes(PRIVATE_SENTINEL)); assert.ok(!transcript.includes(f.token));
   assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 1); assert.equal(f.faux.state.callCount, 4);
-  t.diagnostic('Five official tool calls, actual original task list/detail/events/artifacts, private-library blocks without library HTTP, and artifact SHA match; both frontend/backend models explicitly faux, paid/live calls zero.');
+  t.diagnostic('Five official tool calls, actual original task list/detail/events/artifacts, private-library gaps without library HTTP, and artifact SHA match; both frontend/backend models explicitly faux, paid/live calls zero.');
 });
 
 test('empty task and result plugins return explicit empty receipts without fabricated products or tasks', async t => {
