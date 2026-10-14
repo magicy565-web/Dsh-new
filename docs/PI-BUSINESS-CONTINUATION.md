@@ -1,12 +1,14 @@
 # Official Pi / Workspace normal-mode continuation
 
+The backend development main entry is now [`npm run agent:dev`](PI-AGENT-DEVELOPMENT.md): an official AgentSession directly loads the original business tools, persists its conversation and rechecks original task access before reopening. The entries below retain their separate compatibility identities.
+
 This development branch starts from PR63's tested `f9b95f631f2c6ef22545b7556cc3b37c53663bc4`. It reuses only the independent server provider configuration and CLI smoke from paused PR64 (`e3cb089de3fc70131f1f0038d5bee7e35af85e2c`); no owner web UI, browser API adapter, SessionGate change or second Runtime is imported.
 
 The CLI smoke previously queried `/healthz` while the original server exposes `/api/health`. The test now starts the actual CLI with an isolated empty-key DeepSeek configuration, reads its real health/bootstrap, checks setup-required state and closes cleanly. The six SDK wire checks plus eleven original Pi regressions also pass. All wire responses in these automatic checks are explicitly synthetic; there is no paid or live-provider evidence.
 
 ## Existing normal entries
 
-The root entry is `npm run agent:tui`, with **no `--sample`**. Existing `WS_AGENT_URL` / `WS_AGENT_TOKEN` must be injected by the authorized host. This official Pi InteractiveMode profile submits commands through the original member-bound API; its frontend has no model account and natural-language model execution is disabled. The original backend Pi executes the existing business stages and tools and retains task/result authority.
+The compatibility command entry is `npm run agent:tui`, with **no `--sample`**. Existing `WS_AGENT_URL` / `WS_AGENT_TOKEN` must be injected by the authorized host. This official Pi InteractiveMode profile submits commands through the original member-bound API; its frontend has no model account and natural-language model execution is disabled. The original backend Pi executes the existing business stages and tools and retains task/result authority.
 
 Recommended sequence: first run `npm run agent:tui -- --check`; after a successful exit, run `npm run agent:tui`. Plain startup does not execute readiness checks and an open editor does not prove connectivity or model availability. The unavailable-service/demo/unconfigured-model failure exits described in the normal-mode guide apply specifically to `--check`.
 

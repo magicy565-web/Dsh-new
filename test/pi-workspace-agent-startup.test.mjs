@@ -76,6 +76,7 @@ test('shared native official model profile uses bounded non-thinking mocked wire
   const calls = [];
   globalThis.fetch = async (input, options) => {
     const outgoing = new Request(input, options); assert.equal(outgoing.url, 'https://api.deepseek.com/chat/completions');
+    assert.ok(outgoing.signal instanceof AbortSignal);
     assert.equal(outgoing.headers.get('authorization'), 'Bearer ' + modelKey);
     const body = await outgoing.json(); calls.push(body);
     return new Response(JSON.stringify({ error: { message: 'Synthetic rejected ' + modelKey + ' and ' + serviceToken, type: 'authentication_error' } }),

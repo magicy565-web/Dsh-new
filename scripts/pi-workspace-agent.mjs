@@ -66,7 +66,8 @@ export async function createWorkspaceAgentModel(configuration, secrets = []) {
       ? Object.fromEntries(Object.entries(value).map(([key, item]) => [redact(key), redact(item)])) : value;
   const original = openAICompletionsApi();
   const guarded = method => (model, context, options) => lazyStream(model, async () => {
-    const source = original[method](model, context, { ...options, env: {}, maxTokens: 1600, maxRetries: 0, timeout: 60_000, reasoning: 'off' });
+    const signal = options?.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000);
+    const source = original[method](model, context, { ...options, signal, env: {}, maxTokens: 1600, maxRetries: 0, timeoutMs: 60_000, reasoning: 'off' });
     return {
       async *[Symbol.asyncIterator]() { try { for await (const event of source) yield redact(event); } catch { throw new Error('The configured model transport failed. No task completion is implied.'); } },
       async result() { try { return redact(await source.result()); } catch { throw new Error('The configured model transport failed. No task completion is implied.'); } },

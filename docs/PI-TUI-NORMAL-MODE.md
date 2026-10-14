@@ -1,11 +1,13 @@
 # Official Pi TUI: normal command mode
 
+The backend development main entry is now [`npm run agent:dev`](PI-AGENT-DEVELOPMENT.md), where one official AgentSession loads the existing business tools. This document describes the retained `agent:tui` compatibility command profile.
+
 `npm run agent:tui` opens the installed official Pi `InteractiveMode` and the
 original Workspace extension. Normal mode is an authenticated command client.
 It has no configured frontend model; natural-language input displays an explicit
 refusal and starts no model call or task. The original backend runs Pi models and
 business tools after a `/ws-*` submission. The separate `tui/AGENT-MODE.md`
-describes another existing profile and does not change this root entry.
+describes the separate existing owner profile and does not change this command entry.
 
 ## Connection and read-only readiness
 

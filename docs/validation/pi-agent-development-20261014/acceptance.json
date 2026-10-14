@@ -67,7 +67,7 @@
     "Not GitHub CI evidence."
   ],
   "sourceSha256": {
-    "scripts/pi-workspace-agent.mjs": "a19c9c7b1986abc582301d7fd023daf7e74a6d8e1c821cca71c4cd97a1fcca8c",
+    "scripts/pi-workspace-agent.mjs": "1be894d77e92a3678a5539ec61677152599679a4c8b869eb34b10e0844beed31",
     "scripts/pi-workspace-tui.mjs": "f9bd79ee4e05387916c577c3d795e063f168bcf4d216e018de8a22989d4fd975",
     "pi/extensions/workspace.mjs": "aec47376a7e88d617f6d0ad7a8ef0127b45c1677bd594215ab33cd4a4f29867e",
     "server/pi-model-profile.mjs": "3f066c69c803b79559a6d7ba6f53a1dd030b7d620a53a6fc0067d2dcf3e62a16",
@@ -75,7 +75,7 @@
     "package.json": "32f70c16011542f6cd265ae6e5422b21bfcb0ecba67d5db306ba3c16f2ecaee8",
     "test/pi-workspace-agent.test.mjs": "2ee7d88ccec88e2621df3b260daeabe6b057b38dbb071bae8e97aba6f251adcd",
     "test/pi-workspace-agent.pty.test.mjs": "4d7c7ee6f4fbb3042b63e6cda2f5155b2164865a7df4aa15dcc18a4314b337f0",
-    "test/pi-workspace-agent-startup.test.mjs": "bae13ff774594c8cee6645f8f1bdc99a738e6503ff553a5c830ee62154f050b3",
+    "test/pi-workspace-agent-startup.test.mjs": "3af1fc8369091ec7ff3ea882a18c035559a3112fcd1f0a651328893cf09a8536",
     "test/fixtures/pi-workspace-agent-faux.mjs": "be5269b94dd004b8db6b37c06a583ded734089b789e5686d1cae9607f1638f5a",
     "test/fixtures/pi-workspace-agent-pty.mjs": "998ec1d2008650fe43005d6fd04e493e2fdbcfd33c9782585d76e9457ed86513"
   },
@@ -83,5 +83,13 @@
     "agent-pty.json": "b4abf1393137b115c804ef52b0b16c8be49a83d0a240d8e6f2fc976f04e44799",
     "agent-pty.txt": "223d89a070ab81ff1d9402c00a77f104838a844b9d221428c5442d14dfe1d85d",
     "workspace-pi-agent-final.log": "c2086773b0ca31acbd11ae3942a282847669451acd2a8642d7e2f2aca27c9c8e"
+  },
+  "postCheckpointTransportCheck": {
+    "command": "node --test test/pi-workspace-agent-startup.test.mjs",
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "reason": "Final SDK timeoutMs correction and explicit abort deadline; unique total remains46."
   }
 }
