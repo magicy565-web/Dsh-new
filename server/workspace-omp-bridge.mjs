@@ -18,7 +18,7 @@ export async function checkWorkspaceOmpPaths(paths) {
   const manifest = JSON.parse(await fs.readFile(path.join(paths.packageRoot, 'package.json')));
   if (manifest.name !== '@oh-my-pi/pi-coding-agent' || manifest.version !== '18.10.4') throw new Error('Install the fixed official OMP 18.10.4 package; no Node or alternate engine fallback is implicit.');
 }
-export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheticResponses = null }) {
+export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheticResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
   return Object.freeze({ scope: OMP_ENGINE_SCOPE,
     async complete({ input, run, binding, client, authorize, isolationDirectory, savedSession, saveSession }) {
       await checkWorkspaceOmpPaths(paths); await authorize();
@@ -29,10 +29,12 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheti
       const home = path.join(isolationDirectory, 'home'); await privateDirectory(home);
       const childEnv = { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: home, TMPDIR: isolationDirectory,
         PI_CODING_AGENT_DIR: agentDir, PI_NO_TITLE: '1', NO_COLOR: '1', TERM: 'dumb' };
+      for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS']) if (typeof infrastructure[key] === 'string') childEnv[key] = infrastructure[key];
       // No service token/API key appears in argv, logs or env. The selected
       // model configuration crosses the private fd only, and never the model context.
       return await new Promise((resolve, reject) => {
         const child = spawn(paths.bun, [path.join(root, 'server/workspace-omp-worker.mjs')], { cwd: isolationDirectory, env: childEnv, detached: true, stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
+        onWorkerLifecycle({ phase: 'spawn', pid: child.pid });
         const channel = child.stdio[3]; let settled = false, bytes = 0, modelCalls = 0, childClosed = false, pendingResult = null, resultVerified = false;
         const lines = createInterface({ input: channel, crlfDelay: Infinity });
         const send = value => { if (!channel.destroyed) channel.write(JSON.stringify(value) + '\n'); };
@@ -43,10 +45,11 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheti
         const finish = (error, result) => { if (settled) return; settled = true; clearTimeout(timer); input.signal?.removeEventListener('abort', stop);
           if (error) { stop(); reject(error); } else resolve(result); };
         channel.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP transport closed.')); });
+        lines.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP line transport closed.')); });
         const finishSuccess = () => { if (childClosed && resultVerified) finish(null, { ...pendingResult, runtime: { ...pendingResult.runtime, workerExitObserved: true } }); };
         input.signal?.addEventListener('abort', stop, { once: true });
         const allowed = new Set(['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
-        lines.on('line', async line => {
+        const handleLine = async line => {
           bytes += Buffer.byteLength(line); if (bytes > 8_000_000 || Buffer.byteLength(line) > 2_000_000) { finish(new ProviderError('OMP_PROTOCOL_LIMIT', 'OMP exceeded its admitted transport limit.')); return; }
           let message; try { message = JSON.parse(line); } catch { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'OMP returned an invalid transport receipt.')); return; }
           if (message.type === 'request') {
@@ -73,10 +76,13 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, syntheti
             pendingResult = message.result;
             try { await authorize(); const result = pendingResult; if (result?.runtime?.engineScope !== OMP_ENGINE_SCOPE || result.runtime.originalRunId !== run.id || result.runtime.modelCalls !== modelCalls) throw new Error(); resultVerified = true; finishSuccess(); }
             catch { finish(new ProviderError('OMP_RECEIPT_INVALID', 'OMP returned an invalid original-run receipt.')); }
-          } else if (message.type === 'error') finish(new ProviderError('OMP_SESSION_FAILED', message.error + (syntheticResponses && message.diagnostic ? ' Explicit synthetic fixture diagnostic: ' + message.diagnostic : '')));
-        });
+          } else if (message.type === 'nativeModelAbort' && syntheticResponses) onWorkerLifecycle({ phase: 'nativeModelAbort', pid: child.pid });
+          else if (message.type === 'error') finish(new ProviderError('OMP_SESSION_FAILED', message.error + (syntheticResponses && message.diagnostic ? ' Explicit synthetic fixture diagnostic: ' + message.diagnostic : '')));
+        };
+        lines.on('line', line => { void handleLine(line).catch(() => finish(new ProviderError('OMP_SESSION_FAILED', 'The original OMP host operation stopped.'))); });
         child.on('error', () => finish(new ProviderError('OMP_UNAVAILABLE', 'The reviewed OMP runtime could not start.')));
         child.on('close', code => { childClosed = true; clearTimeout(killTimer); lines.close();
+          onWorkerLifecycle({ phase: 'exit', pid: child.pid, code });
           if (pendingResult && code === 0) finishSuccess();
           else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.')); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,

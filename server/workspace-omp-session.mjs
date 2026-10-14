@@ -5,6 +5,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { factoryExtension } from '../packages/workspace-procurement/src/extension.js';
+import { ORDINARY_FACTORY_TOOLS } from '../packages/workspace-procurement/src/extension.js';
+import { workspaceOmpPublicProfile } from './workspace-omp-public-profile.mjs';
 
 export const OMP_VERSION = '18.10.4';
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
@@ -24,7 +26,7 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null,
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
-  maxModelCalls = 4, maxTokens = 1600, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false }) {
+  maxModelCalls = 4, maxTokens = 1600, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {} }) {
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
   if (!configuration?.providerId || !configuration.model || !configuration.baseUrl || !syntheticResponses && !configuration.apiKey)
     throw new Error('Workspace OMP model configuration is unconfigured. No sample, account or alternate model is selected.');
@@ -77,7 +79,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
           if (!spec) throw new Error('Finite explicit faux responses exhausted; no real provider fallback.');
           if (spec.wait) await new Promise((resolve, reject) => {
             const timer = setTimeout(resolve, spec.wait);
-            signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('Explicit synthetic model cancelled')); }, { once: true });
+            signal?.addEventListener('abort', () => { clearTimeout(timer); onModelAbort(); reject(new Error('Explicit synthetic model cancelled')); }, { once: true });
           });
           const message = buildSynthetic(spec, model);
           stream.push({ type: 'start', partial: message });
@@ -98,16 +100,26 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       return stream;
     },
   });
-  const manager = savedSession ? sdk.SessionManager.open(savedSession.sessionFile, sessionDirectory)
-    : sdk.SessionManager.create(cwd, sessionDirectory);
+  const manager = savedSession ? await sdk.SessionManager.open(savedSession.sessionFile, sessionDirectory)
+    : await sdk.SessionManager.create(cwd, sessionDirectory);
   if (savedSession && (savedSession.engineScope !== OMP_ENGINE_SCOPE || manager.getSessionId() !== savedSession.agentSessionId || path.resolve(manager.getCwd()) !== cwd))
     throw new Error('This is not the current OMP public-only transcript; Pi/private history cannot migrate.');
+  const admittedTools = [...ORDINARY_FACTORY_TOOLS, ...(factoryTasks ? ['workspace_factory_task'] : [])];
+  if (savedSession && !ordinaryTools) {
+    for (const entry of manager.getEntries()) {
+      const message = entry.message;
+      if (message?.role === 'toolResult' && !admittedTools.includes(message.toolName)
+        || message?.role === 'assistant' && message.content?.some(block => block.type === 'toolCall' && !admittedTools.includes(block.name)))
+        throw new Error('A public-only OMP transcript cannot inherit private or non-admitted tool receipts.');
+    }
+  }
   // A public-only session never discovers enterprise files, ambient auth, MCP,
   // user/project extensions, rules or skills. The ordinary factory extension
   // itself leaves the official host unchanged; the web host supplies this scope.
   const created = await sdk.createAgentSession({ cwd, agentDir, settings, modelRegistry, authStorage,
     model: modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
-    extensions: [factoryExtension({ client, humanControls, factoryTasks, configuration: client ? 'configured_unverified' : 'unconfigured' })],
+    extensions: [factoryExtension({ client, humanControls, factoryTasks, configuration: client ? 'configured_unverified' : 'unconfigured' }),
+      ...ordinaryTools ? [] : [workspaceOmpPublicProfile(admittedTools)]],
     disableExtensionDiscovery: true, skills: selectedSkills.skills, appendSystemPrompt: factorySkillContent,
     rules: [], contextFiles: [], promptTemplates: [], slashCommands: [],
     enableMCP: false, enableLsp: false, enableIrc: false, skipPythonPreflight: true,

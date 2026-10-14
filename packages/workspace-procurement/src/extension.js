@@ -25,12 +25,13 @@ export function existingBinding(env) {
 export function factoryExtension({ client, configuration = 'configured_unverified', humanControls = false, factoryTasks = false }) {
   return pi => {
     registerWorkspaceReadTools(pi, client, { library: false });
-    registerFactoryTools(pi, client, configuration);
+    registerFactoryTools(pi, client, configuration, { factoryTasks });
     if (humanControls) registerWorkspaceHumanControls(pi, client, configuration);
     if (factoryTasks) registerFactoryDocumentTask(pi, client);
     // Append instructions through the official hook. Leave the ordinary host's
     // tools, commands, terminal, model and session operations untouched.
-    pi.on('before_agent_start', event => ({ systemPrompt: event.systemPrompt + '\n\n' + FACTORY_GUIDANCE }));
+    pi.on('before_agent_start', event => ({ systemPrompt: Array.isArray(event.systemPrompt)
+      ? [...event.systemPrompt, FACTORY_GUIDANCE] : event.systemPrompt + '\n\n' + FACTORY_GUIDANCE }));
   };
 }
 export const procurementExtension = factoryExtension;

@@ -23,7 +23,10 @@ async function run(executable, args, cwd, env) {
 }
 const isolatedHome = await fs.mkdtemp('/tmp/workspace-omp-runtime-home-');
 try {
-  const env = { PATH: process.env.PATH, HOME: isolatedHome, TMPDIR: isolatedHome };
+  const userConfig = path.join(isolatedHome, 'empty-user.npmrc'), globalConfig = path.join(isolatedHome, 'empty-global.npmrc');
+  await fs.writeFile(userConfig, ''); await fs.writeFile(globalConfig, '');
+  const env = { PATH: process.env.PATH, HOME: isolatedHome, TMPDIR: isolatedHome,
+    NPM_CONFIG_USERCONFIG: userConfig, NPM_CONFIG_GLOBALCONFIG: globalConfig };
   for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS', 'CODEX_PROXY_CERT']) if (process.env[key]) env[key] = process.env[key];
   if (!env.NODE_EXTRA_CA_CERTS && env.CODEX_PROXY_CERT) env.NODE_EXTRA_CA_CERTS = env.CODEX_PROXY_CERT;
   if (args[0] !== '--check') await run('npm', ['ci', '--ignore-scripts', '--omit=dev', '--omit=optional', '--no-audit', '--no-fund',

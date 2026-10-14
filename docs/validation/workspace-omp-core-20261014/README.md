@@ -1,5 +1,7 @@
 # OMP 与原 Workspace 核心衔接
 
+后续默认入口、独立manifest加载、续聊、缓存拒绝、取消、重启恢复及原审批组合已实测，当前事实见 [default-acceptance.json](default-acceptance.json) 和 [中文入口](../../WORKSPACE-OMP.md)。下文保留 `413fa32` 核心小检查点的三项事实及当时未交付范围，不把旧计数冒充最终计数。
+
 实际执行：
 
 ```sh

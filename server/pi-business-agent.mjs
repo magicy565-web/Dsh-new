@@ -218,7 +218,14 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       const match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/(messages|cancel|task-graph|business-results)|\/business-tasks\/([^/]+)\/(resume))?$/);
       if (!match) return false;
       const conversationId = decoded(match[1]);
-      if (!current(conversationId).businessAgentOwner) return false;
+      if (!current(conversationId).businessAgentOwner) {
+        if (engineAdapter && req.method === 'POST' && match[2] === 'messages') {
+          const identity = actor(context, true), legacy = current(conversationId);
+          if (legacy.createdBy !== identity.subject || legacy.workspaceId !== identity.workspaceId) fail(404, 'NOT_FOUND', 'Conversation not found.');
+          fail(403, 'BUSINESS_AGENT_ENGINE_CHANGED', 'This historical conversation requires explicit Pi fallback. Start a fresh public-only OMP conversation.');
+        }
+        return false;
+      }
       const identity = actor(context, req.method !== 'GET'), conversation = owned(conversationId, identity);
       if (req.method === 'POST' && match[2] === 'messages') {
         const body = await readBody(req);

@@ -15,7 +15,8 @@ const client = Object.fromEntries(clientMethods.map(method => [method, (...args)
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
   created = await createWorkspaceOmpSession({ ...config, client, factoryTasks: true,
-    authorize: () => request('authorize'), onModelRequest: event => request('modelRequest', [event]) });
+    authorize: () => request('authorize'), onModelRequest: event => request('modelRequest', [event]),
+    onModelAbort: () => { if (config.syntheticResponses) write({ type: 'nativeModelAbort' }); } });
   created.session.subscribe(event => {
     if (['tool_execution_start', 'tool_execution_end'].includes(event.type)) write({ type: 'event', event: {
       type: event.type, toolName: event.toolName, toolCallId: event.toolCallId, isError: event.isError } });
@@ -51,4 +52,4 @@ input.on('line', line => {
     await created?.close().catch(() => {}); process.exit(1);
   });
 });
-process.once('SIGTERM', () => void created?.session.abort().finally(async () => { await created?.close().catch(() => {}); process.exit(1); }));
+process.once('SIGTERM', () => void (async () => { await created?.session.abort(); await created?.close().catch(() => {}); process.exit(1); })());

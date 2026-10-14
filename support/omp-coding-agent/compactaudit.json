@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "fixedOmp": "18.10.4",
+  "requiredBun": "1.3.14",
+  "repository": {
+    "url": "git+https://github.com/can1357/oh-my-pi.git",
+    "type": "git",
+    "directory": "packages/coding-agent"
+  },
+  "metadataURL": "https://registry.npmjs.org/@oh-my-pi%2fpi-coding-agent/18.10.4",
+  "tarball": "https://registry.npmjs.org/@oh-my-pi/pi-coding-agent/-/pi-coding-agent-18.10.4.tgz",
+  "integrity": "sha512-JZqUebDzrBNIdtW5ztWQAre67QnCV6xVZ9/R2ZdOX5zGFUO7d73Nd5TYqTRRQZrjKD+bUnXLkqk3IE1cu4aDZQ==",
+  "sha1": "48c629464ce055e8dbca0eaef8c0f8e156e34d83",
+  "archiveSHA256": "0e90a3eece89abe560f5f75f64d6cf3386f294051f8fbaa3b8270dcf4c8f616f",
+  "archiveSHA512AndSHA1Verified": true,
+  "registryECDSASignatureVerifiedByRoot": true,
+  "publisherBuildSigstoreVerified": false,
+  "provenanceContent": {
+    "commit": "687892d1046ecaf18829b45f5b86928a308258f4",
+    "workflow": ".github/workflows/ci.yml",
+    "subjectDigestMatched": true
+  },
+  "scripts": {
+    "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
+    "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run format-prompts",
+    "lint": "oxlint .",
+    "test": "bun ../../scripts/ci-test-ts.ts coding-agent-heavy --full",
+    "build": "bun scripts/build-binary.ts",
+    "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
+    "gen:rpc": "bun scripts/gen-rpc/index.ts",
+    "prepack": "bun run gen:tool-views && bun run gen:bundle",
+    "gen:bundle": "bun scripts/bundle-dist.ts",
+    "bench:guard": "bun scripts/bench-guard.ts",
+    "check:types": "tsgo -p tsconfig.json --noEmit",
+    "format-prompts": "bun scripts/format-prompts.ts",
+    "gen:tool-views": "bun --cwd=../collab-web run gen:tool-views"
+  },
+  "dependencies": {
+    "axe-core": "4.13.0",
+    "@babel/parser": "^7.29.7",
+    "puppeteer-core": "25.3.0",
+    "@oh-my-pi/pi-ai": "18.10.4",
+    "@oh-my-pi/pi-tui": "18.10.4",
+    "@oh-my-pi/omptype": "18.10.4",
+    "@oh-my-pi/pi-wire": "18.10.4",
+    "@oh-my-pi/pi-utils": "18.10.4",
+    "@opentelemetry/api": "^1.9.1",
+    "@oh-my-pi/omp-stats": "18.10.4",
+    "@oh-my-pi/pi-catalog": "18.10.4",
+    "@oh-my-pi/pi-mnemopi": "18.10.4",
+    "@oh-my-pi/pi-natives": "18.10.4",
+    "@oh-my-pi/snapcompact": "18.10.4",
+    "@oh-my-pi/pi-agent-core": "18.10.4",
+    "@opentelemetry/api-logs": "^0.220.0",
+    "@opentelemetry/sdk-logs": "^0.220.0",
+    "@opentelemetry/resources": "^2.9.0",
+    "@opentelemetry/sdk-metrics": "^2.9.0",
+    "@opentelemetry/sdk-trace-base": "^2.9.0",
+    "@opentelemetry/sdk-trace-node": "^2.9.0",
+    "@opentelemetry/context-async-hooks": "^2.9.0",
+    "@opentelemetry/exporter-logs-otlp-proto": "^0.220.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0",
+    "@opentelemetry/exporter-metrics-otlp-proto": "^0.220.0"
+  },
+  "omittedOptionalDependencies": {
+    "sherpa-onnx-node": "1.13.2",
+    "@huggingface/transformers": "^4.2.0"
+  },
+  "installScriptsExecuted": 0,
+  "requiredNative": {
+    "name": "@oh-my-pi/pi-natives-linux-x64",
+    "version": "18.10.4",
+    "repository": {
+      "url": "git+https://github.com/can1357/oh-my-pi.git",
+      "type": "git",
+      "directory": "packages/natives"
+    },
+    "tarball": "https://registry.npmjs.org/@oh-my-pi/pi-natives-linux-x64/-/pi-natives-linux-x64-18.10.4.tgz",
+    "integrity": "sha512-lZuS16oyg6QY95aujBO5hKYOOtjlZrm7cgHk8zvR2tNi3U6OucNYWFGGNJsFF7cY2dR4kODQjmJl6doguoLaEQ==",
+    "sha1": "51b480aaec16881e0acab5276ca32ca8aa1dddfd",
+    "scriptFree": true,
+    "cachedArchiveSHA512AndSHA1Verified": true
+  },
+  "installPolicy": {
+    "ignoreScripts": true,
+    "omit": [
+      "dev",
+      "optional"
+    ],
+    "platform": "linux-x64",
+    "nativeDirectDependency": true,
+    "automaticModelsDownloaded": 0,
+    "globalInstall": false
+  }
+}

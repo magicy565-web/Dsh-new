@@ -22,11 +22,14 @@ async function authorized(client, signal) {
 }
 const evidence = (input, prefix) => Object.keys(input).filter(key => supplied(input[key])).map(key => ({ kind: 'user-provided', recordId: `${prefix}.${key}` }));
 
-export function registerFactoryTools(pi, client, configuration) {
+export function registerFactoryTools(pi, client, configuration, { factoryTasks = false } = {}) {
   pi.registerTool({ name: 'workspace_factory_capabilities', label: 'Chinese factory plugin configuration', parameters: Type.Object({}, { additionalProperties: false }),
     description: 'Report factory-side draft capabilities and honest local configuration, never connected buyer discovery, factory catalog or external execution.',
     async execute() { return result({ plugin: 'workspace-factory', audience: 'Chinese-factory', configuration, onlineVerified: false,
-      supported: ['customer-rfq-public-draft', 'supplied-factory-offer-match-preparation', 'original-owner-task-history-results'],
+      supported: ['customer-rfq-public-draft', 'supplied-factory-offer-match-preparation', 'original-owner-task-history-results',
+        ...(factoryTasks ? ['original-factory-export-document-task'] : [])],
+      registeredTools: ['workspace_business_tasks', 'workspace_business_result', 'workspace_factory_capabilities', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare',
+        ...(factoryTasks ? ['workspace_factory_task'] : [])],
       compatibilityOnly: ['original-buyer-procurement-pipeline'], defaultSupplierComparison: false,
       privateLibrary: { status: 'disabled', reason: 'ORDINARY_PLUGIN_HAS_NO_CACHED_LIBRARY_REAUTHORIZATION_GUARD' },
       unavailable: ['factory-private-product-capacity-intake', 'historical-inquiry-records', 'overseas-buyer-distributor-discovery',

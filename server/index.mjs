@@ -182,7 +182,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         reservedTokenDigests: [...workerDigests, ...sourcingDigests] });
     }
     if (businessAgent) {
-      if (!builtinAgent) throw new Error('The business conversation adapter requires the original configured Agent member service.');
+      if (!builtinAgent && !businessAgentOptions.engineAdapter) throw new Error('The business conversation adapter requires the original configured Agent member service.');
       businessAgent.attach({ store, runtime, access, instanceId });
     }
   } catch (error) { await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
@@ -594,11 +594,14 @@ export async function startWorkspaceServer() {
   const port = Number(process.env.PORT || 8787);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer from 1 to 65535.');
   // The key is read only on explicit server startup, never scanned from user files.
-  const mode = process.env.WORKSPACE_RUNTIME || 'pi';
-  if (mode !== 'pi') throw new Error('WORKSPACE_RUNTIME must be pi. Historical DSH startup is retired.');
+  const mode = process.env.WORKSPACE_RUNTIME || 'omp';
+  if (!['omp', 'pi'].includes(mode)) throw new Error('WORKSPACE_RUNTIME must be omp (default frontend) or pi (explicit fallback).');
   const access = await accessConfigFromEnvironment(process.env);
   const dataDirectory = path.resolve(process.env.WORKSPACE_DATA_DIR || path.join(root, '.data'));
   const provider = createPiProvider({ ...loadPiProviderConfig(process.env), researchAdapter: createBraveResearchAdapter({ environment: process.env }) });
+  const businessAgentOptions = mode === 'omp' ? (await import('./workspace-omp-host.mjs')).createWorkspaceOmpBusinessOptions({
+    environment: process.env, baseURL: `http://127.0.0.1:${port}`,
+  }) : null;
   // No SDK, credentials, outbound requests or partner registration without a
   // pinned, privately stored deployment catalog. Web clients cannot edit it.
   const reviewedWorkers = await loadReviewedA2AWorkers({ environment: process.env });
@@ -648,7 +651,7 @@ export async function startWorkspaceServer() {
   } : null;
   let app, nativeIngress;
   try {
-    app = await createApp({ dataDirectory, provider, access,
+    app = await createApp({ dataDirectory, provider, access, businessAgentOptions,
       workerAdapters: reviewedWorkers.adapters,
       dotWorkerConfig, museWorkerConfig, museOriginalBinding, sourcingMcpConfig,
       allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [],
