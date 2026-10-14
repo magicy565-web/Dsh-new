@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "reviewedAt": "2026-10-14",
+  "sources": [
+    {
+      "repository": "https://github.com/coreyhaines31/marketingskills",
+      "resource": "https://github.com/coreyhaines31/marketingskills/blob/main/skills/cold-email/SKILL.md",
+      "declaredVersion": "2.2.0",
+      "reviewedRawSha256": "963540924147c3b74b7693bbc292ac2da3d407807c270f8a3123bd3432fdc337",
+      "immutableCommitVerified": false,
+      "license": "MIT",
+      "licenseURL": "https://github.com/coreyhaines31/marketingskills/blob/main/LICENSE",
+      "copyright": "Copyright (c) 2025 Corey Haines",
+      "use": "independent concise adaptation of research-input preparation and draft-writing principles",
+      "executedSourceInstructions": false,
+      "entireCollectionInstalled": false,
+      "externalSendingActivated": false,
+      "accountOrConnectorSetup": false
+    }
+  ]
+}

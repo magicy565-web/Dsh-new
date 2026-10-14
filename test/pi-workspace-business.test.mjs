@@ -27,7 +27,7 @@ function client(f, token = f.token) {
 
 test('business adapter executes four original procurement Pi stages, stable replay, actual events and authenticated document bytes', async t => {
   const f = await startPiDevelopment({ seedApprovalConnector: false }); t.after(() => f.close()); const c = client(f);
-  const presets = await c.businessPresets(); assert.deepEqual(presets.map(row => row.id).sort(), ['opportunity-discovery', 'procurement', 'supplier-sourcing']);
+  const presets = await c.businessPresets(); assert.deepEqual(presets.map(row => row.id).sort(), ['factory-export', 'opportunity-discovery', 'procurement', 'supplier-sourcing']);
   const [a, b] = await Promise.all([c.businessSubmit(publicTask()), c.businessSubmit(publicTask())]);
   assert.equal(a.task.taskId, b.task.taskId); assert.equal(a.profile, 'business-preset'); assert.equal(a.delegatedExecution, false);
   const id = a.task.taskId; await finished(f, id); const receipt = await c.businessStatus(id);
@@ -105,7 +105,7 @@ test('original enterprise task ownership, submit scope and expired binding refus
   await assert.rejects(b.businessStatus(submitted.task.taskId), /HTTP 404/); await assert.rejects(b.businessResume(submitted.task.taskId), /HTTP 404/);
   let clock = Date.parse('2026-10-13T19:00:00.000Z');
   const readOnly = await taskFixture(t, { enterprise: true, accessClock: () => clock, principals: [{ subject: 'member-a', workspaceId: 'pi-enterprise-test', tokenSha256: createHash('sha256').update(TOKEN_A).digest('hex'), scopes: ['agent:read'], expiresAt: '2026-10-13T19:01:00.000Z' }] });
-  const limited = client(readOnly, TOKEN_A); assert.equal((await limited.businessPresets()).length, 3);
+  const limited = client(readOnly, TOKEN_A); assert.equal((await limited.businessPresets()).length, 4);
   await assert.rejects(limited.businessSubmit(publicTask('read-only')), /HTTP 403/);
   assert.equal(readOnly.app.store.read().workspaceAgentTasks.tasks.length, 0); clock += 120_000;
   await assert.rejects(limited.businessPresets(), /HTTP 401|HTTP 403/); assert.equal(readOnly.faux.state.callCount, 0);

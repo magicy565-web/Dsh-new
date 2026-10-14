@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "syntheticOnly": true,
+  "transport": "actual-original-http",
+  "model": "original-pi-durable-explicit-faux",
+  "originalTaskCount": 1,
+  "originalStages": [
+    "product_readiness",
+    "customer_evidence",
+    "rfq_match",
+    "outreach_review"
+  ],
+  "originalRuns": 4,
+  "reloadModelCalls": 0,
+  "artifacts": [
+    {
+      "name": "factory-product-brief.md",
+      "sha256": "bee60de64f5426ccbd0a10662e84d3127b138a51e28a437066e87e3e5fdb8096",
+      "bytes": 1478
+    },
+    {
+      "name": "customer-match-evidence.md",
+      "sha256": "e3e13300862f3c6b09dbfd4e53ce126623c1fc40dbabbc49e4efc370a91b67ce",
+      "bytes": 1872
+    },
+    {
+      "name": "outreach-review-draft.md",
+      "sha256": "82c890fe4b0b6d41318322f221550a031834a35ea895ed4b3ab780a94f2b422b",
+      "bytes": 1768
+    }
+  ],
+  "partialArtifactReads": "two available; one unavailable",
+  "buyerProcurement": false,
+  "paidModelCalls": 0,
+  "independentCustomerDiscovery": false,
+  "businessGoalAchieved": false,
+  "externalActions": 0
+}

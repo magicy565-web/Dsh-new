@@ -265,7 +265,7 @@ test('same enterprise member bindings isolate Agent and original Workspace APIs 
   assert.ok(!JSON.stringify(bootstrap.json).includes(id)); assert.ok(!JSON.stringify(bootstrap.json).includes(original.conversationId));
   assert.equal((await f.api(API + '/presets', { token: undefined })).status, 401);
   assert.equal((await f.api(API + '/presets', { token: 'fixture-wrong-credential' })).status, 401);
-  const unknown = await f.submit('unknown', 'unknown-preset', { body: { type: 'unknown', title: 'unknown', input: {} } }); assert.equal(unknown.status, 400); assert.equal(unknown.json.presets.length, 3);
+  const unknown = await f.submit('unknown', 'unknown-preset', { body: { type: 'unknown', title: 'unknown', input: {} } }); assert.equal(unknown.status, 400); assert.equal(unknown.json.presets.length, 4);
 });
 
 test('missing search capability blocks sourcing and opportunity; prior model document output remains saved', async t => {
