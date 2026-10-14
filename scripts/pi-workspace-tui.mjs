@@ -4,13 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createWorkspaceClient, workspaceExtension, WORKSPACE_TOOLS } from '../pi/extensions/workspace.mjs';
+import { createWorkspaceClient, workspaceExtension, WORKSPACE_TOOLS, WORKSPACE_BUSINESS_TOOLS } from '../pi/extensions/workspace.mjs';
 
 const launcher = fileURLToPath(import.meta.url);
 
 // Official Pi owns the editor, terminal rendering, Agent and extension lifecycle.
 // All business work goes through Workspace's existing authenticated task APIs.
-export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sample = false, close = async () => {} }) {
+export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sample = false, agent = false, modelRuntime: suppliedModelRuntime, model: suppliedModel, sessionManager: suppliedSessionManager, close = async () => {} }) {
   if (!path.isAbsolute(isolationDirectory)) throw new Error('The TUI requires an explicit isolated directory.');
   const agentDir = path.join(isolationDirectory, 'agent');
   await fs.mkdir(agentDir, { recursive: true, mode: 0o700 });
@@ -18,8 +18,10 @@ export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sa
   process.env.PI_OFFLINE = '1';
   const { createAgentSession, createAgentSessionRuntime, DefaultResourceLoader, InteractiveMode, ModelRuntime, SessionManager, SettingsManager } = await import('@earendil-works/pi-coding-agent');
   const { InMemoryCredentialStore } = await import('@earendil-works/pi-ai');
-  const modelRuntime = await ModelRuntime.create({ credentials: new InMemoryCredentialStore(), modelsPath: null, refreshOnCreate: false, allowModelNetwork: false });
-  let faux, model;
+  if (agent && (sample || !suppliedModelRuntime || !suppliedModel)) throw new Error('The development Agent requires an explicitly configured official model runtime; no sample fallback is available.');
+  const modelRuntime = suppliedModelRuntime || await ModelRuntime.create({ credentials: new InMemoryCredentialStore(), modelsPath: null, refreshOnCreate: false, allowModelNetwork: false });
+  let faux, model = suppliedModel;
+  const activeTools = agent ? WORKSPACE_BUSINESS_TOOLS : WORKSPACE_TOOLS;
   if (sample) {
     const { fauxProvider, fauxAssistantMessage, fauxToolCall } = await import('@earendil-works/pi-ai/providers/faux');
     faux = fauxProvider({ api: 'faux', provider: 'workspace-tui-controlled-faux', models: [{ id: 'workspace-tui-sample', name: 'Controlled faux sample (no model account)', maxTokens: 1600 }] });
@@ -49,14 +51,16 @@ export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sa
   const settingsManager = SettingsManager.inMemory({ defaultTools: [], compaction: { enabled: false }, retry: { enabled: false }, cacheWarming: 'off', quietStartup: false });
   const resourceLoader = new DefaultResourceLoader({ cwd: isolationDirectory, agentDir, settingsManager,
     noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true,
-    extensionFactories: [workspaceExtension(client, { sample, close })],
-    systemPrompt: 'You are a Workspace task client. Use only explicitly supplied public text. The original Workspace service controls tasks, model budgets, native children, exact approvals and durable results. Never infer success or approve an action. No shell, filesystem, browser or arbitrary HTTP tool is available.' });
+    extensionFactories: [workspaceExtension(client, { sample, agent, close })],
+    systemPrompt: agent
+      ? 'You are a Workspace business development Agent. Use only explicitly supplied public text. Discover the original presets and ask for missing required inputs before submitting a task. Use one stable requestId per submission; after an uncertain receipt, read its original task status rather than create a duplicate. Admission is not completion. Read taskId, stage events and authenticated documents with workspace_business_status. Report incomplete evidence, failures and partial documents honestly. The original Workspace service controls tasks, model budgets, native children, exact approvals and durable results. Never infer business achievement, approve an action or claim external Muse/dot delegation. No shell, filesystem, browser or arbitrary HTTP tool is available.'
+      : 'You are a Workspace task client. Use only explicitly supplied public text. The original Workspace service controls tasks, model budgets, native children, exact approvals and durable results. Never infer success or approve an action. No shell, filesystem, browser or arbitrary HTTP tool is available.' });
   await resourceLoader.reload();
   const services = { cwd: isolationDirectory, agentDir, modelRuntime, settingsManager, resourceLoader, diagnostics: [] };
   const factory = async ({ sessionManager, sessionStartEvent }) => ({ ...(await createAgentSession({ cwd: isolationDirectory, agentDir, modelRuntime, model,
-    thinkingLevel: 'off', scopedModels: model ? [{ model, thinkingLevel: 'off' }] : [], noTools: 'builtin', tools: [...WORKSPACE_TOOLS],
+    thinkingLevel: 'off', scopedModels: model ? [{ model, thinkingLevel: 'off' }] : [], noTools: 'builtin', tools: [...activeTools],
     resourceLoader, sessionManager, settingsManager, sessionStartEvent })), services, diagnostics: [] });
-  const runtime = await createAgentSessionRuntime(factory, { cwd: isolationDirectory, agentDir, sessionManager: SessionManager.inMemory(isolationDirectory) });
+  const runtime = await createAgentSessionRuntime(factory, { cwd: isolationDirectory, agentDir, sessionManager: suppliedSessionManager || SessionManager.inMemory(isolationDirectory) });
   return { runtime, faux, InteractiveMode };
 }
 

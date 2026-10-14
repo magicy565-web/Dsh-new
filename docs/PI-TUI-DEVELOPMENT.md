@@ -1,5 +1,7 @@
 # Official Pi TUI development backend
 
+The backend development main entry is now [`npm run agent:dev`](PI-AGENT-DEVELOPMENT.md): one official AgentSession loads the existing business tools and preserves its transcript for reopen. `agent:tui` below remains the compatible command profile; the owner Host/Session entry keeps its separate original authority.
+
 The launcher uses the actual `@earendil-works/pi-coding-agent` 1.1.0 SDK `InteractiveMode`, editor, rendering and extension lifecycle. The Workspace extension is a thin authenticated client: task execution, identity, budget, approvals, audit, persistent output and recovery stay in the original backend. There is no replacement TUI renderer, subagent process framework, executor or task store.
 
 ## Start in a development terminal

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { Type } from '@earendil-works/pi-ai';
 import { matchesKey } from '@earendil-works/pi-tui';
@@ -7,6 +7,7 @@ import { looksLikeCredential } from '../../server/security.mjs';
 const API = '/api/agent/v1/pi/tasks';
 const BUSINESS_API = '/api/agent/v1';
 export const WORKSPACE_TOOLS = Object.freeze(['workspace_task', 'workspace_status', 'workspace_delegate', 'workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
+export const WORKSPACE_BUSINESS_TOOLS = Object.freeze(['workspace_business_presets', 'workspace_business_task', 'workspace_business_status']);
 const commands = new Set(['ws-task', 'ws-delegate', 'ws-status', 'ws-cancel', 'ws-resume', 'ws-approve', 'ws-continue', 'ws-presets', 'ws-procurement', 'ws-business', 'ws-business-status', 'ws-business-resume', 'ws-quit', 'quit']);
 const requestIdentifier = value => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(value)) throw new Error('Use a requestId of at most 96 letters, numbers, underscores or dashes.');
@@ -104,6 +105,9 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch } = {}
     return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false, task, events, artifacts };
   }
   return Object.freeze({
+    // Local transcript partition only; authentication remains the original
+    // Bearer binding on every HTTP request. Never persist the token itself.
+    bindingFingerprint: createHash('sha256').update(origin).update('\0').update(token).digest('hex'),
     check,
     submit: (input, signal) => request('POST', '', input, signal),
     status: (runId, signal) => request('GET', '/' + encodeURIComponent(identifier(runId)), undefined, signal),
@@ -170,8 +174,9 @@ export function workspaceTerminalInputPolicy(data, editorText = '') {
   }
 }
 
-export function workspaceExtension(client, { sample = false, close = async () => {} } = {}) {
+export function workspaceExtension(client, { sample = false, agent = false, close = async () => {} } = {}) {
   return pi => {
+    const activeTools = agent ? WORKSPACE_BUSINESS_TOOLS : WORKSPACE_TOOLS;
     let removeTerminalPolicy = () => {};
     const show = value => pi.sendMessage({ customType: 'workspace-receipt', content: JSON.stringify(value, null, 2), display: true }, { triggerTurn: false });
     pi.on('session_start', (_event, ctx) => {
@@ -180,13 +185,13 @@ export function workspaceExtension(client, { sample = false, close = async () =>
         const reason = workspaceTerminalInputPolicy(data, ctx.ui.getEditorText());
         if (reason) { ctx.ui.notify(reason, 'warning'); return { consume: true }; }
       });
-      pi.setActiveTools([...WORKSPACE_TOOLS]);
-      ctx.ui.setStatus('workspace', sample ? 'Workspace · controlled faux sample' : 'Workspace · original task authority');
+      pi.setActiveTools([...activeTools]);
+      ctx.ui.setStatus('workspace', agent ? 'Workspace · development Agent · original business tasks' : sample ? 'Workspace · controlled faux sample' : 'Workspace · original task authority');
       ctx.ui.notify('Use /ws-task for generic runs; /ws-presets and /ws-business for original business tasks. /ws-status takes RUN_ID; /ws-business-status takes TASK_ID. Explicit public input only.', 'info');
     });
     pi.on('session_shutdown', async () => { removeTerminalPolicy(); await close(); });
     pi.on('user_bash', () => ({ result: { output: 'Shell execution is unavailable in the Workspace TUI profile.', exitCode: 1, cancelled: false, truncated: false } }));
-    pi.on('tool_call', event => WORKSPACE_TOOLS.includes(event.toolName) ? undefined : { block: true, reason: 'Only the admitted Workspace plugin tools are available.' });
+    pi.on('tool_call', event => activeTools.includes(event.toolName) ? undefined : { block: true, reason: 'Only the admitted Workspace plugin tools are available.' });
     pi.on('session_before_switch', () => ({ cancel: true }));
     pi.on('session_before_fork', () => ({ cancel: true }));
     pi.on('input', (event, ctx) => {
@@ -198,7 +203,11 @@ export function workspaceExtension(client, { sample = false, close = async () =>
         ctx.ui.notify('Only /ws-* task commands are available in this Workspace profile.', 'warning');
         return { action: 'handled' };
       }
-      if (!sample) {
+      if (agent && looksLikeCredential(event.text)) {
+        ctx.ui.notify('Do not paste credentials into the Agent conversation. No model call or task was sent.', 'warning');
+        return { action: 'handled' };
+      }
+      if (!sample && !agent) {
         ctx.ui.notify('Natural-language model execution is blocked in this command profile. Start an original backend task with /ws-task JSON; no TUI model account is configured.', 'warning');
         return { action: 'handled' };
       }

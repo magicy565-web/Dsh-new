@@ -12,6 +12,8 @@ npm run build:mini
 
 启动默认 `WORKSPACE_RUNTIME=pi`，无需 DSH 源码、CLI、Host 或补丁。模型凭据只使用现有服务端安全环境配置；无凭据可启动保存工作，模型状态明确为待配置。当前没有生产部署或真实 Muse 在线验收。请先阅读 [Pi 运行边界](docs/PI-RUNTIME.md)、[微信客户端与待验项](docs/WECHAT-CLIENT.md) 和 [恢复基线](docs/CLOUD-PI-RECOVERY.md)。源码包使用 `npm run package:pi`，逐文件哈希来自 Git 原始 blob 字节。
 
+后端开发 Agent 的主入口为 `npm run agent:dev`：同一官方 Pi AgentSession 加载原 Workspace 业务工具，提交任务、读取原服务文档，并可用 `--continue` 重开会话。先由授权 Host 安全配置现有服务绑定和模型，再用 `npm run agent:dev -- --check` 检查配置；缺配置明确退出，检查不调用模型。具体边界和合成验收见 [开发 Agent](docs/PI-AGENT-DEVELOPMENT.md)。旧 `agent:tui` 命令模式及 owner Host/Session 入口保留各自原身份；真实付费模型与外部 Muse/dot 尚未验收。
+
 以下保留的是历史候选文档；其中 DSH、商城/Shopify、专家首页与旧打包流程不是本 Pi 分支的新主线或上线授权。
 
 ---

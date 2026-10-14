@@ -50,7 +50,8 @@
     "test:agent": "node --test test/agent-service.http.test.mjs test/agent-workspace.integration.test.mjs test/agent-pi-runtime.test.mjs test/agent-pi-service.http.test.mjs test/agent-owner-policy.test.mjs test/agent-research.test.mjs test/agent-unified-host.http.test.mjs test/agent-coordinator-explicit-recovery.test.mjs test/agent-projection-linkage.test.mjs",
     "test:agent:acceptance": "node test/agent-service.acceptance.mjs",
     "test:agent:client": "python3 test/agent-client.test.py",
-    "agent:tui": "node scripts/pi-workspace-tui.mjs"
+    "agent:tui": "node scripts/pi-workspace-tui.mjs",
+    "agent:dev": "node scripts/pi-workspace-agent.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.28",

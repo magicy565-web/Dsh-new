@@ -2,8 +2,8 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { Agent } from '@earendil-works/pi-agent-core';
-import { Type, createModels, createProvider } from '@earendil-works/pi-ai';
-import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
+import { Type, createModels } from '@earendil-works/pi-ai';
+import { createWorkspacePiModelProfile } from './pi-model-profile.mjs';
 import { createAssistantMessageEventStream } from '@earendil-works/pi-ai/utils/event-stream';
 import { BACKGROUND_CONTEXT, withAbortSignal } from '@earendil-works/chord/context';
 import { AssistantEntry, ToolResultEntry, ProviderDoc, Harness, GenerationTask, ToolTask, createRegistry, defineDoc, defineTask, defineExtension, defineTool, hook } from '@earendil-works/pi-durable';
@@ -73,13 +73,7 @@ export function createPiProvider({ apiKey = '', model = 'gpt-6-sol', baseUrl = '
   // endpoint, require the new endpoint-bound fingerprint even for ordinary runs.
   const ordinaryPermissionFingerprint = legacyPolicyCompatible ? legacyPermissionFingerprint : agentPermissionFingerprint;
   const models = suppliedModels || createModels();
-  if (!suppliedModels) models.setProvider(createProvider({ id: providerId, name: 'Workspace server-configured Pi model', baseUrl: endpoint,
-    auth: { apiKey: { name: deepseek ? 'Host-managed DeepSeek key' : 'Host-managed FastAIToken key', resolve: async () => apiKey.trim() ? { auth: { apiKey } } : undefined } },
-    // SDK cost placeholders are not prices or a claim that provider calls are
-    // free. Original admission records wire tokens, not a monetary hard cap.
-    models: [{ id: model, name: model, api: 'openai-completions', provider: providerId, baseUrl: endpoint, reasoning: deepseek, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 1600,
-      ...(deepseek ? { compat: { supportsStore: false, supportsDeveloperRole: false, supportsStrictMode: false, maxTokensField: 'max_tokens', thinkingFormat: 'deepseek', supportsLongCacheRetention: false } } : {}) }],
-    api: openAICompletionsApi() }));
+  if (!suppliedModels) models.setProvider(createWorkspacePiModelProfile({ apiKey, model, baseUrl: endpoint, providerId }));
   const modelRef = models.getModel(providerId, model);
   const opened = new Map(), opening = new Map(), activeCalls = new Map();
   let store, directory, closing = false, closePromise;
