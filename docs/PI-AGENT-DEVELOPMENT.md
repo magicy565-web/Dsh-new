@@ -1,15 +1,17 @@
+> 原Pi1.1.0显式回退指南及历史验收。当前默认OMP入口见 [Workspace OMP](WORKSPACE-OMP.md)；这里的私库／旧采购能力不自动进入OMP。
+
 # Workspace development Agent
 
-`npm run agent:dev` is the natural-language development entry for the installed official Pi AgentSession and InteractiveMode. It reuses the existing SDK factory and Workspace extension. The original `/api/agent/v1` service owns business admission, stages, budgets, membership, role, scopes, approvals, event history and deliverables. This entry adds an official conversation session, not another business coordinator or task store.
+`npm run agent:pi` is the natural-language development entry for the installed official Pi AgentSession and InteractiveMode. It reuses the existing SDK factory and Workspace extension. The original `/api/agent/v1` service owns business admission, stages, budgets, membership, role, scopes, approvals, event history and deliverables. This entry adds an official conversation session, not another business coordinator or task store.
 
 ## Host configuration and startup
 
 An authorized host must supply the original `WS_AGENT_URL` / `WS_AGENT_TOKEN` binding and the existing provider environment: `PI_PROVIDER`, `PI_MODEL`, optional `PI_BASE_URL`, and the selected `FASTAITOKEN_API_KEY` or `DEEPSEEK_API_KEY`. These use the original `loadPiProviderConfig` / model profile contract. The CLI constructs an official `ModelRuntime` with in-memory credentials; the host API can inject an already configured official runtime and model. Backend model configuration alone does not configure the frontend Agent. The development entry does not automatically import a user model profile, read `.env`, create a credential, or switch to a sample when configuration is missing. No credential is accepted in a command-line argument or included in a receipt.
 
 ```sh
-npm run agent:dev -- --check
-npm run agent:dev
-npm run agent:dev -- --continue
+npm run agent:pi -- --check
+npm run agent:pi
+npm run agent:pi -- --continue
 ```
 
 `--check` is configuration evidence: it authenticates original backend health and presets, checks the explicit frontend configuration, and makes no model request or business submission. It does not establish provider connectivity or paid-model readiness. `--continue` reopens the bound official chat; reopening alone does not resume a failed backend business task or approve an action.

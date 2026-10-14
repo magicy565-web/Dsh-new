@@ -1,6 +1,8 @@
+> 原Pi1.1.0显式回退指南及历史验收。当前默认OMP入口见 [Workspace OMP](WORKSPACE-OMP.md)；这里的私库／旧采购能力不自动进入OMP。
+
 # Development Agent: original task lifecycle
 
-`npm run agent:dev` uses the same official Pi AgentSession, Workspace extension, original authenticated task APIs, Runtime and Store as before. This slice connects human lifecycle controls. It adds no business engine, model loop, queue, account or permission. The original business presets, submission and status tools remain; the later [built-in read plugins](PI-BUILTIN-BUSINESS-PLUGINS.md) add bounded task/result reads and controlled Library read tools that remain unconfigured by default. Models have no approval, continuation, cancellation or recovery tool.
+`npm run agent:pi` uses the same official Pi AgentSession, Workspace extension, original authenticated task APIs, Runtime and Store as before. This slice connects human lifecycle controls. It adds no business engine, model loop, queue, account or permission. The original business presets, submission and status tools remain; the later [built-in read plugins](PI-BUILTIN-BUSINESS-PLUGINS.md) add bounded task/result reads and controlled Library read tools that remain unconfigured by default. Models have no approval, continuation, cancellation or recovery tool.
 
 ## Two original task identities
 
