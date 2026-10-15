@@ -57,7 +57,11 @@ try{
   assert.deepEqual(result.provider.confirmedUsage,{inputTokens:100*expected,outputTokens:20*expected,totalTokens:120*expected});
   assert.ok(result.provider.chargeUpperCny<0.01);assert.equal(result.provider.billingUncertain,false);assert.equal(result.saved.length,1);
   assert.equal(result.paidModelVerified,false);assert.equal(result.evidenceKind,'official-omp-local-files-mocked-http');
-  if(mode==='factory-valid')assert.deepEqual(result.toolReceipts.map(r=>r.tool),['read','workspace_factory_rfq_requirements','workspace_factory_match_prepare','write']);
+  if(mode==='factory-valid'){
+   assert.deepEqual(result.toolReceipts.map(r=>r.tool),['read','workspace_factory_rfq_requirements','workspace_factory_match_prepare','write']);
+   assert.equal(result.toolReceipts[1].argumentShape.rfq.unknownFieldCount,0);assert.equal(result.toolReceipts[1].argumentShape.rfq.nonScalarFieldCount,0);
+   assert.ok(result.toolReceipts.every(r=>r.argumentValidation==='sdk-and-executor-accepted'));
+  }
  }else{
   assert.equal(result.status,'stopped',JSON.stringify(result));
   assert.equal(requests,mode==='oversize-first'?0:mode==='exhausted'?8:1);

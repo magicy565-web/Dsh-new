@@ -9,7 +9,7 @@ const factoryFields = ['product', 'spec', 'available_quantity', 'production_capa
 // An unconstrained Record/Unknown invited arguments the tool then rejected.
 const fieldSchema = fields => Type.Object(Object.fromEntries(fields.map(name =>
   [name, Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()]))])), { additionalProperties: false });
-const supplied = value => value !== undefined && value !== null && value !== '';
+const supplied = value => value !== undefined && value !== null && (typeof value !== 'string' || value.trim() !== '');
 function publicFields(input, allowed) {
   if (!input || typeof input !== 'object' || Array.isArray(input)
     || Object.entries(input).some(([key, value]) => !allowed.includes(key) || value !== null && !['string', 'number'].includes(typeof value)))

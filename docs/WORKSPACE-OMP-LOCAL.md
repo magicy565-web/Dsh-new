@@ -5,16 +5,22 @@
 以下是**当前验收环境可复制的一条完整命令**，使用已安全注入的密钥和已审非秘密模型配置；资料是明确标注为合成验收的小产品文件。它会发起真实付费请求，本轮没有再次执行此命令：
 
 ```sh
-PI_PROVIDER=deepseek PI_MODEL=deepseek-flash WORKSPACE_OMP_PROVIDER_COST_JSON='{"input":0.3,"output":1.2,"cacheRead":0.006,"cacheWrite":0.3}' WORKSPACE_OMP_LIVE_BUDGET_VERIFIED=1 node /workspace/deepseek-acceptance/scripts/workspace-omp-local.mjs --session /workspace/factory-session.jsonl --input /workspace/local-deepseek-acceptance-20261015/product.md --output-dir /workspace/local-deepseek-acceptance-20261015/output --task '请先看产品资料，告诉我还缺哪些交期和合规信息；先不要生成报告。'
+PI_PROVIDER=deepseek PI_MODEL=deepseek-flash WORKSPACE_OMP_PROVIDER_COST_JSON='{"input":0.3,"output":1.2,"cacheRead":0.006,"cacheWrite":0.3}' WORKSPACE_OMP_LIVE_BUDGET_VERIFIED=1 node /workspace/deepseek-acceptance/scripts/workspace-omp-local.mjs --session /workspace/local-deepseek-acceptance-round2-20261015/conversation.jsonl --input /workspace/local-deepseek-acceptance-round2-20261015/product.md --output-dir /workspace/local-deepseek-acceptance-round2-20261015/output --task '请先看产品资料，告诉我还缺哪些交期和合规信息；先不要生成报告。'
 ```
 
-继续时使用相同命令和同一个 `--session` 路径，只把 `--task` 改为下一句话，例如 `数量是200，交期仍待确认，请按已有资料写一份简短产品介绍并保存intro.md`。目标与文件名均可变，不会硬编码这份产品或报告模板。`--check` 可加在同一命令末尾，模型请求为零。`WORKSPACE_OMP_LIVE_BUDGET_VERIFIED=1` 表示本次适用预算已核对，不是自动查余额；当前已知累计保守费用 0.009496 元，剩余授权 4.990504 元，未查账户账单。
+继续时使用相同命令和同一个 `--session` 路径，只把 `--task` 改为下一句话，例如 `数量是200，交期仍待确认，请按已有资料写一份简短产品介绍并保存intro.md`。目标与文件名均可变，不会硬编码这份产品或报告模板。`--check` 可加在同一命令末尾，模型请求为零。`WORKSPACE_OMP_LIVE_BUDGET_VERIFIED=1` 表示本次适用预算已核对，不是自动查余额；当前已知累计保守费用 0.025080 元，剩余授权 4.974920 元，未查账户账单。
 
 资料选择继续沿用显式 `--input`／`--output-dir`。继续会话必须保持同一组源路径、名称、内容 SHA、输出目录和模型；变更则在模型请求前拒绝，避免旧上下文引用已撤销资料。会话 JSONL 含用户主动保存的对话和所选资料内容，以 0600 权限保留在用户指定路径；临时 AuthStorage／源快照仍清理。原生 SDK 负责历史树与恢复。符号链接、跨 profile、已有在途锁或未确认费用的中断会话拒绝继续，不自动重跑。命令退出后可用同一文件继续；本入口不是交互式 TUI。
 
-**真实验收状态：未完成保存闭环。** 唯一一次真实执行连接官方 Flash，2 次实际请求、6.237 秒，成功调用 capabilities／read，随后 RFQ 和匹配工具报错，第三次 HTTP 发送前停止，输出目录为空。已确认 usage 算得保守人民币 0.009334 元，无用量不明；失败回执未保留总 token 分项及具体工具错误正文，不能补造。无付费检查已修复工具声明任意字段而执行只接受固定字段的契约缺口，并增加原生会话继续、错误分类和确认用量回执；不能据此断言已修好本次实参错误，更不能声称真实模型保存成功。之后没有第二次付费验收。
+**当前真实验收：已完成保存闭环。** 修复后新增获授权的一次真实执行，官方 Flash 自主选择 `read → write`，3 次实际 HTTP 请求、6.304 秒，保存 `missing-facts.md`（704 bytes），SHA256 `53ac3d85187991bd295fe09afdb49f2b566686921aca2e12a0e0853bdf14a047`。输入为明确合成公开材料，模型为真实 DeepSeek，未强制使用无关 RFQ／匹配工具。输出保留产能、库存、交期、认证、身份、价格与运输条款为待确认。原生会话及成果在 `/workspace/local-deepseek-acceptance-round2-20261015/`，未提交 Git。
 
-会话创建／追问／不同目标续接与文件保存均有无付费原 SDK 合同测试；这些有限模型替身不能证明真实模型自主推理或新会话路径的付费成功。
+3 个响应的输入总计 6,008 tokens：非缓存输入 2,296、缓存读取 3,712、缓存写入 0；输出 446，总计 6,454。全部输入仍按缓存未命中峰值 2 元／百万、输出 8 元／百万计保守费用 **0.015584 元**，无用量不明或自动重试。累计 **0.025080 元**、剩余授权估算 **4.974920 元**，没有查账户余额。本轮中文价格重取超时，沿用同日此前成功核对的官方人民币价格；英文页确认价格及 1M 上下文未变。
+
+随后只在原生 JSONL 的隔离副本上无付费续接：原 SDK 恢复相同 Session ID 和上轮真实上下文，明确有限替身完成下一句追问；真实会话和报告 SHA 均未改变。该检查证明恢复合同，不能冒充又一次真实模型续聊。
+
+历史上第一轮真实执行曾在 RFQ／匹配工具报错处停止（2 请求，0.009334 元），没有成果。之后 schema 收紧，并补充原 SDK 验证器＋真实工具执行的 13 组参数合同检查；纯空白字段现在保留待补充。该历史失败仍保留在验收说明中，未改写为成功。
+
+会话创建／追问／不同目标续接有无付费原 SDK 合同测试；模型读取和保存已由上述真实执行证明，新增真实模型续聊尚未执行。
 
 ## 原有单次资料入口
 
@@ -75,9 +81,9 @@ npm run factory:local -- --input ./product.md --output-dir . --check
 
 全部响应已确认时：`8 × (32,000×2 + 512×8) / 1,000,000 = 0.544768 元`。
 
-错误／用量不明时最多有七个已确认前缀和一个未确认发送。已审 Flash 文本上下文为 1M；未确认输入按 **1,100,000 tokens** 预留，覆盖十进制／二进制 1M，而不是以 12KB 猜测 token 数。因此保守上界为：`[7×(32,000×2+512×8) + 1,100,000×2+512×8] / 1,000,000 = 2.680768 元`，低于固定单任务预留 **2.70 元**及执行前已知剩余授权 **4.999838 元**（本次之后为 4.990504 元）。这不是新增账户预算系统，跨任务不会自动累计余额；每次真实执行仍须使用适用的原预算授权。
+错误／用量不明时最多有七个已确认前缀和一个未确认发送。已审 Flash 文本上下文为 1M；未确认输入按 **1,100,000 tokens** 预留，覆盖十进制／二进制 1M，而不是以 12KB 猜测 token 数。因此保守上界为：`[7×(32,000×2+512×8) + 1,100,000×2+512×8] / 1,000,000 = 2.680768 元`，低于固定单任务预留 **2.70 元**及首次执行前已知剩余授权 **4.999838 元**（目前为 4.974920 元）。这不是新增账户预算系统，跨任务不会自动累计余额；每次真实执行仍须使用适用的原预算授权。
 
-上述人民币上界以价格快照和 provider 遵守已发布上下文／输出协议为前提，不是实际账户扣款保证。若 usage 报告超过物理预留或 512 输出，立即停止并返回 `chargeUpperCny:null`，不再声称有限费用。`accountChargedCny` 始终为空，因为本入口不访问账户账单。这条路径唯一一次真实付费执行在工具错误处停止，未完成成果保存；之后没有再次付费。
+上述人民币上界以价格快照和 provider 遵守已发布上下文／输出协议为前提，不是实际账户扣款保证。若 usage 报告超过物理预留或 512 输出，立即停止并返回 `chargeUpperCny:null`，不再声称有限费用。`accountChargedCny` 始终为空，因为本入口不访问账户账单。这条路径第二次获授权的真实付费执行已完成读取／保存，费用和 SHA 见上文；没有在本轮内自动重跑。
 
 ## 文件与服务边界
 
@@ -101,4 +107,4 @@ npm run build
 
 新增 wire 测试直接走原官方 provider 的 HTTP/SSE 路径，仅替换 fetch 返回明确合成报文；断言实际发送数、请求 bytes、thinking／输出限制，以及 500、连接／流错误、截断、缺失／部分／不一致／超限用量、空响应、工具失败、上下文增长和八次耗尽。该证据明确标为 `mocked-http`，不能证明真实付费成功。
 
-[证据与限制](validation/omp-local-factory-20261015/README.md)。真实用户资料、真实模型完成保存及新增持久会话路径、扫描 PDF／OCR、Shopify 和 MCP 尚未完成在线验收；此前独立 DeepSeek 连通记录不能代替这些验收。
+[证据与限制](validation/omp-local-factory-20261015/README.md)。真实用户私密资料、同会话的第二轮真实模型续聊、扫描 PDF／OCR、Shopify 和 MCP 尚未完成在线验收；此前独立 DeepSeek 连通记录不能代替这些验收。
