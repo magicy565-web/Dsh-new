@@ -11,7 +11,7 @@ export default async pi => {
     execute: async () => ({ content: [{ type: 'text', text: '{"otherPlugin":true}' }], details: {} }) });
   let calls = 0;
   const steps = disabled ? [['inquiries_other_plugin', {}]] : [[names[0], { inquiryDocumentId: documentId, documentVersion: 1, productId: documentId, requirements: { quantity: null } }],
-    [names[1], { inquiryDocumentId: documentId, documentVersion: 1, productId: documentId, requirements: {}, requestId: 'synthetic-save', expectedDraftHash: 'a'.repeat(64), confirmed: true }], ['inquiries_other_plugin', {}]];
+    [names[1], { inquiryDocumentId: documentId, documentVersion: 1, productId: documentId, requirements: {}, requestId: 'synthetic-save', expectedDraftHash: 'a'.repeat(64) }], ['inquiries_other_plugin', {}]];
   const next = context => {
     assert.equal(JSON.stringify(context).includes('Prepare source-bound customer inquiry comparisons'), !disabled,
       'The official manifest Skill follows package enable/disable state');

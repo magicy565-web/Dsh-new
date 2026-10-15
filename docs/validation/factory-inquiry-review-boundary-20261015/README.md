@@ -1,0 +1,13 @@
+# Inquiry draft review boundary correction
+
+Supersedes the approval wording at `af87df4` / `c585839`. The former model-selected `confirmed:true` and expected hash did **not** establish that a person reviewed the exact drafts. The earlier package flag `humanConfirmationRequired:true` and associated prose are not human approval evidence.
+
+This workflow saves **unreviewed internal drafts only**. The save schema no longer accepts `confirmed` or any review/approval selector; the original execution-intent gate remains mandatory. The exact hash is a source/content integrity check. Successful persistence is `saved-draft`; original artifact metadata and receipts explicitly set `humanReviewed:false`, `humanReviewRequired:true`, `sent:false`. There is no operation to approve, send, publish, contact, order or dispatch. Later document/version review and any external action retain their original human approval boundaries; this change does not add an approval system.
+
+Tests run actual original Session/Library/Store/artifact HTTP and official OMP worker with synthetic materials and finite keyless model responses: **9/9**. They verify model confirmation-field refusal, no save for a readonly Run, false review state, rejection of forged review state, cross-conversation receipt refusal, original cross-member HTTP denial, changed source/hash denial, cross-Run idempotency, partial-save application reload and HTTP cancellation. These are not evidence of human draft approval or real business acceptance. Standard official Pi/OMP package lifecycle and SDK tests: **7/7**; typecheck passed. Source hashes are in `source.json`.
+
+The initial package run was **6/7**, because the CLI fixture still supplied the removed `confirmed` field: Pi correctly returned a validation error and the fixture incorrectly tried to parse that error as JSON. The fixture now uses the actual draft-only schema; the final 7/7 rerun is retained separately. No assertion was relaxed or automatic retry added. Official SDK schema normalization may remove unknown properties; the direct extension and server boundaries reject authority fields, and no path can produce approved metadata.
+
+Previously persisted receipts without `humanReviewed:false` are not silently treated as approval. Reopened old private journals are refused by the live guard and need fresh preparation in an original authorized conversation. Existing artifact request fingerprints remain authoritative; no rewrite of old files or approval migration occurs.
+
+Real material/model/CNY5 and #72 real public-source blockers remain unchanged. Paid calls, real model calls and external sending are zero.

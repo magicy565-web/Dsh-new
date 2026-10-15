@@ -16,11 +16,11 @@ async function fixture(t) {
     const r = await f.workspace(route, { subject: 'member-a', headers: options.headers });
     return new Response(r.bytes, { status: r.status, headers: { 'content-type': r.headers['content-type'] } });
   } });
-  const makeClient = () => createFactoryInquiryClient({ materialsClient, artifacts: f.app.artifacts, store: f.app.store,
-    identity: { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' }, conversationId: c.json.conversation.id,
+  const makeClient = (conversationId = c.json.conversation.id) => createFactoryInquiryClient({ materialsClient, artifacts: f.app.artifacts, store: f.app.store,
+    identity: { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' }, conversationId,
     authorize: async () => { if (!flags.active) throw Object.assign(Error('Original synthetic authority refused'), { status: 403 }); }, canSave: () => flags.active && flags.admitted });
   let client = makeClient();
-  return { f, get client() { return client; }, flags, async restart() {
+  return { f, get client() { return client; }, makeClient, flags, async restart() {
     await f.app.close(); const reopened = await taskFixture(t, { directory: f.directory, enterprise: true, libraryModelReadPolicy: f.policy });
     Object.assign(f, reopened); client = makeClient();
   } };
@@ -37,19 +37,23 @@ test('inquiry preparation preserves original exact sources and literal demand; u
   await assert.rejects(client.prepare({ ...input(f), requirements: { quantity: 'UNSUPPLIED_5000' } }, undefined, MODEL), /literal|inquiry/);
   await client.revalidateReceipt(prepared, MODEL);
 });
-test('exact confirmed draft saves three original private artifacts and identical request replays without duplicates', async t => {
-  const { f, client, flags } = await fixture(t), prepared = await client.prepare(input(f), undefined, MODEL);
-  const save = { ...input(f), requestId: 'original-inquiry-save', expectedDraftHash: prepared.draftHash, confirmed: true };
+test('exact unreviewed draft saves three original private artifacts and identical request replays without duplicates', async t => {
+  const { f, client, makeClient, flags } = await fixture(t), prepared = await client.prepare(input(f), undefined, MODEL);
+  const save = { ...input(f), requestId: 'original-inquiry-save', expectedDraftHash: prepared.draftHash };
   flags.admitted = false; await assert.rejects(client.save(save, undefined, MODEL), e => e.code === 'BUSINESS_EXECUTION_INTENT_REQUIRED');
   flags.admitted = true;
-  const first = await client.save(save, undefined, MODEL); assert.equal(first.status, 'saved'); assert.equal(first.artifacts.length, 3);
-  const replay = await client.save(save, undefined, MODEL); assert.equal(replay.status, 'saved'); assert.ok(replay.artifacts.every(a => a.duplicate));
+  const first = await client.save(save, undefined, MODEL); assert.equal(first.status, 'saved-draft'); assert.equal(first.artifacts.length, 3);
+  assert.equal(first.humanReviewed, false); assert.equal(first.humanReviewRequired, true);
+  await assert.rejects(client.revalidateReceipt({ ...first, humanReviewed: true }, MODEL), /human approval/);
+  await assert.rejects(makeClient(randomUUID()).revalidateReceipt(first, MODEL), /scope changed/);
+  const replay = await client.save(save, undefined, MODEL); assert.equal(replay.status, 'saved-draft'); assert.ok(replay.artifacts.every(a => a.duplicate));
   assert.deepEqual(first.artifacts.map(a => a.artifactId), replay.artifacts.map(a => a.artifactId));
   assert.equal(f.app.store.read().artifacts.filter(a => a.metadata.factoryInquiry).length, 3);
   for (const ref of first.artifacts) {
     const file = await f.app.artifacts.download(ref.artifactId, { version: ref.version }); assert.equal(file.version.sha256, ref.sha256);
     assert.match(file.bytes.toString(), /Human review required/);
     const a = f.app.artifacts.get(ref.artifactId).artifact; assert.equal(a.metadata.businessLibrary.visibility, 'internal'); assert.equal(a.metadata.factoryInquiry.sent, false);
+    assert.equal(a.metadata.factoryInquiry.humanReviewed, false); assert.equal(a.metadata.factoryInquiry.humanReviewRequired, true);
   }
   await client.revalidateReceipt(first, MODEL);
 });
@@ -57,18 +61,18 @@ test('partial original artifact failure retains committed receipt and only ident
   const { f, client } = await fixture(t), prepared = await client.prepare(input(f), undefined, MODEL);
   const original = f.app.artifacts.create; let calls = 0;
   f.app.artifacts.create = (...args) => ++calls === 2 ? Promise.reject(Object.assign(Error('Synthetic original artifact unavailable'), { status: 503 })) : original(...args);
-  const save = { ...input(f), requestId: 'original-partial-inquiry', expectedDraftHash: prepared.draftHash, confirmed: true };
+  const save = { ...input(f), requestId: 'original-partial-inquiry', expectedDraftHash: prepared.draftHash };
   const partial = await client.save(save, undefined, MODEL); assert.equal(partial.status, 'partial'); assert.equal(partial.artifacts.length, 1);
   assert.equal(f.app.store.read().artifacts.filter(a => a.metadata.factoryInquiry).length, 1);
   await client.revalidateReceipt(partial, MODEL);
   f.app.artifacts.create = original;
-  const resumed = await client.save(save, undefined, MODEL); assert.equal(resumed.status, 'saved'); assert.equal(resumed.artifacts[0].artifactId, partial.artifacts[0].artifactId);
+  const resumed = await client.save(save, undefined, MODEL); assert.equal(resumed.status, 'saved-draft'); assert.equal(resumed.artifacts[0].artifactId, partial.artifacts[0].artifactId);
   assert.equal(resumed.artifacts[0].duplicate, true); assert.equal(f.app.store.read().artifacts.filter(a => a.metadata.factoryInquiry).length, 3);
 });
-test('draft edits, source revision drift, original refusal and absent confirmation cannot authorize saves or cached disclosure', async t => {
+test('draft edits, source revision drift, original refusal and model approval claims cannot authorize saves or cached disclosure', async t => {
   const { f, client, flags } = await fixture(t), prepared = await client.prepare(input(f), undefined, MODEL);
-  const save = { ...input(f), requestId: 'original-unchanged-draft', expectedDraftHash: prepared.draftHash, confirmed: true };
-  await assert.rejects(client.save({ ...save, confirmed: false }, undefined, MODEL), e => e.code === 'FACTORY_INQUIRY_INPUT_INVALID');
+  const save = { ...input(f), requestId: 'original-unchanged-draft', expectedDraftHash: prepared.draftHash };
+  await assert.rejects(client.save({ ...save, confirmed: true }, undefined, MODEL), e => e.code === 'FACTORY_INQUIRY_INPUT_INVALID');
   await assert.rejects(client.save({ ...save, expectedDraftHash: '0'.repeat(64) }, undefined, MODEL), e => e.code === 'FACTORY_INQUIRY_DRAFT_CHANGED');
   const tampered = structuredClone(prepared); tampered.drafts[0].content += '\nUNREVIEWED_EDIT';
   await assert.rejects(client.revalidateReceipt(tampered, MODEL), /modified/);
@@ -84,11 +88,11 @@ test('partial original draft receipts survive application reload and exact repla
   const prepared = await fixtureState.client.prepare(input(f), undefined, MODEL);
   const original = f.app.artifacts.create; let calls = 0;
   f.app.artifacts.create = (...args) => ++calls === 2 ? Promise.reject(Object.assign(Error('Synthetic before-restart failure'), { status: 503 })) : original(...args);
-  const save = { ...input(f), requestId: 'durable-inquiry-reload', expectedDraftHash: prepared.draftHash, confirmed: true };
+  const save = { ...input(f), requestId: 'durable-inquiry-reload', expectedDraftHash: prepared.draftHash };
   const partial = await fixtureState.client.save(save, undefined, MODEL); assert.equal(partial.status, 'partial'); assert.equal(partial.artifacts.length, 1);
   f.app.artifacts.create = original;
   await fixtureState.restart();
-  const resumed = await fixtureState.client.save(save, undefined, MODEL); assert.equal(resumed.status, 'saved');
+  const resumed = await fixtureState.client.save(save, undefined, MODEL); assert.equal(resumed.status, 'saved-draft');
   assert.equal(resumed.artifacts[0].artifactId, partial.artifacts[0].artifactId); assert.equal(resumed.artifacts[0].duplicate, true);
   assert.equal(f.app.store.read().artifacts.filter(a => a.metadata.factoryInquiry).length, 3);
   await fixtureState.client.revalidateReceipt(resumed, MODEL);

@@ -104,7 +104,7 @@ test('copied factory inquiries package uses official OMP local link, manifest, S
     paidModelCalls: 0, realLibraryAuthorizationVerified: false });
 });
 
-for (const engine of ['pi', 'omp']) test(`official ${engine} SDK delegates inquiry prepare/save with exact confirmation/hash and safe authorization recovery`, { timeout: 60000 }, async t => {
+for (const engine of ['pi', 'omp']) test(`official ${engine} SDK delegates inquiry prepare/save with exact unreviewed draft/hash and safe authorization recovery`, { timeout: 60000 }, async t => {
   const p = await setup(t, engine), fixture = path.join(p.directory, 'sdk-fixture.mjs'), configFile = path.join(p.directory, 'config.json');
   await fs.copyFile(new URL('./fixtures/factory-inquiries-sdk.mjs', import.meta.url), fixture);
   await fs.copyFile(new URL('./fixtures/factory-inquiries-data.mjs', import.meta.url), path.join(p.directory, 'factory-inquiries-data.mjs'));
@@ -178,14 +178,14 @@ test('pure inquiry preparation refuses fabricated requirements and inconsistent 
     partialExtractionAndUnknownOcrPreserved: true, missingRequirementsStayNull: true, publicReferencesNotFactorySupply: true, paidModelCalls: 0 });
 });
 
-test('inquiry extension runtime selectors reject extra authority and false confirmation with no client dispatch', async () => {
+test('inquiry extension runtime selectors reject extra authority and model approval claims with no client dispatch', async () => {
   const tools = [], calls = [], data = inquiryFixture(factoryInquiryHash), signal = new AbortController().signal, ctx = { model: { id: 'finite' } };
   factoryInquiriesExtension({ client: { prepare: async input => { calls.push(input); return prepareFactoryInquiry(data); }, save: async input => { calls.push(input); return prepareFactoryInquiry(data); } },
     authorize: async () => {} })({ registerTool: tool => tools.push(tool) });
   for (const input of [{ ...data.input, model: 'other' }, { ...data.input, inquiryDocumentId: 'wrong' }, { ...data.input, requirements: { quantity: 2000 } }])
     assert.equal((await tools[0].execute('invalid', input, signal, undefined, ctx)).details.status, 'blocked');
-  const saveInput = { ...data.input, requestId: 'stable', expectedDraftHash: 'a'.repeat(64), confirmed: true };
-  for (const input of [{ ...saveInput, confirmed: false }, { ...saveInput, expectedDraftHash: 'not-sha256' }, { ...saveInput, recipient: 'other' }])
+  const saveInput = { ...data.input, requestId: 'stable', expectedDraftHash: 'a'.repeat(64) };
+  for (const input of [{ ...saveInput, confirmed: true }, { ...saveInput, expectedDraftHash: 'not-sha256' }, { ...saveInput, recipient: 'other' }])
     assert.equal((await tools[1].execute('invalid', input, signal, undefined, ctx)).details.status, 'blocked');
   assert.equal((await tools[0].execute('missing-model', data.input, signal, undefined, {})).details.status, 'blocked');
   const aborted = new AbortController(); aborted.abort(); assert.equal((await tools[0].execute('aborted', data.input, aborted.signal, undefined, ctx)).details.status, 'blocked');

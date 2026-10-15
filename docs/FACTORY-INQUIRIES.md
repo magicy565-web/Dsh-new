@@ -41,19 +41,25 @@ in the package-root `sources.json`. No sending/account/domain
 instructions or the complete collection are executed or installed.
 
 `workspace_factory_inquiry_save` additionally requires an exact draft hash,
-confirmed flag and stable original request ID. A natural readonly Run cannot
+stable original request ID. It saves **unreviewed internal drafts only** and
+returns `status: saved-draft`, `humanReviewed:false`, `humanReviewRequired:true`
+and `sent:false`. There is no `confirmed` parameter or draft approval operation. A natural readonly Run cannot
 save. Explicit original execution intent still comes from the human-confirmed
 original terminal/API path. The Host freshly reads the same original materials
 and rerenders the deterministic draft before comparing the hash. It stores each
 file with original conversation/creating Run links, internal Library visibility,
-source references, review-required and sent:false metadata. No external action
+source references, humanReviewed:false, review-required and sent:false metadata. No external action
 or approval is inferred from saving a draft.
 
 Original artifact idempotency is authoritative. Response loss or partial save
 retains already committed original receipts. Explicit replay of the identical
 request fills only missing files and preserves existing IDs/creating Run links;
 no automatic retry runs. Changed draft/source/recipient/scope requires fresh
-original review and a new request ID after confirmation. A cancelled, expired or
+preparation and a new request ID. An expected hash checks integrity; it is not
+a server-bound human approval. Model arguments and original Run execution intent
+cannot establish that a person reviewed these exact drafts. Later human review
+and external actions remain subject to their original approval boundaries, and
+this plugin exposes no operation to approve or send them. A cancelled, expired or
 revoked original Session/Run is refused before artifact commit. The original
 artifact Store remains the only persistence; no secondary operation journal is
 created.

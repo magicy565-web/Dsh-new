@@ -19,7 +19,7 @@ async function fixture(t, { save = true } = {}) {
       engineAdapter: createWorkspaceOmpEngineAdapter({ paths: workspaceOmpPaths(), factoryInquiries: true, onWorkerLifecycle: event => lifecycle.push(event),
         configuration: { providerId: MODEL.provider, model: MODEL.id, baseUrl: MODEL.baseUrl },
         syntheticResponses: [{ tool: 'workspace_factory_inquiry_prepare', arguments: input },
-          ...(save ? [{ tool: 'workspace_factory_inquiry_save', arguments: { ...input, requestId: 'same-original-inquiry-save', confirmed: true }, draftHashFromPreviousTool: true }] : []),
+          ...(save ? [{ tool: 'workspace_factory_inquiry_save', arguments: { ...input, requestId: 'same-original-inquiry-save' }, draftHashFromPreviousTool: true }] : []),
           { text: 'Only human-review drafts were prepared. Prices, samples, delivery commitments and recipient approval remain pending. No message was sent.', expectedContextText: 'Unit price: pending' }],
       }), resolveBinding: async () => ({ model: MODEL, client: createWorkspaceClient({ baseURL: f.baseURL, token: TOKEN_A, fetchImpl: async (url, options) => {
         const r = await request(f.baseURL, new URL(url).pathname + new URL(url).search, { method: options.method, rawBody: options.body, headers: { ...options.headers, Host: 'workspace.example' } });
@@ -50,10 +50,14 @@ for (const execute of [false, true]) test(`actual inquiry profile keeps original
   const prepared = entries.find(e => e.message?.toolName === 'workspace_factory_inquiry_prepare').message;
   assert.ok(!prepared.isError); assert.equal(prepared.details.drafts.length, 3); assert.equal(prepared.details.sent, false); assert.equal(prepared.details.match.accepted, false);
   const saved = entries.find(e => e.message?.toolName === 'workspace_factory_inquiry_save').message;
-  assert.equal(saved.isError === true, !execute); assert.equal(saved.details.status, execute ? 'saved' : 'blocked');
+  assert.equal(saved.isError === true, !execute); assert.equal(saved.details.status, execute ? 'saved-draft' : 'blocked');
+  if (execute) { assert.equal(saved.details.humanReviewed, false); assert.equal(saved.details.humanReviewRequired, true); }
+  const foreign = await f.workspace(`/api/conversations/${cid}/messages`, { subject: 'member-b', body: { content: 'Reuse the other member draft.', requestId: randomUUID(), workspaceExecution: true, inputContext: empty() } });
+  assert.equal(foreign.status, 404, foreign.text);
   const artifacts = state.artifacts.filter(a => a.metadata.factoryInquiry);
   assert.equal(artifacts.length, execute ? 3 : 0);
   for (const artifact of artifacts) { assert.equal(artifact.sourceConversationId, cid); assert.equal(artifact.sourceRunId, run.id); assert.equal(artifact.metadata.factoryInquiry.sent, false);
+    assert.equal(artifact.metadata.factoryInquiry.humanReviewed, false);
     const file = await f.app.artifacts.download(artifact.id, { version: 1 }); assert.match(file.bytes.toString(), /NOT SENT/); }
   assert.equal(state.workspaceAgentTasks.tasks.length, 0); assert.equal(state.runs.length, 1); assert.equal(f.faux.state.callCount, 0);
   assert.ok(run.events.every(e => !['workspace_public_search', 'workspace_public_browser', 'workspace_factory_task'].includes(e.toolName)));

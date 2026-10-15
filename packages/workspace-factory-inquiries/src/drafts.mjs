@@ -102,6 +102,6 @@ export function prepareFactoryInquiry({ inquiry, materials, requirements } = {})
       || !product.name || !skus.length || referenceOnly ? 'partial' : 'available',
     authorization: structuredClone(auth), sources: structuredClone([...inquiry.sources, ...materials.sources]),
     input: { inquiryDocumentId: doc.id, documentVersion: doc.documentVersion, productId: product.id, requirements: selected },
-    requirements: selected, match, drafts: draftList, humanReviewRequired: true, sent: false };
+    requirements: selected, match, drafts: draftList, humanReviewRequired: true, humanReviewed: false, sent: false };
   return { ...payload, draftHash: factoryInquiryHash(payload) };
 }

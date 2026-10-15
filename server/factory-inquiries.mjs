@@ -3,17 +3,17 @@
 import { ApiError } from './runtime.mjs';
 import { libraryReadHash } from './library-model-read-contract.mjs';
 import { prepareFactoryInquiry } from '../packages/workspace-factory-inquiries/src/drafts.mjs';
-const fail = (status, code) => { throw new ApiError(status, code, 'Review the original inquiry, exact factory material and unchanged draft before saving.'); };
+const fail = (status, code) => { throw new ApiError(status, code, 'Review the original inquiry, exact factory material and unchanged draft before saving an unreviewed draft.'); };
 const uuid = v => typeof v === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(v);
 const fields = ['inquiryDocumentId', 'documentVersion', 'productId', 'requirements'];
 function inputOf(input, save = false) {
-  const allowed = [...fields, ...(save ? ['requestId', 'expectedDraftHash', 'confirmed'] : [])];
+  const allowed = [...fields, ...(save ? ['requestId', 'expectedDraftHash'] : [])];
   if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(k => !allowed.includes(k))
     || !input.requirements || typeof input.requirements !== 'object' || Array.isArray(input.requirements)
     || Object.keys(input.requirements).some(k => !['product', 'spec', 'quantity', 'targetMarket', 'requestedDelivery', 'requirements'].includes(k))
     || Object.values(input.requirements).some(v => v !== null && (typeof v !== 'string' || v.length > 1000))
     || !uuid(input.inquiryDocumentId) || !uuid(input.productId) || !Number.isInteger(input.documentVersion) || input.documentVersion < 1 || input.documentVersion > 100
-    || save && (input.confirmed !== true || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(input.requestId || '') || !/^[a-f0-9]{64}$/.test(input.expectedDraftHash || '')))
+    || save && (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(input.requestId || '') || !/^[a-f0-9]{64}$/.test(input.expectedDraftHash || '')))
     fail(400, 'FACTORY_INQUIRY_INPUT_INVALID');
   return Object.fromEntries(fields.filter(k => input[k] !== undefined).map(k => [k, structuredClone(input[k])]));
 }
@@ -56,7 +56,7 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
         const result = await artifacts.create({ requestId: originalKey,
           filename: draft.name, content: draft.content, description: 'Unsent factory inquiry draft; human review required.',
           metadata: { businessLibrary: { visibility: 'internal' }, factoryInquiry: { draftHash: prepared.draftHash, sources: prepared.sources,
-            humanReviewRequired: true, sent: false } }, sourceConversationId: conversationId, ...(sourceRunId ? { sourceRunId } : {}) }, {
+            humanReviewRequired: true, humanReviewed: false, sent: false } }, sourceConversationId: conversationId, ...(sourceRunId ? { sourceRunId } : {}) }, {
           check(state) {
             signal?.throwIfAborted();
             if (!canSave()) fail(403, 'BUSINESS_EXECUTION_INTENT_REQUIRED');
@@ -72,12 +72,14 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
       }
     }
     await authorize();
-    return { plugin: 'workspace-factory-inquiries', status: failed ? 'partial' : 'saved', authorization: prepared.authorization,
+    return { plugin: 'workspace-factory-inquiries', status: failed ? 'partial' : 'saved-draft', authorization: prepared.authorization,
       sources: prepared.sources, input: prepared.input, draftHash: prepared.draftHash, artifacts: saved,
       ...(failed ? { reason: 'ORIGINAL_ARTIFACT_SAVE_INCOMPLETE', retry: 'Replay the identical original request after reviewing its partial receipts.' } : {}),
-      humanReviewRequired: true, sent: false, externalActions: false };
+      humanReviewRequired: true, humanReviewed: false, sent: false, externalActions: false };
   }
   async function revalidateReceipt(receipt, model, signal) {
+    if (!['available', 'partial', 'saved-draft'].includes(receipt.status) || receipt.humanReviewed !== false || receipt.humanReviewRequired !== true || receipt.sent !== false)
+      throw Error('Inquiry draft cannot claim human approval or sending.');
     const current = await prepare(receipt.input, signal, model);
     if (!['available', 'partial'].includes(current.status) || current.draftHash !== receipt.draftHash
       || libraryReadHash(current.authorization) !== libraryReadHash(receipt.authorization)
@@ -87,7 +89,8 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
     for (const ref of receipt.artifacts || []) {
       const record = artifacts.get(ref.artifactId).artifact;
       if (record.sourceConversationId !== conversationId || record.currentVersion !== ref.version || record.sha256 !== ref.sha256
-        || record.metadata?.factoryInquiry?.draftHash !== current.draftHash || libraryReadHash(record.metadata.factoryInquiry.sources) !== libraryReadHash(current.sources)
+        || record.metadata?.factoryInquiry?.humanReviewed !== false || record.metadata.factoryInquiry.humanReviewRequired !== true || record.metadata.factoryInquiry.sent !== false
+        || record.metadata.factoryInquiry.draftHash !== current.draftHash || libraryReadHash(record.metadata.factoryInquiry.sources) !== libraryReadHash(current.sources)
         || !current.drafts.some(d => d.name === record.filename && d.name === ref.name)) throw Error('Cached inquiry artifact scope changed.');
       const file = await artifacts.download(ref.artifactId, { version: ref.version });
       if (file.version.sha256 !== ref.sha256 || !current.drafts.some(d => d.name === ref.name && libraryReadHash(Buffer.from(d.content).toString('base64')) === libraryReadHash(file.bytes.toString('base64'))))

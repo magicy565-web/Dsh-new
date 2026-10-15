@@ -1,3 +1,5 @@
+> Historical `c585839` checkpoint. Its model `confirmed` flag did not establish human review. The [draft-only boundary correction](../factory-inquiry-review-boundary-20261015/README.md) supersedes that approval wording and contract; historical logs/hashes below remain unchanged.
+
 # Inquiry drafts: source and acceptance
 
 PR68 / Issue #73, extending the original #71 materials policy and #72 public

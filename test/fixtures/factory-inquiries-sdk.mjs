@@ -20,10 +20,10 @@ const client = {
     return prepareFactoryInquiry(data);
   },
   async save(input, signal, model) {
-    reads++; assert.equal(model.id, 'finite'); assert.equal(input.confirmed, true);
+    reads++; assert.equal(model.id, 'finite'); assert.equal(input.confirmed, undefined);
     const fresh = prepareFactoryInquiry(data);
     if (input.expectedDraftHash !== fresh.draftHash) return { plugin: 'workspace-factory-inquiries', status: 'blocked', reason: 'SYNTHETIC_EXACT_DRAFT_CHANGED', sources: [], sent: false };
-    saved++; return { ...fresh, status: 'saved', save: { requestId: input.requestId, syntheticClientOnly: true }, sent: false };
+    saved++; return { ...fresh, status: 'saved-draft', save: { requestId: input.requestId, syntheticClientOnly: true }, sent: false };
   },
 };
 const responses = [];
@@ -95,10 +95,10 @@ try {
   const prepared = await call(FACTORY_INQUIRY_TOOLS[0], data.input);
   assert.equal(prepared.row.isError, false); assert.equal(prepared.value.status, 'available');
   assert.equal(prepared.value.drafts.length, 3); assert.equal(prepared.value.sent, false);
-  const saveInput = { ...data.input, requestId: 'synthetic-inquiry-save', expectedDraftHash: prepared.value.draftHash, confirmed: true };
+  const saveInput = { ...data.input, requestId: 'synthetic-inquiry-save', expectedDraftHash: prepared.value.draftHash };
   const wrong = await call(FACTORY_INQUIRY_TOOLS[1], { ...saveInput, expectedDraftHash: '0'.repeat(64) });
   assert.equal(wrong.row.isError, true); assert.equal(wrong.value.status, 'blocked'); assert.equal(saved, 0);
-  const written = await call(FACTORY_INQUIRY_TOOLS[1], saveInput); assert.equal(written.row.isError, false); assert.equal(written.value.status, 'saved'); assert.equal(saved, 1);
+  const written = await call(FACTORY_INQUIRY_TOOLS[1], saveInput); assert.equal(written.row.isError, false); assert.equal(written.value.status, 'saved-draft'); assert.equal(saved, 1);
   mode = 'throw'; const failed = await call(FACTORY_INQUIRY_TOOLS[0], data.input);
   assert.equal(failed.row.isError, true); assert.equal(failed.value.status, 'blocked'); assert.deepEqual(failed.value.sources, []);
   assert.doesNotMatch(JSON.stringify(failed.value), /private-secret|authorization/);
@@ -110,9 +110,9 @@ try {
   // Official schema validation may reject before the extension. No client call.
   if (faux) {
     const { fauxAssistantMessage, fauxToolCall } = await import(config.piFaux);
-    faux.setResponses([fauxAssistantMessage(fauxToolCall(FACTORY_INQUIRY_TOOLS[1], { ...saveInput, confirmed: false }), { stopReason: 'toolUse' }), fauxAssistantMessage('Invalid confirmation rejected.')]);
-  } else responses.push({ content: [{ type: 'toolCall', id: 'invalid-confirmation', name: FACTORY_INQUIRY_TOOLS[1], arguments: { ...saveInput, confirmed: false } }], stopReason: 'toolUse' }, { content: [{ type: 'text', text: 'Invalid confirmation rejected.' }], stopReason: 'stop' });
-  await session.prompt('Reject this explicitly invalid synthetic confirmation.');
+    faux.setResponses([fauxAssistantMessage(fauxToolCall(FACTORY_INQUIRY_TOOLS[1], { ...saveInput, expectedDraftHash: 'not-a-sha256' }), { stopReason: 'toolUse' }), fauxAssistantMessage('Model approval claim rejected.')]);
+  } else responses.push({ content: [{ type: 'toolCall', id: 'invalid-model-approval', name: FACTORY_INQUIRY_TOOLS[1], arguments: { ...saveInput, expectedDraftHash: 'not-a-sha256' } }], stopReason: 'toolUse' }, { content: [{ type: 'text', text: 'Model approval claim rejected.' }], stopReason: 'stop' });
+  await session.prompt('Reject this model-provided approval claim.');
   assert.equal(session.messages.filter(message => message.role === 'toolResult').at(-1).isError, true); assert.equal(reads, beforeInvalid);
   const final = await call(FACTORY_INQUIRY_TOOLS[0], data.input); assert.equal(final.value.status, 'available');
   assert.equal(authorizations, reads * 2 + 1); assert.equal(saved, 1); assert.equal(fetchAttempts, 0);
@@ -121,7 +121,7 @@ try {
     realLibraryAuthorizationVerified: false, realArtifactSavingVerified: false, paidModelCalls: 0, forbiddenFetchAttempts: fetchAttempts,
     modelCalls: faux ? faux.state.callCount : modelCalls, syntheticClientCalls: reads, authorizations, syntheticSaveCount: saved,
     registeredTools: [...FACTORY_INQUIRY_TOOLS], exactDraftHashForwarded: true, changedDraftHashBlockedByInjectedClient: true,
-    humanConfirmationRequired: true, beforeAfterAuthorization: true, preRevokeZeroClientReads: true,
+    humanReviewVerified: false, savesOnlyUnreviewedDrafts: true, beforeAfterAuthorization: true, preRevokeZeroClientReads: true,
     postRevokeNoReceiptDisclosed: true, hostErrorTextNotDisclosed: true, errorRecovery: true, sent: false };
   await fs.writeFile(config.evidenceFile, JSON.stringify(evidence, null, 2) + '\n'); console.log(JSON.stringify(evidence));
 } finally { await session?.dispose(); auth?.close(); }
