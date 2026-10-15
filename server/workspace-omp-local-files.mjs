@@ -41,7 +41,7 @@ export async function createLocalFactoryFiles({ inputs, outputDirectory, directo
   const outputHandle = await fs.open(outputDirectory, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
   const pinned = await outputHandle.stat();
   if (pinned.dev !== outputStat.dev || pinned.ino !== outputStat.ino) { await outputHandle.close(); fail('LOCAL_OUTPUT_CHANGED'); }
-  const selected = [], used = new Map(), saved = [];
+  const selected = [], used = new Map(), saved = [], restoredSources = [];
   let bytes = 0, pendingWrites = 0, closed = false;
   try {
     await fs.mkdir(directory + '/sources', { mode: 0o700 }); await fs.mkdir(directory + '/writes', { mode: 0o700 });
@@ -67,7 +67,25 @@ export async function createLocalFactoryFiles({ inputs, outputDirectory, directo
     signal?.throwIfAborted();
   }
   const provenance = () => [...used.values()].map(({ id, name, sha256 }) => ({ kind: 'user-selected-local-file', recordId: id, name, sha256, independentlyVerified: false }));
-  return { authorize, manifest: selected.map(({ id, name, sha256 }) => ({ id, name, sha256 })), saved,
+  return { authorize, manifest: selected.map(({ id, name, sha256 }) => ({ id, name, sha256 })), saved, restoredSources,
+    async restoreReadSources(messages) {
+      await authorize();
+      const calls = new Map();
+      for (const message of messages) {
+        if (message.role === 'assistant') for (const block of message.content || []) {
+          // Native transcripts retain intent metadata (e.g. `i`), while the actual
+          // executor receives sanitized args. Authority is the paired successful
+          // receipt and selected ID/hash, never extra argument fields.
+          if (block.type === 'toolCall' && block.name === 'read' && typeof block.arguments?.path === 'string') calls.set(block.id, block.arguments.path);
+        }
+        if (message.role !== 'toolResult' || message.toolName !== 'read' || message.isError !== false) continue;
+        const id = calls.get(message.toolCallId), file = selected.find(f => f.id === id);
+        const source = Array.isArray(message.details?.sources) && message.details.sources.find(s => s.kind === 'user-selected-local-file' && s.recordId === id);
+        if (!file || !source || source.name !== file.name || source.sha256 !== file.sha256 || message.details.privateLibrary !== false) fail('LOCAL_CACHED_SOURCE_REFUSED');
+        used.set(id, file);
+      }
+      await authorize(); restoredSources.splice(0, restoredSources.length, ...provenance());
+    },
     async initialize({ packageRoot, toolSession }) {
       const load = name => import(pathToFileURL(path.join(packageRoot, 'src/tools', name + '.ts')).href);
       const [{ ReadTool }, { WriteTool }] = await Promise.all([load('read'), load('write')]);
