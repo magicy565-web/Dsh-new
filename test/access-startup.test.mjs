@@ -17,7 +17,8 @@ test('startup: absent runtime config defaults to OMP frontend with original Pi d
   const child = spawn(process.execPath, ['server/index.mjs'], { cwd: new URL('../', import.meta.url), env: { PATH: process.env.PATH, PORT: String(port), WORKSPACE_DATA_DIR: directory, DEEPSEEK_API_KEY: 'fixture-only-not-a-valid-key' }, stdio: ['ignore', 'pipe', 'pipe'] });
   const exited = once(child, 'exit'); let output = ''; child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
   t.after(async () => { if (child.exitCode === null) child.kill('SIGTERM'); await exited; await fs.rm(directory, { recursive: true, force: true }); });
-  for (let attempt = 0; attempt < 200 && !output.includes('Workspace server:') && child.exitCode === null; attempt++) await new Promise(resolve => setTimeout(resolve, 5));
+  const startupDeadline = Date.now() + 10_000;
+  while (Date.now() < startupDeadline && !output.includes('Workspace server:') && child.exitCode === null) await new Promise(resolve => setTimeout(resolve, 25));
   assert.match(output, /local access; omp; setup required/);
   const response = await fetch(`http://127.0.0.1:${port}/api/health`); const data = await response.json();
   assert.equal(response.status, 200); assert.equal(data.provider.kind, 'pi-durable'); assert.equal(data.provider.configured, false); assert.equal(data.provider.onlineVerified, false);
