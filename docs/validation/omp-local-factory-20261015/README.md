@@ -1,5 +1,10 @@
 # Local factory acceptance — 2026-10-15
 
+**Current result:** the second authorized live attempt completed original OMP
+read → write with real DeepSeek and saved a SHA-verified missing-facts document.
+See the latest section below; earlier synthetic checks and the first live failure
+remain historical evidence.
+
 Source base: `55f8faae8e29fe033dde9dd61312f3aca3ed60e6`.
 
 Implemented on an independent development branch. No production credential,
@@ -239,3 +244,78 @@ The exact documented full command was also executed with `--check`: configured
 unverified, key/cost/reviewed-budget present, zero model requests, no session file
 created. Without `--task`, persistent mode asks for the user's goal instead of
 starting the old default report template.
+
+
+## Second authorized real attempt — read/write completed
+
+The next user instruction authorized one repaired live run after no-paid checks.
+Base `460240e335d76d6d00fc1942dfd59321770a742c` received only the whitespace-field
+fix and value-free tool argument observations before the run. Actual HTTP,
+output/thinking and no-retry admission guards were unchanged. Remaining
+CNY4.990504 exceeded the CNY2.680768 preflight worst-case reserve. There were no
+other Node/Bun model runtimes before launch; the shared exclusive process lock
+and per-run exclusive persisted start marker guarded this single invocation.
+Time was before the authorized Beijing07:00 cutoff. No automatic rerun occurred.
+
+A new contract fixture imports the **pinned OMP18.10.4 argument validator** and
+executes the real registered RFQ/matching tools without a model or service. Its
+13 cases cover missing optional factoryOffer, empty objects, optional scalar
+fields, null/empty/whitespace fields, zero values, invalid required values,
+upstream optional-field repair, independent executor refusal and cancellation.
+Pure whitespace previously appeared as supplied evidence; it now stays pending.
+The original SDK's permitted normalization/coercion is retained. The focused
+32-test group and build passed; a standalone valid-factory wire case was rerun
+after adding receipt assertions and overlaps those tests.
+
+The real natural-language goal requested reading explicitly selected synthetic
+public product material and saving a short missing-facts note. It did **not**
+require unrelated factory tools. Official Flash autonomously chose **read → write**
+through the original OMP Session/provider; no finite-response or mocked-fetch
+option was supplied. Both tools succeeded, with shape-only parameter summaries
+and `sdk-and-executor-accepted` receipts. No raw material values or free-form key
+names are added to these receipt summaries.
+
+Result: **saved-local-drafts**, 3 actual HTTP requests, 3 complete confirmed
+responses, **6304ms**. Native usage in the persisted real JSONL independently
+reconciles as:
+
+| Response | Input uncached | Cache read | Cache write | Output | Total |
+|---|---:|---:|---:|---:|---:|
+| 1 | 1747 | 0 | 0 | 71 | 1818 |
+| 2 | 153 | 1792 | 0 | 214 | 2159 |
+| 3 | 396 | 1920 | 0 | 161 | 2477 |
+| Total | 2296 | 3712 | 0 | 446 | 6454 |
+
+All 6008 input tokens are conservatively priced as peak cache misses, plus
+446 output tokens: `(6008×2+446×8)/1,000,000 = CNY0.015584`. No uncertain usage,
+actual account-charge claim or account balance lookup. Known cumulative upper
+estimate is **CNY0.025080**, remaining authorization estimate **CNY4.974920**.
+The English official page was rechecked successfully (same pricing/context);
+Chinese refresh timed out, so the CNY calculation retains the same-day official
+Chinese peak rates successfully checked earlier in this session.
+
+Saved `missing-facts.md`, **704 bytes**; output SHA256:
+`53ac3d85187991bd295fe09afdb49f2b566686921aca2e12a0e0853bdf14a047`.
+The footer matches selected input SHA256:
+`cb1f33c7ab3d2f1572b8c714d2e5db3376361565cef1d9a4828a6bf9ac30c505`.
+The note accurately keeps stock/capacity, both delivery fields, certification,
+identity, price and shipping terms unknown, explicitly labels synthetic material,
+and makes no quotation/order/certification claim. `humanApproved:false`,
+`sent:false`; no Host, WS binding, external send or model retry was used.
+
+The original real JSONL is retained outside Git at
+`/workspace/local-deepseek-acceptance-round2-20261015/conversation.jsonl`.
+For the requested **no-paid** continuation check, an identical isolated copy in
+the same directory was opened by original SessionManager, restoring the **same
+native Session ID and prior real context**. A clearly labeled finite response
+then completed a question-only next turn with zero real provider requests.
+Original real JSONL bytes and output SHA were verified unchanged. This proves
+cold-reload/continuation mechanics without contaminating the live transcript;
+it is not evidence of a second real model turn. The documented continuation
+command also passed `--check` with `resumed:true`, zero model requests.
+
+All product/response/transcript/report/runtime files stay outside Git under that
+runtime directory. Only source/tests and sanitized aggregate evidence are
+committed. Actual RFQ/matching choices were optional and were **not** exercised
+by this successful real task; their field contract was checked offline. No new
+credential, main merge, deployment, private enterprise material or external write.

@@ -32,12 +32,30 @@ export function parseLocalArguments(args) {
   validatePublicBusinessInput(options.task);
   return options;
 }
+// Shape-only evidence: no material values, free-form keys or contents in logs.
+export function localToolArgumentSummary(name, args, manifest) {
+  const fields = (value, allowed) => {
+    const object = value !== null && typeof value === 'object' && !Array.isArray(value);
+    return { supplied: value !== undefined, object,
+      fields: object ? allowed.filter(k => Object.hasOwn(value, k)) : [],
+      unknownFieldCount: object ? Object.keys(value).filter(k => !allowed.includes(k)).length : 0,
+      nonScalarFieldCount: object ? Object.values(value).filter(v => v !== null && !['string','number'].includes(typeof v)).length : 0,
+      emptyFieldCount: object ? Object.values(value).filter(v => v == null || typeof v === 'string' && !v.trim()).length : 0 };
+  };
+  if (name === 'read') return { selectedInputId: manifest.some(f => f.id === args?.path) };
+  if (name === 'write') return { textContent: typeof args?.content === 'string', contentBytes: typeof args?.content === 'string' ? Buffer.byteLength(args.content) : null };
+  if (['workspace_factory_rfq_requirements','workspace_factory_match_prepare'].includes(name)) return {
+    rfq: fields(args?.rfq, ['product','spec','quantity','target_market','requested_delivery','requirements']),
+    ...(name === 'workspace_factory_match_prepare' ? { factoryOffer: fields(args?.factoryOffer, ['product','spec','available_quantity','production_capacity','lead_time','supply_conditions','source']) } : {}) };
+  return { objectArguments: args !== null && typeof args === 'object' && !Array.isArray(args) };
+}
 export async function runLocalFactorySession(input, { fetchImpl = globalThis.fetch } = {}) {
   if (!globalThis.Bun) throw Error('LOCAL_REVIEWED_BUN_REQUIRED');
   const { createLocalFactoryFiles, plainPath } = await import('../server/workspace-omp-local-files.mjs');
   const { createWorkspaceOmpSession } = await import('../server/workspace-omp-session.mjs');
   let files, created, transport, localSession, sessionLock, sessionInfo;
   const toolReceipts = [];
+  const toolArguments = new Map();
   const controller = new AbortController(), stop = () => { controller.abort(); void created?.session.abort(); };
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
   const timer = setTimeout(stop, 60000);
@@ -96,9 +114,11 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
       await created.manager.flush(); await fs.chmod(localSession.file, 0o600);
     }
     created.session.subscribe(event => {
+      if (event.type === 'tool_execution_start') toolArguments.set(event.toolCallId, localToolArgumentSummary(event.toolName, event.args, files.manifest));
       if (event.type === 'tool_execution_end') {
         const text = event.result?.content?.filter(b => b.type === 'text').map(b => b.text).join('\n') || '';
-        toolReceipts.push({ tool: event.toolName, isError: event.isError === true,
+        toolReceipts.push({ tool: event.toolName, isError: event.isError === true, argumentShape: toolArguments.get(event.toolCallId) || null,
+          argumentValidation: event.isError ? 'not-confirmed' : 'sdk-and-executor-accepted',
           ...(event.isError ? { errorCode: text.includes('Use only explicitly supplied public RFQ/factory material fields') ? 'LOCAL_FACTORY_FIELDS_REFUSED'
             : /invalid|validation|arguments/i.test(text) ? 'LOCAL_TOOL_ARGUMENTS_REFUSED' : 'LOCAL_TOOL_EXECUTION_ERROR' } : {}) });
       }

@@ -151,5 +151,93 @@
       "nativeSessionResumed": false,
       "sessionFileCreated": false
     }
+  },
+  "currentStatus": {
+    "liveLocalReadWritePassed": true,
+    "knownCumulativeUpperCny": 0.02508,
+    "remainingAuthorizationEstimateCny": 4.97492,
+    "accountBalanceQueried": false,
+    "latestRunNewActualRequests": 3
+  },
+  "secondAuthorizedLiveAttempt": {
+    "sourceBase": "460240e335d76d6d00fc1942dfd59321770a742c",
+    "preLiveSourceChanges": [
+      "whitespace fields count as pending",
+      "shape-only argument evidence"
+    ],
+    "runsThisRound": 1,
+    "actualProviderRequests": 3,
+    "confirmedResponses": 3,
+    "model": "deepseek-flash",
+    "sdk": "18.10.4",
+    "modelSubstituteUsed": false,
+    "syntheticPublicInput": true,
+    "autonomousToolChoices": [
+      "read",
+      "write"
+    ],
+    "unrelatedToolsRequired": false,
+    "allToolExecutionsSucceeded": true,
+    "argumentValidation": "sdk-and-executor-accepted",
+    "rawArgumentValuesInReceipt": false,
+    "inputUncachedTokens": 2296,
+    "cacheReadTokens": 3712,
+    "cacheWriteTokens": 0,
+    "rawInputTokens": 6008,
+    "outputTokens": 446,
+    "totalTokens": 6454,
+    "usageUpperCny": 0.015584,
+    "billingUncertain": false,
+    "accountChargedCny": null,
+    "elapsedMs": 6304,
+    "preRunRemainingCny": 4.990504,
+    "preRunFailureInclusiveUpperCny": 2.680768,
+    "inputSha256": "cb1f33c7ab3d2f1572b8c714d2e5db3376361565cef1d9a4828a6bf9ac30c505",
+    "outputFile": "missing-facts.md",
+    "outputBytes": 704,
+    "outputSha256": "53ac3d85187991bd295fe09afdb49f2b566686921aca2e12a0e0853bdf14a047",
+    "outputShaVerified": true,
+    "sourceFooterShaVerified": true,
+    "missingFactsPreserved": true,
+    "humanApproved": false,
+    "sent": false,
+    "parallelModelRuntimeProcessesBeforeStart": 0,
+    "exclusiveProcessLockAndStartMarker": true,
+    "automaticReruns": 0,
+    "remoteWorkspaceHostUsed": false,
+    "wsBindingUsed": false,
+    "liveNativeSessionPersisted": true,
+    "noPaidContinuation": {
+      "sameNativeSessionIdOnIsolatedCopy": true,
+      "priorRealContextVerified": true,
+      "originalLiveSessionUnchanged": true,
+      "originalOutputShaUnchanged": true,
+      "realProviderRequests": 0,
+      "evidenceKind": "explicit-finite-synthetic-continuation-of-native-session-copy"
+    },
+    "contractTests": {
+      "testCount": 1,
+      "parameterCases": 13,
+      "pinnedOfficialValidator": true,
+      "realToolExecutors": true,
+      "serviceReads": 0,
+      "modelRequests": 0
+    },
+    "focusedRegressionTestsPassed": 32,
+    "standaloneWireRerunOverlapsRegression": true,
+    "buildPassed": true,
+    "priceRecheck": {
+      "englishOfficialPageSucceeded": true,
+      "chineseRefreshTimedOut": true,
+      "cnyBasis": "same-day previously verified official peak CNY2/input-million and CNY8/output-million; unchanged English price and 1M context"
+    },
+    "liveContinuationCommandPreflight": {
+      "keyPresent": true,
+      "sessionResumed": true,
+      "modelRequests": 0
+    },
+    "rawRuntimeFilesCommitted": false,
+    "newCredentials": false,
+    "mainMergeOrDeployment": false
   }
 }
