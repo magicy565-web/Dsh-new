@@ -3,7 +3,7 @@
 默认前端使用官方 OMP 18.10.4，Bun固定1.3.14；原Workspace身份、Session、Store、Runtime、业务任务、人工审批和Pi Durable阶段继续持有执行权威。本地资料任务可直接通过原 OMP SDK 生成并保存本地草稿；显式服务模式仍保留原四阶段文书流程。未知产能、客户来源和商业条件保留待核对。
 
 
-无需远程 Workspace 服务器的一句话会话入口：`npm run factory:local -- --input ./product.md --output-dir ./out "先看资料，问我缺项，不要生成报告"`。输入文件和输出目录必须已存在；默认在所选输出目录使用 `factory-session.jsonl`，下次保持同一资料、目录和模型、换一句目标即可继续原生 OMP 会话。`--session` 可指定其他私有会话文件，`--task` 写法继续兼容。每条命令完成一个目标后退出；不预设工具顺序，不默认生成报告，结果不覆盖已有文件。`--check` 只做预检，不调用模型或创建会话文件。实际执行仍需原安全模型配置及已审价格／预算。见 [本地入口](docs/WORKSPACE-OMP-LOCAL.md) 与 [本轮离线检查](docs/validation/local-native-entry-20261015/README.md)。业务历史、企业共享资料、审批和远程 Worker 保留原服务边界。
+无需远程 Workspace 服务器的一句话会话入口：`npm run factory:local -- --input ./product.md --output-dir ./out "先看资料，问我缺项，不要生成报告"`。输入文件和输出目录必须已存在；默认在所选输出目录使用 `factory-session.jsonl`，下次保持同一资料、目录和模型、换一句目标即可继续原生 OMP 会话。`--session` 可指定其他私有会话文件，`--task` 写法继续兼容。每条命令完成一个目标后退出；不预设工具顺序，不默认生成报告，结果不覆盖已有文件。`--check` 只做预检，不调用模型或创建会话文件。实际执行仍需原安全模型配置及已审价格／预算。见 [本地入口](docs/WORKSPACE-OMP-LOCAL.md) 与 [最终集成离线检查](docs/validation/final-native-context-integration-20261015/README.md)。业务历史、企业共享资料、审批和远程 Worker 保留原服务边界。
 
 本集成开发分支同时保留原 Shopify 完整 SKU/变体回执与七天监测范围，以及 PR80 历史时间口径修复。Shopify/市场等远程能力继续需要原服务授权，未配置明确不可用；本地资料五工具保持独立。固定提交、冲突处理和无付费回归见 [集成说明](docs/validation/integrated-local-shopify-20261015/README.md)。
 

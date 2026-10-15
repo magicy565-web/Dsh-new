@@ -14,7 +14,7 @@ npm run factory:local -- --input ./product.md --output-dir ./out "先读资料�
 npm run factory:local -- --input ./product.md --output-dir ./out "保留尚未确认的交期，按已有资料保存一份 intro.md"
 ```
 
-该命令复用 `./out/factory-session.jsonl`。换资料/模型需明确选择新的 `--session` 文件；原来源绑定、SHA、profile、锁和未知计费校验仍生效。未给目标时只询问目标，不再默认生成 report.md。JSONL 含所选资料和对话，权限为 0600；不要提交会话文件。本分支忽略默认会话文件名及其锁，其他自选路径仍需自行保持私有。此入口不需要旧 Host 或 WS URL/token。本轮只做离线检查，见 [入口检查](validation/local-native-entry-20261015/README.md)；主任务继续处理 12KB 上下文导致写入后结束确认失败的问题，本入口未修改其 transport/context 代码。下文 `/workspace/deepseek-acceptance` 等绝对路径仅属于原真实验收工作区记录，不是当前安装要求。
+该命令复用 `./out/factory-session.jsonl`。换资料/模型需明确选择新的 `--session` 文件；原来源绑定、SHA、profile、锁和未知计费校验仍生效。未给目标时只询问目标，不再默认生成 report.md。JSONL 含所选资料和对话，权限为 0600；不要提交会话文件。本分支忽略默认会话文件名及其锁，其他自选路径仍需自行保持私有。此入口不需要旧 Host 或 WS URL/token。当前最终集成已纳入原生上下文投影与跨轮重复工具 ID 的按出现次序配对修复：不同选定来源不会因 ID 重复而被误裁剪，同一来源的旧读取仍可由原生 pruner 裁剪。投影不改写 JSONL、工具 ID、用户目标或已保存正文，12KB 发送限制保持不变，持续增长的不同历史内容仍可能超限。本轮只做离线检查；固定源码、回归和限制见 [最终集成检查](validation/final-native-context-integration-20261015/README.md)，更早的 [入口检查](validation/local-native-entry-20261015/README.md) 保留为历史。下文 `/workspace/deepseek-acceptance` 等绝对路径仅属于原真实验收工作区记录，不是当前安装要求。
 
 以下是**当前验收环境可复制的一条完整命令**，使用已安全注入的密钥和已审非秘密模型配置；资料是明确标注为合成验收的小产品文件。它会发起真实付费请求，本轮没有再次执行此命令：
 
