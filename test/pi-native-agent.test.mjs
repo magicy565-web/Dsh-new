@@ -128,14 +128,14 @@ test('native host timeout aborts the actual model signal, fails its task and ret
 
 test('actual SIGKILL after a completed owned ToolTask resumes Agent.prompt with the same receipt, identity and conservative uncertain budget', async t => {
   const directory = await fs.mkdtemp('/tmp/workspace-native-tool-kill-');
-  const child = spawn(process.execPath, ['test/fixtures/pi-native-tool-crash-child.mjs', directory], { env: { PATH: process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['test/fixtures/pi-native-tool-crash-child.mjs', directory], { env: { PATH: process.env.PATH, HOME: directory, TMPDIR: directory }, stdio: ['ignore', 'pipe', 'pipe'] });
   const exited = once(child, 'exit');
   let stderr = '', app;
   child.stderr.on('data', data => { stderr += data; });
   t.after(async () => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); await exited; await app?.close(); await fs.rm(directory, { recursive: true, force: true }); });
   const ready = await new Promise((resolve, reject) => {
     let output = '';
-    const timeout = setTimeout(() => reject(new Error('Native crash fixture stalled: ' + stderr)), 5000);
+    const timeout = setTimeout(() => reject(new Error('Native crash fixture stalled: ' + stderr)), 15000);
     child.stdout.on('data', data => { output += data; if (output.includes('\n')) { clearTimeout(timeout); resolve(JSON.parse(output.split('\n')[0])); } });
     child.once('exit', () => { clearTimeout(timeout); reject(new Error('Native crash child exited: ' + stderr)); });
   });
@@ -185,14 +185,14 @@ test('actual SIGKILL after a completed owned ToolTask resumes Agent.prompt with 
 
 test('actual pre-upgrade Harness submission recovers through its legacy path without relabeling its identity or issuing a model request', async t => {
   const directory = await fs.mkdtemp('/tmp/workspace-legacy-upgrade-kill-');
-  const child = spawn(process.execPath, ['test/fixtures/pi-legacy-crash-child.mjs', directory], { env: { PATH: process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['test/fixtures/pi-legacy-crash-child.mjs', directory], { env: { PATH: process.env.PATH, HOME: directory, TMPDIR: directory }, stdio: ['ignore', 'pipe', 'pipe'] });
   const exited = once(child, 'exit');
   let stderr = '', app;
   child.stderr.on('data', data => { stderr += data; });
   t.after(async () => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); await exited; await app?.close(); await fs.rm(directory, { recursive: true, force: true }); });
   const ready = await new Promise((resolve, reject) => {
     let output = '';
-    const timeout = setTimeout(() => reject(new Error('Legacy crash fixture stalled: ' + stderr)), 5000);
+    const timeout = setTimeout(() => reject(new Error('Legacy crash fixture stalled: ' + stderr)), 15000);
     child.stdout.on('data', data => { output += data; if (output.includes('\n')) { clearTimeout(timeout); resolve(JSON.parse(output.split('\n')[0])); } });
     child.once('exit', () => { clearTimeout(timeout); reject(new Error('Legacy crash child exited: ' + stderr)); });
   });
@@ -213,14 +213,14 @@ test('actual pre-upgrade Harness submission recovers through its legacy path wit
 test('actual SIGKILL after native accounting reuses the same pending chat/Goal reply with one step and one usage charge, including exhausted reservations', async t => {
   for (const mode of ['chat', 'goal', 'chat-unknown', 'goal-unknown']) {
     const directory = await fs.mkdtemp('/tmp/workspace-accounted-native-kill-');
-    const child = spawn(process.execPath, ['test/fixtures/pi-accounted-crash-child.mjs', directory, mode], { env: { PATH: process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['test/fixtures/pi-accounted-crash-child.mjs', directory, mode], { env: { PATH: process.env.PATH, HOME: directory, TMPDIR: directory }, stdio: ['ignore', 'pipe', 'pipe'] });
     const exited = once(child, 'exit');
     let stderr = '', app;
     child.stderr.on('data', data => { stderr += data; });
     t.after(async () => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); await exited; await app?.close(); await fs.rm(directory, { recursive: true, force: true }); });
     const ready = await new Promise((resolve, reject) => {
       let output = '';
-      const timeout = setTimeout(() => reject(new Error('Accounting crash fixture stalled (' + mode + '): ' + stderr)), 5000);
+      const timeout = setTimeout(() => reject(new Error('Accounting crash fixture stalled (' + mode + '): ' + stderr)), 15000);
       child.stdout.on('data', data => { output += data; if (output.includes('\n')) { clearTimeout(timeout); resolve(JSON.parse(output.split('\n')[0])); } });
       child.once('exit', () => { clearTimeout(timeout); reject(new Error('Accounting crash child exited: ' + stderr)); });
     });

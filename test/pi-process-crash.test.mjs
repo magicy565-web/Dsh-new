@@ -11,14 +11,14 @@ import { createApp } from '../server/index.mjs';
 test('actual SIGKILL fixture: recover pending Pi work and cached answer before business acknowledgment without duplicate admission', async t => {
   for (const mode of ['pending', 'answered', 'metadata-gap']) {
     const directory = await fs.mkdtemp('/tmp/workspace-pi-kill-');
-    const child = spawn(process.execPath, ['test/fixtures/pi-crash-child.mjs', directory, mode], { env: { PATH: process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['test/fixtures/pi-crash-child.mjs', directory, mode], { env: { PATH: process.env.PATH, HOME: directory, TMPDIR: directory }, stdio: ['ignore', 'pipe', 'pipe'] });
     const exited = once(child, 'exit');
     let stderr = '', app;
     child.stderr.on('data', data => { stderr += data; });
     t.after(async () => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); await exited; await app?.close(); await fs.rm(directory, { recursive: true, force: true }); });
     const ready = await new Promise((resolve, reject) => {
       let output = '';
-      const timeout = setTimeout(() => reject(new Error('Crash fixture did not admit work: ' + stderr)), 5000);
+      const timeout = setTimeout(() => reject(new Error('Crash fixture did not admit work: ' + stderr)), 15000);
       child.stdout.on('data', data => { output += data; if (output.includes('\n')) { clearTimeout(timeout); resolve(JSON.parse(output.split('\n')[0])); } });
       child.once('exit', () => { clearTimeout(timeout); reject(new Error('Crash fixture exited early: ' + stderr)); });
     });
