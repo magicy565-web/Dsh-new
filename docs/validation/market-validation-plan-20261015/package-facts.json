@@ -1,0 +1,62 @@
+{
+  "tests": [
+    {
+      "engine": "pi",
+      "version": "1.1.0",
+      "syntheticClients": true,
+      "modelCalls": 17,
+      "reads": 3,
+      "saves": 3,
+      "authorizations": 13,
+      "registeredTools": [
+        "workspace_market_validation_product",
+        "workspace_market_validation_plan_save"
+      ],
+      "actualSdkToolLoop": true,
+      "zeroToolClarificationTurn": true,
+      "freelyAuthoredSteps": true,
+      "beforeAfterAuthorization": true,
+      "extraFieldHandling": "rejected",
+      "fetchAttempts": 0,
+      "paidModelCalls": 0,
+      "realModelCalls": 0,
+      "realStore": false,
+      "realSevenDays": false
+    },
+    {
+      "engine": "omp",
+      "version": "18.10.4",
+      "syntheticClients": true,
+      "modelCalls": 17,
+      "reads": 4,
+      "saves": 3,
+      "authorizations": 15,
+      "registeredTools": [
+        "workspace_market_validation_product",
+        "workspace_market_validation_plan_save"
+      ],
+      "actualSdkToolLoop": true,
+      "zeroToolClarificationTurn": true,
+      "freelyAuthoredSteps": true,
+      "beforeAfterAuthorization": true,
+      "extraFieldHandling": "official_sdk_removed_before_tool",
+      "fetchAttempts": 0,
+      "paidModelCalls": 0,
+      "realModelCalls": 0,
+      "realStore": false,
+      "realSevenDays": false
+    },
+    {
+      "engine": "omp-cli",
+      "version": "18.10.4",
+      "actualManifestAndSkill": true,
+      "copiedOutsideRepository": true,
+      "nativeToolsAndOtherPlugin": true,
+      "unconfiguredNoAccess": true,
+      "disabledThenEnabled": true,
+      "uninstalled": true,
+      "realModelCalls": 0,
+      "paidModelCalls": 0
+    }
+  ]
+}

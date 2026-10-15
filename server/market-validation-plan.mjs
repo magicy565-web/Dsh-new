@@ -45,7 +45,7 @@ export function createMarketValidationPlanClient({ materialsClient, artifacts, s
     await guard(signal, model);
     const sources = [...materials.sources, ...documents.flatMap(d => d.sources)];
     const extraction = documents.map(d => ({ documentId: d.document.id, status: d.status, textTruncated: d.document.textTruncated,
-      ocrStatus: d.document.ocrStatus, notice: d.document.notice ?? null }));
+      ocrStatus: d.document.ocrStatus, pagesNeedingOcr: d.document.pagesNeedingOcr, reason: d.document.reason ?? null, notice: d.document.notice ?? null }));
     const result = { authorization: materials.authorization, sources, extraction };
     current(store.read(), result, false);
     return { ...result, materialReceipt: materials, documentReceipts: documents };

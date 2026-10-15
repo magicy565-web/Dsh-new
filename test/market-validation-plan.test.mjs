@@ -9,9 +9,19 @@ import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-pro
 import { createMarketValidationPlanClient, MARKET_PLAN_FLAGS } from '../server/market-validation-plan.mjs';
 import { validatePlanInput } from '../packages/workspace-market-validation/src/plan.mjs';
 import extension, { marketValidationExtension, MARKET_VALIDATION_TOOLS } from '../packages/workspace-market-validation/src/extension.js';
+import { publicPdfBytes } from './fixtures/workspace-omp-public-pdf.mjs';
 
-async function fixture(t) {
+async function fixture(t, documentBytes = null) {
   const f = await materialsFixture(t), flags = { active: true, admitted: true };
+  if (documentBytes) {
+    const file = (await f.app.artifacts.create({ requestId: randomUUID(), filename: 'synthetic-scanned.pdf', base64: documentBytes.toString('base64'), metadata: { businessLibrary: { visibility: 'internal' } } })).artifact;
+    f.asset = { artifactId: file.id, version: file.currentVersion, sha256: file.sha256 };
+    f.document = (await f.app.businessLibrary.createDocument({ requestId: randomUUID(), title: 'Synthetic scan', slotKey: 'specification', asset: f.asset }, f.actor)).document;
+    f.product = (await f.app.businessLibrary.updateProduct(f.product.id, { requestId: randomUUID(), expectedRevision: 1, changes: { documents: [{ documentId: f.document.id, documentVersion: 1, purpose: 'Synthetic scan' }] } }, f.actor)).product;
+    f.policy.factoryMaterials.products = [{ id: f.product.id, revision: f.product.revision }];
+    f.policy.factoryMaterials.documents = [{ id: f.document.id, revision: 1, documentVersion: 1, asset: f.asset }];
+    await f.app.close(); Object.assign(f, await taskFixture(t, { directory: f.directory, enterprise: true, libraryModelReadPolicy: f.policy }));
+  }
   const c = await f.workspace('/api/conversations', { subject: 'member-a', body: { title: 'Synthetic market plan conversation', requestId: randomUUID() } });
   assert.equal(c.status, 201, c.text); const conversationId = c.json.conversation.id;
   const materialsClient = createWorkspaceFactoryMaterialsClient({ recipient: RECIPIENT, request: async (route, options) => {
@@ -70,6 +80,7 @@ test('plan input rejects model approval, fake starts, cross-path sales units and
   bad(p => { p.plan.mode = 'dual'; }); bad(p => { p.plan.paths[0].metrics[0].id = 'b2b_orders'; });
   bad(p => { p.plan.paths[0].metrics[0].availability = 'verified'; });
   bad(p => { p.plan.timeZone = 'unreal/zone'; });
+  bad(p => { p.plan.timeZone = '+08:00'; });
   bad(p => { p.plan.budget = { status: 'proposed', currency: 'CNY', totalCap: '0.30', lines: [
     { id: 'a', category: 'other', acquisitionId: null, cap: '0.20', purpose: 'a' }, { id: 'b', category: 'other', acquisitionId: null, cap: '0.11', purpose: 'b' }] }; });
   const proposed = structuredClone(input);
@@ -132,6 +143,25 @@ test('commit-bound cancellation and product drift refuse all draft persistence',
     return original(...args);
   };
   await assert.rejects(client.save(selected, undefined, MODEL), e => e.code === 'MARKET_PLAN_SOURCE_CHANGED'); assert.equal(savedRows(f).length, 0);
+});
+
+test('native PDF partial/OCR notices remain attached to the saved plan, without claiming complete document facts', { timeout: 30000 }, async t => {
+  const { f, client, selectors, input } = await fixture(t, publicPdfBytes());
+  const read = await client.read(selectors, undefined, MODEL); assert.equal(read.status, 'partial');
+  assert.match(read.documentReceipts[0].document.text, /Text extraction is incomplete/); assert.deepEqual(read.extraction[0].pagesNeedingOcr, [1]);
+  const receipt = await client.save(await input(), undefined, MODEL);
+  const saved = JSON.parse((await f.app.artifacts.download(receipt.artifact.artifactId)).bytes);
+  assert.deepEqual(saved.extraction, read.extraction); assert.equal(saved.execution.status, 'not_started');
+  await client.revalidateReceipt(receipt, MODEL);
+});
+
+test('actual original Session logout and exact artifact edits invalidate plan read/cache', async t => {
+  const { f, client, input, selectors } = await fixture(t), selected = await input(), receipt = await client.save(selected, undefined, MODEL);
+  const row = f.app.artifacts.get(receipt.artifact.artifactId).artifact;
+  await f.app.artifacts.update(row.id, { expectedRevision: row.revision, content: '{"fake":"not the reviewed source-bound plan"}' });
+  await assert.rejects(client.revalidateReceipt(receipt, MODEL));
+  const logout = await f.workspace('/api/session/logout', { subject: 'member-a', body: {} }); assert.equal(logout.status, 200);
+  await assert.rejects(client.read(selectors, undefined, MODEL), e => e.code === 'MARKET_PLAN_SOURCE_REFUSED');
 });
 
 test('ordinary package is unconfigured; bound tools require current receiver and scrub private Host failures', async () => {

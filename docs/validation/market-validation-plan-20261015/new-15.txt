@@ -1,0 +1,23 @@
+✔ actual official pi SDK runs composable plan tools with finite keyless callbacks (1344.086994ms)
+✔ actual official omp SDK runs composable plan tools with finite keyless callbacks (3165.779172ms)
+✔ actual OMP plugin link loads manifest and Skill alongside native tools, with safe disable and uninstall (27718.312239ms)
+✔ reads original authorized product/documents with unknown supply and no private field expansion (277.084736ms)
+✔ b2b draft retains freely authored steps and precise sources; saving does not launch or create tasks (204.304018ms)
+✔ b2c draft retains freely authored steps and precise sources; saving does not launch or create tasks (343.992063ms)
+✔ dual draft retains freely authored steps and precise sources; saving does not launch or create tasks (276.110629ms)
+✔ plan input rejects model approval, fake starts, cross-path sales units and budget/commission ambiguity (11.942724ms)
+✔ exact parallel replay persists one original artifact; edits require a new requestId and survive reload (297.587631ms)
+✔ revocation, receiver change, source drift and read-only intent block save and cached disclosure (177.086212ms)
+✔ forged sources or cached fields cannot become evidence, and foreign original conversations cannot disclose (373.235349ms)
+✔ commit-bound cancellation and product drift refuse all draft persistence (127.23778ms)
+✔ native PDF partial/OCR notices remain attached to the saved plan, without claiming complete document facts (4668.801405ms)
+✔ actual original Session logout and exact artifact edits invalidate plan read/cache (158.36967ms)
+✔ ordinary package is unconfigured; bound tools require current receiver and scrub private Host failures (0.965174ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32320.92893

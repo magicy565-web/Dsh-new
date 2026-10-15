@@ -1,0 +1,11 @@
+
+> workspace-agent@0.5.0-rc.2 workspace
+> node --env-file-if-exists=.env scripts/workspace-omp.mjs --check
+
+.env not found. Continuing without it.
+{"status":"unconfigured","runtime":{"omp":"18.10.4","bun":"1.3.14","integrity":"verified"},"frontend":{"engine":"omp","profile":"public","engineScope":"omp:18.10.4:public-v1","provider":"workspace-fastaitoken","model":"gpt-6-sol","modelKeyPresent":false,"costReviewed":false,"remainingBudgetReviewed":false},"backend":{"status":"unconfigured","reason":"EXISTING_WORKSPACE_BINDING_REQUIRED"},"publicToolConfiguration":{"search":"supported_unverified","searchProvider":"duckduckgo","browser":"supported_unverified","selectedPublicFileCount":0},"library":"disabled","paidModelCalls":0,"modelCalls":0,"businessExecutor":"original-workspace-runtime"}
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

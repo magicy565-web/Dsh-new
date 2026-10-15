@@ -14,6 +14,20 @@ Issue #75；从 PR #68 精确 `d82d35fd7213012ff6b0e5f2f24d765aba021a9e` 开发�
 
 保存的是原 artifact JSON `workspace.market-validation-plan.v1`，包含 plan、sources、extraction、固定安全状态和 Shopify handoff。所有输出固定 `humanReviewRequired:true, humanReviewed:false, externalActions:false, startedAt:null`。JSON 的 execution 固定 `status:not_started, durationDays:7, actualStartedAt:null, baseline:null, endsAt:null`。B 路只需接 artifact 的精确版本/hash 和 planHash；它们不能作为生产批准或真实启动证据。后续批准/启动/采集应继续使用原任务/审批/预算服务，不写回新账本。编辑需新 requestId，原计划版本保留待审。
 
+### 与 B 路 PR #76 的映射
+
+已只读核对 B 路 `a8a73b19c07527007a6d103d18711e57cbb01191` 的 `docs/MARKET-VALIDATION-MONITOR.md`，最小约定兼容。Host 将 `savedReceipt.artifact.artifactId → planId`、`savedReceipt.artifact.version → planRevision`，同时保留 artifact.sha256、planHash；先按原权限读取和核验精确 bytes/version。`launchReceiptId` **只能**来自原获客渠道真实执行记录。Host 的只读 `resolveLaunchReceipt` 还需核验原人工批准、计划 hash、产品/变体/商店/渠道、真实启动时间、时区与基线状态，不能用本草案、模型字段、Shopify 仅上架回执或 synthetic 回执替代。A 的 `plan.timeZone` 对应 B 解析器的 `timezone`；实际七天窗口由 B 按真实启动后 168 小时计算。本模块不填写该回执或开启 Schedule。
+
+| A 路计划指标 | B 路来源字段 | 集成注意 |
+| --- | --- | --- |
+| qualified_inquiries / quote_requests / sample_requests / b2b_orders | qualifiedInquiries / quoteRequests / sampleRequests / orders | 仅 B2B 路径；资格口径和重叠保持原来源说明 |
+| net_paid_orders / net_paid_units | netPaidOrders / netPaidUnits | 需原已授权支付/转化来源；Shopify cohort 的 retainedUnits 不等于净支付 |
+| visits | 暂无直接映射 | B 的 productDetailViews 是商品详情事件，不能冒称 sessions/访客 |
+| add_to_cart / checkouts | 原来源未接通则 unavailable/unconfigured | 不能默认填零 |
+| refunds | 无无条件映射 | B 的 refundedUnits 是退款件数，未明确计划单位前不能当退款订单数/事件数 |
+
+dual 计划由 B 按 b2b/b2c 各自真实回执建立独立原任务，不相加。B 的公共 dispatcher 尚未注册，原 Runtime 仍拒绝 `businessAgentOwner` 会话创建 Goal（`BUSINESS_AGENT_CONVERSATION_ONLY`）；A 不绕过这个限制。合法原会话/任务关联、审批解析器和真实执行绑定由后续 Host 集成处理；此处不声称整条 OMP → 七天任务链已经接通。
+
 ## 原能力与缺口
 
 读取复用 `createWorkspaceFactoryMaterialsClient` 及 `/api/library/model-read/factory/*`，保留同一原 Session、接收模型、字段/版本/过期范围。服务不直接从 Store 扩读业务字段；Store 只在原 artifact 提交检查源版本及会话所有者。现有材料投影有 SKU 规格/MOQ/交期、capacityNote、documentReferences/provenance；价格/成本/库存/物流/退换货及一件代发/OEM/ODM 不在当前投影内，按所选计划需要追问，不能默认扩大权限或把模型整理称为事实。
@@ -30,7 +44,7 @@ Shopify 继续复用 `server/supplier-service.mjs` 的原产品建档、供货�
 npm ci --ignore-scripts --cache=/tmp/workspace-market-validation-npm-cache
 node scripts/setup-omp-runtime.mjs
 node scripts/workspace-omp-install.mjs
-node --test test/market-validation-plan.test.mjs
+node --test test/market-validation-plan.test.mjs test/market-validation-package.test.mjs
 npm run typecheck
 # 原 Host 的配置检查（没有接本包的新 profile）
 npm run workspace -- --check
@@ -45,3 +59,5 @@ support/omp-bun-linux-x64/node_modules/@oven/bun-linux-x64-baseline/bin/bun \
 ```
 
 更有意义的真实 SDK/Skill 加载及有限 keyless 替身工具选择验证随测试运行；具体运行结果见 `docs/validation/market-validation-plan-20261015/README.md`。该测试不能证明真实模型选择、真实企业授权、真实商店或真实七天观测。不得使用开发环境作真实发布或投放。
+
+OMP 18.10.4 会在调用工具前修复部分参数，包括移除不支持的字段；Pi 1.1.0 对测试中的多余字段直接拒绝。因此不能声称 SDK 会拒绝所有原始畸形调用。两者最终传给此工具/原服务的都是限定字段，原服务重新验证选定 ID、source、版本和权限；模型附带的字段不授予读取或执行权。JSON Schema 的 nullable enum 已同时包含 null，真实两套 SDK 均验收可用。

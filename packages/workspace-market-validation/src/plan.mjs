@@ -2,7 +2,7 @@
 export const object = (properties, required = Object.keys(properties)) => ({ type: 'object', properties, required, additionalProperties: false });
 const text = (maxLength = 2000) => ({ type: 'string', minLength: 1, maxLength });
 const choice = values => ({ type: 'string', enum: values });
-const nullable = schema => ({ ...schema, type: [schema.type, 'null'] });
+const nullable = schema => ({ ...schema, type: [schema.type, 'null'], ...(schema.enum ? { enum: [...schema.enum, null] } : {}) });
 const array = (items, maxItems = 20, minItems = 0) => ({ type: 'array', items, maxItems, minItems });
 export const uuid = { type: 'string', pattern: '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$' };
 const hash = { type: 'string', pattern: '^[a-f0-9]{64}$' };
@@ -71,6 +71,7 @@ export function validatePlanInput(input) {
   if (Buffer.byteLength(JSON.stringify(input)) > 60000) reject('Plan input exceeds 60 KB.');
   const p = input.plan, modes = p.paths.map(row => row.mode);
   if (!unique(modes) || (p.mode === 'dual' ? modes.length !== 2 : modes.length !== 1 || modes[0] !== p.mode)) reject('Keep B2B and B2C paths explicitly separate.');
+  if (p.timeZone !== 'UTC' && !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+-]+)+$/.test(p.timeZone)) reject('Specify an explicit IANA time zone, not a numeric offset.');
   try { new Intl.DateTimeFormat('en', { timeZone: p.timeZone }); } catch { reject('Specify a valid IANA time zone.'); }
   const acquisitionIds = p.paths.flatMap(row => row.acquisition.map(a => a.id));
   if (!unique(acquisitionIds) || !unique(p.budget.lines.map(row => row.id))) reject('Use unique acquisition and budget line IDs.');
