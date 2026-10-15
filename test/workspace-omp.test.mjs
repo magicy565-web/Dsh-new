@@ -55,6 +55,14 @@ async function finished(f, id) {
   }
   throw new Error('Original OMP frontend run did not settle');
 }
+async function waitForColdOmp(check) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    if (await check()) return;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  throw new Error('Original cold OMP fixture did not become ready within 30 seconds.');
+}
 for (const format of ['md', 'pdf']) test(`actual OMP public ${format} and source receipts feed original factory documents with one original frontend Run`, { skip: !configured, timeout: 90000 }, async t => {
   const directory = await fs.mkdtemp('/tmp/omp-public-factory-flow-'); t.after(() => fs.rm(directory, { recursive: true, force: true }));
   const material = 'Public synthetic cup\nSpecification: explicitly supplied synthetic cup.\nCapacity and price unknown.\n';
@@ -249,7 +257,7 @@ test('original stop-answer aborts the actual OMP provider and its worker, preser
     input: { product: 'Public cup', spec: 'Public supplied spec', target_market: 'Public market' } } }, { wait: 60000, text: 'Must be cancelled before this response.' }],
   [backendWait], TOKEN_A, { onWorkerLifecycle: event => lifecycle.push(event) });
   const id = await conversation(f, 'omp-real-cancel'), admitted = await send(f, id, 'omp-real-cancel-send', true);
-  await until(() => f.app.store.read().runs.find(row => row.id === admitted.run.id)?.events.filter(row => row.type === 'pi.agent-session.request').length === 2 && f.faux.state.callCount === 1);
+  await waitForColdOmp(() => f.app.store.read().runs.find(row => row.id === admitted.run.id)?.events.filter(row => row.type === 'pi.agent-session.request').length === 2 && f.faux.state.callCount === 1);
   const taskId = f.app.store.read().runs.find(row => row.id === admitted.run.id).executionRefs[0].taskId;
   const stopped = await workspace(f, `/api/conversations/${id}/cancel`, {}); assert.equal(stopped.status, 200); assert.equal(stopped.json.backendTasksCancelled, false);
   assert.equal((await finished(f, admitted.run.id)).status, 'cancelled');

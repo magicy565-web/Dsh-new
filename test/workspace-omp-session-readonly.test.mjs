@@ -5,13 +5,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
-import { taskFixture, until } from './fixtures/pi-task-helpers.mjs';
+import { taskFixture } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
 import { createWorkspaceOmpBusinessOptions } from '../server/workspace-omp-host.mjs';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
 import { acceptanceConfiguration } from '../server/deepseek-acceptance-policy.mjs';
 const sha = text => createHash('sha256').update(text).digest('hex');
 const empty = () => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });
+async function untilOmpSettled(check) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const value = await check();
+    if (value) return value;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  throw new Error('Original OMP task fixture did not settle within 30 seconds.');
+}
 function options(responses = []) {
   const environment = { DEEPSEEK_API_KEY: 'explicit-synthetic-unused', PI_PROVIDER: 'deepseek', PI_MODEL: 'deepseek-flash',
     WORKSPACE_OMP_PROVIDER_COST_JSON: JSON.stringify({input:0.3,output:1.2,cacheRead:0.006,cacheWrite:0.3}), WORKSPACE_OMP_LIVE_BUDGET_VERIFIED: '1' };
@@ -70,7 +79,7 @@ test('Session client requires an existing principal; local valid binding is empt
   assert.equal((await client.businessTasks({limit:1})).status,'empty');
   assert.equal((await client.businessResult()).status,'empty');assert.equal(g.app.store.read().workspaceAgentTasks.tasks.length,0);
   const gcid=await conversation(g),accepted=await send(g,gcid,'local-empty-read');assert.equal(accepted.status,202,accepted.text);
-  await until(()=>{const run=g.app.store.read().runs.find(r=>r.id===accepted.json.run.id);return run&&!['queued','running'].includes(run.status)});
+  await untilOmpSettled(()=>{const run=g.app.store.read().runs.find(r=>r.id===accepted.json.run.id);return run&&!['queued','running'].includes(run.status)});
   assert.equal(g.app.store.read().runs[0].status,'succeeded');
   const mapping=g.app.store.read().conversations.find(c=>c.id===gcid).businessAgentSession;
   const entries=(await fs.readFile(mapping.sessionFile,'utf8')).trim().split('\n').map(l=>JSON.parse(l));
@@ -125,7 +134,7 @@ test('actual OMP Session calls existing read tools over original Host HTTP with 
   assert.equal(execution.status,403);assert.equal(execution.json.error.code,'SESSION_READONLY_EXECUTION_REFUSED');assert.equal(f.app.store.read().runs.length,0);
   const accepted=await send(f,cid,'original-session-read');assert.equal(accepted.status,202,accepted.text);
   const runId=accepted.json.run.id;
-  await until(()=>{const r=f.app.store.read().runs.find(r=>r.id===runId);return r&&!['queued','running'].includes(r.status)});
+  await untilOmpSettled(()=>{const r=f.app.store.read().runs.find(r=>r.id===runId);return r&&!['queued','running'].includes(r.status)});
   const run=f.app.store.read().runs.find(r=>r.id===runId);
   assert.equal(run.status,'succeeded',JSON.stringify(run.error));
   assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length,4);assert.equal(f.app.store.read().runs.length,1);assert.equal(f.faux.state.callCount,0);
@@ -159,7 +168,7 @@ test('original instance proof rejects a client from a different Host before admi
 test('forged model write call cannot submit business work through Session client or OMP RPC', {timeout:60000}, async t => {
   const f=await fixture(t,{responses:[{tool:'workspace_factory_task',arguments:{title:'Synthetic forbidden write'}},{text:'The attempted write is unavailable; no execution.'}]});
   const cid=await conversation(f),accepted=await send(f,cid,'forged-write');assert.equal(accepted.status,202,accepted.text);
-  await until(()=>{const r=f.app.store.read().runs.find(r=>r.id===accepted.json.run.id);return r&&!['queued','running'].includes(r.status)});
+  await untilOmpSettled(()=>{const r=f.app.store.read().runs.find(r=>r.id===accepted.json.run.id);return r&&!['queued','running'].includes(r.status)});
   assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length,0);assert.equal(f.app.store.read().runs.length,1);
   assert.equal(f.faux.state.callCount,0);
   const c=f.app.store.read().conversations.find(c=>c.id===cid);
