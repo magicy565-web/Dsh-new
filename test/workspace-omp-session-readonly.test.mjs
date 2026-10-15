@@ -166,3 +166,46 @@ test('forged model write call cannot submit business work through Session client
   const entries=(await fs.readFile(c.businessAgentSession.sessionFile,'utf8')).trim().split('\n').map(l=>JSON.parse(l));
   const receipt=entries.find(e=>e.message?.role==='toolResult');assert.ok(receipt);assert.equal(receipt.message.isError,true);
 });
+
+
+for (const mutation of ['delete', 'change-owner']) test(`in-flight ${mutation} rejects the entire saved result, including earlier artifacts`, async t => {
+  const f=await fixture(t);await seed(f);
+  await f.app.store.update(state=>{
+    const task=state.workspaceAgentTasks.tasks.find(task=>task.id==='synthetic-owned-new');
+    const content='Second synthetic artifact for authority race regression.\n';
+    task.deliverables.push({name:'second.md',content,bytes:Buffer.byteLength(content),sha256:sha(content),url:'/api/agent/v1/tasks/'+task.id+'/artifacts/second.md'});
+  });
+  const client=f.app.builtinAgent.sessionReadonlyClient(await identity(f));
+  const original=f.app.builtinAgent.store.readArtifact.bind(f.app.builtinAgent.store);
+  let reads=0;
+  f.app.builtinAgent.store.readArtifact=async (...args)=>{
+    const file=await original(...args);reads++;
+    if(args[1]==='second.md') await f.app.store.update(state=>{
+      const tasks=state.workspaceAgentTasks.tasks,index=tasks.findIndex(task=>task.id==='synthetic-owned-new');
+      if(mutation==='delete') tasks.splice(index,1); else tasks[index].subject='member-b';
+    });
+    return file;
+  };
+  await assert.rejects(client.businessResult({taskId:'synthetic-owned-new'}),error=>error.status===404&&error.extra.code==='AGENT_TASK_NOT_FOUND');
+  assert.equal(reads,2);assert.equal(f.app.store.read().runs.length,0);
+});
+
+test('ordinary artifact failure remains a truthful partial result when ownership and Session remain valid', async t => {
+  const f=await fixture(t);await seed(f);
+  const client=f.app.builtinAgent.sessionReadonlyClient(await identity(f));
+  f.app.builtinAgent.store.readArtifact=async ()=>{throw Error('Explicit synthetic temporary artifact failure');};
+  const result=await client.businessResult({taskId:'synthetic-owned-new'});
+  assert.equal(result.status,'partial');assert.equal(result.artifacts[0].status,'unavailable');
+  assert.equal(result.task.taskId,'synthetic-owned-new');assert.equal(result.sources.some(source=>source.kind==='artifact'),false);
+});
+
+test('task deletion combined with ordinary artifact I/O failure still rejects aggregate metadata', async t => {
+  const f=await fixture(t);await seed(f);
+  const client=f.app.builtinAgent.sessionReadonlyClient(await identity(f));
+  f.app.builtinAgent.store.readArtifact=async ()=>{
+    await f.app.store.update(state=>{state.workspaceAgentTasks.tasks=state.workspaceAgentTasks.tasks.filter(task=>task.id!=='synthetic-owned-new');});
+    throw Error('Explicit synthetic temporary I/O failure after task deletion');
+  };
+  await assert.rejects(client.businessResult({taskId:'synthetic-owned-new'}),error=>error.status===404&&error.extra.code==='AGENT_TASK_NOT_FOUND');
+  assert.equal(f.app.store.read().runs.length,0);
+});

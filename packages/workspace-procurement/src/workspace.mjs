@@ -65,7 +65,13 @@ export function createWorkspaceBusinessReads(request) {
         if (Buffer.byteLength(content, 'utf8') !== file.bytes) throw new Error('Redacted or decoded text is not the exact original artifact bytes.');
         artifacts.push({ name: file.name, bytes: file.bytes, status: 'available', content });
       }
-      catch { artifacts.push({ name: file.name, status: 'unavailable', detail: 'Original authenticated artifact could not be read; no document result is inferred.' }); }
+      catch (error) {
+        // An authority rejection invalidates the whole result, including earlier
+        // metadata/artifacts. Ordinary missing/temporary artifact failures may
+        // still produce the established truthful partial result.
+        if ([401, 403].includes(error?.status) || error?.extra?.code === 'AGENT_TASK_NOT_FOUND') throw error;
+        artifacts.push({ name: file.name, status: 'unavailable', detail: 'Original authenticated artifact could not be read; no document result is inferred.' });
+      }
     }
     if (looksLikeCredential(JSON.stringify({ task, events, artifacts }))) throw new Error('Original task records contain credential-like text and cannot be disclosed to the model.');
     return { profile: 'business-preset', identity: 'taskId', delegatedExecution: false,
@@ -120,7 +126,7 @@ export function createWorkspaceClient({ baseURL, token, fetchImpl = fetch, libra
       }
       text += decoder.decode();
     } finally { reader.releaseLock(); }
-    if (!response.ok) throw new Error(`Workspace refused this operation (HTTP ${response.status}). No approval or task result is implied.`);
+    if (!response.ok) throw Object.assign(new Error(`Workspace refused this operation (HTTP ${response.status}). No approval or task result is implied.`), { status: response.status });
     if (expectedBytes !== undefined && bytes !== expectedBytes) throw new Error('Original artifact bytes do not match their task receipt.');
     let value;
     if (textOnly) {

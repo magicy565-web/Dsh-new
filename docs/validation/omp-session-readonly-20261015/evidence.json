@@ -14,11 +14,36 @@
   "passed": 74,
   "failed": 0,
   "skipped": 0,
-  "finalSessionSuiteRerun": { "passed": 6, "failed": 0, "skipped": 0, "overlapsSelectedTests": true },
-  "activeSessionBusinessTools": ["workspace_business_tasks", "workspace_business_result"],
+  "finalSessionSuiteRerun": {
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "overlapsSelectedTests": true
+  },
+  "activeSessionBusinessTools": [
+    "workspace_business_tasks",
+    "workspace_business_result"
+  ],
   "productionCredentialsCreated": false,
   "productionPrincipalsCreated": false,
   "permissionChanges": false,
   "deployed": false,
-  "mergedToMain": false
+  "mergedToMain": false,
+  "startupFollowup": {
+    "sourceBase": "0ba2f64758302f8be6fe188e465618e647b611b0",
+    "actualNpmStartVerified": true,
+    "hostStoppedAfterTest": true,
+    "originalLoginCsrfVerifiedWithSyntheticIdentities": true,
+    "finiteSyntheticModelOnly": true,
+    "realBusinessHostVerified": false,
+    "buildPassed": true,
+    "selectedDistinctTests": 43,
+    "selectedGroupPassed": 42,
+    "finalSessionSuitePassed": 11,
+    "finalSessionSuiteOverlapsGroup": 10,
+    "skipped": 0,
+    "authorityRaceRejectsEntireResult": true,
+    "ordinaryArtifactPartialPreserved": true,
+    "additionalPaidRequests": 0
+  }
 }

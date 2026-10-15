@@ -60,7 +60,11 @@ export function createAgentSessionReadonlyClient({ identity, auth, engine, store
     }, ...Object.fromEntries(Object.entries(reads).map(([name, read]) => [name, async (...args) => {
       authorize(args[1]);
       const value = await read(...args);
-      authorize(args[1]);
+      const actor = authorize(args[1]);
+      const taskIds = new Set([...(value.tasks || []).map(task => task.taskId),
+        ...(value.task ? [value.task.taskId] : []),
+        ...(value.sources || []).filter(source => source.kind === 'task').map(source => source.recordId)]);
+      for (const taskId of taskIds) if (!engine.find(taskId, actor)) fail(404, 'AGENT_TASK_NOT_FOUND');
       return value;
     }])) });
 }

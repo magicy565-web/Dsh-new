@@ -103,3 +103,11 @@ explicit authorization for any real data disclosure and paid call. Neither the
 prior model smoke test nor this keyless regression authorizes another paid call.
 No Shopify, MCP, Muse source was changed. No main merge, deployment, permission
 change or credential provisioning was performed.
+
+
+## Actual startup follow-up
+
+See [actual npm entry, authority-race correction and current prerequisites](startup.md)
+for the later real `npm start`/original Session/OMP SDK test with explicit synthetic
+identities, records and model responses, the completed build, and 43 selected
+follow-up regressions. These counts overlap the initial checks above.

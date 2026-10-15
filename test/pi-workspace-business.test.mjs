@@ -85,6 +85,11 @@ test('business artifact reads tolerate one original failure and cannot follow me
   const receipt = await partial.businessStatus(submitted.task.taskId);
   assert.equal(receipt.artifacts.filter(row => row.status === 'available').length, 2); assert.equal(receipt.artifacts.find(row => row.name === 'comparison.md').status, 'unavailable');
   assert.ok(requested.every(url => new URL(url).origin === f.baseURL));
+  for (const status of [401, 403]) {
+    const refused = createWorkspaceClient({ baseURL: f.baseURL, token: f.token, fetchImpl: (url, options) =>
+      url.endsWith('/artifacts/comparison.md') ? Response.json({ error: 'Synthetic authority refusal' }, { status }) : fetch(url, options) });
+    await assert.rejects(refused.businessResult({ taskId: submitted.task.taskId }), error => error.status === status);
+  }
   const bad = createWorkspaceClient({ baseURL: f.baseURL, token: f.token, fetchImpl: async (url, options) => {
     if (url.endsWith('/tasks/' + submitted.task.taskId)) { const response = await fetch(url, options); const value = await response.json(); value.artifacts.push({ name: '../../private.md', bytes: 1, url: 'https://arbitrary.example/private' }); return Response.json(value); }
     return fetch(url, options);
