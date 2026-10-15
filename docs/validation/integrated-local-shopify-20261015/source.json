@@ -1,0 +1,122 @@
+{
+  "codeCommit": "0533f945457a0f95292e6554df29dbac9c9b4efb",
+  "ancestors": {
+    "shopifyScope": {
+      "sha": "ad9952894a0ed6be7f17090af14185f5f2c85b42",
+      "included": true
+    },
+    "localBase": {
+      "sha": "f2eb0630372cf9b0a09a62d59005d6fcc5ad4072",
+      "included": true
+    },
+    "localSessions": {
+      "sha": "460240e335d76d6d00fc1942dfd59321770a742c",
+      "included": true
+    },
+    "localVerifiedFlow": {
+      "sha": "b6603acf261e6653e0ed3df653531eed00b73d38",
+      "included": true
+    },
+    "pr80": {
+      "sha": "6d1d1175f60802960b411ff751c6dad003d8570f",
+      "included": true
+    },
+    "pr81": {
+      "sha": "f6fa3c5a08a33a96ae914574f186814208516ebe",
+      "included": true
+    }
+  },
+  "firstMerge": {
+    "sha": "bd1ea5d803f54ce754fb13250a633415c79ca130",
+    "parents": [
+      "ad9952894a0ed6be7f17090af14185f5f2c85b42",
+      "f2eb0630372cf9b0a09a62d59005d6fcc5ad4072"
+    ]
+  },
+  "sessionFollowupMerge": {
+    "sha": "c02713c82d5b891a4d40c8966754c24817a6e661",
+    "parents": [
+      "5f779b0c36eadd81465b13eb9b7bea39423be897",
+      "460240e335d76d6d00fc1942dfd59321770a742c"
+    ]
+  },
+  "verifiedFlowFollowupMerge": {
+    "sha": "0533f945457a0f95292e6554df29dbac9c9b4efb",
+    "parents": [
+      "9b2b43b6375c3818f73b458fe7e22a38761be71d",
+      "b6603acf261e6653e0ed3df653531eed00b73d38"
+    ]
+  },
+  "conflictFiles": [
+    "server/index.mjs",
+    "server/pi-business-agent.mjs",
+    "server/workspace-omp-bridge.mjs",
+    "server/workspace-omp-host.mjs",
+    "server/workspace-omp-session.mjs"
+  ],
+  "sessionFollowupConflict": "server/workspace-omp-session.mjs",
+  "retained": [
+    {
+      "ref": "b6603acf261e6653e0ed3df653531eed00b73d38",
+      "files": [
+        "scripts/workspace-omp-local.mjs",
+        "server/workspace-omp-local-files.mjs",
+        "server/workspace-omp-local-deepseek.mjs",
+        "packages/workspace-procurement/src/factory.mjs"
+      ],
+      "unchanged": true
+    },
+    {
+      "ref": "f2eb0630372cf9b0a09a62d59005d6fcc5ad4072",
+      "files": [
+        "server/deepseek-acceptance-policy.mjs"
+      ],
+      "unchanged": true
+    },
+    {
+      "ref": "ad9952894a0ed6be7f17090af14185f5f2c85b42",
+      "files": [
+        "server/shopify-market-scope.mjs",
+        "server/market-validation-launch-reader.mjs",
+        "server/market-validation-monitor.mjs",
+        "server/supplier-publication.mjs",
+        "server/shopify-publication.mjs"
+      ],
+      "unchanged": true
+    },
+    {
+      "ref": "6d1d1175f60802960b411ff751c6dad003d8570f",
+      "files": [
+        "packages/workspace-market-validation/src/plan.mjs",
+        "server/market-validation-assessment.mjs"
+      ],
+      "unchanged": true
+    }
+  ],
+  "hashes": {
+    "server/index.mjs": "672c5ad1bd9f985ede3b340e40ce2961275e5fd5e6e968e05395d65103f9aafc",
+    "server/pi-business-agent.mjs": "2c117b49dfc18717350338dfa7b210f33c92f4b74a22b8172df6bf901b5e41a6",
+    "server/workspace-omp-bridge.mjs": "3649b1e0e83c4613d8189576c8117f94a21136e8a76c51016d540b83b0e3bc49",
+    "server/workspace-omp-host.mjs": "d3adfbede6e58207cf5105b0f4f677bb03c187c99c69ad664ef1dca137f054a6",
+    "server/workspace-omp-session.mjs": "a6b96ce730fddfb401e385e44c1829b20712ad38ebe852d46e9f740ddb6c6bec",
+    "package.json": "40174d2d038b18cb1e8615325c211bb0788acf8676aaa6d6314a834e75ac8345",
+    "test/workspace-omp-integration.test.mjs": "cf99fe6dca01497211fb79c54e48a2ff3750ae3a474887cec1277bf78db59b4e",
+    "test/access-startup.test.mjs": "1e154aba5d245add6aecdb6039bc9e06ea0cfab417aea9053e0acd48b6f286ff",
+    "test/workspace-omp-integrated-factory.test.mjs": "a2efc055b9569c1a9039c5bfb6318c80a933540d3ec1ce4c673d4ec3e34a3d87",
+    "test/ui.dom.test.mjs": "ceb3645b4b7ceed03d07f2949342ee6ddb3ca3d829f5d656675fc89837bd6f8d",
+    "test/workspace-factory-field-contract.test.mjs": "30586b6d295ae19ae823ddf2fdefd04e98d8a0aabcfb13e9cc590c23c5a65ef9",
+    "test/fixtures/workspace-factory-field-contract.mjs": "54226758d0db0ef0c596ed8da23601d4cf550ffc0925b532483da5012ff32f5e",
+    "scripts/workspace-omp-local.mjs": "f3966434dcebb664d8d129faa54a5fb532e18aa94288a39caf7a061edde8c47b",
+    "server/workspace-omp-local-files.mjs": "be7a33d6464f0c83dccb042695372c77d08e5dff3fca4bc1e69942ce587cabc1",
+    "server/workspace-omp-local-deepseek.mjs": "9d58240fc73b56db89a3ad3c62fc53228116861fdd51885981eef106b2dfe066",
+    "packages/workspace-procurement/src/factory.mjs": "60484e7b7f65ace6c9251f2e841fc3323d47678adbda23d87f761cddb54459a3",
+    "server/deepseek-acceptance-policy.mjs": "dea43ade1092d799bc5edfeff03baf253720ef78bfbb93d94b3195848244d5e6",
+    "server/shopify-market-scope.mjs": "dd38f8e10c5d8b563b8d3720218ad2a7fc3ca5cfaf0553f203cb0abaecc90f46",
+    "server/market-validation-launch-reader.mjs": "f917802aff5c29db0c7d0995267c145a232033648550e2c5837d7f8030b42cb6",
+    "server/market-validation-monitor.mjs": "0fb0f1547d894e577b80b092fc7dee4f4111b29a68d51b20d75039b0e8a8a93a",
+    "server/supplier-publication.mjs": "bea43a54285bac1d14653114e8730bf0a7b0dbaaa9d583a5f282cc95548ed44f",
+    "server/shopify-publication.mjs": "0c1f48077018b9b55c1f8443732d2daea11fc7fbb014d79446fccec295ffc63f",
+    "packages/workspace-market-validation/src/plan.mjs": "f7f24503ed58cc48ede1d6049143d9d298dedbcf7636822ed3445ec62ab89da8",
+    "server/market-validation-assessment.mjs": "0c131d2fa01f8eb630dd12e2fb0e9d4391e4e1d16860cdc5a54fcac136988d2a"
+  }
+}

@@ -1,0 +1,432 @@
+{
+  "finishedAt": "2026-10-15T18:44:19.585Z",
+  "deadlineUtc": "2026-10-15T23:00:00.000Z",
+  "finishedBeforeDeadline": true,
+  "branch": "codex/integrate-local-shopify-scope-20261015",
+  "codeCommit": "0533f945457a0f95292e6554df29dbac9c9b4efb",
+  "finalVerdict": "all_executed_checks_passed_with_explicit_skips",
+  "versions": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "omp": "18.10.4",
+    "bun": "1.3.14",
+    "pi": "1.1.0"
+  },
+  "backendCoverage": {
+    "selector": "Same as scripts/test-backend.mjs: *.test.mjs, excluding ui.* and *.dom.test.mjs",
+    "files": 181,
+    "exactFileSetVerified": true,
+    "fileSetSha256": "9459194cd8be927807e5f080f150bde51d062be39475617f482fcf3197921da7",
+    "mainConcurrency": 2,
+    "pdfCleanupConcurrency": 1,
+    "pdfCleanupFile": "test/factory-materials-read.test.mjs",
+    "reasonForPartition": "Its existing cleanup assertion compares all /tmp/workspace-factory-document-* directories."
+  },
+  "backend": {
+    "tests": 1227,
+    "pass": 1217,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 10,
+    "duration_ms": 453642.762919
+  },
+  "dom": {
+    "tests": 37,
+    "pass": 37,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "finalRun": {
+    "environmentWhitelisted": true,
+    "credentialsInherited": false,
+    "stages": [
+      {
+        "stage": "backend-main",
+        "command": "node --test --test-reporter=spec --test-concurrency=2 test/acceptance-native-provider.test.mjs test/acceptance-provider.test.mjs test/access-audit.test.mjs test/access-startup.test.mjs test/access.test.mjs test/agent-business-lifecycle.test.mjs test/agent-coordinator-explicit-recovery.test.mjs test/agent-owner-policy.test.mjs test/agent-pi-runtime.test.mjs test/agent-pi-service.http.test.mjs test/agent-projection-linkage.test.mjs test/agent-research.test.mjs test/agent-service.http.test.mjs test/agent-ui.http.test.mjs test/agent-unified-host.http.test.mjs test/agent-workspace.integration.test.mjs test/artifacts.test.mjs test/assistant-runtime-adapter.test.mjs test/business-flows.test.mjs test/capabilities.test.mjs test/cloud-activity.test.mjs test/cloud-experts.http.test.mjs test/cloud-experts.test.mjs test/cloud-team-staging.http.test.mjs test/cloud-team-staging.test.mjs test/commerce.http.test.mjs test/conversation-create-idempotency.test.mjs test/conversation-routing.test.mjs test/deepseek-acceptance-policy.test.mjs test/deepseek-readonly-wire.test.mjs test/diagnostics.test.mjs test/dot-control-host.test.mjs test/dot-control-plane.test.mjs test/dot-mcp-contract.test.mjs test/dot-mcp.test.mjs test/dot-worker-bridge.test.mjs test/dot-worker.http.test.mjs test/expert-content.test.mjs test/expert-visual-integrity.test.mjs test/factory-customer-drafts.test.mjs test/factory-customers-package.test.mjs test/factory-export.business.test.mjs test/factory-ingestion-package.test.mjs test/factory-inquiries-package.test.mjs test/factory-inquiries.test.mjs test/factory-library-ingestion.test.mjs test/factory-materials-package.test.mjs test/factory-plugin-interfaces.test.mjs test/goal-commerce.http.test.mjs test/harness-provider.test.mjs test/independent-pr28-acceptance.disk.test.mjs test/independent-pr28-acceptance.http.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs test/managed-commerce-boundaries.test.mjs test/managed-workspace-integration.test.mjs test/market-validation-assessment.test.mjs test/market-validation-monitor-tools.test.mjs test/market-validation-monitor.http.test.mjs test/market-validation-monitor.test.mjs test/market-validation-package.test.mjs test/market-validation-plan.test.mjs test/market-validation-pre-service.test.mjs test/miniprogram-client.test.mjs test/muse-conversation-delegation.test.mjs test/muse-conversation-host.test.mjs test/muse-conversation.disk.test.mjs test/muse-draft-flow.test.mjs test/muse-joint-slot.test.mjs test/muse-native-bootstrap.test.mjs test/muse-worker.contract.test.mjs test/muse-worker.host.test.mjs test/muse-worker.http.test.mjs test/muse-worker.ingress.test.mjs test/muse-worker.native-binding.test.mjs test/muse-worker.probe.test.mjs test/muse-worker.recovery.test.mjs test/native-recovery.test.mjs test/native-relay.test.mjs test/native-subscription-facility.test.mjs test/omp-builtins.factory-task.test.mjs test/omp-builtins.factory.test.mjs test/pi-business-conversation.native.test.mjs test/pi-community-plugins.test.mjs test/pi-durable-contract.test.mjs test/pi-library-read.pty.test.mjs test/pi-library-read.test.mjs test/pi-muse-binding.test.mjs test/pi-muse-policy.test.mjs test/pi-native-agent.test.mjs test/pi-process-crash.test.mjs test/pi-procurement-package.test.mjs test/pi-provider-config.test.mjs test/pi-runtime.test.mjs test/pi-startup-config.test.mjs test/pi-subagent.test.mjs test/pi-task.http.test.mjs test/pi-usage.test.mjs test/pi-workspace-agent-startup.test.mjs test/pi-workspace-agent.pty.test.mjs test/pi-workspace-agent.test.mjs test/pi-workspace-business.pty.test.mjs test/pi-workspace-business.test.mjs test/pi-workspace-lifecycle.pty.test.mjs test/pi-workspace-normal.test.mjs test/pi-workspace-plugins.http.test.mjs test/pi-workspace-plugins.pty.test.mjs test/pi-workspace-plugins.test.mjs test/pi-workspace-tui.pty.test.mjs test/pi-workspace-tui.test.mjs test/procurement-conversation.disk.test.mjs test/procurement-mcp.http.test.mjs test/product-traffic-config.test.mjs test/product-traffic-ga4.test.mjs test/product-traffic-nullability.test.mjs test/product-traffic-startup.test.mjs test/recovery-control.test.mjs test/recovery.test.mjs test/relay-billing.test.mjs test/relay-provider.test.mjs test/run-output.test.mjs test/runtime-v2.test.mjs test/schedule-template.test.mjs test/server-v2.test.mjs test/server.test.mjs test/seven-day-notifications.test.mjs test/shopify-market-scope.test.mjs test/shopify-product-client.test.mjs test/shopify-product-contracts.test.mjs test/shopify-product-package.test.mjs test/shopify-readiness.test.mjs test/store-durability.test.mjs test/store-migration.test.mjs test/store.test.mjs test/supplier-monitoring.test.mjs test/supplier-muse-mcp.test.mjs test/supplier-owner-mcp.http.test.mjs test/supplier-profile.test.mjs test/supplier-publication.http.test.mjs test/supplier-publication.test.mjs test/supplier-service.http.test.mjs test/supplier-session-mcp.http.test.mjs test/supply-network.http.test.mjs test/task-context.test.mjs test/wechat-code-exchange.test.mjs test/wechat-ingress.test.mjs test/windows-private-acl.test.mjs test/worker-a2a-adapter.test.mjs test/worker-a2a-host.test.mjs test/worker-a2a-network.test.mjs test/worker-delivery-artifact.test.mjs test/worker-desk.http.test.mjs test/worker-desk.test.mjs test/worker-opportunities.http.test.mjs test/worker-opportunities.test.mjs test/worker-provider.test.mjs test/workspace-bridge.test.mjs test/workspace-factory-field-contract.test.mjs test/workspace-omp-factory-customers.test.mjs test/workspace-omp-factory-inquiries.test.mjs test/workspace-omp-factory-materials.test.mjs test/workspace-omp-integrated-factory.test.mjs test/workspace-omp-integration.test.mjs test/workspace-omp-launch.test.mjs test/workspace-omp-local-wire.test.mjs test/workspace-omp-local.test.mjs test/workspace-omp-public-cleanup.test.mjs test/workspace-omp-public-pdf.test.mjs test/workspace-omp-public-tools.test.mjs test/workspace-omp-session-readonly.test.mjs test/workspace-omp-session-startup.test.mjs test/workspace-omp-shopify-product.test.mjs test/workspace-omp-snapshot-lifecycle.test.mjs test/workspace-omp-task.test.mjs test/workspace-omp-terminal-host.test.mjs test/workspace-omp-terminal-intent.test.mjs test/workspace-omp-terminal-recovery.test.mjs test/workspace-omp-terminal.test.mjs test/workspace-omp.test.mjs",
+        "files": 180,
+        "exitCode": 0,
+        "signal": null,
+        "durationMs": 449642,
+        "tests": 1219,
+        "pass": 1209,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 10,
+        "duration_ms": 449595.744862,
+        "logSha256": "84460c696547856e9f620c1c876803e540949d3e4be17a540314e9bb29ab7395"
+      },
+      {
+        "stage": "backend-pdf-cleanup",
+        "command": "node --test --test-reporter=spec --test-concurrency=1 test/factory-materials-read.test.mjs",
+        "files": 1,
+        "exitCode": 0,
+        "signal": null,
+        "durationMs": 4083,
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "duration_ms": 4047.018057,
+        "logSha256": "944d36e0de8ec6cb35747d8e91460f9a0e1542beab62ce23dd61f6dd218311dc"
+      },
+      {
+        "stage": "ui-dom",
+        "command": "node --test --test-reporter=spec test/ui.dom.test.mjs",
+        "files": 1,
+        "exitCode": 0,
+        "signal": null,
+        "durationMs": 21594,
+        "tests": 20,
+        "pass": 20,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "duration_ms": 21557.839626,
+        "logSha256": "da7ad291cbd4217a1ac58aacca0aa506054bb674ed44f78b000acfc03866e8b5"
+      },
+      {
+        "stage": "conversation-dom",
+        "command": "node --test --test-reporter=spec --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs",
+        "files": 3,
+        "exitCode": 0,
+        "signal": null,
+        "durationMs": 11133,
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "duration_ms": 11060.174731,
+        "logSha256": "a3b1f9e4c39d8ec35e5975355fc2771717c5ec82dbb5dbf66fc5a699889823af"
+      },
+      {
+        "stage": "mini-build",
+        "command": "node scripts/build-miniprogram.mjs",
+        "exitCode": 0,
+        "signal": null,
+        "durationMs": 1441,
+        "logSha256": "86283dd110ff823da040a157c6b68f4976daf1b2545d438ecccec424dcc1730d"
+      }
+    ]
+  },
+  "skippedTestNames": [
+    "﹣ real source with scripted model fixture: native AgentLoop and JSONL preserve session across restart (0.28597ms) # SKIP",
+    "﹣ native recovery uses real JSONL and native tool history; old work never replays after restore (0.388174ms) # SKIP",
+    "﹣ native recovery loader resolves reviewed built public exports from the explicit base manifest (0.103876ms) # SKIP",
+    "﹣ native relay: real native SDK server, llm-pi-ai stream/tool loop and JSONL resume use the selected route (0.26574ms) # SKIP",
+    "﹣ published OMP builtin task divides public synthetic reads and cancels its original child session (0.594763ms) # Set OMP_BUILTINS_SDK_ROOT to fixed audited 18.10.4.",
+    "﹣ fixed official OMP search receipts, denial, public document and isolated browser close (0.685861ms) # Set OMP_BUILTINS_SDK_ROOT to the audited 18.10.4 package root.",
+    "﹣ official isolated Pi load, coexistence, tools, subagent process stop, document distinctions and removal (0.31263ms) # SKIP",
+    "﹣ Windows private storage narrows an empty object before bytes, reopens, and retains unsafe legacy data (0.108794ms) # SKIP",
+    "﹣ real native built exports with local fixtures: approved tasks, gateway identity, restart and untrusted results (0.090275ms) # SKIP",
+    "﹣ real native built exports with local fixtures: cancellation remains requested until worker stop acknowledgment (0.107321ms) # SKIP"
+  ],
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0,
+    "includesTypecheck": true,
+    "warning": "Existing bundle chunk-size warning",
+    "logSha256": "b45204539bfbcb846fa8aa94ce21d512e8aed72b2ed072d82d277a7bfd8b0bec"
+  },
+  "entryPreflight": {
+    "sourceCommit": "0533f945457a0f95292e6554df29dbac9c9b4efb",
+    "evidenceKind": "actual-npm-entry-keyless-preflight",
+    "environmentWhitelisted": true,
+    "realUserFiles": false,
+    "workspaceUrlOrTokenInjected": false,
+    "modelCredentialsInjected": false,
+    "remoteCalls": 0,
+    "local": {
+      "status": "model-unconfigured",
+      "localFilesReady": true,
+      "modelRequests": 0,
+      "outputFiles": 0
+    },
+    "nativeSessionPreflight": {
+      "status": "model-unconfigured",
+      "resumed": false,
+      "modelRequests": 0,
+      "sessionFileCreated": false
+    },
+    "profiles": {
+      "public": {
+        "status": "unconfigured",
+        "backendStatus": "unconfigured",
+        "engineScope": "omp:18.10.4:public-v1",
+        "modelCalls": 0
+      },
+      "factory-materials": {
+        "status": "unconfigured",
+        "backendStatus": "unconfigured",
+        "engineScope": "omp:18.10.4:factory-materials-v1",
+        "modelCalls": 0
+      },
+      "factory-customers": {
+        "status": "unconfigured",
+        "backendStatus": "unconfigured",
+        "engineScope": "omp:18.10.4:factory-customers-v1",
+        "modelCalls": 0
+      },
+      "factory-inquiries": {
+        "status": "unconfigured",
+        "backendStatus": "unconfigured",
+        "engineScope": "omp:18.10.4:factory-inquiries-v1",
+        "modelCalls": 0
+      },
+      "factory-ingestion": {
+        "status": "unconfigured",
+        "backendStatus": "unconfigured",
+        "engineScope": "omp:18.10.4:factory-ingestion-v1",
+        "modelCalls": 0
+      },
+      "market-validation": {
+        "status": "unconfigured",
+        "backendStatus": "unconfigured",
+        "engineScope": "omp:18.10.4:market-validation-v1",
+        "modelCalls": 0
+      },
+      "shopify-product": {
+        "status": "unconfigured",
+        "backendStatus": "unconfigured",
+        "engineScope": "omp:18.10.4:shopify-product-v1",
+        "modelCalls": 0
+      }
+    }
+  },
+  "diffCheck": {
+    "command": "git diff --check",
+    "exitCode": 0
+  },
+  "sourceHashesVerified": 24,
+  "history": {
+    "initialCodeCommit": "bd1ea5d803f54ce754fb13250a633415c79ca130",
+    "initialRun": {
+      "environmentWhitelisted": true,
+      "credentialsInherited": false,
+      "stages": [
+        {
+          "stage": "backend",
+          "command": "node --test --test-reporter=spec --test-concurrency=1 test/acceptance-native-provider.test.mjs test/acceptance-provider.test.mjs test/access-audit.test.mjs test/access-startup.test.mjs test/access.test.mjs test/agent-business-lifecycle.test.mjs test/agent-coordinator-explicit-recovery.test.mjs test/agent-owner-policy.test.mjs test/agent-pi-runtime.test.mjs test/agent-pi-service.http.test.mjs test/agent-projection-linkage.test.mjs test/agent-research.test.mjs test/agent-service.http.test.mjs test/agent-ui.http.test.mjs test/agent-unified-host.http.test.mjs test/agent-workspace.integration.test.mjs test/artifacts.test.mjs test/assistant-runtime-adapter.test.mjs test/business-flows.test.mjs test/capabilities.test.mjs test/cloud-activity.test.mjs test/cloud-experts.http.test.mjs test/cloud-experts.test.mjs test/cloud-team-staging.http.test.mjs test/cloud-team-staging.test.mjs test/commerce.http.test.mjs test/conversation-create-idempotency.test.mjs test/conversation-routing.test.mjs test/deepseek-acceptance-policy.test.mjs test/deepseek-readonly-wire.test.mjs test/diagnostics.test.mjs test/dot-control-host.test.mjs test/dot-control-plane.test.mjs test/dot-mcp-contract.test.mjs test/dot-mcp.test.mjs test/dot-worker-bridge.test.mjs test/dot-worker.http.test.mjs test/expert-content.test.mjs test/expert-visual-integrity.test.mjs test/factory-customer-drafts.test.mjs test/factory-customers-package.test.mjs test/factory-export.business.test.mjs test/factory-ingestion-package.test.mjs test/factory-inquiries-package.test.mjs test/factory-inquiries.test.mjs test/factory-library-ingestion.test.mjs test/factory-materials-package.test.mjs test/factory-materials-read.test.mjs test/factory-plugin-interfaces.test.mjs test/goal-commerce.http.test.mjs test/harness-provider.test.mjs test/independent-pr28-acceptance.disk.test.mjs test/independent-pr28-acceptance.http.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs test/managed-commerce-boundaries.test.mjs test/managed-workspace-integration.test.mjs test/market-validation-assessment.test.mjs test/market-validation-monitor-tools.test.mjs test/market-validation-monitor.http.test.mjs test/market-validation-monitor.test.mjs test/market-validation-package.test.mjs test/market-validation-plan.test.mjs test/market-validation-pre-service.test.mjs test/miniprogram-client.test.mjs test/muse-conversation-delegation.test.mjs test/muse-conversation-host.test.mjs test/muse-conversation.disk.test.mjs test/muse-draft-flow.test.mjs test/muse-joint-slot.test.mjs test/muse-native-bootstrap.test.mjs test/muse-worker.contract.test.mjs test/muse-worker.host.test.mjs test/muse-worker.http.test.mjs test/muse-worker.ingress.test.mjs test/muse-worker.native-binding.test.mjs test/muse-worker.probe.test.mjs test/muse-worker.recovery.test.mjs test/native-recovery.test.mjs test/native-relay.test.mjs test/native-subscription-facility.test.mjs test/omp-builtins.factory-task.test.mjs test/omp-builtins.factory.test.mjs test/pi-business-conversation.native.test.mjs test/pi-community-plugins.test.mjs test/pi-durable-contract.test.mjs test/pi-library-read.pty.test.mjs test/pi-library-read.test.mjs test/pi-muse-binding.test.mjs test/pi-muse-policy.test.mjs test/pi-native-agent.test.mjs test/pi-process-crash.test.mjs test/pi-procurement-package.test.mjs test/pi-provider-config.test.mjs test/pi-runtime.test.mjs test/pi-startup-config.test.mjs test/pi-subagent.test.mjs test/pi-task.http.test.mjs test/pi-usage.test.mjs test/pi-workspace-agent-startup.test.mjs test/pi-workspace-agent.pty.test.mjs test/pi-workspace-agent.test.mjs test/pi-workspace-business.pty.test.mjs test/pi-workspace-business.test.mjs test/pi-workspace-lifecycle.pty.test.mjs test/pi-workspace-normal.test.mjs test/pi-workspace-plugins.http.test.mjs test/pi-workspace-plugins.pty.test.mjs test/pi-workspace-plugins.test.mjs test/pi-workspace-tui.pty.test.mjs test/pi-workspace-tui.test.mjs test/procurement-conversation.disk.test.mjs test/procurement-mcp.http.test.mjs test/product-traffic-config.test.mjs test/product-traffic-ga4.test.mjs test/product-traffic-nullability.test.mjs test/product-traffic-startup.test.mjs test/recovery-control.test.mjs test/recovery.test.mjs test/relay-billing.test.mjs test/relay-provider.test.mjs test/run-output.test.mjs test/runtime-v2.test.mjs test/schedule-template.test.mjs test/server-v2.test.mjs test/server.test.mjs test/seven-day-notifications.test.mjs test/shopify-market-scope.test.mjs test/shopify-product-client.test.mjs test/shopify-product-contracts.test.mjs test/shopify-product-package.test.mjs test/shopify-readiness.test.mjs test/store-durability.test.mjs test/store-migration.test.mjs test/store.test.mjs test/supplier-monitoring.test.mjs test/supplier-muse-mcp.test.mjs test/supplier-owner-mcp.http.test.mjs test/supplier-profile.test.mjs test/supplier-publication.http.test.mjs test/supplier-publication.test.mjs test/supplier-service.http.test.mjs test/supplier-session-mcp.http.test.mjs test/supply-network.http.test.mjs test/task-context.test.mjs test/wechat-code-exchange.test.mjs test/wechat-ingress.test.mjs test/windows-private-acl.test.mjs test/worker-a2a-adapter.test.mjs test/worker-a2a-host.test.mjs test/worker-a2a-network.test.mjs test/worker-delivery-artifact.test.mjs test/worker-desk.http.test.mjs test/worker-desk.test.mjs test/worker-opportunities.http.test.mjs test/worker-opportunities.test.mjs test/worker-provider.test.mjs test/workspace-bridge.test.mjs test/workspace-omp-factory-customers.test.mjs test/workspace-omp-factory-inquiries.test.mjs test/workspace-omp-factory-materials.test.mjs test/workspace-omp-integrated-factory.test.mjs test/workspace-omp-integration.test.mjs test/workspace-omp-launch.test.mjs test/workspace-omp-local-wire.test.mjs test/workspace-omp-local.test.mjs test/workspace-omp-public-cleanup.test.mjs test/workspace-omp-public-pdf.test.mjs test/workspace-omp-public-tools.test.mjs test/workspace-omp-session-readonly.test.mjs test/workspace-omp-session-startup.test.mjs test/workspace-omp-shopify-product.test.mjs test/workspace-omp-snapshot-lifecycle.test.mjs test/workspace-omp-task.test.mjs test/workspace-omp-terminal-host.test.mjs test/workspace-omp-terminal-intent.test.mjs test/workspace-omp-terminal-recovery.test.mjs test/workspace-omp-terminal.test.mjs test/workspace-omp.test.mjs",
+          "files": 180,
+          "exitCode": 1,
+          "signal": null,
+          "durationMs": 723183,
+          "tests": 1222,
+          "pass": 1210,
+          "fail": 2,
+          "cancelled": 0,
+          "skipped": 10,
+          "duration_ms": 723133.598701,
+          "logSha256": "5257c04e375971d740262ecbca17c8bdda3ecdc61d126150df1566a22d423f39"
+        },
+        {
+          "stage": "ui-dom",
+          "command": "node --test --test-reporter=spec test/ui.dom.test.mjs",
+          "files": 1,
+          "exitCode": 1,
+          "signal": null,
+          "durationMs": 21171,
+          "tests": 20,
+          "pass": 19,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0,
+          "duration_ms": 21134.400278,
+          "logSha256": "d49b68cbc11e375f02d318960a09bc413643effad3caa82e2938fdadee4b5ac6"
+        },
+        {
+          "stage": "conversation-dom",
+          "command": "node --test --test-reporter=spec --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs",
+          "files": 3,
+          "exitCode": 0,
+          "signal": null,
+          "durationMs": 10150,
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "duration_ms": 10079.914089,
+          "logSha256": "cdb1080d524134abad6a6b3a9b721fcdee87bc5a54fa12d66d97f1c18e22ca02"
+        },
+        {
+          "stage": "mini-build",
+          "command": "node scripts/build-miniprogram.mjs",
+          "exitCode": 0,
+          "signal": null,
+          "durationMs": 1268,
+          "logSha256": "86283dd110ff823da040a157c6b68f4976daf1b2545d438ecccec424dcc1730d"
+        }
+      ]
+    },
+    "initialFailures": [
+      {
+        "file": "test/access-startup.test.mjs",
+        "reason": "Old assertion expected pi in startup log; both fixed inputs already default to omp.",
+        "resolution": "Align assertion with existing OMP frontend while retaining original pi-durable provider and unconfigured checks."
+      },
+      {
+        "file": "test/workspace-omp-integrated-factory.test.mjs",
+        "reason": "Old acquisition fixture omitted complete original supplier publication mapping.",
+        "resolution": "Seed complete original Store publication and explicit workspace; keep exact schedule/publication approval counts and revocation/cancel assertions."
+      },
+      {
+        "file": "test/ui.dom.test.mjs",
+        "reason": "Management monitor fixture used an empty unbound variant scope.",
+        "resolution": "Create original Library product and seed full source-linked publication before original UI approval/control round trip."
+      }
+    ],
+    "baselineFailureReproduction": {
+      "commit": "ad9952894a0ed6be7f17090af14185f5f2c85b42",
+      "command": "node --test --test-concurrency=1 test/access-startup.test.mjs",
+      "exitCode": 1,
+      "failedTest": "startup: absent runtime config defaults to selected Pi durable runtime and never uses inherited official credentials",
+      "expectedLogRuntime": "pi",
+      "actualLogRuntime": "omp",
+      "bothInputsDefaultToOmp": true,
+      "realModelRequests": 0,
+      "temporaryWorktreeRemoved": true,
+      "logSha256": "78405a5387d7f5a5d2d0be669fcdcfc8b7b530b32f948ca4b757940e11b7dbfb"
+    },
+    "diagnosticFixtureMigration": {
+      "initialMissingWorkspaceRejectedByOriginalStore": true,
+      "correctedWithExistingFixtureWorkspace": true,
+      "finalRecheck": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "logSha256": "f90e97d22c6406b3f00d82d59443381719cd2cae853bd188cc8ed8f57a99ce0b"
+      }
+    },
+    "intermediate460CodeCommit": "9b2b43b6375c3818f73b458fe7e22a38761be71d",
+    "intermediate460Run": {
+      "environmentWhitelisted": true,
+      "credentialsInherited": false,
+      "stages": [
+        {
+          "stage": "backend-main",
+          "command": "node --test --test-reporter=spec --test-concurrency=2 test/acceptance-native-provider.test.mjs test/acceptance-provider.test.mjs test/access-audit.test.mjs test/access-startup.test.mjs test/access.test.mjs test/agent-business-lifecycle.test.mjs test/agent-coordinator-explicit-recovery.test.mjs test/agent-owner-policy.test.mjs test/agent-pi-runtime.test.mjs test/agent-pi-service.http.test.mjs test/agent-projection-linkage.test.mjs test/agent-research.test.mjs test/agent-service.http.test.mjs test/agent-ui.http.test.mjs test/agent-unified-host.http.test.mjs test/agent-workspace.integration.test.mjs test/artifacts.test.mjs test/assistant-runtime-adapter.test.mjs test/business-flows.test.mjs test/capabilities.test.mjs test/cloud-activity.test.mjs test/cloud-experts.http.test.mjs test/cloud-experts.test.mjs test/cloud-team-staging.http.test.mjs test/cloud-team-staging.test.mjs test/commerce.http.test.mjs test/conversation-create-idempotency.test.mjs test/conversation-routing.test.mjs test/deepseek-acceptance-policy.test.mjs test/deepseek-readonly-wire.test.mjs test/diagnostics.test.mjs test/dot-control-host.test.mjs test/dot-control-plane.test.mjs test/dot-mcp-contract.test.mjs test/dot-mcp.test.mjs test/dot-worker-bridge.test.mjs test/dot-worker.http.test.mjs test/expert-content.test.mjs test/expert-visual-integrity.test.mjs test/factory-customer-drafts.test.mjs test/factory-customers-package.test.mjs test/factory-export.business.test.mjs test/factory-ingestion-package.test.mjs test/factory-inquiries-package.test.mjs test/factory-inquiries.test.mjs test/factory-library-ingestion.test.mjs test/factory-materials-package.test.mjs test/factory-plugin-interfaces.test.mjs test/goal-commerce.http.test.mjs test/harness-provider.test.mjs test/independent-pr28-acceptance.disk.test.mjs test/independent-pr28-acceptance.http.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs test/managed-commerce-boundaries.test.mjs test/managed-workspace-integration.test.mjs test/market-validation-assessment.test.mjs test/market-validation-monitor-tools.test.mjs test/market-validation-monitor.http.test.mjs test/market-validation-monitor.test.mjs test/market-validation-package.test.mjs test/market-validation-plan.test.mjs test/market-validation-pre-service.test.mjs test/miniprogram-client.test.mjs test/muse-conversation-delegation.test.mjs test/muse-conversation-host.test.mjs test/muse-conversation.disk.test.mjs test/muse-draft-flow.test.mjs test/muse-joint-slot.test.mjs test/muse-native-bootstrap.test.mjs test/muse-worker.contract.test.mjs test/muse-worker.host.test.mjs test/muse-worker.http.test.mjs test/muse-worker.ingress.test.mjs test/muse-worker.native-binding.test.mjs test/muse-worker.probe.test.mjs test/muse-worker.recovery.test.mjs test/native-recovery.test.mjs test/native-relay.test.mjs test/native-subscription-facility.test.mjs test/omp-builtins.factory-task.test.mjs test/omp-builtins.factory.test.mjs test/pi-business-conversation.native.test.mjs test/pi-community-plugins.test.mjs test/pi-durable-contract.test.mjs test/pi-library-read.pty.test.mjs test/pi-library-read.test.mjs test/pi-muse-binding.test.mjs test/pi-muse-policy.test.mjs test/pi-native-agent.test.mjs test/pi-process-crash.test.mjs test/pi-procurement-package.test.mjs test/pi-provider-config.test.mjs test/pi-runtime.test.mjs test/pi-startup-config.test.mjs test/pi-subagent.test.mjs test/pi-task.http.test.mjs test/pi-usage.test.mjs test/pi-workspace-agent-startup.test.mjs test/pi-workspace-agent.pty.test.mjs test/pi-workspace-agent.test.mjs test/pi-workspace-business.pty.test.mjs test/pi-workspace-business.test.mjs test/pi-workspace-lifecycle.pty.test.mjs test/pi-workspace-normal.test.mjs test/pi-workspace-plugins.http.test.mjs test/pi-workspace-plugins.pty.test.mjs test/pi-workspace-plugins.test.mjs test/pi-workspace-tui.pty.test.mjs test/pi-workspace-tui.test.mjs test/procurement-conversation.disk.test.mjs test/procurement-mcp.http.test.mjs test/product-traffic-config.test.mjs test/product-traffic-ga4.test.mjs test/product-traffic-nullability.test.mjs test/product-traffic-startup.test.mjs test/recovery-control.test.mjs test/recovery.test.mjs test/relay-billing.test.mjs test/relay-provider.test.mjs test/run-output.test.mjs test/runtime-v2.test.mjs test/schedule-template.test.mjs test/server-v2.test.mjs test/server.test.mjs test/seven-day-notifications.test.mjs test/shopify-market-scope.test.mjs test/shopify-product-client.test.mjs test/shopify-product-contracts.test.mjs test/shopify-product-package.test.mjs test/shopify-readiness.test.mjs test/store-durability.test.mjs test/store-migration.test.mjs test/store.test.mjs test/supplier-monitoring.test.mjs test/supplier-muse-mcp.test.mjs test/supplier-owner-mcp.http.test.mjs test/supplier-profile.test.mjs test/supplier-publication.http.test.mjs test/supplier-publication.test.mjs test/supplier-service.http.test.mjs test/supplier-session-mcp.http.test.mjs test/supply-network.http.test.mjs test/task-context.test.mjs test/wechat-code-exchange.test.mjs test/wechat-ingress.test.mjs test/windows-private-acl.test.mjs test/worker-a2a-adapter.test.mjs test/worker-a2a-host.test.mjs test/worker-a2a-network.test.mjs test/worker-delivery-artifact.test.mjs test/worker-desk.http.test.mjs test/worker-desk.test.mjs test/worker-opportunities.http.test.mjs test/worker-opportunities.test.mjs test/worker-provider.test.mjs test/workspace-bridge.test.mjs test/workspace-omp-factory-customers.test.mjs test/workspace-omp-factory-inquiries.test.mjs test/workspace-omp-factory-materials.test.mjs test/workspace-omp-integrated-factory.test.mjs test/workspace-omp-integration.test.mjs test/workspace-omp-launch.test.mjs test/workspace-omp-local-wire.test.mjs test/workspace-omp-local.test.mjs test/workspace-omp-public-cleanup.test.mjs test/workspace-omp-public-pdf.test.mjs test/workspace-omp-public-tools.test.mjs test/workspace-omp-session-readonly.test.mjs test/workspace-omp-session-startup.test.mjs test/workspace-omp-shopify-product.test.mjs test/workspace-omp-snapshot-lifecycle.test.mjs test/workspace-omp-task.test.mjs test/workspace-omp-terminal-host.test.mjs test/workspace-omp-terminal-intent.test.mjs test/workspace-omp-terminal-recovery.test.mjs test/workspace-omp-terminal.test.mjs test/workspace-omp.test.mjs",
+          "files": 179,
+          "exitCode": 0,
+          "signal": null,
+          "durationMs": 451465,
+          "tests": 1218,
+          "pass": 1208,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 10,
+          "duration_ms": 451420.685596,
+          "logSha256": "385f54daa9517b802c4653399f388e5f28fd1c0230412a9d65d355bc525894ab"
+        },
+        {
+          "stage": "backend-pdf-cleanup",
+          "command": "node --test --test-reporter=spec --test-concurrency=1 test/factory-materials-read.test.mjs",
+          "files": 1,
+          "exitCode": 0,
+          "signal": null,
+          "durationMs": 4196,
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "duration_ms": 4158.340672,
+          "logSha256": "314149a77121ae02c7cd446140a3ca89d2b7380548adf83a8d53b60f163c122f"
+        },
+        {
+          "stage": "ui-dom",
+          "command": "node --test --test-reporter=spec test/ui.dom.test.mjs",
+          "files": 1,
+          "exitCode": 0,
+          "signal": null,
+          "durationMs": 21817,
+          "tests": 20,
+          "pass": 20,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "duration_ms": 21784.767512,
+          "logSha256": "2179966dde98af632ab0c120bc536e00a89b2fa6138a70d562e99c02d8abb440"
+        },
+        {
+          "stage": "conversation-dom",
+          "command": "node --test --test-reporter=spec --test-isolation=none test/conversation-integration.dom.test.mjs test/muse-conversation-ui.dom.test.mjs test/procurement-conversation-ui.dom.test.mjs",
+          "files": 3,
+          "exitCode": 0,
+          "signal": null,
+          "durationMs": 10592,
+          "tests": 17,
+          "pass": 17,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "duration_ms": 10513.69013,
+          "logSha256": "09c5ec1d438173b9c35fd0ba12923f37f5135748a86aa16d77e20ea3c945fd35"
+        },
+        {
+          "stage": "mini-build",
+          "command": "node scripts/build-miniprogram.mjs",
+          "exitCode": 0,
+          "signal": null,
+          "durationMs": 1338,
+          "logSha256": "86283dd110ff823da040a157c6b68f4976daf1b2545d438ecccec424dcc1730d"
+        }
+      ]
+    },
+    "initialTargetedRun": {
+      "command": "node --test --test-concurrency=1 test/workspace-omp-integration.test.mjs test/workspace-omp-local.test.mjs test/workspace-omp-local-wire.test.mjs test/workspace-omp-session-readonly.test.mjs test/workspace-omp-session-startup.test.mjs test/workspace-omp-shopify-product.test.mjs test/shopify-market-scope.test.mjs",
+      "exitCode": 0,
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "duration_ms": 113451.948602,
+      "logSha256": "288b03d2f10f490d076654c864e817c5c7d027d4cbdb5662e34aee4ff2acb27e",
+      "overlapsFullBackend": true,
+      "overlapsFinalBackend": true
+    }
+  },
+  "localFieldContract": {
+    "topLevelTest": 1,
+    "scalarOptionalDefaultEmptyCases": 13,
+    "modelRequests": 0,
+    "includedInFinalBackend": true
+  },
+  "thisTask": {
+    "realModelRequests": 0,
+    "realShopifyRequests": 0,
+    "realMcpCalls": 0,
+    "realMuseCalls": 0,
+    "newCredentialOrPrincipal": false,
+    "chatCredentialsRead": false,
+    "deployed": false,
+    "mainModifiedOrMerged": false,
+    "forcePush": false
+  },
+  "externalReportedRealAcceptance": {
+    "sourceCommit": "b6603acf261e6653e0ed3df653531eed00b73d38",
+    "observedBy": "Other delegated task; user update and pinned upstream evidence",
+    "input": "synthetic_public",
+    "officialOmpAndRealDeepseek": true,
+    "autonomousReadWrite": true,
+    "fileSavedAndShaVerified": true,
+    "requests": 3,
+    "estimatedPhaseCny": 0.015584,
+    "estimatedCumulativeCny": 0.02508,
+    "accountBillVerifiedByThisTask": false,
+    "repeatedByThisTask": false,
+    "realMultiturnResumeVerified": false,
+    "doesNotProveRealBusinessOutcome": true
+  },
+  "unverified": [
+    "Real native-session multi-turn resume and real user/private materials.",
+    "Real Shopify authorization/publication, acquisition launch, paid outcomes, MCP/Muse and external sending.",
+    "Browser visual/manual business quality and non-Linux platform acceptance.",
+    "Explicit legacy native/optional/Windows cases listed under skippedTestNames."
+  ],
+  "newRawRuntimeDataCommitted": false,
+  "newRawLogsCommitted": false
+}

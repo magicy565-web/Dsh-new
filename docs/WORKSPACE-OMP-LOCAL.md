@@ -2,6 +2,14 @@
 
 `--task` 是可变的自然语言目标，`--session FILE.jsonl` 使用原生 OMP `SessionManager.open` 创建／继续同一个会话。模型可按需选 `read`、工厂字段工具和 `write`；不要求固定步骤或每轮产出文件。缺项可以先追问，下一次用同一个 `--session` 文件和新的 `--task` 继续。没有新增会话数据库、前端或 Agent Loop。
 
+本集成分支应在仓库根目录使用 npm 入口；输入文件和输出目录必须已经存在，Session 放在用户选定的私有路径。下面的预检不调用模型，也不创建 Session 文件：
+
+```sh
+npm run factory:local -- --input ./product.md --output-dir . --session ../factory-session.jsonl --task "先读资料并询问缺项，暂不生成报告" --check
+```
+
+已有安全模型配置及适用的价格/预算授权时，移除 `--check` 发起该目标；下一轮保持同一来源、输出目录、模型和 Session 路径，替换 `--task`。此入口不需要旧 Host 或 WS URL/token。本次集成不执行付费命令；源码、完整回归与真实/替身界限见 [集成检查](validation/integrated-local-shopify-20261015/README.md)。下文 `/workspace/deepseek-acceptance` 等绝对路径仅属于原真实验收工作区记录，不是本集成分支要求的安装路径。
+
 以下是**当前验收环境可复制的一条完整命令**，使用已安全注入的密钥和已审非秘密模型配置；资料是明确标注为合成验收的小产品文件。它会发起真实付费请求，本轮没有再次执行此命令：
 
 ```sh

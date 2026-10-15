@@ -5,6 +5,8 @@
 
 无需远程 Workspace 服务器的一句话会话入口：`npm run factory:local -- --input ./product.md --output-dir . --session /workspace/factory-session.jsonl --task "先看资料，问我缺项，不要生成报告"`。重复使用同一 `--session` 路径、替换下一句 `--task` 即可继续原生 OMP 会话；目标、工具顺序和是否保存均不固定。输入文件和输出目录必须明确选择；目录已存在，结果不覆盖已有文件。`--check` 只做本地预检，不调用模型。实际生成仍使用原已配置模型及已审价格／预算；不会自动创建凭据。见 [本地资料入口与验收](docs/WORKSPACE-OMP-LOCAL.md)。业务历史、企业共享资料、审批和远程 Worker 保留原服务边界。
 
+本集成开发分支同时保留原 Shopify 完整 SKU/变体回执与七天监测范围，以及 PR80 历史时间口径修复。Shopify/市场等远程能力继续需要原服务授权，未配置明确不可用；本地资料五工具保持独立。固定提交、冲突处理和无付费回归见 [集成说明](docs/validation/integrated-local-shopify-20261015/README.md)。
+
 ```sh
 npm ci --ignore-scripts
 node scripts/setup-omp-runtime.mjs
