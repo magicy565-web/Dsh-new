@@ -32,6 +32,10 @@ try{
    assert.equal(body.model,'deepseek-flash');assert.equal(body.max_tokens,512);assert.deepEqual(body.thinking,{type:'disabled'});
    assert.equal(body.max_completion_tokens,undefined);assert.equal(body.reasoning_effort,undefined);
    assert.ok(body.messages.every(m=>m.role!=='developer'));assert.ok(body.tools.every(t=>t.function.strict===undefined));
+   for(const name of ['workspace_factory_rfq_requirements','workspace_factory_match_prepare']){
+    const rfq=body.tools.find(t=>t.function.name===name).function.parameters.properties.rfq;
+    assert.equal(rfq.additionalProperties,false);assert.deepEqual(Object.keys(rfq.properties).sort(),['product','spec','quantity','target_market','requested_delivery','requirements'].sort());
+   }
    validatedWireRequests++;
    if(mode==='http500')return new Response('{}',{status:500});
    if(mode==='network-error')throw Error('Explicit synthetic connection reset');
@@ -39,22 +43,29 @@ try{
    if(mode==='truncated')return new Response('data: '+JSON.stringify({choices:[{index:0,delta:{content:'Incomplete'},finish_reason:null}]})+'\n\n',{headers:{'content-type':'text/event-stream'}});
    if(mode==='empty-response')return sse(body,{},'stop');
    const tool=(name,args)=>sse(body,{tool_calls:[{index:0,id:'wire-call-'+requests,type:'function',function:{name,arguments:JSON.stringify(args)}}]},'tool_calls');
+   if(mode==='factory-invalid')return tool('workspace_factory_rfq_requirements',{rfq:null});
    if(requests===1||mode==='exhausted')return tool('read',{path:mode==='bad-tool'?'/not-selected.md':'input-1'});
-   if(requests===2)return tool('write',{path:'report.md',content:'Synthetic wire-only local report. Capacity pending. Source input-1.'});
+   if(mode==='factory-valid'&&requests===2)return tool('workspace_factory_rfq_requirements',{rfq:{product:'cup',quantity:100,target_market:'Germany'}});
+   if(mode==='factory-valid'&&requests===3)return tool('workspace_factory_match_prepare',{rfq:{product:'cup'},factoryOffer:{product:'cup',source:'input-1'}});
+   if(requests===(mode==='factory-valid'?4:2))return tool('write',{path:'report.md',content:'Synthetic wire-only local report. Capacity pending. Source input-1.'});
    return sse(body,{content:'Synthetic wire report saved. No real data or paid model.'},'stop');
   }});
  assert.equal(result.provider.actualProviderRequests,requests);assert.equal(validatedWireRequests,requests);
- if(['happy','cached'].includes(mode)){
-  assert.equal(result.status,'saved-local-drafts',JSON.stringify(result));assert.equal(requests,3);assert.equal(result.provider.confirmedResponses,3);
+ if(['happy','cached','factory-valid'].includes(mode)){
+  const expected=mode==='factory-valid'?5:3;
+  assert.equal(result.status,'saved-local-drafts',JSON.stringify(result));assert.equal(requests,expected);assert.equal(result.provider.confirmedResponses,expected);
+  assert.deepEqual(result.provider.confirmedUsage,{inputTokens:100*expected,outputTokens:20*expected,totalTokens:120*expected});
   assert.ok(result.provider.chargeUpperCny<0.01);assert.equal(result.provider.billingUncertain,false);assert.equal(result.saved.length,1);
   assert.equal(result.paidModelVerified,false);assert.equal(result.evidenceKind,'official-omp-local-files-mocked-http');
+  if(mode==='factory-valid')assert.deepEqual(result.toolReceipts.map(r=>r.tool),['read','workspace_factory_rfq_requirements','workspace_factory_match_prepare','write']);
  }else{
   assert.equal(result.status,'stopped',JSON.stringify(result));
   assert.equal(requests,mode==='oversize-first'?0:mode==='exhausted'?8:1);
   assert.ok(requests<=LOCAL_DEEPSEEK_LIMITS.maxRequests);
   if(mode==='output-contract')assert.equal(result.provider.chargeUpperCny,null);
   else assert.ok(result.provider.chargeUpperCny<=LOCAL_DEEPSEEK_LIMITS.failureInclusiveUpperCny+1e-10);
-  if(!['oversize-first','oversize-after-read','bad-tool','exhausted'].includes(mode)){
+  if(mode==='factory-invalid'){assert.equal(result.reason,'LOCAL_TOOL_ERROR_STOP_DO_NOT_RETRY');assert.equal(result.toolReceipts[0].isError,true);assert.match(result.toolReceipts[0].errorCode,/^LOCAL_(TOOL|FACTORY)_/);}
+  if(!['oversize-first','oversize-after-read','bad-tool','factory-invalid','exhausted'].includes(mode)){
    assert.equal(result.provider.billingUncertain,true);assert.ok(result.provider.chargeUpperCny===null||result.provider.chargeUpperCny>0);
   }
  }

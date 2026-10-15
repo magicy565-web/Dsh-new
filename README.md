@@ -3,7 +3,7 @@
 默认前端使用官方 OMP 18.10.4，Bun固定1.3.14；原Workspace身份、Session、Store、Runtime、业务任务、人工审批和Pi Durable阶段继续持有执行权威。本地资料任务可直接通过原 OMP SDK 生成并保存本地草稿；显式服务模式仍保留原四阶段文书流程。未知产能、客户来源和商业条件保留待核对。
 
 
-无需远程 Workspace 服务器的本地入口：`npm run factory:local -- --input ./product.md --output-dir .`。输入文件和输出目录必须明确选择；目录已存在，结果不覆盖已有文件。`--check` 只做本地预检，不调用模型。实际生成仍使用原已配置模型及已审价格／预算；不会自动创建凭据。见 [本地资料入口与验收](docs/WORKSPACE-OMP-LOCAL.md)。业务历史、企业共享资料、审批和远程 Worker 保留原服务边界。
+无需远程 Workspace 服务器的一句话会话入口：`npm run factory:local -- --input ./product.md --output-dir . --session /workspace/factory-session.jsonl --task "先看资料，问我缺项，不要生成报告"`。重复使用同一 `--session` 路径、替换下一句 `--task` 即可继续原生 OMP 会话；目标、工具顺序和是否保存均不固定。输入文件和输出目录必须明确选择；目录已存在，结果不覆盖已有文件。`--check` 只做本地预检，不调用模型。实际生成仍使用原已配置模型及已审价格／预算；不会自动创建凭据。见 [本地资料入口与验收](docs/WORKSPACE-OMP-LOCAL.md)。业务历史、企业共享资料、审批和远程 Worker 保留原服务边界。
 
 ```sh
 npm ci --ignore-scripts
@@ -19,6 +19,6 @@ npm run workspace
 
 [默认入口与原生命周期11项检查](docs/validation/workspace-omp-core-20261014/default-acceptance.json)覆盖真实HTTP／SDK、独立manifest加载、续聊、取消退出、重启恢复、原文书SHA、人工审批与分别继续。模型均为明确合成替身；原Pi／Library／包组合53项亦实际通过。另有 [工厂文书与重载检查](docs/validation/factory-export-20261014/README.md)、[内置搜索／浏览器诊断](docs/validation/omp-builtins-factory-20261014/README.md)、[内置子代理诊断](docs/validation/omp-builtin-task-20261014/README.md) 和 [固定社区候选检查](docs/validation/pi-community-20261014/README.md)。
 
-新[公开工具契约与检查](docs/validation/omp-public-tools-20261014/README.md)覆盖官方SDK工具、来源与原任务文书、撤销/变更资料缓存的模型前拒绝。真实DuckDuckGo和Startpage查询均不可用、零来源，不能写成已连接或已获客。真实余额、当前本地路径的真实资料／付费模型、真实获客与同伴结果／恢复UI尚未验收。此前 [DeepSeek 基础连通](docs/validation/deepseek-model-live-20261015/README.md) 已单独完成，不代表本地业务链在线验收。文书只是待人工审核草稿。本轮本地开发新增付费调用零；没有真实私库访问、外部发送、商店写入、部署或main合并。七天未来通知的持续同意／持久收件人权限未开发。
+新[公开工具契约与检查](docs/validation/omp-public-tools-20261014/README.md)覆盖官方SDK工具、来源与原任务文书、撤销/变更资料缓存的模型前拒绝。真实DuckDuckGo和Startpage查询均不可用、零来源，不能写成已连接或已获客。真实余额、真实私密资料、真实获客与同伴结果／恢复UI尚未验收。本地路径唯一一次真实 DeepSeek 执行完成2个HTTP请求后因工厂工具错误停止，未保存成果；无付费收紧工具schema并增加原生JSONL会话继续，尚未再次付费验收。此前 [DeepSeek 基础连通](docs/validation/deepseek-model-live-20261015/README.md) 已单独完成，不代表本地业务链在线验收。文书只是待人工审核草稿。该次保守费用0.009334元，已知累计0.009496元、剩余授权估算4.990504元；没有真实私库访问、外部发送、商店写入、部署或main合并。七天未来通知的持续同意／持久收件人权限未开发。
 
 [旧README完整历史](docs/archive/README-before-omp-20261014.md)、[旧选型记录](docs/PI-OPEN-SOURCE-SELECTION.md) 和 [PR60接线记录](docs/PI-AGENT-RUNTIME-NOTES.md) 已归档；[原Pi运行边界](docs/PI-RUNTIME.md)、[原Library契约](docs/PI-LIBRARY-MODEL-READ.md)、[微信客户端](docs/WECHAT-CLIENT.md)、源码、许可与既有验收保留。归档不授权历史部署或外部执行。清理范围见 [清理记录](docs/validation/omp-cleanup-20261014/inventory.json)。
