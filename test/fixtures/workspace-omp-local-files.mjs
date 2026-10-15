@@ -19,6 +19,15 @@ try{
  await assert.rejects(write.execute('symlink',{path:'link.md',content:'Refused overwrite'}));assert.equal(await fs.readFile(root+'/outside.md','utf8'),'Do not alter this synthetic sentinel');
  await fs.writeFile(root+'/out/existing.md','Existing synthetic report');await assert.rejects(write.execute('existing',{path:'existing.md',content:'Refused overwrite'}));
  assert.equal(await fs.readFile(root+'/out/existing.md','utf8'),'Existing synthetic report');
+ // The two prior valid-but-failed writes (symlink/existing) must not consume
+ // reservations. All five calls below begin together, before native I/O ends.
+ const results=await Promise.allSettled(Array.from({length:5},(_,i)=>write.execute('concurrent-'+i,{path:'quota-'+i+'.md',content:'Synthetic concurrent draft '+i})));
+ assert.equal(results.filter(r=>r.status==='fulfilled').length,4);
+ assert.equal(results.filter(r=>r.status==='rejected').length,1);
+ assert.equal(results.find(r=>r.status==='rejected').reason.code,'LOCAL_OUTPUT_REFUSED');
+ assert.equal(files.saved.length,4);
+ assert.equal((await fs.readdir(root+'/out')).filter(name=>name.startsWith('quota-')).length,4);
+ await assert.rejects(write.execute('quota-full',{path:'quota-overflow.md',content:'Refused quota overflow'}),/REFUSED/);
  await fs.rename(root+'/out',root+'/selected-output-moved');await fs.mkdir(root+'/replacement');await fs.symlink(root+'/replacement',root+'/out');
  await assert.rejects(write.execute('moved',{path:'refused.md',content:'No redirected output'}),/SYMLINK|OUTPUT_CHANGED/);
  assert.deepEqual(await fs.readdir(root+'/replacement'),[]);

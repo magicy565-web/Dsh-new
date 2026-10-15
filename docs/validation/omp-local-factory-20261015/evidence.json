@@ -14,10 +14,36 @@
   "uniqueRelatedTestsPassed": 45,
   "failed": 0,
   "skipped": 0,
-  "finalLocalSuite": { "passed": 5, "overlapsRelatedTests": true },
+  "finalLocalSuite": {
+    "passed": 5,
+    "overlapsRelatedTests": true
+  },
   "buildPassed": true,
   "newCredentialsOrPrincipals": false,
   "newAgentLoopOrDatabaseFramework": false,
   "externalSendingOrShopifyWrite": false,
-  "mainMergeOrDeployment": false
+  "mainMergeOrDeployment": false,
+  "concurrentWriteFollowup": {
+    "sourceBase": "01cf485a6fe08c335afdd7d6b608d38b9bd556aa",
+    "synchronousQuotaReservations": true,
+    "failedReservationReleased": true,
+    "sameModelResponseWriteCalls": 5,
+    "maxSuccessfulWrites": 4,
+    "directNativeConcurrentCalls": 5,
+    "uniqueRegressionTests": 47,
+    "localSuiteTests": 7,
+    "failed": 0,
+    "skipped": 0,
+    "buildPassed": true,
+    "deepseekSafePreflight": {
+      "provider": "workspace-deepseek",
+      "model": "deepseek-flash",
+      "apiKeyPresent": true,
+      "costPresent": true,
+      "remainingBudgetReviewed": false,
+      "modelRequests": 0,
+      "persistentConfigurationChanged": false
+    },
+    "additionalPaidRequests": 0
+  }
 }

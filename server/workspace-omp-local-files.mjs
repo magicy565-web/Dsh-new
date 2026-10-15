@@ -42,7 +42,7 @@ export async function createLocalFactoryFiles({ inputs, outputDirectory, directo
   const pinned = await outputHandle.stat();
   if (pinned.dev !== outputStat.dev || pinned.ino !== outputStat.ino) { await outputHandle.close(); fail('LOCAL_OUTPUT_CHANGED'); }
   const selected = [], used = new Map(), saved = [];
-  let bytes = 0, closed = false;
+  let bytes = 0, pendingWrites = 0, closed = false;
   try {
     await fs.mkdir(directory + '/sources', { mode: 0o700 }); await fs.mkdir(directory + '/writes', { mode: 0o700 });
     for (const [index, input] of inputs.entries()) {
@@ -91,28 +91,33 @@ export async function createLocalFactoryFiles({ inputs, outputDirectory, directo
         async execute(id, input, signal) {
           await authorize(signal);
           if (!exact(input, ['path','content']) || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}\.(md|txt)$/.test(input.path || '')
-            || typeof input.content !== 'string' || Buffer.byteLength(input.content) > 64000 || looksLikeCredential(input.content) || !used.size || saved.length >= 4) fail('LOCAL_OUTPUT_REFUSED');
-          const sources = provenance(), footer = '\n\n---\nSource provenance (user-selected, not independently verified):\n' + sources.map(s => `- ${s.recordId}: ${JSON.stringify(s.name)}; SHA256 ${s.sha256}`).join('\n') + '\n';
-          const staged = directory + '/writes/' + randomUUID() + '.md';
-          const result = await writer.execute(id, { path: staged, content: input.content + footer }, signal);
-          if (result.isError) fail('LOCAL_NATIVE_WRITE_FAILED');
-          await authorize(signal);
-          const content = await fs.readFile(staged), destination = `/proc/self/fd/${outputHandle.fd}/${input.path}`;
-          let handle, writtenStat;
+            || typeof input.content !== 'string' || Buffer.byteLength(input.content) > 64000 || looksLikeCredential(input.content) || !used.size || saved.length + pendingWrites >= 4) fail('LOCAL_OUTPUT_REFUSED');
+          // Reserve synchronously before native I/O; concurrent tool calls share
+          // the same four-output limit. Every unsuccessful attempt releases it.
+          pendingWrites++;
           try {
-            handle = await fs.open(destination, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600); writtenStat = await handle.stat();
-            await handle.writeFile(content); await handle.sync(); await authorize(signal);
-            const current = await fs.lstat(destination);
-            if (current.isSymbolicLink() || current.dev !== writtenStat.dev || current.ino !== writtenStat.ino) fail('LOCAL_OUTPUT_CHANGED');
-          } catch (error) {
-            if (writtenStat) { const current = await fs.lstat(destination).catch(() => null);
-              if (current?.dev === writtenStat.dev && current?.ino === writtenStat.ino) await fs.unlink(destination).catch(() => {}); }
-            throw error;
-          }
-          finally { await handle?.close(); await fs.unlink(staged).catch(() => {}); }
-          const receipt = { status: 'saved-local-draft', name: input.path, sha256: sha(content), bytes: content.length, sources, humanApproved: false, sent: false };
-          saved.push(receipt);
-          return { content: [{ type: 'text', text: JSON.stringify(receipt) }], details: receipt };
+            const sources = provenance(), footer = '\n\n---\nSource provenance (user-selected, not independently verified):\n' + sources.map(s => `- ${s.recordId}: ${JSON.stringify(s.name)}; SHA256 ${s.sha256}`).join('\n') + '\n';
+            const staged = directory + '/writes/' + randomUUID() + '.md';
+            const result = await writer.execute(id, { path: staged, content: input.content + footer }, signal);
+            if (result.isError) fail('LOCAL_NATIVE_WRITE_FAILED');
+            await authorize(signal);
+            const content = await fs.readFile(staged), destination = `/proc/self/fd/${outputHandle.fd}/${input.path}`;
+            let handle, writtenStat;
+            try {
+              handle = await fs.open(destination, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600); writtenStat = await handle.stat();
+              await handle.writeFile(content); await handle.sync(); await authorize(signal);
+              const current = await fs.lstat(destination);
+              if (current.isSymbolicLink() || current.dev !== writtenStat.dev || current.ino !== writtenStat.ino) fail('LOCAL_OUTPUT_CHANGED');
+            } catch (error) {
+              if (writtenStat) { const current = await fs.lstat(destination).catch(() => null);
+                if (current?.dev === writtenStat.dev && current?.ino === writtenStat.ino) await fs.unlink(destination).catch(() => {}); }
+              throw error;
+            }
+            finally { await handle?.close(); await fs.unlink(staged).catch(() => {}); }
+            const receipt = { status: 'saved-local-draft', name: input.path, sha256: sha(content), bytes: content.length, sources, humanApproved: false, sent: false };
+            saved.push(receipt);
+            return { content: [{ type: 'text', text: JSON.stringify(receipt) }], details: receipt };
+          } finally { pendingWrites--; }
         } }];
     },
     async close() { if (!closed) { closed = true; await outputHandle.close(); } },

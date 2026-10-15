@@ -52,3 +52,35 @@ See [startup and boundaries](../../WORKSPACE-OMP-LOCAL.md) for the one-command
 entry, file limits, required existing model/cost/budget configuration and how the
 optional original Workspace service remains authoritative for shared business
 records, approvals and remote Workers.
+
+
+## Concurrent-write follow-up
+
+Base: `01cf485a6fe08c335afdd7d6b608d38b9bd556aa`. The old quota checked only
+completed saves before asynchronous native writes; five calls could pass together.
+The local write tool now reserves a slot synchronously before native I/O and
+releases the reservation in `finally`. Completed saves plus pending writes never
+exceed four. Path/FD, source, exclusive-create and no-overwrite checks remain.
+
+A real original OMP SDK run uses one finite synthetic model response containing
+five write tool calls. Four reports are saved with verified source/result SHA;
+the fifth has a tool-error receipt `LOCAL_OUTPUT_REFUSED`. The native boundary
+fixture also launches five direct `Promise.allSettled` writes and checks exactly
+four successes. Earlier failed writes to existing/symlink targets release their
+reservations, so four later writes remain available. This adds no scheduler or
+framework; the original SDK still owns model and tool execution.
+
+The follow-up regression group has 47 distinct passing tests, zero failures and
+skips; the local suite contains seven of them. Build passed. DeepSeek provider,
+explicit Flash model, four USD price fields, and the existing reviewed-budget
+flag are documented in the local startup guide. The zero-request preflight now
+returns those non-secret selections and presence booleans. An actual safe check
+on temporary synthetic material used the already-injected key without printing
+it, the repository's existing reviewed price snapshot, and the unchanged budget
+flag: key present true, cost present true, remaining-budget-reviewed false,
+`model-unconfigured`, model requests 0. No persistent configuration changed and
+no account/balance request was made. Separate keyless tests cover missing and
+fully supplied configuration; neither triggers a model request.
+
+Additional paid requests remain **0**. No main merge, deployment, new credential,
+permission change, real user material, Shopify or MCP action.

@@ -39,7 +39,10 @@ async function childMain(input) {
   try {
     files = await createLocalFactoryFiles({ ...input.options, directory: input.directory });
     if (input.options.check) return { status: workspaceOmpConfigured(input.configuration) ? 'configured-unverified' : 'model-unconfigured',
-      selectedInputs: files.manifest, modelRequests: 0, localFilesReady: true, saved: [] };
+      selectedInputs: files.manifest, modelRequests: 0, localFilesReady: true, saved: [],
+      modelConfiguration: { provider: input.configuration.providerId, model: input.configuration.model,
+        apiKeyPresent: Boolean(input.configuration.apiKey), costPresent: Boolean(input.configuration.cost),
+        remainingBudgetReviewed: input.configuration.remainingBudgetVerified === true } };
     if (!input.syntheticResponses && !workspaceOmpConfigured(input.configuration)) throw Object.assign(Error('LOCAL_MODEL_COST_AND_BUDGET_REQUIRED'), { code: 'LOCAL_MODEL_COST_AND_BUDGET_REQUIRED' });
     created = await createWorkspaceOmpSession({ packageRoot: input.paths.packageRoot, cwd: input.directory,
       agentDir: input.directory + '/agent', sessionDirectory: input.directory + '/sessions',

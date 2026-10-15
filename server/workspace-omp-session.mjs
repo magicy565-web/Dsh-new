@@ -174,10 +174,13 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       args = { ...args, sourceToolCallIds: context.messages.filter(message => message.role === 'toolResult'
         && ['workspace_public_search', 'workspace_public_browser'].includes(message.toolName) && !message.isError).map(message => message.toolCallId) };
     }
-    const content = spec.tool ? [{ type: 'toolCall', id: `workspace-omp-${callNumber}`, name: spec.tool, arguments: args }]
+    if (spec.parallelTools && (!localFactory || !Array.isArray(spec.parallelTools) || spec.parallelTools.length !== 5
+      || spec.parallelTools.some(tool => tool.name !== 'write'))) throw Error('Finite local concurrent-write fixture refused.');
+    const content = spec.parallelTools ? spec.parallelTools.map((tool, index) => ({ type: 'toolCall', id: `workspace-omp-${callNumber}-${index}`, name: tool.name, arguments: tool.arguments }))
+      : spec.tool ? [{ type: 'toolCall', id: `workspace-omp-${callNumber}`, name: spec.tool, arguments: args }]
       : [{ type: 'text', text: spec.text || 'Explicit synthetic model response.' }];
     return { role: 'assistant', content, provider: model.provider, model: model.id, api: model.api, timestamp: Date.now(),
-      stopReason: spec.tool ? 'toolUse' : 'stop', usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
+      stopReason: spec.tool || spec.parallelTools ? 'toolUse' : 'stop', usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
   };
   const modelDefinition = { id: configuration.model, name: uiOnly ? 'UI only; original host executes the selected model' : 'Workspace explicitly configured model', reasoning: false, input: ['text'],

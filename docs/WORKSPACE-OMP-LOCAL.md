@@ -8,7 +8,7 @@ npm run factory:local -- --input ./product.md --output-dir .
 
 这是一项有界的资料任务：官方 OMP 18.10.4 SDK 读取明确选择的文件，调用工厂 RFQ／匹配草稿工具，用原生 WriteTool 生成新报告，然后退出。不需要 Workspace 服务器、WS_AGENT_URL、WS_AGENT_TOKEN、企业 principal 或本地 HTTP Host。原 OMP SDK 持有模型／工具循环，没有新增 Agent Loop、数据库、账户或审批系统。
 
-`--input` 可重复，最多四份 `.md/.txt/.csv/.json/.pdf`，总量最多 64 KiB。`--output-dir` 必须是已存在的真实目录。可选 `--task "具体目标"`；默认整理资料和缺项并保存 `report.md`。只允许新建平铺的 ASCII 文件名，例如 `report.md`、`rfq-2.txt`，不覆盖已有文件。最多四份输出，每份模型正文最多 64 KB。输入不全时保留待确认；这不等于已核实产能、报价、接单或发货。
+`--input` 可重复，最多四份 `.md/.txt/.csv/.json/.pdf`，总量最多 64 KiB。`--output-dir` 必须是已存在的真实目录。可选 `--task "具体目标"`；默认整理资料和缺项并保存 `report.md`。只允许新建平铺的 ASCII 文件名，例如 `report.md`、`rfq-2.txt`，不覆盖已有文件。每项任务最多四份输出（成功数加在途预留数共同计限，失败释放预留），每份模型正文最多 64 KB。输入不全时保留待确认；这不等于已核实产能、报价、接单或发货。
 
 加 `--check` 只检查选定文件、输出目录、固定运行器和模型配置存在状态，不调用模型：
 
@@ -17,6 +17,30 @@ npm run factory:local -- --input ./product.md --output-dir . --check
 ```
 
 模型未配置时预检返回 `model-unconfigured`，实际生成明确拒绝；不会生成示例报告或声称资料为空。使用已有 `PI_PROVIDER`／`PI_MODEL`、对应安全注入的密钥、`WORKSPACE_OMP_PROVIDER_COST_JSON` 和原 `WORKSPACE_OMP_LIVE_BUDGET_VERIFIED` 配置；不自动选账户、创建 key 或证明余额。DeepSeek 仍复用原固定官方 provider/模型配置。执行生成会把选定文件的提取内容交给该模型，运行前应有相应资料处理与费用授权；本次开发验收没有执行付费请求。密钥经原安全配置进入进程，在私有 fd 中传给 Bun，不进入工具参数、提示词、argv 或输出。
+
+## DeepSeek 的非秘密配置与安全预检
+
+仅存在 `DEEPSEEK_API_KEY` 不会自动选择 DeepSeek：原配置函数在没有 `PI_PROVIDER` 时默认 fastaitoken。沿用已有安全注入的 DeepSeek 密钥，明确指定以下非秘密配置；不要把密钥写进命令、提示词或版本库。
+
+| 配置 | 原代码要求 |
+|---|---|
+| `PI_PROVIDER` | `deepseek` |
+| `PI_MODEL` | `deepseek-flash`，必须显式选择 |
+| `PI_BASE_URL` | 可省略，固定官方 `https://api.deepseek.com`；拒绝其他 DeepSeek 接收地址 |
+| `WORKSPACE_OMP_PROVIDER_COST_JSON` | 完整提供 `input/output/cacheRead/cacheWrite` 四项，每百万 tokens 的 **美元**价格；不是人民币，也不是账户余额 |
+| `WORKSPACE_OMP_LIVE_BUDGET_VERIFIED` | 仅当适用预算已核对时由可信运行环境设为 `1`；这是一项声明，不会自动核余额或形成金额硬上限 |
+
+以下命令只做零模型请求的本地预检。价格示例复用仓库 `DEEPSEEK_PRICES.ompUsdPerMillion` 的 2026-10-15 已审 Flash 峰值快照，本轮没有完成重新在线核价，不将其当作新的实时价格／余额证明。命令不设置预算声明，不改变持久配置：
+
+```sh
+PI_PROVIDER=deepseek PI_MODEL=deepseek-flash \
+WORKSPACE_OMP_PROVIDER_COST_JSON='{"input":0.3,"output":1.2,"cacheRead":0.006,"cacheWrite":0.3}' \
+npm run factory:local -- --input ./product.md --output-dir . --check
+```
+
+预检只回报 provider/model 及 `apiKeyPresent/costPresent/remainingBudgetReviewed` 布尔。若预算声明未配置，返回 `model-unconfigured`，即使密钥已存在；不代表文件为空或密钥无效。四项配置就绪也只返回 `configured-unverified`，不会触发付费连通测试。`--check` 始终 `modelRequests:0`，不会自动将预算声明改为 `1`。
+
+本轮在临时合成文件上实际执行了该 DeepSeek 预检：密钥存在为 true、临时已审价格配置存在为 true、原预算声明为 false，模型请求 0；只检查密钥存在布尔，未展示或检查原值；未读取聊天密钥、账户余额或用户业务资料，没有写入 `.env`。
 
 首次安装仍用原固定依赖：`npm ci --ignore-scripts`、`node scripts/setup-omp-runtime.mjs`、`node scripts/workspace-omp-install.mjs`。当前固定运行器和目录 FD 发布方式仅验收 Linux x64、Bun 1.3.14；没有更换模型、Node 引擎或其他系统的隐式回退。
 

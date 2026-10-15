@@ -8,6 +8,8 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { runLocalFactory, parseLocalArguments } from '../scripts/workspace-omp-local.mjs';
 import { createLocalFactoryFiles } from '../server/workspace-omp-local-files.mjs';
+import { workspaceOmpConfiguration } from '../server/workspace-omp-host.mjs';
+import { DEEPSEEK_PRICES } from '../server/deepseek-acceptance-policy.mjs';
 import { workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
 const sha = text => createHash('sha256').update(text).digest('hex');
 const configuration = { providerId: 'explicit-local-finite', model: 'finite', baseUrl: 'https://synthetic.invalid' };
@@ -75,4 +77,32 @@ test('a forged remote business tool in the local profile cannot create a task or
   const options=await fixture(t);const result=await runLocalFactory({options,configuration,syntheticResponses:[
     {tool:'workspace_business_task',arguments:{title:'Not authorized'}},{text:'The remote capability is unavailable.'},
   ]});assert.equal(result.status,'stopped');assert.deepEqual(result.saved,[]);assert.deepEqual(await fs.readdir(options.outputDirectory),[]);
+});
+
+
+test('one original OMP model response with five concurrent write calls saves at most four reports', {timeout:20000}, async t=>{
+  const options=await fixture(t);
+  const result=await runLocalFactory({options,configuration,syntheticResponses:[
+    {tool:'read',arguments:{path:'input-1'},expectedToolNames:names},
+    {parallelTools:Array.from({length:5},(_,i)=>({name:'write',arguments:{path:'batch-'+i+'.md',content:'Synthetic same-response draft '+i+'. Capacity pending. Source input-1.'}}))},
+    {text:'Four local synthetic drafts saved; the fifth write was refused by the shared quota.',expectedContextText:'LOCAL_OUTPUT_REFUSED'},
+  ]});
+  assert.equal(result.status,'saved-local-drafts',JSON.stringify(result));assert.equal(result.modelRequests,3);assert.equal(result.saved.length,4);
+  const files=await fs.readdir(options.outputDirectory);assert.equal(files.length,4);
+  for(const receipt of result.saved){const content=await fs.readFile(options.outputDirectory+'/'+receipt.name);assert.equal(sha(content),receipt.sha256);assert.equal(receipt.sources[0].sha256,sha(product));}
+  assert.equal(result.paidModelVerified,false);assert.equal(result.workspaceHostUsed,false);
+});
+
+
+test('DeepSeek local preflight reports provider/model and configuration booleans without contacting the model', {timeout:15000}, async t=>{
+  const options={...await fixture(t),check:true};
+  const selected={PI_PROVIDER:'deepseek',PI_MODEL:'deepseek-flash'};
+  const missing=await runLocalFactory({options,configuration:workspaceOmpConfiguration(selected)});
+  assert.equal(missing.status,'model-unconfigured');assert.equal(missing.modelRequests,0);
+  assert.deepEqual(missing.modelConfiguration,{provider:'workspace-deepseek',model:'deepseek-flash',apiKeyPresent:false,costPresent:false,remainingBudgetReviewed:false});
+  const configured=await runLocalFactory({options,configuration:workspaceOmpConfiguration({...selected,
+    DEEPSEEK_API_KEY:'explicit-synthetic-preflight-only',WORKSPACE_OMP_PROVIDER_COST_JSON:JSON.stringify(DEEPSEEK_PRICES.ompUsdPerMillion),WORKSPACE_OMP_LIVE_BUDGET_VERIFIED:'1'})});
+  assert.equal(configured.status,'configured-unverified');assert.equal(configured.modelRequests,0);
+  assert.deepEqual(configured.modelConfiguration,{provider:'workspace-deepseek',model:'deepseek-flash',apiKeyPresent:true,costPresent:true,remainingBudgetReviewed:true});
+  assert.ok(!JSON.stringify(configured).includes('explicit-synthetic-preflight-only'));assert.deepEqual(await fs.readdir(options.outputDirectory),[]);
 });
