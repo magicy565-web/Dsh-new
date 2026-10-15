@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { productFixture, empty, draft } from './fixtures/shopify-product.mjs';
+import { productFixture, empty, draft, multiDraft } from './fixtures/shopify-product.mjs';
 import { SHOPIFY_PRODUCT_TOOLS } from '../packages/workspace-shopify-product/src/extension.js';
 async function send(f, steps, { write = false } = {}) {
   // Model/HTTP bursts are finite scripts, while humans take time to review.
@@ -19,7 +19,8 @@ async function send(f, steps, { write = false } = {}) {
     if (run && !['queued', 'running'].includes(run.status)) {
       if (run.status === 'failed') {
         const saved = await journal(f);
-        run.testDiagnostics = { lifecycle: f.lifecycle, messages: saved.text.trim().split('\n').map(l => JSON.parse(l)).filter(r => r.message?.role === 'toolResult').map(r => ({ name: r.message.toolName, status: r.message.details?.status, reason: r.message.details?.reason })) };
+        const entries = saved.text.trim().split('\n').map(l => JSON.parse(l));
+        run.testDiagnostics = { lifecycle: f.lifecycle, assistantErrors: entries.filter(r => r.message?.role === 'assistant' && r.message.stopReason === 'error').map(r => ({ error: r.message.errorMessage })), messages: entries.filter(r => r.message?.role === 'toolResult').map(r => ({ name: r.message.toolName, status: r.message.details?.status, reason: r.message.details?.reason })) };
       }
       return run;
     }
@@ -39,10 +40,10 @@ async function approve(f, sid, op) {
   const r = await f.workspace(path, { subject: 'member-a', body: { requestId: randomUUID(), operationId: op.id, expectedScopeHash: op.scopeHash, confirmed: true, decision: 'approved' } });
   assert.equal(r.status, 200, r.text);
 }
-test('actual OMP Host freely selects product/image/proposal then original human-approved draft and publish across reopened turns', { timeout: 90000 }, async t => {
-  const f = await productFixture(t, { host: true }), sourceHash = await f.sourceHash();
+for (const skuCount of [0, 4, 100]) test(`actual OMP Host ${skuCount || 1}-variant original draft/publish approvals across reopened turns`, { timeout: 90000 }, async t => {
+  const f = await productFixture(t, { host: true, skuCount }), sourceHash = await f.sourceHash();
   const first = await send(f, [tool('read', { productId: f.product.id }, { expectedToolNames: [...SHOPIFY_PRODUCT_TOOLS, 'workspace_factory_materials_status', 'workspace_factory_materials', 'workspace_factory_document', 'workspace_skill'] }),
-    tool('image', { productId: f.product.id, imageId: f.imageId }), tool('propose', { productId: f.product.id, sourceHash, requestId: 'omp-proposal', draft: draft(f.imageId) }), answer('model-draft-unverified')], { write: true });
+    tool('image', { productId: f.product.id, imageId: f.imageId }), tool('propose', { productId: f.product.id, sourceHash, requestId: 'omp-proposal', draft: skuCount ? multiDraft(f) : draft(f.imageId) }), answer('model-draft-unverified')], { write: true });
   success(first); const row = f.app.store.read().workspaceSupplierServices.services[0], sid = row.id;
   assert.equal(row.profile.name, draft(f.imageId).title); assert.equal(row.versions[0].runId, first.id); assert.equal(f.remote.calls.length, 0);
   success(await send(f, [tool('review', { serviceId: sid, requestId: 'omp-review-draft', action: 'draft' }), answer('pending_approval')], { write: true }));
@@ -59,6 +60,7 @@ test('actual OMP Host freely selects product/image/proposal then original human-
   assert.equal(f.app.store.read().businessLibrary.products.length, 1); assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0);
   assert.equal(f.app.store.read().goals.length, 0); assert.equal(f.app.capabilities.listSchedules().length, 0); assert.equal(f.remote.state.uploads, 1);
   assert.equal(f.app.capabilities.listConnectorRuns().length, 2); assert.equal(f.lifecycle.filter(e => e.phase === 'exit').length, 5);
+  if (skuCount) { assert.equal(f.remote.count('SupplierCreateReviewedVariants'), 1); assert.equal(op.scope.variantIds.length, skuCount); }
 });
 test('actual Host read-only intent blocks model save; absent shop/Library binding is explicit', { timeout: 60000 }, async t => {
   const f = await productFixture(t, { host: true, configured: false });

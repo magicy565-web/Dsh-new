@@ -19,7 +19,19 @@ export async function fakeShopify(t) {
         intent: { value: variables.product.metafields[0].value }, release: null,
         variants: { nodes: [{ id: variantId, sku: '', price: '0.00' }], pageInfo: { hasNextPage: false } },
         media: { nodes: variables.media.map((image, index) => ({ id: `gid://shopify/MediaImage/${1000 + index}`, alt: image.alt, image: state.mediaReady ? { url: `https://cdn.shopify.com/fixture/media-${1000 + index}.png` } : null, mediaContentType: 'IMAGE', status: state.mediaReady ? 'READY' : 'PROCESSING' })), pageInfo: { hasNextPage: false } } };
+      if (variables.product.productOptions) {
+        product.options = variables.product.productOptions.map(o => ({ name: o.name, optionValues: o.values.map(v => ({ name: v.name })) }));
+        product.variants.nodes[0].selectedOptions = product.options.map(o => ({ name: o.name, value: o.optionValues[0].name }));
+        product.variants.nodes[0].media = { nodes: [], pageInfo: { hasNextPage: false } };
+      }
       products.set(product.handle, product); data = { productCreate: { product, userErrors: [] } };
+    } else if (name === 'SupplierCreateReviewedVariants') {
+      const product = [...products.values()].find(p => p.id === variables.productId);
+      assert.match(query, /strategy: REMOVE_STANDALONE_VARIANT/);
+      const selected = state.partialVariants ? variables.variants.slice(0, 1) : variables.variants;
+      product.variants.nodes = selected.map((v, i) => ({ id: `gid://shopify/ProductVariant/${2000 + i}`, sku: v.inventoryItem.sku, price: v.price,
+        selectedOptions: v.optionValues.map(o => ({ name: o.optionName, value: o.name })), media: { nodes: v.mediaId ? [{ id: v.mediaId }] : [], pageInfo: { hasNextPage: false } } }));
+      data = { productVariantsBulkCreate: { productVariants: product.variants.nodes, userErrors: state.partialVariants ? [{ field: ['variants'], message: 'Synthetic partial remote result' }] : [] } };
     } else if (name === 'SupplierSetRetailVariant') {
       const product = [...products.values()].find(item => item.id === variables.productId), input = variables.variants[0];
       if (state.rejectVariant) data = { productVariantsBulkUpdate: { productVariants: [], userErrors: [{ field: ['price'], message: 'Deliberately rejected local fixture variant' }] } };
@@ -28,7 +40,7 @@ export async function fakeShopify(t) {
       const product = [...products.values()].find(item => item.id === variables.product.id); product.status = 'ACTIVE'; product.release = { value: variables.product.metafields[0].value }; data = { productUpdate: { product, userErrors: [] } };
     } else if (name === 'SupplierPublishReviewedProduct') {
       const product = [...products.values()].find(item => item.id === variables.id); product.publishedOnPublication = true; product.publishedAt = '2026-10-12T12:00:00.000Z'; product.onlineStoreUrl = `https://${shop.myshopifyDomain}/products/${product.handle}`; data = { publishablePublish: { publishable: { availablePublicationsCount: { count: 1 } }, userErrors: [] } };
-    } else if (['SupplierDraftReceipt', 'SupplierPublicationReceipt'].includes(name)) data = { product: products.get(variables.identifier.handle) || null };
+    } else if (['SupplierDraftReceipt', 'SupplierPublicationReceipt', 'SupplierMultiDraftReceipt', 'SupplierMultiPublicationReceipt'].includes(name)) data = { product: products.get(variables.identifier.handle) || null };
     else if (name === 'WorkspaceSupplierProduct') data = { product: [...products.values()].find(item => item.id === variables.id) || null };
     else if (name === 'WorkspaceSupplierOrders') data = { orders: { nodes: structuredClone(state.orders), pageInfo: { hasNextPage: false, endCursor: null } } };
     else { res.writeHead(400); res.end(JSON.stringify({ error: 'Unknown local fixture query' })); return; }

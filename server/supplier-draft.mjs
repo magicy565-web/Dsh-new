@@ -11,6 +11,7 @@ export function assertSupplierProductSource(state, row) {
   const product = state.businessLibrary?.products.find(p => p.id === source.productId);
   if (!product || product.revision !== source.revision || product.status === 'archived'
     || source.images.some(image => !product.images.some(p => p.id === image.id && supplierHash(p.asset) === supplierHash(image.asset)))
+    || source.skus?.some(sku => !product.skus.some(p => p.id === sku.id && supplierHash({ id: p.id, code: p.code, specs: p.specs }) === supplierHash(sku)))
     || row.preview && supplierHash(row.preview.images.map(i => i.asset)) !== supplierHash(source.images.map(i => i.asset)))
     supplierFail(409, 'SHOPIFY_PRODUCT_SOURCE_CHANGED', 'Review the original Library product revision and selected image versions again.');
 }

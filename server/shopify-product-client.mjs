@@ -63,7 +63,11 @@ export function createShopifyProductClient({ materialsClient, store, artifacts, 
     }
     const shop = shopify.status(), publication = supplierPublication.status();
     return result('readiness', input, ctx, shop.configured ? 'available' : 'unconfigured', { shopify: shop, publication, images,
-      sourceReady: images.some(i => i.available), shopReadVerified: shop.readiness?.readConfirmed === true,
+      sourceReady: images.some(i => i.available), variantSources: { status: !Array.isArray(ctx.product.skuSpecifications) ? 'not_selected'
+        : ctx.product.skuSpecifications.length < 2 ? 'insufficient_source_skus' : ctx.product.skuSpecifications.some(s => !s.specs.length) ? 'missing_specifications' : 'available_for_explicit_selection',
+        skuCount: ctx.product.skuSpecifications?.length ?? null,
+        missingSpecifications: ctx.product.skuSpecifications?.filter(s => !s.specs.length).map(s => s.id) ?? null,
+        retailPrices: 'explicit_per_variant_proposal_required', inventory: 'unknown_not_written', maxVariants: 100, maxOptions: 3 }, shopReadVerified: shop.readiness?.readConfirmed === true,
       uploadReady: images.some(i => i.available) && publication.configured === true && publication.enabled === true && publication.connectorStatus === 'ready'
         && shop.readiness?.readConfirmed === true && shop.scopes.includes('write_products'), humanReviewRequired: true, verifiedWrite: false });
   }
@@ -76,10 +80,34 @@ export function createShopifyProductClient({ materialsClient, store, artifacts, 
   }
   async function resultRead(input, signal, model) {
     validateShopifyProductInput('result', input); const { row, ctx } = await bound(input.serviceId, signal, model);
-    const view = supplierPublication.forActor(identity).publication(conversationId, row.id).publication;
+    let view = supplierPublication.forActor(identity).publication(conversationId, row.id).publication, variantPage = null;
+    const selectedOperation = input.operationId ? view.operations.find(op => op.id === input.operationId) : view.latest;
+    if (input.operationId && !selectedOperation) fail(404, 'SUPPLIER_PUBLICATION_NOT_FOUND');
+    let preview = input.operationId ? selectedOperation.scope.preview : row.preview;
+    if (preview?.options) {
+      // Keep bounded original receipts instead of duplicating approval payloads,
+      // nested draft scopes and the entire large preview several times in RPC.
+      // Humans review the full exact scope through the ORIGINAL Session route.
+      const offset = input.variantOffset ?? 0, limit = input.variantLimit ?? 5, page = values => values.slice(offset, offset + limit);
+      variantPage = { offset, limit, total: preview.variants.length, hasMore: offset + limit < preview.variants.length };
+      preview = { ...preview, variants: page(preview.variants), options: preview.options.map(o => ({ name: o.name, valueCount: o.values.length })) };
+      const project = op => op && Object.fromEntries(['id', 'action', 'status', 'scopeHash', 'approvalId', 'approvalStatus', 'connectorId', 'connectorRunId',
+        'createdAt', 'updatedAt', 'error', 'stale', 'businessCompletion', 'canExecute', 'canReconcile', 'automaticRetry'].filter(k => Object.hasOwn(op, k)).map(k => [k, op[k]]));
+      const receipt = selectedOperation?.receipt;
+      const compactReceipt = receipt && { ...Object.fromEntries(['status', 'found', 'complete', 'readyForPublication', 'productId', 'productStatus', 'variantIds', 'handle',
+        'shopId', 'shopDomain', 'publicationId', 'published', 'publishedAt', 'observedAt', 'previewHash', 'remoteContentHash', 'variantEvidence', 'inventory', 'issues', 'mediaIds'].filter(k => Object.hasOwn(receipt, k)).map(k => [k, receipt[k]])),
+        variantReceipts: page(receipt.variantReceipts || []).map(v => ({ sourceSkuId: v.sourceSkuId, variantId: v.variantId, mediaId: v.mediaId, matchesReviewedFields: v.matchesReviewedFields })) };
+      const selected = selectedOperation ? { ...project(selectedOperation), serviceRevision: selectedOperation.scope.serviceRevision, previewHash: selectedOperation.scope.previewHash,
+        receipt: compactReceipt, steps: selectedOperation.steps.map(s => ({ step: s.step, status: s.status })) } : null;
+      view = { ...view, operations: view.operations.map(project), latest: view.latest?.id === selected?.id ? selected : project(view.latest), selectedOperation: selected,
+        receiptView: 'paged_original_multi_variant_projection_v1' };
+    } else if (input.operationId) {
+      view = { ...view, selectedOperation: { id: selectedOperation.id, action: selectedOperation.action, status: selectedOperation.status,
+        scopeHash: selectedOperation.scopeHash, receipt: selectedOperation.receipt, stale: selectedOperation.stale } };
+    }
     // Original operation scopes contain only the already proposed public preview.
-    return result('result', input, ctx, ['uncertain', 'partial', 'failed', 'blocked', 'cancelled'].includes(view.latest?.status) ? view.latest.status : 'available', { serviceId: row.id, revision: row.revision, preview: row.preview, publication: view,
-      humanReviewRequired: true, productCreatedOrPublished: view.latest?.receipt?.found === true, acquisitionStarted: false });
+    return result('result', input, ctx, ['uncertain', 'partial', 'failed', 'blocked', 'cancelled'].includes(selectedOperation?.status) ? selectedOperation.status : 'available', { serviceId: row.id, revision: row.revision, preview, publication: view, ...(variantPage ? { variantPage } : {}),
+      humanReviewRequired: true, productCreatedOrPublished: selectedOperation?.receipt?.found === true, acquisitionStarted: false });
   }
   async function propose(input, signal, model) {
     const data = validateShopifyProductInput('propose', input); await guard(signal, model, true);
@@ -88,10 +116,21 @@ export function createShopifyProductClient({ materialsClient, store, artifacts, 
     if (ctx.sourceHash !== data.sourceHash) fail(409, 'SHOPIFY_PRODUCT_SOURCE_CHANGED');
     const images = [];
     for (const id of data.draft.imageIds) { const { image: ref } = await bytes(ctx, id, signal, model); images.push(ref); }
-    const { title, imageIds, ...terms } = data.draft;
+    const { title, imageIds, options, variants, ...terms } = data.draft;
     const facts = { ...terms, name: title, images: images.map(ref => ({ kind: 'artifact', asset: ref.asset, sourceNote: `Original Library image ${ref.id}; unreviewed publication proposal` })) };
     const source = { productId: data.productId, revision: ctx.product.revision, sourceHash: ctx.sourceHash, images: clone(images) };
-    const saved = await supplierService.proposeProduct({ actor: identity, conversationId, runId, requestId: data.requestId, facts, source }, {
+    let listing = null;
+    if (variants) {
+      if (!Array.isArray(ctx.product.skuSpecifications)) fail(403, 'SHOPIFY_PRODUCT_SKUS_NOT_SELECTED');
+      source.skus = variants.map(v => {
+        const sku = ctx.product.skuSpecifications.find(s => s.id === v.sourceSkuId);
+        if (!sku || sku.code !== v.skuCode || v.optionValues.some(o => !sku.specs.some(s => s.key === o.name && s.value === o.value))) fail(409, 'SHOPIFY_PRODUCT_SKU_SOURCE_MISMATCH');
+        return { id: sku.id, code: sku.code, specs: clone(sku.specs) };
+      });
+      listing = { options, variants: variants.map(v => ({ sourceSkuId: v.sourceSkuId, sku: v.skuCode, price: v.consumerPrice,
+        selectedOptions: options.map(o => v.optionValues.find(x => x.name === o.name)), imageIndex: v.imageId ? imageIds.indexOf(v.imageId) : null })) };
+    }
+    const saved = await supplierService.proposeProduct({ actor: identity, conversationId, runId, requestId: data.requestId, facts, source, listing }, {
       assertCurrent(state) {
         writeFence(state, signal);
         assertSupplierProductSource(state, { productSource: source });
@@ -109,14 +148,14 @@ export function createShopifyProductClient({ materialsClient, store, artifacts, 
     if (!proposal.operation) fail(409, proposal.error?.code || 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED');
     // confirmed above admits only the displayed proposal. Actual human decision
     // and original one-use approval consumption remain in the original service.
-    await guard(signal, model); return resultRead({ serviceId: row.id }, signal, model);
+    await guard(signal, model); return resultRead({ serviceId: row.id, operationId: proposal.operation.id }, signal, model);
   }
   async function action(method, input, signal, model) {
     const data = validateShopifyProductInput(method, input); await guard(signal, model, true);
     await bound(data.serviceId, signal, model);
     await supplierPublication.forActor(identity, { signal, assertCurrent: state => writeFence(state, signal) })[method === 'execute' ? 'executePublication' : 'reconcilePublication'](conversationId, data.serviceId,
       { requestId: data.requestId, operationId: data.operationId, expectedScopeHash: data.expectedScopeHash, confirmed: true });
-    await guard(signal, model); return resultRead({ serviceId: data.serviceId }, signal, model);
+    await guard(signal, model); return resultRead({ serviceId: data.serviceId, operationId: data.operationId }, signal, model);
   }
   const methods = { status, read, image, readiness, propose, review, execute: (...args) => action('execute', ...args), reconcile: (...args) => action('reconcile', ...args), result: resultRead };
   async function refresh(receipt, model, signal, nativeContent = []) {

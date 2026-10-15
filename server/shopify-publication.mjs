@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { SHOPIFY_API_VERSION } from './shopify.mjs';
 import { supplierFail, supplierHash } from './supplier-profile.mjs';
 import { assertSupplierProductSource } from './supplier-draft.mjs';
+import { multiVariantPreview, inspectReviewedVariants } from './shopify-variant-publication.mjs';
 
 // A host-installed action adapter for the ORIGINAL capability service. It is
 // never a model tool and does not own approvals, a queue, or a separate store.
@@ -21,6 +22,14 @@ const LOOKUP = `query SupplierPublicationReceipt($identifier: ProductIdentifierI
   product: productByIdentifier(identifier: $identifier) { ${PRODUCT} publishedOnPublication(publicationId: $publicationId) }
 }`;
 const LOOKUP_DRAFT = `query SupplierDraftReceipt($identifier: ProductIdentifierInput!) { product: productByIdentifier(identifier: $identifier) { ${PRODUCT} } }`;
+const MULTI_PRODUCT = PRODUCT.replace('variants(first: 2) { nodes { id sku price }', 'options { name optionValues { name } } variants(first: 101) { nodes { id sku price selectedOptions { name value } media(first: 2) { nodes { id } pageInfo { hasNextPage } } }');
+const LOOKUP_MULTI = `query SupplierMultiPublicationReceipt($identifier: ProductIdentifierInput!, $publicationId: ID!) {
+  product: productByIdentifier(identifier: $identifier) { ${MULTI_PRODUCT} publishedOnPublication(publicationId: $publicationId) }
+}`;
+const LOOKUP_MULTI_DRAFT = `query SupplierMultiDraftReceipt($identifier: ProductIdentifierInput!) { product: productByIdentifier(identifier: $identifier) { ${MULTI_PRODUCT} } }`;
+const CREATE_VARIANTS = `mutation SupplierCreateReviewedVariants($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+  productVariantsBulkCreate(productId: $productId, variants: $variants, strategy: REMOVE_STANDALONE_VARIANT) { productVariants { id } userErrors { field message } }
+}`;
 const CREATE = `mutation SupplierCreateDraft($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
   productCreate(product: $product, media: $media) { product { id handle media(first: 12) { nodes { id } pageInfo { hasNextPage } } variants(first: 2) { nodes { id } pageInfo { hasNextPage } } } userErrors { field message } }
 }`;
@@ -98,7 +107,8 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
     if (product === null) return { status: 'not_found', found: false, complete: false, observedAt: at(), error: { code: 'SHOPIFY_RECEIPT_NOT_FOUND' } };
     const expectedMarker = scope.action === 'draft' ? supplierHash(scope) : scope.draftScopeHash;
     if (!gid('Product', product?.id) || product.handle !== scope.handle || product.intent?.value !== expectedMarker || scope.productId && product.id !== scope.productId) supplierFail(409, 'SHOPIFY_RECEIPT_SCOPE_MISMATCH', 'The remote product does not carry this exact original draft marker.');
-    if (!Array.isArray(product.variants?.nodes) || product.variants.pageInfo?.hasNextPage !== false || product.variants.nodes.length !== 1 || !Array.isArray(product.media?.nodes) || product.media.pageInfo?.hasNextPage !== false) supplierFail(409, 'SHOPIFY_RECEIPT_INCOMPLETE', 'The remote variant/media scope is incomplete.');
+    const multi = multiVariantPreview(scope);
+    if (!Array.isArray(product.variants?.nodes) || product.variants.pageInfo?.hasNextPage !== false || (multi ? product.variants.nodes.length > 100 : product.variants.nodes.length !== 1) || !Array.isArray(product.media?.nodes) || product.media.pageInfo?.hasNextPage !== false) supplierFail(409, 'SHOPIFY_RECEIPT_INCOMPLETE', 'The remote variant/media scope is incomplete.');
     const variant = product.variants.nodes[0], issues = [];
     const draftScope = scope.action === 'draft' ? scope : scope.draftScope;
     const original = store && operationFrom(store.read(), draftScope);
@@ -113,11 +123,14 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
     });
     const expectedMediaIds = creation?.mediaIds || mediaReview?.scope.repair.mediaSnapshot.map(item => item.id);
     if (!Array.isArray(expectedMediaIds) || expectedMediaIds.length !== scope.preview.images.length || supplierHash(expectedMediaIds) !== supplierHash(product.media.nodes.map(item => item.id)) || expectedMediaIds.some(id => !gid('MediaImage', id))) issues.push('media_identity_unconfirmed');
-    if (!gid('ProductVariant', variant.id)) supplierFail(502, 'SHOPIFY_RECEIPT_INCOMPLETE', 'The variant receipt has no exact identity.');
+    if (product.variants.nodes.some(v => !gid('ProductVariant', v.id)) || new Set(product.variants.nodes.map(v => v.id)).size !== product.variants.nodes.length) supplierFail(502, 'SHOPIFY_RECEIPT_INCOMPLETE', 'The variant receipt has no distinct exact identity.');
     if (product.title !== scope.preview.product.title || product.descriptionHtml !== scope.preview.product.descriptionHtml) issues.push('product_content_changed');
-    if (money(variant.price) !== money(scope.preview.saleUnit.consumerPrice) || scope.preview.variants[0].sku !== null && variant.sku !== scope.preview.variants[0].sku) issues.push('retail_variant_changed');
+    const variants = multi ? inspectReviewedVariants(scope, product, expectedMediaIds,
+      original?.operation.steps.find(s => s.step === 'retail_variants' && s.status === 'acknowledged')?.receipt?.variantIds, money) : null;
+    if (multi) issues.push(...variants.issues);
+    else if (money(variant.price) !== money(scope.preview.saleUnit.consumerPrice) || scope.preview.variants[0].sku !== null && variant.sku !== scope.preview.variants[0].sku) issues.push('retail_variant_changed');
     if (product.media.nodes.length !== scope.preview.images.length || product.media.nodes.some(item => item.mediaContentType !== 'IMAGE' || item.status !== 'READY' || typeof item.image?.url !== 'string' || !item.image.url.startsWith('https://'))) issues.push('media_not_ready');
-    const remoteContentHash = supplierHash({ title: product.title, descriptionHtml: product.descriptionHtml, variants: product.variants.nodes.map(item => ({ id: item.id, sku: item.sku, price: money(item.price) })), media: product.media.nodes.map(item => ({ id: item.id, mediaContentType: item.mediaContentType, alt: item.alt ?? null, imageUrl: item.image?.url ?? null })) });
+    const remoteContentHash = supplierHash({ title: product.title, descriptionHtml: product.descriptionHtml, ...(multi ? { options: variants.options } : {}), variants: multi ? variants.snapshot : product.variants.nodes.map(item => ({ id: item.id, sku: item.sku, price: money(item.price) })), media: product.media.nodes.map(item => ({ id: item.id, mediaContentType: item.mediaContentType, alt: item.alt ?? null, imageUrl: item.image?.url ?? null })) });
     const originalHash = scope.action === 'publish' ? scope.remoteContentHash : store ? operationFrom(store.read(), scope).operation.remoteContentHash : null;
     if (originalHash && originalHash !== remoteContentHash) issues.push('remote_content_changed');
     if (!['DRAFT', 'ACTIVE'].includes(product.status) || scope.action !== 'publish' && product.status !== 'DRAFT') issues.push('product_status_changed');
@@ -126,19 +139,21 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
     if (scope.action === 'publish' && product.release?.value !== supplierHash(scope)) issues.push('publication_marker_changed');
     if (scope.action === 'publish' && !published) issues.push('publication_not_acknowledged');
     const onlineAt = typeof product.publishedAt === 'string' && Number.isFinite(Date.parse(product.publishedAt)) && typeof product.onlineStoreUrl === 'string' && product.onlineStoreUrl.startsWith('https://') ? product.publishedAt : null;
-    const repairBasisHash = supplierHash({ productId: product.id, handle: product.handle, title: product.title, descriptionHtml: product.descriptionHtml, productStatus: product.status, publicationIntentHash: product.release?.value || null, variantIds: [variant.id], mediaSnapshot });
-    return { status: published && !issues.length ? 'published' : product.status === 'DRAFT' ? 'shopify_draft' : 'unpublished', found: true, complete: !issues.length, readyForPublication: !issues.length && scope.action !== 'publish', productId: product.id, productStatus: product.status, variantIds: [variant.id], handle: scope.handle, shopId: scope.shopId, shopDomain: domain, publicationId: scope.publicationId, published: published && !issues.length,
+    const variantIds = product.variants.nodes.map(v => v.id);
+    const repairBasisHash = supplierHash({ productId: product.id, handle: product.handle, title: product.title, descriptionHtml: product.descriptionHtml, productStatus: product.status, publicationIntentHash: product.release?.value || null, variantIds, mediaSnapshot });
+    return { status: published && !issues.length ? 'published' : product.status === 'DRAFT' ? 'shopify_draft' : 'unpublished', found: true, complete: !issues.length, readyForPublication: !issues.length && scope.action !== 'publish', productId: product.id, productStatus: product.status, variantIds, ...(multi ? { variantReceipts: variants.variantReceipts, variantEvidence: variants.variantEvidence, inventory: variants.inventory } : {}), handle: scope.handle, shopId: scope.shopId, shopDomain: domain, publicationId: scope.publicationId, published: published && !issues.length,
       // Product.publishedAt is Online Store specific, not arbitrary channel time.
       publishedAt: null, publicationTimeSource: null, onlineStorePublishedAt: onlineAt, onlineStoreUrl: onlineAt ? product.onlineStoreUrl : null,
       observedAt: at(), previewHash: scope.previewHash, remoteContentHash, repairBasisHash, publicationIntentHash: product.release?.value || null, mediaSnapshot, mediaIds: product.media.nodes.map(item => item.id), mediaEvidence: { sourceBytes: scope.preview.images.every(item => item.kind === 'artifact') ? 'reviewed_sha256_uploaded' : 'remote_url_not_hashed', remote: mediaReview ? 'separately_approved_observed_ids_and_shopify_status' : expectedMediaIds ? 'acknowledged_ids_and_shopify_status' : 'unconfirmed', reviewOperationId: mediaReview?.id || null, remoteBytesVerified: false }, issues, externalStatus: published && !issues.length ? 'published' : product.status === 'DRAFT' ? 'shopify_draft' : 'unpublished' };
   }
   async function reconcile(scope, { signal } = {}) {
     await verify(scope, signal);
-    const query = scope.action === 'publish' ? LOOKUP : LOOKUP_DRAFT;
+    const query = multiVariantPreview(scope) ? scope.action === 'publish' ? LOOKUP_MULTI : LOOKUP_MULTI_DRAFT : scope.action === 'publish' ? LOOKUP : LOOKUP_DRAFT;
     const data = await graphql(query, { identifier: { handle: scope.handle }, ...(scope.action === 'publish' ? { publicationId: scope.publicationId } : {}) }, signal);
     return inspect(scope, data.product);
   }
   async function planRepair(draftScope, { approveObservedMedia = false, signal } = {}) {
+    if (multiVariantPreview(draftScope)) supplierFail(409, 'SHOPIFY_MULTI_VARIANT_REPAIR_UNSUPPORTED', 'Multi-variant partial results require original read-only reconciliation; legacy single-variant repair cannot be applied.');
     const { row, operation } = operationFrom(store.read(), draftScope), observed = await reconcile(draftScope, { signal });
     if (!observed.found) supplierFail(409, 'SHOPIFY_REPAIR_PRODUCT_REQUIRED', 'No exact original remote product exists to repair.');
     if (observed.productStatus !== 'DRAFT' || observed.publicationIntentHash || row.publicationOperations.some(item => item.action === 'publish' && item.connectorRunId && item.scope.productId === observed.productId)) supplierFail(409, 'SHOPIFY_REPAIR_PUBLICATION_PRESENT', 'An active or previously admitted publication cannot be rolled back or repaired as a draft.');
@@ -206,10 +221,16 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
         const existing = await reconcile(scope, { signal });
         if (existing.found) supplierFail(409, 'SHOPIFY_EXISTING_DRAFT_RECONCILIATION_REQUIRED', 'The deterministic handle already exists. Reconcile it instead of creating another product.');
         const media = await mediaSources(scope, runId, signal);
-        const created = await step(scope, runId, signal, 'product_create', async () => resultOf(await graphql(CREATE, { product: { title: scope.preview.product.title, descriptionHtml: scope.preview.product.descriptionHtml, status: 'DRAFT', handle: scope.handle, metafields: [{ namespace: NS, key: 'draft_intent', type: 'single_line_text_field', value: supplierHash(scope) }] }, media }, signal), 'productCreate'), value => ({ productId: value.product?.id || null, handle: value.product?.handle || null, mediaIds: value.product?.media?.pageInfo?.hasNextPage === false ? value.product.media.nodes?.map(item => item.id) : null }));
+        const multi = multiVariantPreview(scope);
+        const created = await step(scope, runId, signal, 'product_create', async () => resultOf(await graphql(CREATE, { product: { title: scope.preview.product.title, descriptionHtml: scope.preview.product.descriptionHtml, status: 'DRAFT', handle: scope.handle, ...(multi ? { productOptions: scope.preview.options.map(o => ({ name: o.name, values: o.values.map(name => ({ name })) })) } : {}), metafields: [{ namespace: NS, key: 'draft_intent', type: 'single_line_text_field', value: supplierHash(scope) }] }, media }, signal), 'productCreate'), value => ({ productId: value.product?.id || null, handle: value.product?.handle || null, mediaIds: value.product?.media?.pageInfo?.hasNextPage === false ? value.product.media.nodes?.map(item => item.id) : null }));
         const product = created.product;
         if (!gid('Product', product?.id) || product.handle !== scope.handle || product.variants?.nodes?.length !== 1 || product.variants.pageInfo?.hasNextPage !== false || !gid('ProductVariant', product.variants.nodes[0].id)) supplierFail(502, 'SHOPIFY_DRAFT_RECEIPT_INVALID', 'The original draft or variant was not completely acknowledged.');
-        await step(scope, runId, signal, 'retail_variant', async () => resultOf(await graphql(PRICE, { productId: product.id, variants: [{ id: product.variants.nodes[0].id, price: scope.preview.saleUnit.consumerPrice, ...(scope.preview.variants[0].sku === null ? {} : { inventoryItem: { sku: scope.preview.variants[0].sku } }) }] }, signal), 'productVariantsBulkUpdate'), value => ({ variantIds: value.productVariants?.map(item => item.id) || [] }));
+        if (multi) {
+          if (product.media?.pageInfo?.hasNextPage !== false || product.media.nodes.length !== scope.preview.images.length || product.media.nodes.some(m => !gid('MediaImage', m.id))) supplierFail(502, 'SHOPIFY_DRAFT_RECEIPT_INVALID', 'Exact created media IDs are required for variant associations.');
+          await step(scope, runId, signal, 'retail_variants', async () => resultOf(await graphql(CREATE_VARIANTS, { productId: product.id,
+            variants: scope.preview.variants.map(v => ({ price: v.price, inventoryItem: { sku: v.sku }, optionValues: v.selectedOptions.map(o => ({ optionName: o.name, name: o.value })),
+              ...(v.imageIndex === null ? {} : { mediaId: product.media.nodes[v.imageIndex].id }) })) }, signal), 'productVariantsBulkCreate'), value => ({ variantIds: value.productVariants?.map(v => v.id) || [] }));
+        } else await step(scope, runId, signal, 'retail_variant', async () => resultOf(await graphql(PRICE, { productId: product.id, variants: [{ id: product.variants.nodes[0].id, price: scope.preview.saleUnit.consumerPrice, ...(scope.preview.variants[0].sku === null ? {} : { inventoryItem: { sku: scope.preview.variants[0].sku } }) }] }, signal), 'productVariantsBulkUpdate'), value => ({ variantIds: value.productVariants?.map(item => item.id) || [] }));
         return reconcile(scope, { signal });
       }
       if (scope.action === 'repair_draft') {

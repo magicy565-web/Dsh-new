@@ -8,7 +8,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 for (const engine of ['pi', 'omp']) test(`product DTOs match actual ${engine} JSON Schema validation`, () => {
   const executable = engine === 'pi' ? process.execPath : root + '/support/omp-bun-linux-x64/node_modules/@oven/bun-linux-x64-baseline/bin/bun';
   const r = spawnSync(executable, ['test/fixtures/shopify-product-contracts.mjs', engine], { cwd: root, timeout: 20000, encoding: 'utf8', env: { PATH: '/usr/bin:/bin', HOME: '/tmp', PI_OFFLINE: '1' } });
-  assert.equal(r.status, 0, r.stdout + r.stderr); const evidence = JSON.parse(r.stdout.trim()); assert.equal(evidence.cases, 58); assert.equal(evidence.modelCalls, 0);
+  assert.equal(r.status, 0, r.stdout + r.stderr); const evidence = JSON.parse(r.stdout.trim()); assert.equal(evidence.cases, 67); assert.equal(evidence.explicitBusinessConstraints, 5); assert.equal(evidence.modelCalls, 0);
 });
 test('copied export has declarations and only intended package files', async t => {
   const dir = await fs.mkdtemp('/tmp/shopify-product-types-'); t.after(() => fs.rm(dir, { recursive: true, force: true }));

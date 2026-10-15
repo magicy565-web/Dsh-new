@@ -32,7 +32,7 @@ export function createSupplierService({ store, runtime, provider, businessLibrar
     // Process-private proposal mapping into the ORIGINAL supplier record and
     // command receipt. The caller supplies the live original source/Run guard.
     // It proposes unreviewed content; it cannot decide or consume an approval.
-    async proposeProduct({ actor, conversationId, runId = null, requestId, facts, source }, { assertCurrent } = {}) {
+    async proposeProduct({ actor, conversationId, runId = null, requestId, facts, source, listing = null }, { assertCurrent } = {}) {
       if (typeof assertCurrent !== 'function') supplierFail(403, 'SHOPIFY_PRODUCT_SOURCE_CHANGED', 'Use the original source and Run guard.');
       supplierRequest({ requestId, facts }, ['facts']);
       const profile = normalizeSupplierProfile(facts), availability = await imageAvailability(profile, actor, conversationId);
@@ -42,7 +42,13 @@ export function createSupplierService({ store, runtime, provider, businessLibrar
       preview.product.descriptionHtml = '<p>' + escape(profile.description) + '</p>';
       preview.display.paragraphs = [profile.description];
       preview.contentOrigin = 'model-draft-unverified'; preview.humanReviewed = false;
-      const body = { requestId, facts: profile, source };
+      if (listing) {
+        preview.options = structuredClone(listing.options); preview.variants = structuredClone(listing.variants);
+        preview.pricing = 'per_variant'; preview.inventory = 'unknown_not_written';
+        preview.missingFields = preview.missingFields.filter(f => f !== 'consumerPrice');
+        preview.phase = preview.missingFields.length ? 'needs_information' : 'preview_ready';
+      }
+      const body = { requestId, facts: profile, source, ...(listing ? { listing } : {}) };
       return store.update(state => {
         const checked = assertCurrent(state);
         if (checked === false || checked && typeof checked.then === 'function') { checked?.catch?.(() => {}); supplierFail(403, 'SHOPIFY_PRODUCT_SOURCE_CHANGED', 'Use the original synchronous source and Run guard.'); }

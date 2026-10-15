@@ -86,7 +86,9 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
   } });
   const approvalView = id => capabilities.listApprovals().find(item => item.id === id) || null;
   const operationView = (row, operation) => {
-    const approval = approvalView(operation.approvalId), stale = row.revision !== operation.scope.serviceRevision || row.preview?.previewHash !== operation.scope.previewHash || adapter.fingerprint !== operation.scope.configFingerprint;
+    let sourceStale = false;
+    try { assertSupplierProductSource(store.read(), row); } catch (error) { if (error.code !== 'SHOPIFY_PRODUCT_SOURCE_CHANGED') throw error; sourceStale = true; }
+    const approval = approvalView(operation.approvalId), stale = sourceStale || row.revision !== operation.scope.serviceRevision || row.preview?.previewHash !== operation.scope.previewHash || adapter.fingerprint !== operation.scope.configFingerprint;
     return { ...clone(operation), approvalStatus: approval?.status || null, approval, stale, businessCompletion: operation.receipt?.published ? 'published' : operation.receipt?.found ? 'draft_only' : 'not_completed', canExecute: !stale && operation.status === 'approved' && approval?.status === 'approved' && Date.parse(approval.expiresAt) > clock(), canReconcile: !!operation.connectorRunId && operation.status !== 'running', automaticRetry: false };
   };
   function binding(operation) { return { type: 'supplier-publication', subject: operation.scope.subject, workspaceId: operation.scope.workspaceId, conversationId: operation.scope.conversationId, serviceId: operation.scope.serviceId, operationId: operation.id, scopeHash: operation.scopeHash }; }

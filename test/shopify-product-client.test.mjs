@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import { createApp } from '../server/index.mjs';
-import { productFixture, draft, MODEL } from './fixtures/shopify-product.mjs';
+import { productFixture, draft, multiDraft, MODEL } from './fixtures/shopify-product.mjs';
 import { createShopifyProductClient } from '../server/shopify-product-client.mjs';
 import { shopifyProductExtension } from '../packages/workspace-shopify-product/src/extension.js';
 const PUB = 'gid://shopify/Publication/7';
@@ -103,8 +103,9 @@ test('cancellation or source/Run revocation during original shop verification ca
     assert.equal(f.app.store.read().workspaceSupplierServices.services[0].publicationOperations?.length || 0, 0);
   });
 });
-test('cold original-app reopen preserves the proposal, exact operation and remote product for read-only reconciliation', async t => {
-  const f = await fixture(t), sid = (await f.call('propose', await f.proposeInput())).details.view.serviceId;
+for (const skuCount of [0, 4]) test(`cold original-app reopen preserves ${skuCount || 1} variants and the exact operation for read-only reconciliation`, async t => {
+  const f = await fixture(t, { skuCount }), input = await f.proposeInput(); if (skuCount) input.draft = multiDraft(f);
+  const sid = (await f.call('propose', input)).details.view.serviceId;
   await f.call('review', { serviceId: sid, requestId: 'cold-review', action: 'draft' }); const op = f.operation(sid); await f.approve(sid, op);
   await f.call('execute', f.command(sid, op)); await f.app.close();
   const reopened = await createApp({ dataDirectory: f.directory, capabilityEnvironment: { WORKSPACE_SHOPIFY_SHOP_DOMAIN: 'supplier-fixture.myshopify.com',
@@ -116,8 +117,8 @@ test('cold original-app reopen preserves the proposal, exact operation and remot
     assert.equal(result.operation.id, op.id); assert.equal(f.remote.count('SupplierCreateDraft'), 1); assert.equal(reopened.store.read().businessLibrary.products.length, 1);
   } finally { await reopened.close(); }
 });
-test('actual Pi SDK chooses original reads and saves model prose into the original supplier record with synthetic authority', async t => {
-  const f = await fixture(t), sdk = await import('@earendil-works/pi-coding-agent'), ai = await import('@earendil-works/pi-ai');
+for (const skuCount of [0, 4]) test(`actual Pi SDK chooses original reads and saves ${skuCount ? 'multi-variant' : 'single-variant'} prose with synthetic authority`, async t => {
+  const f = await fixture(t, { skuCount }), sdk = await import('@earendil-works/pi-coding-agent'), ai = await import('@earendil-works/pi-ai');
   const dir = await fs.mkdtemp('/tmp/shopify-product-pi-sdk-'); t.after(() => fs.rm(dir, { recursive: true, force: true }));
   const faux = ai.fauxProvider({ api: 'faux', provider: MODEL.provider, models: [{ id: MODEL.id, maxTokens: 512 }] });
   const runtime = await sdk.ModelRuntime.create({ credentials: new ai.InMemoryCredentialStore(), modelsPath: null, refreshOnCreate: false, allowModelNetwork: false }); runtime.registerNativeProvider(faux.provider);
@@ -131,7 +132,7 @@ test('actual Pi SDK chooses original reads and saves model prose into the origin
     faux.setResponses([
       context => { calls++; return ai.fauxAssistantMessage([{ type: 'toolCall', id: 'read', name: 'workspace_shopify_product_read', arguments: { productId: f.product.id } }], { stopReason: 'toolUse' }); },
       context => { calls++; const receipt = JSON.parse(context.messages.at(-1).content.filter(b => b.type === 'text').map(b => b.text).join('\n')); assert.equal(receipt.view.product.name, f.product.name);
-        return ai.fauxAssistantMessage([{ type: 'toolCall', id: 'propose', name: 'workspace_shopify_product_propose', arguments: { productId: f.product.id, sourceHash: receipt.sourceHash, requestId: 'pi-model-draft', draft: draft(f.imageId) } }], { stopReason: 'toolUse' }); },
+        return ai.fauxAssistantMessage([{ type: 'toolCall', id: 'propose', name: 'workspace_shopify_product_propose', arguments: { productId: f.product.id, sourceHash: receipt.sourceHash, requestId: 'pi-model-draft', draft: skuCount ? multiDraft(f) : draft(f.imageId) } }], { stopReason: 'toolUse' }); },
       context => { calls++; const receipt = JSON.parse(context.messages.at(-1).content.filter(b => b.type === 'text').map(b => b.text).join('\n')); assert.equal(receipt.view.preview.product.title, draft(f.imageId).title); return ai.fauxAssistantMessage('Original synthetic proposal saved.'); },
     ]);
     await session.prompt('Finite keyless SDK fixture: choose a read, draft your own listing and propose it.');
@@ -139,4 +140,99 @@ test('actual Pi SDK chooses original reads and saves model prose into the origin
     assert.equal(session.messages.at(-1)?.stopReason, 'stop', JSON.stringify(session.messages.at(-1))); assert.deepEqual(results.map(r => r.toolName), ['workspace_shopify_product_read', 'workspace_shopify_product_propose']);
     assert.ok(results.every(r => !r.isError), JSON.stringify(results)); assert.equal(calls, 3); assert.equal(f.remote.calls.length, 0); assert.equal(f.app.store.read().workspaceSupplierServices.services.length, 1);
   } finally { await session.dispose(); }
+});
+test('explicit source SKUs/prices/media survive original separate draft and publish approvals without inventory or cross-product generation', async t => {
+  const f = await fixture(t, { skuCount: 4 }), input = { productId: f.product.id, sourceHash: await f.sourceHash(), requestId: 'multi', draft: multiDraft(f) };
+  const proposed = await f.call('propose', input); assert.ok(!proposed.isError, JSON.stringify(proposed));
+  const sid = proposed.details.view.serviceId; assert.equal((await f.call('propose', input)).details.view.serviceId, sid);
+  assert.equal(proposed.details.view.preview.variants.length, 4); assert.equal(proposed.details.view.preview.saleUnit.consumerPrice, null);
+  const readiness = await f.call('readiness', { productId: f.product.id }); assert.equal(readiness.details.view.variantSources.skuCount, 4);
+  await f.call('review', { serviceId: sid, requestId: 'multi-review', action: 'draft' }); let op = f.operation(sid);
+  assert.deepEqual(op.scope.preview.options, input.draft.options); assert.deepEqual(op.scope.preview.variants.map(v => v.price), input.draft.variants.map(v => v.consumerPrice));
+  assert.equal((await f.call('execute', f.command(sid, op))).isError, true); await f.approve(sid, op);
+  const cmd = f.command(sid, op), result = await f.call('execute', cmd); assert.ok(!result.isError, JSON.stringify(result));
+  const receipt = result.details.view.publication.latest.receipt; assert.equal(receipt.complete, true); assert.equal(receipt.variantIds.length, 4);
+  assert.ok(receipt.variantReceipts.every(v => v.matchesReviewedFields)); assert.equal(receipt.inventory, 'unknown_not_written');
+  assert.equal(receipt.variantReceipts[0].mediaId, 'gid://shopify/MediaImage/1000'); assert.equal(receipt.variantReceipts[1].mediaId, null);
+  const sent = f.remote.calls.find(c => c.name === 'SupplierCreateReviewedVariants').variables;
+  assert.equal(sent.variants.length, 4); assert.ok(sent.variants.every(v => !Object.hasOwn(v, 'inventoryQuantities') && !Object.hasOwn(v, 'quantityAdjustments')));
+  await f.call('execute', cmd); assert.equal(f.remote.count('SupplierCreateReviewedVariants'), 1); assert.equal(f.remote.count('SupplierCreateDraft'), 1);
+  // Variant order is presentation, while original IDs/options/prices/media remain exact.
+  [...f.remote.products.values()][0].variants.nodes.reverse();
+  await f.call('review', { serviceId: sid, requestId: 'multi-publish-review', action: 'publish', publicationId: PUB }); op = f.operation(sid); assert.equal(op.status, 'pending_approval');
+  await f.approve(sid, op); const published = await f.call('execute', f.command(sid, op)); assert.ok(!published.isError, JSON.stringify(published));
+  assert.equal(published.details.view.publication.latest.receipt.published, true); assert.equal(published.details.acquisition.startedAt, null);
+  const oldDraft = await f.call('reconcile', { ...cmd, requestId: 'old-draft-observation' });
+  assert.equal(oldDraft.details.view.publication.selectedOperation.id, cmd.operationId); assert.equal(oldDraft.details.view.publication.latest.id, op.id);
+  assert.equal(oldDraft.details.status, 'partial');
+  assert.equal(f.app.store.read().businessLibrary.products.length, 1); assert.equal(f.app.capabilities.listSchedules().length, 0);
+});
+test('ambiguous SKUs/combinations, missing price, invented specs and unselected source/media refuse without writes', async t => {
+  const f = await fixture(t, { skuCount: 4 }), base = { productId: f.product.id, sourceHash: await f.sourceHash(), requestId: 'bad-multi', draft: multiDraft(f) };
+  const changes = [
+    d => { d.variants[1].sourceSkuId = d.variants[0].sourceSkuId; }, d => { d.variants[1].skuCode = d.variants[0].skuCode.toLowerCase(); },
+    d => { d.variants[1].optionValues = d.variants[0].optionValues; }, d => { delete d.variants[0].consumerPrice; }, d => { d.variants[0].consumerPrice = '0'; },
+    d => { d.variants[0].imageId = randomUUID(); }, d => { d.variants[0].sourceSkuId = randomUUID(); }, d => { d.variants[0].skuCode = 'INVENTED'; },
+    d => { d.options[0].values.push('red'); }, d => { d.options.push(d.options[0]); }, d => { d.options[0].values.push('Unused'); },
+    d => { d.consumerPrice = '1'; }, d => { d.variants[0].inventoryQuantities = [{ availableQuantity: 999 }]; },
+    d => { d.variants[0].optionValues[1].value = 'Size-1'; },
+  ];
+  for (const change of changes) { const input = structuredClone(base); change(input.draft); assert.equal((await f.call('propose', input)).isError, true, JSON.stringify(input)); }
+  assert.equal(f.app.store.read().workspaceSupplierServices?.services.length || 0, 0); assert.equal(f.remote.calls.length, 0);
+  const absent = await fixture(t, { skuCount: 4, policy: p => ({ ...p, factoryMaterials: { ...p.factoryMaterials, productFields: ['name', 'images'] } }) });
+  assert.equal((await absent.call('readiness', { productId: absent.product.id })).details.view.variantSources.status, 'not_selected');
+  assert.equal((await absent.call('propose', { ...base, productId: absent.product.id, sourceHash: await absent.sourceHash(), draft: multiDraft(absent) })).isError, true);
+});
+for (const mode of ['lost_variants', 'partial_variants', 'lost_create']) test(`multi-variant ${mode} reconciles original attempts without duplicate creation or legacy repair`, async t => {
+  const f = await fixture(t, { skuCount: 4 }), input = { productId: f.product.id, sourceHash: await f.sourceHash(), requestId: 'uncertain-multi', draft: multiDraft(f) };
+  const sid = (await f.call('propose', input)).details.view.serviceId; await f.call('review', { serviceId: sid, requestId: 'review', action: 'draft' }); const op = f.operation(sid); await f.approve(sid, op);
+  if (mode === 'partial_variants') f.remote.state.partialVariants = true; else f.remote.state.drops.add(mode === 'lost_create' ? 'SupplierCreateDraft' : 'SupplierCreateReviewedVariants');
+  const cmd = f.command(sid, op); assert.equal((await f.call('execute', cmd)).isError, true);
+  const reconciled = await f.call('reconcile', f.command(sid, op)), current = reconciled.details.view.publication.latest;
+  assert.equal(current.id, op.id); assert.equal(current.status, mode === 'lost_variants' ? 'succeeded' : 'partial');
+  assert.equal(current.receipt.complete, mode === 'lost_variants'); await f.call('execute', cmd);
+  if (mode !== 'lost_create') assert.notEqual(current.steps.find(s => s.step === 'retail_variants').status, 'acknowledged');
+  assert.equal(f.remote.count('SupplierCreateDraft'), 1); assert.equal(f.remote.count('SupplierCreateReviewedVariants'), mode === 'lost_create' ? 0 : 1);
+  assert.equal(f.app.capabilities.listConnectorRuns().length, 1); assert.equal(f.app.capabilities.listApprovals().length, 1);
+  if (mode !== 'lost_variants') await assert.rejects(f.app.supplierPublication.forActor(f.actor).reviewPublication(f.cid, sid, { requestId: 'no-legacy-repair',
+    expectedRevision: 1, expectedPreviewHash: op.scope.previewHash, action: 'repair_draft', draftOperationId: op.id, expectedRemoteContentHash: current.receipt.remoteContentHash, confirmed: true }), { code: 'SHOPIFY_MULTI_VARIANT_REPAIR_UNSUPPORTED' });
+});
+for (const mode of ['cancel', 'connector', 'source']) test(`multi-variant ${mode} after remote product creation prevents further variant writes`, async t => {
+  const f = await fixture(t, { skuCount: 4 }), sid = (await f.call('propose', { productId: f.product.id, sourceHash: await f.sourceHash(), requestId: 'guard', draft: multiDraft(f) })).details.view.serviceId;
+  await f.call('review', { serviceId: sid, action: 'draft', requestId: 'guard-review' }); const op = f.operation(sid); await f.approve(sid, op); const controller = new AbortController();
+  f.remote.state.afterResponsePrepared = async ({ name }) => { if (name !== 'SupplierCreateDraft') return;
+    if (mode === 'cancel') controller.abort();
+    else if (mode === 'connector') await f.app.capabilities.updateConnector(f.app.supplierPublication.connectorId, { enabled: false });
+    else await f.app.businessLibrary.updateProduct(f.product.id, { requestId: randomUUID(), expectedRevision: 1, changes: { skus: [] } }, f.actor);
+  };
+  assert.equal((await f.call('execute', f.command(sid, op), controller.signal)).isError, true);
+  assert.equal(f.remote.count('SupplierCreateDraft'), 1); assert.equal(f.remote.count('SupplierCreateReviewedVariants'), 0); assert.equal(f.operation(sid).status, 'uncertain');
+  if (mode === 'source') { assert.equal(f.operation(sid).stale, true); assert.equal(f.operation(sid).canExecute, false); }
+});
+for (const field of ['price', 'sku', 'options', 'media']) test(`remote multi-variant ${field} edits invalidate exact publish review`, async t => {
+  const f = await fixture(t, { skuCount: 4 }), sid = (await f.call('propose', { productId: f.product.id, sourceHash: await f.sourceHash(), requestId: 'changed-remote', draft: multiDraft(f) })).details.view.serviceId;
+  await f.call('review', { serviceId: sid, requestId: 'draft-review', action: 'draft' }); const op = f.operation(sid); await f.approve(sid, op);
+  assert.ok(!(await f.call('execute', f.command(sid, op))).isError);
+  const product = [...f.remote.products.values()][0], variant = product.variants.nodes[0];
+  if (field === 'price') variant.price = '999.00'; else if (field === 'sku') variant.sku = 'UNREVIEWED';
+  else if (field === 'media') variant.media.nodes = []; else variant.selectedOptions[0].value = 'Unreviewed';
+  assert.equal((await f.call('review', { serviceId: sid, requestId: 'blocked-publish', action: 'publish', publicationId: PUB })).isError, true);
+  assert.equal(f.app.capabilities.listApprovals().length, 1); assert.equal(f.remote.count('SupplierPublishReviewedProduct'), 0);
+});
+test('100 explicit original SKUs fit the original bounded receipts and no absent combinations are manufactured', async t => {
+  const f = await fixture(t, { skuCount: 100 }), input = { productId: f.product.id, sourceHash: await f.sourceHash(), requestId: 'maximum', draft: multiDraft(f) };
+  const proposed = await f.call('propose', input); assert.ok(!proposed.isError, JSON.stringify(proposed)); const sid = proposed.details.view.serviceId;
+  await f.call('review', { serviceId: sid, action: 'draft', requestId: 'max-review' }); const op = f.operation(sid); await f.approve(sid, op);
+  const result = await f.call('execute', f.command(sid, op)); assert.ok(!result.isError, JSON.stringify(result)); assert.equal(result.details.view.publication.latest.receipt.variantIds.length, 100);
+  const ids = [], prices = [];
+  for (let offset = 0; offset < 100; offset += 10) {
+    const page = await f.call('result', { serviceId: sid, variantOffset: offset, variantLimit: 10 });
+    assert.equal(page.details.view.variantPage.total, 100); assert.equal(page.details.view.variantPage.hasMore, offset < 90);
+    ids.push(...page.details.view.publication.latest.receipt.variantReceipts.map(v => v.sourceSkuId)); prices.push(...page.details.view.preview.variants.map(v => v.price));
+  }
+  assert.deepEqual(ids, f.product.skus.map(s => s.id)); assert.deepEqual(prices, input.draft.variants.map(v => v.consumerPrice));
+  assert.ok(Buffer.byteLength(JSON.stringify(result.details)) < 1500000); assert.equal(f.remote.count('SupplierCreateReviewedVariants'), 1);
+  const diagonal = await fixture(t, { skuCount: 4 }), d = multiDraft(diagonal); d.variants = [d.variants[0], d.variants[3]];
+  const selected = await diagonal.call('propose', { productId: diagonal.product.id, sourceHash: await diagonal.sourceHash(), requestId: 'diagonal', draft: d });
+  assert.equal(selected.details.view.preview.variants.length, 2);
 });

@@ -1,6 +1,6 @@
 {
   "package": "@workspace-agent/pi-shopify-product",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "UNLICENSED",
   "private": true,
   "baseline": { "pr": 80, "sha": "8eb33701bb5f70be74e5285c7c864b248d79be3b", "repository": "magicy565-web/workspace-agent" },
