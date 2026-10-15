@@ -193,7 +193,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     }
     if (businessAgent) {
       if (!builtinAgent && !businessAgentOptions.engineAdapter) throw new Error('The business conversation adapter requires the original configured Agent member service.');
-      businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify });
+      businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, sessionReadonlyClient: builtinAgent?.sessionReadonlyClient });
     }
   } catch (error) { await marketValidationMonitoring?.close(); await supplierMonitoring?.close(); await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });

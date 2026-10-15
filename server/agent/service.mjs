@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AgentHttpError, createAgentAuth } from './auth.mjs';
+import { createAgentSessionReadonlyClient } from './session-readonly.mjs';
 import { openAgentStore, artifactNameValid, TERMINAL_STATUSES } from './store.mjs';
 import { createAgentCoordinator } from './engine.mjs';
 import { loadPresets, listPresets, getPreset, validateTaskInput } from './presets.mjs';
@@ -223,6 +224,7 @@ export async function createAgentService({ env = process.env, dataDir, principal
   }
   const handleUi = createAgentUiHandler({ policy: uiPolicy, auth, access, engine, store, workspaceStore, presets, stream, closing: () => closing });
   return { handle, handleUi, store, engine, presets, health,
+    sessionReadonlyClient: identity => createAgentSessionReadonlyClient({ identity, auth, engine, store, instanceId, closing: () => closing }),
     close() {
       if (closePromise) return closePromise;
       closing = true; releaseUiAuthority?.(); releasePiTaskAuthority?.();

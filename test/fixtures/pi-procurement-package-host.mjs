@@ -63,10 +63,10 @@ try {
     assert.equal(capabilities.configuration, 'unconfigured');
     for (const name of ['workspace_business_tasks', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare']) {
       const { row, value } = await read(name, name.startsWith('workspace_factory_') ? { rfq: {} } : {});
-      assert.equal(row.isError, false); assert.equal(value.status, 'unconfigured'); assert.deepEqual(value.sources, []);
+      assert.equal(row.isError, false); assert.equal(value.status, name.startsWith('workspace_factory_') ? 'draft' : 'unconfigured'); assert.deepEqual(value.sources, []);
     }
   } else if (config.mode === 'refused') {
-    const { row } = await read('workspace_factory_rfq_requirements', { rfq: { product: 'Public synthetic factory cup' } });
+    const { row } = await read('workspace_business_tasks', {});
     assert.equal(row.isError, true);
   } else if (config.mode === 'foreign-result') {
     const { row, value } = await read('workspace_business_result', { taskId: config.taskId });

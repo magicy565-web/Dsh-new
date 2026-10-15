@@ -12,24 +12,17 @@ function publicFields(input, allowed) {
     throw new Error('Use only explicitly supplied public RFQ/factory material fields. No private record or inferred offer is admitted.');
   validatePublicBusinessInput(input); return input;
 }
-async function authorized(client, signal) {
-  // Reuse the existing authenticated read surface; this is neither a factory
-  // registry nor a claim that a dedicated factory task engine exists.
-  const value = await client.businessPresets(signal);
-  if (value?.status === 'unconfigured') return value;
-  const rows = Array.isArray(value) ? value : value?.presets;
-  if (!Array.isArray(rows)) throw new Error('Original authenticated Workspace read is unavailable. No draft is inferred.');
-}
 const evidence = (input, prefix) => Object.keys(input).filter(key => supplied(input[key])).map(key => ({ kind: 'user-provided', recordId: `${prefix}.${key}` }));
 
-export function registerFactoryTools(pi, client, configuration, { factoryTasks = false } = {}) {
+export function registerFactoryTools(pi, client, configuration, { factoryTasks = false, localOnly = false } = {}) {
   pi.registerTool({ name: 'workspace_factory_capabilities', label: 'Chinese factory plugin configuration', parameters: Type.Object({}, { additionalProperties: false }),
-    description: 'Report factory-side draft capabilities and honest local configuration, never connected buyer discovery, factory catalog or external execution.',
+    description: 'Report factory-side draft capabilities and honest service configuration; local field drafts need no service, never connected buyer discovery, factory catalog or external execution.',
     async execute() { return result({ plugin: 'workspace-factory', audience: 'Chinese-factory', configuration, onlineVerified: false,
-      supported: ['customer-rfq-public-draft', 'supplied-factory-offer-match-preparation', 'original-owner-task-history-results',
+      supported: ['customer-rfq-public-draft', 'supplied-factory-offer-match-preparation', ...(!localOnly ? ['original-owner-task-history-results'] : []),
         ...(factoryTasks ? ['original-factory-export-document-task'] : [])],
-      registeredTools: ['workspace_business_tasks', 'workspace_business_result', 'workspace_factory_capabilities', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare',
+      registeredTools: [...(!localOnly ? ['workspace_business_tasks', 'workspace_business_result'] : []), 'workspace_factory_capabilities', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare',
         ...(factoryTasks ? ['workspace_factory_task'] : [])],
+      localFieldDraftsRequireService: false, businessHistoryEnabled: !localOnly,
       compatibilityOnly: ['original-buyer-procurement-pipeline'], defaultSupplierComparison: false,
       privateLibrary: { status: 'disabled', reason: 'ORDINARY_PLUGIN_HAS_NO_CACHED_LIBRARY_REAUTHORIZATION_GUARD' },
       unavailable: ['factory-private-product-capacity-intake', 'historical-inquiry-records', 'overseas-buyer-distributor-discovery',
@@ -38,7 +31,7 @@ export function registerFactoryTools(pi, client, configuration, { factoryTasks =
     parameters: Type.Object({ rfq: Type.Record(Type.String(), Type.Unknown()) }, { additionalProperties: false }),
     description: 'Organize explicitly supplied public overseas customer purchase requirements for a Chinese factory: product/spec/quantity/target_market/requested_delivery/requirements. Missing fields stay pending; unsaved draft, no inquiry record or quote created.',
     async execute(_id, { rfq }, signal) {
-      const gap = await authorized(client, signal); if (gap) return result(gap);
+      signal?.throwIfAborted();
       publicFields(rfq, rfqFields);
       return result({ plugin: 'workspace-factory', status: 'draft', persisted: false, submitted: false, audience: 'Chinese-factory',
         customerRequirements: rfq, pending: rfqFields.filter(key => !supplied(rfq[key])), provenance: 'user_provided_unverified',
@@ -48,7 +41,7 @@ export function registerFactoryTools(pi, client, configuration, { factoryTasks =
     parameters: Type.Object({ rfq: Type.Record(Type.String(), Type.Unknown()), factoryOffer: Type.Optional(Type.Record(Type.String(), Type.Unknown())) }, { additionalProperties: false }),
     description: 'Prepare evidence and gaps for matching customer RFQ against explicitly supplied public materials of this factory. Accepts product/spec/available_quantity/production_capacity/lead_time/supply_conditions/source. No Library read, invented capacity, automatic suitability decision, supplier selection or sale.',
     async execute(_id, { rfq, factoryOffer = {} }, signal) {
-      const gap = await authorized(client, signal); if (gap) return result(gap);
+      signal?.throwIfAborted();
       publicFields(rfq, rfqFields); publicFields(factoryOffer, factoryFields);
       return result({ plugin: 'workspace-factory', status: 'draft', persisted: false, submitted: false, audience: 'Chinese-factory',
         customerRequirements: rfq, suppliedFactoryMaterials: factoryOffer,

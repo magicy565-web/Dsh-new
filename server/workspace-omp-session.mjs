@@ -19,6 +19,8 @@ import { marketValidationExtension, MARKET_VALIDATION_TOOLS } from '../packages/
 import { factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS } from '../packages/workspace-factory-inquiries/src/extension.js';
 import { factoryCustomersExtension, FACTORY_CUSTOMER_TOOLS } from '../packages/workspace-factory-customers/src/extension.js';
 import { factoryMaterialsExtension, FACTORY_MATERIAL_TOOLS } from '../packages/workspace-factory-materials/src/extension.js';
+import { registerWorkspaceReadTools } from '../packages/workspace-procurement/src/workspace-read.mjs';
+import { registerFactoryTools } from '../packages/workspace-procurement/src/factory.mjs';
 import { factoryExtension } from '../packages/workspace-procurement/src/extension.js';
 import { ORDINARY_FACTORY_TOOLS } from '../packages/workspace-procurement/src/extension.js';
 import { workspaceOmpPublicProfile } from './workspace-omp-public-profile.mjs';
@@ -43,13 +45,18 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null,
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
-  maxModelCalls = 4, maxTokens = 1600, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
+  maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal,
-  factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
+  factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
+  if (providerTransport && !localFactory) throw Error('Bounded local provider transport requires the local factory profile.');
+  if (localFactory && (savedSession || readOnlyBusiness || factoryMaterials || factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || shopifyProduct || productClient || ordinaryTools || uiOnly || client))
+    throw Error('Local factory files cannot inherit remote profiles, clients or transcripts.');
+  if (readOnlyBusiness && (factoryMaterials || factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || shopifyProduct || productClient || ordinaryTools || uiOnly))
+    throw Error('Session business reads require the original public tool profile.');
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
   const privateProfile = factoryMaterials || factoryIngestion;
-  const expectedScope = shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE;
+  const expectedScope = localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE;
   if (shopifyProduct && (!factoryMaterials || !productClient || factoryIngestion || marketValidation || factoryInquiries || factoryCustomers)) throw Error('Use the reviewed Shopify product Session.');
   if (engineScope !== expectedScope || factoryIngestion && (factoryMaterials || factoryCustomers || factoryInquiries || marketValidation || !ingestionClient)
     || marketValidation && (!factoryMaterials || !planClient || factoryCustomers || factoryInquiries) || factoryInquiries && (!factoryMaterials || !inquiryClient)
@@ -188,10 +195,13 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       args = { ...args, sourceToolCallIds: context.messages.filter(message => message.role === 'toolResult'
         && ['workspace_public_search', 'workspace_public_browser'].includes(message.toolName) && !message.isError).map(message => message.toolCallId) };
     }
-    const content = spec.tool ? [{ type: 'toolCall', id: `workspace-omp-${callNumber}`, name: spec.tool, arguments: args }]
+    if (spec.parallelTools && (!localFactory || !Array.isArray(spec.parallelTools) || spec.parallelTools.length !== 5
+      || spec.parallelTools.some(tool => tool.name !== 'write'))) throw Error('Finite local concurrent-write fixture refused.');
+    const content = spec.parallelTools ? spec.parallelTools.map((tool, index) => ({ type: 'toolCall', id: `workspace-omp-${callNumber}-${index}`, name: tool.name, arguments: tool.arguments }))
+      : spec.tool ? [{ type: 'toolCall', id: `workspace-omp-${callNumber}`, name: spec.tool, arguments: args }]
       : [{ type: 'text', text: spec.text || 'Explicit synthetic model response.' }];
     return { role: 'assistant', content, provider: model.provider, model: model.id, api: model.api, timestamp: Date.now(),
-      stopReason: spec.tool ? 'toolUse' : 'stop', usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
+      stopReason: spec.tool || spec.parallelTools ? 'toolUse' : 'stop', usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
   };
   const modelDefinition = { id: configuration.model, name: uiOnly ? 'UI only; original host executes the selected model' : 'Workspace explicitly configured model', reasoning: false, input: shopifyProduct ? ['text', 'image'] : ['text'],
@@ -258,8 +268,14 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
           // Retain the official provider transport. The separate API identifier
           // avoids replacing any built-in handler or recursively dispatching.
           const upstream = sdk.streamSimple({ ...model, api: 'openai-completions' }, context, { ...options, apiKey: configuration.apiKey,
-            maxTokens: Math.min(Math.floor(maxTokens / maxModelCalls), options?.maxTokens || Infinity), maxRetries: 0 });
-          for await (const event of upstream) { if (event.type === 'done') completedUsage.set(callNumber, event.message?.usage); stream.push(event); }
+            maxTokens: Math.min(Math.floor(maxTokens / maxModelCalls), options?.maxTokens || Infinity), maxRetries: 0,
+            ...(providerTransport ? { fetch: providerTransport.fetch, onSseEvent: providerTransport.onSseEvent, acceptEmptyResponse: true,
+              signal: AbortSignal.any([options?.signal, providerTransport.signal].filter(Boolean)) } : {}) });
+          for await (const event of upstream) {
+            if (event.type === 'done') { providerTransport?.complete(event.message); completedUsage.set(callNumber, event.message?.usage); }
+            if (event.type === 'error') providerTransport?.stop('LOCAL_PROVIDER_ERROR_STOP_DO_NOT_RETRY');
+            stream.push(event);
+          }
         }
       })().catch(error => stream.fail(new Error(error.message.replaceAll(configuration.apiKey || '\0', '[REDACTED]'))));
       return stream;
@@ -273,10 +289,10 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const eventBus = new EventBus(), subagentEventBus = new EventBus();
   const toolSession = { cwd, settings, authStorage, modelRegistry, eventBus, subagentEventBus, skills: selectedSkills.skills, getSessionId: () => manager.getSessionId(),
     getSessionFile: () => manager.getSessionFile(), getArtifactsDir: () => cwd };
-  publicExtension = !uiOnly && !ordinaryTools && !privateProfile ? await createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, signal: lifecycleSignal,
+  publicExtension = !localFactory && !readOnlyBusiness && !uiOnly && !ordinaryTools && !privateProfile ? await createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, signal: lifecycleSignal,
     configuration: publicTools, fetchImpl: createWorkspaceOmpSyntheticPublicFetch({ responses: syntheticPublicSearchResponses, explicitFaux: Boolean(syntheticResponses) }) })
     : { tools: [], toolNames: [], capabilities: { status: 'not-enabled-in-ui-only-or-ordinary-host' }, close: async () => {} };
-  publicTask = !uiOnly && !ordinaryTools && !privateProfile ? await createWorkspaceOmpPublicTask({ packageRoot, toolSession, configuration, authorize })
+  publicTask = !localFactory && !readOnlyBusiness && !uiOnly && !ordinaryTools && !privateProfile ? await createWorkspaceOmpPublicTask({ packageRoot, toolSession, configuration, authorize })
     : { tools: [], toolNames: [], close: async () => {} };
   // Advertise/load approved Skills through the official resolver and ReadTool.
   // No arbitrary path, URL, plugin discovery or duplicated full-Skill prompt.
@@ -294,8 +310,9 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         await authorize(); signal?.throwIfAborted(); return result;
       } });
   }
+  const localFileTools = localFactory ? await localFactory.initialize({ packageRoot, toolSession }) : [];
   const simplified = factoryInquiries || factoryCustomers || factoryIngestion || marketValidation || shopifyProduct;
-  const admittedTools = [...(simplified ? [] : ORDINARY_FACTORY_TOOLS), ...skillTools.map(t => t.name), ...(!simplified && factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : []), ...(shopifyProduct ? SHOPIFY_PRODUCT_TOOLS : [])];
+  const admittedTools = localFactory ? ['read', 'write', 'workspace_factory_capabilities', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare'] : readOnlyBusiness ? ['workspace_business_tasks', 'workspace_business_result'] : [...(simplified ? [] : ORDINARY_FACTORY_TOOLS), ...skillTools.map(t => t.name), ...(!simplified && factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : []), ...(shopifyProduct ? SHOPIFY_PRODUCT_TOOLS : [])];
   if (savedSession && !ordinaryTools) {
     for (const entry of manager.getEntries()) {
       const message = entry.message;
@@ -319,8 +336,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     model: uiOnly ? sdk.finalizeCustomModel(sdk.buildCustomModelOverlay(configuration.providerId, configuration.baseUrl, customApi,
       undefined, undefined, undefined, undefined, undefined, undefined, modelDefinition), { useDefaults: true })
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
-    extensions: [...(shopifyProduct ? [shopifyProductExtension({ client: productClient, authorize })] : []), ...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
-      pi => [...publicExtension.tools, ...publicTask.tools, ...skillTools].forEach(tool => pi.registerTool(tool)),
+    extensions: [...(shopifyProduct ? [shopifyProductExtension({ client: productClient, authorize })] : []), ...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(localFactory ? [pi => registerFactoryTools(pi, null, 'local-files', { localOnly: true })] : readOnlyBusiness ? [pi => registerWorkspaceReadTools(pi, client, { library: false })] : simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
+      pi => [...localFileTools, ...publicExtension.tools, ...publicTask.tools, ...skillTools].forEach(tool => pi.registerTool(tool)),
       ...ordinaryTools ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
     disableExtensionDiscovery: true, skills: selectedSkills.skills, appendSystemPrompt: privateProfile || factoryCustomers ? undefined : factorySkillContent,
     rules: [], contextFiles: [], promptTemplates: [], slashCommands: [],
@@ -328,6 +345,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     ...ordinaryTools ? {} : { toolNames: [] }, spawns: '', hasUI, autoTitle: false, interactivePrompts: hasUI, eventBus, subagentEventBus,
     cacheWarming: false, allowSessionModelFallback: false });
   const session = created.session;
+  if (localFactory || readOnlyBusiness) await session.setActiveToolsByName(admittedTools);
   if (privateProfile || factoryCustomers) {
     const { initializeExtensions } = await import(pathToFileURL(path.join(packageRoot, 'src/modes/runtime-init.ts')).href);
     await initializeExtensions(session, { reportSendError: () => {}, reportRuntimeError: () => {},

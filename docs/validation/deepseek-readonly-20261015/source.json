@@ -1,0 +1,29 @@
+{
+  "baseline": "6d1d1175f60802960b411ff751c6dad003d8570f",
+  "files": [
+    {
+      "path": "scripts/pi-workspace-agent.mjs",
+      "sha256": "d4f22bf1f1d6bb5e94672b641c22903dbfe4482cb3f3600007b42227f1581c94"
+    },
+    {
+      "path": "scripts/acceptance-deepseek-readonly.mjs",
+      "sha256": "0a621af4aa1fcbeb7d96364e38b5eba539296b1a0c91be76b9e986756ccac169"
+    },
+    {
+      "path": "server/deepseek-acceptance-policy.mjs",
+      "sha256": "5ccb766515c4470d9395402b0a5e7293a46b5fe47304709d026a4e1d08432c12"
+    },
+    {
+      "path": "test/deepseek-acceptance-policy.test.mjs",
+      "sha256": "3d1a8a43c6ab212ef56921e1fa773ec5a91beff37141fea5b91efa1623c9b34d"
+    },
+    {
+      "path": "test/deepseek-readonly-wire.test.mjs",
+      "sha256": "9d303ff18e93b6cc6934d6ddc8bdc5bd85f020ae76b6cb6ab3912a2e7555d2be"
+    },
+    {
+      "path": "docs/DEEPSEEK-READONLY-ACCEPTANCE.md",
+      "sha256": "9adfaedb2531fd2288b24f2535d2b5fb1c5a1f8195ea58393a9b6053fae3f072"
+    }
+  ]
+}

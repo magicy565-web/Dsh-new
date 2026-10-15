@@ -52,6 +52,7 @@
     "test:agent:client": "python3 test/agent-client.test.py",
     "agent:tui": "node scripts/pi-workspace-tui.mjs",
     "agent:dev": "node --env-file-if-exists=.env scripts/workspace-omp.mjs",
+    "factory:local": "node --env-file-if-exists=.env scripts/workspace-omp-local.mjs",
     "workspace": "node --env-file-if-exists=.env scripts/workspace-omp.mjs",
     "agent:pi": "node --env-file-if-exists=.env scripts/pi-workspace-agent.mjs"
   },
