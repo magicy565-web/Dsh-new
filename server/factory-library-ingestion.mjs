@@ -103,14 +103,14 @@ export function createFactoryLibraryIngestionClient({ store, artifacts, scope: s
   }
   async function status(_input, signal, model) {
     const check = await gate(signal, model), state = store.read();
-    const products = scope.products.map(pin => { const p = state.businessLibrary.products.find(p => p.id === pin.id); if (p?.revision !== pin.revision) fail('FACTORY_INGESTION_TARGET_CHANGED'); return p; });
-    const company = scope.companyRevision === null ? null : state.businessLibrary.company;
-    if (company && company.revision !== scope.companyRevision) fail('FACTORY_INGESTION_TARGET_CHANGED');
+    // Status exposes selection metadata only. Original field values are returned
+    // by a source-checked batch query, never a stale pre-write catalog snapshot.
     check(state); return { plugin: INGESTION_PLUGIN, status: 'available', ...flags,
       uploads: scope.uploads.map(ref => { const a = state.artifacts.find(a => a.id === ref.artifactId), v = a.versions.find(v => v.version === ref.version); return { asset: ref, filename: v.filename, mimeType: v.mimeType }; }),
-      company: projection(company, 'company'), products: products.map(p => projection(p, 'product')), fields: scope.fields,
-      policy: 'fill-empty-fields-only; exact-SKU-dedup; source-quotes-not-certification' };
+      company: scope.companyRevision === null ? null : { id: 'company', revision: scope.companyRevision }, products: scope.products.map(p => ({ ...p })), fields: scope.fields,
+      policy: 'reviewed-selection-metadata; fill-empty-fields-only; source-quotes-not-certification' };
   }
+
   async function read(input, signal, model) {
     exact(input, ['asset']); asset(input.asset);
     if (!scope.uploads.some(ref => refKey(ref) === refKey(input.asset))) fail('FACTORY_INGESTION_UPLOAD_NOT_APPROVED', 403);
@@ -220,7 +220,7 @@ export function createFactoryLibraryIngestionClient({ store, artifacts, scope: s
       }
     }
   }
-  async function save(raw, signal, model) {
+  async function saveIntake(raw, signal, model) {
     const input = validateIntake(raw); if (looksLikeCredential(JSON.stringify(input))) fail('FACTORY_INGESTION_UNSAFE', 403);
     await gate(signal, model, true);
     const reads = [];
@@ -353,15 +353,38 @@ export function createFactoryLibraryIngestionClient({ store, artifacts, scope: s
   async function query(input, signal, model) {
     exact(input, ['requestId']); if (typeof input.requestId !== 'string' || !input.requestId.length || input.requestId.length > 128) fail('FACTORY_INGESTION_QUERY_INVALID', 400);
     await gate(signal, model);
-    const group = groupFor(input.requestId), record = store.read().artifacts.find(a => a.requestId === 'factory-ingestion-report-' + group);
-    if (!record) return { plugin: INGESTION_PLUGIN, status: 'incomplete', ...flags, requestId: input.requestId, resume: 'Replay the exact original save body; original partial writes may exist.' };
-    if (record.metadata?.factoryIngestion?.group !== group || record.metadata.businessLibrary?.visibility !== 'internal' || record.currentVersion !== 1) fail('FACTORY_INGESTION_REPORT_CHANGED');
-    const report = JSON.parse((await artifacts.read(record.id, { version: 1 })).content), lib = store.read().businessLibrary;
-    const journal = store.read().artifacts.find(a => a.requestId === journalKey(input.requestId));
-    if (!journal || journal.currentVersion !== 1) fail('FACTORY_INGESTION_JOURNAL_INVALID');
+    const group = groupFor(input.requestId), state = store.read(), lib = state.businessLibrary;
+    const journal = state.artifacts.find(a => a.requestId === journalKey(input.requestId));
+    if (!journal) return { plugin: INGESTION_PLUGIN, status: 'incomplete', ...flags, requestId: input.requestId, resume: 'Replay the exact original save body; original partial writes may exist.' };
+    if (journal.currentVersion !== 1 || journal.sourceConversationId !== conversationId || journal.metadata?.businessLibrary?.visibility !== 'internal') fail('FACTORY_INGESTION_JOURNAL_INVALID');
     const plan = JSON.parse((await artifacts.read(journal.id, { version: 1 })).content);
     const fingerprint = hash({ input: plan.input, identity: principal, conversationId, recipient: scope.recipient });
     validateJournal(plan, validateIntake(plan.input), group, fingerprint);
+    // Reauthorize every ORIGINAL source before any old report/conflict text can
+    // be redisclosed. Current selected uploads alone do not authorize this batch.
+    for (const source of plan.input.sources) {
+      const fresh = await read({ asset: source.asset }, signal, model);
+      if (hash(source) !== hash(fresh.source)) fail('FACTORY_INGESTION_SOURCE_CHANGED');
+    }
+    const record = state.artifacts.find(a => a.requestId === 'factory-ingestion-report-' + group);
+    const reportOperation = lib.operations.find(o => o.requestId === uuidFor([group, 'report']));
+    if (!record || !reportOperation) {
+      const outcomes = plan.pending.map(row => {
+        const op = lib.operations.find(o => o.requestId === uuidFor([group, row.key]));
+        if (op && op.actor !== identity.subject) fail('FACTORY_INGESTION_OPERATION_OWNER');
+        const committed = op?.response[row.kind];
+        return { key: row.key, kind: row.kind, recordId: committed?.id ?? null, revision: committed?.revision ?? null, status: committed ? 'saved' : 'pending' };
+      });
+      await gate(signal, model);
+      return { plugin: INGESTION_PLUGIN, status: 'partial', ...flags, requestId: input.requestId,
+        plan: originalAsset(journal), outcomes, reason: 'ORIGINAL_LIBRARY_INGESTION_INCOMPLETE', resume: 'Replay the exact original save body; original partial writes may exist.' };
+    }
+    if (record.metadata?.factoryIngestion?.group !== group || record.metadata.factoryIngestion.fingerprint !== fingerprint
+      || record.sourceConversationId !== conversationId || record.metadata.businessLibrary?.visibility !== 'internal' || record.currentVersion !== 1) fail('FACTORY_INGESTION_REPORT_CHANGED');
+    const reportDocument = lib.documents.find(d => d.id === reportOperation.response.document?.id);
+    if (reportOperation.actor !== identity.subject || reportDocument?.status !== 'active' || reportDocument.currentVersion !== 1
+      || hash(reportDocument.versions[0].asset) !== hash(originalAsset(record))) fail('FACTORY_INGESTION_REPORT_CHANGED');
+    const report = JSON.parse((await artifacts.read(record.id, { version: 1 })).content);
     if (hash(report.input) !== hash(plan.input) || report.fingerprint !== fingerprint || !Array.isArray(report.outcomes)
       || report.outcomes.length !== plan.pending.length || Object.entries(flags).some(([k, v]) => report[k] !== v)) fail('FACTORY_INGESTION_REPORT_CHANGED');
     for (const outcome of report.outcomes) {
@@ -388,17 +411,26 @@ export function createFactoryLibraryIngestionClient({ store, artifacts, scope: s
     await gate(signal, model); return { plugin: INGESTION_PLUGIN, status: 'available', ...flags, requestId: input.requestId, report,
       records: records.map(r => ({ ...r, current: projection(r.current, r.kind) })) };
   }
-  async function revalidateReceipt(receipt, model, signal) {
+  async function save(input, signal, model) {
+    try { return await saveIntake(input, signal, model); }
+    catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError' || [400, 401, 403, 404, 409].includes(error?.status)) throw error;
+      const progress = await query({ requestId: validateIntake(input).requestId }, signal, model);
+      if (progress.status === 'partial') return progress;
+      throw error;
+    }
+  }
+  async function revalidateReceipt(receipt, model, signal, nativeContent) {
+    if (receipt?.plugin !== INGESTION_PLUGIN) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
     let current;
+    if (!receipt?.source && nativeContent?.length) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
     if (receipt?.source) {
       current = await read({ asset: receipt.source.asset }, signal, model);
+      if (nativeContent !== undefined && hash(nativeContent) !== hash(current.nativeContent)) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
       const { nativeContent: _images, ...data } = current; current = data;
     } else if (receipt?.status === 'saved') {
       const q = await query({ requestId: receipt.requestId }, signal, model);
       if (q.status !== 'available') fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
-      for (const source of q.report.input.sources) {
-        const r = await read({ asset: source.asset }, signal, model); if (hash(source) !== hash(r.source)) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
-      }
       const state = store.read(), group = groupFor(receipt.requestId), a = state.artifacts.find(a => a.requestId === 'factory-ingestion-report-' + group);
       const p = state.artifacts.find(a => a.requestId === journalKey(receipt.requestId));
       const doc = state.businessLibrary.documents.find(d => d.versions.some(v => refKey(v.asset) === refKey(originalAsset(a))));
@@ -407,12 +439,25 @@ export function createFactoryLibraryIngestionClient({ store, artifacts, scope: s
         documents: q.report.documents, report: { ...originalAsset(a), documentId: doc.id, documentVersion: 1 }, plan: originalAsset(p) };
     } else if (receipt?.requestId) {
       current = await query({ requestId: receipt.requestId }, signal, model);
-      for (const source of current.report?.input.sources || []) {
-        const r = await read({ asset: source.asset }, signal, model); if (hash(source) !== hash(r.source)) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
-      }
     }
     else current = await status({}, signal, model);
-    if (hash(current) !== hash(receipt)) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
+    if (receipt?.status === 'partial') {
+      exact(receipt, ['plugin', 'status', ...Object.keys(flags), 'requestId', 'plan', 'outcomes', 'reason', 'resume']);
+      if (Object.entries(flags).some(([k, v]) => receipt[k] !== v) || receipt.reason !== 'ORIGINAL_LIBRARY_INGESTION_INCOMPLETE'
+        || receipt.resume !== 'Replay the exact original save body; original partial writes may exist.' || !Array.isArray(receipt.outcomes)) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
+      const journal = store.read().artifacts.find(a => a.requestId === journalKey(receipt.requestId));
+      if (!journal || hash(originalAsset(journal)) !== hash(receipt.plan)) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
+      const plan = JSON.parse((await artifacts.read(journal.id, { version: 1 })).content);
+      if (receipt.outcomes.length !== plan.pending.length) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
+      for (const [index, row] of receipt.outcomes.entries()) {
+        exact(row, ['key', 'kind', 'recordId', 'revision', 'status']);
+        const expected = plan.pending[index], op = store.read().businessLibrary.operations.find(o => o.requestId === uuidFor([groupFor(receipt.requestId), expected.key]));
+        const record = op?.response[expected.kind];
+        if (row.key !== expected.key || row.kind !== expected.kind || (row.status === 'pending'
+          ? row.recordId !== null || row.revision !== null
+          : row.status !== 'saved' || record?.id !== row.recordId || record?.revision !== row.revision || op.actor !== identity.subject)) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
+      }
+    } else if (hash(current) !== hash(receipt)) fail('FACTORY_INGESTION_CACHE_CHANGED', 403);
     await gate(signal, model);
   }
   return Object.freeze({ status, read, save, query, revalidateReceipt });

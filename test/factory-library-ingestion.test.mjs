@@ -110,12 +110,31 @@ test('partial original commits survive cancellation/restart and exact replay res
   const originalUpdate = f.store.update; let calls = 0;
   f.store.update = callback => originalUpdate(state => { const result = callback(state); if (++calls === 4) controller.abort(); return result; });
   await assert.rejects(f.make().save(input, controller.signal, model));
-  assert.ok(f.store.read().businessLibrary.documents.length > 0); assert.equal((await f.make().query({ requestId: input.requestId }, undefined, model)).status, 'incomplete');
+  assert.ok(f.store.read().businessLibrary.documents.length > 0); assert.equal((await f.make().query({ requestId: input.requestId }, undefined, model)).status, 'partial');
   assert.equal(f.store.read().businessLibrary.products.length, 1);
   f.store.update = originalUpdate; await f.restart();
   const saved = await f.make({ identity: { ...identity, sessionId: 'new-synthetic-original-session-after-restart' } }).save(input, undefined, model); assert.equal(saved.status, 'saved');
   assert.equal(f.store.read().businessLibrary.products.length, 2); assert.equal(f.store.read().businessLibrary.documents.length, 3);
   assert.equal((await f.make().query({ requestId: input.requestId }, undefined, model)).records.length, 2);
+});
+test('a withdrawn original batch source blocks direct query before old report disclosure', async t => {
+  const f = await setup(t), input = await inputFor(f, [{ values: cup }]);
+  await f.make().save(input, undefined, model);
+  const narrowed = f.make({ scope: { uploads: [f.uploads[0]] } });
+  await assert.rejects(narrowed.query({ requestId: input.requestId }, undefined, model), e => e.code === 'FACTORY_INGESTION_UPLOAD_NOT_APPROVED' && e.status === 403);
+});
+test('a report service outage returns exact committed references; partial receipt remains valid after exact resume', async t => {
+  const f = await setup(t), input = await inputFor(f, [{ values: cup }, { values: bowl }]);
+  const create = f.artifacts.create; let outages = 1;
+  f.artifacts.create = (...args) => args[0].filename === 'factory-ingestion-report.json' && outages-- > 0
+    ? Promise.reject(Object.assign(Error('Synthetic original report outage'), { status: 503 })) : create(...args);
+  const c = f.make(), partial = await c.save(input, undefined, model);
+  assert.equal(partial.status, 'partial'); assert.equal(partial.reason, 'ORIGINAL_LIBRARY_INGESTION_INCOMPLETE');
+  assert.equal(partial.outcomes.filter(r => r.status === 'saved').length, 2);
+  assert.ok(partial.outcomes.every(r => r.recordId && r.revision === 1));
+  await c.revalidateReceipt(partial, model);
+  const complete = await c.save(input, undefined, model); assert.equal(complete.status, 'saved');
+  await c.revalidateReceipt(partial, model); assert.equal(f.store.read().businessLibrary.products.length, 2);
 });
 
 test('revocation and cancellation are checked inside original commit, cached mutation is denied', async t => {
@@ -155,7 +174,7 @@ test('expiry, extraction drift and cross-conversation cache replay refuse withou
   const saved = await client.save(input, undefined, model);
   await assert.rejects(f.make({ scope: { expiresAt: '2020-01-01T00:00:00.000Z' } }).query({ requestId: input.requestId }, undefined, model), e => e.status === 403);
   const changed = f.make({ sourceReader: async () => ({ status: 'partial', text: 'changed extraction', nativeContent: [], textTruncated: true }) });
-  await assert.rejects(changed.revalidateReceipt(saved, model), e => e.code === 'FACTORY_INGESTION_CACHE_CHANGED');
+  await assert.rejects(changed.revalidateReceipt(saved, model), e => e.code === 'FACTORY_INGESTION_SOURCE_CHANGED');
   assert.equal((await f.make({ conversationId: 'another-owned-conversation' }).query({ requestId: input.requestId }, undefined, model)).status, 'incomplete');
 });
 
@@ -188,7 +207,7 @@ test('original field masks exclude prices and refuse writes/redisclosure after s
   const saved = await f.make().save(input, undefined, model), product = f.library.getProduct(saved.outcomes[0].recordId).product;
   await f.library.updateProduct(product.id, { requestId: randomUUID(), expectedRevision: product.revision, changes: { skus: product.skus.map(s => ({ ...s, pricingMode: 'on_request', pricingNote: 'SYNTHETIC_PRIVATE_PRICE_NOT_ADMITTED' })) } }, identity);
   const rich = f.make(), status = await rich.status({}, undefined, model);
-  assert.equal(JSON.stringify(status).includes('SYNTHETIC_PRIVATE_PRICE_NOT_ADMITTED'), false); assert.equal(status.products[0].skus[0].pricingNote, undefined);
+  assert.equal(JSON.stringify(status).includes('SYNTHETIC_PRIVATE_PRICE_NOT_ADMITTED'), false); assert.equal(status.products[0].skus, undefined);
   await assert.rejects(limited.query({ requestId: input.requestId }, undefined, model), e => e.status === 403);
 });
 

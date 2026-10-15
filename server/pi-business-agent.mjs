@@ -8,6 +8,8 @@ import { WORKSPACE_AGENT_TOOLS } from '../pi/extensions/workspace.mjs';
 import { libraryReadHash, normalizeLibraryRecipient, libraryRecipientForModel } from './library-model-read-contract.mjs';
 import { emptyInputContext, normalizeInputContext } from './task-context.mjs';
 import { looksLikeCredential } from './security.mjs';
+import { createFactoryLibraryIngestionClient } from './factory-library-ingestion.mjs';
+import { createMarketValidationPlanClient } from './market-validation-plan.mjs';
 import { createFactoryInquiryClient } from './factory-inquiries.mjs';
 import { createFactoryCustomerDraftClient } from './factory-customer-drafts.mjs';
 import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
@@ -39,7 +41,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     || options.resolveControlBinding !== undefined && typeof options.resolveControlBinding !== 'function')
     throw new TypeError('Use the existing Pi provider and a trusted existing member binding resolver.');
   const engineAdapter = options.engineAdapter;
-  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1', 'omp:18.10.4:factory-inquiries-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
+  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:factory-ingestion-v1', 'omp:18.10.4:market-validation-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
@@ -126,7 +128,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       // official OMP SDK transport; it introduces no business queue or ledger.
       const isolated = path.join(store.directory, 'omp-agent-context', hash(conversation.id));
       await privateDirectory(isolated);
-      const materialsClient = ['omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1'].includes(engineAdapter.scope) ? createWorkspaceFactoryMaterialsClient({ recipient,
+      const materialsClient = ['omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:market-validation-v1'].includes(engineAdapter.scope) ? createWorkspaceFactoryMaterialsClient({ recipient,
         request: async (route, init) => {
           // Inner Library reads use their original live Session/scope authority.
           // Outer tool/RPC/model boundaries still prove the Agent binding.
@@ -163,7 +165,24 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
           } finally { await file.close(); }
         },
       }) : null;
-      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, isolationDirectory: isolated,
+      const canSave = () => { assertActive(); const live = store.read().runs.find(r => r.id === run.id); return live.businessAgentContext.allowBusinessSubmit === true; };
+      let ingestionClient = null;
+      if (engineAdapter.scope === 'omp:18.10.4:factory-ingestion-v1') {
+        let grant;
+        try { grant = libraryModelRead.factoryIngestionForSession({ identity, recipientHash: recipientFingerprint, signal: input.signal }); }
+        catch (error) { if (error.code !== 'FACTORY_INGESTION_SELECTION_REQUIRED') throw error; }
+        if (grant) ingestionClient = createFactoryLibraryIngestionClient({ store, artifacts, identity, conversationId: conversation.id, scope: grant.scope, canSave,
+          authorize: async (signal, model) => {
+            signal?.throwIfAborted(); await authorize();
+            if (libraryReadHash(libraryRecipientForModel(model)) !== recipientFingerprint) fail(403, 'LIBRARY_MODEL_RECIPIENT_CHANGED', 'Use the original exact recipient.');
+            return { assertCurrent(state) { signal?.throwIfAborted(); assertActive(); actor(identity, true); grant.assertCurrent(state); } };
+          } });
+        else ingestionClient = Object.freeze({ ...Object.fromEntries(['status', 'read', 'save', 'query'].map(method => [method, async () => ({ plugin: 'workspace-factory-ingestion', status: 'unconfigured', reason: 'FACTORY_INGESTION_SELECTION_REQUIRED', sources: [], visibility: 'internal', humanConfirmed: false, independentVerification: false, externalActions: false })])),
+          revalidateReceipt() { fail(403, 'FACTORY_INGESTION_SELECTION_REQUIRED', 'Original selection required.'); } });
+      }
+      const planClient = engineAdapter.scope === 'omp:18.10.4:market-validation-v1' ? createMarketValidationPlanClient({ materialsClient, artifacts, store, identity,
+        conversationId: conversation.id, runId: run.id, authorize, canSave }) : null;
+      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();

@@ -11,6 +11,8 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
 export const OMP_FACTORY_ENGINE_SCOPE = 'omp:18.10.4:factory-materials-v1';
 export const OMP_CUSTOMERS_ENGINE_SCOPE = 'omp:18.10.4:factory-customers-v1';
+export const OMP_INGESTION_ENGINE_SCOPE = 'omp:18.10.4:factory-ingestion-v1';
+export const OMP_MARKET_ENGINE_SCOPE = 'omp:18.10.4:market-validation-v1';
 export const OMP_INQUIRIES_ENGINE_SCOPE = 'omp:18.10.4:factory-inquiries-v1';
 export function workspaceOmpPaths(env = {}) {
   return { bun: env.WORKSPACE_BUN_BIN || path.join(root, 'support/omp-bun-linux-x64/node_modules/@oven/bun-linux-x64-baseline/bin/bun'),
@@ -22,15 +24,17 @@ export async function checkWorkspaceOmpPaths(paths) {
   const manifest = JSON.parse(await fs.readFile(path.join(paths.packageRoot, 'package.json')));
   if (manifest.name !== '@oh-my-pi/pi-coding-agent' || manifest.version !== '18.10.4') throw new Error('Install the fixed official OMP 18.10.4 package; no Node or alternate engine fallback is implicit.');
 }
-export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, syntheticResponses = null,
+export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, syntheticResponses = null,
   syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
   if (syntheticPublicSearchResponses && !syntheticResponses) throw new Error('Public HTTP fixtures require the explicit finite keyless model fixture; production cannot select them.');
   if (typeof factoryInquiries !== 'boolean') throw TypeError('Use one fixed reviewed OMP profile.');
-  if (factoryInquiries) factoryMaterials = true;
+  if (factoryInquiries || marketValidation) factoryMaterials = true;
+  if (typeof factoryIngestion !== 'boolean' || typeof marketValidation !== 'boolean' || factoryIngestion && (factoryMaterials || factoryCustomers) || marketValidation && (factoryInquiries || factoryCustomers)) throw TypeError('Use one reviewed profile.');
+  const privateProfile = factoryMaterials || factoryIngestion;
   if (typeof factoryMaterials !== 'boolean' || typeof factoryCustomers !== 'boolean' || factoryMaterials && factoryCustomers) throw TypeError('Use one fixed reviewed OMP profile.');
-  const engineScope = factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
+  const engineScope = factoryIngestion ? OMP_INGESTION_ENGINE_SCOPE : marketValidation ? OMP_MARKET_ENGINE_SCOPE : factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
-    async complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, isolationDirectory, savedSession, saveSession }) {
+    async complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, isolationDirectory, savedSession, saveSession }) {
       input.signal?.throwIfAborted();
       await checkWorkspaceOmpPaths(paths); await authorize();
       const user = input.messages.filter(row => row.role === 'user').at(-1);
@@ -38,7 +42,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
       const sessionDirectory = path.join(isolationDirectory, 'sessions', binding.client.bindingFingerprint), agentDir = path.join(isolationDirectory, 'agent');
       await privateDirectory(sessionDirectory); await privateDirectory(agentDir);
       const home = path.join(isolationDirectory, 'home'); await privateDirectory(home);
-      const publicFiles = factoryMaterials ? [] : await snapshotWorkspaceOmpPublicFiles({ root: publicTools.publicDocumentRoot, files: publicTools.files || [] });
+      const publicFiles = privateProfile ? [] : await snapshotWorkspaceOmpPublicFiles({ root: publicTools.publicDocumentRoot, files: publicTools.files || [] });
       await authorize();
       if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/u.test(run.id)) throw new Error('Use an original Run identifier for owned public snapshots.');
       const snapshotPrefix = `selected-public-materials-${run.id}-`;
@@ -77,7 +81,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         const finishSuccess = () => { if (childClosed && cleanupComplete && resultVerified) finish(null, { ...pendingResult, runtime: { ...pendingResult.runtime, workerExitObserved: true } }); };
         input.signal?.addEventListener('abort', stop, { once: true });
         if (input.signal?.aborted) stop();
-        const allowed = new Set(factoryCustomers || factoryInquiries ? [] : ['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
+        const allowed = new Set(factoryCustomers || factoryInquiries || factoryIngestion || marketValidation ? [] : ['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
         const handleLine = async line => {
           bytes += Buffer.byteLength(line); if (bytes > 8_000_000 || Buffer.byteLength(line) > 2_000_000) { finish(new ProviderError('OMP_PROTOCOL_LIMIT', 'OMP exceeded its admitted transport limit.')); return; }
           let message; try { message = JSON.parse(line); } catch { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'OMP returned an invalid transport receipt.')); return; }
@@ -91,6 +95,17 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               if (message.method === 'authorize') result = true;
               else if (message.method === 'saveSession') result = await saveSession(message.args[0]);
               else if (message.method === 'modelRequest') { if (++modelCalls > 4) throw new Error('Original model request bound exceeded.'); await input.onEvent?.({ type: 'pi.agent-session.request', engine: 'omp' }); result = true; }
+              else if (factoryIngestion && ['factoryIngestionStatus', 'factoryIngestionRead', 'factoryIngestionSave', 'factoryIngestionQuery', 'factoryIngestionRevalidate'].includes(message.method)) {
+                if (!ingestionClient) throw Error('Original reviewed intake selection required.');
+                const [value, model, images] = message.args || [];
+                if (message.method === 'factoryIngestionRevalidate') { await ingestionClient.revalidateReceipt(value, model, rpcSignal, images); result = true; }
+                else { const method = { factoryIngestionStatus: 'status', factoryIngestionRead: 'read', factoryIngestionSave: 'save', factoryIngestionQuery: 'query' }[message.method]; result = await ingestionClient[method](value, rpcSignal, model); }
+              } else if (marketValidation && ['marketValidationRead', 'marketValidationSave', 'marketValidationRevalidate'].includes(message.method)) {
+                if (!planClient) throw Error('Original plan client required.');
+                const [value, model] = message.args || [];
+                if (message.method === 'marketValidationRevalidate') { await planClient.revalidateReceipt(value, model, rpcSignal); result = true; }
+                else result = await planClient[message.method === 'marketValidationRead' ? 'read' : 'save'](value, rpcSignal, model);
+              }
               else if (factoryInquiries && ['factoryInquirySave', 'factoryInquiryRevalidate'].includes(message.method)) {
                 if (!inquiryClient) throw Error('Original inquiry Session client is unavailable.');
                 const [value, model] = message.args || [];
@@ -118,6 +133,8 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               if (syntheticResponses) onWorkerLifecycle({ phase: 'rpc-refused', method: message.method, code: error.code || error.name });
               // Preserve only reviewed business codes, never arbitrary Host error text.
               const codes = ['FACTORY_INQUIRY_SOURCE_CHANGED', 'FACTORY_INQUIRY_REQUEST_CHANGED', 'FACTORY_INQUIRY_ARTIFACT_CHANGED', 'FACTORY_INQUIRY_SOURCE_REFUSED',
+                'FACTORY_INGESTION_UPLOAD_NOT_APPROVED', 'FACTORY_INGESTION_SOURCE_CHANGED', 'FACTORY_INGESTION_TARGET_CHANGED', 'FACTORY_INGESTION_REQUEST_CHANGED', 'FACTORY_INGESTION_QUERY_REAUTHORIZE', 'FACTORY_INGESTION_FIELD_NOT_APPROVED', 'FACTORY_INGESTION_SCOPE_REFUSED', 'FACTORY_INGESTION_CACHE_CHANGED',
+                'MARKET_PLAN_SOURCE_CHANGED', 'MARKET_PLAN_REQUEST_CHANGED', 'MARKET_PLAN_CACHE_REFUSED', 'MARKET_PLAN_DOCUMENT_NOT_LINKED', 'MARKET_PLAN_SOURCE_REFUSED',
                 'PUBLIC_DRAFT_REQUEST_CHANGED', 'PUBLIC_DRAFT_ARTIFACT_CHANGED', 'ORIGINAL_PUBLIC_SOURCE_RECEIPT_REQUIRED', 'PUBLIC_SOURCE_URL_REFUSED', 'PUBLIC_SOURCE_METADATA_LIMIT'];
               send({ type: 'reply', id: message.id, error: 'Original authorization or task operation refused; no replacement execution was admitted.',
                 ...(codes.includes(error.code) ? { errorCode: error.code } : {}),
@@ -145,7 +162,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.'));
           }).catch(() => finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.'))); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, factoryMaterials, factoryCustomers, factoryInquiries, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       });
     },

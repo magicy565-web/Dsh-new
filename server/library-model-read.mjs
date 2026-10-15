@@ -2,6 +2,7 @@ import { ApiError } from './runtime.mjs';
 import { createFactoryMaterialsRead, validateFactoryMaterialsPolicy } from './factory-materials-read.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { COMPANY_MODEL_FIELDS, PRODUCT_MODEL_FIELDS, libraryReadHash, normalizeLibraryRecipient } from './library-model-read-contract.mjs';
+import { asset as ingestionAsset } from '../packages/workspace-factory-ingestion/src/contract.mjs';
 
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
 const fail = (status, code, message) => { throw new ApiError(status, code, message); };
@@ -16,7 +17,7 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
   if (policy !== null && (!policy || typeof policy !== 'object' || Array.isArray(policy) || typeof policy.enabled !== 'boolean'))
     throw new TypeError('Library model-read policy must be explicitly enabled or disabled.');
   if (policy?.enabled === true) {
-    if (access.mode !== 'enterprise' || !exact(policy, ['enabled', 'reviewed', 'workspaceId', 'subject', 'expiresAt', 'recipient', 'company', 'products', 'productFields', 'factoryMaterials'])
+    if (access.mode !== 'enterprise' || !exact(policy, ['enabled', 'reviewed', 'workspaceId', 'subject', 'expiresAt', 'recipient', 'company', 'products', 'productFields', 'factoryMaterials', 'factoryIngestion'])
       || policy.reviewed !== true || typeof policy.workspaceId !== 'string' || !policy.workspaceId || typeof policy.subject !== 'string' || !policy.subject
       || typeof policy.expiresAt !== 'string' || !Number.isFinite(Date.parse(policy.expiresAt))
       || policy.company !== null && (!exact(policy.company, ['revision', 'fields']) || !Number.isSafeInteger(policy.company.revision) || policy.company.revision < 1 || !fields(policy.company.fields, COMPANY_MODEL_FIELDS))
@@ -24,8 +25,22 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
       || policy.products.some(row => !exact(row, ['id', 'revision']) || !uuid(row.id) || !Number.isSafeInteger(row.revision) || row.revision < 1)
       || !fields(policy.productFields, PRODUCT_MODEL_FIELDS)) throw new TypeError('Library model reads require a reviewed enterprise Session scope, exact revisions, allowed fields, expiry and recipient.');
     validateFactoryMaterialsPolicy(policy.factoryMaterials);
+    if (policy.factoryIngestion !== undefined) {
+      const p = policy.factoryIngestion;
+      if (!exact(p, ['uploads', 'companyRevision', 'products', 'fields']) || !Array.isArray(p.uploads) || !p.uploads.length || p.uploads.length > 20
+        || !Array.isArray(p.products) || p.products.length > 100 || p.products.some(r => !exact(r, ['id', 'revision']) || !uuid(r.id) || !Number.isSafeInteger(r.revision) || r.revision < 1)
+        || new Set(p.products.map(r => r.id)).size !== p.products.length || new Set(p.uploads.map(r => libraryReadHash(r))).size !== p.uploads.length
+        || p.companyRevision !== null && (!Number.isSafeInteger(p.companyRevision) || p.companyRevision < 1)
+        || !exact(p.fields, ['company', 'product']) || !Array.isArray(p.fields.company) || !Array.isArray(p.fields.product)
+        || p.fields.company.some(f => !['legalName', 'displayName', 'description'].includes(f))
+        || p.fields.product.some(f => !['name', 'description', 'category', 'skus', 'images', 'supply.packaging', 'supply.samplePolicy', 'supply.paymentTerms', 'supply.shippingTerms', 'supply.capacityNote'].includes(f))
+        || new Set(p.fields.company).size !== p.fields.company.length || new Set(p.fields.product).size !== p.fields.product.length)
+        throw new TypeError('Ingestion requires an explicit reviewed original upload/target/field selection.');
+      p.uploads.forEach(ingestionAsset);
+    }
     scope = structuredClone({ workspaceId: policy.workspaceId, subject: policy.subject, expiresAt: policy.expiresAt,
-      recipient: normalizeLibraryRecipient(policy.recipient), company: policy.company, products: policy.products, productFields: policy.productFields, ...(policy.factoryMaterials === undefined ? {} : { factoryMaterials: policy.factoryMaterials }) });
+      recipient: normalizeLibraryRecipient(policy.recipient), company: policy.company, products: policy.products, productFields: policy.productFields,
+      ...(policy.factoryMaterials === undefined ? {} : { factoryMaterials: policy.factoryMaterials }), ...(policy.factoryIngestion === undefined ? {} : { factoryIngestion: policy.factoryIngestion }) });
   }
   const authorization = scope && { scopeFingerprint: libraryReadHash(scope), recipient: scope.recipient,
     workspaceId: scope.workspaceId, subject: scope.subject, expiresAt: scope.expiresAt };
@@ -45,6 +60,20 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
       projectionSha256: libraryReadHash(value), api: '/api/library/model-read/' + (kind === 'company' ? 'company' : 'products/' + record.id) } };
   }
   return {
+    // Server-private projection of the SAME reviewed Library policy. No HTTP
+    // grant, model selector or credential conversion is added for ingestion.
+    factoryIngestionForSession({ identity, recipientHash, signal }) {
+      if (!scope?.factoryIngestion) fail(403, 'FACTORY_INGESTION_SELECTION_REQUIRED', 'The original reviewed upload and field selection is not configured.');
+      const assertCurrent = () => {
+        signal?.throwIfAborted();
+        const live = access.nativeSessionById(identity?.sessionId);
+        if (!live || live.subject !== identity.subject || live.workspaceId !== identity.workspaceId || live.role !== identity.role || !['operator', 'admin'].includes(live.role))
+          fail(403, 'LIBRARY_SESSION_SCOPE_REQUIRED', 'Use the original current operator Session.');
+        authorize({ ...live, session: live }, recipientHash, true);
+      };
+      assertCurrent();
+      return { scope: structuredClone({ ...scope.factoryIngestion, workspaceId: scope.workspaceId, subject: scope.subject, expiresAt: scope.expiresAt, recipient: scope.recipient }), assertCurrent };
+    },
     // Server-private reuse of the original LIVE native Session identity. This is
     // never exposed as a tool-selected identity or an Agent-Bearer capability.
     async readFactoryForSession({ identity, recipientHash, suffix, query, signal }) {

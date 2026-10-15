@@ -22,7 +22,20 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
-  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials && !config.factoryCustomers,
+  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation,
+    ingestionClient: config.factoryIngestion ? {
+      ...Object.fromEntries(['status', 'read', 'save', 'query'].map(method => [method, async (input, signal, model) => {
+        signal?.throwIfAborted();
+        if (method === 'save') await created.manager.flush();
+        return request('factoryIngestion' + method[0].toUpperCase() + method.slice(1), [input, model], signal);
+      }])),
+      revalidateReceipt: (receipt, model, signal, images) => request('factoryIngestionRevalidate', [receipt, model, images], signal),
+    } : null,
+    planClient: config.marketValidation ? {
+      read: (input, signal, model) => request('marketValidationRead', [input, model], signal),
+      save: (input, signal, model) => request('marketValidationSave', [input, model], signal),
+      revalidateReceipt: (receipt, model, signal) => request('marketValidationRevalidate', [receipt, model], signal),
+    } : null,
     inquiryClient: config.factoryInquiries ? {
       save: (input, signal, model) => request('factoryInquirySave', [input, model], signal),
       revalidateReceipt: (receipt, model, signal) => request('factoryInquiryRevalidate', [receipt, model], signal),

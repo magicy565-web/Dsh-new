@@ -19,20 +19,22 @@ export function factoryIngestionExtension({ client, authorize } = {}) {
       ['save', save, 'Persist model-extracted facts to original private Library/Products/Profile and a source report. Choose useful records from the actual goal, no required stage/template. Cite every populated leaf by exact read receipt and quote offsets; visual observations stay unverified. Missing/conflicts explicit. Populated existing fields are protected. Stable requestId resumes exact partial writes. No human confirmation, certification or publishing.'],
       ['query', object({ requestId: { type: 'string', minLength: 1, maxLength: 128 } }), 'Query an original saved intake batch and its exact saved company/product revisions in the same authorized conversation. Later human changes require fresh host selection.'],
     ];
-    entries.forEach(([method, parameters, description], i) => pi.registerTool({ name: FACTORY_INGESTION_TOOLS[i], label: `Factory Library ${method}`, description, parameters,
+    entries.forEach(([method, parameters, description], i) => pi.registerTool({ name: FACTORY_INGESTION_TOOLS[i], approval: method === 'save' ? 'write' : 'read', label: `Factory Library ${method}`, description, parameters,
       async execute(_id, input, signal, _update, ctx) {
-        let result;
+        let result, phase = 'input';
         try {
+          signal?.throwIfAborted();
           if (method === 'save') validateIntake(input);
           else { exact(input, method === 'read' ? ['asset'] : method === 'query' ? ['requestId'] : []); if (method === 'read') asset(input.asset); }
           if (typeof authorize !== 'function' || !['status', 'read', 'save', 'query'].every(k => typeof client?.[k] === 'function')) result = { status: 'unconfigured', reason: 'ORIGINAL_REVIEWED_SESSION_CLIENT_REQUIRED' };
           else {
+            phase = 'authorization';
             if (!ctx?.model) throw Error('Exact current model required.');
-            signal?.throwIfAborted(); await authorize(signal, ctx.model);
+            signal?.throwIfAborted(); await authorize(signal, ctx.model); signal?.throwIfAborted(); phase = 'operation';
             try { result = await client[method](input, signal, ctx.model); }
-            finally { await authorize(signal, ctx.model); signal?.throwIfAborted(); }
+            finally { phase = 'authorization'; signal?.throwIfAborted(); await authorize(signal, ctx.model); signal?.throwIfAborted(); phase = 'operation'; }
           }
-        } catch { result = { status: 'blocked', reason: 'ORIGINAL_LIBRARY_INGESTION_REFUSED' }; }
+        } catch (error) { result = { status: 'blocked', sources: [], reason: signal?.aborted || error?.name === 'AbortError' ? 'ORIGINAL_OPERATION_CANCELLED' : phase === 'input' ? 'FACTORY_INGESTION_INPUT_INVALID' : phase === 'authorization' ? 'ORIGINAL_AUTHORIZATION_REFUSED' : ['FACTORY_INGESTION_UPLOAD_NOT_APPROVED', 'FACTORY_INGESTION_SOURCE_CHANGED', 'FACTORY_INGESTION_TARGET_CHANGED', 'FACTORY_INGESTION_REQUEST_CHANGED', 'FACTORY_INGESTION_QUERY_REAUTHORIZE', 'FACTORY_INGESTION_FIELD_NOT_APPROVED', 'FACTORY_INGESTION_SCOPE_REFUSED', 'FACTORY_INGESTION_CACHE_CHANGED'].includes(error?.code) ? error.code : [401, 403].includes(error?.status) ? 'ORIGINAL_AUTHORIZATION_REFUSED' : 'ORIGINAL_LIBRARY_INGESTION_REFUSED' }; }
         const { nativeContent = [], ...data } = result;
         const receipt = { ...data, plugin: INGESTION_PLUGIN, visibility: 'internal', humanConfirmed: false, independentVerification: false, externalActions: false };
         const content = [{ type: 'text', text: JSON.stringify(receipt) }, ...nativeContent.filter(b => b.type === 'image')];
