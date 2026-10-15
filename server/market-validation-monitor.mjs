@@ -1,0 +1,299 @@
+import { capabilityPayloadHash as hash, goalDefinition } from './capabilities.mjs';
+import { ApiError } from './runtime.mjs';
+import { productCohortMetrics, SUPPLIER_METRIC_DEFINITION } from './supplier-metrics.mjs';
+import { validateProductTrafficObservation } from './product-traffic-contract.mjs';
+
+const DAY = 86400000;
+const KIND = 'market-validation-monitor';
+const fail = (code, message, status = 409) => { throw new ApiError(status, code, message); };
+const id = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+const reference = value => typeof value === 'string' && value.length > 0 && value.length <= 256 && value.trim() === value && !/[\u0000-\u001f\u007f]/.test(value);
+const instant = value => typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === (value.length === 20 ? value.slice(0, -1) + '.000Z' : value);
+const gid = (kind, value) => typeof value === 'string' && new RegExp(`^gid://shopify/${kind}/\\d+$`).test(value);
+const copy = value => structuredClone(value);
+const outcomeKeys = mode => mode === 'b2b' ? ['qualifiedInquiries', 'quoteRequests', 'sampleRequests', 'orders'] : ['paidOrders', 'paidUnits', 'netPaidOrders', 'netPaidUnits', 'refundedUnits'];
+const semantic = value => Array.isArray(value) ? value.map(semantic) : value && typeof value === 'object'
+  ? Object.fromEntries(Object.entries(value).filter(([key]) => !['sampledAt', 'localDate', 'sampleKey', 'requestFingerprint', 'observedAt', 'diagnostics'].includes(key)).map(([key, item]) => [key, semantic(item)])) : value;
+const unknown = (status, reason) => ({ status, value: null, reason });
+function fields(body, allowed) {
+  if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !allowed.includes(key))) fail('INVALID_INPUT', 'Use only the documented original references.', 400);
+}
+function receiptScope(receipt, request, clock) {
+  if (!receipt || receipt.id !== request.launchReceiptId || receipt.planId !== request.planId || receipt.planRevision !== request.planRevision ||
+      receipt.approved !== true || receipt.status !== 'launched' || receipt.evidenceKind !== 'real' || receipt.launchKind !== 'acquisition' ||
+      !instant(receipt.startedAt) || Date.parse(receipt.startedAt) > clock() || !['b2b', 'b2c'].includes(receipt.businessMode) ||
+      !gid('Product', receipt.productId) || !gid('Shop', receipt.shopId) || !reference(receipt.channelId) || !id(receipt.conversationId) ||
+      !Array.isArray(receipt.variantIds) || receipt.variantIds.length > 250 || new Set(receipt.variantIds).size !== receipt.variantIds.length || receipt.variantIds.some(value => !gid('ProductVariant', value))) {
+    fail('REAL_LAUNCH_RECEIPT_REQUIRED', 'An original approved acquisition launch receipt with a real start time is required.');
+  }
+  try { if (typeof receipt.timezone !== 'string') throw Error(); new Intl.DateTimeFormat('en', { timeZone: receipt.timezone }).format(); }
+  catch { fail('LAUNCH_TIMEZONE_REQUIRED', 'The original launch needs a valid IANA timezone.'); }
+  return { planId: receipt.planId, planRevision: receipt.planRevision, launchReceiptId: receipt.id,
+    productId: receipt.productId, variantIds: [...receipt.variantIds].sort(), shopId: receipt.shopId,
+    channelId: receipt.channelId, businessMode: receipt.businessMode, conversationId: receipt.conversationId,
+    timezone: receipt.timezone, startAt: new Date(receipt.startedAt).toISOString(), endAt: new Date(Date.parse(receipt.startedAt) + 7 * DAY).toISOString(),
+    windowDefinition: '168 elapsed hours from the real approved acquisition launch; local dates are display labels',
+    baseline: { status: 'unavailable', reason: 'NO_VERIFIED_PRELAUNCH_BASELINE', value: null } };
+}
+
+// This validates an already authorized source, not its authorization. The Host
+// owns the reviewed adapter and its original source records; callers cannot inject it.
+function outcomeObservation(value, scope, adapterId) {
+  const keys = outcomeKeys(scope.businessMode);
+  if (!value || value.productId !== scope.productId || value.shopId !== scope.shopId || value.channelId !== scope.channelId ||
+      !Array.isArray(value.variantIds) || hash(value.variantIds) !== hash(scope.variantIds) ||
+      value.businessMode !== scope.businessMode || value.from !== scope.from || value.to !== scope.to || value.sourceId !== adapterId ||
+      !['available', 'partial', 'delayed', 'unconfigured', 'unavailable', 'no_data'].includes(value.status) || !instant(value.sampledAt) ||
+      Date.parse(value.sampledAt) > scope.now || typeof value.definition !== 'string' || !value.definition.trim() || value.definition.length > 2000 ||
+      value.dataLagSeconds !== null && (!Number.isFinite(value.dataLagSeconds) || value.dataLagSeconds < 0) ||
+      !value.metrics || Object.keys(value.metrics).some(key => !keys.includes(key)) || keys.some(key => !Object.hasOwn(value.metrics, key))) {
+    fail('OUTCOME_OBSERVATION_INVALID', 'Outcomes need exact product/channel identity, metric definitions, window and freshness.', 502);
+  }
+  for (const count of Object.values(value.metrics)) {
+    if (count !== null && (!Number.isSafeInteger(count) || count < 0 || !['available', 'partial', 'delayed'].includes(value.status))) fail('OUTCOME_OBSERVATION_INVALID', 'Missing data cannot be recorded as zero.', 502);
+    if (value.status === 'available' && count === null) fail('OUTCOME_OBSERVATION_INVALID', 'Available outcomes require complete measured counts.', 502);
+  }
+  if (value.status === 'available' && (Date.parse(value.sampledAt) < Date.parse(scope.to) || value.dataLagSeconds !== 0)) fail('OUTCOME_OBSERVATION_INVALID', 'Complete outcomes must acknowledge the full requested cutoff without lag.', 502);
+  if (scope.businessMode === 'b2c') for (const [net, gross] of [['netPaidOrders', 'paidOrders'], ['netPaidUnits', 'paidUnits'], ['refundedUnits', 'paidUnits']]) {
+    if (value.metrics[net] !== null && value.metrics[gross] !== null && value.metrics[net] > value.metrics[gross]) fail('OUTCOME_OBSERVATION_INVALID', 'Net or refunded cohort counts cannot exceed the acknowledged paid cohort.', 502);
+  }
+  return { status: value.status, sourceId: adapterId, sampledAt: value.sampledAt, dataLagSeconds: value.dataLagSeconds,
+    definition: value.definition, metrics: copy(value.metrics), attribution: 'exact_product_and_channel', coverage: { from: scope.from, to: scope.to } };
+}
+
+export async function createMarketValidationMonitor({ store, runtime, capabilities, shopify = null,
+  resolveLaunchReceipt = null, authorizeOwner = null, clock = Date.now, trafficAdapter = null, outcomeAdapter = null }) {
+  if (trafficAdapter && (trafficAdapter.contractVersion !== 2 || trafficAdapter.productAttribution !== 'exact_product_id' || typeof trafficAdapter.readProductTraffic !== 'function' || !reference(trafficAdapter.id))) throw new TypeError('Use the existing exact-product traffic v2 adapter.');
+  if (outcomeAdapter && (outcomeAdapter.authorizationReviewed !== true || typeof outcomeAdapter.readOutcomes !== 'function' || !reference(outcomeAdapter.id))) throw new TypeError('Use an existing Host-reviewed outcome source.');
+  const now = () => new Date(clock()).toISOString();
+  const jobs = new Map(), creations = new Map(); let closing = false;
+  const taskFor = (state, goalId) => {
+    const goal = state.goals.find(row => row.id === goalId);
+    if (goal?.serviceTask?.kind !== KIND || !goal.marketValidationMonitor) fail('MONITOR_NOT_FOUND', 'The original monitoring task was not found.', 404);
+    return { goal, task: goal.marketValidationMonitor };
+  };
+  function owner(state, actor) {
+    if (!actor || !reference(actor.subject) || !reference(actor.workspaceId) || typeof authorizeOwner !== 'function' || authorizeOwner(state, actor) !== true) fail('MONITOR_AUTHORIZATION_REQUIRED', 'Current original member permission is required.', 403);
+  }
+  function owned(state, actor, goalId) {
+    owner(state, actor); const value = taskFor(state, goalId);
+    if (value.task.subject !== actor.subject || value.task.workspaceId !== actor.workspaceId) fail('MONITOR_NOT_FOUND', 'The original monitoring task was not found.', 404);
+    return value;
+  }
+  function active(state, actor, goalId) {
+    const result = owned(state, actor, goalId);
+    if (['cancelled', 'paused'].includes(result.goal.status) || ['cancelled', 'paused'].includes(result.task.status)) fail('MONITOR_STOPPED', 'The original task is paused or cancelled.');
+    return result;
+  }
+  async function launch(actor, request) {
+    owner(store.read(), actor);
+    if (typeof resolveLaunchReceipt !== 'function') fail('REAL_LAUNCH_RECEIPT_REQUIRED', 'The original launch receipt reader is not connected.');
+    return receiptScope(await resolveLaunchReceipt({ actor: copy(actor), planId: request.planId, planRevision: request.planRevision, launchReceiptId: request.launchReceiptId }), request, clock);
+  }
+  function projection(state, goalId) {
+    const { task } = taskFor(state, goalId), schedule = state.capabilities.schedules.find(row => row.id === task.scheduleId);
+    return { goalId, scheduleId: task.scheduleId, scopeHash: task.scopeHash, ...copy(task.scope), status: task.status,
+      scheduleEnabled: schedule?.enabled === true, scheduleStatus: schedule?.status || 'not_created', modelRequired: false,
+      observations: copy(task.observations), summary: copy(task.summary), missedDays: copy(task.missedDays) };
+  }
+  // State is in the original durable Goal. Routing metadata is immutable because
+  // it is part of the original schedule's approved goalDefinition hash.
+  await store.update(state => { for (const goal of state.goals) if (goal.serviceTask?.kind === KIND) {
+    for (const record of goal.marketValidationMonitor.observations) if (record.status === 'reading') { record.status = 'interrupted'; record.error = 'OBSERVATION_INTERRUPTED'; }
+  } });
+  const unsubscribe = store.subscribe(() => { for (const job of jobs.values()) {
+    try { active(store.read(), job.actor, job.goalId); } catch { job.controller.abort('MONITOR_STOPPED'); }
+  } });
+
+  async function create(actor, body) {
+    fields(body, ['requestId', 'planId', 'planRevision', 'launchReceiptId']);
+    if (!id(body.requestId) || !reference(body.planId) || !reference(body.launchReceiptId) || !Number.isSafeInteger(body.planRevision) || body.planRevision < 1) fail('INVALID_INPUT', 'Use stable original plan and launch references.', 400);
+    if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503);
+    const scope = await launch(actor, body), scopeHash = hash(scope);
+    const key = hash([actor.workspaceId, actor.subject, body.launchReceiptId, body.planId, body.planRevision]);
+    if (creations.has(key)) { await creations.get(key); return create(actor, body); }
+    const work = (async () => {
+      // The same real launch always maps to one original task, even when the
+      // client retries with a different transport requestId after restarting.
+      const { goal } = await runtime.createGoal({ requestId: `market-monitor-${key}`, title: '七天市场验证观察', description: JSON.stringify(scope), conversationId: scope.conversationId, maxSteps: 1, maxOutputTokens: 1600 });
+      await store.update(state => {
+        owner(state, actor); const current = state.goals.find(row => row.id === goal.id);
+        if (current.marketValidationMonitor) { if (current.marketValidationMonitor.scopeHash !== scopeHash) fail('LAUNCH_SCOPE_CHANGED', 'The original launch scope changed.'); return; }
+        current.serviceTask = { kind: KIND, scopeHash, modelRequired: false };
+        current.marketValidationMonitor = { subject: actor.subject, workspaceId: actor.workspaceId, scope, scopeHash,
+          status: 'ready', createdAt: now(), scheduleId: null, observations: [], summary: null, missedDays: [],
+          sourceBinding: { shopify: shopify?.fingerprint || null, traffic: trafficAdapter?.id || null, outcome: outcomeAdapter?.id || null },
+          scheduledAt: new Date(Math.max(clock() + 1000, Date.parse(scope.startAt) + DAY)).toISOString() };
+      });
+      const { task } = owned(store.read(), actor, goal.id);
+      if (!task.scheduleId) {
+        // createSchedule deduplicates its stable requestId even after a crash
+        // between its durable commit and recording the original scheduleId.
+        const requestId = `market-schedule-${key}`;
+        if (!store.read().capabilities.schedules.some(row => row.requestId === requestId) && Date.parse(task.scheduledAt) <= clock()) await store.update(state => { owned(state, actor, goal.id).task.scheduledAt = new Date(clock() + 1000).toISOString(); });
+        const { schedule } = await capabilities.createSchedule({ requestId, title: '七天市场验证每日观察', goalId: goal.id, kind: 'every', everySeconds: 86400, scheduledAt: taskFor(store.read(), goal.id).task.scheduledAt });
+        await store.update(state => { owned(state, actor, goal.id).task.scheduleId = schedule.id; });
+      }
+      return projection(store.read(), goal.id);
+    })();
+    creations.set(key, work);
+    try { return await work; } finally { creations.delete(key); }
+  }
+
+  async function collect(scope, binding, signal, requestId) {
+    const sample = { sampledAt: now(), coverage: { from: scope.from, to: scope.to }, productId: scope.productId, channelId: scope.channelId,
+      localDate: new Intl.DateTimeFormat('en-CA', { timeZone: scope.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(clock())),
+      cohort: unknown(shopify?.status().configured ? 'unavailable' : 'unconfigured', 'SHOPIFY_SETUP_REQUIRED'),
+      traffic: unknown(trafficAdapter ? 'unavailable' : 'unconfigured', 'PRODUCT_TRAFFIC_SOURCE_NOT_CONFIGURED'),
+      outcomes: { ...unknown(outcomeAdapter ? 'unavailable' : 'unconfigured', scope.businessMode === 'b2b' ? 'B2B_OUTCOME_SOURCE_NOT_CONFIGURED' : 'PAID_OUTCOME_SOURCE_NOT_CONFIGURED'),
+        metrics: Object.fromEntries(outcomeKeys(scope.businessMode).map(key => [key, null])) },
+      funnel: { sessions: unknown('unsupported', 'PRODUCT_DETAIL_VIEW_EVENTS_ARE_NOT_SESSIONS'),
+        addToCarts: unknown('unconfigured', 'EXACT_PRODUCT_CART_SOURCE_NOT_CONFIGURED'), checkouts: unknown('unconfigured', 'EXACT_PRODUCT_CHECKOUT_SOURCE_NOT_CONFIGURED') }, errors: [] };
+    if (shopify?.status().configured) try {
+      if (binding.shopify !== shopify.fingerprint) fail('SHOPIFY_SCOPE_CHANGED', 'The original Shopify binding changed.');
+      await shopify.verify();
+      const product = await shopify.readProductPublication({ productId: scope.productId, signal });
+      if (product.shopId !== scope.shopId || scope.variantIds.some(value => !product.variantIds.includes(value))) fail('SHOPIFY_SCOPE_CHANGED', 'The original product or shop changed.');
+      const orders = [], cursors = new Set(); let after = null;
+      do {
+        const page = await shopify.readProductOrders({ productId: scope.productId, from: scope.from, to: scope.to, after, signal });
+        if (page.shopId !== scope.shopId) fail('SHOPIFY_SCOPE_CHANGED', 'The order source shop changed.');
+        orders.push(...page.orders); if (orders.length > 2500) fail('SHOPIFY_ORDERS_INCOMPLETE', 'The bounded complete-pagination limit was exceeded.');
+        after = page.nextCursor;
+        if (after && cursors.has(after)) fail('SHOPIFY_ORDERS_INCOMPLETE', 'Order pagination repeated a cursor.');
+        if (after) cursors.add(after);
+      } while (after && !signal.aborted);
+      if (signal.aborted) throw Error('aborted');
+      sample.cohort = { status: 'available', quantities: productCohortMetrics(orders, scope), sourceId: 'shopify_admin_orders_2026-10',
+        definition: SUPPLIER_METRIC_DEFINITION, dataLagSeconds: null, freshness: 'unknown', attribution: 'exact_product_all_channels', paidStatus: 'unsupported' };
+    } catch (error) { sample.cohort = unknown('unavailable', 'SHOPIFY_READ_FAILED'); sample.errors.push({ source: 'shopify', code: error.code || 'SOURCE_READ_FAILED' }); }
+    if (trafficAdapter) try {
+      if (binding.traffic !== trafficAdapter.id) fail('TRAFFIC_SCOPE_CHANGED', 'The original traffic adapter changed.');
+      const status = shopify?.status();
+      if (!status?.shop || status.shop.id !== scope.shopId) fail('SHOPIFY_IDENTITY_REQUIRED', 'Traffic needs the verified original shop identity.');
+      const input = { workspaceId: scope.workspaceId, shopId: scope.shopId, shopDomain: status.shop.domain,
+        productId: scope.productId, from: scope.from, to: scope.to, sampleKey: `market-check:${hash([scope.goalId, requestId])}`, signal };
+      sample.traffic = validateProductTrafficObservation(await trafficAdapter.readProductTraffic(input), { ...input, adapterId: trafficAdapter.id });
+    } catch (error) { sample.traffic = unknown('unavailable', 'TRAFFIC_READ_FAILED'); sample.errors.push({ source: 'traffic', code: error.code || 'SOURCE_READ_FAILED' }); }
+    if (outcomeAdapter) try {
+      if (binding.outcome !== outcomeAdapter.id) fail('OUTCOME_SCOPE_CHANGED', 'The original outcome adapter changed.');
+      sample.outcomes = outcomeObservation(await outcomeAdapter.readOutcomes({ ...scope, signal }), { ...scope, now: clock() }, outcomeAdapter.id);
+    } catch (error) { sample.outcomes.reason = 'OUTCOME_READ_FAILED'; sample.errors.push({ source: 'outcomes', code: error.code || 'SOURCE_READ_FAILED' }); }
+    sample.sampledAt = now(); return sample;
+  }
+
+  async function observe(actor, body, scheduleClaim = null) {
+    fields(body, ['goalId', 'requestId', 'expectedScopeHash', 'confirmed']);
+    if (!id(body.requestId) || body.confirmed !== true) fail('MONITOR_CONFIRMATION_REQUIRED', 'Confirm the exact original read-only observation scope.', 400);
+    if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503);
+    const { task } = active(store.read(), actor, body.goalId);
+    if (task.scopeHash !== body.expectedScopeHash) fail('MONITOR_SCOPE_CHANGED', 'Confirm the original scope hash.');
+    if (hash(await launch(actor, task.scope)) !== task.scopeHash) fail('LAUNCH_SCOPE_CHANGED', 'Reconcile the original launch receipt.');
+    const prior = task.observations.find(row => row.requestId === body.requestId);
+    if (prior?.status === 'complete') return { observation: copy(prior), summary: copy(task.summary), duplicate: true };
+    const key = hash([body.goalId, body.requestId]);
+    if (jobs.has(key)) return jobs.get(key).promise;
+    const controller = new AbortController();
+    const promise = (async () => {
+      const record = await store.update(state => {
+        const { task: current } = active(state, actor, body.goalId);
+        let row = current.observations.find(item => item.requestId === body.requestId);
+        if (!row) {
+          if (current.observations.length >= 100) fail('MONITOR_CAPACITY_LIMIT', 'Review the existing bounded observation history.');
+          row = { requestId: body.requestId, status: 'reading', ordinal: current.observations.length + 1,
+            from: current.scope.startAt, to: new Date(Math.min(clock(), Date.parse(current.scope.endAt))).toISOString(),
+            dueAt: scheduleClaim?.dueAt || null, admittedAt: now() };
+          if (Date.parse(row.to) <= Date.parse(row.from)) fail('MONITOR_NOT_STARTED', 'The real observation interval has no elapsed time.');
+          current.observations.push(row);
+        }
+        row.status = 'reading'; row.error = null; return copy(row);
+      });
+      try {
+        const scope = { ...task.scope, from: record.from, to: record.to, workspaceId: actor.workspaceId, goalId: body.goalId };
+        const sample = await collect(scope, task.sourceBinding, controller.signal, body.requestId);
+        if (hash(await launch(actor, task.scope)) !== task.scopeHash) fail('LAUNCH_SCOPE_CHANGED', 'The original launch authorization changed during observation.');
+        if (controller.signal.aborted || closing) fail('OBSERVATION_INTERRUPTED', 'Reconcile the original frozen observation after recovery.');
+        return await store.update(state => {
+          const { goal, task: current } = active(state, actor, body.goalId), row = current.observations.find(item => item.requestId === body.requestId);
+          if (scheduleClaim) validateClaim(state, scheduleClaim);
+          Object.assign(row, { status: 'complete', sample, finishedAt: now() });
+          const latest = current.observations.filter(item => item.status === 'complete').sort((a, b) => Date.parse(b.to) - Date.parse(a.to) || b.ordinal - a.ordinal)[0];
+          if (latest.requestId === row.requestId) {
+            current.status = row.to === current.scope.endAt ? 'window_ended' : 'observing';
+            // Missing days remain gaps. A catch-up read is a cumulative cohort,
+            // never seven invented daily observations after downtime.
+            const elapsed = Math.min(7, Math.floor((Date.parse(row.to) - Date.parse(row.from)) / DAY));
+            current.missedDays = Array.from({ length: elapsed }, (_, index) => index + 1).filter(day => !current.observations.some(item => item.status === 'complete' && Math.ceil((Date.parse(item.to) - Date.parse(item.from)) / DAY) === day));
+            if (row.to === current.scope.endAt) {
+              const provisional = sample.outcomes.status !== 'available';
+              const content = { startAt: current.scope.startAt, endAt: current.scope.endAt, timezone: current.scope.timezone,
+                businessMode: current.scope.businessMode, productId: current.scope.productId, channelId: current.scope.channelId,
+                baseline: copy(current.scope.baseline),
+                sample, missedDays: copy(current.missedDays), provisional, sampleSize: sample.outcomes.metrics || null,
+                recommendation: provisional ? 'adjust_measurement' : 'review_evidence_against_approved_plan',
+                limitations: ['No guarantee of sales, profit or statistical significance.', 'Zero measured orders alone does not establish no market.', 'Shopify quantities span channels and do not prove payment or acquisition attribution.', 'Unknown baseline, consent omissions and source delay are not reconstructed.'] };
+              // A summary is the same original message; late corrections do not
+              // send external notifications or start another seven-day window.
+              const contentHash = hash(semantic(content)), old = current.summary;
+              current.summary = { ...content, contentHash, revision: old?.contentHash === contentHash ? old.revision : (old?.revision || 0) + 1,
+                messageId: `market-summary-${goal.id}`, corrected: !!old && old.contentHash !== contentHash };
+              let message = state.messages.find(item => item.id === current.summary.messageId);
+              if (!message) { message = { id: current.summary.messageId, conversationId: goal.conversationId, role: 'assistant', source: KIND, status: 'complete', createdAt: now(), goalId: goal.id }; state.messages.push(message); }
+              message.content = JSON.stringify(current.summary);
+              goal.output = JSON.stringify(current.summary); goal.updatedAt = now();
+              const schedule = state.capabilities.schedules.find(item => item.id === current.scheduleId);
+              if (schedule) { schedule.enabled = false; schedule.consent = null; schedule.status = 'ended'; }
+            }
+          }
+          return { observation: copy(row), summary: copy(current.summary), duplicate: false };
+        });
+      } catch (error) {
+        await store.update(state => { const row = taskFor(state, body.goalId).task.observations.find(item => item.requestId === body.requestId); if (row?.status === 'reading') { row.status = 'interrupted'; row.error = error.code || 'OBSERVATION_INTERRUPTED'; } });
+        throw error;
+      }
+    })();
+    jobs.set(key, { promise, controller, actor: copy(actor), goalId: body.goalId });
+    try { return await promise; } finally { jobs.delete(key); }
+  }
+  function validateClaim(state, args) {
+    const { goal, task } = taskFor(state, args.goalId), claim = args.scheduleClaim;
+    const schedule = state.capabilities.schedules.find(row => row.id === task.scheduleId), record = state.capabilities.scheduleRuns.find(row => row.id === claim?.id);
+    if (!schedule?.enabled || !schedule.consent || !claim || schedule.id !== claim.scheduleId || schedule.revision !== claim.scheduleRevision ||
+        record?.status !== 'dispatching' || record.scheduleId !== schedule.id || record.scheduleRevision !== schedule.revision ||
+        record.goalId !== goal.id || claim.goalId !== goal.id || record.requestId !== args.requestId || claim.requestId !== args.requestId ||
+        goal.serviceTask.scopeHash !== task.scopeHash || record.expectedGoalDefinitionHash !== args.expectedGoalDefinitionHash ||
+        schedule.consent.definitionHash !== args.expectedGoalDefinitionHash || hash(goalDefinition(goal, state)) !== args.expectedGoalDefinitionHash) fail('SCHEDULE_CLAIM_RETIRED', 'Only the original current approved ScheduleRun may dispatch this task.');
+  }
+  return {
+    forActor(actor) { return {
+      create: body => create(actor, body),
+      get(goalId) { owned(store.read(), actor, goalId); return projection(store.read(), goalId); },
+      observe: body => observe(actor, body),
+      async control(body) {
+        fields(body, ['goalId', 'action', 'expectedScopeHash', 'confirmed']);
+        const { task } = owned(store.read(), actor, body.goalId);
+        if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503);
+        if (body.expectedScopeHash !== task.scopeHash || body.confirmed !== true || !['pause', 'resume', 'cancel'].includes(body.action)) fail('MONITOR_SCOPE_CHANGED', 'Confirm the exact task and control action.');
+        if (body.action === 'resume' && (task.status === 'cancelled' || taskFor(store.read(), body.goalId).goal.status === 'cancelled')) fail('MONITOR_CANCELLED', 'A cancelled task cannot resume.');
+        if (body.action === 'resume' && clock() >= Date.parse(task.scope.endAt)) fail('MONITOR_WINDOW_ENDED', 'The real seven-day window cannot be extended by resuming.');
+        if (body.action === 'resume') {
+          if (hash(await launch(actor, task.scope)) !== task.scopeHash) fail('LAUNCH_SCOPE_CHANGED', 'Reconcile the original launch receipt.');
+          if (task.scheduleId) await capabilities.disableSchedule(task.scheduleId);
+          await store.update(state => { const { goal, task: current } = owned(state, actor, body.goalId); if (current.status === 'cancelled' || goal.status === 'cancelled') fail('MONITOR_CANCELLED', 'A cancelled task cannot resume.'); current.status = 'ready'; goal.status = 'draft'; });
+        } else {
+          await store.update(state => { const { goal, task: current } = owned(state, actor, body.goalId); if (current.status === 'cancelled') return; current.status = body.action === 'cancel' ? 'cancelled' : 'paused'; goal.status = current.status; });
+          if (task.scheduleId) await capabilities.disableSchedule(task.scheduleId);
+        }
+        return projection(store.read(), body.goalId);
+      },
+    }; },
+    async dispatch(args) {
+      validateClaim(store.read(), args);
+      const { task } = taskFor(store.read(), args.goalId), actor = { subject: task.subject, workspaceId: task.workspaceId };
+      const result = await observe(actor, { goalId: args.goalId, requestId: args.requestId, expectedScopeHash: task.scopeHash, confirmed: true }, args);
+      return { status: 'completed', serviceReceipt: { goalId: args.goalId, requestId: args.requestId, sampledAt: result.observation.sample.sampledAt,
+        outcomeStatus: result.observation.sample.outcomes.status, modelRequired: false, readOnly: true } };
+    },
+    async close() { closing = true; unsubscribe(); for (const job of jobs.values()) job.controller.abort('SHUTDOWN'); await Promise.allSettled([...jobs.values()].map(job => job.promise)); await Promise.allSettled([...creations.values()]); },
+  };
+}
