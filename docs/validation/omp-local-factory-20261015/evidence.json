@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-15",
+  "sourceBase": "55f8faae8e29fe033dde9dd61312f3aca3ed60e6",
+  "evidenceKind": "official-omp-local-files-finite-synthetic-model",
+  "omp": "18.10.4",
+  "bun": "1.3.14",
+  "workspaceHttpHostUsedByLocalTask": false,
+  "wsUrlOrTokenInjectedIntoLocalTask": false,
+  "originalSdkReadWriteVerified": true,
+  "sourceAndResultShaVerified": true,
+  "actualNpmLocalPreflightVerified": true,
+  "newPaidModelRequests": 0,
+  "realUserMaterialsUsed": false,
+  "uniqueRelatedTestsPassed": 45,
+  "failed": 0,
+  "skipped": 0,
+  "finalLocalSuite": { "passed": 5, "overlapsRelatedTests": true },
+  "buildPassed": true,
+  "newCredentialsOrPrincipals": false,
+  "newAgentLoopOrDatabaseFramework": false,
+  "externalSendingOrShopifyWrite": false,
+  "mainMergeOrDeployment": false
+}
