@@ -1,14 +1,20 @@
 # 一句话发起本地 OMP Agent 会话
 
-`--task` 是可变的自然语言目标，`--session FILE.jsonl` 使用原生 OMP `SessionManager.open` 创建／继续同一个会话。模型可按需选 `read`、工厂字段工具和 `write`；不要求固定步骤或每轮产出文件。缺项可以先追问，下一次用同一个 `--session` 文件和新的 `--task` 继续。没有新增会话数据库、前端或 Agent Loop。
+将一句目标放在命令末尾即可。默认使用所选输出目录的 `factory-session.jsonl`，通过原生 OMP `SessionManager.open` 创建／继续会话；`--session FILE.jsonl` 可选其他私有路径，`--task "目标"` 写法仍兼容。模型可按需选 `read`、工厂字段工具和 `write`，可以先追问，不预设步骤或每轮文件。每条命令只提交一个目标然后退出；下一条命令保持同一资料、目录和模型，换一句目标即可继续。没有新增循环、会话数据库或旧 Host 依赖。
 
 本集成分支应在仓库根目录使用 npm 入口；输入文件和输出目录必须已经存在，Session 放在用户选定的私有路径。下面的预检不调用模型，也不创建 Session 文件：
 
 ```sh
-npm run factory:local -- --input ./product.md --output-dir . --session ../factory-session.jsonl --task "先读资料并询问缺项，暂不生成报告" --check
+npm run factory:local -- --input ./product.md --output-dir ./out "先读资料并询问缺项，暂不生成报告" --check
 ```
 
-已有安全模型配置及适用的价格/预算授权时，移除 `--check` 发起该目标；下一轮保持同一来源、输出目录、模型和 Session 路径，替换 `--task`。此入口不需要旧 Host 或 WS URL/token。本次集成不执行付费命令；源码、完整回归与真实/替身界限见 [集成检查](validation/integrated-local-shopify-20261015/README.md)。下文 `/workspace/deepseek-acceptance` 等绝对路径仅属于原真实验收工作区记录，不是本集成分支要求的安装路径。
+已有安全模型配置及适用的价格/预算授权时，移除 `--check` 发起该目标。下一轮例如：
+
+```sh
+npm run factory:local -- --input ./product.md --output-dir ./out "保留尚未确认的交期，按已有资料保存一份 intro.md"
+```
+
+该命令复用 `./out/factory-session.jsonl`。换资料/模型需明确选择新的 `--session` 文件；原来源绑定、SHA、profile、锁和未知计费校验仍生效。未给目标时只询问目标，不再默认生成 report.md。JSONL 含所选资料和对话，权限为 0600；不要提交会话文件。本分支忽略默认会话文件名及其锁，其他自选路径仍需自行保持私有。此入口不需要旧 Host 或 WS URL/token。本轮只做离线检查，见 [入口检查](validation/local-native-entry-20261015/README.md)；主任务继续处理 12KB 上下文导致写入后结束确认失败的问题，本入口未修改其 transport/context 代码。下文 `/workspace/deepseek-acceptance` 等绝对路径仅属于原真实验收工作区记录，不是当前安装要求。
 
 以下是**当前验收环境可复制的一条完整命令**，使用已安全注入的密钥和已审非秘密模型配置；资料是明确标注为合成验收的小产品文件。它会发起真实付费请求，本轮没有再次执行此命令：
 
@@ -16,7 +22,7 @@ npm run factory:local -- --input ./product.md --output-dir . --session ../factor
 PI_PROVIDER=deepseek PI_MODEL=deepseek-flash WORKSPACE_OMP_PROVIDER_COST_JSON='{"input":0.3,"output":1.2,"cacheRead":0.006,"cacheWrite":0.3}' WORKSPACE_OMP_LIVE_BUDGET_VERIFIED=1 node /workspace/deepseek-acceptance/scripts/workspace-omp-local.mjs --session /workspace/local-deepseek-acceptance-round2-20261015/conversation.jsonl --input /workspace/local-deepseek-acceptance-round2-20261015/product.md --output-dir /workspace/local-deepseek-acceptance-round2-20261015/output --task '请先看产品资料，告诉我还缺哪些交期和合规信息；先不要生成报告。'
 ```
 
-继续时使用相同命令和同一个 `--session` 路径，只把 `--task` 改为下一句话，例如 `数量是200，交期仍待确认，请按已有资料写一份简短产品介绍并保存intro.md`。目标与文件名均可变，不会硬编码这份产品或报告模板。`--check` 可加在同一命令末尾，模型请求为零。`WORKSPACE_OMP_LIVE_BUDGET_VERIFIED=1` 表示本次适用预算已核对，不是自动查余额；当前已知累计保守费用 0.025080 元，剩余授权 4.974920 元，未查账户账单。
+继续时使用相同命令和同一个 `--session` 路径，只把 `--task` 改为下一句话，例如 `数量是200，交期仍待确认，请按已有资料写一份简短产品介绍并保存intro.md`。目标与文件名均可变，不会硬编码这份产品或报告模板。`--check` 可加在同一命令末尾，模型请求为零。`WORKSPACE_OMP_LIVE_BUDGET_VERIFIED=1` 表示本次适用预算已核对，不是自动查余额；当前已知累计保守费用 0.038716 元，剩余授权 4.961284 元，未查账户账单。
 
 资料选择继续沿用显式 `--input`／`--output-dir`。继续会话必须保持同一组源路径、名称、内容 SHA、输出目录和模型；变更则在模型请求前拒绝，避免旧上下文引用已撤销资料。会话 JSONL 含用户主动保存的对话和所选资料内容，以 0600 权限保留在用户指定路径；临时 AuthStorage／源快照仍清理。原生 SDK 负责历史树与恢复。符号链接、跨 profile、已有在途锁或未确认费用的中断会话拒绝继续，不自动重跑。命令退出后可用同一文件继续；本入口不是交互式 TUI。
 
@@ -28,19 +34,21 @@ PI_PROVIDER=deepseek PI_MODEL=deepseek-flash WORKSPACE_OMP_PROVIDER_COST_JSON='{
 
 历史上第一轮真实执行曾在 RFQ／匹配工具报错处停止（2 请求，0.009334 元），没有成果。之后 schema 收紧，并补充原 SDK 验证器＋真实工具执行的 13 组参数合同检查；纯空白字段现在保留待补充。该历史失败仍保留在验收说明中，未改写为成功。
 
-会话创建／追问／不同目标续接有无付费原 SDK 合同测试；模型读取和保存已由上述真实执行证明，新增真实模型续聊尚未执行。
+**原 Session 的真实续聊已保存第二份成果，但回合尾部受限。** 在同一个原生 Session ID 中，目标换成英文询问邮件，模型自主 `read → write`，保存 `inquiry-email.md`（1,105 bytes，SHA256 `c04046e89d7cf3819858453ec4d867a3af5bea5bf55f773fcfc611c6d5dff4ed`），未发送。前轮6条真实消息记录原样保留，第一份说明的 SHA 未改变。本轮2次实际请求，输入5,466（非缓存2,906＋缓存读2,560）、输出338，总5,804 tokens，保守费用0.013636元，耗时5.883秒。第三个逻辑请求用于回合结束确认，但序列化请求体超过12,000 bytes，在实际发送前以 `SHORT_INPUT_LIMIT` 停止。没有第三次发送、未知计费或重跑；返回状态仍为 `stopped`，不会把保存文件等同于完整回合完成。当前更长续聊仍受这个长度限制，需要后续使用原SDK上下文能力处理，不能宣称无限持续会话已验收。
 
-## 原有单次资料入口
+保存来源现可复用原生会话当前活动分支里成对的成功 read 调用／回执；先通过原 profile／输入路径与 SHA 绑定校验，并重新校验当前文件。缓存来源的 ID、名称、SHA、非私库标志都必须匹配；未读取、错误或未配对回执不能授权保存。SDK intent 元数据不产生任何授权。因而合法续聊可直接 `write`，不强制再次 `read`，跨源与源变更仍拒绝。该分支先完成无付费直接写续聊回归及真实JSONL副本恢复检查，才执行上述唯一一次真实续聊。两份成果全文会随验收结果返回；运行文件均留在Git外。
+
+## 文件选择与显式保存
 
 在本分支的仓库根目录、已有模型配置及已审价格／预算环境中，执行：
 
 ```sh
-npm run factory:local -- --input ./product.md --output-dir .
+npm run factory:local -- --input ./product.md --output-dir ./out "请先询问我想达成的目标"
 ```
 
-这是一项有界的资料任务：官方 OMP 18.10.4 SDK 读取明确选择的文件，调用工厂 RFQ／匹配草稿工具，用原生 WriteTool 生成新报告，然后退出。不需要 Workspace 服务器、WS_AGENT_URL、WS_AGENT_TOKEN、企业 principal 或本地 HTTP Host。原 OMP SDK 持有模型／工具循环，没有新增 Agent Loop、数据库、账户或审批系统。
+这是有界的本地目标：官方 OMP 18.10.4 SDK 根据目标选择工具，只有请求保存时才拟定新文件。命令结束后保留原生 JSONL，下一条命令可继续。不需要 Workspace 服务器、WS_AGENT_URL、WS_AGENT_TOKEN、企业 principal 或 HTTP Host。原 SDK 持有模型／工具循环，没有新增 Agent Loop、数据库、账户或审批系统。
 
-`--input` 可重复，最多四份 `.md/.txt/.csv/.json/.pdf`，总量最多 64 KiB。`--output-dir` 必须是已存在的真实目录。可选 `--task "具体目标"`；默认整理资料和缺项并保存 `report.md`。只允许新建平铺的 ASCII 文件名，例如 `report.md`、`rfq-2.txt`，不覆盖已有文件。每项任务最多四份输出（成功数加在途预留数共同计限，失败释放预留），每份模型正文最多 64 KB。输入不全时保留待确认；这不等于已核实产能、报价、接单或发货。
+`--input` 可重复，最多四份 `.md/.txt/.csv/.json/.pdf`，总量最多 64 KiB。`--output-dir` 必须是已存在的真实目录。位置目标与 `--task "具体目标"` 二选一，拒绝重复目标。模型保存时只允许平铺 ASCII 的新 `.md/.txt` 文件名，不覆盖已有文件；默认原生会话 JSONL 由 SDK 管理。每项目标最多四份成果（成功数加在途预留数共同计限，失败释放预留），每份正文最多 64 KB。输入不全时保留待确认；草稿不等于已核实产能、报价、接单或发货。
 
 加 `--check` 只检查选定文件、输出目录、固定运行器和模型配置存在状态，不调用模型：
 
@@ -89,7 +97,7 @@ npm run factory:local -- --input ./product.md --output-dir . --check
 
 全部响应已确认时：`8 × (32,000×2 + 512×8) / 1,000,000 = 0.544768 元`。
 
-错误／用量不明时最多有七个已确认前缀和一个未确认发送。已审 Flash 文本上下文为 1M；未确认输入按 **1,100,000 tokens** 预留，覆盖十进制／二进制 1M，而不是以 12KB 猜测 token 数。因此保守上界为：`[7×(32,000×2+512×8) + 1,100,000×2+512×8] / 1,000,000 = 2.680768 元`，低于固定单任务预留 **2.70 元**及首次执行前已知剩余授权 **4.999838 元**（目前为 4.974920 元）。这不是新增账户预算系统，跨任务不会自动累计余额；每次真实执行仍须使用适用的原预算授权。
+错误／用量不明时最多有七个已确认前缀和一个未确认发送。已审 Flash 文本上下文为 1M；未确认输入按 **1,100,000 tokens** 预留，覆盖十进制／二进制 1M，而不是以 12KB 猜测 token 数。因此保守上界为：`[7×(32,000×2+512×8) + 1,100,000×2+512×8] / 1,000,000 = 2.680768 元`，低于固定单任务预留 **2.70 元**及首次执行前已知剩余授权 **4.999838 元**（目前为 4.961284 元）。这不是新增账户预算系统，跨任务不会自动累计余额；每次真实执行仍须使用适用的原预算授权。
 
 上述人民币上界以价格快照和 provider 遵守已发布上下文／输出协议为前提，不是实际账户扣款保证。若 usage 报告超过物理预留或 512 输出，立即停止并返回 `chargeUpperCny:null`，不再声称有限费用。`accountChargedCny` 始终为空，因为本入口不访问账户账单。这条路径第二次获授权的真实付费执行已完成读取／保存，费用和 SHA 见上文；没有在本轮内自动重跑。
 
@@ -115,4 +123,4 @@ npm run build
 
 新增 wire 测试直接走原官方 provider 的 HTTP/SSE 路径，仅替换 fetch 返回明确合成报文；断言实际发送数、请求 bytes、thinking／输出限制，以及 500、连接／流错误、截断、缺失／部分／不一致／超限用量、空响应、工具失败、上下文增长和八次耗尽。该证据明确标为 `mocked-http`，不能证明真实付费成功。
 
-[证据与限制](validation/omp-local-factory-20261015/README.md)。真实用户私密资料、同会话的第二轮真实模型续聊、扫描 PDF／OCR、Shopify 和 MCP 尚未完成在线验收；此前独立 DeepSeek 连通记录不能代替这些验收。
+[证据与限制](validation/omp-local-factory-20261015/README.md)。真实用户私密资料、更长续聊的上下文控制、扫描 PDF／OCR、Shopify 和 MCP 尚未完成在线验收；此前独立 DeepSeek 连通记录不能代替这些验收。

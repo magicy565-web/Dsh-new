@@ -2,7 +2,8 @@
 
 **Current result:** the second authorized live attempt completed original OMP
 read → write with real DeepSeek and saved a SHA-verified missing-facts document.
-See the latest section below; earlier synthetic checks and the first live failure
+A later real continuation saved an English email in the same Session, then stopped
+its final confirmation at the 12KB gate. See the latest sections; earlier synthetic checks and the first live failure
 remain historical evidence.
 
 Source base: `55f8faae8e29fe033dde9dd61312f3aca3ed60e6`.
@@ -319,3 +320,82 @@ runtime directory. Only source/tests and sanitized aggregate evidence are
 committed. Actual RFQ/matching choices were optional and were **not** exercised
 by this successful real task; their field contract was checked offline. No new
 credential, main merge, deployment, private enterprise material or external write.
+
+
+## Third authorized real run — same Session, second goal, saved email with final length stop
+
+Before any paid request, native JSONL and runtime receipts were checked: one prior
+real user turn, three complete real assistant responses, last billing state clear,
+all earlier start markers matched completed receipts, no other Node/Bun runtimes,
+no additional/unknown paid attempt. Key presence was true, and the official Chinese
+pricing page was freshly retrieved (Flash peak CNY2/input-million, CNY8/output-million,
+1M context). CNY2.680768 preflight reserve was below remaining CNY4.974920 and
+execution was before the Beijing07:00 deadline.
+
+Independent review identified a real continuation defect before this run: each new
+local file helper cleared its `used` sources, so a reasonable direct write after
+resumption would fail even though prior reads and the current SHA matched. The
+initial idea to require a reread each turn was discarded before any HTTP send.
+Instead, after the original profile/selection binding gate, original SDK
+`buildSessionContext()` supplies only active model context. Paired assistant
+read-call and successful native read-receipt IDs must match a currently selected
+source's ID/name/SHA and non-private marker. Current source bytes, identity and
+snapshot are revalidated before/after restoring that provenance and at every
+subsequent model/tool boundary. The native transcript's descriptive `i` metadata
+is not used for authority. No previous read means no save authorization; foreign,
+changed, unpaired or private cached sources still refuse. This uses original
+SessionManager, not a new session service or model loop.
+
+No-paid regression now explicitly resumes and issues **write first**, without a
+synthetic reread. It saves against revalidated prior provenance and preserves
+source SHA; additional checks reject stale/cross-source/unpaired/private receipts,
+source changes, and writing after a prior question-only session with no read.
+An isolated copy of the actual real JSONL also cold-resumed its same ID and
+restored its real prior read after current SHA checking, with zero provider sends.
+Only then was the one paid continuation executed.
+
+The real original file resumed Session ID
+`01a140cf-08d4-7000-8a17-1788259c7f4d`. The natural-language goal changed to a short
+English inquiry email based on earlier product facts/gaps, saved without sending.
+It did not repeat the product quantity/spec/market, prescribe a tool sequence, or
+require unrelated RFQ/matching tools. Real Flash chose **read → write** voluntarily.
+Both succeeded; the original six user/assistant/tool message entries were verified
+unchanged, original report SHA stayed unchanged, and no synthetic continuation
+text entered the live original JSONL.
+
+**Artifact saved, full turn stopped:** `inquiry-email.md`, 1105 bytes, SHA256
+`c04046e89d7cf3819858453ec4d867a3af5bea5bf55f773fcfc611c6d5dff4ed`.
+Its footer cites the same selected source SHA. It is explicitly a synthetic draft,
+contains no real recipient/price/commitment, and is **not sent**. Read/write parameter
+shape receipts were accepted by SDK and executor. The third logical provider entry
+would confirm completion, but the full serialized request exceeded **12000 bytes**.
+`SHORT_INPUT_LIMIT` refused it **before HTTP send**. Actual sends: **2**, complete
+confirmed responses: **2**, elapsed **5883ms**; no uncertain usage, third send or
+rerun. Status remains `stopped`; source code does not relabel it as a full turn
+success just because the requested file was already saved.
+
+| New response | Input uncached | Cache read | Cache write | Output | Total |
+|---|---:|---:|---:|---:|---:|
+| 1 | 2637 | 0 | 0 | 65 | 2702 |
+| 2 | 269 | 2560 | 0 | 273 | 3102 |
+| Total | 2906 | 2560 | 0 | 338 | 5804 |
+
+All 5466 input tokens conservatively count as peak cache misses:
+`(5466×2+338×8)/1,000,000 = CNY0.013636`. Known cumulative upper estimate is
+**CNY0.038716**, remaining authorization estimate **CNY4.961284**; account charges
+and balance are not queried. All new runtime receipts are outside Git under
+`/workspace/local-deepseek-acceptance-round3-20261015/`. Both actual output files
+remain in the original round2 output directory. Complete bodies are returned in
+the task result rather than requiring local-path access; raw outputs are not
+committed here.
+
+**Remaining blocker:** the fixed 12KB request cap can stop an otherwise legitimate
+longer conversation, as observed at this turn's final confirmation. The cap was
+not raised and history was not silently dropped. Further native context handling
+requires separate verification; this evidence proves the two real goals and saved
+files in one Session, not unbounded ongoing conversation. No main merge, deployment,
+new credential, Shopify action, or external sending.
+
+Final repaired source validation: 30 focused tests passed, zero failures/skips;
+TypeScript/Vite build passed with the existing bundle-size warning. No paid run
+was repeated after the observed length stop.

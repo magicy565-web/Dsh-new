@@ -21,3 +21,5 @@ docs/NATIVE-SOURCE-LIBRARY.json
 __pycache__/
 
 .mini-build/
+factory-session.jsonl
+factory-session.jsonl.lock

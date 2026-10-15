@@ -292,6 +292,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       const lastTurn = manager.getEntries().filter(e => e.type === 'custom' && e.customType === 'workspace-local-turn').at(-1);
       if (!binding || binding.data?.engineScope !== engineScope || JSON.stringify(binding.data.binding) !== JSON.stringify(localSession.binding)
         || lastTurn?.data?.billingUncertain) throw Error('LOCAL_SESSION_SELECTION_OR_BILLING_REFUSED');
+      await localFactory.restoreReadSources(manager.buildSessionContext().messages);
     } else manager.appendCustomEntry('workspace-local-binding', { engineScope, binding: localSession.binding });
   }
   if (savedSession && (savedSession.engineScope !== engineScope || manager.getSessionId() !== savedSession.agentSessionId || path.resolve(manager.getCwd()) !== cwd))

@@ -121,13 +121,13 @@ test('natural-language goals create and continue the same original OMP Session w
   assert.equal(first.answer,'请补充客户希望的交期和数量。');assert.equal(first.localSession.resumed,false);
   assert.equal(first.localSession.file,options.sessionFile);assert.equal(first.localSession.originalSdkPersisted,true);
   const second=await runLocalFactory({configuration,options:{...options,task:'数量为200，交期仍待确认。改为写一份简短产品介绍，保存intro.md。'},syntheticResponses:[
-    {tool:'read',arguments:{path:'input-1'},expectedContextText:'请补充客户希望的交期和数量。'},
-    {tool:'write',arguments:{path:'intro.md',content:'Synthetic introduction: 500ml cup. Quantity 200. Delivery pending. Source input-1.'},expectedContextText:'数量为200'},
+    {tool:'write',arguments:{path:'intro.md',content:'Synthetic introduction: 500ml cup. Quantity 200. Delivery pending. Source input-1.'},expectedContextText:'请补充客户希望的交期和数量。'},
     {text:'已保存产品介绍，交期仍待确认。'},
   ]});
   assert.equal(second.status,'saved-local-drafts',JSON.stringify(second));assert.equal(second.localSession.id,first.localSession.id);
   assert.equal(second.localSession.resumed,true);assert.equal(second.saved[0].name,'intro.md');
-  assert.deepEqual(second.toolReceipts.map(r=>r.tool),['read','write']);
+  assert.deepEqual(second.toolReceipts.map(r=>r.tool),['write']);
+  assert.equal(second.revalidatedPriorSources[0].sha256,sha(product));assert.equal(second.saved[0].sources[0].sha256,sha(product));
   const lines=(await fs.readFile(options.sessionFile,'utf8')).split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}});
   assert.ok(lines.some(e=>e.type==='session'&&e.id===first.localSession.id));
   assert.ok(lines.some(e=>e.type==='custom'&&e.customType==='workspace-local-binding'));
@@ -149,6 +149,11 @@ test('persistent local Session rejects symlink, foreign profile and concurrent c
   const options=await fixture(t),sessionFile=options.directory+'/guarded.jsonl';
   const started=await runLocalFactory({configuration,options:{...options,sessionFile,task:'只追问缺项，不保存。'},syntheticResponses:[{text:'请提供交期。'}]});
   assert.equal(started.status,'completed-local-turn',JSON.stringify(started));assert.equal(started.toolReceipts.length,0);
+  const unread=await runLocalFactory({configuration,options:{...options,sessionFile,task:'保存一份介绍。'},syntheticResponses:[
+    {tool:'write',arguments:{path:'unread.md',content:'Must not use an unread source.'}},{text:'需要先读取明确选择的资料。'},
+  ]});
+  assert.deepEqual(unread.saved,[]);assert.deepEqual(unread.revalidatedPriorSources,[]);assert.equal(unread.toolReceipts[0].isError,true);
+  assert.ok(!await fs.stat(options.outputDirectory+'/unread.md').catch(()=>null));
   await fs.symlink(sessionFile,options.directory+'/linked.jsonl');
   const linked=await runLocalFactory({configuration,options:{...options,sessionFile:options.directory+'/linked.jsonl'},syntheticResponses:[{text:'Must never run.'}]});
   assert.equal(linked.reason,'LOCAL_SYMLINK_REFUSED');assert.equal(linked.modelRequests,0);
@@ -161,4 +166,20 @@ test('persistent local Session rejects symlink, foreign profile and concurrent c
   assert.equal(foreign.reason,'LOCAL_SESSION_SELECTION_OR_BILLING_REFUSED');assert.equal(foreign.modelRequests,0);
   assert.equal(parseLocalArguments(['--input',options.inputs[0],'--output-dir',options.outputDirectory,'--session',sessionFile,'--task','任意一句话目标']).task,'任意一句话目标');
   assert.match(parseLocalArguments(['--input',options.inputs[0],'--output-dir',options.outputDirectory,'--session',sessionFile]).task,/Ask what goal/);
+});
+
+test('cached read provenance requires the current selected hash and matching successful native call receipt',async t=>{
+  const options=await fixture(t);let count=0;
+  const create=async()=>{const directory=options.directory+'/cached-'+count++;await fs.mkdir(directory);return createLocalFactoryFiles({...options,directory});};
+  const messages=[{role:'assistant',content:[{type:'toolCall',id:'read-1',name:'read',arguments:{i:'Native SDK descriptive metadata only',path:'input-1'}}]},
+    {role:'toolResult',toolCallId:'read-1',toolName:'read',isError:false,details:{privateLibrary:false,sources:[{kind:'user-selected-local-file',recordId:'input-1',name:'product.md',sha256:sha(product)}]}}];
+  for(const mutate of [m=>m[1].details.sources[0].sha256='0'.repeat(64),m=>m[0].content[0].arguments.path='input-2',m=>m[1].toolCallId='unpaired',m=>m[1].details.privateLibrary=true]){
+    const copy=structuredClone(messages);mutate(copy);const files=await create();
+    try{await assert.rejects(files.restoreReadSources(copy),/LOCAL_CACHED_SOURCE_REFUSED/);assert.deepEqual(files.restoredSources,[]);}finally{await files.close();}
+  }
+  const files=await create();try{
+    const failed=structuredClone(messages);failed[1].isError=true;await files.restoreReadSources(failed);assert.deepEqual(files.restoredSources,[]);
+    await files.restoreReadSources(messages);assert.equal(files.restoredSources[0].sha256,sha(product));
+    await fs.writeFile(options.inputs[0],product+'revoked');await assert.rejects(files.authorize(),/SOURCE_CHANGED/);
+  }finally{await files.close();}
 });
