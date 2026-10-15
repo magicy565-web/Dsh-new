@@ -21,16 +21,20 @@ const supply = object({ status: choice(['unknown', 'proposed', 'reported_unverif
 export const RESULT_ASSESSMENT_SCHEMA = object({ metric: choice(['sales_units', 'conversion_rate']), category: text(200), region: text(200), channelId: text(256),
   unit: choice(['net_paid_units_per_168h', 'net_paid_orders_per_valid_visit']), benchmarkSourceId: text(256), benchmarkWindow: object({ from: text(40), to: text(40) }), validVisitDefinition: text(), minimumValidVisits: integer });
 const nonnegative = { type: 'integer', minimum: 0, maximum: 1000000000 };
+export const SALES_TIME_BASES = Object.freeze(['historical_observed', 'historical_estimated', 'forecast', 'unknown']);
+const coverageWindow = object({ from: text(40), to: text(40), days: { ...integer, maximum: 366 } });
+const historicalTimeBasis = value => value === 'historical_observed' || value === 'historical_estimated';
 export const MARKET_REFERENCE_SCHEMA = object({ id: name, sourcePlatform: choice(['tiktok', 'amazon', 'other']), identifierKind: choice(['platform_product_id', 'asin']), unitsKind: choice(['reported', 'estimated']), salesUnit: choice(['units', 'orders', 'packs', 'unknown']), channelId: text(256), region: text(100), leafCategory: text(300), useCase: text(500), currency,
+  timeBasis: choice(SALES_TIME_BASES), salesCoverage: coverageWindow, timeBasisSource: text(),
   salesScope: choice(['product_all_variants', 'single_listing_or_variant']), salesDefinition: text(),
   source: object({ provider: text(100), tool: text(200), schemaUrl: nullable(text(2000)), evidenceRef: text(256), snapshotSha256: hash, observedAt: text(40) }),
   match: object({ factoryProductId: uuid, factoryProductRevision: integer, priceLow: money, priceHigh: money, rationale: text() }),
-  history: object({ from: text(40), to: text(40), days: { ...integer, maximum: 366 } }),
+  history: coverageWindow,
   selection: object({ method: choice(['category_catalog', 'search_sample', 'provided_sample', 'bestseller_only']), criteria: text(), exclusions: array(text(), 20),
     zeroSales: choice(['included', 'omitted', 'unknown']), populationCount: nullable(nonnegative), limitations: array(text(), 20, 1) }),
   products: array(object({ productId: text(256), evidenceRef: text(256), region: text(100), leafCategory: text(300), useCase: text(500), price: money,
     units: nullable(nonnegative), availability: choice(['available', 'unavailable']), unitsKind: choice(['reported', 'estimated']), listingAgeDays: nullable(nonnegative) }), 50, 1),
-  seasonality: text(), newProductDifferences: text() });
+  seasonality: text(), newProductDifferences: text() }, ['id', 'sourcePlatform', 'identifierKind', 'unitsKind', 'salesUnit', 'channelId', 'region', 'leafCategory', 'useCase', 'currency', 'salesScope', 'salesDefinition', 'source', 'match', 'history', 'selection', 'products', 'seasonality', 'newProductDifferences']);
 export const SERVICE_TARGET_SCHEMA = object({ status: choice(['proposed']), metric: choice(['net_paid_units']), unit: choice(['net_paid_units_per_168h']),
   referenceId: name, executionChannelId: text(256), salesScope: choice(['product_all_variants']), targetUnits: integer,
   adjustmentBasisPoints: { ...integer, maximum: 100000 }, productPrice: object({ amount: money, currency }),
@@ -127,11 +131,14 @@ const canonical = value => Array.isArray(value) ? '[' + value.map(canonical).joi
   ? '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}' : JSON.stringify(value);
 export const preServiceHash = value => createHash('sha256').update(canonical(value)).digest('hex');
 const utc = value => typeof value === 'string' && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+const exactWindow = value => value && utc(value.from) && utc(value.to) && Number.isInteger(value.days) && value.days >= 1 && value.days <= 366 && Date.parse(value.to) - Date.parse(value.from) === value.days * 86400000;
 export function summarizeMarketReference(ref) {
   validate(ref, MARKET_REFERENCE_SCHEMA);
   if (ref.sourcePlatform !== 'other' && !new RegExp('^' + ref.sourcePlatform + '(?:[_:.-]|$)').test(ref.channelId)) reject('Keep the source platform channel namespace distinct from the execution channel.');
-  if (!utc(ref.history.from) || !utc(ref.history.to) || !utc(ref.source.observedAt) || Date.parse(ref.history.to) - Date.parse(ref.history.from) !== ref.history.days * 86400000
-    || Date.parse(ref.source.observedAt) < Date.parse(ref.history.to)) reject('Retain the exact complete historical source window and observation time.');
+  const timeBasis = ref.timeBasis ?? 'unknown', historical = historicalTimeBasis(timeBasis);
+  if (!exactWindow(ref.history) || !utc(ref.source.observedAt) || ref.salesCoverage && !exactWindow(ref.salesCoverage)) reject('Retain exact source windows and observation time.');
+  if (historical && (Date.parse(ref.source.observedAt) < Date.parse(ref.history.to)
+    || ref.salesCoverage && (preServiceHash(ref.salesCoverage) !== preServiceHash(ref.history) || Date.parse(ref.source.observedAt) < Date.parse(ref.salesCoverage.to)))) reject('Historical sales coverage must match the declared history and end before observation.');
   if (ref.source.schemaUrl !== null) {
     let url; try { url = new URL(ref.source.schemaUrl); } catch { reject('Use public provider schema documentation or explicit null.'); }
     if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) reject('Schema references cannot carry credentials.');
@@ -148,18 +155,22 @@ export function summarizeMarketReference(ref) {
   const median = n ? (values[Math.floor((n - 1) / 2)] + values[Math.ceil((n - 1) / 2)]) / 2 : null;
   const scale = value => value === null ? null : value * 7 / ref.history.days;
   const gaps = [];
+  if (!historical) gaps.push(timeBasis === 'forecast' ? 'FORECAST_IS_NOT_HISTORICAL_SALES' : 'SOURCE_TIME_BASIS_UNKNOWN');
+  if (!ref.salesCoverage) gaps.push('SOURCE_SALES_COVERAGE_UNVERIFIED');
+  if (!ref.timeBasisSource) gaps.push('SOURCE_TIME_BASIS_EVIDENCE_REQUIRED');
   if (ref.salesUnit !== 'units') gaps.push('SOURCE_SALES_UNIT_NOT_CONFIRMED_AS_PRODUCT_UNITS');
   if (ref.selection.method === 'bestseller_only') gaps.push('BESTSELLER_SELECTION_IS_NOT_MARKET_MEAN');
   if (ref.selection.zeroSales !== 'included') gaps.push('ZERO_SALES_COVERAGE_UNVERIFIED');
   if (n !== ref.products.length) gaps.push('MISSING_COMPARABLE_SALES');
   if (n < 2) gaps.push('COMPARABLE_SAMPLE_TOO_SMALL');
   if (!(mean > 0)) gaps.push('POSITIVE_REFERENCE_REQUIRED_FOR_TARGET');
-  return { schema: 'workspace.market-reference-summary.v1', referenceId: ref.id, referenceHash: preServiceHash(ref), sourceVerification: 'external_claim_not_independently_verified', sourceDocumentationGaps: ref.source.schemaUrl === null ? ['PROVIDER_SCHEMA_DOCUMENTATION_UNAVAILABLE'] : [],
+  return { schema: 'workspace.market-reference-summary.v2', referenceId: ref.id, referenceHash: preServiceHash(ref), sourceVerification: 'external_claim_not_independently_verified', sourceDocumentationGaps: ref.source.schemaUrl === null ? ['PROVIDER_SCHEMA_DOCUMENTATION_UNAVAILABLE'] : [],
+    timeBasis, salesCoverage: ref.salesCoverage ? structuredClone(ref.salesCoverage) : null, timeBasisSource: ref.timeBasisSource ?? null,
     sourcePlatform: ref.sourcePlatform, identifierKind: ref.identifierKind, unitsKind: ref.unitsKind, salesUnit: ref.salesUnit, productIds: ref.products.map(row => row.productId), channelId: ref.channelId, region: ref.region, leafCategory: ref.leafCategory, useCase: ref.useCase, currency: ref.currency,
     salesScope: ref.salesScope, salesDefinition: ref.salesDefinition, source: structuredClone(ref.source), history: structuredClone(ref.history), selection: structuredClone(ref.selection),
     sampleCount: ref.products.length, measuredCount: n, missingCount: ref.products.length - n,
     statistics: { meanMethod: 'unweighted_arithmetic_mean_of_measured_products', mean, median, minimum: n ? values[0] : null, maximum: n ? values.at(-1) : null, confidenceInterval: null, interpretation: 'matched_sample_not_population_mean' },
-    sevenDayReference: { method: 'linear_7_over_history_days_not_forecast', sourceDays: ref.history.days, numeratorDays: 7, mean: scale(mean), median: scale(median), minimum: n ? scale(values[0]) : null, maximum: n ? scale(values.at(-1)) : null },
+    sevenDayReference: historical && ref.salesCoverage && ref.timeBasisSource ? { method: 'linear_7_over_history_days_not_forecast', sourceDays: ref.history.days, numeratorDays: 7, mean: scale(mean), median: scale(median), minimum: n ? scale(values[0]) : null, maximum: n ? scale(values.at(-1)) : null } : null,
     seasonality: ref.seasonality, newProductDifferences: ref.newProductDifferences,
     limitations: [...ref.selection.limitations, 'Non-probability or unverified sample: no market-wide mean or confidence interval asserted.', ...(n < 10 ? ['Small matched sample; retain uncertainty before confirming a service target.'] : [])],
     suitableForTargetProposal: gaps.length === 0, gaps };
@@ -201,6 +212,7 @@ export function buildPreServiceReview(plan) {
 export function freezeConfirmedServiceTarget(path, confirmation, context) {
   if (!path.serviceTarget) return null;
   const target = structuredClone(path.serviceTarget), marketReference = summarizeMarketReference(selectedReference(path));
+  if (!marketReference.suitableForTargetProposal || !marketReference.sevenDayReference) reject('Only explicitly sourced historical sales can define a historical-reference service target.');
   validate(target, SERVICE_TARGET_SCHEMA);
   const ref = selectedReference(path);
   if (path.mode !== 'b2c' || target.referenceId !== ref.id || path.salesRequirement?.metric !== target.metric || path.salesRequirement.target !== target.targetUnits
@@ -222,6 +234,11 @@ export function freezeConfirmedServiceTarget(path, confirmation, context) {
 export function validateFrozenServiceTarget(value, scope) {
   if (!value || value.schema !== 'workspace.confirmed-service-target.v1' || value.planId !== scope.planId || value.planRevision !== scope.planRevision || value.proposal?.executionChannelId !== scope.channelId) reject('Use the frozen original plan target.');
   validate(value.proposal, SERVICE_TARGET_SCHEMA);
+  const ref = value.marketReference;
+  if (ref?.schema !== 'workspace.market-reference-summary.v2' || !historicalTimeBasis(ref.timeBasis) || !exactWindow(ref.salesCoverage)
+    || !exactWindow(ref.history) || preServiceHash(ref.salesCoverage) !== preServiceHash(ref.history) || !ref.timeBasisSource?.trim()
+    || !ref.suitableForTargetProposal || !Array.isArray(ref.gaps) || ref.gaps.length || !ref.sevenDayReference
+    || !utc(ref.source?.observedAt) || Date.parse(ref.salesCoverage.to) > Date.parse(ref.source.observedAt)) reject('Frozen targets require an explicit historical sales time basis, coverage and source explanation.');
   if (value.targetHash !== preServiceHash(value.proposal) || value.referenceHash !== value.marketReference?.referenceHash
     || value.reviewHash !== preServiceHash({ target: value.proposal, marketReference: value.marketReference })
     || value.confirmation?.status !== 'approved' || value.confirmation.evidenceKind !== 'real' || value.confirmation.targetHash !== value.targetHash

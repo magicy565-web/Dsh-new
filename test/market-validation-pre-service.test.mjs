@@ -1,16 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { marketServicePlan } from './fixtures/market-validation-plan-data.mjs';
-import { validatePlanInput, summarizeMarketReference, buildPreServiceReview, freezeConfirmedServiceTarget } from '../packages/workspace-market-validation/src/plan.mjs';
+import { validatePlanInput, summarizeMarketReference, buildPreServiceReview, freezeConfirmedServiceTarget, validateFrozenServiceTarget, preServiceHash } from '../packages/workspace-market-validation/src/plan.mjs';
 import { assessMarketValidation } from '../server/market-validation-assessment.mjs';
 const productId = '11111111-1111-4111-8111-111111111111';
 const input = plan => ({ productId, documents: [], requestId: 'synthetic-pre-service', sources: [{ kind: 'factory-product', recordId: productId, revision: 1, workspaceId: 'synthetic', projectionSha256: 'a'.repeat(64), api: '/synthetic' }], plan });
-function frozen(plan = marketServicePlan(productId)) {
-  validatePlanInput(input(plan)); const review = buildPreServiceReview(plan)[0];
+function proposedProof(plan) {
+  const review = buildPreServiceReview(plan)[0];
   const context = { planId: 'original-plan', planRevision: 1, planHash: 'c'.repeat(64), planSha256: 'd'.repeat(64), subject: 'owner', workspaceId: 'workspace', channelId: 'shopify-execution', startedAt: '2026-10-01T00:00:00.000Z' };
   const confirmation = { status: 'approved', evidenceKind: 'real', approvalId: 'synthetic-human-approval', evidenceRef: 'synthetic-not-real-review', approvedBy: 'owner', workspaceId: 'workspace', approvedAt: '2026-09-30T00:00:00.000Z', planId: context.planId, planRevision: 1, planHash: context.planHash,
     targetHash: review.serviceTarget.targetHash, referenceHash: review.serviceTarget.referenceHash, reviewHash: review.serviceTarget.reviewHash };
-  return { plan, review, context, confirmation, snapshot: freezeConfirmedServiceTarget(plan.paths[0], confirmation, context) };
+  return { plan, review, context, confirmation };
+}
+function frozen(plan = marketServicePlan(productId)) {
+  validatePlanInput(input(plan)); const proof = proposedProof(plan);
+  return { ...proof, snapshot: freezeConfirmedServiceTarget(plan.paths[0], proof.confirmation, proof.context) };
 }
 test('pre-service comparable sample retains mean/median/range/count and explicit 7/28/90-day normalization without calling a provider', () => {
   for (const days of [7, 28, 90]) {
@@ -59,6 +63,7 @@ test('TikTok/FastMoss and Amazon/Sorftime references keep separate windows, ASIN
   amazon.id = 'amazon-reference'; amazon.sourcePlatform = 'amazon'; amazon.identifierKind = 'asin'; amazon.unitsKind = 'reported'; amazon.channelId = 'amazon_marketplace';
   amazon.source.provider = 'synthetic-sorftime'; amazon.source.tool = 'synthetic-amazon-sales'; amazon.source.evidenceRef = 'synthetic-amazon-response';
   amazon.history.days = 90; amazon.history.to = new Date(Date.parse(amazon.history.from) + 90 * 86400000).toISOString(); amazon.source.observedAt = amazon.history.to;
+  amazon.timeBasis = 'historical_observed'; amazon.salesCoverage = structuredClone(amazon.history); amazon.timeBasisSource = 'Synthetic historical reported ASIN sales field, not a vendor schema claim.';
   amazon.salesScope = 'single_listing_or_variant'; amazon.salesDefinition = 'Synthetic reported ASIN units; parent/child scope must be checked with the real provider.';
   amazon.products.forEach((row, i) => { row.productId = 'B00000000' + i; row.evidenceRef = 'synthetic-asin-' + i; row.units = 900 * (i + 1); row.unitsKind = 'reported'; });
   path.marketReferences = [tiktok, amazon]; delete path.marketReference;
@@ -84,4 +89,62 @@ test('zero sales remain in the sample while missing sales stay null and block re
   ref.salesUnit = 'unknown'; assert.ok(summarizeMarketReference(ref).gaps.includes('SOURCE_SALES_UNIT_NOT_CONFIRMED_AS_PRODUCT_UNITS'));
   ref.source.schemaUrl = null; assert.ok(summarizeMarketReference(ref).sourceDocumentationGaps.includes('PROVIDER_SCHEMA_DOCUMENTATION_UNAVAILABLE'));
   ref.channelId = 'shopify-execution'; assert.throws(() => summarizeMarketReference(ref));
+});
+
+function forecastPlan() {
+  const plan = marketServicePlan(productId, 1, 30), path = plan.paths[0], ref = path.marketReference;
+  ref.sourcePlatform = 'amazon'; ref.channelId = 'amazon_marketplace'; ref.identifierKind = 'asin';
+  ref.salesDefinition = 'Future 30-day sales forecast; NOT historical sales'; ref.timeBasis = 'forecast';
+  ref.salesCoverage = { from: ref.history.to, to: new Date(Date.parse(ref.history.to) + 30 * 86400000).toISOString(), days: 30 };
+  ref.timeBasisSource = 'Synthetic provider future_30_day_forecast field and forecast coverage, not historical units.';
+  ref.products.forEach((row, i) => { row.productId = 'B00000000' + i; row.units = 300; });
+  path.serviceTarget.targetUnits = 35; path.salesRequirement.target = 35;
+  return plan;
+}
+test('future Amazon forecast with valid past history dates and 300 units each cannot become a 70-unit historical reference or freeze a 35-unit target', () => {
+  const plan = forecastPlan(), ref = plan.paths[0].marketReference, summary = summarizeMarketReference(ref);
+  assert.equal(summary.timeBasis, 'forecast'); assert.equal(summary.unitsKind, 'estimated');
+  assert.equal(summary.statistics.mean, 300); assert.equal(summary.statistics.median, 300); assert.equal(summary.sampleCount, 3);
+  assert.deepEqual(summary.salesCoverage, ref.salesCoverage); assert.deepEqual(summary.history, ref.history);
+  assert.equal(summary.timeBasisSource, ref.timeBasisSource); assert.equal(summary.salesDefinition, ref.salesDefinition);
+  assert.equal(summary.sevenDayReference, null); assert.equal(summary.suitableForTargetProposal, false);
+  assert.ok(summary.gaps.includes('FORECAST_IS_NOT_HISTORICAL_SALES'));
+  assert.throws(() => validatePlanInput(input(plan)));
+  const proof = proposedProof(plan); assert.throws(() => freezeConfirmedServiceTarget(plan.paths[0], proof.confirmation, proof.context), /historical sales/);
+  delete plan.paths[0].serviceTarget; validatePlanInput(input(plan)); // Keep forecast as a clearly labelled reference-only draft.
+});
+test('missing legacy time fields and explicit unknown remain unknown regardless of estimated/reported text; no historical normalization or target', () => {
+  for (const basis of [undefined, 'unknown']) for (const unitsKind of ['estimated', 'reported']) {
+    const plan = forecastPlan(), ref = plan.paths[0].marketReference;
+    if (basis === undefined) { delete ref.timeBasis; delete ref.salesCoverage; delete ref.timeBasisSource; }
+    else ref.timeBasis = basis;
+    ref.unitsKind = unitsKind; ref.products.forEach(row => { row.unitsKind = unitsKind; });
+    const summary = summarizeMarketReference(ref);
+    assert.equal(summary.timeBasis, 'unknown'); assert.equal(summary.sevenDayReference, null); assert.equal(summary.suitableForTargetProposal, false);
+    assert.ok(summary.gaps.includes('SOURCE_TIME_BASIS_UNKNOWN'));
+    assert.throws(() => validatePlanInput(input(plan)));
+    const proof = proposedProof(plan); assert.throws(() => freezeConfirmedServiceTarget(plan.paths[0], proof.confirmation, proof.context));
+    delete plan.paths[0].serviceTarget; assert.deepEqual(validatePlanInput(input(plan)).plan, plan);
+    assert.equal(buildPreServiceReview(plan)[0].marketReferences[0].timeBasis, 'unknown');
+  }
+});
+test('explicit historical observed and estimated sales require exact past coverage plus source explanation and can freeze the historical target', () => {
+  for (const timeBasis of ['historical_observed', 'historical_estimated']) {
+    const plan = marketServicePlan(productId); plan.paths[0].marketReference.timeBasis = timeBasis;
+    const proof = frozen(plan), summary = proof.snapshot.marketReference;
+    assert.equal(summary.timeBasis, timeBasis); assert.equal(summary.sevenDayReference.mean, 100); assert.equal(summary.suitableForTargetProposal, true);
+    assert.deepEqual(summary.gaps, []); assert.equal(proof.snapshot.proposal.targetUnits, 50);
+    const scope = { planId: proof.context.planId, planRevision: 1, channelId: proof.context.channelId, startAt: proof.context.startedAt };
+    validateFrozenServiceTarget(proof.snapshot, scope);
+    for (const mutation of [r => { delete r.salesCoverage; }, r => { delete r.timeBasisSource; },
+      r => { r.salesCoverage.to = '2026-08-01T00:00:00.000Z'; }, r => { r.source.observedAt = r.history.from; }, r => { r.timeBasis = 'estimated'; }]) {
+      const invalid = structuredClone(plan); mutation(invalid.paths[0].marketReference); assert.throws(() => validatePlanInput(input(invalid)));
+    }
+    // Even internally consistent hashes cannot grandfather a legacy/forecast summary into a new historical target.
+    for (const mutation of [r => { delete r.timeBasis; }, r => { r.timeBasis = 'forecast'; }, r => { r.schema = 'workspace.market-reference-summary.v1'; }]) {
+      const invalid = structuredClone(proof.snapshot); mutation(invalid.marketReference);
+      invalid.reviewHash = preServiceHash({ target: invalid.proposal, marketReference: invalid.marketReference }); invalid.confirmation.reviewHash = invalid.reviewHash;
+      assert.throws(() => validateFrozenServiceTarget(invalid, scope), /historical sales time basis/);
+    }
+  }
 });

@@ -314,6 +314,8 @@ test('actual original Host/OMP saves the pre-service market reference and propos
   const saved = (await f.journal()).entries.find(e => e.message?.toolName === 'workspace_market_validation_plan_save').message.details;
   assert.equal(saved.status, 'saved-draft'); assert.equal(saved.humanReviewed, false); assert.equal(saved.startedAt, null);
   const review = saved.preServiceReview[0]; assert.equal(review.marketReferences[0].sourcePlatform, 'tiktok');
+  assert.equal(review.marketReferences[0].schema, 'workspace.market-reference-summary.v2'); assert.equal(review.marketReferences[0].timeBasis, 'historical_estimated');
+  assert.deepEqual(review.marketReferences[0].salesCoverage, review.marketReferences[0].history); assert.ok(review.marketReferences[0].timeBasisSource);
   assert.equal(review.marketReferences[0].statistics.mean, 400); assert.equal(review.marketReferences[0].statistics.median, 400);
   assert.equal(review.marketReferences[0].sevenDayReference.mean, 100); assert.equal(review.serviceTarget.targetUnits, 50);
   assert.equal(review.serviceTarget.crossChannelReference, true); assert.equal(review.serviceTarget.confirmationStatus, 'unreviewed');

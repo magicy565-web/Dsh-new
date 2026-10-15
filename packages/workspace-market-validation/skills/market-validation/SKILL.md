@@ -35,6 +35,8 @@ FastMoss/TikTok 与 Sorftime/Amazon 是并列的普通外部数据 MCP，不能�
 
 原计划工具会重算样本统计和 `历史均值×7/历史天数` 的七天参考，标明该线性换算不是预测，并保留季节和新品/成熟品差异。Agent显式选择一个 referenceId，再结合拟售价格、原 proposed预算、用户报告且未验证的供货上限，提出 adjustmentBasisPoints 和七天净支付件数目标，解释价格、预算、供货、季节、新品、销量口径和跨渠道调整；不得隐含汇率换算、库存承诺或保证销量。TikTok/Amazon参考用于Shopify执行时，要明写跨渠道参考，不能伪装同渠道benchmark。
 
+时间口径独立于 `unitsKind=reported/estimated`：每个来源写明 `timeBasis=historical_observed`（历史观测）、`historical_estimated`（历史估算）、`forecast`（未来预测）或 `unknown`。缺字段的旧数据按unknown，绝不能因 estimated、reported、过去的查询日期或文字中的sales自动判为历史。保留实际销量/预测覆盖窗口 `salesCoverage.from/to/days`、原 `history` 声明和 `timeBasisSource` 的来源字段/口径解释，不把预测窗口伪写为过去。只有两种明确历史口径且实际覆盖等于history、结束不晚于来源观测时刻、来源解释完整时才能算历史七天参考；forecast/unknown保留原统计和阻断gap，sevenDayReference为null，不能提出或冻结基于历史参考的服务目标。未来真实适配必须依厂商实际字段、说明、版本和覆盖窗口映射，不从estimated单词猜测；模型填写时间口径仍是待验证主张，不是来源真实性证明。旧目标不能自动补历史标签或重签批准，应保留原记录，核实后建立另一个未审核草稿并按原人审确认。
+
 保存 `serviceTarget.status=proposed` 与原salesRequirement一致，仍是未审核草稿。用户启动前确认的原回执须锁定 Artifact ID/version/SHA、planHash、目标hash、所选参考hash、reviewHash与确认时间；模型不能提交confirmed/approved。调度审批不是客户服务标准的确认。当前仅核验原受信确认回执合同，实际确认记录读取仍待原Host安全交接。新计划/新证据只能成为另一个未审核草稿，不能让旧服务事后移动标准。
 
 服务开始仍以原批准且实际获客启动回执为准；该时刻必须不早于标准确认，七天为168小时。结束分别报告 `serviceTargetAssessment` 与 `marketComparison`：有真实净支付成交且达到预先确认销量目标70%才给服务证据层passed；市场直接可比判断继续检查同渠道、同单位、可信可比benchmark。跨渠道服务目标达成不能改写成市场均值达成。全部原必选测量缺口、矛盾计数、缺支付/完整窗口仍阻止通过，goalVerified始终false，交原人审。

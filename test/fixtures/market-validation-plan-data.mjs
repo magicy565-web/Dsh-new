@@ -23,6 +23,7 @@ export function marketServicePlan(productId, revision = 1, days = 28) {
   const from = '2026-06-01T00:00:00.000Z', to = new Date(Date.parse(from) + days * 86400000).toISOString();
   path.metrics = [{ id: 'net_paid_units', definition: 'Exact product/all-variants, execution-channel net paid units', dataSource: null, availability: 'unverified' }];
   path.marketReference = { id: 'pre-service-cups', sourcePlatform: 'tiktok', identifierKind: 'platform_product_id', unitsKind: 'estimated', salesUnit: 'units', channelId: 'tiktok_shop', region: 'US', leafCategory: 'Kitchen/Drinkware/Insulated-cups', useCase: 'Reusable insulated drinking cup', currency: 'USD',
+    timeBasis: 'historical_estimated', salesCoverage: { from, to, days }, timeBasisSource: 'Synthetic past-period product units field and explicit coverage; not inferred from estimated.',
     salesScope: 'product_all_variants', salesDefinition: 'Synthetic provider estimated product unit sales; refund/payment definition is not equivalent to net paid execution units.',
     source: { provider: 'synthetic-external-mcp', tool: 'synthetic_comparable_products', schemaUrl: 'https://modelcontextprotocol.io/specification/2025-06-18/server/tools',
       evidenceRef: 'synthetic-mcp-response-reference', snapshotSha256: 'b'.repeat(64), observedAt: to },

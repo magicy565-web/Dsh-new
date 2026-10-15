@@ -87,7 +87,16 @@ try {
     const p = mode === 'b2c' ? marketServicePlan(id) : marketPlan(mode); p.paths[0].steps = ['A freely model-authored action; no fixed funnel.'];
     const result = await prompt([[MARKET_VALIDATION_TOOLS[1], { productId: id, documents: [], sources, plan: p, requestId: mode }]]);
     assert.equal(result.status, 'saved-draft'); assert.equal(result.humanReviewed, false); assert.equal(result.startedAt, null);
-    if (mode === 'b2c') { assert.equal(lastSaved.plan.paths[0].serviceTarget.targetUnits, 50); assert.equal(lastSaved.plan.paths[0].marketReference.sourcePlatform, 'tiktok'); }
+    if (mode === 'b2c') { assert.equal(lastSaved.plan.paths[0].serviceTarget.targetUnits, 50); assert.equal(lastSaved.plan.paths[0].marketReference.sourcePlatform, 'tiktok'); assert.equal(lastSaved.plan.paths[0].marketReference.timeBasis, 'historical_estimated'); }
+  }
+  // Both official SDKs must retain the new time basis and refuse targets from forecasts/legacy unknowns before calling the synthetic save client.
+  for (const timeBasis of ['forecast', 'unknown', undefined]) {
+    const plan = marketServicePlan(id), ref = plan.paths[0].marketReference;
+    if (timeBasis === undefined) { delete ref.timeBasis; delete ref.salesCoverage; delete ref.timeBasisSource; }
+    else ref.timeBasis = timeBasis;
+    const beforeSaves = saves;
+    const result = await prompt([[MARKET_VALIDATION_TOOLS[1], { productId: id, documents: [], sources, plan, requestId: 'time-' + String(timeBasis) }]]);
+    assert.equal(result.status, 'blocked'); assert.equal(saves, beforeSaves);
   }
   for (const [name, args] of [[MARKET_MONITOR_TOOLS[0], { requestId: 'monitor', planId: id, planRevision: 1, launchReceiptId: 'synthetic' }], [MARKET_MONITOR_TOOLS[1], { goalId: id }], [MARKET_MONITOR_TOOLS[2], { goalId: id, action: 'pause' }]]) {
     assert.equal((await prompt([[name, args]])).status, 'unconfigured');
