@@ -35,6 +35,9 @@ export function createAgentAuth({ principals, env = process.env, access, reserve
   function sessionActor(context, { write = false } = {}) {
     if (access.mode !== 'enterprise' || !context?.session || !context.claims)
       throw new AgentHttpError(403, 'Agent UI 需要原企业 Session。', { code: 'AGENT_UI_SESSION_REQUIRED' });
+    return boundActor(context, { write });
+  }
+  function boundActor(context, { write = false } = {}) {
     const matches = rows.filter(row => row.binding.subject === context.subject && row.binding.workspaceId === context.workspaceId);
     if (!matches.length) throw new AgentHttpError(403, '当前成员没有现有 Agent principal 绑定。', { code: 'AGENT_PRINCIPAL_REQUIRED' });
     let selected;
@@ -89,6 +92,16 @@ export function createAgentAuth({ principals, env = process.env, access, reserve
     },
     watchStream(context, close) { return access.watchServiceStream(context, close); },
     sessionActor,
+    // Host-internal reduced identity, never accepted from an HTTP request body.
+    sessionReadActor(identity) {
+      if (access.mode === 'enterprise') {
+        const live = access.nativeSessionById(identity?.sessionId);
+        if (!live || live.subject !== identity.subject || live.workspaceId !== identity.workspaceId || live.role !== identity.role)
+          throw new AgentHttpError(401, 'Original Session expired or changed.', { code: 'SESSION_REQUIRED' });
+      } else if (identity?.subject !== 'local-operator' || identity.workspaceId !== 'local' || identity.role !== 'admin' || identity.sessionId != null)
+        throw new AgentHttpError(401, 'Use the original local Session identity.', { code: 'SESSION_REQUIRED' });
+      return boundActor(identity);
+    },
     watchSessionStream(context, close) {
       const sessionWatch = access.watchStream(context, close);
       const valid = () => { try { sessionActor(context); return sessionWatch.valid(); } catch { return false; } };

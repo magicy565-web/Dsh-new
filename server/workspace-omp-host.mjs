@@ -37,12 +37,13 @@ export function createWorkspaceOmpBusinessOptions({ environment = {}, baseURL } 
   const model = { provider: configuration.providerId, id: configuration.model, api: 'openai-completions', baseUrl: configuration.baseUrl };
   return { recipient: { kind: 'pi-coding-agent', provider: model.provider, model: model.id, destination: model.baseUrl },
     engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, factoryMaterials: ['factory-materials', 'factory-inquiries', 'market-validation'].includes(profile), factoryInquiries: profile === 'factory-inquiries', factoryIngestion: profile === 'factory-ingestion', marketValidation: profile === 'market-validation', factoryCustomers: profile === 'factory-customers', publicTools: workspaceOmpPublicToolConfiguration(environment), infrastructure: environment }),
-    resolveBinding: async () => {
-      if (!environment.WS_AGENT_TOKEN || !workspaceOmpConfigured(configuration)) return null;
+    resolveBinding: async ({ actor, sessionReadonlyClient } = {}) => {
+      if (!workspaceOmpConfigured(configuration)) return null;
+      if (!environment.WS_AGENT_TOKEN) return sessionReadonlyClient ? { client: sessionReadonlyClient(actor), model } : null;
       return { client: createWorkspaceClient({ baseURL: environment.WS_AGENT_URL || baseURL, token: environment.WS_AGENT_TOKEN }), model };
     },
-    resolveControlBinding: async () => environment.WS_AGENT_TOKEN ? {
+    resolveControlBinding: async ({ actor, sessionReadonlyClient } = {}) => environment.WS_AGENT_TOKEN ? {
       client: createWorkspaceClient({ baseURL: environment.WS_AGENT_URL || baseURL, token: environment.WS_AGENT_TOKEN }), model,
-    } : null,
+    } : sessionReadonlyClient ? { client: sessionReadonlyClient(actor), model } : null,
   };
 }

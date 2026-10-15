@@ -15,6 +15,7 @@ import { createFactoryInquiryClient } from './factory-inquiries.mjs';
 import { createFactoryCustomerDraftClient } from './factory-customer-drafts.mjs';
 import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { ApiError } from './runtime.mjs';
+import { AgentHttpError } from './agent/auth.mjs';
 import { ProviderError } from './provider.mjs';
 import { privateDirectory, openPrivateFile, syncDirectory } from './store.mjs';
 
@@ -46,7 +47,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
-  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock;
+  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, sessionReadonlyClient;
   function current(idValue) { const record = store.read().conversations.find(row => row.id === idValue); if (!record) fail(404, 'NOT_FOUND', 'Conversation not found.'); return record; }
   function actor(context, write = false) {
     if (!context?.subject || !context.workspaceId) fail(401, 'SESSION_REQUIRED', 'Use the original Workspace Session.');
@@ -64,14 +65,21 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   }
   async function bindingFor(identity, conversation, signal, controlOnly = false) {
     actor(identity);
-    const binding = await (controlOnly && options.resolveControlBinding || options.resolveBinding)({ actor: identity, conversation: { id: conversation.id, title: conversation.title } });
+    let binding;
+    try { binding = await (controlOnly && options.resolveControlBinding || options.resolveBinding)({ actor: identity, conversation: { id: conversation.id, title: conversation.title }, sessionReadonlyClient }); }
+    catch (error) {
+      if (error instanceof AgentHttpError) fail(error.status, error.extra.code || 'BUSINESS_AGENT_BINDING_UNAVAILABLE', 'The existing Session member binding is unavailable.');
+      throw error;
+    }
     if (!binding?.client?.bindingIdentity || !engineAdapter && !binding.modelRuntime || !binding?.model) fail(409, 'BUSINESS_AGENT_UNCONFIGURED', 'The existing Host member/model binding is not configured.');
+    if (binding.client.readOnlySession && engineAdapter?.scope !== 'omp:18.10.4:public-v1')
+      fail(403, 'SESSION_READONLY_PROFILE_REQUIRED', 'Session business reads cannot enable Library or other profiles.');
     if (conversation.businessAgentSession && (conversation.businessAgentSession.engineScope || 'pi:1.1.0') !== (engineAdapter?.scope || 'pi:1.1.0'))
       fail(403, 'BUSINESS_AGENT_ENGINE_CHANGED', 'This transcript belongs to another engine scope. Start a fresh public-only conversation; private Pi history cannot migrate.');
     let proof;
     try { proof = await binding.client.bindingIdentity(signal); }
     catch (error) {
-      const rejected = /HTTP (?:401|403)/.test(error?.message || '');
+      const rejected = [401, 403].includes(error?.status) || /HTTP (?:401|403)/.test(error?.message || '');
       fail(rejected ? 403 : 503, 'BUSINESS_AGENT_BINDING_UNAVAILABLE', 'The existing member transport cannot prove its current binding; no model request was admitted.');
     }
     if (!ownerMatches(proof, identity) || proof.role !== identity.role || proof.instanceId !== instanceId)
@@ -276,7 +284,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   } });
   return {
     provider,
-    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock } = dependencies); },
+    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, sessionReadonlyClient } = dependencies); },
     async handle({ req, res, pathname, context, readBody, respond }) {
       if (req.method === 'GET' && pathname === '/api/conversations/runtime') {
         actor(context);
@@ -309,6 +317,8 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
           || fields[operation].some(key => key === 'confirmed' ? body[key] !== true : key === 'requestId' ? !requestId(body[key]) : !id(body[key])))
           fail(400, 'HUMAN_CONTROL_REQUIRED', 'Use an exact original human control, identifiers and stable requestId, with explicit confirmation for mutations.');
         const binding = await bindingFor(identity, conversation, undefined, !['resume', 'continue'].includes(operation));
+        if (binding.client.readOnlySession && !['status', 'businessStatus'].includes(operation))
+          fail(403, 'SESSION_READONLY_EXECUTION_REFUSED', 'This existing Session client cannot mutate tasks or runs.');
         let value;
         if (operation.startsWith('business')) {
           const linked = store.read().runs.some(run => run.conversationId === conversationId && run.executionRefs?.some(ref => ref.taskId === body.taskId));
@@ -345,7 +355,9 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
           || body.workspaceExecution !== undefined && typeof body.workspaceExecution !== 'boolean' || typeof body.content !== 'string' || body.content.trimStart().startsWith('/') || !requestId(body.requestId) || looksLikeCredential(body.content)) fail(400, 'PUBLIC_TEXT_REQUIRED', 'Use public conversation text and a stable requestId; terminal commands remain in their original human control surface.');
         publicContext(body.inputContext);
         // Validate the existing Host binding before admitting the original run.
-        await bindingFor(identity, conversation);
+        const binding = await bindingFor(identity, conversation);
+        if (binding.client.readOnlySession && body.workspaceExecution === true)
+          fail(403, 'SESSION_READONLY_EXECUTION_REFUSED', 'This existing Session client authorizes business reads only.');
         const admitted = await runtime.sendMessage(conversationId, { content: body.content, requestId: body.requestId, inputContext: emptyInputContext(), workspaceExecution: true },
           { businessAgentContext: { ...identity, allowBusinessSubmit: body.workspaceExecution === true } });
         await respond(res, 202, admitted); return true;
@@ -368,6 +380,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         if (body.confirmed !== true || !requestId(body.requestId) || Object.keys(body).some(key => !['confirmed', 'requestId'].includes(key))) fail(400, 'HUMAN_CONFIRMATION_REQUIRED', 'Explicitly confirm continuing the unchanged original task with a stable requestId.');
         if (!refs().includes(taskId)) fail(404, 'NOT_FOUND', 'This conversation has no original task reference.');
         const binding = await bindingFor(identity, conversation);
+        if (binding.client.readOnlySession) fail(403, 'SESSION_READONLY_EXECUTION_REFUSED', 'This Session client cannot resume business tasks.');
         await respond(res, 200, await binding.client.businessResume(taskId, undefined, body.requestId)); return true;
       }
       return false;
