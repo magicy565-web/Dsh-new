@@ -21,7 +21,8 @@ export function workspaceOmpTerminalControlClient(client, { transport } = {}) {
 
 // UI transport only. Existing HTTP APIs and Runtime own all IDs, admission,
 // model requests, cancellation, task links, events and persisted results.
-export function createWorkspaceOmpTerminalClient({ baseURL, fetchImpl = fetch, requestImpl, conversationId: initialConversationId = null, pollIntervalMs = 250 } = {}) {
+export function createWorkspaceOmpTerminalClient({ baseURL, fetchImpl = fetch, requestImpl, conversationId: initialConversationId = null, pollIntervalMs = 250, expectedEngineScope = 'omp:18.10.4:public-v1' } = {}) {
+  if (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1'].includes(expectedEngineScope)) throw Error('Use the fixed reviewed OMP profile.');
   const base = new URL(baseURL), host = base.hostname.replace(/^\[|\]$/g, '');
   const localOrigin = base.protocol === 'http:' && (host === 'localhost' || host === '::1' || isIP(host) === 4 && host.startsWith('127.'));
   const enterprise = typeof requestImpl === 'function' && base.protocol === 'https:';
@@ -48,7 +49,7 @@ export function createWorkspaceOmpTerminalClient({ baseURL, fetchImpl = fetch, r
     if (pinnedIdentity && pinnedIdentity !== identity) throw new Error('Original terminal Session identity changed. No operation was admitted.');
     pinnedIdentity = identity;
     const runtime = await read('GET', '/api/conversations/runtime');
-    if (runtime.engine !== 'omp' || runtime.engineScope !== 'omp:18.10.4:public-v1' || runtime.frontend !== 'original-workspace-conversation-run')
+    if (runtime.engine !== 'omp' || runtime.engineScope !== expectedEngineScope || runtime.frontend !== 'original-workspace-conversation-run')
       throw new Error('The original host has no fixed OMP public frontend. No implicit Pi fallback or new Run is admitted.');
     return receipt;
   };

@@ -11,7 +11,10 @@ import { createOwnerRpcTransport } from '../tui/owner-rpc.mjs';
 const environment = process.env, cwd = environment.WS_AGENT_SESSION_DIR;
 if (environment.WORKSPACE_OMP_TERMINAL_DIAGNOSTIC === '1') console.error('OMP_TERMINAL_PREPARING');
 const nativeRequest = environment.WORKSPACE_OMP_SESSION_RPC_FD === '3' ? createOwnerRpcTransport(3) : null;
+const profile = environment.WORKSPACE_OMP_PROFILE || 'public';
+if (!['public', 'factory-materials'].includes(profile)) throw Error('Use a fixed reviewed OMP profile.');
 const transport = createWorkspaceOmpTerminalClient({ baseURL: environment.WS_AGENT_URL,
+  expectedEngineScope: profile === 'factory-materials' ? 'omp:18.10.4:factory-materials-v1' : 'omp:18.10.4:public-v1',
   ...(nativeRequest ? { requestImpl: nativeRequest } : {}), conversationId: environment.WORKSPACE_OMP_CONVERSATION_ID || null });
 if (nativeRequest) await transport.verifySession();
 const binding = existingBinding(environment);

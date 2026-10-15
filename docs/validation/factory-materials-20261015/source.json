@@ -1,0 +1,108 @@
+{
+  "baseline": "0036f87b963f16ee9ec247c96cbad53756a4e5a3",
+  "issue": 71,
+  "sourceFiles": [
+    {
+      "path": "server/factory-materials-read.mjs",
+      "sha256": "6abf67989496a5f8d147ea80eb67120b8ebc9da9f386eb320e894145f4d824f5"
+    },
+    {
+      "path": "server/factory-document-extract.mjs",
+      "sha256": "1ed72ee7292689306bc5d091fd7b980d5be80f8686bfb60f434fe12f368a334e"
+    },
+    {
+      "path": "server/factory-document-extract-worker.mjs",
+      "sha256": "da72c6a42acedf937ce1860e736808f621dd05ed6082148e9bc49abba696f539"
+    },
+    {
+      "path": "server/library-model-read.mjs",
+      "sha256": "c293db2abd3bae2b23994498d8f8d80f231b1003bea31f84b1966001ade061c1"
+    },
+    {
+      "path": "server/index.mjs",
+      "sha256": "14baef612cd4a3264aa43361685237a4029520e9b41790a0c52a5b07c518a1f1"
+    },
+    {
+      "path": "server/pi-business-agent.mjs",
+      "sha256": "bd35a075fab493e253e2b259f6adb3200612753a5ce35eb458597ee49b8a9098"
+    },
+    {
+      "path": "server/workspace-omp-bridge.mjs",
+      "sha256": "5eb4427e7bdf4911eacb3d4fb63f2c826b4991cdb6bdf831613e268960a2b792"
+    },
+    {
+      "path": "server/workspace-omp-worker.mjs",
+      "sha256": "14b2b441f94c97f66b99722c7ad6bacc413d5f3295117ac953ea7917ce8fd2a3"
+    },
+    {
+      "path": "server/workspace-omp-session.mjs",
+      "sha256": "7d768fd5c2fb081a1e2ee545c85540a9d0cb47f3164df910dbf78e9d52c09bfe"
+    },
+    {
+      "path": "server/workspace-omp-host.mjs",
+      "sha256": "f12a7ffc3a28b6f12f0696a25655fb496b250b436fea612afbe1129c5f3b4ca4"
+    },
+    {
+      "path": "server/workspace-omp-terminal-client.mjs",
+      "sha256": "e8b6e22bb9c6d554bb4f18e7363fa13b8233b238f7e62f311085f352a8b009a6"
+    },
+    {
+      "path": "server/workspace-omp-terminal-host.mjs",
+      "sha256": "4ffef1d1329e104c38e676c5dfb118d3b61ad00188c93eb6dc2ac7944537aeda"
+    },
+    {
+      "path": "scripts/workspace-omp.mjs",
+      "sha256": "4758f6463080e29bfc8ee07c2db58c41053b10ac2e21d7a6dd7b9ed1fb1aaa85"
+    },
+    {
+      "path": "scripts/workspace-omp-terminal.mjs",
+      "sha256": "c7c308b60425c582e43a10569feba8b1658163925f5ce29a7d0baea8add3aab5"
+    },
+    {
+      "path": "packages/workspace-procurement/src/workspace-factory-materials-client.mjs",
+      "sha256": "2122c035054354e10d5cda50f4bd9f713cddd47f9f884af859cb6f146e259a37"
+    },
+    {
+      "path": "packages/workspace-factory-materials/src/extension.js",
+      "sha256": "899ed4c18133a49fbd6cd475c6c8bbb7f54b0c959486ec2e6bce7925d7e1cbef"
+    },
+    {
+      "path": "packages/workspace-factory-materials/skills/factory-materials/SKILL.md",
+      "sha256": "f3d3062956696ea7112fb4f9f61bde5a62b0679f4dc155fcbd893e60053b9562"
+    }
+  ],
+  "actualOriginalLibraryAndWorkerTests": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0
+  },
+  "independentPackageTests": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0
+  },
+  "originalRegression": {
+    "passed": 70,
+    "failed": 0,
+    "skipped": 0
+  },
+  "typecheck": "passed",
+  "realModelCalls": 0,
+  "paidModelCalls": 0,
+  "productionActions": 0,
+  "realFactoryMaterials": false,
+  "existingSafeModelConfigurationVerified": false,
+  "originalCumulativeCny5AllowanceVerified": false,
+  "hostedCiPassed": false,
+  "omp43CurrentDiagnostic": {
+    "passed": 43,
+    "failed": 0,
+    "skipped": 0,
+    "testConcurrency": 1,
+    "twoEarlierCombinations": {
+      "passed": 42,
+      "failed": 1
+    },
+    "intermittentTerminalFailureRootCause": "not established"
+  }
+}

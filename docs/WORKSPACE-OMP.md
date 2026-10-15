@@ -2,6 +2,8 @@
 
 开发默认前端选定官方 `@oh-my-pi/pi-coding-agent@18.10.4`，Bun 固定1.3.14。Workspace原HTTP、身份、Session、Store、Runtime、审批、业务任务和Pi Durable阶段继续持有业务执行权威。OMP通过SDK和受控工厂插件调用这些原接口；不另建任务队列或执行同一业务任务的第二引擎。
 
+Issue #71另提供独立 [工厂资料插件](FACTORY-MATERIALS.md)：默认安装不授予私库访问。已认证原Host可在原Library审核策略中明确选择记录/字段/文件版本及接收模型，再用固定 `WORKSPACE_OMP_PROFILE=factory-materials` 选择单独的 `omp:18.10.4:factory-materials-v1` 会话。该资料配置禁用公开搜索/浏览器/公开子代理，每次模型调用前复核原journal全部资料回执。下文的公开材料、公开搜索及私库禁用说明指默认 `public-v1` 配置；不能把两种会话的历史互相迁移。
+
 ## 启动
 
 本轮固定运行器安装适用于Linux x64；实测Node24.19.0。先在开发检出中安装锁定依赖和必要运行器，安装器使用官方固定npm包并禁生命周期脚本，不安装语音／本地模型组件：

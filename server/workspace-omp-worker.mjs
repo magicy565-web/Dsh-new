@@ -15,7 +15,13 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
-  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: true, lifecycleSignal: lifecycle.signal,
+  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials,
+    materialsClient: config.factoryMaterials ? {
+      status: (_signal, model) => request('factoryMaterialsStatus', [model]),
+      materials: (input, _signal, model) => request('factoryMaterialsRead', [input, model]),
+      document: (input, _signal, model) => request('factoryDocumentRead', [input, model]),
+      revalidateReceipt: (receipt, model) => request('factoryMaterialsRevalidate', [receipt, model]),
+    } : null, lifecycleSignal: lifecycle.signal,
     authorize: () => request('authorize'), onModelRequest: event => request('modelRequest', [event]),
     onModelAbort: () => { if (config.syntheticResponses) write({ type: 'nativeModelAbort' }); },
     onModelWaiting: () => { if (config.syntheticResponses) write({ type: 'nativeModelWaiting' }); } }));
@@ -26,7 +32,7 @@ async function start(config) {
   // The official journal's missing-file fingerprint must remain intact.
   // Use its explicit persistence API; never write a fabricated/external header.
   await created.manager.ensureOnDisk(); await created.manager.flush();
-  await request('saveSession', [{ engineScope: OMP_ENGINE_SCOPE, agentSessionId: created.manager.getSessionId(), sessionFile: created.manager.getSessionFile() }]);
+  await request('saveSession', [{ engineScope: created.engineScope, agentSessionId: created.manager.getSessionId(), sessionFile: created.manager.getSessionFile() }]);
   const startIndex = created.session.messages.length;
   await created.session.prompt(config.content, { expandPromptTemplates: false });
   await request('authorize'); await created.manager.flush();
@@ -36,7 +42,7 @@ async function start(config) {
   if (usage.completionTokens !== null && usage.completionTokens > config.maxTokens) throw new Error('OMP exceeded the original reserved output allowance.');
   write({ type: 'result', result: { content: JSON.stringify({ done: true, content: created.session.getLastAssistantText() }),
     usage,
-    runtime: { kind: 'pi-durable', execution: 'agent-session', engine: 'omp', engineScope: OMP_ENGINE_SCOPE,
+    runtime: { kind: 'pi-durable', execution: 'agent-session', engine: 'omp', engineScope: created.engineScope,
       agentSessionId: created.manager.getSessionId(), modelCalls: created.modelCalls(), originalRunId: config.runId } } });
   await created.close(); input.close(); process.exit(0);
 }

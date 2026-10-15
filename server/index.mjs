@@ -111,7 +111,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
     businessLibrary = createBusinessLibraryService({ store, artifacts, clock: accessClock });
-    libraryModelRead = createLibraryModelRead({ library: businessLibrary, access, policy: libraryModelReadPolicy, clock: accessClock });
+    libraryModelRead = createLibraryModelRead({ library: businessLibrary, artifacts, access, policy: libraryModelReadPolicy, clock: accessClock });
     dotAuth = dotWorkerConfig && createDotWorkerAuth({ tokenDigest: dotWorkerConfig.tokenDigest });
     if (dotWorkerConfig?.enabled === true && !dotAuth)
       throw new TypeError('A reviewed dot Worker cannot be enabled without a pinned plugin bearer token.');
@@ -183,7 +183,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     }
     if (businessAgent) {
       if (!builtinAgent && !businessAgentOptions.engineAdapter) throw new Error('The business conversation adapter requires the original configured Agent member service.');
-      businessAgent.attach({ store, runtime, access, instanceId });
+      businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead });
     }
   } catch (error) { await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });

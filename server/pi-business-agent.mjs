@@ -8,6 +8,7 @@ import { WORKSPACE_AGENT_TOOLS } from '../pi/extensions/workspace.mjs';
 import { libraryReadHash, normalizeLibraryRecipient, libraryRecipientForModel } from './library-model-read-contract.mjs';
 import { emptyInputContext, normalizeInputContext } from './task-context.mjs';
 import { looksLikeCredential } from './security.mjs';
+import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { ApiError } from './runtime.mjs';
 import { ProviderError } from './provider.mjs';
 import { privateDirectory, openPrivateFile, syncDirectory } from './store.mjs';
@@ -36,11 +37,11 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     || options.resolveControlBinding !== undefined && typeof options.resolveControlBinding !== 'function')
     throw new TypeError('Use the existing Pi provider and a trusted existing member binding resolver.');
   const engineAdapter = options.engineAdapter;
-  if (engineAdapter && (engineAdapter.scope !== 'omp:18.10.4:public-v1' || typeof engineAdapter.complete !== 'function'))
+  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
-  let store, runtime, access, instanceId;
+  let store, runtime, access, instanceId, libraryModelRead;
   function current(idValue) { const record = store.read().conversations.find(row => row.id === idValue); if (!record) fail(404, 'NOT_FOUND', 'Conversation not found.'); return record; }
   function actor(context, write = false) {
     if (!context?.subject || !context.workspaceId) fail(401, 'SESSION_REQUIRED', 'Use the original Workspace Session.');
@@ -119,7 +120,22 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       // official OMP SDK transport; it introduces no business queue or ledger.
       const isolated = path.join(store.directory, 'omp-agent-context', hash(conversation.id));
       await privateDirectory(isolated);
-      return engineAdapter.complete({ input, run, binding, client, authorize, isolationDirectory: isolated,
+      const materialsClient = engineAdapter.scope === 'omp:18.10.4:factory-materials-v1' ? createWorkspaceFactoryMaterialsClient({ recipient,
+        request: async (route, init) => {
+          await authorize();
+          const url = new URL(route, 'https://original-library.invalid');
+          if (!url.pathname.startsWith('/api/library/model-read/factory/') || init.method !== 'GET') throw Error('Only the original read-only factory Library projection is admitted.');
+          try {
+            const value = await libraryModelRead.readFactoryForSession({ identity, recipientHash: init.headers['X-Workspace-Library-Recipient'],
+              suffix: url.pathname.slice('/api/library/model-read/factory/'.length), query: url.searchParams, signal: input.signal });
+            await authorize();
+            return new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } });
+          } catch (error) {
+            if (![401, 403, 404, 409].includes(error.status)) throw error;
+            return new Response('{}', { status: error.status, headers: { 'content-type': 'application/json' } });
+          }
+        } }) : null;
+      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();
@@ -210,12 +226,12 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   } });
   return {
     provider,
-    attach(dependencies) { ({ store, runtime, access, instanceId } = dependencies); },
+    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead } = dependencies); },
     async handle({ req, res, pathname, context, readBody, respond }) {
       if (req.method === 'GET' && pathname === '/api/conversations/runtime') {
         actor(context);
         await respond(res, 200, { engine: engineAdapter ? 'omp' : 'pi', engineScope: engineAdapter?.scope || 'pi:1.1.0',
-          frontend: 'original-workspace-conversation-run', privateLibrary: engineAdapter ? 'disabled' : 'original-controlled-policy' });
+          frontend: 'original-workspace-conversation-run', privateLibrary: engineAdapter?.scope === 'omp:18.10.4:factory-materials-v1' ? 'original-reviewed-session-policy-required' : engineAdapter ? 'disabled' : 'original-controlled-policy' });
         return true;
       }
       if (req.method === 'POST' && pathname === '/api/conversations') {

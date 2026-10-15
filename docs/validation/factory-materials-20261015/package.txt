@@ -1,0 +1,13 @@
+✔ copied factory materials package uses official Pi manifest, Skill, disable and remove with no injected private access (2967.6506ms)
+✔ copied factory materials package uses official OMP local link, manifest, Skill, disable and uninstall (28593.614052ms)
+✔ official pi SDK executes injected factory material tools, authorization refusal and recovery with finite keyless receipts (686.18858ms)
+✔ official omp SDK executes injected factory material tools, authorization refusal and recovery with finite keyless receipts (1578.833133ms)
+✔ partial injection grants no access and runtime selectors remain narrow before dispatch (1.411062ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33889.222331

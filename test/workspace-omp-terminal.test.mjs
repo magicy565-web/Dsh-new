@@ -123,7 +123,7 @@ test('default official terminal stays interactive without credentials and displa
   command('/ws-task {"title":"Public","content":"Public text","requestId":"ui-no-host-review"}');
   await until(() => raw.includes('EXISTING_WORKSPACE_BINDING_REQUIRED'), 'Unconfigured original command should return its binding gap.');
   assert.equal(f.app.store.read().runs.length, 0); assert.equal(f.faux.state.callCount, 0);
-  command('/quit'); await until(() => terminalExit !== undefined, 'Unconfigured official UI did not close.'); assert.equal(terminalExit, 0); assert.equal((await exit)[0], 0);
+  command('/quit'); await until(() => terminalExit !== undefined, 'Unconfigured official UI did not close.'); assert.equal(terminalExit, 0, raw.slice(-6000)); assert.equal((await exit)[0], 0, raw.slice(-6000));
 });
 
 test('official terminal human stop confirmation preserves the original Run on Escape, then natively cancels that exact Run', { timeout: 45000 }, async t => {
@@ -158,5 +158,5 @@ test('official terminal human stop confirmation preserves the original Run on Es
   assert.ok(lifecycle.some(event => event.phase === 'nativeModelAbort')); assert.equal(f.app.store.read().runs.length, 1); assert.equal(f.app.store.read().runs[0].id, runId);
   assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0); assert.equal(f.faux.state.callCount, 0);
   await until(() => raw.includes('"status": "cancelled"'), 'Original cancellation receipt was not displayed in the official UI.');
-  command('/quit'); await until(() => terminalExit !== undefined, 'Official stop UI did not close.'); assert.equal(terminalExit, 0); assert.equal((await exit)[0], 0);
+  command('/quit'); await until(() => terminalExit !== undefined, 'Official stop UI did not close.'); assert.equal(terminalExit, 0, raw.slice(-6000)); assert.equal((await exit)[0], 0, raw.slice(-6000));
 });

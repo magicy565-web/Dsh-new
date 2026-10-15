@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { factoryMaterialsExtension, FACTORY_MATERIAL_TOOLS } from '../packages/workspace-factory-materials/src/extension.js';
 import { factoryExtension } from '../packages/workspace-procurement/src/extension.js';
 import { ORDINARY_FACTORY_TOOLS } from '../packages/workspace-procurement/src/extension.js';
 import { workspaceOmpPublicProfile } from './workspace-omp-public-profile.mjs';
@@ -30,8 +31,10 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
   maxModelCalls = 4, maxTokens = 1600, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal,
+  factoryMaterials = false, materialsClient = null, engineScope = factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
+  if (engineScope !== (factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : OMP_ENGINE_SCOPE) || factoryMaterials && (!materialsClient || ordinaryTools || uiOnly)) throw Error('Use the fixed original factory materials Session profile.');
   lifecycleSignal?.throwIfAborted();
   if (!configuration?.providerId || !configuration.model || !configuration.baseUrl || !uiOnly && !syntheticResponses && !configuration.apiKey)
     throw new Error('Workspace OMP model configuration is unconfigured. No sample, account or alternate model is selected.');
@@ -55,10 +58,14 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const selectedSkillRoot = path.join(agentDir, 'workspace-selected-skills');
   await fs.mkdir(path.join(selectedSkillRoot, 'factory'), { recursive: true, mode: 0o700 });
   await fs.copyFile(path.join(factorySkillDirectory, 'SKILL.md'), path.join(selectedSkillRoot, 'factory/SKILL.md'));
+  if (factoryMaterials) {
+    await fs.mkdir(path.join(selectedSkillRoot, 'factory-materials'), { recursive: true, mode: 0o700 });
+    await fs.copyFile(new URL('../packages/workspace-factory-materials/skills/factory-materials/SKILL.md', import.meta.url), path.join(selectedSkillRoot, 'factory-materials/SKILL.md'));
+  }
   const selectedSkills = await sdk.loadSkillsFromDir({ dir: selectedSkillRoot, source: 'custom:project' });
   assert.deepEqual(selectedSkills.warnings, []);
-  assert.deepEqual(selectedSkills.skills.map(skill => skill.name), ['workspace-factory']);
-  const factorySkillContent = await fs.readFile(path.join(factorySkillDirectory, 'SKILL.md'), 'utf8');
+  assert.deepEqual(selectedSkills.skills.map(skill => skill.name).sort(), factoryMaterials ? ['workspace-factory', 'workspace-factory-materials'] : ['workspace-factory']);
+  const factorySkillContent = await fs.readFile(path.join(factorySkillDirectory, 'SKILL.md'), 'utf8') + (factoryMaterials ? '\n' + await fs.readFile(new URL('../packages/workspace-factory-materials/skills/factory-materials/SKILL.md', import.meta.url), 'utf8') : '');
   const authStorage = await sdk.AuthStorage.create(agentDir + '/auth.db');
   let publicExtension, publicTask, created, cleanupPromise, closePromise;
   const cleanup = () => cleanupPromise ??= (async () => {
@@ -67,6 +74,27 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   })();
   try {
   const modelRegistry = new sdk.ModelRegistry(authStorage, agentDir + '/no-ambient-models.yml', { settings, ignoreLocalModelConfig: true });
+  let manager;
+  async function revalidateFactoryContext(messages, model, signal) {
+    if (!factoryMaterials) return;
+    for (const message of messages) {
+      if (message?.role !== 'toolResult' || !FACTORY_MATERIAL_TOOLS.includes(message.toolName)) continue;
+      let receipt;
+      try { receipt = JSON.parse((message.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n')); }
+      catch {
+        // Official schema validation can fail before the extension runs. Such
+        // errors have no data receipt; successful/partial material receipts in
+        // every other journal entry are still revalidated below.
+        if (message.isError === true && message.details === undefined) continue;
+        throw Error('Factory cached receipt is malformed; no model disclosure is admitted.');
+      }
+      if (receipt.plugin !== 'workspace-factory-materials') throw Error('Factory cached receipt provenance changed.');
+      if (['unconfigured', 'blocked', 'unavailable'].includes(receipt.status) && Object.keys(receipt).every(key => ['plugin', 'status', 'reason', 'sources', 'detail'].includes(key))
+        && Array.isArray(receipt.sources) && receipt.sources.length === 0) continue;
+      if (!receipt.authorization) throw Error('Factory cached receipt has no exact original authorization.');
+      await authorize(); await materialsClient.revalidateReceipt(receipt, model, signal); await authorize();
+    }
+  }
   let modelCalls = 0; const completedUsage = new Map();
   const customApi = uiOnly ? 'workspace-omp-ui-only-disabled' : syntheticResponses ? 'workspace-omp-explicit-faux' : 'workspace-omp-pinned-openai';
   const buildSynthetic = (spec, model, callNumber) => {
@@ -92,6 +120,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       void (async () => {
         if (uiOnly) throw new Error('This official terminal is UI-only. Model execution must use the original Workspace Conversation/Run HTTP authority.');
         await authorize();
+        await revalidateFactoryContext([...(manager?.getEntries() || []).map(e => e.message), ...(context.messages || [])], model, options?.signal);
         const callNumber = ++modelCalls;
         if (callNumber > maxModelCalls || model.provider !== configuration.providerId || model.id !== configuration.model || model.baseUrl !== configuration.baseUrl)
           throw new Error('The original admitted request count or pinned OMP receiver changed.');
@@ -128,20 +157,20 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       return stream;
     },
   });
-  const manager = savedSession ? await sdk.SessionManager.open(savedSession.sessionFile, sessionDirectory)
+  manager = savedSession ? await sdk.SessionManager.open(savedSession.sessionFile, sessionDirectory)
     : await sdk.SessionManager.create(cwd, sessionDirectory);
-  if (savedSession && (savedSession.engineScope !== OMP_ENGINE_SCOPE || manager.getSessionId() !== savedSession.agentSessionId || path.resolve(manager.getCwd()) !== cwd))
+  if (savedSession && (savedSession.engineScope !== engineScope || manager.getSessionId() !== savedSession.agentSessionId || path.resolve(manager.getCwd()) !== cwd))
     throw new Error('This is not the current OMP public-only transcript; Pi/private history cannot migrate.');
   const { EventBus } = await import(pathToFileURL(path.join(packageRoot, 'src/utils/event-bus.ts')).href);
   const eventBus = new EventBus(), subagentEventBus = new EventBus();
   const toolSession = { cwd, settings, authStorage, modelRegistry, eventBus, subagentEventBus, getSessionId: () => manager.getSessionId(),
     getSessionFile: () => manager.getSessionFile(), getArtifactsDir: () => cwd };
-  publicExtension = !uiOnly && !ordinaryTools ? await createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, signal: lifecycleSignal,
+  publicExtension = !uiOnly && !ordinaryTools && !factoryMaterials ? await createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, signal: lifecycleSignal,
     configuration: publicTools, fetchImpl: createWorkspaceOmpSyntheticPublicFetch({ responses: syntheticPublicSearchResponses, explicitFaux: Boolean(syntheticResponses) }) })
     : { tools: [], toolNames: [], capabilities: { status: 'not-enabled-in-ui-only-or-ordinary-host' }, close: async () => {} };
-  publicTask = !uiOnly && !ordinaryTools ? await createWorkspaceOmpPublicTask({ packageRoot, toolSession, configuration, authorize })
+  publicTask = !uiOnly && !ordinaryTools && !factoryMaterials ? await createWorkspaceOmpPublicTask({ packageRoot, toolSession, configuration, authorize })
     : { tools: [], toolNames: [], close: async () => {} };
-  const admittedTools = [...ORDINARY_FACTORY_TOOLS, ...(factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames];
+  const admittedTools = [...ORDINARY_FACTORY_TOOLS, ...(factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : [])];
   if (savedSession && !ordinaryTools) {
     for (const entry of manager.getEntries()) {
       const message = entry.message;
@@ -164,7 +193,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     model: uiOnly ? sdk.finalizeCustomModel(sdk.buildCustomModelOverlay(configuration.providerId, configuration.baseUrl, customApi,
       undefined, undefined, undefined, undefined, undefined, undefined, modelDefinition), { useDefaults: true })
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
-    extensions: [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration }),
+    extensions: [...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration }),
       pi => [...publicExtension.tools, ...publicTask.tools].forEach(tool => pi.registerTool(tool)),
       ...ordinaryTools ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
     disableExtensionDiscovery: true, skills: selectedSkills.skills, appendSystemPrompt: factorySkillContent,
@@ -173,9 +202,15 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     ...ordinaryTools ? {} : { toolNames: [] }, spawns: '', hasUI, autoTitle: false, interactivePrompts: hasUI, eventBus, subagentEventBus,
     cacheWarming: false, allowSessionModelFallback: false });
   const session = created.session;
+  if (factoryMaterials) {
+    const { initializeExtensions } = await import(pathToFileURL(path.join(packageRoot, 'src/modes/runtime-init.ts')).href);
+    await initializeExtensions(session, { reportSendError: () => {}, reportRuntimeError: () => {},
+      filterActiveTools: names => names.filter(name => admittedTools.includes(name)) });
+    await revalidateFactoryContext(manager.getEntries().map(e => e.message), session.model, lifecycleSignal);
+  }
   assert.deepEqual(created.extensionsResult.errors, []);
   for (const forbidden of ['workspace_company_profile', 'workspace_products', 'workspace_product']) assert.ok(!session.getActiveToolNames().includes(forbidden));
-  return { ...created, sdk, authStorage, modelRegistry, manager, modelCalls: () => modelCalls,
+  return { ...created, sdk, authStorage, modelRegistry, manager, engineScope, modelCalls: () => modelCalls,
     publicCapabilities: publicExtension.capabilities,
     usage() {
       const sum = key => completedUsage.size === modelCalls && [...completedUsage.values()].every(row => Number.isSafeInteger(row?.[key]) && row[key] >= 0)

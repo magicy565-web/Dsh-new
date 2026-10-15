@@ -82,7 +82,7 @@ export async function main(args = process.argv.slice(2), environment = process.e
   const terminalEnvironment = { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: home, TMPDIR: home,
     PI_CODING_AGENT_DIR: home + '/agent', PI_NO_TITLE: '1', WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot,
     WS_AGENT_URL: baseURL, WS_AGENT_SESSION_DIR: home };
-  for (const key of ['WS_AGENT_TOKEN', 'PI_PROVIDER', 'PI_MODEL', 'PI_BASE_URL'])
+  for (const key of ['WS_AGENT_TOKEN', 'PI_PROVIDER', 'PI_MODEL', 'PI_BASE_URL', 'WORKSPACE_OMP_PROFILE'])
     if (environment[key]) terminalEnvironment[key] = environment[key];
   const terminal = spawn(paths.bun, [path.join(root, 'scripts/workspace-omp-terminal.mjs')], { cwd: home, env: terminalEnvironment, stdio: 'inherit' });
   children.add(terminal);

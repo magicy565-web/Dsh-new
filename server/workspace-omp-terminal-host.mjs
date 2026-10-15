@@ -50,7 +50,7 @@ export async function launchWorkspaceOmpWithExistingSession({ origin, session, c
     PI_CODING_AGENT_DIR: home + '/agent', WS_AGENT_SESSION_DIR: home, PI_NO_TITLE: '1',
     WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WORKSPACE_OMP_SESSION_RPC_FD: '3', WS_AGENT_URL: origin,
     ...(conversationId ? { WORKSPACE_OMP_CONVERSATION_ID: conversationId } : {}) };
-  for (const key of ['LANG', 'LC_ALL', 'TERM', 'COLORTERM', 'PI_PROVIDER', 'PI_MODEL', 'PI_BASE_URL']) if (environment[key]) env[key] = environment[key];
+  for (const key of ['LANG', 'LC_ALL', 'TERM', 'COLORTERM', 'PI_PROVIDER', 'PI_MODEL', 'PI_BASE_URL', 'WORKSPACE_OMP_PROFILE']) if (environment[key]) env[key] = environment[key];
   let child;
   try {
     child = spawn(paths.bun, [fileURLToPath(new URL('../scripts/workspace-omp-terminal.mjs', import.meta.url))], {
