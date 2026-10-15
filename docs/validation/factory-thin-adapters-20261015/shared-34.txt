@@ -1,0 +1,42 @@
+✔ cancel aborts the original running stage, retains documents/budget, persists across restart and cannot resume or replace the task (705.461084ms)
+✔ new business lifecycle routes retain member isolation and reject changed input and invalid stable request IDs (134.278284ms)
+✔ same stable business resume request reuses original checkpoint, prior document and budget across concurrency and another restart (737.81035ms)
+✔ cancel fencing prevents a stage whose admission was already awaiting continuation from creating a replacement run (111.069058ms)
+✔ a partial Runtime stop failure is not a successful cancellation receipt, and retry stops the same fenced original run (408.200712ms)
+✔ shipped local library connector works without custom adapter injection, credentials or network (226.619837ms)
+✔ one conversation goal consumes pinned inputs, waits for approval, executes real local action and saves final file (300.181618ms)
+✔ library HTTP products: durable same-transaction receipts, replay, revision conflict and restart (216.739329ms)
+✔ library HTTP concurrent duplicate requests create one entity and keep both responses correlated (42.307206ms)
+✔ library HTTP query paging is bounded, typed and bound to query and sequence (81.390757ms)
+✔ library HTTP documents: exact real bytes, history, immutable association, staged retention and delete protection (181.634809ms)
+✔ library HTTP link/delete race cannot commit a dangling reference; preexisting artifacts are claimed internal (56.836018ms)
+✔ library HTTP asset links require saved hash and real bytes, never external URLs or file paths (54.323884ms)
+✔ library HTTP SKU, decimal pricing, image and fields validation retain valid drafts and reject unsafe input (73.390624ms)
+✔ library HTTP readiness distinguishes missing, unknown, expired, human verification and internal review (138.733279ms)
+✔ library HTTP a complete draft is only ready for internal review; image refs and administrator evidence persist (138.810243ms)
+✔ library HTTP durable receipt capacity fails closed and never forgets past requestIds (618.218984ms)
+✔ library enterprise HTTP: viewer read-only, operator CRUD, admin exact-version reviews, CSRF and actor binding (250.288088ms)
+✔ library public provenance remains locked after local edits and cannot masquerade as enterprise supply or qualification (231.66501ms)
+✔ library public source inputs reject credential URLs, local hosts, incomplete captures and forged certificate metadata (49.743239ms)
+✔ library conversation references save exact selections with independent revisions, receipts, stale resolution and restart (126.579219ms)
+✔ real HTTP private conversation references persist locally and never enter bootstrap or scripted model requests (430.704329ms)
+✔ real HTTP conversation bindings grant no generic input-context access to any private physical version (134.872167ms)
+✔ real HTTP exact local connector approvals cannot read or overwrite files through conversation bindings (186.1417ms)
+✔ real HTTP public reference provenance never makes its stored physical document automatic model input (60.390234ms)
+✔ unchanged Worker adapter rejects private-reference fields without dispatching an executor (1.553234ms)
+✔ real v3 library API data, public provenance and pinned conversation references survive verified backup and restore (369.268879ms)
+✔ earlier v3 backups missing conversation references verify and restore without schema migration or source loss (22.959378ms)
+✔ business adapter executes four original procurement Pi stages, stable replay, actual events and authenticated document bytes (713.694851ms)
+✔ business input rejects host authority, file/model/budget selectors and credentials before admission (47.297543ms)
+✔ research presets remain visibly blocked without configured search and preserve available partial documents (205.002833ms)
+✔ business artifact reads tolerate one original failure and cannot follow metadata URLs or arbitrary names (542.962207ms)
+✔ original enterprise task ownership, submit scope and expired binding refuse business reads and continuation (435.008794ms)
+✔ official frontend Agent dispatches a registered business tool to original HTTP and reads the actual task receipt (396.690838ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6171.176729

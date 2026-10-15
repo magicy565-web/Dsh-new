@@ -1,0 +1,172 @@
+{
+  "baseline": "34ebf77d57385ed5d2a5e373d69795ad439a30cb",
+  "originalPreSimplification": "d4b0790854e6182f9edf40fe75ce69bd9c50f7ca",
+  "environment": "same saved cloud /workspace/workspace-pi-business-thread-20261014",
+  "relatedFullRegression": {
+    "passed": 118,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "seconds": 245.643426453,
+    "command": "node --test --test-concurrency=1 test/workspace-omp*.test.mjs test/factory*.test.mjs test/pi-library-read.test.mjs test/pi-business-conversation.native.test.mjs"
+  },
+  "sharedOriginalRegression": {
+    "passed": 34,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "seconds": 6.171176729,
+    "command": "node --test test/pi-workspace-business.test.mjs test/agent-business-lifecycle.test.mjs test/business-flows.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs"
+  },
+  "finalExactAllowlistsAndCache": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "seconds": 25.921042468,
+    "command": "node --test test/workspace-omp-factory-inquiries.test.mjs test/workspace-omp-factory-customers.test.mjs",
+    "overlapsFullRegression": true,
+    "newWholeJournalForgedExtraction": true
+  },
+  "typecheck": {
+    "command": "npm run typecheck",
+    "exitCode": 0
+  },
+  "startup": {
+    "withinRelated118": true,
+    "cases": 4,
+    "childEnvironment": "isolated explicit environment and new empty HOME; no real keys",
+    "modelCalls": 0,
+    "paidModelCalls": 0,
+    "libraryStatus": "original-reviewed-session-policy-required in private profiles"
+  },
+  "modelEvidence": {
+    "officialRuntime": [
+      "Pi1.1.0",
+      "OMP18.10.4",
+      "Bun1.3.14"
+    ],
+    "choicesAndBodies": "finite explicit keyless fixtures only; no proof of intelligent real-model writing or selection",
+    "realModelCalls": 0,
+    "paidModelCalls": 0,
+    "realEnterpriseMaterial": false,
+    "newRealPublicSourceRequest": false
+  },
+  "skillEvidence": {
+    "officialLoader": "sdk.loadSkillsFromDir",
+    "onDemandReader": "constrained workspace_skill -> official skill:// resolver + native ReadTool",
+    "entireSkillPromptDuplicatedInCustomProfiles": false,
+    "fixedCommunityCommit": "55ff469422c3592dac45bcad08dfb40221981c02",
+    "localSkillAndMitLicenseBytesMatchRecordedPins": true,
+    "thirdPartyCodeInstalledOrExecuted": false
+  },
+  "runtimeDiff": {
+    "scope": [
+      "packages/workspace-factory-customers/src/extension.js",
+      "packages/workspace-factory-inquiries/src/drafts.mjs",
+      "packages/workspace-factory-inquiries/src/extension.js",
+      "server/factory-customer-drafts.mjs",
+      "server/factory-inquiries.mjs",
+      "server/pi-business-agent.mjs",
+      "server/workspace-omp-bridge.mjs",
+      "server/workspace-omp-session.mjs",
+      "server/workspace-omp-worker.mjs"
+    ],
+    "perFile": [
+      {
+        "path": "packages/workspace-factory-customers/src/extension.js",
+        "added": 40,
+        "deleted": 147
+      },
+      {
+        "path": "packages/workspace-factory-inquiries/src/drafts.mjs",
+        "added": 24,
+        "deleted": 104
+      },
+      {
+        "path": "packages/workspace-factory-inquiries/src/extension.js",
+        "added": 28,
+        "deleted": 46
+      },
+      {
+        "path": "server/factory-customer-drafts.mjs",
+        "added": 52,
+        "deleted": 0
+      },
+      {
+        "path": "server/factory-inquiries.mjs",
+        "added": 70,
+        "deleted": 82
+      },
+      {
+        "path": "server/pi-business-agent.mjs",
+        "added": 16,
+        "deleted": 1
+      },
+      {
+        "path": "server/workspace-omp-bridge.mjs",
+        "added": 7,
+        "deleted": 5
+      },
+      {
+        "path": "server/workspace-omp-session.mjs",
+        "added": 47,
+        "deleted": 26
+      },
+      {
+        "path": "server/workspace-omp-worker.mjs",
+        "added": 2,
+        "deleted": 2
+      }
+    ],
+    "added": 286,
+    "deleted": 413,
+    "net": -127
+  },
+  "sourceFiles": [
+    {
+      "path": "packages/workspace-factory-customers/src/extension.js",
+      "sha256": "7b26c4daa8081a482fe45b58cb83dd1a734afece556657e50c9b88bebed21296"
+    },
+    {
+      "path": "packages/workspace-factory-inquiries/src/drafts.mjs",
+      "sha256": "a55f3f9d7e34c9eb5050f9a227abe633c5dd547d39f9ca0fdef1275f85cb1cf0"
+    },
+    {
+      "path": "packages/workspace-factory-inquiries/src/extension.js",
+      "sha256": "f06b0724dfa9d91d97786184e2bd05809ba5ee0678f5a402d731a550f83fdbaf"
+    },
+    {
+      "path": "server/factory-customer-drafts.mjs",
+      "sha256": "2425a2f21db9d345e7a81dbbdf1345d008da971a82dc4f40006673b73bea74f5"
+    },
+    {
+      "path": "server/factory-inquiries.mjs",
+      "sha256": "63ede6560a6a80b6fc7076e8e48846b54402ac519b0c94d26d70c765e6c9f5ff"
+    },
+    {
+      "path": "server/pi-business-agent.mjs",
+      "sha256": "ac0d304c2e82a7f2c3740379bc4f342ade9710e5a9bfaf4aaab4f0510e34d3f8"
+    },
+    {
+      "path": "server/workspace-omp-bridge.mjs",
+      "sha256": "06ea892f5441ff3c75b51105880e40bee17c12793691be8791c193864b0b0226"
+    },
+    {
+      "path": "server/workspace-omp-session.mjs",
+      "sha256": "40321cb534bdd61690fa7df4aba93d941a256d48dd4ece44f8b16e73579d7268"
+    },
+    {
+      "path": "server/workspace-omp-worker.mjs",
+      "sha256": "c2e08a71f9a562cce7ceed21979543cb5155ae2b81eb2712d4a6c5f9f5ab36ab"
+    }
+  ],
+  "remaining": [
+    "real material/receiver authorization",
+    "safe existing model and verified original cumulative CNY5 allowance",
+    "real public sources refused",
+    "historical TUI intermittent root causes unknown",
+    "hosted Actions startup_failure tracked by #16",
+    "seven-day future notification consent unapproved, undeveloped"
+  ]
+}

@@ -39,6 +39,11 @@ test('model-written one or several drafts preserve exact body and original sourc
   const replay = await client.save(input, undefined, MODEL); assert.equal(replay.artifacts[0].artifactId, first.artifacts[0].artifactId); assert.equal(replay.artifacts[0].duplicate, true);
   await client.revalidateReceipt(first, MODEL);
   await assert.rejects(client.revalidateReceipt({ ...first, humanReviewed: true }, MODEL), /approval/);
+  for (const forged of [{ ...first, extraPrivatePayload: 'UNADMITTED_CACHE_DATA' },
+    { ...first, extraction: { ...first.extraction, notice: 'UNADMITTED_CACHE_DATA' } },
+    { ...first, input: { ...first.input, extraPrivatePayload: 'UNADMITTED_CACHE_DATA' } },
+    { ...first, artifacts: [{ ...first.artifacts[0], extraPrivatePayload: 'UNADMITTED_CACHE_DATA' }] }])
+    await assert.rejects(client.revalidateReceipt(forged, MODEL), /unvalidated|changed/);
   await assert.rejects(makeClient(randomUUID()).revalidateReceipt(first, MODEL), /scope changed/);
   const two = await saveInput(f, [{ name: 'requirements.md', content: 'Missing quantity; destination must be confirmed.' }, { name: 'reply.md', content: 'Please clarify your requested product size.' }]);
   const second = await client.save({ ...two, requestId: 'two-needed-documents' }, undefined, MODEL); assert.equal(second.artifacts.length, 2);

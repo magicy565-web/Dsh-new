@@ -22,6 +22,7 @@ async function fixture(t, { mode = 'reply' } = {}) {
       { tool: 'workspace_factory_materials', arguments: { productId: data.product.id } },
       ...(mode === 'ask' ? [] : [{ tool: 'workspace_factory_inquiry_save', arguments: { ...selection, documents, requestId: 'same-model-draft' }, sourcesFromPreviousTools: true }]),
       { text: mode === 'ask' ? 'Which quantity and destination should we assess? No draft saved because these details are missing.' : 'The model-written reply is saved as an unreviewed draft. No message was sent.' }];
+    responses[0].expectedToolNames = ['workspace_factory_materials_status', 'workspace_factory_materials', 'workspace_factory_document', 'workspace_factory_inquiry_save', 'workspace_skill'];
     return { recipient: RECIPIENT,
       engineAdapter: createWorkspaceOmpEngineAdapter({ paths: workspaceOmpPaths(), factoryInquiries: true, onWorkerLifecycle: event => lifecycle.push(event),
         configuration: { providerId: MODEL.provider, model: MODEL.id, baseUrl: MODEL.baseUrl }, syntheticResponses: responses }),
@@ -72,6 +73,20 @@ test('actual inquiry whole-journal replay refuses changed original source before
   const next = await send(f, cid, false); assert.equal(next.status, 'failed');
   assert.equal(next.events.filter(e => e.type === 'pi.agent-session.request').length, 0);
   assert.equal(f.app.store.read().artifacts.filter(a => a.metadata.factoryInquiry).length, 0);
+});
+
+test('the original whole-journal guard refuses a forged saved extraction receipt before any further model request', { timeout: 60000 }, async t => {
+  const f = await fixture(t), cid = await create(f), first = await send(f, cid, true); assert.equal(first.status, 'succeeded', JSON.stringify(first));
+  const mapping = f.app.store.read().conversations.find(c => c.id === cid).businessAgentSession;
+  const rows = (await fs.readFile(mapping.sessionFile, 'utf8')).trim().split('\n').map(s => JSON.parse(s));
+  const saved = rows.find(e => e.message?.role === 'toolResult' && e.message.toolName === 'workspace_factory_inquiry_save').message;
+  const forged = structuredClone(saved.details); forged.extraction.notice = 'UNADMITTED_CACHED_EXTRACTION_TEXT';
+  await fs.appendFile(mapping.sessionFile, JSON.stringify({ type: 'message', id: randomUUID(), parentId: rows.at(-1).id,
+    timestamp: new Date().toISOString(), message: { ...saved, toolCallId: 'synthetic-forged-cache', details: forged,
+      content: [{ type: 'text', text: JSON.stringify(forged) }] } }) + '\n');
+  const refused = await send(f, cid, false); assert.equal(refused.status, 'failed');
+  assert.equal(refused.events.filter(e => e.type === 'pi.agent-session.request').length, 0);
+  assert.equal(f.app.store.read().artifacts.filter(a => a.metadata.factoryInquiry).length, 1);
 });
 
 test('original HTTP cancellation before an inquiry artifact commit preserves original inputs and creates no draft file', { timeout: 60000 }, async t => {

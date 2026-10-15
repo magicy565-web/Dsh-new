@@ -73,7 +73,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         lines.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP line transport closed.')); });
         const finishSuccess = () => { if (childClosed && cleanupComplete && resultVerified) finish(null, { ...pendingResult, runtime: { ...pendingResult.runtime, workerExitObserved: true } }); };
         input.signal?.addEventListener('abort', stop, { once: true });
-        const allowed = new Set(['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
+        const allowed = new Set(factoryCustomers || factoryInquiries ? [] : ['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
         const handleLine = async line => {
           bytes += Buffer.byteLength(line); if (bytes > 8_000_000 || Buffer.byteLength(line) > 2_000_000) { finish(new ProviderError('OMP_PROTOCOL_LIMIT', 'OMP exceeded its admitted transport limit.')); return; }
           let message; try { message = JSON.parse(line); } catch { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'OMP returned an invalid transport receipt.')); return; }

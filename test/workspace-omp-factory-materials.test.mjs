@@ -26,7 +26,7 @@ async function fixture(t, { policy, responses } = {}) {
     engineAdapter: createWorkspaceOmpEngineAdapter({ paths, factoryMaterials: true,
       configuration: { providerId: MODEL.provider, model: MODEL.id, baseUrl: MODEL.baseUrl },
       syntheticResponses: responses ? responses(data) : [
-        { tool: 'workspace_factory_materials', arguments: { productId: data.product.id }, expectedToolNames: [...ORDINARY_FACTORY_TOOLS, ...FACTORY_MATERIAL_TOOLS] },
+        { tool: 'workspace_factory_materials', arguments: { productId: data.product.id }, expectedToolNames: [...ORDINARY_FACTORY_TOOLS, ...FACTORY_MATERIAL_TOOLS, 'workspace_skill'] },
         { tool: 'workspace_factory_document', arguments: { documentId: data.document.id, documentVersion: 1 }, expectedContextText: data.product.name },
         { text: 'Only the original synthetic factory material was read. MOQ, capacity and certificate authentication remain pending.', expectedContextText: 'original uploaded specification' },
       ] }), resolveBinding: async () => ({ client: originalClient(f), model: MODEL }) }) });

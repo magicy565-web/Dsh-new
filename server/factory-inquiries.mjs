@@ -63,12 +63,21 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
       input: selectors(selected), sourceHash, batchHash, artifacts: saved, ...(failed ? { reason: 'ORIGINAL_ARTIFACT_SAVE_INCOMPLETE' } : {}) };
   }
   async function revalidateReceipt(receipt, model, signal) {
-    if (!['partial', 'saved-draft'].includes(receipt.status) || receipt.humanReviewed !== false || receipt.humanReviewRequired !== true || receipt.sent !== false
-      || !Array.isArray(receipt.artifacts) || receipt.artifacts.length > 5) throw Error('Cached inquiry receipt cannot claim approval or sending.');
+    const fields = ['plugin', 'status', 'authorization', 'sources', 'extraction', ...Object.keys(flags), 'input', 'sourceHash', 'batchHash', 'artifacts', 'reason'];
+    if (Object.keys(receipt).some(k => !fields.includes(k)) || receipt.plugin !== 'workspace-factory-inquiries'
+      || !['partial', 'saved-draft'].includes(receipt.status) || Object.entries(flags).some(([k, v]) => receipt[k] !== v)
+      || receipt.reason !== undefined && receipt.reason !== 'ORIGINAL_ARTIFACT_SAVE_INCOMPLETE'
+      || !/^[a-f0-9]{64}$/.test(receipt.batchHash || '') || !Array.isArray(receipt.artifacts) || receipt.artifacts.length > 5
+      || receipt.status === 'saved-draft' && receipt.artifacts.length < 1
+      || new Set(receipt.artifacts.map(r => r.artifactId)).size !== receipt.artifacts.length
+      || libraryReadHash(receipt.input) !== libraryReadHash(selectors(receipt.input))) throw Error('Cached inquiry receipt cannot claim approval or carry unvalidated content.');
     const context = await readSources(receipt.input, signal, model);
     if (libraryReadHash(context) !== receipt.sourceHash || libraryReadHash(context.sources) !== libraryReadHash(receipt.sources)
-      || libraryReadHash(context.authorization) !== libraryReadHash(receipt.authorization)) throw Error('Cached inquiry source or receiver changed.');
+      || libraryReadHash(context.authorization) !== libraryReadHash(receipt.authorization)
+      || libraryReadHash(context.extraction) !== libraryReadHash(receipt.extraction)) throw Error('Cached inquiry source, extraction or receiver changed.');
     for (const ref of receipt.artifacts) {
+      if (Object.keys(ref).some(k => !['name', 'artifactId', 'version', 'sha256', 'duplicate'].includes(k)) || typeof ref.duplicate !== 'boolean')
+        throw Error('Cached inquiry artifact reference contains unvalidated content.');
       const record = artifacts.get(ref.artifactId).artifact, meta = record.metadata?.factoryInquiry;
       if (record.sourceConversationId !== conversationId || record.currentVersion !== ref.version || record.sha256 !== ref.sha256 || record.filename !== ref.name
         || meta?.humanReviewed !== false || meta.sent !== false || meta.humanReviewRequired !== true || meta.sourceHash !== receipt.sourceHash

@@ -4,9 +4,20 @@
 
 Issue #71另提供独立 [工厂资料插件](FACTORY-MATERIALS.md)：默认安装不授予私库访问。已认证原Host可在原Library审核策略中明确选择记录/字段/文件版本及接收模型，再用固定 `WORKSPACE_OMP_PROFILE=factory-materials` 选择单独的 `omp:18.10.4:factory-materials-v1` 会话。该资料配置禁用公开搜索/浏览器/公开子代理，每次模型调用前复核原journal全部资料回执。下文的公开材料、公开搜索及私库禁用说明指默认 `public-v1` 配置；不能把两种会话的历史互相迁移。
 
-Issue #72提供单独的 [公开客户研究配置](FACTORY-CUSTOMERS.md)：`WORKSPACE_OMP_PROFILE=factory-customers`，复用原搜索/浏览器和原factory-export文书任务，与私库资料配置隔离。真实原生搜索目前拒绝、零来源，不能把合成正向链称为实际海外客户发现。
+Issue #72提供单独的 [公开客户研究配置](FACTORY-CUSTOMERS.md)：`WORKSPACE_OMP_PROFILE=factory-customers`，由官方模型工具循环直接选择原搜索／浏览器／公开子代理，插件仅按原工具回执保存模型撰写的待审核文书，不再强制 factory-export 四阶段。它与私库资料配置隔离。真实原生搜索目前拒绝、零来源，不能把合成正向链称为实际海外客户发现。
 
-Issue #73另有 [询盘与人工审核草稿配置](FACTORY-INQUIRIES.md)：`WORKSPACE_OMP_PROFILE=factory-inquiries`，仅在原审核资料范围内提取询盘需求、对照真实原记录并保存三份未发送草稿；没有公开搜索或发送工具，保存保留原执行意图与exact draft hash核对。
+Issue #73另有 [询盘与待审核草稿配置](FACTORY-INQUIRIES.md)：`WORKSPACE_OMP_PROFILE=factory-inquiries`，官方模型通过既有授权资料工具读取原询盘／产品，自行判断缺项、追问或撰写所需正文。唯一保存工具接收1–5份模型正文与原来源引用，服务重新校验授权、来源版本、原执行意图和幂等；不生成固定三稿、不签发人工审核结论。没有公开搜索、浏览器、公开子代理或发送工具。
+
+这两个精简 profile 通过官方 Skill 加载器及受限 `workspace_skill` → 原生 `skill://` ReadTool 按需读取已选方法，不重复拼接整份 Skill，也不注册旧通用固定业务工具或其 worker RPC。默认 public profile 及其原显式任务接口保留兼容；下文早期固定文书流水线证据属于历史实现。
+
+在维护者控制的原 Host 中沿用已有安全配置，使用下列原入口检查或启动；不要把密钥、Cookie 或完整配置粘贴到聊天：
+
+```sh
+WORKSPACE_OMP_PROFILE=factory-inquiries npm run workspace -- --check
+WORKSPACE_OMP_PROFILE=factory-inquiries npm run workspace -- --serve
+```
+
+公开研究将 profile 改为 `factory-customers`。`--check` 不调用模型，不能证明权限、网络、余额或累计五元额度。启动服务也不会补齐这些授权：真实私库材料仍须原审核策略允许 exact Session／接收模型／字段与文件版本；真实模型须原 Host 的安全配置、计价与原累计 CNY5 已消费／剩余额度可核实。任一证据缺失继续未配置或拒绝，不能用预算标志、合成替身、其他模型或账户代替。
 
 ## 启动
 

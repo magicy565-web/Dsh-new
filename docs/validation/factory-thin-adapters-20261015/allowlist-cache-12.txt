@@ -1,0 +1,24 @@
+✔ official customer loop selects direct search and draft save with original intent=false; no fixed backend stages (3130.038854ms)
+✔ official customer loop selects direct search and draft save with original intent=true; no fixed backend stages (2706.204152ms)
+✔ official direct search may finish without browser, save or task; synthetic refusal=false (2339.627562ms)
+✔ official direct search may finish without browser, save or task; synthetic refusal=true (2897.367212ms)
+✔ official inquiry loop accepts finite scripted choice=ask; source adapter does not choose tools or file count (3324.449747ms)
+ℹ Actual official OMP AgentSession/tool dispatch and original services. All choices and prose above are finite synthetic model responses, not evidence of model intelligence or real business quality.
+✔ official inquiry loop accepts finite scripted choice=reply; source adapter does not choose tools or file count (3236.422929ms)
+ℹ Actual official OMP AgentSession/tool dispatch and original services. All choices and prose above are finite synthetic model responses, not evidence of model intelligence or real business quality.
+✔ official inquiry loop accepts finite scripted choice=two; source adapter does not choose tools or file count (3165.589154ms)
+ℹ Actual official OMP AgentSession/tool dispatch and original services. All choices and prose above are finite synthetic model responses, not evidence of model intelligence or real business quality.
+✔ official inquiry loop accepts finite scripted choice=skill; source adapter does not choose tools or file count (2485.523944ms)
+ℹ Actual official OMP AgentSession/tool dispatch and original services. All choices and prose above are finite synthetic model responses, not evidence of model intelligence or real business quality.
+✔ a model draft-save attempt in a readonly original Run creates no artifact (2326.640332ms)
+✔ actual inquiry whole-journal replay refuses changed original source before another model request (4281.349132ms)
+✔ the original whole-journal guard refuses a forged saved extraction receipt before any further model request (4324.831202ms)
+✔ original HTTP cancellation before an inquiry artifact commit preserves original inputs and creates no draft file (2011.153282ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25921.042468

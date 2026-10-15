@@ -80,7 +80,7 @@ test('copied factory inquiries package uses official Pi manifest, Skill, disable
   assert.ok(!(await p.invoke('list')).includes(p.packageDir));
   await fs.access(path.join(p.packageDir, 'package.json'));
   await save({ engine: 'pi', version: '1.1.0', copiedOutsideRepository: true, packageNodeModules: false,
-    officialManifest: true, skillLoaded: true, ordinaryToolsAndOtherPluginCoexist: true, unconfiguredTwoToolReceipts: true,
+    officialManifest: true, skillLoaded: true, ordinaryToolsAndOtherPluginCoexist: true, unconfiguredSaveReceipt: true,
     disabledToolsAndSkillAbsent: true, reenabled: true, officialRemove: true, sourcePackagePreserved: true,
     clientReads: 0, syntheticAgentBearerDoesNotConfigureLibrary: true, paidModelCalls: 0, realLibraryAuthorizationVerified: false });
 });
@@ -99,12 +99,12 @@ test('copied factory inquiries package uses official OMP local link, manifest, S
   await fs.access(path.join(p.packageDir, 'package.json'));
   await save({ engine: 'omp', version: '18.10.4', copiedOutsideRepository: true, packageNodeModules: false,
     officialLocalLink: true, officialManifest: true, skillLoaded: true, ordinaryToolsAndOtherPluginCoexist: true,
-    unconfiguredTwoToolReceipts: true, disabledToolsAndSkillAbsent: true, reenabled: true, officialUninstall: true,
+    unconfiguredSaveReceipt: true, disabledToolsAndSkillAbsent: true, reenabled: true, officialUninstall: true,
     sourcePackagePreserved: true, clientReads: 0, syntheticAgentBearerDoesNotConfigureLibrary: true,
     paidModelCalls: 0, realLibraryAuthorizationVerified: false });
 });
 
-for (const engine of ['pi', 'omp']) test(`official ${engine} SDK delegates inquiry prepare/save with exact unreviewed draft/hash and safe authorization recovery`, { timeout: 60000 }, async t => {
+for (const engine of ['pi', 'omp']) test(`official ${engine} SDK delegates model-written inquiry draft save with original sources and safe authorization recovery`, { timeout: 60000 }, async t => {
   const p = await setup(t, engine), fixture = path.join(p.directory, 'sdk-fixture.mjs'), configFile = path.join(p.directory, 'config.json');
   await fs.copyFile(new URL('./fixtures/factory-inquiries-sdk.mjs', import.meta.url), fixture);
   await fs.copyFile(new URL('./fixtures/factory-inquiries-data.mjs', import.meta.url), path.join(p.directory, 'factory-inquiries-data.mjs'));

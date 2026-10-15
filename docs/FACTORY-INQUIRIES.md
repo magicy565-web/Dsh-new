@@ -1,81 +1,23 @@
-# Exact inquiry comparison and unsent review drafts
+# Source-bound inquiry draft saving
 
-Issue #73 adds the standalone private `@workspace-agent/pi-factory-inquiries`
-package. It reads only Host-injected original Library receipts and delegates
-saves to the original artifact service. It creates no inquiry database, task
-queue, model engine, login, grant or sender. Ordinary installation is
-`unconfigured`; it cannot obtain enterprise access from an Agent Bearer.
+Issue #73 provides the standalone private `@workspace-agent/pi-factory-inquiries` package. The current package has **one tool**, `workspace_factory_inquiry_save`. The official model/tool loop reads authorized inquiry/product data with the existing `workspace_factory_document` and `workspace_factory_materials` tools, identifies missing information, asks questions or writes the documents useful for the user’s goal. The package supplies no preparation tool, writing engine, fixed quotation/sample/follow-up set or business task pipeline.
 
-The controlled Host may select `WORKSPACE_OMP_PROFILE=factory-inquiries`, the
-separate `omp:18.10.4:factory-inquiries-v1` scope. It includes the reviewed factory
-materials tools and two inquiry tools, with public search/browser/subagents and
-business submission tools disabled. The original reviewed Library policy must
-explicitly admit both the inquiry document/version/asset SHA and the single
-product revision/selected fields to the same exact model recipient. It cannot
-adopt a public or older materials transcript. The original Session and private
-fd remain in their existing authority boundary.
+The controlled `WORKSPACE_OMP_PROFILE=factory-inquiries` uses the distinct `omp:18.10.4:factory-inquiries-v1` scope. The original reviewed Library policy must admit the exact inquiry document/version/asset SHA and product revision/selected fields to the same model recipient. This custom profile exposes only the material/document tools, inquiry save and constrained Skill reader; public search, browser, public subagents, the old generic factory extension/tools and worker business RPC methods are not admitted. The standalone materials profile retains its existing original tools and fixed Skill reader. It cannot adopt a public or older materials transcript. Ordinary installation is `unconfigured`; an Agent Bearer does not establish an enterprise Session or Library disclosure permission.
 
-`workspace_factory_inquiry_prepare` accepts only original inquiry document ID,
-version, product ID and six optional/null requirement fields. Every nonempty
-requirement must be a literal substring of the original extracted inquiry text;
-unsupported extraction is refused. It compares selected source facts and
-identifies missing fields. It does not decide manufacturing fit, accept a SKU,
-verify a certificate, infer capacity or promise delivery.
+The save input is `{inquiryDocumentId, documentVersion, productId, sources, documents, requestId}`. Both IDs are original UUIDs; document version is 1–100. `sources` contains the two unchanged original document/product source references. `documents` contains one to five unique safe Markdown names and the model-written bodies, with a combined UTF-8 limit of 60,000 bytes. A stable requestId is required. There is no `requirements`, `expectedDraftHash`, `confirmed` or approval parameter. The package’s pure `validateInquiryDrafts` validates data only; it does not extract requirements or generate prose. The remaining generic canonical SHA helper is not a draft approval protocol.
 
-The pure preparation function returns three drafts:
+The Host freshly reads both original sources, checks current authorization and compares their complete references with the supplied references. It appends only original provenance, extraction limits and review markers to the supplied substantive bodies, then delegates to the existing artifact service. It does **not** verify that a body accurately interprets an inquiry, is commercially appropriate or quotes literal substrings. Source hashes verify provenance, not semantic correctness. Price, stock, delivery promises, certificate authenticity, prior contact and contact consent must not be invented. Recorded MOQ or lead time is a source fact, not an accepted offer.
 
-- quotation review: customer wording and original product/SKU facts, all missing
-  price/currency/tax/trade/payment/validity terms pending;
-- sample review: stock, quantity, fees, shipment and recipient pending;
-- follow-up review: no assumed prior message, reply or contact permission, and
-  no claim that the material is new to the unknown recipient.
+Saving requires the original explicit execution intent; a readonly Run cannot save. Successful receipts remain `status:'saved-draft'`, `humanReviewed:false`, `humanReviewRequired:true`, `sent:false`. Files retain internal Library visibility, source references, original conversation/creating Run links and artifact ID/version/SHA. This is an unreviewed internal write, not a quotation approval, product-match decision or permission for any external action. No sender, order, sample dispatch, payment or scheduling operation exists here.
 
-Each independent document retains source IDs/revisions, document/asset versions
-and SHA, explicit human-review/NOT SENT markers and extraction/OCR uncertainty.
-A recorded factory MOQ/lead time is a source fact, never an accepted offer or
-promise. The matching status always requires human review. Draft methodology is
-an independent concise adaptation of community cold-email v2.2.0, pinned to
-[commit55ff469](https://github.com/coreyhaines31/marketingskills/blob/55ff469422c3592dac45bcad08dfb40221981c02/skills/cold-email/SKILL.md)
-and its same-commit MIT license. Exact resource/license SHA and attribution are
-in the package-root `sources.json`. No sending/account/domain
-instructions or the complete collection are executed or installed.
+Original Session, member/enterprise, receiver, expiry, version, cancellation and artifact commit checks remain authoritative. Identical request replay preserves committed IDs and creating Run links; an interrupted partial save may be explicitly replayed to fill missing files after original Store reload. Changed prose, file sets or source context under the same request ID are refused. There is no automatic retry, additional store or operation ledger. Whole-journal/context guards freshly revalidate private receipts before each model call, including reopened history; saved artifact associations, versions and bytes are also checked. Inquiry cached receipts are closed to unknown fields and changed extraction, selectors or artifact-reference content, so extra unvalidated text cannot ride along with an otherwise valid receipt. Identical complete receipts are deduplicated only within that validation boundary, not cached across model requests.
 
-`workspace_factory_inquiry_save` additionally requires an exact draft hash,
-stable original request ID. It saves **unreviewed internal drafts only** and
-returns `status: saved-draft`, `humanReviewed:false`, `humanReviewRequired:true`
-and `sent:false`. There is no `confirmed` parameter or draft approval operation. A natural readonly Run cannot
-save. Explicit original execution intent still comes from the human-confirmed
-original terminal/API path. The Host freshly reads the same original materials
-and rerenders the deterministic draft before comparing the hash. It stores each
-file with original conversation/creating Run links, internal Library visibility,
-source references, humanReviewed:false, review-required and sent:false metadata. No external action
-or approval is inferred from saving a draft.
+Old prepare/three-template journals and old receipt shapes are not silently migrated or trusted. The tool allowlist or live guard refuses them before a model call; start a fresh original authorized conversation and read current sources. Existing artifacts are preserved and are not rewritten as new-format approvals.
 
-Original artifact idempotency is authoritative. Response loss or partial save
-retains already committed original receipts. Explicit replay of the identical
-request fills only missing files and preserves existing IDs/creating Run links;
-no automatic retry runs. Changed draft/source/recipient/scope requires fresh
-preparation and a new request ID. An expected hash checks integrity; it is not
-a server-bound human approval. Model arguments and original Run execution intent
-cannot establish that a person reviewed these exact drafts. Later human review
-and external actions remain subject to their original approval boundaries, and
-this plugin exposes no operation to approve or send them. A cancelled, expired or
-revoked original Session/Run is refused before artifact commit. The original
-artifact Store remains the only persistence; no secondary operation journal is
-created.
+The controlled Host loads only selected Skills via official `sdk.loadSkillsFromDir`. A constrained `workspace_skill({name})` uses the official `skill://` resolver and native ReadTool; it accepts only loaded names, not arbitrary paths or URLs. The inquiry profile selects inquiry/materials Skills and omits the generic factory-export Skill. Full Skill text is not separately appended a second time to the prompt. Optional drafting guidance is an independent concise adaptation of cold-email v2.2.0 at [commit55ff469](https://github.com/coreyhaines31/marketingskills/blob/55ff469422c3592dac45bcad08dfb40221981c02/skills/cold-email/SKILL.md), with its same-commit MIT license. Fixed URLs, SHA and attribution remain in [sources.json](../packages/workspace-factory-inquiries/sources.json). These suggestions do not impose a workflow or template, and no sending/account/domain instructions or source collection are installed or executed.
 
-The whole-journal/context guard revalidates every different private inquiry and
-material receipt before each model call, including reopened transcripts. Saved
-artifact references must belong to this original conversation/draft/source
-scope; their current original versions and exact bytes are checked. Within one
-validation boundary, identical complete receipts are checked once using their
-canonical hash. The next model boundary starts a new set and rechecks them; no
-permission cache survives. Inner Library reads use live original Session/Run and
-central policy checks, while outer tool/RPC/model and save boundaries retain
-fresh original Agent-binding proofs. This removes redundant identity requests
-without raising or circumventing the existing HTTP rate limit.
+The [34ebf77 preservation evidence](validation/cloud-handoff-20261015/HANDOFF.md) records the current thin path: official package **5/5**, original Library/artifact service **5/5**, original OMP worker **7/7**. Worker fixtures cover asking without a file, one/two replies, actual Skill reading, readonly refusal, changed-source cache refusal and cancellation. Model choices and prose are explicitly finite keyless scripts: they prove official dispatch compatibility and service boundaries, **not** intelligent selection by a real model or business quality. Earlier [prepare/hash/three-document evidence](validation/factory-inquiries-20261015/README.md) and [unreviewed-draft correction](validation/factory-inquiry-review-boundary-20261015/README.md) are historical checkpoints, not the current API. Complete regression/typecheck after the thin-path changes was still pending at that preservation checkpoint; the main thread owns subsequent validation.
 
-Tests distinguish actual official package/SDK components, original signed HTTP,
-Library/artifact services and finite keyless model fixtures. No real material,
-model budget, buyer, sending, order, sample dispatch, payment or deployment has
-been accepted. See [validation](validation/factory-inquiries-20261015/README.md).
+Actual authorized enterprise material, safe real-model configuration, verifiable remaining original cumulative CNY5 budget and human review remain unaccepted. Real model/paid calls are zero in these fixtures. See the [current gaps and historical evidence boundary](validation/factory-workflow-20261015/GAPS.md).
+
+Current scoped engineering verification after resuming from the preservation checkpoint: [thin adapter acceptance](validation/factory-thin-adapters-20261015/README.md), related118/118, shared34/34, final exact-allowlist/cache12/12 and typecheck passed. Counts overlap; none establishes real-model reasoning or business quality.

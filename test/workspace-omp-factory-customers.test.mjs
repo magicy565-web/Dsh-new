@@ -18,7 +18,8 @@ async function fixture(t, { execute, failure = false, save = true }) {
       publicTools: { searchProvider: 'duckduckgo', browserExecutable: null },
       syntheticPublicSearchResponses: [{ status: failure ? 403 : 200, body: failure ? 'Synthetic refusal' : '<div class="result"><a class="result__a" href="https://example.com/synthetic-cup-catalog">Synthetic cup distributor catalog</a><a class="result__snippet">Synthetic distributor cup catalog, not verified demand.</a></div>' }],
       syntheticResponses: [
-        { tool: 'workspace_public_search', arguments: { query: 'public synthetic cup distributor catalog', limit: 1 } },
+        { tool: 'workspace_public_search', arguments: { query: 'public synthetic cup distributor catalog', limit: 1 },
+          expectedToolNames: ['workspace_public_search', 'workspace_factory_public_review', 'workspace_factory_customers_save', 'workspace_skill'] },
         ...(!failure && save ? [{ tool: 'workspace_factory_customers_save', arguments: { documents: [{ name: 'candidate-review.md', content: 'The source reports a cup catalog. Buyer identity and purchasing intent remain unverified.' }], requestId: 'original-public-draft' }, sourceToolIdsFromPreviousTools: true }] : []),
         { text: failure ? 'The original provider refused; no customer source or replacement task was produced.' : save ? 'Public research draft saved only if original execution intent was admitted. No contact occurred.' : 'Search evidence only; no browser or save was needed.' },
       ] }),
