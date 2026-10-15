@@ -5,7 +5,7 @@ export function marketValidationExtension({ client, authorize } = {}) {
   return pi => {
     for (const [index, method, schema, validate] of [[0, 'read', PRODUCT_INPUT_SCHEMA, validateProductInput], [1, 'save', SAVE_INPUT_SCHEMA, validatePlanInput]]) {
       pi.registerTool({ name: MARKET_VALIDATION_TOOLS[index], label: index ? 'Save seven-day validation plan draft' : 'Read authorized original product',
-        description: index ? 'Save a model-written editable B2B/B2C plan to original artifacts. Supply fresh original sources. Every budget and commission is proposed, unapproved and unspent. No publishing, advertising, scheduling or seven-day start. Ask missing questions without saving if useful.'
+        description: index ? 'Save a model-written editable B2B/B2C plan to original artifacts. Supply fresh original sources. Optional pre-service references keep TikTok/Amazon sample statistics separate; sales targets stay proposed until original prelaunch human confirmation. Every budget and commission is proposed, unapproved and unspent. No publishing, advertising, scheduling or seven-day start. Ask missing questions without saving if useful.'
           : 'Read one explicitly authorized original uploaded product revision and optional exact document versions through the existing materials client. Preserve missing/partial facts. No private field expansion, new upload, network discovery or supply claims.',
         parameters: schema, approval: method === 'save' ? 'write' : 'read',
         async execute(_id, input, signal, _update, ctx) {

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { marketPlan } from './market-validation-plan-data.mjs';
+import { marketPlan, marketServicePlan } from './market-validation-plan-data.mjs';
 const config = JSON.parse(await fs.readFile(process.argv[2], 'utf8'));
 let fetchAttempts = 0;
 globalThis.fetch = async () => { fetchAttempts++; throw Error('External HTTP is forbidden in this keyless SDK fixture.'); };
@@ -12,11 +12,11 @@ const { marketValidationExtension, MARKET_VALIDATION_TOOLS } = await import(path
 const { marketValidationMonitorExtension, MARKET_MONITOR_TOOLS } = await import(pathToFileURL(path.join(config.packageDir, 'src/monitor.js')).href);
 const id = '11111111-1111-4111-8111-111111111111';
 const sources = [{ kind: 'factory-product', recordId: id, revision: 1, workspaceId: 'synthetic', projectionSha256: 'a'.repeat(64), api: '/synthetic/materials' }];
-let authorizations = 0, reads = 0, saves = 0, active = true, fail = false, revokeAfter = false, modelCalls = 0, lastRead;
+let authorizations = 0, reads = 0, saves = 0, active = true, fail = false, revokeAfter = false, modelCalls = 0, lastRead, lastSaved;
 const authorize = async (signal, model) => { authorizations++; signal?.throwIfAborted(); assert.equal(model.id, 'finite'); if (!active) throw Error('PRIVATE_HOST_ERROR'); };
 const client = { read: async input => { lastRead = input; reads++; if (fail) throw Error('PRIVATE_HOST_ERROR'); if (revokeAfter) active = false;
   return { plugin: 'workspace-market-validation', status: 'available', sources, syntheticProduct: true }; },
-save: async () => { saves++; return { plugin: 'workspace-market-validation', status: 'saved-draft', sources, syntheticSaved: true }; } };
+save: async input => { lastSaved = input; saves++; return { plugin: 'workspace-market-validation', status: 'saved-draft', sources, syntheticSaved: true }; } };
 const responses = [];
 let session, auth, sdk, faux;
 if (config.engine === 'pi') {
@@ -84,9 +84,10 @@ try {
   await prompt([]); assert.equal(reads, 0); assert.equal(saves, 0);
   assert.equal((await prompt([[MARKET_VALIDATION_TOOLS[0], { productId: id, documents: [] }]])).status, 'available');
   for (const mode of ['b2b', 'b2c', 'dual']) {
-    const p = marketPlan(mode); p.paths[0].steps = ['A freely model-authored action; no fixed funnel.'];
+    const p = mode === 'b2c' ? marketServicePlan(id) : marketPlan(mode); p.paths[0].steps = ['A freely model-authored action; no fixed funnel.'];
     const result = await prompt([[MARKET_VALIDATION_TOOLS[1], { productId: id, documents: [], sources, plan: p, requestId: mode }]]);
     assert.equal(result.status, 'saved-draft'); assert.equal(result.humanReviewed, false); assert.equal(result.startedAt, null);
+    if (mode === 'b2c') { assert.equal(lastSaved.plan.paths[0].serviceTarget.targetUnits, 50); assert.equal(lastSaved.plan.paths[0].marketReference.sourcePlatform, 'tiktok'); }
   }
   for (const [name, args] of [[MARKET_MONITOR_TOOLS[0], { requestId: 'monitor', planId: id, planRevision: 1, launchReceiptId: 'synthetic' }], [MARKET_MONITOR_TOOLS[1], { goalId: id }], [MARKET_MONITOR_TOOLS[2], { goalId: id, action: 'pause' }]]) {
     assert.equal((await prompt([[name, args]])).status, 'unconfigured');

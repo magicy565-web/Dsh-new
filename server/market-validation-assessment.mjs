@@ -1,6 +1,7 @@
+import { validateFrozenServiceTarget } from '../packages/workspace-market-validation/src/plan.mjs';
 // Pure evidence assessment, separate from human goal verification. Inputs come
 // from the original frozen plan/launch and reviewed outcome adapter, never tools.
-export function assessMarketValidation({ scope, sample, windowComplete }) {
+function assessMarketComparison({ scope, sample, windowComplete }) {
   const result = { status: 'insufficient_evidence', goalVerified: false, threshold: 0.7, ratio: null,
     observed: null, benchmark: null, difference: null, evidence: [], gaps: [], recommendations: [] };
   const gap = value => result.gaps.push(value);
@@ -62,4 +63,46 @@ export function assessMarketValidation({ scope, sample, windowComplete }) {
   } else result.recommendations.push('connect_missing_evidence_and_review_sample_coverage');
   result.provisional = !windowComplete || result.gaps.some(g => g !== 'INQUIRY_OUTCOME_NOT_CONNECTED');
   return result;
+}
+
+function assessServiceTarget({ scope, sample, windowComplete }) {
+  const result = { status: 'insufficient_evidence', evaluationBasis: 'preconfirmed_seven_day_sales_target', goalVerified: false,
+    threshold: 0.7, targetUnits: null, thresholdUnits: null, observedUnits: null, ratio: null, difference: null, evidence: [], gaps: [], recommendations: [], provisional: true };
+  let frozen;
+  try { frozen = validateFrozenServiceTarget(scope.serviceTarget, scope); } catch { result.gaps.push('PRE_SERVICE_SALES_TARGET_CONFIRMATION_REQUIRED'); return result; }
+  const target = frozen.proposal, source = sample.outcomes, proof = source?.resultEvidence, orders = source?.metrics?.netPaidOrders ?? null, units = source?.metrics?.netPaidUnits ?? null;
+  const counts = Number.isSafeInteger(orders) && orders >= 0 && Number.isSafeInteger(units) && units >= orders && (orders === 0) === (units === 0);
+  const required = sample.measurement, requiredComplete = required?.status === 'observed_not_adjudicated' && Array.isArray(required.gaps) && required.gaps.length === 0;
+  result.requiredMetricGaps = Array.isArray(required?.gaps) ? structuredClone(required.gaps) : [];
+  if (!requiredComplete) result.gaps.push('REQUIRED_MEASUREMENT_INCOMPLETE');
+  for (const gap of result.requiredMetricGaps) result.gaps.push('REQUIRED_METRIC_NOT_MEASURED:' + gap.metric);
+  const complete = source?.status === 'available' && source.dataLagSeconds === 0 && source.coverage?.from === scope.startAt && source.coverage?.to === scope.endAt && proof?.coverageRatio === 1;
+  const paid = counts && proof?.evidenceKind === 'real' && proof?.paymentStatus === 'net_paid_verified' && typeof proof.evidenceRef === 'string' && proof.evidenceRef.trim();
+  if (!windowComplete) result.gaps.push('WINDOW_NOT_ENDED');
+  if (!complete) result.gaps.push('COMPLETE_WINDOW_COVERAGE_REQUIRED');
+  if (!counts && orders !== null && units !== null) result.gaps.push('NET_PAID_COUNTS_INCONSISTENT');
+  if (!paid) result.gaps.push('REAL_NET_PAID_COHORT_REQUIRED');
+  result.targetUnits = target.targetUnits; result.thresholdUnits = target.targetUnits * .7;
+  result.confirmation = { approvalId: frozen.confirmation.approvalId, approvedAt: frozen.confirmation.approvedAt, evidenceRef: frozen.confirmation.evidenceRef,
+    planId: frozen.planId, planRevision: frozen.planRevision, planHash: frozen.planHash, targetHash: frozen.targetHash, referenceHash: frozen.referenceHash, reviewHash: frozen.reviewHash };
+  result.marketReference = frozen.marketReference;
+  result.crossChannelReference = frozen.marketReference.channelId !== target.executionChannelId;
+  result.marketMeanAttainmentInferred = false;
+  if (paid && complete) { result.observedUnits = units; result.evidence.push({ sourceId: source.sourceId, evidenceRef: proof.evidenceRef, coverage: source.coverage }); }
+  if (windowComplete && requiredComplete && complete && paid) {
+    result.ratio = units / target.targetUnits; result.difference = units - result.thresholdUnits;
+    if (orders > 0) { result.status = result.ratio >= .7 ? 'passed' : 'below_service_target'; result.recommendations.push('review_confirmed_service_target_with_human'); }
+    else if (proof.validVisits === 0) { result.status = 'traffic_anomaly'; result.recommendations.push('check_acquisition_delivery_and_collection'); }
+    else if (proof.qualifiedInquiries > 0) { result.status = 'strategy_optimization_needed'; result.recommendations.push('review_offer_price_followup_without_assuming_cause'); }
+    else { result.status = 'no_net_paid_sales_pending_review'; result.recommendations.push('review_traffic_quality_and_sample_coverage'); }
+    result.provisional = false;
+  }
+  return result;
+}
+export function assessMarketValidation(args) {
+  const marketComparison = assessMarketComparison(args);
+  if (!args.scope.serviceTarget) return { ...marketComparison, evaluationBasis: 'market_comparison_only',
+    serviceTargetAssessment: { status: 'unconfigured', reason: 'PRE_SERVICE_SALES_TARGET_CONFIRMATION_REQUIRED', goalVerified: false } };
+  const serviceTargetAssessment = assessServiceTarget(args);
+  return { ...serviceTargetAssessment, serviceTargetAssessment, marketComparison };
 }

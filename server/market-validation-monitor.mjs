@@ -1,6 +1,6 @@
 import { capabilityPayloadHash as hash, goalDefinition } from './capabilities.mjs';
 import { assessMarketValidation } from './market-validation-assessment.mjs';
-import { validateResultAssessment } from '../packages/workspace-market-validation/src/plan.mjs';
+import { validateResultAssessment, validateFrozenServiceTarget } from '../packages/workspace-market-validation/src/plan.mjs';
 import { ApiError } from './runtime.mjs';
 import { productCohortMetrics, SUPPLIER_METRIC_DEFINITION } from './supplier-metrics.mjs';
 import { validateProductTrafficObservation } from './product-traffic-contract.mjs';
@@ -60,6 +60,8 @@ function receiptScope(receipt, request, clock) {
       || !Number.isFinite(b.value) || b.value <= 0 || b.evidenceKind !== 'real' || b.reviewed !== true || b.windowHours !== 168) fail('BENCHMARK_EVIDENCE_INVALID', 'Use a reviewed original benchmark with explicit comparable dimensions.');
     marketBenchmark = copy(b);
   }
+  let serviceTarget = null;
+  if (receipt.serviceTarget != null) try { serviceTarget = validateFrozenServiceTarget(receipt.serviceTarget, { planId: receipt.planId, planRevision: receipt.planRevision, channelId: receipt.channelId, startAt: receipt.startedAt }); } catch { fail('SERVICE_TARGET_CONFIRMATION_REQUIRED', 'Use the original prelaunch human-confirmed sales target.'); }
   let baseline = { status: 'unavailable', reason: 'NO_VERIFIED_PRELAUNCH_BASELINE', value: null };
   if (receipt.baseline != null) {
     const source = receipt.baseline;
@@ -79,7 +81,7 @@ function receiptScope(receipt, request, clock) {
     windowDefinition: '168 elapsed hours from the real approved acquisition launch; local dates are display labels',
     requiredMetrics: requiredMetrics.map(item => ({ id: item.id, definition: item.definition })),
     salesRequirement: receipt.salesRequirement ? { metric: receipt.salesRequirement.metric, target: receipt.salesRequirement.target, definition: receipt.salesRequirement.definition } : null,
-    baseline, ...(resultAssessment ? { resultAssessment } : {}), ...(marketBenchmark ? { marketBenchmark } : {}) };
+    baseline, ...(serviceTarget ? { serviceTarget } : {}), ...(resultAssessment ? { resultAssessment } : {}), ...(marketBenchmark ? { marketBenchmark } : {}) };
 }
 
 // This validates an already authorized source, not its authorization. The Host
