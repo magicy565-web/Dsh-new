@@ -84,3 +84,78 @@ fully supplied configuration; neither triggers a model request.
 
 Additional paid requests remain **0**. No main merge, deployment, new credential,
 permission change, real user material, Shopify or MCP action.
+
+
+## Actual provider HTTP follow-up
+
+Base: `ca5d9945a090da00bc9199061799266761b43971`. Inspection of pinned
+OMP 18.10.4 showed that `maxRetries:0` and logical model-call limits alone
+cannot prove a bound on actual HTTP sends: the official transport and provider
+have internal retry/replay paths. The local profile now reuses the readonly
+acceptance request wrapper, retaining original `createWorkspaceOmpSession`,
+`sdk.streamSimple`, provider and SDK SSE decoder. Shared abort plus a pending
+request gate blocks any additional send after an uncertain result. Empty-response
+replay is disabled explicitly. There is no replacement model loop, new budget
+service, user form, JSON approval or persistent monetary ledger.
+
+Limits apply at the actual fetch boundary: pinned official Flash endpoint,
+redirect refusal, 8 actual sends, final JSON at most 12,000 bytes, text only,
+five local tools, thinking disabled, at most 512 output tokens. The next send
+requires complete, consistent raw SSE and normalized SDK usage, no tool error,
+and at most 32,000 reported input tokens. 32k is a post-response continuation
+condition, not a pre-tokenization bound inferred from bytes or SDK metadata.
+
+`test/workspace-omp-local-wire.test.mjs` drives actual original provider HTTP/SSE
+execution with finite mocked fetch responses and isolated native file tools. It
+does not use the synthetic model shortcut or inherit real credentials. Its 16
+wire cases include successful read/write, cached usage, HTTP 500, connection and
+stream errors, truncation, absent/partial/inconsistent/oversized usage, empty
+response, output contract violation, oversized initial/growing context, failed
+tool and exhausted calls. Actual fetch counters prove one send on uncertain
+results, zero on an oversized initial request, one before an oversized read
+result, and eight on exhaustion. The mock also asserts the exact outgoing
+endpoint, bytes, output/thinking normalization and redirects. A separate math
+test verifies the monetary reservation. Fixture evidence is labeled
+`official-omp-local-files-mocked-http`, `paidModelVerified:false`; synthetic
+wire results never count as live model success.
+
+The initial long-context fixture used a single 18k-character line; upstream
+ReadTool correctly truncated that line, so it did not exceed the HTTP limit.
+The fixture now uses ordinary multiline material that survives native read
+truncation. The corrected case proves the second send is refused after the
+first actual read call. No production workaround or alternate read tool was
+introduced.
+
+Under the existing 2026-10-15 reviewed Chinese official peak-price snapshot
+(input miss CNY2/million, output CNY8/million), eight fully confirmed responses
+cost at most **CNY0.544768**. A failed/unknown response cannot be priced as zero:
+reserve 1,100,000 input tokens (covers the published 1M text context under either
+decimal/binary interpretation) plus 512 output tokens for the single unconfirmed
+send. Seven confirmed prefixes plus this reserve bound the task at
+**CNY2.680768**, below the fixed single-task CNY2.70 admission reserve and the
+known remaining CNY4.999838 authorization. There is no FX conversion or account
+balance lookup. The code rejects reported violations of the physical/output
+contract with `chargeUpperCny:null`, stops, and does not claim a finite cost.
+These bounds depend on the published model contract and reviewed price snapshot;
+they are not proof of actual account charges, a live repricing or a cross-task
+wallet limit. Re-fetching the pricing page during this follow-up timed out.
+
+Reproduce without paid requests:
+
+```sh
+node --test test/workspace-omp-local.test.mjs test/workspace-omp-local-wire.test.mjs \
+  test/deepseek-acceptance-policy.test.mjs test/deepseek-readonly-wire.test.mjs \
+  test/pi-procurement-package.test.mjs test/workspace-omp-session-readonly.test.mjs \
+  test/workspace-omp-session-startup.test.mjs test/workspace-omp-launch.test.mjs \
+  test/pi-workspace-business.test.mjs test/workspace-omp.test.mjs
+npm run build
+```
+
+Final regression: **77 tests passed**, zero failures/skips. `npm run build`
+passed TypeScript/Vite with the existing non-blocking bundle-size warning. The
+existing DeepSeek key presence was rechecked as **true** without displaying its
+value; no account or model request was made.
+
+Only source/tests/sanitized evidence are committed. Raw runtime logs and generated
+reports stay outside the repository. Additional paid requests **0**; no main
+merge, deployment, real user material, external sending or credential changes.

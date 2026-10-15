@@ -38,11 +38,28 @@ WORKSPACE_OMP_PROVIDER_COST_JSON='{"input":0.3,"output":1.2,"cacheRead":0.006,"c
 npm run factory:local -- --input ./product.md --output-dir . --check
 ```
 
-预检只回报 provider/model 及 `apiKeyPresent/costPresent/remainingBudgetReviewed` 布尔。若预算声明未配置，返回 `model-unconfigured`，即使密钥已存在；不代表文件为空或密钥无效。四项配置就绪也只返回 `configured-unverified`，不会触发付费连通测试。`--check` 始终 `modelRequests:0`，不会自动将预算声明改为 `1`。
+预检回报发送限制、provider/model 及 `apiKeyPresent/costPresent/remainingBudgetReviewed` 布尔。若预算声明未配置，返回 `model-unconfigured`，即使密钥已存在；不代表文件为空或密钥无效。固定官方 DeepSeek Flash 的四项配置就绪也只返回 `configured-unverified`；其他已配置模型返回 `provider-unsupported`，实际生成在发送前拒绝。不会触发付费连通测试。`--check` 始终 `modelRequests:0`，不会自动将预算声明改为 `1`。
 
 本轮在临时合成文件上实际执行了该 DeepSeek 预检：密钥存在为 true、临时已审价格配置存在为 true、原预算声明为 false，模型请求 0；只检查密钥存在布尔，未展示或检查原值；未读取聊天密钥、账户余额或用户业务资料，没有写入 `.env`。
 
 首次安装仍用原固定依赖：`npm ci --ignore-scripts`、`node scripts/setup-omp-runtime.mjs`、`node scripts/workspace-omp-install.mjs`。当前固定运行器和目录 FD 发布方式仅验收 Linux x64、Bun 1.3.14；没有更换模型、Node 引擎或其他系统的隐式回退。
+
+## 实际 HTTP 限制与费用边界
+
+本地付费入口只接受原官方 DeepSeek Flash provider，通过原 `createWorkspaceOmpSession`、`sdk.streamSimple`、OpenAI completions provider 和 SDK SSE 回调执行。复用只读验收的 `boundedDeepseekFetch`，没有另建模型循环或持久预算系统。
+
+- 每项任务最多 **8 次实际 HTTP 发送**；最终序列化请求体最多 **12,000 bytes**，仅文本消息和五个本地工具，固定官方地址，禁止重定向。
+- 每次请求固定 `max_tokens:512`、关闭 thinking。完整响应必须报告不超过 32,000 输入 tokens、512 输出 tokens；32k 是收到 usage 后的接续条件，SDK 的 context 元数据与请求字节数都不能证明输入 token 硬上限。
+- 前一请求的原始 SSE usage 与 SDK 完整 usage 一致、非空有效且在界内，才允许下一次发送。HTTP／流／工具错误、断流、空响应、缺失或不一致 usage、输入超限均停止。底层 SDK 内部仍有重试实现；共享 abort 信号和发送门禁确保其重试或空响应 replay 不会产生下一次 HTTP 发送。`maxRetries:0` 不是唯一依据。
+- 返回 `actualProviderRequests` 与逻辑 `modelRequests`，并区分已确认费用与未确认预留。用量不明不记为免费：保留一个完整未确认请求的预留，并标记 `billingUncertain:true`、不自动重试。任务超时／进程中断而未取得完整回执时同样不可按零扣款处理。
+
+费用按仓库 2026-10-15 已审[官方人民币峰值价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)快照计算：输入全部按缓存未命中 **2 元/百万 tokens**，输出 **8 元/百万 tokens**。USD 配置仅用于原 SDK 元数据，不做汇率换算或余额推断。本轮重取价格页面超时，没有宣称新增实时核价。
+
+全部响应已确认时：`8 × (32,000×2 + 512×8) / 1,000,000 = 0.544768 元`。
+
+错误／用量不明时最多有七个已确认前缀和一个未确认发送。已审 Flash 文本上下文为 1M；未确认输入按 **1,100,000 tokens** 预留，覆盖十进制／二进制 1M，而不是以 12KB 猜测 token 数。因此保守上界为：`[7×(32,000×2+512×8) + 1,100,000×2+512×8] / 1,000,000 = 2.680768 元`，低于固定单任务预留 **2.70 元**及本次已知剩余授权 **4.999838 元**。这不是新增账户预算系统，跨任务不会自动累计余额；每次真实执行仍须使用适用的原预算授权。
+
+上述人民币上界以价格快照和 provider 遵守已发布上下文／输出协议为前提，不是实际账户扣款保证。若 usage 报告超过物理预留或 512 输出，立即停止并返回 `chargeUpperCny:null`，不再声称有限费用。`accountChargedCny` 始终为空，因为本入口不访问账户账单。**本轮没有付费请求**，这条新路径的真实付费执行尚未验收。
 
 ## 文件与服务边界
 
@@ -58,10 +75,12 @@ npm run factory:local -- --input ./product.md --output-dir . --check
 ## 无付费验收
 
 ```sh
-node --test test/workspace-omp-local.test.mjs
+node --test test/workspace-omp-local.test.mjs test/workspace-omp-local-wire.test.mjs
 npm run build
 ```
 
 本地测试在隔离临时文件、无 Host、无 WS URL/token、无真实用户凭据环境中，使用原 OMP SDK/provider 注册路径与有限明确模型替身，真实调用上游 ReadTool/WriteTool。覆盖资料读取→RFQ／匹配缺项→带来源保存，以及原生路径、符号链接、源变更、覆盖和伪造远程工具拒绝。实际 npm 入口也执行了 `--check`，模型请求为零。测试代码通过私有参数传入替身；CLI、环境变量和生产选项没有替身开关。
+
+新增 wire 测试直接走原官方 provider 的 HTTP/SSE 路径，仅替换 fetch 返回明确合成报文；断言实际发送数、请求 bytes、thinking／输出限制，以及 500、连接／流错误、截断、缺失／部分／不一致／超限用量、空响应、工具失败、上下文增长和八次耗尽。该证据明确标为 `mocked-http`，不能证明真实付费成功。
 
 [证据与限制](validation/omp-local-factory-20261015/README.md)。真实用户资料、这条新本地路径的真实付费模型执行、扫描 PDF／OCR、Shopify 和 MCP 尚未在线验收；此前独立 DeepSeek 连通记录不能代替这些验收。

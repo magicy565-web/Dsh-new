@@ -37,10 +37,11 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null,
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
-  maxModelCalls = 4, maxTokens = 1600, localFactory = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
+  maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal,
   factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = localFactory ? 'omp:18.10.4:local-factory-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
+  if (providerTransport && !localFactory) throw Error('Bounded local provider transport requires the local factory profile.');
   if (localFactory && (savedSession || readOnlyBusiness || factoryMaterials || factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || ordinaryTools || uiOnly || client))
     throw Error('Local factory files cannot inherit remote profiles, clients or transcripts.');
   if (readOnlyBusiness && (factoryMaterials || factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || ordinaryTools || uiOnly))
@@ -238,8 +239,14 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
           // Retain the official provider transport. The separate API identifier
           // avoids replacing any built-in handler or recursively dispatching.
           const upstream = sdk.streamSimple({ ...model, api: 'openai-completions' }, context, { ...options, apiKey: configuration.apiKey,
-            maxTokens: Math.min(Math.floor(maxTokens / maxModelCalls), options?.maxTokens || Infinity), maxRetries: 0 });
-          for await (const event of upstream) { if (event.type === 'done') completedUsage.set(callNumber, event.message?.usage); stream.push(event); }
+            maxTokens: Math.min(Math.floor(maxTokens / maxModelCalls), options?.maxTokens || Infinity), maxRetries: 0,
+            ...(providerTransport ? { fetch: providerTransport.fetch, onSseEvent: providerTransport.onSseEvent, acceptEmptyResponse: true,
+              signal: AbortSignal.any([options?.signal, providerTransport.signal].filter(Boolean)) } : {}) });
+          for await (const event of upstream) {
+            if (event.type === 'done') { providerTransport?.complete(event.message); completedUsage.set(callNumber, event.message?.usage); }
+            if (event.type === 'error') providerTransport?.stop('LOCAL_PROVIDER_ERROR_STOP_DO_NOT_RETRY');
+            stream.push(event);
+          }
         }
       })().catch(error => stream.fail(new Error(error.message.replaceAll(configuration.apiKey || '\0', '[REDACTED]'))));
       return stream;

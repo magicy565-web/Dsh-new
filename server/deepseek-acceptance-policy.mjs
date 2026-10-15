@@ -34,23 +34,26 @@ export function measuredUsage(messages) {
   return { responses: responses.length, usageUpperCny: upperCny };
 }
 
-// Transport restriction only; original OMP owns the model/tool/session loop and
-// its no-retry policy. Installed only in the owned Bun acceptance process.
-export function boundedDeepseekFetch(fetchImpl) {
+// Transport restriction only; original OMP owns the model/tool/session loop.
+// A caller must also stop SDK retries/replay after any uncertain result.
+export function boundedDeepseekFetch(fetchImpl, { maxModelCalls = ACCEPTANCE_LIMITS.maxModelCalls, maxOutputTokens = ACCEPTANCE_LIMITS.maxOutputTokens,
+  maxRequestBytes = ACCEPTANCE_LIMITS.maxRequestBytes, allowedToolNames = ['workspace_business_tasks'] } = {}) {
   let requests = 0, uncertain = false;
   return { requests: () => requests, fetch: async (input, init) => {
-    if (uncertain || requests >= ACCEPTANCE_LIMITS.maxModelCalls) fail('UNCERTAIN_OR_EXHAUSTED_STOP_DO_NOT_RETRY');
+    if (uncertain || requests >= maxModelCalls) fail('UNCERTAIN_OR_EXHAUSTED_STOP_DO_NOT_RETRY');
     const request = new Request(input, init);
     if (request.url !== 'https://api.deepseek.com/chat/completions' || request.method !== 'POST') fail('PINNED_DEEPSEEK_REQUEST_REQUIRED');
     const text = await request.text();
-    if (Buffer.byteLength(text) > ACCEPTANCE_LIMITS.maxRequestBytes) fail('SHORT_INPUT_LIMIT');
+    if (Buffer.byteLength(text) > maxRequestBytes) fail('SHORT_INPUT_LIMIT');
     const body = JSON.parse(text);
-    if (body.model !== 'deepseek-flash' || body.tools?.some(t => t.function?.name !== 'workspace_business_tasks')) fail('PINNED_READONLY_MODEL_REQUIRED');
-    body.max_tokens = Math.min(body.max_tokens || 512, 512);
+    if (body.model !== 'deepseek-flash' || body.tools?.some(t => !allowedToolNames.includes(t.function?.name))) fail('PINNED_READONLY_MODEL_REQUIRED');
+    body.max_tokens = Math.min(body.max_tokens || maxOutputTokens, maxOutputTokens);
+    if (!Number.isSafeInteger(body.max_tokens) || body.max_tokens < 1) fail('SHORT_OUTPUT_LIMIT');
     body.thinking = { type: 'disabled' };
     delete body.max_completion_tokens; delete body.reasoning_effort; delete body.store; delete body.prompt_cache_retention;
     for (const m of body.messages || []) if (m.role === 'developer') m.role = 'system';
     for (const t of body.tools || []) delete t.function.strict;
+    if (Buffer.byteLength(JSON.stringify(body)) > maxRequestBytes) fail('SHORT_INPUT_LIMIT');
     requests++;
     try { const response = await fetchImpl(new Request(request, { body: JSON.stringify(body), redirect: 'error' }));
       if (!response.ok) uncertain = true; return response;
