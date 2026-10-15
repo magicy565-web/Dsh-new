@@ -10,6 +10,7 @@ import { createWorkspaceClient } from '../packages/workspace-procurement/src/wor
 import { TOKEN_A } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
 import { marketPlan, marketServicePlan } from './fixtures/market-validation-plan-data.mjs';
+import { seedMarketPublication } from './fixtures/shopify-market-scope.mjs';
 const empty = () => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });
 const ingestionTools = ['workspace_factory_ingestion_status', 'workspace_factory_ingestion_read', 'workspace_factory_ingestion_save', 'workspace_factory_ingestion_query', 'workspace_skill'];
 async function fixture(t, { profile = 'ingestion', policy, readOnly = false, readOnlyLoop = false, marketValidationOptions = {}, marketPlanForProduct = null } = {}) {
@@ -135,23 +136,24 @@ test('original HTTP cancel reaches the new ingestion commit fence and retains th
 });
 
 test('actual OMP monitor proposal, original human approval/enable, durable dispatch and Agent query form one original Host round trip', { timeout: 180000 }, async t => {
-  let f;
+  let f, publication;
   const options = { async resolveLaunchReceipt(input) {
     // Synthetic acquisition record supplied through the real Host seam. This
     // explicitly does not prove any real shop, launch, payment or market result.
     const file = await f.app.artifacts.download(input.planId, { version: input.planRevision });
     const doc = JSON.parse(file.bytes), row = f.app.store.read().artifacts.find(a => a.id === input.planId);
-    return { id: input.launchReceiptId, planId: input.planId, planRevision: input.planRevision,
+    return { ...publication.launch, id: input.launchReceiptId, planId: input.planId, planRevision: input.planRevision,
       planSha256: file.version.sha256, planHash: row.metadata.marketValidationPlan.planHash,
       planAcquisitionId: doc.plan.paths.find(p => p.mode === 'b2c').acquisition[0].id, approved: true, status: 'launched',
       evidenceKind: 'real', launchKind: 'acquisition', startedAt: new Date(Date.now() - 3600000).toISOString(),
-      timezone: doc.plan.timeZone, productId: 'gid://shopify/Product/123', variantIds: [], shopId: 'gid://shopify/Shop/1',
+      timezone: doc.plan.timeZone,
       channelId: 'synthetic-acquisition', businessMode: 'b2c', conversationId: row.sourceConversationId };
   } };
   // Keep the trusted fixture launch instant immutable across reads.
   const resolve = options.resolveLaunchReceipt; let launch;
   options.resolveLaunchReceipt = async input => launch ??= await resolve(input);
   f = await fixture(t, { profile: 'plan', marketValidationOptions: options });
+  publication = await f.app.store.update(state => seedMarketPublication(state, { actor: f.actor, conversationId: f.cid, productId: f.product.id }));
   assert.equal((await f.send()).status, 'succeeded');
   const saved = (await f.journal()).entries.find(e => e.message?.toolName === 'workspace_market_validation_plan_save').message.details;
   const input = { requestId: 'monitor-fixture', planId: saved.artifact.artifactId, planRevision: 1, launchReceiptId: 'synthetic-launch' };
@@ -168,7 +170,9 @@ test('actual OMP monitor proposal, original human approval/enable, durable dispa
   assert.equal(f.app.store.read().capabilities.scheduleRuns.length, 0);
   const replay = await invoke('workspace_market_monitor_request', input, true);
   assert.equal(replay.task.goalId, task.goalId); assert.equal(replay.approval.id, requested.approval.id);
-  assert.equal(f.app.store.read().goals.length, 1); assert.equal(f.app.store.read().capabilities.approvals.length, 1);
+  assert.equal(f.app.store.read().goals.length, 1);
+  assert.equal(f.app.store.read().capabilities.approvals.filter(a => a.action === 'schedule.enable').length, 1);
+  assert.equal(f.app.store.read().capabilities.approvals.length, 2); // Existing publication + one schedule approval.
   assert.deepEqual((await f.app.capabilities.tick()).runs, []);
   await assert.rejects(f.app.capabilities.enableSchedule(task.scheduleId, {}), { code: 'APPROVAL_REQUIRED' });
   // A due occurrence remains unclaimed while the original approval is pending.
@@ -281,20 +285,21 @@ test('actual OMP monitor request reports missing real acquisition connection and
 });
 
 for (const action of ['cancel', 'logout']) test(`actual original ${action} while acquisition proof is pending prevents monitor proposal commits`, { timeout: 90000 }, async t => {
-  let f, entered = false, release;
+  let f, publication, entered = false, release;
   const gate = new Promise(resolve => { release = resolve; }); t.after(() => release());
   f = await fixture(t, { profile: 'plan', marketValidationOptions: { async resolveLaunchReceipt(input) {
     assert.ok(input.signal instanceof AbortSignal); entered = true; await gate;
     if (action === 'cancel') input.signal.throwIfAborted();
     const file = await f.app.artifacts.download(input.planId, { version: input.planRevision });
     const doc = JSON.parse(file.bytes), row = f.app.store.read().artifacts.find(a => a.id === input.planId);
-    return { id: input.launchReceiptId, planId: input.planId, planRevision: input.planRevision,
+    return { ...publication.launch, id: input.launchReceiptId, planId: input.planId, planRevision: input.planRevision,
       planSha256: file.version.sha256, planHash: row.metadata.marketValidationPlan.planHash,
       planAcquisitionId: doc.plan.paths.find(p => p.mode === 'b2c').acquisition[0].id, approved: true, status: 'launched',
       evidenceKind: 'real', launchKind: 'acquisition', startedAt: new Date(Date.now() - 3600000).toISOString(),
-      timezone: doc.plan.timeZone, productId: 'gid://shopify/Product/123', variantIds: [], shopId: 'gid://shopify/Shop/1',
+      timezone: doc.plan.timeZone,
       channelId: 'synthetic-acquisition', businessMode: 'b2c', conversationId: row.sourceConversationId };
   } } });
+  publication = await f.app.store.update(state => seedMarketPublication(state, { actor: f.actor, conversationId: f.cid, productId: f.product.id }));
   assert.equal((await f.send()).status, 'succeeded');
   const saved = (await f.journal()).entries.find(e => e.message?.toolName === 'workspace_market_validation_plan_save').message.details;
   f.responses.splice(0, f.responses.length, { tool: 'workspace_market_monitor_request', arguments: { requestId: 'pending-proof', planId: saved.artifact.artifactId, planRevision: 1, launchReceiptId: 'synthetic-proof' } }, { text: 'No monitor started.' });
@@ -305,7 +310,9 @@ for (const action of ['cancel', 'logout']) test(`actual original ${action} while
   assert.equal(response.status, 200, response.text); release();
   assert.equal((await completion).status, action === 'cancel' ? 'cancelled' : 'failed');
   assert.equal(f.app.store.read().goals.length, 0); assert.equal(f.app.store.read().capabilities.schedules.length, 0);
-  assert.equal(f.app.store.read().capabilities.approvals.length, 0); assert.equal(f.app.store.read().capabilities.scheduleRuns.length, 0);
+  assert.equal(f.app.store.read().capabilities.approvals.filter(a => a.action === 'schedule.enable' || a.action === 'monitor.control').length, 0);
+  assert.equal(f.app.store.read().capabilities.approvals.length, 1); // Only the seeded original publication approval remains.
+  assert.equal(f.app.store.read().capabilities.scheduleRuns.length, 0);
 });
 
 test('actual original Host/OMP saves the pre-service market reference and proposed sales standard through existing plan tools without starting service', { timeout: 90000 }, async t => {
