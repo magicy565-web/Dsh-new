@@ -39,5 +39,8 @@ export function createWorkspaceOmpBusinessOptions({ environment = {}, baseURL } 
       if (!environment.WS_AGENT_TOKEN || !workspaceOmpConfigured(configuration)) return null;
       return { client: createWorkspaceClient({ baseURL: environment.WS_AGENT_URL || baseURL, token: environment.WS_AGENT_TOKEN }), model };
     },
+    resolveControlBinding: async () => environment.WS_AGENT_TOKEN ? {
+      client: createWorkspaceClient({ baseURL: environment.WS_AGENT_URL || baseURL, token: environment.WS_AGENT_TOKEN }), model,
+    } : null,
   };
 }

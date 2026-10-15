@@ -32,7 +32,8 @@ function publicContext(value) {
 // every Run, Message, scheduler, cancellation and token reservation. No turns,
 // commands, graph, task queue or second execution-state registry is introduced.
 export function createPiBusinessAgentAdapter({ provider: original, options }) {
-  if (original.kind !== 'pi-durable' || !options || Object.keys(options).some(key => !['recipient', 'resolveBinding', 'engineAdapter'].includes(key)) || typeof options.resolveBinding !== 'function')
+  if (original.kind !== 'pi-durable' || !options || Object.keys(options).some(key => !['recipient', 'resolveBinding', 'resolveControlBinding', 'engineAdapter'].includes(key)) || typeof options.resolveBinding !== 'function'
+    || options.resolveControlBinding !== undefined && typeof options.resolveControlBinding !== 'function')
     throw new TypeError('Use the existing Pi provider and a trusted existing member binding resolver.');
   const engineAdapter = options.engineAdapter;
   if (engineAdapter && (engineAdapter.scope !== 'omp:18.10.4:public-v1' || typeof engineAdapter.complete !== 'function'))
@@ -55,9 +56,9 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     if (!ownerMatches(conversation.businessAgentOwner, identity)) fail(404, 'NOT_FOUND', 'Conversation not found.');
     return conversation;
   }
-  async function bindingFor(identity, conversation, signal) {
+  async function bindingFor(identity, conversation, signal, controlOnly = false) {
     actor(identity);
-    const binding = await options.resolveBinding({ actor: identity, conversation: { id: conversation.id, title: conversation.title } });
+    const binding = await (controlOnly && options.resolveControlBinding || options.resolveBinding)({ actor: identity, conversation: { id: conversation.id, title: conversation.title } });
     if (!binding?.client?.bindingIdentity || !engineAdapter && !binding.modelRuntime || !binding?.model) fail(409, 'BUSINESS_AGENT_UNCONFIGURED', 'The existing Host member/model binding is not configured.');
     if (conversation.businessAgentSession && (conversation.businessAgentSession.engineScope || 'pi:1.1.0') !== (engineAdapter?.scope || 'pi:1.1.0'))
       fail(403, 'BUSINESS_AGENT_ENGINE_CHANGED', 'This transcript belongs to another engine scope. Start a fresh public-only conversation; private Pi history cannot migrate.');
@@ -221,7 +222,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         const identity = actor(context, true), body = await readBody(req); publicContext(body.inputContext);
         await respond(res, 201, await runtime.createConversation(body, identity, { businessAgentOwner: { subject: identity.subject, workspaceId: identity.workspaceId } })); return true;
       }
-      const match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/(messages|cancel|task-graph|business-results|terminal-status)|\/business-tasks\/([^/]+)\/(resume))?$/);
+      const match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/(messages|cancel|task-graph|business-results|terminal-status|terminal-controls)|\/business-tasks\/([^/]+)\/(resume))?$/);
       if (!match) return false;
       const conversationId = decoded(match[1]);
       if (!current(conversationId).businessAgentOwner) {
@@ -233,6 +234,31 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         return false;
       }
       const identity = actor(context, req.method !== 'GET'), conversation = owned(conversationId, identity);
+      if (req.method === 'POST' && match[2] === 'terminal-controls') {
+        const body = await readBody(req), operation = body.operation;
+        const fields = { status: ['runId'], cancel: ['runId', 'confirmed'], resume: ['runId', 'requestId', 'confirmed'],
+          decision: ['runId', 'proposalId', 'confirmed'], continue: ['runId', 'proposalId', 'requestId', 'confirmed'],
+          businessStatus: ['taskId'], businessCancel: ['taskId', 'confirmed'] };
+        if (!Object.hasOwn(fields, operation) || Object.keys(body).some(key => !['operation', ...fields[operation]].includes(key))
+          || fields[operation].some(key => key === 'confirmed' ? body[key] !== true : key === 'requestId' ? !requestId(body[key]) : !id(body[key])))
+          fail(400, 'HUMAN_CONTROL_REQUIRED', 'Use an exact original human control, identifiers and stable requestId, with explicit confirmation for mutations.');
+        const binding = await bindingFor(identity, conversation, undefined, !['resume', 'continue'].includes(operation));
+        let value;
+        if (operation.startsWith('business')) {
+          const linked = store.read().runs.some(run => run.conversationId === conversationId && run.executionRefs?.some(ref => ref.taskId === body.taskId));
+          if (!linked) fail(404, 'NOT_FOUND', 'This conversation has no such original task reference.');
+          value = await binding.client[operation](body.taskId);
+        } else {
+          const run = store.read().runs.find(row => row.id === body.runId && row.piTaskContext && ownerMatches(row.piTaskContext, identity));
+          if (!run) fail(404, 'ORIGINAL_PI_CHECKPOINT_REQUIRED', 'Use an owned original Pi checkpoint; an OMP frontend transcript cannot be replayed as Pi.');
+          value = operation === 'decision' ? await binding.client.decision(body.runId, body.proposalId, 'approved')
+            : operation === 'continue' ? await binding.client.continue(body.runId, body.proposalId, body.requestId)
+              : operation === 'resume' ? await binding.client.resume(body.runId, body.requestId) : await binding.client[operation](body.runId);
+        }
+        actor(identity, true);
+        if (looksLikeCredential(JSON.stringify(value))) fail(403, 'PUBLIC_RECEIPT_REQUIRED', 'The original control receipt cannot be disclosed in this public terminal.');
+        await respond(res, 200, value); return true;
+      }
       if (req.method === 'GET' && match[2] === 'terminal-status') {
         const query = new URL(req.url, 'http://localhost').searchParams;
         if ([...query.keys()].some(key => key !== 'runId') || query.getAll('runId').length !== 1 || !id(query.get('runId')))

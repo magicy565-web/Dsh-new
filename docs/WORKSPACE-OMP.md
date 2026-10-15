@@ -16,11 +16,25 @@ npm run workspace
 
 `npm run workspace` 一次启动原服务；交互 TTY 自动打开官方 OMP InteractiveMode，普通自然输入走原 HTTP Conversation/Run，终端 UI 不另调用模型。无 TTY 时只保留原服务。`npm start` 等同 `--serve` 网页服务；`npm run agent:dev` 使用同一默认交互入口。也可明确运行 `npm run workspace -- --terminal` 或 `--serve`。已有静态页面仍从原服务交付；本分支没有新建网页。
 
-交互终端目前使用原 loopback local-operator Session。它先核对原服务的固定 OMP engineScope；旧 Pi 服务不能成为隐式回退。企业身份仍走原网页/nativeSession/CSRF，不把 Agent Bearer 标记为 Session。`/ws-front-status` 显示当前原 Run 与回复，`/ws-stop` 由原人工确认停止当前前台回答；已受理业务任务保持单独取消/恢复。终端 UI 不持模型密钥、不执行自己的模型流，也不导入旧终端历史。
+本机交互入口使用原 loopback local-operator Session。企业终端由已认证的原 Host 调用 `launchWorkspaceOmpWithExistingSession`，复用其现有 Session/CSRF 与可信 ingress 逐请求签名闭包，经私有 fd3 传递白名单请求；Session、CSRF、签名密钥和 Agent Bearer 均不交给企业终端子进程。没有该既有 handoff 时，直接指向企业URL的CLI仍拒绝。每次核对成员、workspace、角色及原服务固定OMP engineScope；旧Pi服务不能成为隐式回退。`/ws-front-status` 显示当前原Run与回复，`/ws-stop` 人工确认后只停前台；后台任务保持单独取消/恢复。终端UI不调用模型、不导入旧终端历史。
 
 普通自然输入默认 `workspaceExecution:false`，只允许问答和已准入的只读工具；即使模型尝试 `workspace_factory_task`，原宿主也拒绝创建任务。明确执行使用 `/ws-execute 公开文字`，官方终端显示本次原文并要求人工确认后才传 `workspaceExecution:true`；Escape不会创建Run或任务，后续原审批仍保留。真实官方TTY、原HTTP和有限无密钥模型替身的7项回归见 [执行意图证据](validation/omp-terminal-fixes-20261015/intent.json)。
 
-UI-only终端不能证明后台模型现金余额，因此不从通用 `/ws-task`、`/ws-resume`、`/ws-continue`、`/ws-business-resume` 命令派发执行；它们准确返回未配置。自然输入统一经过原OMP宿主准入，后台恢复/分别继续仍用原已审核网页/API。原状态、确认取消和仅记录决定的审批保持原权限；批准决定不等于已执行。UI子进程不继承模型密钥或公网代理，原宿主的公网/模型路由未改变。
+终端控制由原Host校验Session与既有Agent绑定同一成员、workspace、角色、实例和接收方，再调用原API；`/ws-resume`、`/ws-continue` 执行准入仍需原Host的价格和预算审查，缺配置明确拒绝。`/ws-approve` 只记录原proposal决定，`/ws-continue` 另行确认后才继续；`/ws-cancel` 控制原Pi任务。OMP前台不是Pi Durable checkpoint，不能重放；其后台业务恢复用 `/ws-business-resume TASK_ID STABLE_REQUEST_ID`，沿用当前原会话的任务引用、原stage和预算。直接 `/ws-task` 仍不派发新通用任务，工厂提交使用已确认的 `/ws-execute`。UI子进程不继承模型密钥或公网代理，原Host的路由未改变。
+
+企业Host集成入口位于 `server/workspace-omp-terminal-host.mjs`。调用方必须已拥有原认证Session和原可信请求闭包；这里不提供登录、取浏览器cookie或创建凭据的命令：
+
+```js
+await launchWorkspaceOmpWithExistingSession({
+  origin: existingPublicOrigin,
+  session: existingAuthenticatedSession,
+  conversationId: originalConversationId,
+  request: existingNativeSessionRequest, // ({method,path,body,signal}) -> {status,body}
+  environment: process.env, // 内部仅挑选终端设置和无密钥模型元数据
+});
+```
+
+每Run资料副本在正常结束、取消和初始化失败时清理；宿主在worker实际退出后另按该原Run的精确目录前缀兜底，覆盖强制结束，保留原件和其他Run副本。回归证据见 [生命周期清理](validation/omp-terminal-fixes-20261015/snapshot-cleanup.json)。
 
 没有现有模型、成员绑定、已审价格或可确认剩余预算时，服务可以启动保存工作，模型执行明确返回未配置；不会生成凭据、选免费模型或默认启用合成替身。
 
@@ -65,7 +79,7 @@ node scripts/workspace-omp-install.mjs --check
 
 当前没有真实付费模型、真实海外候选或完整商业链路验收。五元总额的可控剩余预算没有验证，付费调用为零；价格／预算配置标志不能当本轮实际消费证明。七天未来通知的持续同意和持久收件人权限机制仍待另行批准，未开发或激活。未部署、未合并main、未发送、未创建账户或扩展Worker权限。
 
-本轮九项交付状态（所有模型流程验收均为明确有限、无密钥合成模型）：
+2026-10-14初版九项交付状态（所有模型流程验收均为明确有限、无密钥合成模型）：
 
 | 项目 | 状态 | 可交付结果与剩余限制 |
 | --- | --- | --- |
@@ -79,10 +93,12 @@ node scripts/workspace-omp-install.mjs --check
 | 公开资料→候选来源→开发信→人工审核 | 部分完成 | 合成来源及文本／PDF完整链路通过；真实客户来源与真人文书验收未完成 |
 | 回归、固定版本与中文交付 | 完成 | 最新33/33，原Pi／Library53/53，原业务17/17，typecheck通过；不冒称生产上线 |
 
-剩余阻塞是未审查的真实模型配置与剩余预算、不可用的真实公开搜索，以及未批准的未来通知机制。企业终端目前未接入企业Session；企业用户继续用原认证网页/API。同伴分支的结果／恢复UI未在本分支验收。
+剩余阻塞是未审查的真实模型配置与剩余预算、不可用的真实公开搜索，以及未批准的未来通知机制。企业终端已有原Host内存handoff接线；真实部署的既有Session接入和真实模型仍须分别验证。同伴分支的结果／恢复UI未在本分支验收。
 
 公开工具的逐次原授权、指定文件/来源→原任务三文书、搜索失败与缓存撤销检查见 [受控公开工具](validation/omp-public-tools-20261014/README.md)。默认受控宿主已显式接入上述有限工具；支持但不可达或未配置时保持准确状态。完整Pi私库guard未迁到OMP，也没有为迁移开放私库或任意文件工具。原Pi终端仅显式回退。
 
 PDF回执标记 `extractionPolicy:native-text-hints-v2`。继续会话时除了当前文件ID/SHA，还校验该标记；旧提取策略回执不能带着不准确的完整读取声明再次进入模型。拒绝不会自动重写历史或重跑任务，需要新建公开会话；原历史查看与已受理后台任务的人工控制不变。
 
-前端协作接口沿用原路由：公开 `POST /api/conversations/:id/messages` 需稳定requestId、空inputContext；文书执行意图明确给 `workspaceExecution:true`。用 `GET /api/conversations/:id/business-results` 读取原任务／阶段／文书状态，人工恢复用 `POST /api/conversations/:id/business-tasks/:taskId/resume` 的稳定requestId与 `confirmed:true`。终端只补同鉴权的 `GET /api/conversations/runtime` 公开引擎标识与 `GET /api/conversations/:id/terminal-status?runId=…` 窄回执，严格核对会话/Run/成员归属，避免读取整个bootstrap。没有新Store或任务注册表。本分支未加入或验收同伴分支的结果／恢复UI。`server/index.mjs` 仅最小启动接线，未修改供应商traffic loader、readiness或原PiProvider业务引擎。
+前端协作接口沿用原路由：公开 `POST /api/conversations/:id/messages` 需稳定requestId、空inputContext，默认只读；文书执行意图明确给 `workspaceExecution:true`。用 `GET /api/conversations/:id/business-results` 读取原任务／阶段／文书状态，人工恢复用 `POST /api/conversations/:id/business-tasks/:taskId/resume` 的稳定requestId与 `confirmed:true`。终端补同鉴权的 `GET /api/conversations/runtime`、`GET /api/conversations/:id/terminal-status?runId=…` 及 `POST /api/conversations/:id/terminal-controls`；后者固定原状态／取消／批准／继续／恢复操作与精确ID，不能提交任意新任务，写操作保留人工确认及原权限。没有新Store或任务注册表。`server/index.mjs` 仅最小启动接线，未修改供应商traffic loader、readiness或原PiProvider业务引擎。
+
+2026-10-15真实公开网络复测：DDG HTTP403，IANA公开页读取超时，均未取得可用来源；未解挑战或改道。GitHub Actions仍为创建jobs前的 `BuildFailed/startup_failure`，见 [既有Issue16](https://github.com/magicy565-web/workspace-agent/issues/16) 与 [本次CI事实](validation/omp-terminal-fixes-20261015/ci.json)。本地通过不是CI成功，不据此盲改应用。

@@ -10,7 +10,16 @@ export function registerWorkspaceHumanControls(pi, client, configuration = 'conf
   } });
   const confirm = async (ctx, title, receipt) => {
     if (!ctx.hasUI || typeof ctx.ui?.confirm !== 'function') throw new Error('This operation requires a visible human confirmation in the Workspace terminal. No mutation was sent.');
-    return await ctx.ui.confirm(title, JSON.stringify(receipt, null, 2)) === true;
+    return await ctx.ui.confirm(title, typeof receipt === 'string' ? receipt : JSON.stringify(receipt, null, 2)) === true;
+  };
+  const taskSummary = (taskId, receipt) => {
+    const task = receipt.task;
+    const stages = task.workspace?.runIds || (task.steps || []).filter(step => step.runId).map(step => step.runId);
+    const documents = (receipt.sources || []).filter(file => file.kind === 'artifact' && file.sha256).map(file => `${file.name}: ${file.sha256}`);
+    return [`Original task: ${taskId}`, `Type: ${task.type || 'business'}; status: ${task.status}`,
+      'Only the unchanged original task is controlled; no replacement task is submitted.',
+      `Budget: ${task.budget ? JSON.stringify(task.budget) : 'not included in this receipt; original allowance is preserved'}`, `Stage Run IDs: ${stages.join('; ') || 'none reported'}`,
+      ...documents.map(value => 'Saved document SHA256: ' + value)].join('\n');
   };
   const fields = (args, count) => { const values = args.trim().split(/\s+/); if (values.length !== count) throw new Error('Supply the exact original IDs and one stable requestId when required.'); return values; };
   command('ws-status', 'Read original run: /ws-status RUN_ID', args => client.status(identifier(args.trim())));
@@ -50,13 +59,13 @@ export function registerWorkspaceHumanControls(pi, client, configuration = 'conf
   });
   command('ws-business-cancel', 'Cancel original business task: /ws-business-cancel TASK_ID', async (args, ctx) => {
     const taskId = identifier(args.trim()), receipt = await client.businessStatus(taskId);
-    if (!await confirm(ctx, 'Cancel this original business task?', { taskId, task: receipt.task })) return { taskId, cancelled: false };
+    if (!await confirm(ctx, 'Cancel this original business task?', taskSummary(taskId, receipt))) return { taskId, cancelled: false };
     return client.businessCancel(taskId);
   });
   command('ws-business-resume', 'Recover original task: /ws-business-resume TASK_ID STABLE_REQUEST_ID', async (args, ctx) => {
     const [id, key] = fields(args, 2), taskId = identifier(id), requestId = requestIdentifier(key), receipt = await client.businessStatus(taskId);
     if (!receipt.task.result?.resumable || !['failed', 'interrupted'].includes(receipt.task.status)) throw new Error('Original task has no eligible checkpoint; no continuation was sent.');
-    if (!await confirm(ctx, 'Recover this unchanged original business task?', { taskId, task: receipt.task })) return { taskId, resumed: false };
+    if (!await confirm(ctx, 'Recover this unchanged original business task?', taskSummary(taskId, receipt))) return { taskId, resumed: false };
     return client.businessResume(taskId, undefined, requestId);
   });
 }

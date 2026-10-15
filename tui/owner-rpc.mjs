@@ -1,4 +1,6 @@
 import { Socket } from 'node:net';
+import { createReadStream, createWriteStream, closeSync } from 'node:fs';
+import { Duplex } from 'node:stream';
 
 const safeCode = value => typeof value === 'string' && /^[A-Z0-9_]{1,100}$/.test(value);
 const failure = code => Object.assign(new Error(code), { code });
@@ -6,11 +8,18 @@ const failure = code => Object.assign(new Error(code), { code });
 // The TUI receives an inherited private pipe, never Session/CSRF/key material.
 export function createOwnerRpcTransport(fd) {
   if (!Number.isInteger(fd) || fd < 3 || fd > 64) throw failure('OWNER_SESSION_PIPE_REQUIRED');
-  const stream = new Socket({ fd, readable: true, writable: true });
+  // The published Bun runtime cannot adopt Node's inherited stdio socket via
+  // net.Socket (ERR_SOCKET_CLOSED). Keep the same bounded RPC protocol and the
+  // original Node path; Bun uses the fd streams already used by OMP workers.
+  const bun = Boolean(globalThis.Bun);
+  const stream = bun ? Duplex.from({ readable: createReadStream(null, { fd, autoClose: false }),
+    writable: createWriteStream(null, { fd, autoClose: false }) }) : new Socket({ fd, readable: true, writable: true });
   stream.setEncoding('utf8');
   let nextId = 0, buffer = '';
   const pending = new Map();
-  const close = () => { for (const wait of pending.values()) wait.reject(failure('OWNER_HOST_DISCONNECTED')); pending.clear(); };
+  let fdClosed = false;
+  const close = () => { for (const wait of pending.values()) wait.reject(failure('OWNER_HOST_DISCONNECTED')); pending.clear();
+    if (bun && !fdClosed) { fdClosed = true; try { closeSync(fd); } catch {} } };
   stream.on('error', close); stream.on('close', close);
   stream.on('data', bytes => {
     buffer += bytes.toString('utf8');
@@ -22,19 +31,19 @@ export function createOwnerRpcTransport(fd) {
       buffer = buffer.slice(end + 1);
       const wait = pending.get(response.id); if (!wait) continue;
       pending.delete(response.id);
-      if (!pending.size) stream.unref();
+      if (!pending.size) stream.unref?.();
       if (response.error) wait.reject(failure(safeCode(response.error) ? response.error : 'OWNER_HOST_FAILED'));
       else wait.resolve(response.result);
     }
   });
-  stream.unref();
+  stream.unref?.();
   const request = ({ method, path, body, signal = AbortSignal.timeout(15000) }) => new Promise((resolve, reject) => {
     if (stream.destroyed || signal.aborted) { reject(failure('OWNER_HOST_DISCONNECTED')); return; }
     const id = ++nextId;
-    const abort = () => { pending.delete(id); if (!pending.size) stream.unref(); reject(failure('OWNER_HOST_RESULT_UNKNOWN')); };
+    const abort = () => { pending.delete(id); if (!pending.size) stream.unref?.(); reject(failure('OWNER_HOST_RESULT_UNKNOWN')); };
     signal.addEventListener('abort', abort, { once: true });
     pending.set(id, { resolve: value => { signal.removeEventListener('abort', abort); resolve(value); }, reject: error => { signal.removeEventListener('abort', abort); reject(error); } });
-    stream.ref();
+    stream.ref?.();
     stream.write(JSON.stringify({ id, method, path, ...(body === undefined ? {} : { body }) }) + '\n');
   });
   request.close = () => stream.destroy();
