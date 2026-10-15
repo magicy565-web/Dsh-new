@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-const names = ['workspace_market_validation_product', 'workspace_market_validation_plan_save'];
+const names = ['workspace_market_validation_product', 'workspace_market_validation_plan_save', 'workspace_market_monitor_request', 'workspace_market_monitor_status', 'workspace_market_monitor_control_request'];
 export default async pi => {
   const disabled = process.env.MARKET_PLAN_EXPECT === 'absent';
   const { AssistantMessageEventStream } = await import(pathToFileURL(path.join(process.env.MARKET_PLAN_OMP_ROOT, '../pi-ai/src/utils/event-stream.ts')).href);
@@ -19,15 +19,15 @@ export default async pi => {
         for (const name of names) assert.equal(pi.getActiveTools().includes(name), !disabled, name);
         assert.ok(pi.getActiveTools().includes('read')); assert.ok(pi.getActiveTools().includes('bash'));
         const step = ++calls; assert.ok(step <= 4, 'Finite provider exhausted');
-        const steps = disabled ? ['other', 'done'] : ['read', 'other', 'done'];
+        const steps = disabled ? ['other', 'done'] : ['read', 'monitor', 'other', 'done'];
         if (step > 1) {
           const value = JSON.parse(context.messages.at(-1).content.filter(b => b.type === 'text').map(b => b.text).join('\n'));
-          if (steps[step - 2] === 'read') { assert.equal(value.status, 'unconfigured'); assert.deepEqual(value.sources, []); }
+          if (['read', 'monitor'].includes(steps[step - 2])) { assert.equal(value.status, 'unconfigured'); assert.deepEqual(value.sources, []); }
           else assert.equal(value.otherPlugin, true);
         }
         const action = steps[step - 1], content = action === 'done' ? [{ type: 'text', text: disabled ? 'MARKET_PLAN_ABSENT_VERIFIED' : 'MARKET_PLAN_MANIFEST_SKILL_UNCONFIGURED_VERIFIED' }]
-          : [{ type: 'toolCall', id: 'market-cli-' + step, name: action === 'read' ? names[0] : 'market_other_plugin',
-            arguments: action === 'read' ? { productId: '11111111-1111-4111-8111-111111111111', documents: [] } : {} }];
+          : [{ type: 'toolCall', id: 'market-cli-' + step, name: action === 'read' ? names[0] : action === 'monitor' ? names[3] : 'market_other_plugin',
+            arguments: action === 'read' ? { productId: '11111111-1111-4111-8111-111111111111', documents: [] } : action === 'monitor' ? { goalId: '11111111-1111-4111-8111-111111111111' } : {} }];
         const message = { role: 'assistant', content, stopReason: action === 'done' ? 'stop' : 'toolUse', api: model.api, provider: model.provider, model: model.id, timestamp: Date.now(),
           usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
         stream.push({ type: 'start', partial: message });

@@ -1,3 +1,4 @@
+import { marketValidationMonitorExtension, MARKET_MONITOR_TOOLS } from '../packages/workspace-market-validation/src/monitor.js';
 // Bun-only integration with the reviewed official OMP SDK. This file supplies
 // configuration and a provider transport; OMP owns the agent/tool/session loop.
 import assert from 'node:assert/strict';
@@ -36,7 +37,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
   maxModelCalls = 4, maxTokens = 1600, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal,
-  factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, ingestionClient = null, planClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
+  factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
   const privateProfile = factoryMaterials || factoryIngestion;
@@ -103,9 +104,10 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   let manager;
   async function revalidateFactoryContext(messages, model, signal) {
     if (!privateProfile) return;
+    const monitorSnapshots = new Map(); // One disclosure boundary only.
     const checkedReceipts = new Set(); // Only this validation boundary, never a permission cache.
     for (const message of messages) {
-      if (message?.role !== 'toolResult' || ![...FACTORY_MATERIAL_TOOLS, ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? MARKET_VALIDATION_TOOLS : [])].includes(message.toolName)) continue;
+      if (message?.role !== 'toolResult' || ![...FACTORY_MATERIAL_TOOLS, ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : [])].includes(message.toolName)) continue;
       let receipt;
       try { receipt = JSON.parse((message.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n')); }
       catch {
@@ -115,9 +117,14 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         if (message.isError === true && message.details === undefined) continue;
         throw Error('Factory cached receipt is malformed; no model disclosure is admitted.');
       }
-      if (!['workspace-factory-materials', ...(factoryInquiries ? ['workspace-factory-inquiries'] : []), ...(factoryIngestion ? ['workspace-factory-ingestion'] : []), ...(marketValidation ? ['workspace-market-validation'] : [])].includes(receipt.plugin)) throw Error('Factory cached receipt provenance changed.');
+      if (!['workspace-factory-materials', ...(factoryInquiries ? ['workspace-factory-inquiries'] : []), ...(factoryIngestion ? ['workspace-factory-ingestion'] : []), ...(marketValidation ? ['workspace-market-validation', 'workspace-market-monitor'] : [])].includes(receipt.plugin)) throw Error('Factory cached receipt provenance changed.');
       if (['unconfigured', 'blocked', 'unavailable'].includes(receipt.status) && Object.keys(receipt).every(key => ['plugin', 'status', 'reason', 'sources', 'detail', 'humanReviewRequired', 'humanReviewed', 'sent', 'externalActions', 'visibility', 'humanConfirmed', 'independentVerification', 'startedAt'].includes(key))
         && Array.isArray(receipt.sources) && receipt.sources.length === 0) continue;
+      if (receipt.plugin === 'workspace-market-monitor') {
+        const key = libraryReadHash([receipt.input, receipt.requestedAction]);
+        if (!monitorSnapshots.has(key)) monitorSnapshots.set(key, await monitorClient.refresh(receipt, model, signal));
+        continue;
+      }
       if (!receipt.authorization && !factoryIngestion) throw Error('Factory cached receipt has no exact original authorization.');
       const key = libraryReadHash([receipt, (message.content || []).filter(b => b.type === 'image')]);
       if (checkedReceipts.has(key)) continue;
@@ -129,6 +136,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       else await materialsClient.revalidateReceipt(receipt, model, signal);
       await authorize();
     }
+    return monitorSnapshots;
   }
   let modelCalls = 0; const completedUsage = new Map();
   const customApi = uiOnly ? 'workspace-omp-ui-only-disabled' : syntheticResponses ? 'workspace-omp-explicit-faux' : 'workspace-omp-pinned-openai';
@@ -182,7 +190,15 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       void (async () => {
         if (uiOnly) throw new Error('This official terminal is UI-only. Model execution must use the original Workspace Conversation/Run HTTP authority.');
         await authorize();
-        await revalidateFactoryContext([...(manager?.getEntries() || []).map(e => e.message), ...(context.messages || [])], model, options?.signal);
+        const monitorSnapshots = await revalidateFactoryContext([...(manager?.getEntries() || []).map(e => e.message), ...(context.messages || [])], model, options?.signal);
+        if (marketValidation) for (const message of context.messages || []) {
+          if (message?.role !== 'toolResult' || !MARKET_MONITOR_TOOLS.includes(message.toolName)) continue;
+          let receipt; try { receipt = JSON.parse(message.content.filter(b => b.type === 'text').map(b => b.text).join('\n')); } catch { continue; }
+          if (!receipt.input) continue;
+          const fresh = monitorSnapshots.get(libraryReadHash([receipt.input, receipt.requestedAction]));
+          if (!fresh) throw Error('Original monitor snapshot required.');
+          message.content = [{ type: 'text', text: JSON.stringify(fresh) }]; message.details = fresh;
+        }
         const callNumber = ++modelCalls;
         if (callNumber > maxModelCalls || model.provider !== configuration.providerId || model.id !== configuration.model || model.baseUrl !== configuration.baseUrl)
           throw new Error('The original admitted request count or pinned OMP receiver changed.');
@@ -193,6 +209,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
           const spec = syntheticResponses[callNumber - 1];
           if (!spec) throw new Error('Finite explicit faux responses exhausted; no real provider fallback.');
           if (spec.expectedToolNames) assert.deepEqual((context.tools || []).map(tool => tool.name).sort(), [...spec.expectedToolNames].sort());
+          if (spec.forbiddenContextText) assert.ok(!JSON.stringify(context.messages).includes(spec.forbiddenContextText), 'Explicit fixture refused stale or forged monitor context.');
           if (spec.expectedContextText) assert.ok(JSON.stringify(context.messages).includes(spec.expectedContextText), 'Explicit fixture expected the original public tool/child receipt.');
           if (spec.wait) await new Promise((resolve, reject) => {
             const timer = setTimeout(resolve, spec.wait);
@@ -249,7 +266,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       } });
   }
   const simplified = factoryInquiries || factoryCustomers || factoryIngestion || marketValidation;
-  const admittedTools = [...(simplified ? [] : ORDINARY_FACTORY_TOOLS), ...skillTools.map(t => t.name), ...(!simplified && factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? MARKET_VALIDATION_TOOLS : [])];
+  const admittedTools = [...(simplified ? [] : ORDINARY_FACTORY_TOOLS), ...skillTools.map(t => t.name), ...(!simplified && factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : [])];
   if (savedSession && !ordinaryTools) {
     for (const entry of manager.getEntries()) {
       const message = entry.message;
@@ -273,7 +290,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     model: uiOnly ? sdk.finalizeCustomModel(sdk.buildCustomModelOverlay(configuration.providerId, configuration.baseUrl, customApi,
       undefined, undefined, undefined, undefined, undefined, undefined, modelDefinition), { useDefaults: true })
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
-    extensions: [...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(marketValidation ? [marketValidationExtension({ client: planClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
+    extensions: [...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
       pi => [...publicExtension.tools, ...publicTask.tools, ...skillTools].forEach(tool => pi.registerTool(tool)),
       ...ordinaryTools ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
     disableExtensionDiscovery: true, skills: selectedSkills.skills, appendSystemPrompt: privateProfile || factoryCustomers ? undefined : factorySkillContent,

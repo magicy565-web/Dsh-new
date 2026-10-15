@@ -1,4 +1,6 @@
 import { capabilityPayloadHash as hash, goalDefinition } from './capabilities.mjs';
+import { assessMarketValidation } from './market-validation-assessment.mjs';
+import { validateResultAssessment } from '../packages/workspace-market-validation/src/plan.mjs';
 import { ApiError } from './runtime.mjs';
 import { productCohortMetrics, SUPPLIER_METRIC_DEFINITION } from './supplier-metrics.mjs';
 import { validateProductTrafficObservation } from './product-traffic-contract.mjs';
@@ -43,6 +45,21 @@ function receiptScope(receipt, request, clock) {
   const requiredMetrics = receipt.requiredMetrics ?? [{ id: receipt.businessMode === 'b2b' ? 'b2b_orders' : 'net_paid_units', definition: 'Exact-product/channel outcome cohort; compare against the original approved goal.' }];
   if (!Array.isArray(requiredMetrics) || !requiredMetrics.length || requiredMetrics.length > 10 || new Set(requiredMetrics.map(item => item.id)).size !== requiredMetrics.length || requiredMetrics.some(item => !allowed.includes(item.id) || typeof item.definition !== 'string' || !item.definition.trim() || item.definition.length > 2000)) fail('PLAN_METRICS_REQUIRED', 'Use the selected original plan metrics and definitions.');
   if (receipt.salesRequirement && (!requiredMetrics.some(item => item.id === receipt.salesRequirement.metric) || receipt.salesRequirement.target !== null && (!Number.isSafeInteger(receipt.salesRequirement.target) || receipt.salesRequirement.target < 0) || typeof receipt.salesRequirement.definition !== 'string')) fail('PLAN_METRICS_REQUIRED', 'Retain the original selected sales requirement.');
+  let resultAssessment = null, marketBenchmark = null;
+  if (receipt.resultAssessment != null) {
+    try { validateResultAssessment(receipt.resultAssessment); } catch { fail('PLAN_METRICS_REQUIRED', 'Select an explicit assessment metric and comparable benchmark reference.'); }
+    resultAssessment = copy(receipt.resultAssessment);
+    if (resultAssessment.channelId !== receipt.channelId || (resultAssessment.metric === 'sales_units' ? resultAssessment.unit !== 'net_paid_units_per_168h' : resultAssessment.unit !== 'net_paid_orders_per_valid_visit')) fail('PLAN_METRICS_REQUIRED', 'Assessment units and acquisition channel must match.');
+  }
+  if (receipt.marketBenchmark != null) {
+    const b = receipt.marketBenchmark, keys = ['sourceId', 'evidenceRef', 'metric', 'category', 'region', 'channelId', 'unit', 'windowHours', 'value', 'observedAt', 'evidenceKind', 'reviewed', 'validVisitDefinition', 'coverage'];
+    if (typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some(k => !keys.includes(k)) || keys.some(k => !Object.hasOwn(b, k))
+      || !['sourceId', 'evidenceRef', 'metric', 'category', 'region', 'channelId', 'unit'].every(k => reference(b[k])) || typeof b.validVisitDefinition !== 'string' || !b.validVisitDefinition.trim() || b.validVisitDefinition.length > 2000 || !instant(b.observedAt)
+      || !b.coverage || Object.keys(b.coverage).length !== 2 || !instant(b.coverage.from) || !instant(b.coverage.to)
+      || Date.parse(b.coverage.to) - Date.parse(b.coverage.from) !== 168 * 3600000 || Date.parse(b.coverage.to) > Date.parse(receipt.startedAt) || Date.parse(b.observedAt) < Date.parse(b.coverage.to)
+      || !Number.isFinite(b.value) || b.value <= 0 || b.evidenceKind !== 'real' || b.reviewed !== true || b.windowHours !== 168) fail('BENCHMARK_EVIDENCE_INVALID', 'Use a reviewed original benchmark with explicit comparable dimensions.');
+    marketBenchmark = copy(b);
+  }
   let baseline = { status: 'unavailable', reason: 'NO_VERIFIED_PRELAUNCH_BASELINE', value: null };
   if (receipt.baseline != null) {
     const source = receipt.baseline;
@@ -62,7 +79,7 @@ function receiptScope(receipt, request, clock) {
     windowDefinition: '168 elapsed hours from the real approved acquisition launch; local dates are display labels',
     requiredMetrics: requiredMetrics.map(item => ({ id: item.id, definition: item.definition })),
     salesRequirement: receipt.salesRequirement ? { metric: receipt.salesRequirement.metric, target: receipt.salesRequirement.target, definition: receipt.salesRequirement.definition } : null,
-    baseline };
+    baseline, ...(resultAssessment ? { resultAssessment } : {}), ...(marketBenchmark ? { marketBenchmark } : {}) };
 }
 
 // This validates an already authorized source, not its authorization. The Host
@@ -86,7 +103,16 @@ function outcomeObservation(value, scope, adapterId) {
   if (scope.businessMode === 'b2c') for (const [net, gross] of [['netPaidOrders', 'paidOrders'], ['netPaidUnits', 'paidUnits'], ['refundedUnits', 'paidUnits']]) {
     if (value.metrics[net] != null && value.metrics[gross] != null && value.metrics[net] > value.metrics[gross]) fail('OUTCOME_OBSERVATION_INVALID', 'Net or refunded cohort counts cannot exceed the acknowledged paid cohort.', 502);
   }
-  return { status: value.status, sourceId: adapterId, sampledAt: value.sampledAt, dataLagSeconds: value.dataLagSeconds,
+  let resultEvidence;
+  if (value.resultEvidence != null) {
+    const e = value.resultEvidence;
+    if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).some(k => !['evidenceKind', 'evidenceRef', 'paymentStatus', 'coverageRatio', 'validVisits', 'qualifiedInquiries', 'validVisitDefinition'].includes(k))
+      || (typeof e.validVisitDefinition !== 'string' || !e.validVisitDefinition.trim() || e.validVisitDefinition.length > 2000) || e.evidenceKind !== 'real' || !reference(e.evidenceRef) || e.paymentStatus !== 'net_paid_verified'
+      || !Number.isFinite(e.coverageRatio) || e.coverageRatio < 0 || e.coverageRatio > 1
+      || !['validVisits', 'qualifiedInquiries'].every(k => e[k] === null || Number.isSafeInteger(e[k]) && e[k] >= 0)) fail('OUTCOME_OBSERVATION_INVALID', 'Result evidence requires reviewed net payment, valid traffic counts and coverage.');
+    resultEvidence = copy(e);
+  }
+  return { ...(resultEvidence ? { resultEvidence } : {}), status: value.status, sourceId: adapterId, sampledAt: value.sampledAt, dataLagSeconds: value.dataLagSeconds,
     definition: value.definition, metrics: copy(value.metrics), attribution: 'exact_product_and_channel', coverage: { from: scope.from, to: scope.to } };
 }
 
@@ -120,10 +146,12 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
     if (['cancelled', 'paused'].includes(result.goal.status) || ['cancelled', 'paused'].includes(result.task.status)) fail('MONITOR_STOPPED', 'The original task is paused or cancelled.');
     return result;
   }
-  async function launch(actor, request) {
+  async function launch(actor, request, signal) {
+    signal?.throwIfAborted();
     owner(store.read(), actor);
     if (typeof resolveLaunchReceipt !== 'function') fail('REAL_LAUNCH_RECEIPT_REQUIRED', 'The original launch receipt reader is not connected.');
-    return receiptScope(await resolveLaunchReceipt({ actor: copy(actor), planId: request.planId, planRevision: request.planRevision, launchReceiptId: request.launchReceiptId }), request, clock);
+    const receipt = await resolveLaunchReceipt({ actor: copy(actor), planId: request.planId, planRevision: request.planRevision, launchReceiptId: request.launchReceiptId, ...(signal ? { signal } : {}) });
+    signal?.throwIfAborted(); return receiptScope(receipt, request, clock);
   }
   function projection(state, goalId) {
     const { goal, task } = taskFor(state, goalId), schedule = state.capabilities.schedules.find(row => row.id === task.scheduleId);
@@ -140,27 +168,29 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
     try { active(store.read(), job.actor, job.goalId); } catch { job.controller.abort('MONITOR_STOPPED'); }
   } });
 
-  async function create(actor, body, route = {}) {
-    fields(body, ['requestId', 'planId', 'planRevision', 'launchReceiptId', 'confirmed']);
+  async function create(actor, body, route = {}, proposal = false) {
+    fields(body, proposal ? ['requestId', 'planId', 'planRevision', 'launchReceiptId'] : ['requestId', 'planId', 'planRevision', 'launchReceiptId', 'confirmed']);
+    route.signal?.throwIfAborted();
     if (!id(body.requestId) || !reference(body.planId) || !reference(body.launchReceiptId) || !Number.isSafeInteger(body.planRevision) || body.planRevision < 1) fail('INVALID_INPUT', 'Use stable original plan and launch references.', 400);
     if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503);
-    const scope = await launch(actor, body), scopeHash = hash(scope);
+    const scope = await launch(actor, body, route.signal), scopeHash = hash(scope);
+    route.signal?.throwIfAborted();
     owner(store.read(), actor);
     if (route.sourceConversationId !== undefined && route.sourceConversationId !== scope.conversationId) fail('MONITOR_SOURCE_OWNER_REQUIRED', 'The receipt must belong to this original source conversation.', 403);
     const source = ownedSource(store.read(), actor, scope.conversationId);
     const linked = !!(source.businessAgentOwner || source.piTaskOwner);
-    if (linked && body.confirmed !== true) fail('MONITOR_CONFIRMATION_REQUIRED', 'Explicitly confirm creating the linked original service-only task.', 400);
+    if (linked && !proposal && body.confirmed !== true) fail('MONITOR_CONFIRMATION_REQUIRED', 'Explicitly confirm creating the linked original service-only task.', 400);
     const key = hash([actor.workspaceId, actor.subject, body.launchReceiptId, body.planId, body.planRevision]);
-    if (creations.has(key)) { await creations.get(key); return create(actor, body, route); }
+    if (creations.has(key)) { await creations.get(key); return create(actor, body, route, proposal); }
     const work = (async () => {
       // The same real launch always maps to one original task, even when the
       // client retries with a different transport requestId after restarting.
       const serviceTaskContext = linked ? { kind: KIND, scopeHash, sourceConversationId: scope.conversationId, subject: actor.subject, workspaceId: actor.workspaceId, modelRequired: false } : null;
-      const taskAdmission = serviceTaskContext ? { serviceTaskContext, authorizeServiceTask: state => { owner(state, actor); return true; } } : {};
+      const taskAdmission = serviceTaskContext ? { serviceTaskContext, authorizeServiceTask: state => { route.signal?.throwIfAborted(); owner(state, actor); return true; } } : {};
       const taskConversationId = linked ? (await runtime.createConversation({ title: '七天市场验证观察任务', requestId: `market-context-${key}` }, actor, taskAdmission)).conversation.id : scope.conversationId;
       const { goal } = await runtime.createGoal({ requestId: `market-monitor-${key}`, title: '七天市场验证观察', description: JSON.stringify(scope), conversationId: taskConversationId, maxSteps: 1, maxOutputTokens: 1600 }, taskAdmission);
       await store.update(state => {
-        owner(state, actor); const current = state.goals.find(row => row.id === goal.id);
+        route.signal?.throwIfAborted(); owner(state, actor); const current = state.goals.find(row => row.id === goal.id);
         if (current.marketValidationMonitor) { if (current.marketValidationMonitor.scopeHash !== scopeHash) fail('LAUNCH_SCOPE_CHANGED', 'The original launch scope changed.'); return; }
         current.serviceTask = { kind: KIND, scopeHash, modelRequired: false };
         current.marketValidationMonitor = { subject: actor.subject, workspaceId: actor.workspaceId, scope, scopeHash,
@@ -273,6 +303,7 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
               const content = { startAt: current.scope.startAt, endAt: current.scope.endAt, timezone: current.scope.timezone,
                 businessMode: current.scope.businessMode, productId: current.scope.productId, channelId: current.scope.channelId,
                 baseline: copy(current.scope.baseline),
+                assessment: assessMarketValidation({ scope: current.scope, sample, windowComplete: true }),
                 requiredMetrics: copy(current.scope.requiredMetrics), measurement: copy(sample.measurement), goalVerified: false,
                 sample, missedDays: copy(current.missedDays), provisional, sampleSize: sample.outcomes.metrics || null,
                 recommendation: provisional ? 'adjust_measurement' : 'review_evidence_against_approved_plan',
@@ -312,6 +343,9 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
   return {
     forActor(actor) { actor = { subject: actor?.subject, workspaceId: actor?.workspaceId, ...(actor?.role ? { role: actor.role } : {}), sessionId: actor?.session?.id || actor?.sessionId || null }; return {
       create: (body, route) => create(actor, body, route),
+      // Host-only proposal: creates draft Goal/disabled Schedule; no consent,
+      // collection or enable action is available through this method.
+      propose: (body, route) => create(actor, body, route, true),
       list(sourceConversationId) { const state = store.read(); owner(state, actor); ownedSource(state, actor, sourceConversationId); return state.goals.filter(goal => goal.serviceTask?.kind === KIND && goal.marketValidationMonitor?.scope.conversationId === sourceConversationId && goal.marketValidationMonitor.subject === actor.subject && goal.marketValidationMonitor.workspaceId === actor.workspaceId).map(goal => projection(state, goal.id)); },
       get(goalId) { owned(store.read(), actor, goalId); return projection(store.read(), goalId); },
       observe: body => observe(actor, body),

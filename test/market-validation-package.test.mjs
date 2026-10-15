@@ -56,7 +56,7 @@ test('actual OMP plugin link loads manifest and Skill alongside native tools, wi
   };
   const verify = async absent => {
     const output = await invoke(['--no-title', '--no-prewalk', '--no-lsp', '--no-rules', '--no-session', '--print', '-e', fixture,
-      '--tools', ['read', 'bash', 'market_other_plugin', ...absent ? [] : ['workspace_market_validation_product', 'workspace_market_validation_plan_save']].join(','),
+      '--tools', ['read', 'bash', 'market_other_plugin', ...absent ? [] : ['workspace_market_validation_product', 'workspace_market_validation_plan_save', 'workspace_market_monitor_request', 'workspace_market_monitor_status', 'workspace_market_monitor_control_request']].join(','),
       '--model', 'market-plan-cli-faux/finite', 'Run only the finite synthetic CLI test.'], { MARKET_PLAN_EXPECT: absent ? 'absent' : 'present' });
     assert.match(output, absent ? /MARKET_PLAN_ABSENT_VERIFIED/ : /MARKET_PLAN_MANIFEST_SKILL_UNCONFIGURED_VERIFIED/);
   };

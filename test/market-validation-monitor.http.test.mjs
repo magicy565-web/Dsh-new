@@ -104,7 +104,7 @@ test('authenticated business source links one original service-only Goal without
 test('original HTTP approval and automatic timer dispatch the linked monitor and end it for native review', async t => {
   const f = await fixture(t, { automatic: true }), task = (await f.create()).data;
   await approve(f, task); f.advance(DAY);
-  await until(() => f.app.store.read().goals[0].marketValidationMonitor.observations[0]?.status === 'complete');
+  await until(() => f.app.store.read().goals[0].marketValidationMonitor.observations[0]?.status === 'complete' && f.app.store.read().capabilities.scheduleRuns[0]?.status === 'completed');
   assert.equal(f.app.store.read().capabilities.scheduleRuns[0].status, 'completed'); assert.equal(f.app.store.read().runs.length, 0);
   await f.restart(); f.advance(7 * DAY);
   await until(() => f.app.store.read().goals[0].marketValidationMonitor.summary);

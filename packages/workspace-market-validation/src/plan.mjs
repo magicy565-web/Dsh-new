@@ -17,11 +17,13 @@ const source = object({ kind: choice(['factory-product', 'factory-document']), r
   projectionSha256: hash, api: text(2000), documentVersion: { ...integer, maximum: 100 }, artifactId: uuid, version: integer, sha256: hash },
 ['kind', 'recordId', 'revision', 'workspaceId', 'projectionSha256', 'api']);
 const supply = object({ status: choice(['unknown', 'proposed', 'reported_unverified']), detail: nullable(text()) });
-const path = object({ mode: choice(['b2b', 'b2c']), buyer: text(), targetMarket: text(), offer: text(),
+export const RESULT_ASSESSMENT_SCHEMA = object({ metric: choice(['sales_units', 'conversion_rate']), category: text(200), region: text(200), channelId: text(256),
+  unit: choice(['net_paid_units_per_168h', 'net_paid_orders_per_valid_visit']), benchmarkSourceId: text(256), benchmarkWindow: object({ from: text(40), to: text(40) }), validVisitDefinition: text(), minimumValidVisits: integer });
+const path = object({ resultAssessment: RESULT_ASSESSMENT_SCHEMA, mode: choice(['b2b', 'b2c']), buyer: text(), targetMarket: text(), offer: text(),
   salesRequirement: object({ metric: choice(['b2b_orders', 'net_paid_orders', 'net_paid_units']), target: nullable({ type: 'integer', minimum: 0, maximum: 1000000000 }), definition: text() }),
   metrics: array(object({ id: choice([...B2B_METRICS, ...B2C_METRICS]), definition: text(), dataSource: nullable(text()), availability: choice(['unverified', 'unavailable']) }), 10, 1),
   acquisition: array(object({ id: name, channel: text(200), kind: choice(['paid', 'organic', 'owned', 'partner', 'undecided']), approach: text() }), 10, 1),
-  steps: array(text(), 20, 1), successCriteria: array(text(), 10, 1), stopCriteria: array(text(), 10, 1) });
+  steps: array(text(), 20, 1), successCriteria: array(text(), 10, 1), stopCriteria: array(text(), 10, 1) }, ['mode', 'buyer', 'targetMarket', 'offer', 'salesRequirement', 'metrics', 'acquisition', 'steps', 'successCriteria', 'stopCriteria']);
 export const PLAN_SCHEMA = object({ schemaVersion: { type: 'integer', enum: [1] }, title: text(200), goal: text(4000),
   mode: choice(['b2b', 'b2c', 'dual']), rationale: text(4000), productState: text(4000),
   supply: object({ dropshipping: supply, oem: supply, odm: supply }),
@@ -38,7 +40,7 @@ export const SAVE_INPUT_SCHEMA = object({ ...PRODUCT_INPUT_SCHEMA.properties, so
 
 // A small validator for precisely the JSON Schema subset above. The service
 // validates again: provider-side schema enforcement is not an authority gate.
-function validate(value, schema, location = 'input') {
+export function validate(value, schema, location = 'input') {
   const bad = () => { throw new TypeError('Invalid market validation ' + location + '.'); };
   if (value === null && Array.isArray(schema.type) && schema.type.includes('null')) return;
   const type = Array.isArray(schema.type) ? schema.type[0] : schema.type;
@@ -76,6 +78,7 @@ export function validatePlanInput(input) {
   const acquisitionIds = p.paths.flatMap(row => row.acquisition.map(a => a.id));
   if (!unique(acquisitionIds) || !unique(p.budget.lines.map(row => row.id))) reject('Use unique acquisition and budget line IDs.');
   for (const row of p.paths) {
+    if (row.resultAssessment) validateResultAssessment(row.resultAssessment);
     const allowed = row.mode === 'b2b' ? B2B_METRICS : B2C_METRICS;
     if (!unique(row.metrics.map(m => m.id)) || row.metrics.some(m => !allowed.includes(m.id))
       || !allowed.includes(row.salesRequirement.metric) || !row.metrics.some(m => m.id === row.salesRequirement.metric)) reject('Inquiries are not sales. Keep each path and sales metric distinct.');
@@ -91,4 +94,12 @@ export function validatePlanInput(input) {
     if (!line || units(line.cap) < units(c.cap) || c.method === 'fixed' && units(c.rateOrAmount) > units(c.cap)) reject('Reserve the commission cap within the same proposed total budget.');
   } else if (Object.entries(c).some(([k, v]) => k !== 'status' && v !== null)) reject('Undecided or no-commission proposals cannot carry payment terms.');
   return structuredClone(input);
+}
+
+export function validateResultAssessment(value) {
+  validate(value, RESULT_ASSESSMENT_SCHEMA);
+  if (value.metric === 'sales_units' ? value.unit !== 'net_paid_units_per_168h' : value.unit !== 'net_paid_orders_per_valid_visit') reject('Select matching result metric and units.');
+  const { from, to } = value.benchmarkWindow;
+  if (![from, to].every(v => Number.isFinite(Date.parse(v)) && new Date(v).toISOString() === v) || Date.parse(to) - Date.parse(from) !== 168 * 3600000) reject('Select the exact canonical UTC 168-hour benchmark window.');
+  return structuredClone(value);
 }

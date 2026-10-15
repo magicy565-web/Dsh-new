@@ -9,6 +9,7 @@ const config = JSON.parse(await fs.readFile(process.argv[2], 'utf8'));
 let fetchAttempts = 0;
 globalThis.fetch = async () => { fetchAttempts++; throw Error('External HTTP is forbidden in this keyless SDK fixture.'); };
 const { marketValidationExtension, MARKET_VALIDATION_TOOLS } = await import(pathToFileURL(path.join(config.packageDir, 'src/extension.js')).href);
+const { marketValidationMonitorExtension, MARKET_MONITOR_TOOLS } = await import(pathToFileURL(path.join(config.packageDir, 'src/monitor.js')).href);
 const id = '11111111-1111-4111-8111-111111111111';
 const sources = [{ kind: 'factory-product', recordId: id, revision: 1, workspaceId: 'synthetic', projectionSha256: 'a'.repeat(64), api: '/synthetic/materials' }];
 let authorizations = 0, reads = 0, saves = 0, active = true, fail = false, revokeAfter = false, modelCalls = 0, lastRead;
@@ -25,7 +26,7 @@ if (config.engine === 'pi') {
   modelRuntime.registerNativeProvider(faux.provider);
   const settingsManager = sdk.SettingsManager.create(config.directory, config.agentDir); settingsManager.setCompactionEnabled(false);
   const resourceLoader = new sdk.DefaultResourceLoader({ cwd: config.directory, agentDir: config.agentDir, settingsManager,
-    noContextFiles: true, noSkills: true, noExtensions: true, extensionFactories: [marketValidationExtension({ client, authorize })] });
+    noContextFiles: true, noSkills: true, noExtensions: true, extensionFactories: [marketValidationExtension({ client, authorize }), marketValidationMonitorExtension()] });
   await resourceLoader.reload();
   const created = await sdk.createAgentSession({ cwd: config.directory, agentDir: config.agentDir, settingsManager,
     resourceLoader, modelRuntime, model: faux.getModel(), sessionManager: sdk.SessionManager.inMemory(config.directory) });
@@ -58,7 +59,7 @@ if (config.engine === 'pi') {
     } });
   const created = await sdk.createAgentSession({ cwd: config.directory, agentDir: config.agentDir, settings, authStorage: auth, modelRegistry: registry,
     model: registry.find('market-plan-test-faux', 'finite'), sessionManager: sdk.SessionManager.inMemory(config.directory),
-    extensions: [marketValidationExtension({ client, authorize })], disableExtensionDiscovery: true, skills: [], rules: [], contextFiles: [],
+    extensions: [marketValidationExtension({ client, authorize }), marketValidationMonitorExtension()], disableExtensionDiscovery: true, skills: [], rules: [], contextFiles: [],
     promptTemplates: [], slashCommands: [], enableMCP: false, enableLsp: false, enableIrc: false, skipPythonPreflight: true,
     toolNames: [], spawns: '', hasUI: false, autoTitle: false, cacheWarming: false, allowSessionModelFallback: false });
   assert.deepEqual(created.extensionsResult.errors, []); session = created.session;
@@ -87,6 +88,9 @@ try {
     const result = await prompt([[MARKET_VALIDATION_TOOLS[1], { productId: id, documents: [], sources, plan: p, requestId: mode }]]);
     assert.equal(result.status, 'saved-draft'); assert.equal(result.humanReviewed, false); assert.equal(result.startedAt, null);
   }
+  for (const [name, args] of [[MARKET_MONITOR_TOOLS[0], { requestId: 'monitor', planId: id, planRevision: 1, launchReceiptId: 'synthetic' }], [MARKET_MONITOR_TOOLS[1], { goalId: id }], [MARKET_MONITOR_TOOLS[2], { goalId: id, action: 'pause' }]]) {
+    assert.equal((await prompt([[name, args]])).status, 'unconfigured');
+  }
   const before = reads;
   const extra = await prompt([[MARKET_VALIDATION_TOOLS[0], { productId: id, documents: [], fields: ['privateCost'] }]]);
   // OMP 18.10.4 repairs unknown keys by removing them before executing a tool;
@@ -103,7 +107,7 @@ try {
   assert.ok(!JSON.stringify(revoked).includes('PRIVATE_HOST_ERROR'));
   assert.equal(fetchAttempts, 0);
   const evidence = { engine: config.engine, version: config.engine === 'pi' ? '1.1.0' : '18.10.4', syntheticClients: true,
-    modelCalls: faux ? faux.state.callCount : modelCalls, reads, saves, authorizations, registeredTools: MARKET_VALIDATION_TOOLS,
+    modelCalls: faux ? faux.state.callCount : modelCalls, reads, saves, authorizations, registeredTools: [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS],
     actualSdkToolLoop: true, zeroToolClarificationTurn: true, freelyAuthoredSteps: true, beforeAfterAuthorization: true,
     extraFieldHandling: config.engine === 'omp' ? 'official_sdk_removed_before_tool' : 'rejected',
     fetchAttempts, paidModelCalls: 0, realModelCalls: 0, realStore: false, realSevenDays: false };

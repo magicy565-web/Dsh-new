@@ -1,13 +1,13 @@
 {
   "name": "@workspace-agent/pi-market-validation",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Intent-driven seven-day market validation drafts over original Library and artifacts",
   "keywords": ["pi-package"],
   "engines": { "node": ">=24" },
   "files": ["src", "skills", "README.md"],
-  "exports": { ".": "./src/extension.js", "./plan": "./src/plan.mjs" },
+  "exports": { ".": "./src/extension.js", "./plan": "./src/plan.mjs", "./monitor": "./src/monitor.js" },
   "pi": { "extensions": ["./src/extension.js"], "skills": ["./skills/market-validation"] },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "1.1.0",

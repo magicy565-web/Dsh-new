@@ -15,8 +15,12 @@ description: Compose an editable seven-day B2B/B2C market validation plan from a
 
 Shopify 是首个店铺渠道，店铺上架不等于获客。复用原 supplier-service 的资料/供货就绪检查、明确公开字段 preview 与 preview-page，以及原 supplier-publication 的 shopify-review/decision/execute/reconcile 和原 Connector 执行回执。不要复制上传、连接器、订单或库存读取。只交接精确原服务和预览，不能从本计划发起写入。现有零售适配器不提供 B2B RFQ 落地页；所需 B2B 页面/表单及线索数据标待接入。获客渠道必须由用户选择并在真实执行时另行授权；organic 也不代表零成本或自动批准。素材、图片及材料公开范围须另审，企业内部成本不能出现在公开 Listing。
 
-`workspace_market_validation_plan_save` 接受完整结构化计划、刚读取的原 sources 和稳定 requestId。可先追问再保存，或保存含明确问题的草稿；内容由模型撰写，不固定七个每日模板。计划固定为未审核、未启动：7 天从已批准方案**实际启动**且基线/真实流量授权具备时计算，记录明确 IANA 时区。不能从保存时间、商品草稿、仅上架或模拟时钟开始宣称真实七天。把 artifactId/version/sha256 交给原任务集成；仅保存本计划不创建监测任务。
+`workspace_market_validation_plan_save` 接受完整结构化计划、刚读取的原 sources 和稳定 requestId。可先追问再保存，或保存含明确问题的草稿；内容由模型撰写，不固定七个每日模板。计划固定为未审核、未启动：7 天从已批准方案**实际启动**且真实流量授权具备时计算，基线缺失可观察但保留未知，记录明确 IANA 时区。不能从保存时间、商品草稿、仅上架或模拟时钟开始宣称真实七天。把 artifactId/version/sha256 交给原任务集成；仅保存本计划不创建监测任务。
 
 采集、每日报告、暂停/取消、重试、重启续跑及长期跟踪交给原持久任务和组合能力。执行必须复核精确计划版本、批准、渠道、币种、总额和期限，不能据模型文字自证授权。数据缺失写不可用，带样本量、延迟和归因限制；零订单不自动证明无市场。七天后才按真实证据建议继续/调整/停止，不保证销量、盈利或统计显著性。区分替身模型、真实 SDK、真实模型、真实商店、真实获客和真实七天观测。
 
 Host 每次向模型发送上下文前须用原 owned journal 派生工具调用来源，执行 `revalidateReceipt`，包括 reload/fork/switch/compaction。不能只验证首次工具调用，不能让模型提交自己的权限、sources 证明或缓存审批。未完成 Host 绑定之前，此包仅可组合的开发能力，不是已上线的业务入口。
+
+监测薄工具：`workspace_market_monitor_request` 只提出原禁用 Goal/Schedule 与原 schedule.enable 审批请求；必须有真实获客启动回执，不能以模型 confirmed 自审。`workspace_market_monitor_status` 查询实时审批与测量；`workspace_market_monitor_control_request` 返回原人类 Session/CSRF 暂停、取消、恢复入口，applied=false，模型不能自行执行。恢复不延长 168 小时且需重新启用审批。
+
+七天结果仅按显式 resultAssessment 选择的销量或转化率比较 70%；缺选择或可信可比基准写基准不足，不默认通过。基准保留原来源、品类、地区、渠道、窗口、单位和有效访问口径；模型不能提供已审核均值。真实净支付成交且达到阈值才可给证据层 passed，原 Goal 仍须人审。无订单且无流量先检查投放/采集异常；足够有效流量且无订单无咨询仅低需求待复核；有咨询无成交仅提示价格/报价/跟进/结账等策略优化方向，不能断定原因。缺数据留 null，样本、覆盖或延迟不足保留不确定性，Shopify retained 数量不是净支付销量。

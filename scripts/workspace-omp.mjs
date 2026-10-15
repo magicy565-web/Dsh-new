@@ -92,6 +92,6 @@ export async function main(args = process.argv.slice(2), environment = process.e
   const terminal = spawn(paths.bun, [path.join(root, 'scripts/workspace-omp-terminal.mjs')], { cwd: home, env: terminalEnvironment, stdio: 'inherit' });
   children.add(terminal);
   try { await new Promise((resolve, reject) => { terminal.once('error', reject); terminal.once('close', code => code === 0 ? resolve() : reject(new Error('官方 OMP 终端已停止：' + code))); }); }
-  finally { children.delete(terminal); await close(); await fs.rm(home, { recursive: true, force: true }); }
+  finally { children.delete(terminal); await close(); await fs.rm(home, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }); }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => { console.error(error.message); process.exitCode = 1; });

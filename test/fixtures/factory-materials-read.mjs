@@ -19,7 +19,7 @@ export async function materialsFixture(t, options = {}) {
     company: null, products: [], productFields: ['name'], factoryMaterials: { products: [{ id: product.id, revision: 1 }],
       productFields: ['name', 'category', 'skuSpecifications', 'capacityNote', 'documentReferences', 'provenance'], documents: [{ id: document.id, revision: 1, documentVersion: 1, asset }] } };
   await seed.app.close();
-  const f = await taskFixture(t, { directory, enterprise: true, libraryModelReadPolicy: options.policy === null ? null : { ...policy, ...(typeof options.policy === 'function' ? options.policy({ product, document, asset, policy }) : options.policy) },
+  const f = await taskFixture(t, { directory, enterprise: true, marketValidationOptions: options.marketValidationOptions, accessClock: options.accessClock, libraryModelReadPolicy: options.policy === null ? null : { ...policy, ...(typeof options.policy === 'function' ? options.policy({ product, document, asset, policy }) : options.policy) },
     ...(options.businessAgentOptions ? { businessAgentOptions: typeof options.businessAgentOptions === 'function' ? options.businessAgentOptions({ product, document, asset, policy }) : options.businessAgentOptions } : {}) });
   t.after(async () => { await f.app.close(); await fs.rm(directory, { recursive: true, force: true }); });
   return Object.assign(f, { product, document, asset, policy, actor });

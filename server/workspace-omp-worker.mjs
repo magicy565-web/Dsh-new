@@ -31,6 +31,10 @@ async function start(config) {
       }])),
       revalidateReceipt: (receipt, model, signal, images) => request('factoryIngestionRevalidate', [receipt, model, images], signal),
     } : null,
+    monitorClient: config.marketValidation ? {
+      ...Object.fromEntries(['request', 'status', 'control'].map(method => [method, (input, signal, model) => request('marketMonitor' + method[0].toUpperCase() + method.slice(1), [input, model], signal)])),
+      refresh: (receipt, model, signal) => request('marketMonitorRefresh', [receipt, model], signal),
+    } : null,
     planClient: config.marketValidation ? {
       read: (input, signal, model) => request('marketValidationRead', [input, model], signal),
       save: (input, signal, model) => request('marketValidationSave', [input, model], signal),

@@ -306,3 +306,23 @@ test('selected plan visits/cart/checkout/refunds expose gaps rather than substit
   assert.equal(second.summary.measurement.status, 'observed_not_adjudicated'); assert.equal(second.summary.measurement.metrics.visits.value, 2);
   assert.equal(second.summary.goalVerified, false); assert.equal(second.summary.messageId, first.summary.messageId); assert.equal(f.store.read().goals.length, 1);
 });
+
+test('original final summary includes evidence assessment; contract fixture can pass 70% but never verifies Goal or proves real payment', async t => {
+  const f = await fixture(t, { outcomes: true });
+  const selection = { metric: 'sales_units', category: 'synthetic cups', region: 'synthetic', channelId: f.receipt.channelId,
+    unit: 'net_paid_units_per_168h', benchmarkWindow: { from: '2026-10-04T09:00:00.000Z', to: '2026-10-11T09:00:00.000Z' }, benchmarkSourceId: 'fixture-benchmark', validVisitDefinition: 'synthetic exact-channel valid visits', minimumValidVisits: 100 };
+  f.receipt.resultAssessment = selection;
+  f.receipt.marketBenchmark = { ...selection, coverage: { ...selection.benchmarkWindow }, sourceId: selection.benchmarkSourceId, evidenceRef: 'synthetic-benchmark-not-live', windowHours: 168, value: 100,
+    observedAt: '2026-10-11T09:00:00.000Z', evidenceKind: 'real', reviewed: true };
+  delete f.receipt.marketBenchmark.benchmarkWindow; delete f.receipt.marketBenchmark.minimumValidVisits; delete f.receipt.marketBenchmark.benchmarkSourceId;
+  const task = await f.bound().create(f.request());
+  f.outcome(scope => ({ ...scope, sourceId: 'reviewed-outcomes', status: 'available', sampledAt: new Date(Date.parse(scope.to) + 1000).toISOString(), dataLagSeconds: 0,
+    definition: 'Synthetic contract: exact channel/product net paid counts; no real payments connected.', metrics: { netPaidUnits: 70, netPaidOrders: 7 },
+    resultEvidence: { evidenceKind: 'real', evidenceRef: 'synthetic-payment-not-live', paymentStatus: 'net_paid_verified', coverageRatio: 1,
+      validVisitDefinition: selection.validVisitDefinition, validVisits: 100, qualifiedInquiries: 0 } }));
+  f.advance(8 * DAY); const result = await f.bound().observe(input(task));
+  assert.equal(result.summary.assessment.status, 'passed'); assert.equal(result.summary.assessment.ratio, .7);
+  assert.equal(result.summary.assessment.benchmark.sourceId, 'fixture-benchmark'); assert.equal(result.summary.goalVerified, false);
+  assert.equal(f.bound().get(task.goalId).goalStatus, 'review_required');
+  assert.equal(f.store.read().runs.length, 0);
+});

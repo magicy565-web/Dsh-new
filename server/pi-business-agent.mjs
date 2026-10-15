@@ -9,6 +9,7 @@ import { libraryReadHash, normalizeLibraryRecipient, libraryRecipientForModel } 
 import { emptyInputContext, normalizeInputContext } from './task-context.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { createFactoryLibraryIngestionClient } from './factory-library-ingestion.mjs';
+import { createMarketValidationMonitorClient } from './market-validation-monitor-client.mjs';
 import { createMarketValidationPlanClient } from './market-validation-plan.mjs';
 import { createFactoryInquiryClient } from './factory-inquiries.mjs';
 import { createFactoryCustomerDraftClient } from './factory-customer-drafts.mjs';
@@ -45,7 +46,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
-  let store, runtime, access, instanceId, libraryModelRead, artifacts;
+  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock;
   function current(idValue) { const record = store.read().conversations.find(row => row.id === idValue); if (!record) fail(404, 'NOT_FOUND', 'Conversation not found.'); return record; }
   function actor(context, write = false) {
     if (!context?.subject || !context.workspaceId) fail(401, 'SESSION_REQUIRED', 'Use the original Workspace Session.');
@@ -182,7 +183,9 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       }
       const planClient = engineAdapter.scope === 'omp:18.10.4:market-validation-v1' ? createMarketValidationPlanClient({ materialsClient, artifacts, store, identity,
         conversationId: conversation.id, runId: run.id, authorize, canSave }) : null;
-      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, isolationDirectory: isolated,
+      const monitorClient = planClient && marketValidationMonitoring ? createMarketValidationMonitorClient({ monitor: marketValidationMonitoring, capabilities, store, artifacts, planClient,
+        identity, conversationId: conversation.id, authorize, canSave, clock: accessClock }) : null;
+      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();
@@ -273,7 +276,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   } });
   return {
     provider,
-    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts } = dependencies); },
+    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock } = dependencies); },
     async handle({ req, res, pathname, context, readBody, respond }) {
       if (req.method === 'GET' && pathname === '/api/conversations/runtime') {
         actor(context);

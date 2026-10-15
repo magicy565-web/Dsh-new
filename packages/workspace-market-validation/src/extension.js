@@ -1,3 +1,4 @@
+import { marketValidationMonitorExtension } from './monitor.js';
 import { PRODUCT_INPUT_SCHEMA, SAVE_INPUT_SCHEMA, validateProductInput, validatePlanInput } from './plan.mjs';
 export const MARKET_VALIDATION_TOOLS = Object.freeze(['workspace_market_validation_product', 'workspace_market_validation_plan_save']);
 export function marketValidationExtension({ client, authorize } = {}) {
@@ -29,4 +30,4 @@ export function marketValidationExtension({ client, authorize } = {}) {
   };
 }
 // Normal manifest loading grants no ambient Session, credentials or effects.
-export default function extension(pi) { return marketValidationExtension()(pi); }
+export default function extension(pi) { marketValidationExtension()(pi); return marketValidationMonitorExtension()(pi); }

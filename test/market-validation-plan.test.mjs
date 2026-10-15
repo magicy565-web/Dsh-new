@@ -8,6 +8,7 @@ import { marketPlan } from './fixtures/market-validation-plan-data.mjs';
 import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { createMarketValidationPlanClient, MARKET_PLAN_FLAGS } from '../server/market-validation-plan.mjs';
 import { validatePlanInput } from '../packages/workspace-market-validation/src/plan.mjs';
+import { MARKET_MONITOR_TOOLS } from '../packages/workspace-market-validation/src/monitor.js';
 import extension, { marketValidationExtension, MARKET_VALIDATION_TOOLS } from '../packages/workspace-market-validation/src/extension.js';
 import { publicPdfBytes } from './fixtures/workspace-omp-public-pdf.mjs';
 
@@ -166,7 +167,7 @@ test('actual original Session logout and exact artifact edits invalidate plan re
 
 test('ordinary package is unconfigured; bound tools require current receiver and scrub private Host failures', async () => {
   const tools = []; extension({ registerTool: tool => tools.push(tool) });
-  assert.deepEqual(tools.map(t => t.name), MARKET_VALIDATION_TOOLS);
+  assert.deepEqual(tools.map(t => t.name), [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS]);
   const read = { productId: randomUUID(), documents: [] };
   assert.equal((await tools[0].execute('id', read, undefined, undefined, {})).details.status, 'unconfigured');
   const bound = []; let calls = 0, active = true;

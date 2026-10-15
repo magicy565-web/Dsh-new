@@ -34,7 +34,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
   if (typeof factoryMaterials !== 'boolean' || typeof factoryCustomers !== 'boolean' || factoryMaterials && factoryCustomers) throw TypeError('Use one fixed reviewed OMP profile.');
   const engineScope = factoryIngestion ? OMP_INGESTION_ENGINE_SCOPE : marketValidation ? OMP_MARKET_ENGINE_SCOPE : factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
-    async complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, isolationDirectory, savedSession, saveSession }) {
+    async complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, isolationDirectory, savedSession, saveSession }) {
       input.signal?.throwIfAborted();
       await checkWorkspaceOmpPaths(paths); await authorize();
       const user = input.messages.filter(row => row.role === 'user').at(-1);
@@ -100,6 +100,11 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 const [value, model, images] = message.args || [];
                 if (message.method === 'factoryIngestionRevalidate') { await ingestionClient.revalidateReceipt(value, model, rpcSignal, images); result = true; }
                 else { const method = { factoryIngestionStatus: 'status', factoryIngestionRead: 'read', factoryIngestionSave: 'save', factoryIngestionQuery: 'query' }[message.method]; result = await ingestionClient[method](value, rpcSignal, model); }
+              } else if (marketValidation && ['marketMonitorRequest', 'marketMonitorStatus', 'marketMonitorControl', 'marketMonitorRefresh'].includes(message.method)) {
+                if (!monitorClient) throw Error('Original monitor client required.');
+                const [value, model] = message.args || [];
+                const method = { marketMonitorRequest: 'request', marketMonitorStatus: 'status', marketMonitorControl: 'control', marketMonitorRefresh: 'refresh' }[message.method];
+                result = method === 'refresh' ? await monitorClient.refresh(value, model, rpcSignal) : await monitorClient[method](value, rpcSignal, model);
               } else if (marketValidation && ['marketValidationRead', 'marketValidationSave', 'marketValidationRevalidate'].includes(message.method)) {
                 if (!planClient) throw Error('Original plan client required.');
                 const [value, model] = message.args || [];
@@ -134,6 +139,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               // Preserve only reviewed business codes, never arbitrary Host error text.
               const codes = ['FACTORY_INQUIRY_SOURCE_CHANGED', 'FACTORY_INQUIRY_REQUEST_CHANGED', 'FACTORY_INQUIRY_ARTIFACT_CHANGED', 'FACTORY_INQUIRY_SOURCE_REFUSED',
                 'FACTORY_INGESTION_UPLOAD_NOT_APPROVED', 'FACTORY_INGESTION_SOURCE_CHANGED', 'FACTORY_INGESTION_TARGET_CHANGED', 'FACTORY_INGESTION_REQUEST_CHANGED', 'FACTORY_INGESTION_QUERY_REAUTHORIZE', 'FACTORY_INGESTION_FIELD_NOT_APPROVED', 'FACTORY_INGESTION_SCOPE_REFUSED', 'FACTORY_INGESTION_CACHE_CHANGED',
+                'REAL_LAUNCH_RECEIPT_REQUIRED', 'MARKET_PLAN_RECEIPT_MISMATCH', 'MONITOR_NOT_FOUND', 'MONITOR_SOURCE_OWNER_REQUIRED', 'MONITOR_STOPPED', 'MONITOR_WINDOW_ENDED', 'MONITOR_CANCELLED', 'LAUNCH_SCOPE_CHANGED', 'BUSINESS_EXECUTION_INTENT_REQUIRED',
                 'MARKET_PLAN_SOURCE_CHANGED', 'MARKET_PLAN_REQUEST_CHANGED', 'MARKET_PLAN_CACHE_REFUSED', 'MARKET_PLAN_DOCUMENT_NOT_LINKED', 'MARKET_PLAN_SOURCE_REFUSED',
                 'PUBLIC_DRAFT_REQUEST_CHANGED', 'PUBLIC_DRAFT_ARTIFACT_CHANGED', 'ORIGINAL_PUBLIC_SOURCE_RECEIPT_REQUIRED', 'PUBLIC_SOURCE_URL_REFUSED', 'PUBLIC_SOURCE_METADATA_LIMIT'];
               send({ type: 'reply', id: message.id, error: 'Original authorization or task operation refused; no replacement execution was admitted.',

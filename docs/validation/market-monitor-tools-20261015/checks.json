@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-15",
+  "branch": "codex/integrate-factory-capabilities-20261015",
+  "incrementalBase": "921318b5771a63fd72fe6d71cb352ba4466ae4e6",
+  "runs": [
+    {
+      "command": "OMP_BUILTINS_SDK_ROOT=$PWD/support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent node --test --test-concurrency=3 test/factory-*.test.mjs test/workspace-omp*.test.mjs test/omp-builtins.factory*.test.mjs test/pi-business-conversation.native.test.mjs test/pi-library-read*.test.mjs test/market-validation*.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs test/runtime-v2.test.mjs test/capabilities.test.mjs",
+      "exitCode": 0,
+      "tests": 280,
+      "pass": 280,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 216037.684645,
+      "note": "Initial integrated broad regression. Later exact benchmark-window and launch AbortSignal changes have targeted and final-source regression below."
+    },
+    {
+      "command": "OMP_BUILTINS_SDK_ROOT=$PWD/support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent node --test --test-concurrency=3 test/factory-*.test.mjs test/workspace-omp*.test.mjs test/omp-builtins.factory*.test.mjs test/pi-business-conversation.native.test.mjs test/pi-library-read*.test.mjs test/market-validation*.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs test/runtime-v2.test.mjs test/capabilities.test.mjs",
+      "exitCode": 1,
+      "tests": 280,
+      "pass": 279,
+      "fail": 1,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 216241.451003,
+      "note": "279/280; sole failing assertion is original default terminal process exit after business assertions passed. PTY reports ENOTEMPTY deleting temporary home on quit. Fixed with original Node fs.rm maxRetries:3/retryDelay:50; no product policy or SDK changes."
+    },
+    {
+      "command": "node --test --test-concurrency=2 test/market-validation-assessment.test.mjs test/market-validation-monitor.test.mjs test/market-validation-plan.test.mjs",
+      "exitCode": 0,
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 5326.865182
+    },
+    {
+      "command": "node --test test/workspace-omp-terminal.test.mjs",
+      "exitCode": 0,
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 16616.000593,
+      "note": "After bounded temporary-directory cleanup fix; includes the previously failing real unconfigured PTY case."
+    },
+    {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "command": "node --test --test-concurrency=3 test/workspace-omp-launch.test.mjs test/workspace-omp-terminal-host.test.mjs test/workspace-omp-terminal-intent.test.mjs test/workspace-omp-terminal-recovery.test.mjs",
+      "exitCode": 0,
+      "durationMs": 17964.533808,
+      "note": "After original launcher temporary-directory cleanup fix; original human permissions, approvals, checkpoints, business controls and recovery."
+    }
+  ],
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0,
+    "typescript": true,
+    "vite": true
+  },
+  "diffCheck": {
+    "command": "git diff --check",
+    "exitCode": 0
+  },
+  "officialComponents": {
+    "pi": "1.1.0",
+    "omp": "18.10.4",
+    "bun": "1.3.14",
+    "node": "24.19.0"
+  },
+  "boundaries": {
+    "actualOriginalHostRecords": true,
+    "actualOfficialSdkToolDispatch": true,
+    "syntheticModelChoicesAndText": true,
+    "syntheticAcquisitionBenchmarkAndOutcomeContracts": true,
+    "realModelCalls": 0,
+    "paidModelCalls": 0,
+    "realShopOrAdsOperations": 0,
+    "realSevenDayBusinessAcceptance": false,
+    "createdOrChangedCredentialsOrProductionConfiguration": false
+  },
+  "externalGaps": [
+    "Original actual approved acquisition execution receipt resolver defaults to null.",
+    "Exact channel-attributed verified net-payment counts and supporting source evidence are not connected; Shopify retained quantities are not net-paid units.",
+    "Qualified inquiry source and valid traffic/coverage matching the selected definition are not connected.",
+    "Reviewed comparable market benchmark source, dates, category, region, channel and units are not connected."
+  ],
+  "countsOverlap": true
+}
