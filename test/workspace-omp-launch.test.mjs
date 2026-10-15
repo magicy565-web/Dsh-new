@@ -47,3 +47,19 @@ test('reviewed prices and trusted remaining-budget assertion are mandatory confi
   assert.equal(workspaceOmpConfigured(workspaceOmpConfiguration({ ...environment, WORKSPACE_OMP_PROVIDER_COST_JSON: '{"input":1,"output":2,"cacheRead":0,"cacheWrite":0}', WORKSPACE_OMP_LIVE_BUDGET_VERIFIED: '1' })), true);
   assert.throws(() => workspaceOmpConfiguration({ WORKSPACE_OMP_PROVIDER_COST_JSON: '{"input":0}' }));
 });
+
+for (const profile of ['factory-materials', 'factory-inquiries']) test(`ordinary startup check reports ${profile} policy required and public tools disabled without reading credentials`, { timeout: 30000 }, async t => {
+  const directory = await fs.mkdtemp('/tmp/workspace-omp-profile-check-');
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const child = spawn(process.execPath, [repository + '/scripts/workspace-omp.mjs', '--check'], { cwd: directory,
+    env: { PATH: path.dirname(process.execPath) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory, NO_COLOR: '1', WORKSPACE_OMP_PROFILE: profile },
+    stdio: ['ignore', 'pipe', 'pipe'] });
+  let output = '', errors = ''; child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { errors += chunk; });
+  assert.equal((await once(child, 'close'))[0], 0, errors);
+  const value = JSON.parse(output.trim()); assert.equal(value.status, 'unconfigured');
+  assert.equal(value.frontend.profile, profile); assert.equal(value.frontend.engineScope, `omp:18.10.4:${profile}-v1`);
+  assert.equal(value.library, 'original-reviewed-session-policy-required'); assert.equal(value.frontend.modelKeyPresent, false);
+  assert.equal(value.publicToolConfiguration.search, 'disabled_in_private_profile'); assert.equal(value.publicToolConfiguration.browser, 'disabled_in_private_profile');
+  assert.equal(value.publicToolConfiguration.searchProvider, null); assert.equal(value.publicToolConfiguration.selectedPublicFileCount, 0);
+  assert.equal(value.modelCalls, 0); assert.equal(value.paidModelCalls, 0); assert.equal(value.backend.status, 'unconfigured');
+});

@@ -16,7 +16,7 @@ const help = 'Workspace · 官方 OMP 18.10.4 前端，原 Workspace HTTP/任务
   + 'npm run agent:pi               显式原 Pi 1.1.0 终端回退，不默认双跑\n'
   + '缺依赖：node scripts/setup-omp-runtime.mjs；node scripts/workspace-omp-install.mjs\n'
   + '使用现有 WS_AGENT_URL/WS_AGENT_TOKEN 和选定模型配置。价格与剩余预算未证明时 OMP 未配置。\n'
-  + '只接受公开资料；Library 禁用、旧 Pi/private transcript 不迁移。\n'
+  + '默认 public 只接受公开资料；资料／询盘 profile 另需原 Library 审核策略，旧 Pi/private transcript 不迁移。\n'
   + '审批、取消、恢复与文书仍使用原 Workspace 页面/API；终端本身不调用模型。';
 export async function verifyWorkspaceOmpRuntime(paths) {
   await checkWorkspaceOmpPaths(paths);
@@ -33,6 +33,11 @@ export async function verifyWorkspaceOmpRuntime(paths) {
 export async function main(args = process.argv.slice(2), environment = process.env) {
   if (args.includes('--help')) { console.log(help); return; }
   if (args.length > 1 || args.some(arg => !['--check', '--serve', '--terminal'].includes(arg))) throw new Error('使用 --help；不接受凭据、任意会话文件或隐式引擎切换参数。');
+  const profile = environment.WORKSPACE_OMP_PROFILE || 'public';
+  const scopes = { public: 'omp:18.10.4:public-v1', 'factory-materials': 'omp:18.10.4:factory-materials-v1',
+    'factory-customers': 'omp:18.10.4:factory-customers-v1', 'factory-inquiries': 'omp:18.10.4:factory-inquiries-v1' };
+  if (!Object.hasOwn(scopes, profile)) throw Error('Use one fixed reviewed OMP profile.');
+  const privateProfile = ['factory-materials', 'factory-inquiries'].includes(profile);
   const paths = workspaceOmpPaths(environment), configuration = workspaceOmpConfiguration(environment);
   let runtime;
   try { runtime = await verifyWorkspaceOmpRuntime(paths); }
@@ -50,12 +55,12 @@ export async function main(args = process.argv.slice(2), environment = process.e
       catch { backend = { status: 'unavailable', reason: 'ORIGINAL_WORKSPACE_BINDING_REFUSED_OR_UNREACHABLE' }; }
     }
     console.log(JSON.stringify({ status: workspaceOmpConfigured(configuration) && backend.status === 'configured_unverified' ? 'configured_unverified' : 'unconfigured',
-      runtime, frontend: { engine: 'omp', provider: configuration.providerId, model: configuration.model,
+      runtime, frontend: { engine: 'omp', profile, engineScope: scopes[profile], provider: configuration.providerId, model: configuration.model,
         modelKeyPresent: Boolean(configuration.apiKey), costReviewed: Boolean(configuration.cost), remainingBudgetReviewed: configuration.remainingBudgetVerified },
-      backend, publicToolConfiguration: { search: publicConfiguration.searchProvider === 'disabled' ? 'disabled' : 'supported_unverified',
-        searchProvider: publicConfiguration.searchProvider, browser: publicConfiguration.browserExecutable ? 'supported_unverified' : 'unconfigured',
-        selectedPublicFileCount: publicConfiguration.files.length },
-      library: 'disabled', paidModelCalls: 0, modelCalls: 0, businessExecutor: 'original-workspace-runtime' })); return;
+      backend, publicToolConfiguration: { search: privateProfile ? 'disabled_in_private_profile' : publicConfiguration.searchProvider === 'disabled' ? 'disabled' : 'supported_unverified',
+        searchProvider: privateProfile ? null : publicConfiguration.searchProvider, browser: privateProfile ? 'disabled_in_private_profile' : publicConfiguration.browserExecutable ? 'supported_unverified' : 'unconfigured',
+        selectedPublicFileCount: privateProfile ? 0 : publicConfiguration.files.length },
+      library: privateProfile ? 'original-reviewed-session-policy-required' : 'disabled', paidModelCalls: 0, modelCalls: 0, businessExecutor: 'original-workspace-runtime' })); return;
   }
   if (!workspaceOmpConfigured(configuration)) {
     console.log(JSON.stringify({ status: 'unconfigured', reason: 'SELECTED_MODEL_COST_AND_REMAINING_BUDGET_REQUIRED', runtime, modelCalls: 0,

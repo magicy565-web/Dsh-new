@@ -1,0 +1,12 @@
+✔ default one-entry launcher starts the original server without model credentials and rejects model admission (1161.022129ms)
+✔ reviewed prices and trusted remaining-budget assertion are mandatory configuration, never zero-cost defaults (0.698918ms)
+✔ ordinary startup check reports factory-materials policy required and public tools disabled without reading credentials (435.093289ms)
+✔ ordinary startup check reports factory-inquiries policy required and public tools disabled without reading credentials (393.817474ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2305.900767
