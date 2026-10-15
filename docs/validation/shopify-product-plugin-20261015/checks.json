@@ -81,5 +81,11 @@
   "note": "22 and86 final groups are distinct test files;52 fence checks overlap. All three ran after final cancellation-fence change.",
   "postTestFormattingOnly": [
     "Removed one extra EOF blank line from test/shopify-product-package.test.mjs; executable assertions and implementation unchanged."
-  ]
+  ],
+  "buildRawOutput": {
+    "file": "build.raw.json",
+    "sha256": "180677fde1e24c8172d9f4d875285887821e9668fd1c6b5ee5a4635f2da00f4a",
+    "normalizedLog": "build.log",
+    "normalization": "Only trailing whitespace removed per line; original bytes retained in base64 JSON."
+  }
 }

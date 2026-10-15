@@ -11,10 +11,12 @@
 | 新包／DTO／原服务／Pi SDK／OMP Host 全范围 | **22/22，0 fail/skip/cancel，exit0** | [acceptance.log](acceptance.log) |
 | 原发布／HTTP／readiness／资料／OMP／市场工具回归 | **86/86，0 fail/skip/cancel，exit0** | [compatibility.log](compatibility.log) |
 | 最后取消事务 fence 的直接与原发布／HTTP 回归 | **52/52，exit0**；与以上计数重叠 | [fence.log](fence.log) |
-| `npm run build` | **exit0**，含 `tsc --noEmit` 和 Vite；保留现有大 bundle 提示 | [build.log](build.log) |
+| `npm run build` | **exit0**，含 `tsc --noEmit` 和 Vite；保留现有大 bundle 提示 | [build.log](build.log)、[原始字节](build.raw.json) |
 | 无凭据 launcher `--check` | **exit0**，固定运行器校验通过，业务/模型明确 `unconfigured`，model/paid calls0 | [unconfigured-check.json](unconfigured-check.json) |
 | copied-package 两官方 CLI | manifest／Skill／九工具／其他扩展／disable-enable-remove 均实际通过 | [package-facts.json](package-facts.json) |
 | 变更源码 | Node 语法、`git diff --check`、文件 SHA-256 校验通过 | [checks.json](checks.json)、[source.json](source.json) |
+
+`build.log` 仅去行末空白方便 Git 审阅；原始输出逐字节保存在 `build.raw.json`（base64、长度、SHA-256）。其余通过日志未改写。
 
 最终命令：
 
