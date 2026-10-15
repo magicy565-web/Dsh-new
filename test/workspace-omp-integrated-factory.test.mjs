@@ -153,7 +153,7 @@ test('actual OMP monitor proposal, original human approval/enable, durable dispa
   const resolve = options.resolveLaunchReceipt; let launch;
   options.resolveLaunchReceipt = async input => launch ??= await resolve(input);
   f = await fixture(t, { profile: 'plan', marketValidationOptions: options });
-  publication = await f.app.store.update(state => seedMarketPublication(state, { actor: f.actor, conversationId: f.cid, productId: f.product.id }));
+  publication = await f.app.store.update(state => seedMarketPublication(state, { actor: { ...f.actor, workspaceId: f.policy.workspaceId }, conversationId: f.cid, productId: f.product.id }));
   assert.equal((await f.send()).status, 'succeeded');
   const saved = (await f.journal()).entries.find(e => e.message?.toolName === 'workspace_market_validation_plan_save').message.details;
   const input = { requestId: 'monitor-fixture', planId: saved.artifact.artifactId, planRevision: 1, launchReceiptId: 'synthetic-launch' };
@@ -299,7 +299,7 @@ for (const action of ['cancel', 'logout']) test(`actual original ${action} while
       timezone: doc.plan.timeZone,
       channelId: 'synthetic-acquisition', businessMode: 'b2c', conversationId: row.sourceConversationId };
   } } });
-  publication = await f.app.store.update(state => seedMarketPublication(state, { actor: f.actor, conversationId: f.cid, productId: f.product.id }));
+  publication = await f.app.store.update(state => seedMarketPublication(state, { actor: { ...f.actor, workspaceId: f.policy.workspaceId }, conversationId: f.cid, productId: f.product.id }));
   assert.equal((await f.send()).status, 'succeeded');
   const saved = (await f.journal()).entries.find(e => e.message?.toolName === 'workspace_market_validation_plan_save').message.details;
   f.responses.splice(0, f.responses.length, { tool: 'workspace_market_monitor_request', arguments: { requestId: 'pending-proof', planId: saved.artifact.artifactId, planRevision: 1, launchReceiptId: 'synthetic-proof' } }, { text: 'No monitor started.' });
