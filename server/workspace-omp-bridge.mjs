@@ -32,8 +32,16 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
       const home = path.join(isolationDirectory, 'home'); await privateDirectory(home);
       const publicFiles = await snapshotWorkspaceOmpPublicFiles({ root: publicTools.publicDocumentRoot, files: publicTools.files || [] });
       await authorize();
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/u.test(run.id)) throw new Error('Use an original Run identifier for owned public snapshots.');
+      const snapshotPrefix = `selected-public-materials-${run.id}-`;
+      const cleanupSnapshots = async () => {
+        for (const name of await fs.readdir(isolationDirectory)) {
+          if (name.startsWith(snapshotPrefix) && /^[A-Za-z0-9]{6}$/u.test(name.slice(snapshotPrefix.length)))
+            await fs.rm(path.join(isolationDirectory, name), { recursive: true, force: true });
+        }
+      };
       const publicToolConfiguration = { searchProvider: publicTools.searchProvider || 'duckduckgo',
-        browserExecutable: publicTools.browserExecutable || null, publicFiles };
+        browserExecutable: publicTools.browserExecutable || null, publicFiles, snapshotPrefix };
       const childEnv = { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: home, TMPDIR: isolationDirectory,
         PI_CODING_AGENT_DIR: agentDir, PI_NO_TITLE: '1', NO_COLOR: '1', TERM: 'dumb' };
       for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS']) if (typeof infrastructure[key] === 'string') childEnv[key] = infrastructure[key];
@@ -42,7 +50,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
       return await new Promise((resolve, reject) => {
         const child = spawn(paths.bun, [path.join(root, 'server/workspace-omp-worker.mjs')], { cwd: isolationDirectory, env: childEnv, detached: true, stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
         onWorkerLifecycle({ phase: 'spawn', pid: child.pid });
-        const channel = child.stdio[3]; let settled = false, bytes = 0, modelCalls = 0, childClosed = false, pendingResult = null, resultVerified = false;
+        const channel = child.stdio[3]; let settled = false, bytes = 0, modelCalls = 0, childClosed = false, cleanupComplete = false, pendingResult = null, resultVerified = false;
         const lines = createInterface({ input: channel, crlfDelay: Infinity });
         const send = value => { if (!channel.destroyed) channel.write(JSON.stringify(value) + '\n'); };
         let terminateTimer, killTimer;
@@ -56,7 +64,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           if (error) { stop(); reject(error); } else resolve(result); };
         channel.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP transport closed.')); });
         lines.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP line transport closed.')); });
-        const finishSuccess = () => { if (childClosed && resultVerified) finish(null, { ...pendingResult, runtime: { ...pendingResult.runtime, workerExitObserved: true } }); };
+        const finishSuccess = () => { if (childClosed && cleanupComplete && resultVerified) finish(null, { ...pendingResult, runtime: { ...pendingResult.runtime, workerExitObserved: true } }); };
         input.signal?.addEventListener('abort', stop, { once: true });
         const allowed = new Set(['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
         const handleLine = async line => {
@@ -93,9 +101,11 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         lines.on('line', line => { void handleLine(line).catch(() => finish(new ProviderError('OMP_SESSION_FAILED', 'The original OMP host operation stopped.'))); });
         child.on('error', () => finish(new ProviderError('OMP_UNAVAILABLE', 'The reviewed OMP runtime could not start.')));
         child.on('close', code => { childClosed = true; clearTimeout(terminateTimer); clearTimeout(killTimer); lines.close();
-          onWorkerLifecycle({ phase: 'exit', pid: child.pid, code });
-          if (pendingResult && code === 0) finishSuccess();
-          else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.')); });
+          void cleanupSnapshots().then(() => {
+            cleanupComplete = true; onWorkerLifecycle({ phase: 'exit', pid: child.pid, code });
+            if (pendingResult && code === 0) finishSuccess();
+            else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.'));
+          }).catch(() => finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.'))); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
           configuration, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });

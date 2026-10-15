@@ -29,9 +29,10 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null,
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
   maxModelCalls = 4, maxTokens = 1600, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
-  uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null,
+  uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
+  lifecycleSignal?.throwIfAborted();
   if (!configuration?.providerId || !configuration.model || !configuration.baseUrl || !uiOnly && !syntheticResponses && !configuration.apiKey)
     throw new Error('Workspace OMP model configuration is unconfigured. No sample, account or alternate model is selected.');
   if (!uiOnly && !syntheticResponses && (!configuration.remainingBudgetVerified || !configuration.cost
@@ -59,6 +60,12 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   assert.deepEqual(selectedSkills.skills.map(skill => skill.name), ['workspace-factory']);
   const factorySkillContent = await fs.readFile(path.join(factorySkillDirectory, 'SKILL.md'), 'utf8');
   const authStorage = await sdk.AuthStorage.create(agentDir + '/auth.db');
+  let publicExtension, publicTask, created, cleanupPromise, closePromise;
+  const cleanup = () => cleanupPromise ??= (async () => {
+    try { await publicExtension?.close(); }
+    finally { try { await publicTask?.close(); } finally { authStorage.close(); } }
+  })();
+  try {
   const modelRegistry = new sdk.ModelRegistry(authStorage, agentDir + '/no-ambient-models.yml', { settings, ignoreLocalModelConfig: true });
   let modelCalls = 0; const completedUsage = new Map();
   const customApi = uiOnly ? 'workspace-omp-ui-only-disabled' : syntheticResponses ? 'workspace-omp-explicit-faux' : 'workspace-omp-pinned-openai';
@@ -129,10 +136,10 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const eventBus = new EventBus(), subagentEventBus = new EventBus();
   const toolSession = { cwd, settings, authStorage, modelRegistry, eventBus, subagentEventBus, getSessionId: () => manager.getSessionId(),
     getSessionFile: () => manager.getSessionFile(), getArtifactsDir: () => cwd };
-  const publicExtension = !uiOnly && !ordinaryTools ? await createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize,
+  publicExtension = !uiOnly && !ordinaryTools ? await createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, signal: lifecycleSignal,
     configuration: publicTools, fetchImpl: createWorkspaceOmpSyntheticPublicFetch({ responses: syntheticPublicSearchResponses, explicitFaux: Boolean(syntheticResponses) }) })
     : { tools: [], toolNames: [], capabilities: { status: 'not-enabled-in-ui-only-or-ordinary-host' }, close: async () => {} };
-  const publicTask = !uiOnly && !ordinaryTools ? await createWorkspaceOmpPublicTask({ packageRoot, toolSession, configuration, authorize })
+  publicTask = !uiOnly && !ordinaryTools ? await createWorkspaceOmpPublicTask({ packageRoot, toolSession, configuration, authorize })
     : { tools: [], toolNames: [], close: async () => {} };
   const admittedTools = [...ORDINARY_FACTORY_TOOLS, ...(factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames];
   if (savedSession && !ordinaryTools) {
@@ -152,7 +159,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   // A public-only session never discovers enterprise files, ambient auth, MCP,
   // user/project extensions, rules or skills. The ordinary factory extension
   // itself leaves the official host unchanged; the web host supplies this scope.
-  const created = await sdk.createAgentSession({ cwd, agentDir, settings, modelRegistry, authStorage,
+  lifecycleSignal?.throwIfAborted();
+  created = await sdk.createAgentSession({ cwd, agentDir, settings, modelRegistry, authStorage,
     model: uiOnly ? sdk.finalizeCustomModel(sdk.buildCustomModelOverlay(configuration.providerId, configuration.baseUrl, customApi,
       undefined, undefined, undefined, undefined, undefined, undefined, modelDefinition), { useDefaults: true })
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
@@ -175,5 +183,9 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       return { promptTokens: sum('input'), completionTokens: sum('output'), totalTokens: sum('totalTokens') };
     },
     selectedSkillNames: selectedSkills.skills.map(skill => skill.name),
-    async close() { await session.dispose(); await publicExtension.close(); await publicTask.close(); authStorage.close(); } };
+    async close() { return closePromise ??= (async () => { try { await session.dispose(); } finally { await cleanup(); } })(); } };
+  } catch (error) {
+    try { await created?.session.dispose(); } finally { await cleanup(); }
+    throw error;
+  }
 }

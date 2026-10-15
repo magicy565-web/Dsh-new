@@ -91,17 +91,49 @@ export function createWorkspaceOmpSyntheticPublicFetch({ responses = null, expli
   };
 }
 
-export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, configuration = {},
+export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, configuration = {}, signal: lifecycleSignal,
   // Injection is only for explicit synthetic tests. Production callers never
   // serialize a function or enable a fixture from environment variables.
   fetchImpl = globalThis.fetch, lookupImpl = lookup } = {}) {
   if (typeof authorize !== 'function') denied('Original Workspace authorization is required.');
   const load = relative => import(pathToFileURL(path.join(packageRoot, 'src', relative)).href);
   const tools = [], names = [], files = configuration.publicFiles || [], provider = configuration.searchProvider || 'duckduckgo';
+  const snapshotPrefix = configuration.snapshotPrefix || 'selected-public-materials-';
+  if (!/^selected-public-materials-(?:[A-Za-z0-9_.:-]{1,128}-)?$/u.test(snapshotPrefix)) denied('Use only an owned original Run snapshot prefix.');
   if (!['duckduckgo', 'startpage', 'disabled'].includes(provider)) denied('Only a reviewed keyless public search provider is admitted.');
-  let searchCalls = 0, browserCalls = 0, browser;
-  const checked = async signal => { abort(signal); await authorize(); abort(signal); };
-  function register(tool) { tools.push(tool); names.push(tool.name); }
+  let searchCalls = 0, browserCalls = 0, browser, snapshotDirectory, closed = false, cleanupPromise, initializationFinished;
+  const initialized = new Promise(resolve => { initializationFinished = resolve; });
+  const close = () => {
+    closed = true;
+    lifecycleSignal?.removeEventListener('abort', cancelled);
+    return cleanupPromise ||= (async () => {
+      // An abort during setup must not race a later snapshot write. Only this
+      // invocation's mkdtemp directory is owned here; source files are not.
+      await initialized;
+      try { await browser?.invoke({ action: 'close', all: true, kill: true }, {}).catch(() => {}); }
+      finally { if (snapshotDirectory) await fs.rm(snapshotDirectory, { recursive: true, force: true }); }
+    })();
+  };
+  const cancelled = () => { void close().catch(() => {}); };
+  const checked = async signal => {
+    if (lifecycleSignal?.aborted || signal?.aborted) { await close(); denied('Public tool cancelled.'); }
+    if (closed) denied('Public tools are closed.');
+    await authorize();
+    if (lifecycleSignal?.aborted || signal?.aborted) { await close(); denied('Public tool cancelled.'); }
+    if (closed) denied('Public tools are closed.');
+  };
+  function register(tool) {
+    const execute = tool.execute;
+    tools.push({ ...tool, async execute(...args) {
+      const signal = args[2], operationCancelled = () => cancelled();
+      signal?.addEventListener('abort', operationCancelled, { once: true });
+      try { return await execute.apply(tool, args); }
+      finally { signal?.removeEventListener('abort', operationCancelled); if (signal?.aborted) await close(); }
+    } }); names.push(tool.name);
+  }
+  lifecycleSignal?.addEventListener('abort', cancelled, { once: true });
+  try {
+  abort(lifecycleSignal);
   if (provider !== 'disabled') {
     const { [provider === 'duckduckgo' ? 'searchDuckDuckGo' : 'searchStartpage']: search } = await load(`web/search/providers/${provider}.ts`);
     register({ name: 'workspace_public_search', label: 'Public source search',
@@ -150,7 +182,7 @@ export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, 
       } });
   }
   if (files.length) {
-    const directory = await fs.mkdtemp(path.join(toolSession.cwd, 'selected-public-materials-')); await fs.chmod(directory, 0o700);
+    const directory = snapshotDirectory = await fs.mkdtemp(path.join(toolSession.cwd, snapshotPrefix)); await fs.chmod(directory, 0o700);
     const selected = new Map();
     for (const file of files) {
       if (!/^[a-z][a-z0-9-]{0,63}$/u.test(file.id) || selected.has(file.id)) denied('Invalid exact public material snapshot.');
@@ -238,8 +270,17 @@ export async function createWorkspaceOmpPublicTools({ packageRoot, toolSession, 
         } finally { await browser.invoke({ action: 'close', name, kill: true }, {}).catch(() => {}); }
       } });
   }
-  return { tools, toolNames: names, capabilities: { search: provider === 'disabled' ? 'disabled' : 'supported_unverified', searchProvider: provider,
+  abort(lifecycleSignal);
+  if (closed) denied('Public tools closed during initialization.');
+  const configured = { tools, toolNames: names, capabilities: { search: provider === 'disabled' ? 'disabled' : 'supported_unverified', searchProvider: provider,
     publicDocuments: files.map(({ id, sha256 }) => ({ id, sha256 })), browser: browser ? 'supported_unverified' : 'unconfigured_existing_chromium_required',
     privateLibrary: 'disabled', arbitraryShell: 'disabled', externalActions: 'human_approval_required' },
-    async close() { await browser?.invoke({ action: 'close', all: true, kill: true }, {}).catch(() => {}); } };
+    close };
+  initializationFinished(); return configured;
+  } catch (error) {
+    initializationFinished();
+    try { await close(); }
+    catch (cleanupError) { throw new AggregateError([error, cleanupError], 'Public tool initialization and owned snapshot cleanup failed.'); }
+    throw error;
+  }
 }

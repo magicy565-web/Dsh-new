@@ -6,7 +6,8 @@ import { createInterface } from 'node:readline';
 import { createWorkspaceOmpSession, OMP_ENGINE_SCOPE } from './workspace-omp-session.mjs';
 const write = value => fs.writeSync(3, JSON.stringify(value) + '\n');
 const input = createInterface({ input: fs.createReadStream(null, { fd: 3 }), crlfDelay: Infinity });
-const pending = new Map(); let nextId = 1, created, running = false;
+const pending = new Map(); let nextId = 1, created, running = false, initializing;
+const lifecycle = new AbortController();
 const request = (method, args = []) => new Promise((resolve, reject) => {
   const id = nextId++; pending.set(id, { resolve, reject }); write({ type: 'request', id, method, args });
 });
@@ -14,10 +15,10 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
-  created = await createWorkspaceOmpSession({ ...config, client, factoryTasks: true,
+  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: true, lifecycleSignal: lifecycle.signal,
     authorize: () => request('authorize'), onModelRequest: event => request('modelRequest', [event]),
     onModelAbort: () => { if (config.syntheticResponses) write({ type: 'nativeModelAbort' }); },
-    onModelWaiting: () => { if (config.syntheticResponses) write({ type: 'nativeModelWaiting' }); } });
+    onModelWaiting: () => { if (config.syntheticResponses) write({ type: 'nativeModelWaiting' }); } }));
   created.session.subscribe(event => {
     if (['tool_execution_start', 'tool_execution_end'].includes(event.type)) write({ type: 'event', event: {
       type: event.type, toolName: event.toolName, toolCallId: event.toolCallId, isError: event.isError } });
@@ -45,11 +46,11 @@ input.on('line', line => {
   if (value.type === 'reply') {
     const operation = pending.get(value.id); if (!operation) return; pending.delete(value.id);
     if (value.error) operation.reject(new Error(value.error)); else operation.resolve(value.result);
-  } else if (value.type === 'abort') void created?.session.abort();
+  } else if (value.type === 'abort') { lifecycle.abort(); void created?.session.abort(); }
   else if (value.type === 'start') void start(value.config).catch(async error => {
     write({ type: 'error', error: 'The official OMP public session failed; no task completion or model fallback is implied.',
       ...(value.config.syntheticResponses ? { diagnostic: error.message } : {}) });
     await created?.close().catch(() => {}); process.exit(1);
   });
 });
-process.once('SIGTERM', () => void (async () => { await created?.session.abort(); await created?.close().catch(() => {}); process.exit(1); })());
+process.once('SIGTERM', () => void (async () => { lifecycle.abort(); await initializing?.catch(() => {}); await created?.session.abort(); await created?.close().catch(() => {}); process.exit(1); })());
