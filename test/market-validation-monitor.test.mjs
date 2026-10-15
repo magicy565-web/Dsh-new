@@ -262,6 +262,34 @@ test('original scheduler fences a mutated goal definition and the monitor reject
 test('business-Agent-owned conversations retain the original Runtime fence instead of opening a second loop', async t => {
   const f = await fixture(t);
   await f.store.update(state => { state.conversations[0].businessAgentOwner = { subject: actor.subject, workspaceId: actor.workspaceId }; });
-  await assert.rejects(f.bound().create(f.request()), { code: 'BUSINESS_AGENT_CONVERSATION_ONLY' });
+  await assert.rejects(f.runtime.createGoal({ title: 'Forbidden generic loop', conversationId: f.receipt.conversationId }), { code: 'BUSINESS_AGENT_CONVERSATION_ONLY' });
+  await assert.rejects(f.bound().create(f.request()), { code: 'MONITOR_CONFIRMATION_REQUIRED' });
   assert.equal(f.store.read().goals.length, 0); assert.equal(f.calls, 0);
+});
+test('verified baseline retains exact prelaunch source and window; late or cross-channel baselines cannot start the task', async t => {
+  const baseline = { status: 'available', sourceId: 'original-measurement-service', evidenceRef: 'baseline-original', productId, variantIds: [variant], shopId,
+    channelId: 'approved-source', businessMode: 'b2c', observedAt: '2026-10-12T09:00:00.000Z', coverage: { from: '2026-10-11T09:00:00.000Z', to: '2026-10-12T09:00:00.000Z' },
+    metrics: { net_paid_units: { value: 0, definition: 'Original verified prelaunch paid units for this product and channel.' } } };
+  const f = await fixture(t); f.receipt.baseline = baseline;
+  const task = await f.bound().create(f.request()); assert.equal(task.baseline.status, 'available'); assert.equal(task.baseline.metrics.net_paid_units.value, 0); assert.equal(task.baseline.evidenceRef, 'baseline-original');
+  for (const change of [{ channelId: 'different-channel' }, { coverage: { from: baseline.coverage.from, to: '2026-10-12T10:00:00.000Z' } }]) {
+    const invalid = await fixture(t); invalid.receipt.baseline = { ...baseline, ...change };
+    await assert.rejects(invalid.bound().create(invalid.request()), { code: 'BASELINE_EVIDENCE_INVALID' }); assert.equal(invalid.store.read().goals.length, 0);
+  }
+});
+test('selected plan visits/cart/checkout/refunds expose gaps rather than substituting view events or refunded units', async t => {
+  const f = await fixture(t, { outcomes: true, ga4: true });
+  f.receipt.requiredMetrics = ['visits', 'add_to_cart', 'checkouts', 'refunds', 'net_paid_units'].map(id => ({ id, definition: `Original selected ${id} definition` }));
+  const task = await f.bound().create(f.request()); f.advance(8 * DAY);
+  const first = await f.bound().observe(input(task)), measured = first.summary.measurement;
+  assert.equal(first.observation.sample.traffic.metrics.productDetailViews.value, 3);
+  assert.equal(measured.metrics.net_paid_units.value, 0); assert.equal(measured.metrics.visits.value, null); assert.equal(measured.metrics.refunds.value, null);
+  assert.deepEqual(measured.gaps.map(item => item.metric), ['visits', 'add_to_cart', 'checkouts', 'refunds']);
+  assert.equal(measured.status, 'insufficient_evidence'); assert.equal(first.summary.goalVerified, false); assert.equal(first.summary.provisional, true);
+  f.outcome(scope => ({ ...scope, sourceId: 'reviewed-outcomes', status: 'available', sampledAt: new Date(Date.parse(task.endAt) + DAY).toISOString(), dataLagSeconds: 0,
+    definition: 'Already authorized exact-channel visits, cart/checkout events, actual refund count and net paid units; counts are distinct.',
+    metrics: { visits: 2, add_to_cart: 0, checkouts: 0, refunds: 0, netPaidUnits: 0 } }));
+  const second = await f.bound().observe(input(task, 'selected-funnel-source'));
+  assert.equal(second.summary.measurement.status, 'observed_not_adjudicated'); assert.equal(second.summary.measurement.metrics.visits.value, 2);
+  assert.equal(second.summary.goalVerified, false); assert.equal(second.summary.messageId, first.summary.messageId); assert.equal(f.store.read().goals.length, 1);
 });
