@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { SHOPIFY_API_VERSION } from './shopify.mjs';
 import { supplierFail, supplierHash } from './supplier-profile.mjs';
+import { assertSupplierProductSource } from './supplier-draft.mjs';
 
 // A host-installed action adapter for the ORIGINAL capability service. It is
 // never a model tool and does not own approvals, a queue, or a separate store.
@@ -38,6 +39,7 @@ function operationFrom(state, scope) {
   const row = state.workspaceSupplierServices?.services.find(item => item.id === scope.serviceId && item.subject === scope.subject && item.workspaceId === scope.workspaceId && item.conversationId === scope.conversationId);
   const operation = row?.publicationOperations?.find(item => item.id === scope.operationId);
   if (!operation || operation.scopeHash !== supplierHash(scope)) supplierFail(409, 'SUPPLIER_PUBLICATION_SCOPE_CHANGED', 'The original supplier publication scope changed.');
+  assertSupplierProductSource(state, row);
   return { row, operation };
 }
 

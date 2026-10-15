@@ -1,7 +1,7 @@
 import { libraryReadHash, normalizeLibraryRecipient, libraryRecipientForModel } from './library-model-read-contract.mjs';
 import { looksLikeCredential } from './public-input.mjs';
 const API = '/api/library/model-read/factory';
-const FIELDS = ['name', 'description', 'category', 'status', 'skuSpecifications', 'capacityNote', 'documentReferences', 'provenance'];
+const FIELDS = ['name', 'description', 'category', 'status', 'skuSpecifications', 'capacityNote', 'documentReferences', 'provenance', 'images'];
 const uuid = v => typeof v === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(v);
 const exact = (v, keys) => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).every(k => keys.includes(k));
 const positive = v => Number.isSafeInteger(v) && v > 0;
@@ -19,6 +19,11 @@ function product(v) {
   if (!exact(v, ['id', 'revision', ...FIELDS]) || !uuid(v.id) || !positive(v.revision)) return false;
   for (const field of ['name', 'description', 'category', 'status', 'capacityNote']) if (v[field] !== undefined && !text(v[field])) return false;
   if (v.provenance !== undefined && !provenance(v.provenance)) return false;
+  if (v.images !== undefined && (!Array.isArray(v.images) || v.images.length > 10 || v.images.some(i =>
+    !exact(i, ['id', 'asset', 'alt', 'order', 'isPrimary']) || !uuid(i.id) || !exact(i.asset, ['artifactId', 'version', 'sha256'])
+    || !uuid(i.asset.artifactId) || !positive(i.asset.version) || i.asset.version > 100 || !/^[a-f0-9]{64}$/.test(i.asset.sha256 || '')
+    || !text(i.alt) || !Number.isSafeInteger(i.order) || i.order < 0 || i.order > 1000 || typeof i.isPrimary !== 'boolean')
+    || new Set(v.images.map(i => i.id)).size !== v.images.length)) return false;
   if (v.skuSpecifications !== undefined && (!Array.isArray(v.skuSpecifications) || v.skuSpecifications.length > 100 || v.skuSpecifications.some(s =>
     !exact(s, ['id', 'code', 'specs', 'unit', 'moq', 'leadTimeDays']) || !uuid(s.id) || !text(s.code) || !text(s.unit)
     || s.moq !== null && !positive(s.moq) || s.leadTimeDays !== null && (!Number.isSafeInteger(s.leadTimeDays) || s.leadTimeDays < 0)

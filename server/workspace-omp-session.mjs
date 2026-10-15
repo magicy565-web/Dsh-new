@@ -1,3 +1,11 @@
+import { shopifyProductExtension, SHOPIFY_PRODUCT_TOOLS, SHOPIFY_PRODUCT_SAFE_REASONS } from '../packages/workspace-shopify-product/src/extension.js';
+// A single model-disclosure boundary refreshes the SAME original selector once.
+// Mutable cached views/status are always replaced; source/authority/extra keys
+// remain in the key and must pass the original client's validation.
+const shopifySnapshotKey = receipt => {
+  const { view, status, ...source } = receipt;
+  return 'shopify:' + libraryReadHash(source);
+};
 import { marketValidationMonitorExtension, MARKET_MONITOR_TOOLS } from '../packages/workspace-market-validation/src/monitor.js';
 // Bun-only integration with the reviewed official OMP SDK. This file supplies
 // configuration and a provider transport; OMP owns the agent/tool/session loop.
@@ -37,11 +45,12 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
   maxModelCalls = 4, maxTokens = 1600, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal,
-  factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
+  factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
   const privateProfile = factoryMaterials || factoryIngestion;
-  const expectedScope = factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE;
+  const expectedScope = shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE;
+  if (shopifyProduct && (!factoryMaterials || !productClient || factoryIngestion || marketValidation || factoryInquiries || factoryCustomers)) throw Error('Use the reviewed Shopify product Session.');
   if (engineScope !== expectedScope || factoryIngestion && (factoryMaterials || factoryCustomers || factoryInquiries || marketValidation || !ingestionClient)
     || marketValidation && (!factoryMaterials || !planClient || factoryCustomers || factoryInquiries) || factoryInquiries && (!factoryMaterials || !inquiryClient)
     || factoryMaterials && (!materialsClient || factoryCustomers) || privateProfile && (ordinaryTools || uiOnly)) throw Error('Use the reviewed original private Session profile.');
@@ -69,7 +78,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const selectedSkillRoot = path.join(agentDir, 'workspace-selected-skills');
   await fs.rm(selectedSkillRoot, { recursive: true, force: true });
   await fs.mkdir(selectedSkillRoot, { recursive: true, mode: 0o700 });
-  if (!factoryCustomers && !factoryInquiries && !factoryIngestion && !marketValidation) {
+  if (!factoryCustomers && !factoryInquiries && !factoryIngestion && !marketValidation && !shopifyProduct) {
     await fs.mkdir(path.join(selectedSkillRoot, 'factory'));
     await fs.copyFile(path.join(factorySkillDirectory, 'SKILL.md'), path.join(selectedSkillRoot, 'factory/SKILL.md'));
   }
@@ -85,13 +94,13 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     await fs.mkdir(path.join(selectedSkillRoot, 'factory-inquiries'), { recursive: true, mode: 0o700 });
     await fs.copyFile(new URL('../packages/workspace-factory-inquiries/skills/factory-inquiries/SKILL.md', import.meta.url), path.join(selectedSkillRoot, 'factory-inquiries/SKILL.md'));
   }
-  for (const [active, kind] of [[factoryIngestion, 'factory-ingestion'], [marketValidation, 'market-validation']]) if (active) {
+  for (const [active, kind] of [[factoryIngestion, 'factory-ingestion'], [marketValidation, 'market-validation'], [shopifyProduct, 'shopify-product']]) if (active) {
     await fs.mkdir(path.join(selectedSkillRoot, kind), { recursive: true, mode: 0o700 });
     await fs.copyFile(new URL('../packages/workspace-' + kind + '/skills/' + kind + '/SKILL.md', import.meta.url), path.join(selectedSkillRoot, kind + '/SKILL.md'));
   }
   const selectedSkills = await sdk.loadSkillsFromDir({ dir: selectedSkillRoot, source: 'custom:project' });
   assert.deepEqual(selectedSkills.warnings, []);
-  assert.deepEqual(selectedSkills.skills.map(skill => skill.name).sort(), factoryIngestion ? ['workspace-factory-ingestion'] : marketValidation ? ['workspace-factory-materials', 'workspace-market-validation'] : factoryInquiries ? ['workspace-factory-inquiries', 'workspace-factory-materials'] : factoryMaterials ? ['workspace-factory', 'workspace-factory-materials'] : factoryCustomers ? ['workspace-factory-customers'] : ['workspace-factory']);
+  assert.deepEqual(selectedSkills.skills.map(skill => skill.name).sort(), shopifyProduct ? ['workspace-factory-materials', 'workspace-shopify-product'] : factoryIngestion ? ['workspace-factory-ingestion'] : marketValidation ? ['workspace-factory-materials', 'workspace-market-validation'] : factoryInquiries ? ['workspace-factory-inquiries', 'workspace-factory-materials'] : factoryMaterials ? ['workspace-factory', 'workspace-factory-materials'] : factoryCustomers ? ['workspace-factory-customers'] : ['workspace-factory']);
   const factorySkillContent = !privateProfile && !factoryCustomers ? await fs.readFile(path.join(factorySkillDirectory, 'SKILL.md'), 'utf8') : '';
   const authStorage = await sdk.AuthStorage.create(agentDir + '/auth.db');
   let publicExtension, publicTask, created, cleanupPromise, closePromise;
@@ -107,7 +116,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     const monitorSnapshots = new Map(); // One disclosure boundary only.
     const checkedReceipts = new Set(); // Only this validation boundary, never a permission cache.
     for (const message of messages) {
-      if (message?.role !== 'toolResult' || ![...FACTORY_MATERIAL_TOOLS, ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : [])].includes(message.toolName)) continue;
+      if (message?.role !== 'toolResult' || ![...FACTORY_MATERIAL_TOOLS, ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : []), ...(shopifyProduct ? SHOPIFY_PRODUCT_TOOLS : [])].includes(message.toolName)) continue;
       let receipt;
       try { receipt = JSON.parse((message.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n')); }
       catch {
@@ -117,9 +126,20 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         if (message.isError === true && message.details === undefined) continue;
         throw Error('Factory cached receipt is malformed; no model disclosure is admitted.');
       }
-      if (!['workspace-factory-materials', ...(factoryInquiries ? ['workspace-factory-inquiries'] : []), ...(factoryIngestion ? ['workspace-factory-ingestion'] : []), ...(marketValidation ? ['workspace-market-validation', 'workspace-market-monitor'] : [])].includes(receipt.plugin)) throw Error('Factory cached receipt provenance changed.');
+      if (!['workspace-factory-materials', ...(factoryInquiries ? ['workspace-factory-inquiries'] : []), ...(factoryIngestion ? ['workspace-factory-ingestion'] : []), ...(marketValidation ? ['workspace-market-validation', 'workspace-market-monitor'] : []), ...(shopifyProduct ? ['workspace-shopify-product'] : [])].includes(receipt.plugin)) throw Error('Factory cached receipt provenance changed.');
+      if (receipt.plugin === 'workspace-shopify-product' && !receipt.method) {
+        if (!['blocked', 'unconfigured'].includes(receipt.status) || !SHOPIFY_PRODUCT_SAFE_REASONS.includes(receipt.reason)
+          || Object.keys(receipt).some(k => !['plugin', 'status', 'reason', 'sources'].includes(k))
+          || !Array.isArray(receipt.sources) || receipt.sources.length || message.content.some(b => b.type !== 'text')) throw Error('Original product gap receipt changed.');
+        continue;
+      }
       if (['unconfigured', 'blocked', 'unavailable'].includes(receipt.status) && Object.keys(receipt).every(key => ['plugin', 'status', 'reason', 'sources', 'detail', 'humanReviewRequired', 'humanReviewed', 'sent', 'externalActions', 'visibility', 'humanConfirmed', 'independentVerification', 'startedAt'].includes(key))
         && Array.isArray(receipt.sources) && receipt.sources.length === 0) continue;
+      if (receipt.plugin === 'workspace-shopify-product') {
+        const key = shopifySnapshotKey(receipt);
+        if (!monitorSnapshots.has(key)) monitorSnapshots.set(key, await productClient.refresh(receipt, model, signal, message.content.filter(b => b.type === 'image')));
+        continue;
+      }
       if (receipt.plugin === 'workspace-market-monitor') {
         const key = libraryReadHash([receipt.input, receipt.requestedAction]);
         if (!monitorSnapshots.has(key)) monitorSnapshots.set(key, await monitorClient.refresh(receipt, model, signal));
@@ -174,7 +194,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       stopReason: spec.tool ? 'toolUse' : 'stop', usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
   };
-  const modelDefinition = { id: configuration.model, name: uiOnly ? 'UI only; original host executes the selected model' : 'Workspace explicitly configured model', reasoning: false, input: ['text'],
+  const modelDefinition = { id: configuration.model, name: uiOnly ? 'UI only; original host executes the selected model' : 'Workspace explicitly configured model', reasoning: false, input: shopifyProduct ? ['text', 'image'] : ['text'],
       // UI metadata is never a claim of free business inference. Unknown cost
       // remains unbounded, and this transport refuses before any provider call.
       cost: uiOnly ? configuration.cost || { input: Infinity, output: Infinity, cacheRead: Infinity, cacheWrite: Infinity }
@@ -191,6 +211,15 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         if (uiOnly) throw new Error('This official terminal is UI-only. Model execution must use the original Workspace Conversation/Run HTTP authority.');
         await authorize();
         const monitorSnapshots = await revalidateFactoryContext([...(manager?.getEntries() || []).map(e => e.message), ...(context.messages || [])], model, options?.signal);
+        if (shopifyProduct) for (const message of context.messages || []) {
+          if (message?.role !== 'toolResult' || !SHOPIFY_PRODUCT_TOOLS.includes(message.toolName)) continue;
+          let receipt; try { receipt = JSON.parse(message.content.filter(b => b.type === 'text').map(b => b.text).join('\n')); } catch { continue; }
+          if (!receipt.method) { message.details = receipt; continue; }
+          const fresh = monitorSnapshots.get(shopifySnapshotKey(receipt));
+          if (!fresh) throw Error('Original product snapshot required.');
+          const { nativeContent = [], ...data } = fresh;
+          message.content = [{ type: 'text', text: JSON.stringify(data) }, ...nativeContent]; message.details = data;
+        }
         if (marketValidation) for (const message of context.messages || []) {
           if (message?.role !== 'toolResult' || !MARKET_MONITOR_TOOLS.includes(message.toolName)) continue;
           let receipt; try { receipt = JSON.parse(message.content.filter(b => b.type === 'text').map(b => b.text).join('\n')); } catch { continue; }
@@ -265,8 +294,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         await authorize(); signal?.throwIfAborted(); return result;
       } });
   }
-  const simplified = factoryInquiries || factoryCustomers || factoryIngestion || marketValidation;
-  const admittedTools = [...(simplified ? [] : ORDINARY_FACTORY_TOOLS), ...skillTools.map(t => t.name), ...(!simplified && factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : [])];
+  const simplified = factoryInquiries || factoryCustomers || factoryIngestion || marketValidation || shopifyProduct;
+  const admittedTools = [...(simplified ? [] : ORDINARY_FACTORY_TOOLS), ...skillTools.map(t => t.name), ...(!simplified && factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : []), ...(shopifyProduct ? SHOPIFY_PRODUCT_TOOLS : [])];
   if (savedSession && !ordinaryTools) {
     for (const entry of manager.getEntries()) {
       const message = entry.message;
@@ -290,7 +319,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     model: uiOnly ? sdk.finalizeCustomModel(sdk.buildCustomModelOverlay(configuration.providerId, configuration.baseUrl, customApi,
       undefined, undefined, undefined, undefined, undefined, undefined, modelDefinition), { useDefaults: true })
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
-    extensions: [...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
+    extensions: [...(shopifyProduct ? [shopifyProductExtension({ client: productClient, authorize })] : []), ...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
       pi => [...publicExtension.tools, ...publicTask.tools, ...skillTools].forEach(tool => pi.registerTool(tool)),
       ...ordinaryTools ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
     disableExtensionDiscovery: true, skills: selectedSkills.skills, appendSystemPrompt: privateProfile || factoryCustomers ? undefined : factorySkillContent,

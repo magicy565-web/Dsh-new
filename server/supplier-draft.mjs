@@ -3,6 +3,17 @@ import { SUPPLIER_FIELDS, blankSupplierProfile, normalizeSupplierProfile, suppli
 import { looksLikeCredential } from './security.mjs';
 
 export const supplierRegistry = state => state.workspaceSupplierServices ||= { version: 1, services: [], monitors: [], commands: [] };
+// Only source-linked product proposals opt in. Legacy supplier records retain
+// their original behavior; no new catalog, grant or execution store is added.
+export function assertSupplierProductSource(state, row) {
+  const source = row.productSource;
+  if (!source) return;
+  const product = state.businessLibrary?.products.find(p => p.id === source.productId);
+  if (!product || product.revision !== source.revision || product.status === 'archived'
+    || source.images.some(image => !product.images.some(p => p.id === image.id && supplierHash(p.asset) === supplierHash(image.asset)))
+    || row.preview && supplierHash(row.preview.images.map(i => i.asset)) !== supplierHash(source.images.map(i => i.asset)))
+    supplierFail(409, 'SHOPIFY_PRODUCT_SOURCE_CHANGED', 'Review the original Library product revision and selected image versions again.');
+}
 export function supplierOwned(state, actor, conversationId) {
   const item = state.conversations.find(conversation => conversation.id === conversationId);
   const receipts = state.workspaceConversationCreations?.receipts || [];

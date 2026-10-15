@@ -22,7 +22,11 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
-  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation,
+  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
+    productClient: config.shopifyProduct ? {
+      ...Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, (value, signal, model) => request('shopifyProduct', [method, value, model], signal)])),
+      refresh: (receipt, model, signal, images) => request('shopifyProduct', ['refresh', receipt, model, images], signal),
+    } : null,
     ingestionClient: config.factoryIngestion ? {
       ...Object.fromEntries(['status', 'read', 'save', 'query'].map(method => [method, async (input, signal, model) => {
         signal?.throwIfAborted();

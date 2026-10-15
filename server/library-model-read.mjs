@@ -60,6 +60,16 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
       projectionSha256: libraryReadHash(value), api: '/api/library/model-read/' + (kind === 'company' ? 'company' : 'products/' + record.id) } };
   }
   return {
+    // Synchronous original-policy fence for an in-process source-backed commit.
+    factoryMaterialsAuthorityForSession({ identity, recipientHash, signal }) {
+      if (!scope?.factoryMaterials) fail(403, 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', 'Original materials selection required.');
+      return () => {
+        signal?.throwIfAborted(); const live = access.nativeSessionById(identity?.sessionId);
+        if (!live || live.subject !== identity.subject || live.workspaceId !== identity.workspaceId || live.role !== identity.role)
+          fail(403, 'LIBRARY_SESSION_SCOPE_REQUIRED', 'Original live Session required.');
+        authorize({ ...live, session: live }, recipientHash, true);
+      };
+    },
     // Server-private projection of the SAME reviewed Library policy. No HTTP
     // grant, model selector or credential conversion is added for ingestion.
     factoryIngestionForSession({ identity, recipientHash, signal }) {

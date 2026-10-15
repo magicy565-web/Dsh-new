@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { supplierFail, supplierHash } from './supplier-profile.mjs';
-import { supplierFind, supplierRegistry, supplierRequest } from './supplier-draft.mjs';
+import { assertSupplierProductSource, supplierFind, supplierRegistry, supplierRequest } from './supplier-draft.mjs';
 import { SUPPLIER_SHOPIFY_ADAPTER, SUPPLIER_SHOPIFY_ACTIONS } from './shopify-publication.mjs';
 
 const gid = (kind, value) => typeof value === 'string' && new RegExp(`^gid://shopify/${kind}/\\d+$`).test(value);
@@ -32,6 +32,7 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
     return { row, operation };
   }
   function current(row, operation, actorRole) {
+    assertSupplierProductSource(store.read(), row);
     const scope = operation.scope;
     if (actorRole !== scope.actorRole || row.cancelledAt || row.rejectedAt || row.revision !== scope.serviceRevision || row.preview?.previewHash !== scope.previewHash || supplierHash(row.preview) !== scope.previewSnapshotHash || adapter.fingerprint !== scope.configFingerprint) supplierFail(409, 'SUPPLIER_PUBLICATION_STALE', 'The reviewed product revision, preview or host configuration changed. Create a current review; do not execute this one.');
   }
@@ -95,6 +96,11 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
     status() { return { ...adapter.status(), connectorId, connectorStatus: connector().status, reviewRequired: true, deliveryChannel: 'original_conversation', externalNotifications: 'not_configured' }; },
     forActor(context, helpers = {}) {
       const actor = { subject: context.subject, workspaceId: context.workspaceId || 'local', role: context.role };
+      const assertCaller = state => {
+        helpers.signal?.throwIfAborted();
+        const checked = helpers.assertCurrent?.(state);
+        if (checked === false || checked && typeof checked.then === 'function') { checked?.catch?.(() => {}); supplierFail(403, 'SHOPIFY_PRODUCT_SOURCE_CHANGED', 'Use the original synchronous source and Run guard.'); }
+      };
       const getService = (cid, sid) => helpers.get ? helpers.get(cid, sid) : clone(supplierFind(store.read(), actor, cid, sid));
       const publication = (cid, sid) => { const row = supplierFind(store.read(), actor, cid, sid), operations = (row.publicationOperations || []).map(operation => operationView(row, operation)); return { service: getService(cid, sid), publication: { schema: 'workspace.supplier-publication.v1', ...this.status(), operations, latest: operations.at(-1) || null } }; };
       const response = (cid, sid, opid, extra = {}) => { const { row, operation } = locate(store.read(), actor, cid, sid, opid), view = operationView(row, operation); return { service: getService(cid, sid), operation: view, approval: view.approval, status: view.status, ...extra }; };
@@ -103,15 +109,17 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
         const operation = locate(store.read(), actor, cid, sid, operationId).operation;
         if (operation.approvalId) return;
         const request = capabilities.connectorApprovalRequest(connectorId, executionInput(operation), { binding: binding(operation) });
-        try { await capabilities.requestApproval({ ...request, expiresInSeconds: 1800 }, { onCreated(state, approval) { const found = locate(state, actor, cid, sid, operation.id); if (found.operation.approvalId) supplierFail(409, 'SUPPLIER_APPROVAL_ALREADY_PREPARED', 'The original review already has an approval.'); current(found.row, found.operation, actor.role); found.operation.approvalId = approval.id; found.operation.status = 'pending_approval'; found.operation.updatedAt = at(); } }); }
+        try { await capabilities.requestApproval({ ...request, expiresInSeconds: 1800 }, { onCreated(state, approval) { assertCaller(state); const found = locate(state, actor, cid, sid, operation.id); if (found.operation.approvalId) supplierFail(409, 'SUPPLIER_APPROVAL_ALREADY_PREPARED', 'The original review already has an approval.'); current(found.row, found.operation, actor.role); found.operation.approvalId = approval.id; found.operation.status = 'pending_approval'; found.operation.updatedAt = at(); } }); }
         catch (error) { if (error.code !== 'SUPPLIER_APPROVAL_ALREADY_PREPARED') throw error; }
       };
       return {
         publication,
         async reviewPublication(cid, sid, body) {
+          assertCaller(store.read());
           supplierRequest(body, ['expectedRevision', 'expectedPreviewHash', 'action', 'publicationId', 'draftOperationId', 'expectedRemoteContentHash', 'approveObservedMedia', 'confirmed']);
           if (body.confirmed !== true || !['draft', 'publish', 'repair_draft'].includes(body.action) || !sha(body.expectedPreviewHash) || body.action === 'publish' && !gid('Publication', body.publicationId) || body.action !== 'publish' && body.publicationId !== undefined || body.action === 'repair_draft' && (typeof body.draftOperationId !== 'string' || !sha(body.expectedRemoteContentHash) || body.approveObservedMedia !== undefined && typeof body.approveObservedMedia !== 'boolean') || body.action !== 'repair_draft' && ['draftOperationId', 'expectedRemoteContentHash', 'approveObservedMedia'].some(field => body[field] !== undefined)) supplierFail(400, 'SUPPLIER_PUBLICATION_REVIEW_INVALID', 'Explicitly review a draft, one publication, or the exact reconciled missing-step repair.');
           const before = supplierFind(store.read(), actor, cid, sid), prior = replay(store.read(), actor, sid, 'publication_review', body).previous;
+          assertSupplierProductSource(store.read(), before);
           if (prior) { await ensureApproval(cid, sid, prior.result.operationId); return response(cid, sid, prior.result.operationId, { duplicate: true }); }
           if (before.revision !== body.expectedRevision || before.preview?.previewHash !== body.expectedPreviewHash || before.preview.phase !== 'preview_ready' || before.preview.missingFields.length) supplierFail(409, 'SUPPLIER_PREVIEW_REQUIRED', 'Generate and explicitly review the complete current retail preview first.');
           const readiness = adapter.status();
@@ -138,7 +146,9 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
             draftReceipt = planned.observed; repair = planned.repair;
           }
           const admitted = await store.update(state => {
+            assertCaller(state);
             const row = supplierFind(state, actor, cid, sid), prior = replay(state, actor, sid, 'publication_review', body).previous;
+            assertSupplierProductSource(state, row);
             if (prior) return prior.result;
             if (row.revision !== before.revision || supplierHash(row.preview) !== supplierHash(before.preview)) supplierFail(409, 'SUPPLIER_PUBLICATION_STALE', 'The original preview changed during read-only preparation.');
             const operations = row.publicationOperations ||= [];
@@ -173,7 +183,7 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
           if (operation.connectorRunId || operation.status !== 'approved') supplierFail(409, 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'Only a current unexecuted approved operation may run. Unknown outcomes require reconciliation.');
           const result = await capabilities.executeConnector(connectorId, { ...executionInput(operation), approvalId: operation.approvalId }, {
             binding: binding(operation), signal: helpers.signal,
-            assertAllowed(state) { const actual = locate(state, actor, cid, sid, operation.id); current(actual.row, actual.operation, actor.role); if (actual.operation.status !== 'approved' || actual.operation.connectorRunId || actual.operation.decidedBy !== actor.subject) supplierFail(409, 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'The original owner-approved operation was already used or changed.'); if (operation.scope.productId && actual.row.publicationOperations.some(item => item.id !== operation.id && item.connectorRunId && ['running', 'uncertain'].includes(item.status) && (item.scope.productId || item.receipt?.productId) === operation.scope.productId)) supplierFail(409, 'SUPPLIER_PUBLICATION_PENDING', 'Resolve the original in-flight or unknown write on this exact product first.'); if (operation.action === 'repair_draft' && actual.row.publicationOperations.some(item => item.action === 'publish' && item.connectorRunId && item.scope.productId === operation.scope.productId)) supplierFail(409, 'SHOPIFY_REPAIR_PUBLICATION_PRESENT', 'An admitted publication cannot be repaired or rolled back as a draft.'); replay(state, actor, sid, 'publication_execute', body); },
+            assertAllowed(state) { assertCaller(state); const actual = locate(state, actor, cid, sid, operation.id); current(actual.row, actual.operation, actor.role); if (actual.operation.status !== 'approved' || actual.operation.connectorRunId || actual.operation.decidedBy !== actor.subject) supplierFail(409, 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'The original owner-approved operation was already used or changed.'); if (operation.scope.productId && actual.row.publicationOperations.some(item => item.id !== operation.id && item.connectorRunId && ['running', 'uncertain'].includes(item.status) && (item.scope.productId || item.receipt?.productId) === operation.scope.productId)) supplierFail(409, 'SUPPLIER_PUBLICATION_PENDING', 'Resolve the original in-flight or unknown write on this exact product first.'); if (operation.action === 'repair_draft' && actual.row.publicationOperations.some(item => item.action === 'publish' && item.connectorRunId && item.scope.productId === operation.scope.productId)) supplierFail(409, 'SHOPIFY_REPAIR_PUBLICATION_PRESENT', 'An admitted publication cannot be repaired or rolled back as a draft.'); replay(state, actor, sid, 'publication_execute', body); },
             onAdmitted(state, run) { const actual = locate(state, actor, cid, sid, operation.id); actual.operation.status = 'running'; actual.operation.connectorRunId = run.id; actual.operation.updatedAt = at(); remember(state, actor, sid, 'publication_execute', body, { operationId: operation.id }); },
           });
           await store.update(state => { const actual = locate(state, actor, cid, sid, operation.id); if (result.execution.status === 'succeeded') applyReceipt(actual.row, actual.operation, result.execution.result, 'original_connector_receipt'); else if (result.execution.status === 'blocked') { actual.operation.status = 'blocked'; actual.operation.error = result.execution.error; actual.operation.updatedAt = at(); } else uncertain(actual.row, actual.operation, result.execution.error || { code: 'SHOPIFY_PUBLICATION_UNCERTAIN' }); });

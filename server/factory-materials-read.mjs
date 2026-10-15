@@ -5,7 +5,7 @@ import { looksLikeCredential } from './security.mjs';
 import { libraryReadHash } from './library-model-read-contract.mjs';
 import { extractFactoryDocument } from './factory-document-extract.mjs';
 
-export const FACTORY_FIELDS = Object.freeze(['name', 'description', 'category', 'status', 'skuSpecifications', 'capacityNote', 'documentReferences', 'provenance']);
+export const FACTORY_FIELDS = Object.freeze(['name', 'description', 'category', 'status', 'skuSpecifications', 'capacityNote', 'documentReferences', 'provenance', 'images']);
 const fail = (status, code) => { throw new ApiError(status, code, 'The exact reviewed factory material is unavailable; review its original Library record and version.'); };
 const exact = (v, keys) => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).every(k => keys.includes(k));
 const uuid = v => typeof v === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(v);
@@ -31,7 +31,7 @@ export function createFactoryMaterialsRead({ library, artifacts, scope, authoriz
     if (row.revision !== ref.revision || row.status === 'archived') fail(409, 'FACTORY_PRODUCT_REVISION_CHANGED');
     const values = { name: row.name, description: row.description, category: row.category, status: row.status,
       skuSpecifications: row.skus.map(({ id, code, specs, unit, moq, leadTimeDays }) => ({ id, code, specs, unit, moq, leadTimeDays })),
-      capacityNote: row.supply.capacityNote, documentReferences: row.documents.filter(d => policy.documents.some(pin => pin.id === d.documentId && pin.documentVersion === d.documentVersion))
+      images: row.images, capacityNote: row.supply.capacityNote, documentReferences: row.documents.filter(d => policy.documents.some(pin => pin.id === d.documentId && pin.documentVersion === d.documentVersion))
         .map(({ documentId, documentVersion, purpose }) => ({ documentId, documentVersion, purpose })), provenance: row.source };
     const value = safe({ id: row.id, revision: row.revision, ...Object.fromEntries(policy.productFields.map(field => [field, values[field]])) });
     return { value, source: { kind: 'factory-product', recordId: row.id, revision: row.revision, workspaceId: scope.workspaceId,

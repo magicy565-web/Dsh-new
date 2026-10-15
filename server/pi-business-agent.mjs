@@ -10,6 +10,7 @@ import { emptyInputContext, normalizeInputContext } from './task-context.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { createFactoryLibraryIngestionClient } from './factory-library-ingestion.mjs';
 import { createMarketValidationMonitorClient } from './market-validation-monitor-client.mjs';
+import { createShopifyProductClient } from './shopify-product-client.mjs';
 import { createMarketValidationPlanClient } from './market-validation-plan.mjs';
 import { createFactoryInquiryClient } from './factory-inquiries.mjs';
 import { createFactoryCustomerDraftClient } from './factory-customer-drafts.mjs';
@@ -42,11 +43,11 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     || options.resolveControlBinding !== undefined && typeof options.resolveControlBinding !== 'function')
     throw new TypeError('Use the existing Pi provider and a trusted existing member binding resolver.');
   const engineAdapter = options.engineAdapter;
-  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:factory-ingestion-v1', 'omp:18.10.4:market-validation-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
+  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:factory-ingestion-v1', 'omp:18.10.4:market-validation-v1', 'omp:18.10.4:shopify-product-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
-  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock;
+  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify;
   function current(idValue) { const record = store.read().conversations.find(row => row.id === idValue); if (!record) fail(404, 'NOT_FOUND', 'Conversation not found.'); return record; }
   function actor(context, write = false) {
     if (!context?.subject || !context.workspaceId) fail(401, 'SESSION_REQUIRED', 'Use the original Workspace Session.');
@@ -129,7 +130,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       // official OMP SDK transport; it introduces no business queue or ledger.
       const isolated = path.join(store.directory, 'omp-agent-context', hash(conversation.id));
       await privateDirectory(isolated);
-      const materialsClient = ['omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:market-validation-v1'].includes(engineAdapter.scope) ? createWorkspaceFactoryMaterialsClient({ recipient,
+      const materialsClient = ['omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:market-validation-v1', 'omp:18.10.4:shopify-product-v1'].includes(engineAdapter.scope) ? createWorkspaceFactoryMaterialsClient({ recipient,
         request: async (route, init) => {
           // Inner Library reads use their original live Session/scope authority.
           // Outer tool/RPC/model boundaries still prove the Agent binding.
@@ -185,7 +186,18 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         conversationId: conversation.id, runId: run.id, authorize, canSave }) : null;
       const monitorClient = planClient && marketValidationMonitoring ? createMarketValidationMonitorClient({ monitor: marketValidationMonitoring, capabilities, store, artifacts, planClient,
         identity, conversationId: conversation.id, authorize, canSave, clock: accessClock }) : null;
-      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, isolationDirectory: isolated,
+      let productClient = null;
+      if (engineAdapter.scope === 'omp:18.10.4:shopify-product-v1') {
+        let assertCurrent;
+        try { assertCurrent = libraryModelRead.factoryMaterialsAuthorityForSession({ identity, recipientHash: recipientFingerprint, signal: input.signal }); }
+        catch (error) { if (error.code !== 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED') throw error; }
+        productClient = assertCurrent ? createShopifyProductClient({ materialsClient, store, artifacts, supplierService, supplierPublication, shopify,
+          identity, conversationId: conversation.id, runId: run.id, authorize: async (signal, model) => {
+            signal?.throwIfAborted(); await authorize();
+            if (libraryReadHash(libraryRecipientForModel(model)) !== recipientFingerprint) fail(403, 'LIBRARY_MODEL_RECIPIENT_CHANGED', 'Use the original receiver.');
+          }, canSave, assertCurrent }) : Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, async () => ({ plugin: 'workspace-shopify-product', status: 'unconfigured', reason: 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', sources: [] })]));
+      }
+      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();
@@ -276,12 +288,12 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   } });
   return {
     provider,
-    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock } = dependencies); },
+    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify } = dependencies); },
     async handle({ req, res, pathname, context, readBody, respond }) {
       if (req.method === 'GET' && pathname === '/api/conversations/runtime') {
         actor(context);
         await respond(res, 200, { engine: engineAdapter ? 'omp' : 'pi', engineScope: engineAdapter?.scope || 'pi:1.1.0',
-          frontend: 'original-workspace-conversation-run', privateLibrary: ['omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1'].includes(engineAdapter?.scope) ? 'original-reviewed-session-policy-required' : engineAdapter ? 'disabled' : 'original-controlled-policy' });
+          frontend: 'original-workspace-conversation-run', privateLibrary: ['omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:shopify-product-v1'].includes(engineAdapter?.scope) ? 'original-reviewed-session-policy-required' : engineAdapter ? 'disabled' : 'original-controlled-policy' });
         return true;
       }
       if (req.method === 'POST' && pathname === '/api/conversations') {

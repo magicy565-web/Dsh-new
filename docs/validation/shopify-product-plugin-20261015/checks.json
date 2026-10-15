@@ -1,0 +1,82 @@
+{
+  "baseline": "8eb33701bb5f70be74e5285c7c864b248d79be3b",
+  "date": "2026-10-15",
+  "environment": {
+    "node": "24.19.0",
+    "npm": "11.9.0",
+    "pi": "1.1.0",
+    "omp": "18.10.4",
+    "bun": "1.3.14"
+  },
+  "checks": [
+    {
+      "command": "SHOPIFY_PRODUCT_PACKAGE_FACTS=/tmp/shopify-product-package-facts.json node --test --test-concurrency=1 test/shopify-product-client.test.mjs test/shopify-product-contracts.test.mjs test/shopify-product-package.test.mjs test/workspace-omp-shopify-product.test.mjs",
+      "exitCode": 0,
+      "stats": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "durationMs": 68648.728648,
+      "log": "acceptance.log"
+    },
+    {
+      "command": "node --test --test-concurrency=1 test/supplier-publication.test.mjs test/supplier-publication.http.test.mjs test/shopify-readiness.test.mjs test/factory-materials-read.test.mjs test/workspace-omp.test.mjs test/workspace-omp-factory-materials.test.mjs test/market-validation-monitor-tools.test.mjs test/market-validation-plan.test.mjs",
+      "exitCode": 0,
+      "stats": {
+        "tests": 86,
+        "pass": 86,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "durationMs": 77172.54538,
+      "log": "compatibility.log"
+    },
+    {
+      "command": "node --test test/shopify-product-client.test.mjs test/supplier-publication.test.mjs test/supplier-publication.http.test.mjs",
+      "exitCode": 0,
+      "stats": {
+        "tests": 52,
+        "pass": 52,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "durationMs": 4564.777109,
+      "log": "fence.log"
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "log": "build.log"
+    },
+    {
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin HOME=/tmp WORKSPACE_OMP_PROFILE=shopify-product /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/workspace-omp.mjs --check",
+      "exitCode": 0,
+      "log": "unconfigured-check.json"
+    },
+    {
+      "command": "node --check each changed JS/MJS source",
+      "exitCode": 0,
+      "files": 27
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "limits": {
+    "realShopifyRequests": 0,
+    "realOrPaidModelCalls": 0,
+    "adsOrExternalMessages": 0,
+    "credentialOrPermissionChanges": 0,
+    "externalDataMcpConnections": 0,
+    "deployment": false,
+    "fullRepositorySuite": false
+  },
+  "sourceManifest": "source.json",
+  "note": "22 and86 final groups are distinct test files;52 fence checks overlap. All three ran after final cancellation-fence change."
+}
