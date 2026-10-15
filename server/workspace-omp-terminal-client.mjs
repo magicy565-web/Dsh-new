@@ -39,15 +39,16 @@ export function createWorkspaceOmpTerminalClient({ baseURL, fetchImpl = fetch, p
   return Object.freeze({
     verifyLocalSession,
     current: () => ({ conversationId, runId: currentRunId }),
-    async submit(content) {
+    async submit(content, { workspaceExecution = false } = {}) {
       validatePublicBusinessInput(content); if (!content.trim() || content.length > 16000) throw new Error('Use bounded explicit public task text.');
+      if (typeof workspaceExecution !== 'boolean') throw new Error('Choose explicit execution or read-only input.');
       await verifyLocalSession();
       if (!conversationId) {
         const created = await read('POST', '/api/conversations', { title: 'Workspace factory terminal', requestId: 'omp-terminal-' + randomUUID() });
         conversationId = created.conversation.id;
       }
       const admitted = await read('POST', `/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
-        content, requestId: 'omp-terminal-' + randomUUID(), workspaceExecution: true,
+        content, requestId: 'omp-terminal-' + randomUUID(), workspaceExecution,
         inputContext: { artifacts: [], skills: [], memoryIds: [], connectorActions: [] } });
       currentRunId = admitted.run.id; return { ...admitted, conversationId };
     },

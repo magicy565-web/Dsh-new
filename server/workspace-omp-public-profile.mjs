@@ -2,7 +2,7 @@ import { matchesKey } from '@earendil-works/pi-tui';
 import { workspaceTerminalInputPolicy, validatePublicBusinessInput } from '../packages/workspace-procurement/src/workspace.mjs';
 
 const commands = new Set(['ws-task', 'ws-status', 'ws-business-status', 'ws-cancel', 'ws-resume', 'ws-approve',
-  'ws-continue', 'ws-business-cancel', 'ws-business-resume', 'ws-stop', 'ws-front-status', 'quit']);
+  'ws-continue', 'ws-business-cancel', 'ws-business-resume', 'ws-stop', 'ws-front-status', 'ws-execute', 'quit']);
 export function workspaceOmpPublicInputReason(text, images = []) {
   if (images.length || /(?:^|\s)@\S+/.test(text)) return 'Use explicitly supplied public text; file and image attachments are unavailable.';
   if (/^(?:!|\$\$?\s)/.test(text.trimStart())) return 'Shell and Python execution are unavailable in this controlled Workspace profile.';

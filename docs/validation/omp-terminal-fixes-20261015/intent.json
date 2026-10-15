@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "sourceBaseline": "9709d78dd80cd349076d44323f0bb4dcc8bec8e6",
+  "officialOmp": "18.10.4",
+  "bun": "1.3.14",
+  "officialInteractiveModeInRealPty": true,
+  "originalHttpAndStore": true,
+  "modelTransport": "explicit finite keyless synthetic",
+  "naturalInput": {
+    "workspaceExecution": false,
+    "modelAttemptedFactoryTask": true,
+    "toolRefused": true,
+    "businessTasksCreated": 0
+  },
+  "explicitExecution": {
+    "command": "/ws-execute TEXT",
+    "escapeCreatesRunOrTask": false,
+    "humanConfirmedWorkspaceExecution": true,
+    "originalBusinessTasksCreated": 1,
+    "documentCompletionClaim": false
+  },
+  "regression": {
+    "command": "node --test test/workspace-omp-terminal-intent.test.mjs test/workspace-omp-terminal.test.mjs",
+    "tests": 7,
+    "passed": 7,
+    "skipped": 0
+  },
+  "realModelCalls": 0,
+  "paidModelCalls": 0,
+  "externalSending": false
+}

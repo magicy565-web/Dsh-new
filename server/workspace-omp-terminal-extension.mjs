@@ -8,16 +8,13 @@ export function workspaceOmpTerminalExtension(transport) {
     const show = (kind, value) => pi.sendMessage({ customType: kind, content: JSON.stringify(value, null, 2), display: true }, { triggerTurn: false });
     pi.on('session_start', (_event, ctx) => {
       ctx.ui.setStatus('workspace', 'Workspace · official OMP UI · original Run authority · terminal model disabled');
-      ctx.ui.notify('Submit public text to the original Workspace. /ws-stop confirms frontend stop; admitted business tasks retain separate original controls. Enterprise uses its authenticated web Session.', 'info');
+      ctx.ui.notify('Natural input is read-only. /ws-execute TEXT requires human confirmation before original business submission. /ws-stop confirms frontend stop; admitted business tasks retain separate original controls.', 'info');
     });
-    pi.on('input', async (event, ctx) => {
-      const reason = workspaceOmpPublicInputReason(event.text, event.images);
-      if (reason) { ctx.ui.notify(reason, 'warning'); return { handled: true }; }
-      if (event.text.trim().startsWith('/')) return;
+    const submit = async (text, ctx, workspaceExecution = false) => {
       if (submitting) { ctx.ui.notify('The original Run is active; use /ws-stop or wait for its exact receipt.', 'warning'); return { handled: true }; }
       submitting = true;
       try {
-        const admitted = await transport.submit(event.text); show('workspace-original-admission', { conversationId: admitted.conversationId, runId: admitted.run.id, status: admitted.run.status });
+        const admitted = await transport.submit(text, { workspaceExecution }); show('workspace-original-admission', { conversationId: admitted.conversationId, runId: admitted.run.id, status: admitted.run.status, workspaceExecution });
         let eventCount = 0;
         const completed = await transport.wait(admitted.run.id, receipt => {
           if ((receipt.run?.events?.length || 0) > eventCount) {
@@ -28,7 +25,21 @@ export function workspaceOmpTerminalExtension(transport) {
       } catch (error) { ctx.ui.notify(error.message, 'error'); }
       finally { submitting = false; }
       return { handled: true };
+    };
+    pi.on('input', async (event, ctx) => {
+      const reason = workspaceOmpPublicInputReason(event.text, event.images);
+      if (reason) { ctx.ui.notify(reason, 'warning'); return { handled: true }; }
+      if (event.text.trim().startsWith('/')) return;
+      return submit(event.text, ctx);
     });
+    pi.registerCommand('ws-execute', { description: 'Explicitly submit public text with original business execution intent: /ws-execute TEXT', handler: async (text, ctx) => {
+      const reason = workspaceOmpPublicInputReason(text);
+      if (reason || !text.trim() || text.trimStart().startsWith('/')) { ctx.ui.notify(reason || 'Supply explicit public execution text.', 'warning'); return; }
+      if (!ctx.hasUI || await ctx.ui.confirm('Allow original business submission for this exact public input?', text) !== true) {
+        show('workspace-original-execution-declined', { submitted: false, reason: 'HUMAN_CONFIRMATION_DECLINED' }); return;
+      }
+      return submit(text, ctx, true);
+    } });
     pi.registerCommand('ws-stop', { description: 'Stop only the current original frontend answer after human confirmation.', handler: async (_args, ctx) => {
       try {
         const receipt = await transport.status();

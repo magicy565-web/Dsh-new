@@ -18,6 +18,8 @@ npm run workspace
 
 交互终端目前使用原 loopback local-operator Session。它先核对原服务的固定 OMP engineScope；旧 Pi 服务不能成为隐式回退。企业身份仍走原网页/nativeSession/CSRF，不把 Agent Bearer 标记为 Session。`/ws-front-status` 显示当前原 Run 与回复，`/ws-stop` 由原人工确认停止当前前台回答；已受理业务任务保持单独取消/恢复。终端 UI 不持模型密钥、不执行自己的模型流，也不导入旧终端历史。
 
+普通自然输入默认 `workspaceExecution:false`，只允许问答和已准入的只读工具；即使模型尝试 `workspace_factory_task`，原宿主也拒绝创建任务。明确执行使用 `/ws-execute 公开文字`，官方终端显示本次原文并要求人工确认后才传 `workspaceExecution:true`；Escape不会创建Run或任务，后续原审批仍保留。真实官方TTY、原HTTP和有限无密钥模型替身的7项回归见 [执行意图证据](validation/omp-terminal-fixes-20261015/intent.json)。
+
 UI-only终端不能证明后台模型现金余额，因此不从通用 `/ws-task`、`/ws-resume`、`/ws-continue`、`/ws-business-resume` 命令派发执行；它们准确返回未配置。自然输入统一经过原OMP宿主准入，后台恢复/分别继续仍用原已审核网页/API。原状态、确认取消和仅记录决定的审批保持原权限；批准决定不等于已执行。UI子进程不继承模型密钥或公网代理，原宿主的公网/模型路由未改变。
 
 没有现有模型、成员绑定、已审价格或可确认剩余预算时，服务可以启动保存工作，模型执行明确返回未配置；不会生成凭据、选免费模型或默认启用合成替身。
