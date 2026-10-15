@@ -37,7 +37,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     || options.resolveControlBinding !== undefined && typeof options.resolveControlBinding !== 'function')
     throw new TypeError('Use the existing Pi provider and a trusted existing member binding resolver.');
   const engineAdapter = options.engineAdapter;
-  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
+  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;

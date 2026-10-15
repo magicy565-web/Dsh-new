@@ -10,6 +10,7 @@ import { snapshotWorkspaceOmpPublicFiles } from './workspace-omp-public-tools.mj
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
 export const OMP_FACTORY_ENGINE_SCOPE = 'omp:18.10.4:factory-materials-v1';
+export const OMP_CUSTOMERS_ENGINE_SCOPE = 'omp:18.10.4:factory-customers-v1';
 export function workspaceOmpPaths(env = {}) {
   return { bun: env.WORKSPACE_BUN_BIN || path.join(root, 'support/omp-bun-linux-x64/node_modules/@oven/bun-linux-x64-baseline/bin/bun'),
     packageRoot: env.WORKSPACE_OMP_PACKAGE_ROOT || path.join(root, 'support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent') };
@@ -20,11 +21,11 @@ export async function checkWorkspaceOmpPaths(paths) {
   const manifest = JSON.parse(await fs.readFile(path.join(paths.packageRoot, 'package.json')));
   if (manifest.name !== '@oh-my-pi/pi-coding-agent' || manifest.version !== '18.10.4') throw new Error('Install the fixed official OMP 18.10.4 package; no Node or alternate engine fallback is implicit.');
 }
-export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, factoryMaterials = false, syntheticResponses = null,
+export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, factoryMaterials = false, factoryCustomers = false, syntheticResponses = null,
   syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
   if (syntheticPublicSearchResponses && !syntheticResponses) throw new Error('Public HTTP fixtures require the explicit finite keyless model fixture; production cannot select them.');
-  if (typeof factoryMaterials !== 'boolean') throw TypeError('Use one fixed reviewed OMP profile.');
-  const engineScope = factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
+  if (typeof factoryMaterials !== 'boolean' || typeof factoryCustomers !== 'boolean' || factoryMaterials && factoryCustomers) throw TypeError('Use one fixed reviewed OMP profile.');
+  const engineScope = factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
     async complete({ input, run, binding, client, authorize, materialsClient, isolationDirectory, savedSession, saveSession }) {
       await checkWorkspaceOmpPaths(paths); await authorize();
@@ -117,7 +118,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.'));
           }).catch(() => finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.'))); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, factoryMaterials, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, factoryMaterials, factoryCustomers, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       });
     },

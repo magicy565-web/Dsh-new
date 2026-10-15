@@ -1,0 +1,11 @@
+✔ actual customer profile preserves original explicit execution intent=false and source receipts (2237.966755ms)
+✔ actual customer profile preserves original explicit execution intent=true and source receipts (2552.632774ms)
+✔ actual customer profile preserves original native search refusal with zero sources and zero replacement tasks (2081.325943ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7671.813211
