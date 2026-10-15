@@ -1,0 +1,58 @@
+{
+  "base": "d82d35fd7213012ff6b0e5f2f24d765aba021a9e",
+  "branch": "codex/agent-factory-library-20261015",
+  "date": "2026-10-15",
+  "newSourceSha256": {
+    "packages/workspace-factory-ingestion/README.md": "3012b724451a5f4a8edeafa88cf7b79bcd07bf3e07d08c3a065a45a435820420",
+    "packages/workspace-factory-ingestion/package.json": "204c3a938724a8e819a65e13ccd395a40237908cc101fa80dde09af616468ac3",
+    "packages/workspace-factory-ingestion/skills/factory-ingestion/SKILL.md": "293cfd4db3ea5d95d1c8db8206d2bfb7cfda6f46a3ef87290d2cd1da580354cf",
+    "packages/workspace-factory-ingestion/src/contract.mjs": "e396e58899843ced6ef7b34669de3ce43b3985647895cf38b96a577ec418ade5",
+    "packages/workspace-factory-ingestion/src/extension.js": "e7ff19d876087a2db965c785c7a549f155ecbb12c58b68ecb50de2a202fc4585",
+    "server/factory-library-ingestion.mjs": "0f7b625d55e8b033b5d2a8c99fdb3542c173fcadadb3ad07040f8d8fbfffd167",
+    "server/factory-library-native-read.mjs": "ecc166bb009e28fba46c9bd32e5d603532baec124df218e13a8376288f138a33",
+    "test/factory-ingestion-package.test.mjs": "e3bfbe7e68c60872aaff29ab3dd2265f8e893342c0dacadcfdba571f00b235ff",
+    "test/factory-library-ingestion.test.mjs": "248c2606fa46d9e5120f35df4196cea3e397956d1b87132149bd47d0bf13e730",
+    "test/fixtures/factory-ingestion-cli.mjs": "ea8e1071e99ad8c882ce7ccc6e90eab3f3a7216dca5c6a63fd1cae29759b3c10",
+    "test/fixtures/factory-ingestion-sdk.mjs": "66b79d6e182f13f12d619b76c64434622e9cfd17517995f90bd3829ba3bf0f58"
+  },
+  "originalReusedUnchangedSha256": {
+    "server/artifacts.mjs": "2a2038fdef2b2140c64c98833a8c2b90b203301d1cb9267d2e7364852d1805c8",
+    "server/business-library.mjs": "921b2fca8adff50ed6d9fb932552354b4f39e171d0f3a2cb6731b68e554650c8",
+    "server/business-library-policy.mjs": "6561be0d57d7d6647015d81df469ddeddf805706f92cb612d254e75c113f1852",
+    "server/store.mjs": "20338fe176b3f659213bf4f19bd8ca30fa6b4b2f69f5119e6470758b302f0857",
+    "server/library-model-read.mjs": "c293db2abd3bae2b23994498d8f8d80f231b1003bea31f84b1966001ade061c1",
+    "server/workspace-omp-bridge.mjs": "06ea892f5441ff3c75b51105880e40bee17c12793691be8791c193864b0b0226",
+    "server/workspace-omp-worker.mjs": "c2e08a71f9a562cce7ceed21979543cb5155ae2b81eb2712d4a6c5f9f5ab36ab",
+    "server/workspace-omp-session.mjs": "40321cb534bdd61690fa7df4aba93d941a256d48dd4ece44f8b16e73579d7268",
+    "server/pi-business-agent.mjs": "ac0d304c2e82a7f2c3740379bc4f342ade9710e5a9bfaf4aaab4f0510e34d3f8",
+    "scripts/workspace-omp.mjs": "2c194712ce745736ca6706cec7245949d2157316fc2d52d97eb28dc2aee09353"
+  },
+  "results": {
+    "service": {
+      "pass": 12,
+      "fail": 0,
+      "skip": 0
+    },
+    "package": {
+      "pass": 4,
+      "fail": 0,
+      "skip": 0
+    },
+    "originalServices": {
+      "pass": 37,
+      "fail": 0,
+      "skip": 0
+    },
+    "originalLibrary": {
+      "pass": 21,
+      "fail": 0,
+      "skip": 0
+    },
+    "typecheck": "passed"
+  },
+  "paidModelCalls": 0,
+  "actualPrivateExternalTransfers": 0,
+  "realModelIntelligenceAccepted": false,
+  "originalLiveEnterpriseAuthorizationAccepted": false,
+  "sharedHostWiringApplied": false
+}
