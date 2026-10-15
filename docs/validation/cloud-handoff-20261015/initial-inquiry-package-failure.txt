@@ -1,0 +1,75 @@
+✔ copied factory inquiries package uses official Pi manifest, Skill, disable and remove with no injected private access (2923.292053ms)
+✔ copied factory inquiries package uses official OMP local link, manifest, Skill, disable and uninstall (24531.003087ms)
+✖ official pi SDK delegates inquiry prepare/save with exact unreviewed draft/hash and safe authorization recovery (629.231146ms)
+✖ official omp SDK delegates inquiry prepare/save with exact unreviewed draft/hash and safe authorization recovery (1512.056709ms)
+✔ thin save schema allows variable model bodies while rejecting authority, paths and invalid source selectors (2.461199ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29674.839699
+
+✖ failing tests:
+
+test at test/factory-inquiries-package.test.mjs:107:37
+✖ official pi SDK delegates inquiry prepare/save with exact unreviewed draft/hash and safe authorization recovery (629.231146ms)
+  AssertionError [ERR_ASSERTION]: <anonymous_script>:1
+  Validation failed for tool "workspace_factory_inquiry_save":
+  ^
+
+  SyntaxError: Unexpected token 'V', "Validation"... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at call (file:///tmp/factory-inquiries-package-osT5H5/sdk-fixture.mjs:86:24)
+      at async file:///tmp/factory-inquiries-package-osT5H5/sdk-fixture.mjs:91:17
+
+  Node.js v24.19.0
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///workspace/workspace-pi-business-thread-20261014/test/factory-inquiries-package.test.mjs:115:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/factory-inquiries-package.test.mjs:107:37
+✖ official omp SDK delegates inquiry prepare/save with exact unreviewed draft/hash and safe authorization recovery (1512.056709ms)
+  AssertionError [ERR_ASSERTION]:
+  [Uncaught Exception] AssertionError: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'blocked'
+  - 'saved-draft'
+
+  + actual - expected
+
+  + 'blocked'
+  - 'saved-draft'
+
+      at /tmp/factory-inquiries-package-fJGFIo/sdk-fixture.mjs:91:69
+      at processTicksAndRejections (native:7:39)
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///workspace/workspace-pi-business-thread-20261014/test/factory-inquiries-package.test.mjs:115:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

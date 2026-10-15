@@ -1,0 +1,13 @@
+✔ copied factory inquiries package uses official Pi manifest, Skill, disable and remove with no injected private access (3073.658597ms)
+✔ copied factory inquiries package uses official OMP local link, manifest, Skill, disable and uninstall (24908.831576ms)
+✔ official pi SDK delegates inquiry prepare/save with exact unreviewed draft/hash and safe authorization recovery (666.161198ms)
+✔ official omp SDK delegates inquiry prepare/save with exact unreviewed draft/hash and safe authorization recovery (1594.615381ms)
+✔ thin save schema allows variable model bodies while rejecting authority, paths and invalid source selectors (2.456212ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30321.426455

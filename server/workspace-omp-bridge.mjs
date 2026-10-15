@@ -30,7 +30,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
   if (typeof factoryMaterials !== 'boolean' || typeof factoryCustomers !== 'boolean' || factoryMaterials && factoryCustomers) throw TypeError('Use one fixed reviewed OMP profile.');
   const engineScope = factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
-    async complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, isolationDirectory, savedSession, saveSession }) {
+    async complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, isolationDirectory, savedSession, saveSession }) {
       await checkWorkspaceOmpPaths(paths); await authorize();
       const user = input.messages.filter(row => row.role === 'user').at(-1);
       if (!user || typeof user.content !== 'string') throw new ProviderError('PUBLIC_TEXT_REQUIRED', 'Use the original public text admission.');
@@ -83,12 +83,14 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               if (message.method === 'authorize') result = true;
               else if (message.method === 'saveSession') result = await saveSession(message.args[0]);
               else if (message.method === 'modelRequest') { if (++modelCalls > 4) throw new Error('Original model request bound exceeded.'); await input.onEvent?.({ type: 'pi.agent-session.request', engine: 'omp' }); result = true; }
-              else if (factoryInquiries && ['factoryInquiryPrepare', 'factoryInquirySave', 'factoryInquiryRevalidate'].includes(message.method)) {
+              else if (factoryInquiries && ['factoryInquirySave', 'factoryInquiryRevalidate'].includes(message.method)) {
                 if (!inquiryClient) throw Error('Original inquiry Session client is unavailable.');
                 const [value, model] = message.args || [];
-                if (message.method === 'factoryInquiryPrepare') result = await inquiryClient.prepare(value, input.signal, model);
-                else if (message.method === 'factoryInquirySave') result = await inquiryClient.save(value, input.signal, model);
+                if (message.method === 'factoryInquirySave') result = await inquiryClient.save(value, input.signal, model);
                 else { await inquiryClient.revalidateReceipt(value, model, input.signal); result = true; }
+              } else if (factoryCustomers && message.method === 'factoryCustomerSave') {
+                if (!customerClient) throw Error('Original public draft Session client unavailable.');
+                result = await customerClient.save(message.args?.[0], input.signal, message.args?.[1]);
               } else if (factoryMaterials && ['factoryMaterialsStatus', 'factoryMaterialsRead', 'factoryDocumentRead', 'factoryMaterialsRevalidate'].includes(message.method)) {
                 if (!materialsClient) throw Error('Original Library Session client is unavailable.');
                 const [value, model] = message.args || [];

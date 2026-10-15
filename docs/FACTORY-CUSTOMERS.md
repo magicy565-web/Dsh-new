@@ -1,49 +1,13 @@
-# Public factory customer research plugin
+# Public factory customer drafts
 
-Issue #72's standalone private `@workspace-agent/pi-factory-customers` package
-uses the already selected OMP public search/browser tools and original
-`factory-export` task. It introduces no search, browser, model or business engine.
-The audience is a Chinese factory seeking overseas buyers/distributors.
+`@workspace-agent/pi-factory-customers` is a private standard Pi/OMP package for a Chinese factory assessing overseas buyer/distributor sources. It now supplies a Skill and one thin `workspace_factory_customers_save` tool. The official model tool loop directly chooses original `workspace_public_search`, `workspace_public_browser` and optional public text review. The package does not impose a search→browser sequence, research wrapper, document template or fixed pipeline.
 
-Ordinary installation has no injected Host and returns blocked. The controlled
-Host can select `WORKSPACE_OMP_PROFILE=factory-customers`, a distinct
-`omp:18.10.4:factory-customers-v1` scope. Default `public-v1` remains unchanged.
-This public-only scope cannot inherit private Library/materials history. The
-materials profile still has no public tools. Narrow input checks are not a DLP
-system or permission to disclose private natural language; the caller must supply
-an explicitly public product brief.
+The former `workspace_factory_customers_status` and `_research` tools are retired. Save no longer calls `businessSubmit`, submits `factory-export`, runs four stages or requires three documents. It accepts the model's own one to five Markdown drafts, a stable requestId and original successful search/browser sourceToolCallIds. The original Host independently resolves selectors from the same owned conversation journal, validates original successful tool receipts and derives URLs, observation times and provenance. It saves unreviewed, unsent original artifacts with the original permission, cancellation and idempotency checks. No new store, queue, execution engine, permission or sending capability is introduced.
 
-The package provides `workspace_factory_customers_status`, `_research` and
-`_save`. Research delegates only to the original `workspace_public_search` and,
-when requested and available, `workspace_public_browser`. Original public URL/DNS
-admission, exact Run quotas, cancellation and shared model budgets remain in
-force. It records original tool name, URL, observedAt and supplied excerpt;
-facts, inferences and missing suitability/intent/contact authorization remain
-separate. A catalog search result does not establish an actual buyer, product
-match, purchasing intent or contact consent. Missing/refused source returns a
-blocked or partial receipt; no provider fallback is introduced.
+Ordinary package installation has no injected Host and returns `unconfigured`. The controlled public-only `factory-customers` profile remains distinct from private materials history; it must not inherit private Library receipts or disclose private material to web tools. Package text checks are narrow admission checks, not a DLP system. Search hits and drafts are not verified buyers, purchasing intent, product matches or consent. Preserve source facts, inference and missing information separately. Saving is only performed when requested and its original artifact receipt confirms the outcome.
 
-Save is a separate explicit tool action, referring to a research toolCallId in
-that same original journal and unchanged product/market. It calls only the
-original `businessSubmit` for `factory-export` and retains its request ID,
-execution-intent gate, task, stages, artifact hashes and partial states. Natural
-read-only questions cannot submit. For an explicit human-confirmed execution the
-original task saves three human-review documents; it does not send outreach,
-accept an order or verify a business outcome. The package itself has no storage.
+Current package acceptance passes 4/4 with zero skips and is reproducible with `node --test test/factory-customers-package.test.mjs`: copied-package standard manifest/Skill loading, disable/re-enable/remove on official Pi 1.1.0 and OMP 18.10.4, actual official OMP SDK direct native tool calls with explicit finite keyless model and synthetic source HTML, plus thin-save input/authority/cancel/error boundaries. That SDK test uses a clearly labelled save-client double; original Host/artifact integration belongs to separate Host tests. No real model or public network request is made by these package tests.
 
-Validation details are in
-[the committed evidence](validation/factory-customers-20261015/README.md).
-Official Pi/OMP package lifecycle and SDK tests pass4/4. The connected original
-enterprise Run/worker profile passes3/3: readonly-save denial, explicit original
-save with one Task/four stages/three documents, and native source refusal with
-zero sources/tasks. The profile/materials/terminal/config regression passes8/8.
-Positive source HTML and model outputs are explicit finite fixtures; they are
-not real buyer findings.
+[Earlier committed evidence](validation/factory-customers-20261015/README.md) records the retired implementation. Its four-stage/three-document results are historical, not acceptance of the new thin save interface. The single earlier real native DDG request returned `PROVIDER_REFUSED` with zero sources; no exact HTTP code was exposed. Real customer-source/navigation verification remains blocked. No retry, alternative provider, challenge bypass or paid fallback was used. Community source/license records elsewhere in this repository remain unchanged; reading fixed GitHub method sources is not evidence of an actual overseas customer.
 
-One real read-only original DDG request returned PROVIDER_REFUSED with zero
-sources. No exact HTTP status was exposed by that original wrapper. Real public
-customer-source/navigation acceptance remains blocked, and Issue #72 is not
-accepted as complete on fixtures. No new provider, challenge bypass, repeated
-probe or paid fallback was used. No actual factory material, model, recipient,
-external sending, credential, grant, deployment or main change is part of this
-checkpoint.
+The package [README](../packages/workspace-factory-customers/README.md) defines the injection contract. No actual factory materials, credentials, contact, order, deployment, merge or main change is part of package acceptance.

@@ -15,12 +15,12 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
-  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials,
+  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials && !config.factoryCustomers,
     inquiryClient: config.factoryInquiries ? {
-      prepare: (input, _signal, model) => request('factoryInquiryPrepare', [input, model]),
       save: (input, _signal, model) => request('factoryInquirySave', [input, model]),
       revalidateReceipt: (receipt, model) => request('factoryInquiryRevalidate', [receipt, model]),
     } : null,
+    customerClient: config.factoryCustomers ? { save: async (input, _signal, model) => { await created.manager.flush(); return request('factoryCustomerSave', [input, model]); } } : null,
     materialsClient: config.factoryMaterials ? {
       status: (_signal, model) => request('factoryMaterialsStatus', [model]),
       materials: (input, _signal, model) => request('factoryMaterialsRead', [input, model]),

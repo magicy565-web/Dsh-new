@@ -9,6 +9,7 @@ import { libraryReadHash, normalizeLibraryRecipient, libraryRecipientForModel } 
 import { emptyInputContext, normalizeInputContext } from './task-context.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { createFactoryInquiryClient } from './factory-inquiries.mjs';
+import { createFactoryCustomerDraftClient } from './factory-customer-drafts.mjs';
 import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { ApiError } from './runtime.mjs';
 import { ProviderError } from './provider.mjs';
@@ -147,7 +148,21 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         canSave() { actor(identity, true); const live = store.read().runs.find(r => r.id === run.id);
           return live?.status === 'running' && current(conversation.id).activeRunId === run.id && live.businessAgentContext.allowBusinessSubmit === true; },
       }) : null;
-      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, isolationDirectory: isolated,
+      const customerClient = engineAdapter.scope === 'omp:18.10.4:factory-customers-v1' ? createFactoryCustomerDraftClient({
+        artifacts, store, identity, conversationId: conversation.id, runId: run.id, authorize,
+        canSave() { actor(identity, true); const live = store.read().runs.find(r => r.id === run.id);
+          return live?.status === 'running' && current(conversation.id).activeRunId === run.id && live.businessAgentContext.allowBusinessSubmit === true; },
+        async readJournal() {
+          assertActive(); const mapping = current(conversation.id).businessAgentSession;
+          if (!mapping || mapping.engineScope !== engineAdapter.scope || mapping.bindingFingerprint !== binding.client.bindingFingerprint
+            || path.dirname(mapping.sessionFile || '') !== path.join(isolated, 'sessions', binding.client.bindingFingerprint)) throw Error('Original source journal mapping refused.');
+          const file = await openPrivateFile(mapping.sessionFile);
+          try { if ((await file.stat()).size > 32_000_000) throw Error('Original source journal bound exceeded.');
+            const text = await file.readFile('utf8'); assertActive(); return text.trim().split('\n').map(line => JSON.parse(line));
+          } finally { await file.close(); }
+        },
+      }) : null;
+      return engineAdapter.complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();

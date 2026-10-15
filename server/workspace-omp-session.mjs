@@ -34,7 +34,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
   maxModelCalls = 4, maxTokens = 1600, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal,
-  factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, materialsClient = null, inquiryClient = null, engineScope = factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
+  factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
   if (factoryInquiries && (!factoryMaterials || !inquiryClient) || engineScope !== (factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE) || factoryMaterials && (!materialsClient || factoryCustomers || ordinaryTools || uiOnly)) throw Error('Use the fixed original factory materials Session profile.');
@@ -59,8 +59,12 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   // Official loadSkillsFromDir scans child directories. Give it a dedicated
   // root containing only this selected public SKILL, never the legacy buyer skill.
   const selectedSkillRoot = path.join(agentDir, 'workspace-selected-skills');
-  await fs.mkdir(path.join(selectedSkillRoot, 'factory'), { recursive: true, mode: 0o700 });
-  await fs.copyFile(path.join(factorySkillDirectory, 'SKILL.md'), path.join(selectedSkillRoot, 'factory/SKILL.md'));
+  await fs.rm(selectedSkillRoot, { recursive: true, force: true });
+  await fs.mkdir(selectedSkillRoot, { recursive: true, mode: 0o700 });
+  if (!factoryCustomers && !factoryInquiries) {
+    await fs.mkdir(path.join(selectedSkillRoot, 'factory'));
+    await fs.copyFile(path.join(factorySkillDirectory, 'SKILL.md'), path.join(selectedSkillRoot, 'factory/SKILL.md'));
+  }
   if (factoryMaterials) {
     await fs.mkdir(path.join(selectedSkillRoot, 'factory-materials'), { recursive: true, mode: 0o700 });
     await fs.copyFile(new URL('../packages/workspace-factory-materials/skills/factory-materials/SKILL.md', import.meta.url), path.join(selectedSkillRoot, 'factory-materials/SKILL.md'));
@@ -75,9 +79,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   }
   const selectedSkills = await sdk.loadSkillsFromDir({ dir: selectedSkillRoot, source: 'custom:project' });
   assert.deepEqual(selectedSkills.warnings, []);
-  assert.deepEqual(selectedSkills.skills.map(skill => skill.name).sort(), factoryInquiries ? ['workspace-factory', 'workspace-factory-inquiries', 'workspace-factory-materials'] : factoryMaterials ? ['workspace-factory', 'workspace-factory-materials'] : factoryCustomers ? ['workspace-factory', 'workspace-factory-customers'] : ['workspace-factory']);
-  const factorySkillContent = await fs.readFile(path.join(factorySkillDirectory, 'SKILL.md'), 'utf8') + (factoryMaterials ? '\n' + await fs.readFile(new URL('../packages/workspace-factory-materials/skills/factory-materials/SKILL.md', import.meta.url), 'utf8') : factoryCustomers ? '\n' + await fs.readFile(new URL('../packages/workspace-factory-customers/skills/factory-customers/SKILL.md', import.meta.url), 'utf8') : '');
-  const inquirySkillContent = factoryInquiries ? '\n' + await fs.readFile(new URL('../packages/workspace-factory-inquiries/skills/factory-inquiries/SKILL.md', import.meta.url), 'utf8') : '';
+  assert.deepEqual(selectedSkills.skills.map(skill => skill.name).sort(), factoryInquiries ? ['workspace-factory-inquiries', 'workspace-factory-materials'] : factoryMaterials ? ['workspace-factory', 'workspace-factory-materials'] : factoryCustomers ? ['workspace-factory-customers'] : ['workspace-factory']);
+  const factorySkillContent = !factoryMaterials && !factoryCustomers ? await fs.readFile(path.join(factorySkillDirectory, 'SKILL.md'), 'utf8') : '';
   const authStorage = await sdk.AuthStorage.create(agentDir + '/auth.db');
   let publicExtension, publicTask, created, cleanupPromise, closePromise;
   const cleanup = () => cleanupPromise ??= (async () => {
@@ -102,7 +105,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         throw Error('Factory cached receipt is malformed; no model disclosure is admitted.');
       }
       if (!['workspace-factory-materials', ...(factoryInquiries ? ['workspace-factory-inquiries'] : [])].includes(receipt.plugin)) throw Error('Factory cached receipt provenance changed.');
-      if (['unconfigured', 'blocked', 'unavailable'].includes(receipt.status) && Object.keys(receipt).every(key => ['plugin', 'status', 'reason', 'sources', 'detail', 'humanReviewRequired', 'sent'].includes(key))
+      if (['unconfigured', 'blocked', 'unavailable'].includes(receipt.status) && Object.keys(receipt).every(key => ['plugin', 'status', 'reason', 'sources', 'detail', 'humanReviewRequired', 'humanReviewed', 'sent', 'externalActions'].includes(key))
         && Array.isArray(receipt.sources) && receipt.sources.length === 0) continue;
       if (!receipt.authorization) throw Error('Factory cached receipt has no exact original authorization.');
       const key = libraryReadHash(receipt);
@@ -118,12 +121,21 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const customApi = uiOnly ? 'workspace-omp-ui-only-disabled' : syntheticResponses ? 'workspace-omp-explicit-faux' : 'workspace-omp-pinned-openai';
   const buildSynthetic = (spec, model, callNumber, context) => {
     let args = spec.arguments || {};
-    if (spec.draftHashFromPreviousTool) {
-      if (spec.tool !== 'workspace_factory_inquiry_save') throw Error('The finite fixture can copy only an actual inquiry draft hash.');
-      const previous = context.messages.findLast(message => message.role === 'toolResult' && message.toolName === 'workspace_factory_inquiry_prepare');
-      const receipt = JSON.parse(previous?.content?.filter(b => b.type === 'text').map(b => b.text).join('\n') || 'null');
-      if (receipt?.plugin !== 'workspace-factory-inquiries' || !/^[a-f0-9]{64}$/.test(receipt.draftHash || '')) throw Error('The finite fixture requires an actual prior draft receipt.');
-      args = { ...args, expectedDraftHash: receipt.draftHash };
+    if (spec.sourcesFromPreviousTools) {
+      if (spec.tool !== 'workspace_factory_inquiry_save') throw Error('Finite fixture source-copy target refused.');
+      const names = ['workspace_factory_document', 'workspace_factory_materials'];
+      const sources = names.flatMap(name => {
+        const previous = context.messages.findLast(message => message.role === 'toolResult' && message.toolName === name);
+        const receipt = JSON.parse(previous?.content?.filter(b => b.type === 'text').map(b => b.text).join('\n') || 'null');
+        if (receipt?.plugin !== 'workspace-factory-materials' || !Array.isArray(receipt.sources)) throw Error('Finite fixture requires actual original material receipts.');
+        return receipt.sources;
+      });
+      args = { ...args, sources };
+    }
+    if (spec.sourceToolIdsFromPreviousTools) {
+      if (spec.tool !== 'workspace_factory_customers_save') throw Error('Finite fixture public source-copy target refused.');
+      args = { ...args, sourceToolCallIds: context.messages.filter(message => message.role === 'toolResult'
+        && ['workspace_public_search', 'workspace_public_browser'].includes(message.toolName) && !message.isError).map(message => message.toolCallId) };
     }
     const content = spec.tool ? [{ type: 'toolCall', id: `workspace-omp-${callNumber}`, name: spec.tool, arguments: args }]
       : [{ type: 'text', text: spec.text || 'Explicit synthetic model response.' }];
@@ -190,14 +202,30 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     throw new Error('This is not the selected OMP engine scope; history cannot migrate across profiles.');
   const { EventBus } = await import(pathToFileURL(path.join(packageRoot, 'src/utils/event-bus.ts')).href);
   const eventBus = new EventBus(), subagentEventBus = new EventBus();
-  const toolSession = { cwd, settings, authStorage, modelRegistry, eventBus, subagentEventBus, getSessionId: () => manager.getSessionId(),
+  const toolSession = { cwd, settings, authStorage, modelRegistry, eventBus, subagentEventBus, skills: selectedSkills.skills, getSessionId: () => manager.getSessionId(),
     getSessionFile: () => manager.getSessionFile(), getArtifactsDir: () => cwd };
   publicExtension = !uiOnly && !ordinaryTools && !factoryMaterials ? await createWorkspaceOmpPublicTools({ packageRoot, toolSession, authorize, signal: lifecycleSignal,
     configuration: publicTools, fetchImpl: createWorkspaceOmpSyntheticPublicFetch({ responses: syntheticPublicSearchResponses, explicitFaux: Boolean(syntheticResponses) }) })
     : { tools: [], toolNames: [], capabilities: { status: 'not-enabled-in-ui-only-or-ordinary-host' }, close: async () => {} };
   publicTask = !uiOnly && !ordinaryTools && !factoryMaterials ? await createWorkspaceOmpPublicTask({ packageRoot, toolSession, configuration, authorize })
     : { tools: [], toolNames: [], close: async () => {} };
-  const admittedTools = [...ORDINARY_FACTORY_TOOLS, ...(factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : [])];
+  // Advertise/load approved Skills through the official resolver and ReadTool.
+  // No arbitrary path, URL, plugin discovery or duplicated full-Skill prompt.
+  const skillTools = [];
+  if (factoryMaterials || factoryCustomers) {
+    const { ReadTool } = await import(pathToFileURL(path.join(packageRoot, 'src/tools/read.ts')).href);
+    const reader = new ReadTool(toolSession), names = selectedSkills.skills.map(s => s.name);
+    skillTools.push({ name: 'workspace_skill', label: 'Read a loaded factory Skill', readsSkillUris: true,
+      description: 'Read one explicitly loaded Skill through the official skill:// resolver. Choose a listed name; no file paths or additional resources.',
+      parameters: { type: 'object', properties: { name: { type: 'string', enum: names } }, required: ['name'], additionalProperties: false },
+      async execute(id, input, signal, update) {
+        if (!input || Object.keys(input).some(k => k !== 'name') || !names.includes(input.name)) throw Error('Only an explicitly loaded Skill is admitted.');
+        signal?.throwIfAborted(); await authorize();
+        const result = await reader.execute(id, { path: 'skill://' + input.name }, signal, update);
+        await authorize(); signal?.throwIfAborted(); return result;
+      } });
+  }
+  const admittedTools = [...ORDINARY_FACTORY_TOOLS, ...skillTools.map(t => t.name), ...(factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : [])];
   if (savedSession && !ordinaryTools) {
     for (const entry of manager.getEntries()) {
       const message = entry.message;
@@ -221,18 +249,10 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     model: uiOnly ? sdk.finalizeCustomModel(sdk.buildCustomModelOverlay(configuration.providerId, configuration.baseUrl, customApi,
       undefined, undefined, undefined, undefined, undefined, undefined, modelDefinition), { useDefaults: true })
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
-    extensions: [...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: {
-      status: async () => ({ toolNames: publicExtension.toolNames, businessSubmit: factoryTasks && typeof client?.businessSubmit === 'function' }),
-      invokeTool: async (name, input, signal) => {
-        if (!['workspace_public_search', 'workspace_public_browser'].includes(name)) throw Error('Only the original public search/browser are admitted.');
-        const tool = publicExtension.tools.find(t => t.name === name); if (!tool) throw Error('Original public tool is unavailable.');
-        return tool.execute('factory-customers-native-' + name, input, signal);
-      },
-      businessSubmit: (input, signal) => client.businessSubmit(input, signal),
-    } })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration }),
-      pi => [...publicExtension.tools, ...publicTask.tools].forEach(tool => pi.registerTool(tool)),
+    extensions: [...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration }),
+      pi => [...publicExtension.tools, ...publicTask.tools, ...skillTools].forEach(tool => pi.registerTool(tool)),
       ...ordinaryTools ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
-    disableExtensionDiscovery: true, skills: selectedSkills.skills, appendSystemPrompt: factorySkillContent + inquirySkillContent,
+    disableExtensionDiscovery: true, skills: selectedSkills.skills, appendSystemPrompt: factoryMaterials || factoryCustomers ? undefined : factorySkillContent,
     rules: [], contextFiles: [], promptTemplates: [], slashCommands: [],
     enableMCP: false, enableLsp: false, enableIrc: false, skipPythonPreflight: true,
     ...ordinaryTools ? {} : { toolNames: [] }, spawns: '', hasUI, autoTitle: false, interactivePrompts: hasUI, eventBus, subagentEventBus,

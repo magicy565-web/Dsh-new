@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-const names = ['workspace_factory_inquiry_prepare', 'workspace_factory_inquiry_save'];
+const names = ['workspace_factory_inquiry_save'];
 const disabled = process.env.FACTORY_INQUIRIES_EXPECT === 'absent';
 const documentId = '11111111-1111-4111-8111-111111111111';
 export default async pi => {
@@ -10,10 +10,11 @@ export default async pi => {
     parameters: { type: 'object', properties: {}, additionalProperties: false },
     execute: async () => ({ content: [{ type: 'text', text: '{"otherPlugin":true}' }], details: {} }) });
   let calls = 0;
-  const steps = disabled ? [['inquiries_other_plugin', {}]] : [[names[0], { inquiryDocumentId: documentId, documentVersion: 1, productId: documentId, requirements: { quantity: null } }],
-    [names[1], { inquiryDocumentId: documentId, documentVersion: 1, productId: documentId, requirements: {}, requestId: 'synthetic-save', expectedDraftHash: 'a'.repeat(64) }], ['inquiries_other_plugin', {}]];
+  const source = { kind: 'factory-product', workspaceId: 'synthetic', recordId: documentId, revision: 1, projectionSha256: 'a'.repeat(64) };
+  const steps = disabled ? [['inquiries_other_plugin', {}]] : [[names[0], { inquiryDocumentId: documentId, documentVersion: 1, productId: documentId,
+    sources: [source, { ...source, kind: 'factory-document' }], documents: [{ name: 'reply.md', content: 'A model-written unreviewed fixture reply.' }], requestId: 'synthetic-save' }], ['inquiries_other_plugin', {}]];
   const next = context => {
-    assert.equal(JSON.stringify(context).includes('Prepare source-bound customer inquiry comparisons'), !disabled,
+    assert.equal(JSON.stringify(context).includes('Read authorized inquiry and factory facts'), !disabled,
       'The official manifest Skill follows package enable/disable state');
     assert.ok(pi.getActiveTools().includes('read'));
     assert.ok(pi.getActiveTools().includes('bash'));

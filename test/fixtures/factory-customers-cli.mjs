@@ -2,25 +2,26 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-const names = ['workspace_factory_customers_status', 'workspace_factory_customers_research', 'workspace_factory_customers_save'];
+const names = ['workspace_factory_customers_save'];
 const disabled = process.env.FACTORY_CUSTOMERS_EXPECT === 'absent';
 export default async pi => {
   pi.registerTool({ name: 'customers_other_plugin', label: 'Other plugin', description: 'Explicit coexistence fixture.',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
     execute: async () => ({ content: [{ type: 'text', text: '{"otherPlugin":true}' }], details: {} }) });
   let calls = 0;
-  const steps = disabled ? [['customers_other_plugin', {}]] : [[names[0], {}], [names[1], { product: 'Public synthetic cup', targetMarket: 'United Kingdom', query: 'Public synthetic cup distributor', limit: 1 }],
-    [names[2], { title: 'Explicit synthetic save', product: 'Public synthetic cup', spec: 'Public synthetic specification', targetMarket: 'United Kingdom', researchCallId: 'no-observation', requestId: 'synthetic-save' }], ['customers_other_plugin', {}]];
+  const steps = disabled ? [['customers_other_plugin', {}]] : [[names[0], { requestId: 'synthetic-save',
+    documents: [{ name: 'candidate-notes.md', content: 'Public source statements only; buyer identity remains unknown.' }], sourceToolCallIds: ['no-observation'] }], ['customers_other_plugin', {}]];
   const next = context => {
-    assert.equal(JSON.stringify(context).includes('Collect public overseas buyer or distributor source evidence'), !disabled,
+    assert.equal(JSON.stringify(context).includes('Assess public overseas buyer or distributor source evidence'), !disabled,
       'The official manifest Skill follows package enable/disable state');
     assert.ok(pi.getActiveTools().includes('read'));
     assert.ok(pi.getActiveTools().includes('bash'));
     for (const name of names) assert.equal(pi.getActiveTools().includes(name), !disabled, name);
+    for (const retired of ['workspace_factory_customers_status', 'workspace_factory_customers_research']) assert.equal(pi.getActiveTools().includes(retired), false);
     if (calls > 0) {
       const receipt = JSON.parse(context.messages.at(-1).content.filter(block => block.type === 'text').map(block => block.text).join('\n'));
       if (steps[calls - 1][0] === 'customers_other_plugin') assert.equal(receipt.otherPlugin, true);
-      else { assert.equal(receipt.plugin, 'workspace-factory-customers'); assert.equal(receipt.status, 'blocked'); assert.deepEqual(receipt.sources, []); }
+      else { assert.equal(receipt.plugin, 'workspace-factory-customers'); assert.equal(receipt.status, 'unconfigured'); assert.deepEqual(receipt.sources, []); }
     }
     const step = steps[calls++];
     assert.ok(calls <= steps.length + 1, 'Finite CLI fixture exhausted; no fallback');

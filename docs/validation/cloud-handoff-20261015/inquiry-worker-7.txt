@@ -1,0 +1,19 @@
+✔ official inquiry loop accepts finite scripted choice=ask; source adapter does not choose tools or file count (2420.315364ms)
+ℹ Actual official OMP AgentSession/tool dispatch and original services. All choices and prose above are finite synthetic model responses, not evidence of model intelligence or real business quality.
+✔ official inquiry loop accepts finite scripted choice=reply; source adapter does not choose tools or file count (2629.33278ms)
+ℹ Actual official OMP AgentSession/tool dispatch and original services. All choices and prose above are finite synthetic model responses, not evidence of model intelligence or real business quality.
+✔ official inquiry loop accepts finite scripted choice=two; source adapter does not choose tools or file count (2285.822219ms)
+ℹ Actual official OMP AgentSession/tool dispatch and original services. All choices and prose above are finite synthetic model responses, not evidence of model intelligence or real business quality.
+✔ official inquiry loop accepts finite scripted choice=skill; source adapter does not choose tools or file count (2028.711656ms)
+ℹ Actual official OMP AgentSession/tool dispatch and original services. All choices and prose above are finite synthetic model responses, not evidence of model intelligence or real business quality.
+✔ a model draft-save attempt in a readonly original Run creates no artifact (2151.7257ms)
+✔ actual inquiry whole-journal replay refuses changed original source before another model request (3892.248164ms)
+✔ original HTTP cancellation before an inquiry artifact commit preserves original inputs and creates no draft file (2265.575345ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18378.15046

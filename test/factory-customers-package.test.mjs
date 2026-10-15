@@ -4,10 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { factoryCustomersExtension } from '../packages/workspace-factory-customers/src/extension.js';
-import { taskFixture, TOKEN_A, until, api } from './fixtures/pi-task-helpers.mjs';
-import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
-import { createHash } from 'node:crypto';
+import { factoryCustomersExtension, validateCustomerDrafts } from '../packages/workspace-factory-customers/src/extension.js';
 
 const repository = fileURLToPath(new URL('..', import.meta.url));
 const source = path.join(repository, 'packages/workspace-factory-customers');
@@ -52,7 +49,7 @@ async function setup(t, engine) {
   const cliFixture = path.join(directory, 'finite-cli.mjs'); await fs.copyFile(new URL('./fixtures/factory-customers-cli.mjs', import.meta.url), cliFixture);
   const verify = async absent => {
     const args = engine === 'pi' ? ['--offline', '--no-session', '--print'] : ['--no-title', '--no-prewalk', '--no-lsp', '--no-rules', '--no-session', '--print'];
-    const tools = ['read', 'bash', 'customers_other_plugin', ...absent ? [] : ['workspace_factory_customers_status', 'workspace_factory_customers_research', 'workspace_factory_customers_save']].join(',');
+    const tools = ['read', 'bash', 'customers_other_plugin', ...absent ? [] : ['workspace_factory_customers_save']].join(',');
     const result = await command(executable, [cli, ...args, '-e', cliFixture, '--tools', tools, '--model', 'factory-customers-cli-faux/finite',
       'Run only the finite explicit keyless package acceptance fixture.'], { ...env, FACTORY_CUSTOMERS_EXPECT: absent ? 'absent' : 'present' }, directory);
     assert.equal(result.code, 0, result.output);
@@ -67,7 +64,7 @@ async function save(evidence) {
     JSON.stringify({ version: 1, package: packageName, tests: facts }, null, 2) + '\n');
 }
 
-test('copied factory customers package uses official Pi manifest, Skill, disable and remove with no injected Host capability', { timeout: 120000 }, async t => {
+test('copied factory customers package uses official Pi manifest, Skill, disable and remove with no injected save Host', { timeout: 120000 }, async t => {
   assert.equal(JSON.parse(await fs.readFile(path.join(repository, 'node_modules/@earendil-works/pi-coding-agent/package.json'))).version, '1.1.0');
   const p = await setup(t, 'pi');
   await p.invoke('install', p.packageDir); assert.match(await p.invoke('list'), /copied-package/);
@@ -81,7 +78,7 @@ test('copied factory customers package uses official Pi manifest, Skill, disable
   assert.ok(!(await p.invoke('list')).includes(p.packageDir));
   await fs.access(path.join(p.packageDir, 'package.json'));
   await save({ engine: 'pi', version: '1.1.0', copiedOutsideRepository: true, packageNodeModules: false,
-    officialManifest: true, skillLoaded: true, ordinaryToolsAndOtherPluginCoexist: true, blockedThreeToolReceipts: true,
+    officialManifest: true, skillLoaded: true, ordinaryToolsAndOtherPluginCoexist: true, unconfiguredSaveReceipt: true, retiredResearchAndStatusAbsent: true,
     disabledToolsAndSkillAbsent: true, reenabled: true, officialRemove: true, sourcePackagePreserved: true,
     clientReads: 0, syntheticAgentBearerDoesNotConfigurePublicHost: true, paidModelCalls: 0, realBuyerVerified: false });
 });
@@ -100,109 +97,65 @@ test('copied factory customers package uses official OMP local link, manifest, S
   await fs.access(path.join(p.packageDir, 'package.json'));
   await save({ engine: 'omp', version: '18.10.4', copiedOutsideRepository: true, packageNodeModules: false,
     officialLocalLink: true, officialManifest: true, skillLoaded: true, ordinaryToolsAndOtherPluginCoexist: true,
-    blockedThreeToolReceipts: true, disabledToolsAndSkillAbsent: true, reenabled: true, officialUninstall: true,
+    unconfiguredSaveReceipt: true, retiredResearchAndStatusAbsent: true, disabledToolsAndSkillAbsent: true, reenabled: true, officialUninstall: true,
     sourcePackagePreserved: true, clientReads: 0, syntheticAgentBearerDoesNotConfigurePublicHost: true,
     paidModelCalls: 0, realBuyerVerified: false });
 });
 
-test('official OMP native public source tools feed the original factory-export HTTP task and exact documents', { timeout: 90000 }, async t => {
-  const completeStage = () => fauxAssistantMessage(fauxToolCall('workspace_complete_preset_stage', {
-    analysis: [{ text: '合成模型替身仅整理提交的公开产品及来源材料，客户身份、采购意向与供货匹配仍待人工核对。', sources: ['input.product'] }],
-    recommendations: [{ text: '建议人工核对原始公开来源与产品条件。', sources: [] }], questions: [{ text: '是否可以补充公开规格和供货条件？', sources: [] }],
-  }), { stopReason: 'toolUse' });
-  const f = await taskFixture(t, { enterprise: true, responses: Array.from({ length: 4 }, completeStage) });
+test('official OMP model tool loop selects native public tools directly and saves model-written text through a thin client', { timeout: 90000 }, async t => {
   const p = await setup(t, 'omp'), fixture = path.join(p.directory, 'native.mjs'), configFile = path.join(p.directory, 'native.json');
   await fs.copyFile(new URL('./fixtures/factory-customers-native.mjs', import.meta.url), fixture);
   const evidenceFile = path.join(p.directory, 'native-evidence.json');
-  await fs.writeFile(configFile, JSON.stringify({ repository, directory: p.directory, packageDir: p.packageDir, agentDir: p.agentDir, ompRoot,
-    baseURL: f.baseURL, syntheticToken: TOKEN_A, evidenceFile, live: process.env.FACTORY_CUSTOMERS_LIVE === '1' }));
-  const infrastructure = Object.fromEntries(['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'ALL_PROXY', 'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE', 'SSL_CERT_DIR']
-    .filter(key => process.env[key]).map(key => [key, process.env[key]]));
-  const result = await command(bun, [fixture, configFile], { ...p.env, ...infrastructure }, p.directory);
-  assert.equal(result.code, 0, result.output); assert.match(result.output, /FACTORY_CUSTOMERS_NATIVE_ORIGINAL_HTTP_VERIFIED/);
-  const evidence = JSON.parse(await fs.readFile(evidenceFile));
-  await until(() => ['done', 'failed', 'interrupted'].includes(f.app.store.read().workspaceAgentTasks.tasks.find(task => task.id === evidence.originalTaskId)?.status));
-  const state = f.app.store.read(), task = state.workspaceAgentTasks.tasks.find(task => task.id === evidence.originalTaskId);
-  assert.equal(task.status, 'done', JSON.stringify(task.error)); assert.equal(task.type, 'factory-export');
-  assert.equal(state.workspaceAgentTasks.tasks.length, 1); assert.equal(state.runs.length, 4); assert.equal(f.faux.state.callCount, 4);
-  assert.equal(task.steps.filter(step => step.status === 'succeeded').length, 4); assert.equal(task.deliverables.length, 3);
-  assert.equal(task.result.businessGoalAchieved, false);
-  const documents = [];
-  for (const ref of task.deliverables) {
-    const file = await api(f, `/api/agent/v1/tasks/${task.id}/artifacts/${encodeURIComponent(ref.name)}`);
-    assert.equal(file.status, 200);
-    assert.equal(createHash('sha256').update(file.bytes).digest('hex'), ref.sha256);
-    documents.push({ name: ref.name, sha256: ref.sha256, bytes: file.bytes.length });
-    if (ref.name === 'customer-match-evidence.md') {
-      assert.match(file.bytes.toString(), /https:\/\/example\.com\/synthetic-cup-catalog/);
-      assert.match(file.bytes.toString().replaceAll('\\_', '_'), /workspace_public_search/);
-      assert.match(file.bytes.toString(), /observedAt/); assert.match(file.bytes.toString(), /未.*核验|待.*核对/);
-    }
-  }
-  Object.assign(evidence, { originalBackendModelCalls: f.faux.state.callCount, originalRunCount: state.runs.length,
-    originalSuccessfulStages: 4, originalDocuments: documents, businessGoalAchieved: false });
-  await save(evidence);
+  await fs.writeFile(configFile, JSON.stringify({ repository, directory: p.directory, packageDir: p.packageDir, agentDir: p.agentDir, ompRoot, evidenceFile }));
+  const result = await command(bun, [fixture, configFile], p.env, p.directory);
+  assert.equal(result.code, 0, result.output); assert.match(result.output, /FACTORY_CUSTOMERS_DIRECT_NATIVE_SDK_VERIFIED/);
+  await save(JSON.parse(await fs.readFile(evidenceFile)));
 });
 
-test('public customer workflow rejects private inputs, missing capabilities, forged save receipts and revoked authorization without dispatch', async () => {
-  const model = { id: 'finite' }, signal = new AbortController().signal, journal = [], tools = [];
-  let calls = [], submits = [], permitted = true, mode = 'normal', businessSubmit = true;
-  const source = { url: 'https://example.com/public-catalog', title: 'Synthetic source catalog', excerpt: 'Synthetic source statement; no buyer verification.' };
-  const observedAt = '2026-10-15T05:00:00.000Z';
-  const client = {
-    status: async () => { calls.push('status'); return { toolNames: mode === 'missing' ? [] : ['workspace_public_search', 'workspace_public_browser'], businessSubmit }; },
-    invokeTool: async (name, input) => {
-      calls.push(name);
-      if (mode === 'throws') throw new Error('/private/host/location must not be disclosed');
-      if (mode === 'revoked-after-read') permitted = false;
-      if (name === 'workspace_public_search') return { content: [], details: { status: mode === 'empty' ? 'empty' : 'sources_observed', observedAt,
-        sources: mode === 'empty' ? [] : [source] } };
-      return { content: [], details: { status: 'page_observed', observedAt, url: input.url, excerpt: 'Synthetic page reports a product category; identity and purchase intent unknown.', httpStatus: 200 } };
-    },
-    businessSubmit: async input => { submits.push(input); return { profile: 'business-preset', task: { taskId: 'synthetic-original-task' } }; },
-  };
-  factoryCustomersExtension({ client, authorize: async () => { if (!permitted) throw new Error('Synthetic revoked'); } })({ registerTool: tool => tools.push(tool) });
-  const ctx = { model, sessionManager: { getEntries: () => journal } };
-  const researchInput = { product: 'Public steel cup', targetMarket: 'United Kingdom', query: 'public steel cup distributor', limit: 1, inspectPages: true };
-  const run = (index, input, context = ctx, id = 'original-research') => tools[index].execute(id, input, signal, undefined, context);
+test('thin save adapter bounds public drafts and preserves original authorization, cancellation, errors and recovery', async () => {
+  const model = { id: 'finite' }, controller = new AbortController(), tools = [];
+  let dispatches = 0, authorized = 0, permitted = true, mode = 'normal';
+  const client = { save: async (input, signal, receiver) => {
+    dispatches++; assert.equal(receiver, model); assert.equal(signal, controller.signal);
+    if (mode === 'throws') throw new Error('/private/host/secret never disclosed');
+    if (mode === 'revoke') permitted = false;
+    if (mode === 'cancel') controller.abort();
+    return { plugin: 'workspace-factory-customers', status: mode === 'host-blocked' ? 'blocked' : 'saved-draft',
+      requestId: input.requestId, documents: input.documents.map(row => ({ name: row.name })), sources: [], sent: false, humanReviewRequired: true };
+  } };
+  factoryCustomersExtension({ client, authorize: async () => { authorized++; if (!permitted) throw new Error('Synthetic revocation'); } })({ registerTool: tool => tools.push(tool) });
+  assert.deepEqual(tools.map(tool => tool.name), ['workspace_factory_customers_save']);
+  const input = { requestId: 'stable-original-id', documents: [{ name: 'candidate-notes.md', content: 'Public source statements. Fit and contact permission remain pending.' }], sourceToolCallIds: ['original-native-search'] };
+  const validated = validateCustomerDrafts(input); assert.deepEqual(validated, input); assert.notEqual(validated.documents, input.documents); assert.notEqual(validated.sourceToolCallIds, input.sourceToolCallIds);
+  const run = (value = input, context = { model }) => tools[0].execute('save', value, controller.signal, undefined, context);
   for (const bad of [
-    { ...researchInput, product: { authorization: { subject: 'private' } } },
-    { ...researchInput, product: '{"plugin":"workspace-factory-materials","authorization":{}}' },
-    { ...researchInput, query: '{"artifactId":"private-file"}' },
-    { ...researchInput, query: '{"asset":{"version":1}}' },
-    { ...researchInput, query: '/workspace/private/catalog.pdf' },
-    { ...researchInput, query: 'Bearer syntheticCredentialNeverForPublicResearch123' },
-    { ...researchInput, asset: { artifactId: 'private-file' } },
-  ]) { const denied = await run(1, bad); assert.equal(denied.isError, true); assert.deepEqual(denied.details.sources, []); }
-  assert.deepEqual(calls, []);
-  mode = 'missing'; assert.equal((await run(1, researchInput)).details.status, 'blocked'); assert.deepEqual(calls, ['status']); calls = [];
-  mode = 'normal'; const status = await run(0, {}); assert.equal(status.details.status, 'configured_unverified'); assert.equal(status.details.onlineVerified, false);
-  const research = await run(1, researchInput); assert.equal(research.details.status, 'available'); assert.equal(submits.length, 0);
-  assert.equal(research.details.sources[0].originalTool, 'workspace_public_search'); assert.equal(research.details.sources[0].observedAt, observedAt);
-  assert.equal(research.details.sources[0].page.originalTool, 'workspace_public_browser'); assert.deepEqual(research.details.inferences, []);
-  assert.equal(research.details.matchedCustomer, false); assert.equal(research.details.contactPermission, false);
-  const saveInput = { title: 'User requested public evidence documents', product: researchInput.product, spec: 'Public supplied specification',
-    targetMarket: researchInput.targetMarket, researchCallId: 'original-research', requestId: 'stable-original-request' };
-  assert.equal((await run(2, saveInput)).details.status, 'blocked'); assert.equal(submits.length, 0);
-  journal.push({ message: { role: 'toolResult', toolCallId: 'original-research', toolName: tools[1].name, content: research.content, isError: false } });
-  assert.equal((await run(2, { ...saveInput, product: 'Different public product' })).details.status, 'blocked');
-  businessSubmit = false; assert.equal((await run(2, saveInput)).details.status, 'blocked'); assert.equal(submits.length, 0); businessSubmit = true;
-  assert.equal((await run(2, saveInput, { model, sessionManager: { getEntries: () => [] } })).details.status, 'blocked');
-  assert.equal((await run(2, { ...saveInput, evidence: research.details })).details.status, 'blocked');
-  const saved = await run(2, saveInput); assert.equal(saved.details.status, 'submitted'); assert.equal(submits.length, 1);
-  assert.equal(submits[0].type, 'factory-export'); assert.equal(submits[0].requestId, 'stable-original-request');
-  assert.match(submits[0].input.customer_materials, /workspace_public_search/); assert.ok(!('newStorage' in submits[0]));
-  mode = 'throws'; const failed = await run(1, researchInput); assert.equal(failed.details.status, 'blocked'); assert.doesNotMatch(JSON.stringify(failed), /private\/host/);
-  mode = 'normal'; assert.equal((await run(1, researchInput)).details.status, 'available');
-  mode = 'empty'; const empty = await run(1, researchInput); assert.equal(empty.details.status, 'empty'); assert.deepEqual(empty.details.sources, []);
-  mode = 'revoked-after-read'; const revoked = await run(1, researchInput); assert.equal(revoked.details.status, 'blocked'); assert.deepEqual(revoked.details.sources, []);
-  const before = calls.length; assert.equal((await run(1, researchInput)).details.status, 'blocked'); assert.equal(calls.length, before);
-  permitted = true; const cancelled = new AbortController(); cancelled.abort();
-  const stopped = await tools[1].execute('already-cancelled', researchInput, cancelled.signal, undefined, ctx);
-  assert.equal(stopped.details.reason, 'ORIGINAL_OPERATION_CANCELLED'); assert.equal(calls.length, before);
-  assert.equal(submits.length, 1);
-  await save({ test: 'public-input-and-original-authority-boundaries', privateInputsZeroDispatch: true, missingNativeToolBlocked: true,
-    configurationNotObservation: true, factsInferencesMissingSeparate: true, noAutomaticBusinessSubmit: true,
-    sameTranscriptReceiptRequired: true, exactPublicProductAndMarketRequired: true, originalBusinessSubmitGateRetained: true,
-    stableRequestIdPreserved: true, hostErrorTextNotDisclosed: true, revokedAuthorityNoReceipt: true, alreadyCancelledZeroDispatch: true, errorRecovery: true, paidModelCalls: 0 });
+    { ...input, documents: [{ name: '../escape.md', content: 'public' }] },
+    { ...input, documents: [{ name: 'candidate.md', content: '{"authorization":{}}' }] },
+    { ...input, documents: [{ name: 'candidate.md', content: 'workspace-factory-materials receipt' }] },
+    { ...input, documents: [{ name: 'candidate.md', content: '/workspace/private/catalog.pdf' }] },
+    { ...input, documents: [{ name: 'candidate.md', content: 'Bearer syntheticCredentialNeverPublic' }] },
+    { ...input, documents: [{ name: 'candidate.md', content: 'x'.repeat(24001) }] },
+    { ...input, documents: [...input.documents, ...input.documents] },
+    { ...input, documents: Array.from({length: 3}, (_, i) => ({name: `draft-${i}.md`, content: 'x'.repeat(21000)})) },
+    { ...input, sourceToolCallIds: [] }, { ...input, sourceToolCallIds: ['repeat', 'repeat'] },
+    { ...input, sources: [{ url: 'https://forged.invalid' }] }, { ...input, product: 'retired pipeline input' },
+  ]) assert.equal((await run(bad)).details.status, 'blocked');
+  assert.equal(dispatches, 0); assert.equal(authorized, 0);
+  assert.equal((await run(input, {})).details.reason, 'EXACT_MODEL_RECEIVER_REQUIRED'); assert.equal(dispatches, 0);
+  const defaults = []; factoryCustomersExtension()({ registerTool: tool => defaults.push(tool) });
+  assert.equal((await defaults[0].execute('default', input, controller.signal, undefined, { model })).details.status, 'unconfigured');
+  const saved = await run(); assert.equal(saved.details.status, 'saved-draft'); assert.equal(saved.details.sent, false); assert.equal(dispatches, 1); assert.equal(authorized, 2);
+  // Text is forwarded, never templated or converted into a fixed task/stage plan.
+  assert.deepEqual(saved.details.documents, [{ name: 'candidate-notes.md' }]);
+  mode = 'host-blocked'; assert.equal((await run()).isError, true);
+  mode = 'throws'; const failed = await run(); assert.equal(failed.details.status, 'blocked'); assert.doesNotMatch(JSON.stringify(failed), /private\/host|secret/);
+  mode = 'normal'; assert.equal((await run()).details.status, 'saved-draft');
+  mode = 'revoke'; assert.equal((await run()).details.status, 'blocked'); const before = dispatches;
+  assert.equal((await run()).details.status, 'blocked'); assert.equal(dispatches, before);
+  permitted = true; mode = 'cancel'; assert.equal((await run()).details.reason, 'ORIGINAL_OPERATION_CANCELLED');
+  const cancelledCalls = dispatches; assert.equal((await run()).details.reason, 'ORIGINAL_OPERATION_CANCELLED'); assert.equal(dispatches, cancelledCalls);
+  await save({ test: 'thin-save-boundaries', publicDraftInvalidInputZeroDispatch: true, missingModelZeroDispatch: true,
+    noClientUnconfigured: true, beforeAfterAuthorization: true, hostBlockedPreserved: true, noHostErrorText: true,
+    revokedNoReceipt: true, cancelledZeroFurtherDispatch: true, errorRecovery: true, noPackageReceiptAuthority: true,
+    noPluginResearchDispatchOrBusinessTask: true, paidModelCalls: 0 });
 });

@@ -8,24 +8,18 @@ const config = JSON.parse(await fs.readFile(process.argv[2], 'utf8'));
 let fetchAttempts = 0;
 globalThis.fetch = async () => { fetchAttempts++; throw new Error('No external HTTP in the explicit inquiry SDK fixture.'); };
 const { factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS } = await import(pathToFileURL(path.join(config.packageDir, 'src/extension.js')).href);
-const { prepareFactoryInquiry, factoryInquiryHash } = await import(pathToFileURL(path.join(config.packageDir, 'src/drafts.mjs')).href);
+const { validateInquiryDrafts, factoryInquiryHash } = await import(pathToFileURL(path.join(config.packageDir, 'src/drafts.mjs')).href);
 const data = inquiryFixture(factoryInquiryHash);
 let authorizations = 0, reads = 0, saved = 0, authorized = true, mode = 'normal', modelCalls = 0, toolCalls = 0;
 const authorize = async (signal, model) => { authorizations++; assert.ok(!signal?.aborted); assert.equal(model.id, 'finite'); if (!authorized) throw new Error('Synthetic private Host error must not escape.'); };
-const client = {
-  async prepare(input, signal, model) {
-    reads++; assert.deepEqual(input, data.input); assert.equal(model.id, 'finite');
-    if (mode === 'throw') throw new Error('Synthetic Host private error /workspace/private-secret');
-    if (mode === 'post-revoke') authorized = false;
-    return prepareFactoryInquiry(data);
-  },
-  async save(input, signal, model) {
-    reads++; assert.equal(model.id, 'finite'); assert.equal(input.confirmed, undefined);
-    const fresh = prepareFactoryInquiry(data);
-    if (input.expectedDraftHash !== fresh.draftHash) return { plugin: 'workspace-factory-inquiries', status: 'blocked', reason: 'SYNTHETIC_EXACT_DRAFT_CHANGED', sources: [], sent: false };
-    saved++; return { ...fresh, status: 'saved-draft', save: { requestId: input.requestId, syntheticClientOnly: true }, sent: false };
-  },
-};
+const expectedSources = [...data.inquiry.sources, ...data.materials.sources];
+const client = { async save(input, signal, model) {
+  reads++; validateInquiryDrafts(input); assert.equal(model.id, 'finite');
+  if (mode === 'throw') throw Error('private-host-error-must-not-escape');
+  if (mode === 'post-revoke') authorized = false;
+  if (factoryInquiryHash(input.sources) !== factoryInquiryHash(expectedSources)) return { status: 'blocked', reason: 'SOURCE_CHANGED' };
+  saved++; return { plugin: 'workspace-factory-inquiries', status: 'saved-draft', sources: expectedSources, documentCount: input.documents.length, humanReviewed: false, humanReviewRequired: true, sent: false };
+} };
 const responses = [];
 let session, auth, settings, sdk, faux;
 if (config.engine === 'pi') {
@@ -89,39 +83,23 @@ try {
     await session.prompt('Run the explicitly requested source-bound inquiry fixture call only.');
     const row = session.messages.filter(message => message.role === 'toolResult').at(-1);
     assert.equal(row.toolName, tool);
-    const value = JSON.parse(row.content.filter(block => block.type === 'text').map(block => block.text).join('\n'));
+    let value; try { value = JSON.parse(row.content.filter(block => block.type === 'text').map(block => block.text).join('\n')); }
+    catch { assert.equal(row.isError, true); value = { status: 'blocked', reason: 'OFFICIAL_SCHEMA_REJECTED' }; }
     return { row, value };
   }
-  const prepared = await call(FACTORY_INQUIRY_TOOLS[0], data.input);
-  assert.equal(prepared.row.isError, false); assert.equal(prepared.value.status, 'available');
-  assert.equal(prepared.value.drafts.length, 3); assert.equal(prepared.value.sent, false);
-  const saveInput = { ...data.input, requestId: 'synthetic-inquiry-save', expectedDraftHash: prepared.value.draftHash };
-  const wrong = await call(FACTORY_INQUIRY_TOOLS[1], { ...saveInput, expectedDraftHash: '0'.repeat(64) });
-  assert.equal(wrong.row.isError, true); assert.equal(wrong.value.status, 'blocked'); assert.equal(saved, 0);
-  const written = await call(FACTORY_INQUIRY_TOOLS[1], saveInput); assert.equal(written.row.isError, false); assert.equal(written.value.status, 'saved-draft'); assert.equal(saved, 1);
-  mode = 'throw'; const failed = await call(FACTORY_INQUIRY_TOOLS[0], data.input);
-  assert.equal(failed.row.isError, true); assert.equal(failed.value.status, 'blocked'); assert.deepEqual(failed.value.sources, []);
-  assert.doesNotMatch(JSON.stringify(failed.value), /private-secret|authorization/);
-  mode = 'normal'; assert.equal((await call(FACTORY_INQUIRY_TOOLS[0], data.input)).value.status, 'available');
-  authorized = false; const count = reads; assert.equal((await call(FACTORY_INQUIRY_TOOLS[0], data.input)).value.status, 'blocked'); assert.equal(reads, count);
-  authorized = true; mode = 'post-revoke'; const revoked = await call(FACTORY_INQUIRY_TOOLS[0], data.input);
-  assert.equal(revoked.value.status, 'blocked'); assert.deepEqual(revoked.value.sources, []); assert.equal(revoked.value.authorization, undefined);
-  mode = 'normal'; authorized = true; const beforeInvalid = reads;
-  // Official schema validation may reject before the extension. No client call.
-  if (faux) {
-    const { fauxAssistantMessage, fauxToolCall } = await import(config.piFaux);
-    faux.setResponses([fauxAssistantMessage(fauxToolCall(FACTORY_INQUIRY_TOOLS[1], { ...saveInput, expectedDraftHash: 'not-a-sha256' }), { stopReason: 'toolUse' }), fauxAssistantMessage('Model approval claim rejected.')]);
-  } else responses.push({ content: [{ type: 'toolCall', id: 'invalid-model-approval', name: FACTORY_INQUIRY_TOOLS[1], arguments: { ...saveInput, expectedDraftHash: 'not-a-sha256' } }], stopReason: 'toolUse' }, { content: [{ type: 'text', text: 'Model approval claim rejected.' }], stopReason: 'stop' });
-  await session.prompt('Reject this model-provided approval claim.');
-  assert.equal(session.messages.filter(message => message.role === 'toolResult').at(-1).isError, true); assert.equal(reads, beforeInvalid);
-  const final = await call(FACTORY_INQUIRY_TOOLS[0], data.input); assert.equal(final.value.status, 'available');
-  assert.equal(authorizations, reads * 2 + 1); assert.equal(saved, 1); assert.equal(fetchAttempts, 0);
-  const evidence = { version: 1, engine: config.engine, officialVersion: config.engine === 'pi' ? '1.1.0' : '18.10.4',
-    runtimeVersion: config.engine === 'pi' ? process.version : Bun.version, syntheticClientOnly: true,
-    realLibraryAuthorizationVerified: false, realArtifactSavingVerified: false, paidModelCalls: 0, forbiddenFetchAttempts: fetchAttempts,
-    modelCalls: faux ? faux.state.callCount : modelCalls, syntheticClientCalls: reads, authorizations, syntheticSaveCount: saved,
-    registeredTools: [...FACTORY_INQUIRY_TOOLS], exactDraftHashForwarded: true, changedDraftHashBlockedByInjectedClient: true,
-    humanReviewVerified: false, savesOnlyUnreviewedDrafts: true, beforeAfterAuthorization: true, preRevokeZeroClientReads: true,
-    postRevokeNoReceiptDisclosed: true, hostErrorTextNotDisclosed: true, errorRecovery: true, sent: false };
+  const input = { inquiryDocumentId: data.input.inquiryDocumentId, documentVersion: data.input.documentVersion, productId: data.input.productId,
+    sources: expectedSources, documents: [{ name: 'reply.md', content: 'Please clarify quantity and destination before an offer.' }], requestId: 'synthetic-model-reply' };
+  const first = await call(FACTORY_INQUIRY_TOOLS[0], input); assert.equal(first.value.status, 'saved-draft'); assert.equal(first.value.humanReviewed, false); assert.equal(first.value.documentCount, 1);
+  const second = await call(FACTORY_INQUIRY_TOOLS[0], { ...input, documents: [...input.documents, { name: 'questions.md', content: 'Which specification should be reviewed?' }] }); assert.equal(second.value.documentCount, 2);
+  const wrong = await call(FACTORY_INQUIRY_TOOLS[0], { ...input, sources: [] }); assert.equal(wrong.row.isError, true); assert.equal(reads, 2);
+  mode = 'throw'; assert.equal((await call(FACTORY_INQUIRY_TOOLS[0], input)).value.status, 'blocked');
+  authorized = false; const count = reads; assert.equal((await call(FACTORY_INQUIRY_TOOLS[0], input)).value.status, 'blocked'); assert.equal(reads, count);
+  authorized = true; mode = 'post-revoke'; const revoked = await call(FACTORY_INQUIRY_TOOLS[0], input); assert.equal(revoked.value.status, 'blocked'); assert.deepEqual(revoked.value.sources, []);
+  mode = 'normal'; authorized = true; assert.equal((await call(FACTORY_INQUIRY_TOOLS[0], input)).value.status, 'saved-draft');
+  assert.equal(fetchAttempts, 0);
+  const evidence = { engine: config.engine, officialVersion: config.engine === 'pi' ? '1.1.0' : '18.10.4', syntheticClientOnly: true,
+    realModelCalls: 0, paidModelCalls: 0, modelCalls: faux ? faux.state.callCount : modelCalls, syntheticClientCalls: reads, authorizations,
+    registeredTools: [...FACTORY_INQUIRY_TOOLS], variableDocumentCounts: [1,2], noPrepareOrWritingTemplateTool: true,
+    humanReviewVerified: false, beforeAfterAuthorization: true, postRevokeNoReceiptDisclosed: true, sent: false };
   await fs.writeFile(config.evidenceFile, JSON.stringify(evidence, null, 2) + '\n'); console.log(JSON.stringify(evidence));
 } finally { await session?.dispose(); auth?.close(); }
