@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { looksLikeCredential } from '../packages/workspace-procurement/src/public-input.mjs';
+import { pairLocalToolHistory } from './workspace-omp-local-pairs.mjs';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every(k => keys.includes(k));
@@ -70,16 +71,10 @@ export async function createLocalFactoryFiles({ inputs, outputDirectory, directo
   return { authorize, manifest: selected.map(({ id, name, sha256 }) => ({ id, name, sha256 })), saved, restoredSources,
     async restoreReadSources(messages) {
       await authorize();
-      const calls = new Map();
+      const pairs = new Map(pairLocalToolHistory(messages).map(pair => [pair.result, pair.call]));
       for (const message of messages) {
-        if (message.role === 'assistant') for (const block of message.content || []) {
-          // Native transcripts retain intent metadata (e.g. `i`), while the actual
-          // executor receives sanitized args. Authority is the paired successful
-          // receipt and selected ID/hash, never extra argument fields.
-          if (block.type === 'toolCall' && block.name === 'read' && typeof block.arguments?.path === 'string') calls.set(block.id, block.arguments.path);
-        }
         if (message.role !== 'toolResult' || message.toolName !== 'read' || message.isError !== false) continue;
-        const id = calls.get(message.toolCallId), file = selected.find(f => f.id === id);
+        const id = pairs.get(message)?.arguments?.path, file = selected.find(f => f.id === id);
         const source = Array.isArray(message.details?.sources) && message.details.sources.find(s => s.kind === 'user-selected-local-file' && s.recordId === id);
         if (!file || !source || source.name !== file.name || source.sha256 !== file.sha256 || message.details.privateLibrary !== false) fail('LOCAL_CACHED_SOURCE_REFUSED');
         used.set(id, file);
