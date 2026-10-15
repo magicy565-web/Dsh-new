@@ -2,6 +2,7 @@
 // Reduce repeated host/tool data only, preserving goals, prose and saved bodies.
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { pairLocalToolHistory } from './workspace-omp-local-pairs.mjs';
 
 export async function createLocalContextExtension({ packageRoot, files, authorize }) {
   const root = path.join(packageRoot, '../pi-agent-core/src');
@@ -18,24 +19,34 @@ export async function createLocalContextExtension({ packageRoot, files, authoriz
     extension: pi => pi.on('context', async event => {
       await authorize();
       const messages = structuredClone(event.messages);
-      const successful = new Map(messages.filter(m => m.role === 'toolResult' && m.isError === false).map(m => [m.toolCallId, m]));
-      const eligibleReads = new Set();
-      for (const m of messages) if (m.role === 'assistant') for (const block of m.content || []) {
-        if (block.type !== 'toolCall') continue;
-        const receipt = successful.get(block.id);
-        if (!receipt || receipt.toolName !== block.name) continue;
+      const readCopies = [];
+      for (const { call: block, result: receipt } of pairLocalToolHistory(messages)) {
+        if (receipt.isError !== false) continue;
         // `i` is OMP intent tracing, not an executor parameter.
         if (block.arguments && Object.hasOwn(block.arguments, 'i')) { delete block.arguments.i; intentFields++; }
         if (block.name === 'read' && files.manifest.some(f => f.id === block.arguments?.path
           && receipt.details?.privateLibrary === false && Array.isArray(receipt.details?.sources)
-          && receipt.details.sources.some(s => s.kind === 'user-selected-local-file' && s.recordId === f.id && s.sha256 === f.sha256 && s.name === f.name))) eligibleReads.add(block.id);
+          && receipt.details.sources.some(s => s.kind === 'user-selected-local-file' && s.recordId === f.id && s.sha256 === f.sha256 && s.name === f.name))) {
+          // Native pruning also indexes by ID with later-wins semantics. Give
+          // only its scratch entries unique IDs; outbound/journal IDs stay exact.
+          const id = 'local-prune-' + readCopies.length;
+          const result = { ...receipt, toolCallId: id, content: structuredClone(receipt.content) };
+          readCopies.push({ original: receipt, result, before: result.content,
+            call: { role: 'assistant', content: [{ ...structuredClone(block), id }], timestamp: 0 } });
+        }
       }
-      const entries = messages.map((message, index) => ({ type: 'message', id: 'context-' + index, message }));
+      const entries = readCopies.flatMap(({ call, result }, index) => [
+        { type: 'message', id: 'call-' + index, message: call },
+        { type: 'message', id: 'result-' + index, message: result },
+      ]);
       const pruned = pruneSupersededToolResults(entries, tokenizer, {
-        protectedTools: [({ toolResult }) => !eligibleReads.has(toolResult.toolCallId)],
+        protectedTools: [],
         supersedeKey: (name, args) => name === 'read' ? args.path : undefined,
         idleFlushMs: 0, pruneUseless: false,
       });
+      for (const copy of readCopies) if (copy.result.content !== copy.before) {
+        copy.original.content = copy.result.content; copy.original.prunedAt = copy.result.prunedAt;
+      }
       supersededReadResults += pruned.prunedCount;
       // Remove only exact host-appended copies. The latest manifest and every
       // user-authored character, including an earlier lookalike, remain.
