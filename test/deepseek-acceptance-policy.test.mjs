@@ -28,6 +28,9 @@ test('uncertain network charges and non-200 replies stop subsequent requests wit
   }
   assert.throws(() => measuredUsage([{ role: 'assistant', stopReason: 'toolUse', usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 } }]), /UNCERTAIN/);
 });
+test('positive total with all zero usage components is uncertain, never free', () => {
+  assert.throws(() => measuredUsage([{ role: 'assistant', stopReason: 'stop', usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 1 } }]), /UNCERTAIN_USAGE/);
+});
 test('read-only HTTP refuses writes, private reads, cross-origin and extra selectors before fetching', async () => {
   let calls = 0; const read = readonlyWorkspaceFetch('http://127.0.0.1', async () => { calls++; return new Response('{}'); });
   await read('http://127.0.0.1/api/agent/v1/tasks?limit=1');

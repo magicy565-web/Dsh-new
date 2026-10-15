@@ -26,7 +26,8 @@ export function measuredUsage(messages) {
     const u = message.usage;
     if (!['stop', 'toolUse'].includes(message.stopReason) || !u
       || !['input', 'output', 'cacheRead', 'cacheWrite', 'totalTokens'].every(k => Number.isSafeInteger(u[k]) && u[k] >= 0)
-      || u.totalTokens <= 0 || u.output > 512 || u.totalTokens > 32512) fail('UNCERTAIN_USAGE_STOP_DO_NOT_RETRY');
+      || u.totalTokens <= 0 || u.input + u.output + u.cacheRead + u.cacheWrite === 0
+      || u.output > 512 || u.totalTokens > 32512) fail('UNCERTAIN_USAGE_STOP_DO_NOT_RETRY');
     upperCny += ((u.input + u.cacheRead + u.cacheWrite) * 2 + u.output * 8) / 1e6;
   }
   if (upperCny > ACCEPTANCE_LIMITS.remainingCny) fail('REMAINING_BUDGET_EXCEEDED');
