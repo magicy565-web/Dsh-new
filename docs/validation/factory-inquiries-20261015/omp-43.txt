@@ -1,0 +1,52 @@
+✔ default one-entry launcher starts the original server without model credentials and rejects model admission (1162.413581ms)
+✔ reviewed prices and trusted remaining-budget assertion are mandatory configuration, never zero-cost defaults (0.906252ms)
+✔ owned public snapshots are removed on close, setup failure and cancellation while originals and other Runs survive (822.095529ms)
+✔ explicit public PDF selection requires exact bytes, magic, size and non-symlink paths (19.959995ms)
+✔ actual OMP ReadTool extracts selected text PDF and reports scan OCR gap without network, binary or credentials (901.859817ms)
+✔ public material selection pins exact files and refuses secrets, symlinks, traversal and changed bytes (16.673423ms)
+✔ public URL/DNS admission and provider configuration do not allow arbitrary or paid tools (4.017506ms)
+✔ actual published OMP public provider and ReadTool pass through narrow original authorization (1496.813209ms)
+✔ original HTTP OMP Run closes its real selected snapshot after a normal read and preserves other Run material (3517.451644ms)
+✔ original HTTP cancellation after an actual public read aborts the model and removes only its own snapshot (1825.176545ms)
+✔ original HTTP cached-receipt initialization rejection cleans the newly created public copy before worker exit (3303.194532ms)
+✔ original host removes only the exact Run snapshot after its owned worker is abruptly killed (1754.87606ms)
+✔ controlled original Run executes two official TaskTool child AgentSessions without tools, using the same four-call budget (2094.405343ms)
+✔ original frontend stop aborts a real native public TaskTool child and closes its hosting Bun worker (1851.380245ms)
+✔ native public review cannot broaden child tools or model even when extra arguments are stripped by the official schema (1917.498121ms)
+✔ native public review rejects a foreign child agent and a third child before their model requests (3630.772859ms)
+✔ enterprise OMP terminal transport preserves native Session, CSRF, exact identity and original execution readiness (280.963446ms)
+✔ real official OMP TUI keeps natural input read-only even when the model submits, and enables only human-confirmed explicit execution (6771.823811ms)
+✔ official OMP enterprise Session terminal performs original human approval controls (4419.301727ms)
+✔ official OMP enterprise Session terminal performs original human checkpoint controls (3722.265304ms)
+✔ official OMP enterprise Session terminal performs original human business controls (5912.053502ms)
+✔ actual official OMP TUI consumes natural input through original local HTTP Run, with no UI model or second ledger (5532.141594ms)
+ℹ Actual default Node launcher in real POSIX PTY -> official InteractiveMode; input handled:true -> original HTTP Conversation/Run -> isolated official OMP worker -> sendMessage receipt. UI provider disabled; finite keyless server fixture only.
+✔ UI-only original execution/recovery commands return unconfigured without dispatch, while human status/cancel/approval remain separate (6.044358ms)
+✔ terminal transport refuses a legacy Pi host and enterprise Session without creating a conversation or Run (50.80528ms)
+✔ original public terminal receipt enforces enterprise Session, conversation ownership and exact Run membership (2049.244604ms)
+✔ default official terminal stays interactive without credentials and displays original unconfigured refusal with zero Runs (2892.886817ms)
+✔ official terminal human stop confirmation preserves the original Run on Escape, then natively cancels that exact Run (5608.480326ms)
+✔ actual OMP public md and source receipts feed original factory documents with one original frontend Run (4271.630143ms)
+✔ actual OMP public pdf and source receipts feed original factory documents with one original frontend Run (3658.397829ms)
+✔ original OMP model receives explicit truncation and unknown OCR notice for a long native PDF extraction (3718.506553ms)
+✔ original OMP Run persists a real SDK search refusal and reports partial without fabricated candidates or replacement tasks (3217.777661ms)
+✔ reopening a selected PDF rejects obsolete cached extraction policy before inference even when its ID and SHA still match (4632.420846ms)
+✔ revoked selected public document rejects original OMP cached receipt before the next model call (3272.603788ms)
+✔ changed selection hash for the same public document ID rejects the old cached content before inference (3365.966429ms)
+✔ actual OMP SDK subprocess uses original Workspace identity, ledger and factory tools (3776.276214ms)
+✔ OMP factory task produces four original stages and exact original documents, with no second business executor (2145.882601ms)
+✔ OMP fresh scope refuses old Pi transcripts and read-only input cannot submit a factory task (1853.802773ms)
+✔ actual official OMP CLI loads the standard factory extension beside native tools (6870.4265ms)
+✔ original stop-answer aborts the actual OMP provider and its worker, preserving separately admitted backend task cancellation (1896.865338ms)
+✔ OMP-linked factory task confirmed recovery reuses the original durable stage and documents after actual application restart (2167.35754ms)
+✔ OMP adapter preserves exact original human approval and separate continuation, with one synthetic local document receipt (251.744928ms)
+✔ legacy front conversation blocks own cross-engine input while foreign IDs remain 404 and original cancellation stays available (37.99631ms)
+✔ reopening current OMP scope rejects a synthetic non-admitted cached tool receipt before a model call (3258.3291ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 115853.443443

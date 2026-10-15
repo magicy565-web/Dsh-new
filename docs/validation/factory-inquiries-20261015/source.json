@@ -1,0 +1,99 @@
+{
+  "baseline": "cd3c22d09710e7b8668d1bc00facb642c56423a8",
+  "issue": 73,
+  "packageTests": {
+    "passed": 7,
+    "skipped": 0,
+    "injectedClient": "synthetic only; actual official Pi/OMP SDK"
+  },
+  "originalServicesAndOmpWorker": {
+    "passed": 9,
+    "skipped": 0,
+    "models": "finite keyless only",
+    "originalLibraryArtifactRunActual": true,
+    "partialReload": true,
+    "sameConversationSecondRunExactReplay": true,
+    "httpCancellationBeforeArtifactCommit": true
+  },
+  "relatedIntegration": {
+    "passed": 25,
+    "skipped": 0,
+    "overlapsOtherCounts": true
+  },
+  "originalRegression": {
+    "passed": 70,
+    "skipped": 0
+  },
+  "ompOriginalRegression": {
+    "passed": 43,
+    "skipped": 0,
+    "testConcurrency": 1,
+    "twoEarlierCombinations42of43": "Terminal timing/exit cause not established; retained separately in factory-materials evidence"
+  },
+  "typecheck": "passed",
+  "identityRateLimit": {
+    "observedHttpStatus": 429,
+    "path": "/api/agent/v1/identity",
+    "originalLimitUnchanged": true,
+    "automaticRetry": false,
+    "remedy": "Same-boundary complete-receipt canonical-hash deduplication and original live Session authority for inner Library reads; outer tool/RPC/model/save binding proofs retained"
+  },
+  "realModelCalls": 0,
+  "paidModelCalls": 0,
+  "externalSending": false,
+  "deployment": false,
+  "sourceFiles": [
+    {
+      "path": "server/factory-inquiries.mjs",
+      "sha256": "895d112ae57f62696f8e08cdb0e14e108b7e25a0ccc874a317184e86f1e36035"
+    },
+    {
+      "path": "server/pi-business-agent.mjs",
+      "sha256": "0bc633b99743125d553f94168a20294cc3189ea5bd92f0f4775f9640e14df8b2"
+    },
+    {
+      "path": "server/library-model-read.mjs",
+      "sha256": "c293db2abd3bae2b23994498d8f8d80f231b1003bea31f84b1966001ade061c1"
+    },
+    {
+      "path": "server/index.mjs",
+      "sha256": "6534f1f29845723606a7523180ac77d1f4ae4e003110e07495ee91ae05b2bfee"
+    },
+    {
+      "path": "server/workspace-omp-bridge.mjs",
+      "sha256": "861d08bef1954acf419407ff872dfdceef030f9035fe5561f2b7bfe544762f04"
+    },
+    {
+      "path": "server/workspace-omp-session.mjs",
+      "sha256": "8034c74b3973822f5ab3434c19634fabf01fd564b3df8313de037f1b9a65ae17"
+    },
+    {
+      "path": "server/workspace-omp-worker.mjs",
+      "sha256": "051f2de67de6a3f86843eb479dfb4b1263456fa83a13c61974cd1de2479da303"
+    },
+    {
+      "path": "server/workspace-omp-host.mjs",
+      "sha256": "7f05f5816699dac283af0a2de06c7e6786a1a8eb70ec2365f9d66f827ad7d872"
+    },
+    {
+      "path": "server/workspace-omp-terminal-client.mjs",
+      "sha256": "52c06554e012aabfecd7bbfbe8b049d734c3eeb7ca91f9bc8101df099069d5f9"
+    },
+    {
+      "path": "scripts/workspace-omp-terminal.mjs",
+      "sha256": "c318d3a2fe5dd6bceee4cbe50a9571f2f21c5e8fbf1701d32f58e194e0a8b887"
+    },
+    {
+      "path": "packages/workspace-factory-inquiries/src/drafts.mjs",
+      "sha256": "29157dc8e84ededb23474b3077c3fc500f31c77d933c1504f97ada25aa934ba5"
+    },
+    {
+      "path": "packages/workspace-factory-inquiries/src/extension.js",
+      "sha256": "20abbfd71414b34917fe6bf7afbc14bd558a63ed9326ba51ad691e8db5d54494"
+    },
+    {
+      "path": "packages/workspace-factory-inquiries/sources.json",
+      "sha256": "6e5d6fa54e184a7ebcc1d5517e75a070f2365bae3e1cd818ad203e0a7bf9f8ac"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "repository": "https://github.com/coreyhaines31/marketingskills",
+      "commit": "55ff469422c3592dac45bcad08dfb40221981c02",
+      "resource": "https://raw.githubusercontent.com/coreyhaines31/marketingskills/55ff469422c3592dac45bcad08dfb40221981c02/skills/cold-email/SKILL.md",
+      "declaredVersion": "2.2.0",
+      "reviewedRawSha256": "963540924147c3b74b7693bbc292ac2da3d407807c270f8a3123bd3432fdc337",
+      "fixedCommitResourceFetched": true,
+      "license": "MIT",
+      "licenseURL": "https://raw.githubusercontent.com/coreyhaines31/marketingskills/55ff469422c3592dac45bcad08dfb40221981c02/LICENSE",
+      "licenseRawSha256": "b70d71e24e40fce5da8f4b6f9cd862096a048e433db7f3c8cac5e348e6d34591",
+      "copyright": "Copyright (c) 2025 Corey Haines",
+      "use": "Independent short adaptation: evidence-based recipient relevance, one easy question, and genuinely new supplied material before considering follow-up.",
+      "sourceTextCopied": false,
+      "entireCollectionInstalled": false,
+      "sendingOrDomainSetupExecuted": false,
+      "accountOrMailboxAccess": false,
+      "automatedFollowup": false
+    }
+  ]
+}

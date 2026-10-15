@@ -16,6 +16,11 @@ const client = Object.fromEntries(clientMethods.map(method => [method, (...args)
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
   created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials,
+    inquiryClient: config.factoryInquiries ? {
+      prepare: (input, _signal, model) => request('factoryInquiryPrepare', [input, model]),
+      save: (input, _signal, model) => request('factoryInquirySave', [input, model]),
+      revalidateReceipt: (receipt, model) => request('factoryInquiryRevalidate', [receipt, model]),
+    } : null,
     materialsClient: config.factoryMaterials ? {
       status: (_signal, model) => request('factoryMaterialsStatus', [model]),
       materials: (input, _signal, model) => request('factoryMaterialsRead', [input, model]),
@@ -54,7 +59,7 @@ input.on('line', line => {
     if (value.error) operation.reject(new Error(value.error)); else operation.resolve(value.result);
   } else if (value.type === 'abort') { lifecycle.abort(); void created?.session.abort(); }
   else if (value.type === 'start') void start(value.config).catch(async error => {
-    write({ type: 'error', error: 'The official OMP public session failed; no task completion or model fallback is implied.',
+    write({ type: 'error', error: 'The official OMP session failed; no task completion or model fallback is implied.',
       ...(value.config.syntheticResponses ? { diagnostic: error.message } : {}) });
     await created?.close().catch(() => {}); process.exit(1);
   });

@@ -6,6 +6,8 @@ Issue #71另提供独立 [工厂资料插件](FACTORY-MATERIALS.md)：默认安�
 
 Issue #72提供单独的 [公开客户研究配置](FACTORY-CUSTOMERS.md)：`WORKSPACE_OMP_PROFILE=factory-customers`，复用原搜索/浏览器和原factory-export文书任务，与私库资料配置隔离。真实原生搜索目前拒绝、零来源，不能把合成正向链称为实际海外客户发现。
 
+Issue #73另有 [询盘与人工审核草稿配置](FACTORY-INQUIRIES.md)：`WORKSPACE_OMP_PROFILE=factory-inquiries`，仅在原审核资料范围内提取询盘需求、对照真实原记录并保存三份未发送草稿；没有公开搜索或发送工具，保存保留原执行意图与exact draft hash核对。
+
 ## 启动
 
 本轮固定运行器安装适用于Linux x64；实测Node24.19.0。先在开发检出中安装锁定依赖和必要运行器，安装器使用官方固定npm包并禁生命周期脚本，不安装语音／本地模型组件：

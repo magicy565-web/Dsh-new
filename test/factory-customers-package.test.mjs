@@ -206,4 +206,3 @@ test('public customer workflow rejects private inputs, missing capabilities, for
     sameTranscriptReceiptRequired: true, exactPublicProductAndMarketRequired: true, originalBusinessSubmitGateRetained: true,
     stableRequestIdPreserved: true, hostErrorTextNotDisclosed: true, revokedAuthorityNoReceipt: true, alreadyCancelledZeroDispatch: true, errorRecovery: true, paidModelCalls: 0 });
 });
-

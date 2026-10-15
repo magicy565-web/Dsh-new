@@ -1,0 +1,14 @@
+{
+  "name": "@workspace-agent/pi-factory-inquiries",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Source-bound inquiry comparison and unsent quotation, sample and follow-up review drafts",
+  "keywords": ["pi-package"],
+  "engines": { "node": ">=24" },
+  "files": ["src", "skills", "README.md", "sources.json"],
+  "exports": { ".": "./src/extension.js", "./drafts": "./src/drafts.mjs" },
+  "pi": { "extensions": ["./src/extension.js"], "skills": ["./skills/factory-inquiries"] },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "1.1.0", "@oh-my-pi/pi-coding-agent": "18.10.4" },
+  "peerDependenciesMeta": { "@earendil-works/pi-coding-agent": { "optional": true }, "@oh-my-pi/pi-coding-agent": { "optional": true } }
+}
