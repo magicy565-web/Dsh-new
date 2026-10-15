@@ -112,3 +112,13 @@ test('already cancelled, revoked authority and cancellation or intent revocation
   s.f.app.artifacts.create = original; s.flags.admitted = true;
   await assertExact(s.f, await s.make().save(value), value);
 });
+test('concurrent exact saves persist one original artifact; mutated artifact cannot be reported as an exact replay', async t => {
+  const s = await fixture(t), value = input();
+  const results = await Promise.all(Array.from({ length: 6 }, () => s.make().save(value)));
+  assert.equal(new Set(results.map(r => r.artifacts[0].artifactId)).size, 1);
+  assert.equal(results.filter(r => !r.artifacts[0].duplicate).length, 1);
+  const id = results[0].artifacts[0].artifactId;
+  await s.f.app.artifacts.update(id, { content: 'Subsequently edited content.' });
+  await assert.rejects(s.make().save(value), e => e.code === 'PUBLIC_DRAFT_ARTIFACT_CHANGED' && e.status === 409);
+  assert.equal(drafts(s.f).length, 1); assert.equal(s.f.app.artifacts.get(id).artifact.currentVersion, 2);
+});

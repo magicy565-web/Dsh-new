@@ -17,8 +17,8 @@ const client = { async save(input, signal, model) {
   reads++; validateInquiryDrafts(input); assert.equal(model.id, 'finite');
   if (mode === 'throw') throw Error('private-host-error-must-not-escape');
   if (mode === 'post-revoke') authorized = false;
-  if (factoryInquiryHash(input.sources) !== factoryInquiryHash(expectedSources)) return { status: 'blocked', reason: 'SOURCE_CHANGED' };
-  saved++; return { plugin: 'workspace-factory-inquiries', status: 'saved-draft', sources: expectedSources, documentCount: input.documents.length, humanReviewed: false, humanReviewRequired: true, sent: false };
+  if (factoryInquiryHash(input.sources) !== factoryInquiryHash(expectedSources)) return { plugin: 'workspace-factory-inquiries', status: 'blocked', reason: 'SOURCE_CHANGED', sources: [], humanReviewed: false, humanReviewRequired: true, sent: false, externalActions: false };
+  saved++; return { plugin: 'workspace-factory-inquiries', status: 'saved-draft', sources: expectedSources, documentCount: input.documents.length, humanReviewed: false, humanReviewRequired: true, sent: false, externalActions: false };
 } };
 const responses = [];
 let session, auth, settings, sdk, faux;

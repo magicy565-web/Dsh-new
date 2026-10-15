@@ -36,11 +36,23 @@ test('factory disclosure refuses foreign members, Agent credentials, wrong model
   assert.equal((await client(f, { calls }).materials({}, undefined, { ...MODEL, id: 'unreviewed' })).status, 'blocked'); assert.deepEqual(calls, []);
   assert.equal((await client(f, { calls }).materials({})).status, 'blocked'); assert.deepEqual(calls, []);
   const bearer = await api(f, API + '/status'); assert.ok([401, 403].includes(bearer.status));
-  for (const suffix of ['/materials?subject=member-b', '/materials?fields=pricingNote', '/materials?limit=1&limit=2', '/status?limit=1']) {
+  for (const suffix of ['/materials?subject=member-b', '/materials?fields=pricingNote', '/materials?limit=1&limit=2', '/materials?productId=', '/status?limit=1']) {
     const r = await f.workspace(API + suffix, { subject: 'member-a', headers: { 'X-Workspace-Library-Recipient': libraryReadHash(RECIPIENT) } }); assert.equal(r.status, 400);
   }
   const denied = await f.workspace(API + '/materials', { subject: 'member-a', body: { requestId: 'forbidden' } }); assert.equal(denied.status, 405);
   assert.equal(f.app.businessLibrary.getProduct(f.product.id).product.revision, 1);
+});
+test('original material client forwards AbortSignal and cancels a pending response body without disclosing data', async () => {
+  const controller = new AbortController(); let requests = 0, closed = 0, reading;
+  const started = new Promise(resolve => { reading = resolve; });
+  const c = createWorkspaceFactoryMaterialsClient({ recipient: RECIPIENT, request: async (_route, options) => {
+    requests++; assert.equal(options.signal, controller.signal);
+    return new Response(new ReadableStream({ pull() { reading(); }, cancel() { closed++; } }), { headers: { 'content-type': 'application/json' } });
+  } });
+  const pending = c.materials({}, controller.signal, MODEL);
+  await started; controller.abort();
+  await assert.rejects(pending, e => e.name === 'AbortError'); assert.equal(closed, 1);
+  await assert.rejects(c.status(controller.signal, MODEL), e => e.name === 'AbortError'); assert.equal(requests, 1);
 });
 test('factory default policy reads no private records and a missing second record never discloses the first projection', async t => {
   const disabled = await materialsFixture(t, { policy: null }); let reads = 0;

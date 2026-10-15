@@ -50,17 +50,22 @@ export function createWorkspaceFactoryMaterialsClient({ request, recipient }) {
   const receiver = normalizeLibraryRecipient(recipient), receiverHash = libraryReadHash(receiver);
   const matchesModel = model => { try { return libraryReadHash(libraryRecipientForModel(model)) === receiverHash; } catch { return false; } };
   async function read(suffix, signal, model) {
+    signal?.throwIfAborted();
     if (!matchesModel(model)) return gap('FACTORY_MATERIAL_RECIPIENT_CHANGED');
     const response = await request(API + suffix, { method: 'GET', redirect: 'error', signal,
       headers: { Accept: 'application/json', 'X-Workspace-Library-Recipient': receiverHash } });
+    signal?.throwIfAborted();
     if (!response?.ok) { if ([401, 403, 404, 409].includes(response?.status)) return gap('FACTORY_MATERIAL_SESSION_REFUSED_HTTP_' + response.status); invalid(); }
     if (response.redirected || !/^application\/json(?:;|$)/i.test(response.headers.get('content-type') || '')) invalid();
     const reader = response.body?.getReader(); if (!reader) invalid();
+    const cancelRead = () => { void reader.cancel().catch(() => {}); };
+    signal?.addEventListener('abort', cancelRead, { once: true });
     let bytes = 0, chunks = [];
-    try { for (;;) { const chunk = await reader.read(); if (chunk.done) break;
+    try { for (;;) { signal?.throwIfAborted(); const chunk = await reader.read(); signal?.throwIfAborted(); if (chunk.done) break;
       bytes += chunk.value.byteLength; if (bytes > 512000) { await reader.cancel(); invalid(); } chunks.push(chunk.value); }
-    } finally { reader.releaseLock(); }
+    } finally { signal?.removeEventListener('abort', cancelRead); reader.releaseLock(); }
     let value; try { value = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { invalid(); }
+    signal?.throwIfAborted();
     if (value?.plugin !== 'workspace-factory-materials' || looksLikeCredential(JSON.stringify(value))) invalid();
     if (value.status === 'unconfigured') return { plugin: value.plugin, status: 'unconfigured', reason: 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', sources: [] };
     const a = value.authorization;

@@ -1,7 +1,8 @@
 // Thin original Library/artifact adapter. No model, writing template or loop.
 import { ApiError } from './runtime.mjs';
+import { createHash } from 'node:crypto';
 import { libraryReadHash } from './library-model-read-contract.mjs';
-import { validateInquiryDrafts } from '../packages/workspace-factory-inquiries/src/drafts.mjs';
+import { validateInquiryDrafts } from '../packages/workspace-factory-inquiries/src/contracts.mjs';
 const fail = (status, code) => { throw new ApiError(status, code, 'Original authority, unchanged source references and unreviewed draft content are required.'); };
 const flags = { humanReviewRequired: true, humanReviewed: false, sent: false, externalActions: false };
 const selectors = input => ({ inquiryDocumentId: input.inquiryDocumentId, documentVersion: input.documentVersion, productId: input.productId });
@@ -9,8 +10,9 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
   async function readSources(input, signal, model) {
     signal?.throwIfAborted(); await authorize();
     const inquiry = await materialsClient.document({ documentId: input.inquiryDocumentId, documentVersion: input.documentVersion }, signal, model);
+    signal?.throwIfAborted();
     const materials = await materialsClient.materials({ productId: input.productId }, signal, model);
-    await authorize();
+    signal?.throwIfAborted(); await authorize(); signal?.throwIfAborted();
     if (!['available', 'partial'].includes(inquiry.status) || materials.status !== 'available'
       || inquiry.authorization.workspaceId !== identity.workspaceId || inquiry.authorization.subject !== identity.subject
       || libraryReadHash(inquiry.authorization) !== libraryReadHash(materials.authorization)) fail(403, 'FACTORY_INQUIRY_SOURCE_REFUSED');
@@ -33,7 +35,7 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
       fail(409, 'FACTORY_INQUIRY_REQUEST_CHANGED');
   }
   async function save(input, signal, model) {
-    const selected = validateInquiryDrafts(input); await authorize();
+    signal?.throwIfAborted(); const selected = validateInquiryDrafts(input); await authorize(); signal?.throwIfAborted();
     if (!canSave()) fail(403, 'BUSINESS_EXECUTION_INTENT_REQUIRED');
     const context = await readSources(selected, signal, model);
     if (libraryReadHash(context.sources) !== libraryReadHash(selected.sources)) fail(409, 'FACTORY_INQUIRY_SOURCE_CHANGED');
@@ -55,10 +57,14 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
           description: 'Unreviewed model-written factory inquiry draft.', metadata: { businessLibrary: { visibility: 'internal' },
             factoryInquiry: { ...flags, requestGroup: group, batchHash, sourceHash, sources: context.sources, contentOrigin: 'model-draft-unverified' } },
           sourceConversationId: conversationId, ...(sourceRunId ? { sourceRunId } : {}) }, { check(state) { signal?.throwIfAborted(); assertCurrent(state, context, group, batchHash); } });
-        await authorize(); saved.push({ name: draft.name, artifactId: result.artifact.id, version: result.artifact.currentVersion, sha256: result.artifact.sha256, duplicate: result.duplicate === true });
+        const record = result.artifact, meta = record.metadata?.factoryInquiry;
+        if (record.currentVersion !== 1 || record.sha256 !== createHash('sha256').update(content).digest('hex') || record.filename !== draft.name
+          || record.sourceConversationId !== conversationId || meta?.requestGroup !== group || meta.batchHash !== batchHash || meta.sourceHash !== sourceHash
+          || Object.entries(flags).some(([key, value]) => meta[key] !== value) || libraryReadHash(meta.sources) !== libraryReadHash(context.sources)) fail(409, 'FACTORY_INQUIRY_ARTIFACT_CHANGED');
+        signal?.throwIfAborted(); await authorize(); signal?.throwIfAborted(); saved.push({ name: draft.name, artifactId: result.artifact.id, version: result.artifact.currentVersion, sha256: result.artifact.sha256, duplicate: result.duplicate === true });
       } catch (error) { if ([401, 403, 409].includes(error.status) || signal?.aborted) throw error; failed = true; break; }
     }
-    await authorize();
+    signal?.throwIfAborted(); await authorize(); signal?.throwIfAborted();
     return { plugin: 'workspace-factory-inquiries', status: failed ? 'partial' : 'saved-draft', ...context, ...flags,
       input: selectors(selected), sourceHash, batchHash, artifacts: saved, ...(failed ? { reason: 'ORIGINAL_ARTIFACT_SAVE_INCOMPLETE' } : {}) };
   }
@@ -84,7 +90,7 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
         || meta.batchHash !== receipt.batchHash || libraryReadHash(meta.sources) !== libraryReadHash(context.sources)) throw Error('Cached inquiry artifact scope changed.');
       const file = await artifacts.download(ref.artifactId, { version: ref.version }); if (file.version.sha256 !== ref.sha256) throw Error('Cached inquiry artifact bytes changed.');
     }
-    await authorize();
+    signal?.throwIfAborted(); await authorize(); signal?.throwIfAborted();
   }
   return Object.freeze({ save, revalidateReceipt });
 }

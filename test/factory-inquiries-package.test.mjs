@@ -120,7 +120,7 @@ for (const engine of ['pi', 'omp']) test(`official ${engine} SDK delegates model
 
 test('thin save schema allows variable model bodies while rejecting authority, paths and invalid source selectors', () => {
   const d = inquiryFixture(factoryInquiryHash);
-  const input = { inquiryDocumentId: d.input.inquiryDocumentId, documentVersion: 1, productId: d.input.productId,
+  const input = { inquiryDocumentId: d.input.inquiryDocumentId, documentVersion: d.input.documentVersion, productId: d.input.productId,
     sources: [...d.inquiry.sources, ...d.materials.sources], documents: [{ name: 'reply.md', content: 'Please confirm your desired quantity.' }], requestId: 'source-bound-draft' };
   assert.deepEqual(validateInquiryDrafts(input), input);
   for (const bad of [{ ...input, confirmed: true }, { ...input, humanReviewed: true }, { ...input, documents: [] }, { ...input, documents: [{ name: '../outside.md', content: 'bad' }] }, { ...input, sources: [] }]) assert.throws(() => validateInquiryDrafts(bad));

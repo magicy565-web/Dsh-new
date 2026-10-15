@@ -1,52 +1,38 @@
 // A single injected original-artifact save adapter. The official model/tool
 // loop selects public research tools; this package neither invokes nor orders them.
 export const FACTORY_CUSTOMER_TOOLS = Object.freeze(['workspace_factory_customers_save']);
-const schema = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
-const string = maxLength => ({ type: 'string', minLength: 1, maxLength });
-const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every(key => keys.includes(key));
-function publicText(value, maximum) {
-  if (typeof value !== 'string' || !value.trim() || value.length > maximum
-    || /workspace-(?:factory-materials|library)|\b(?:authorization|scopeFingerprint|assets?|artifactId|artifactVersion|documentVersion|sessionFile|recipient|workspaceId|cookie|csrfToken|client_secret|api_key|access_token|refresh_token|password)\b\s*["']?\s*[:=]|\bBearer\s+|\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}|\bgh[pousr]_[A-Za-z0-9]{20,}|\bxox[baprs]-[A-Za-z0-9-]{10,}|\bAKIA[A-Z0-9]{16}\b|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|file:\/\/|(?:^|[\s"'])(?:\/(?:tmp|home|root|workspace|etc|var)\/|[A-Za-z]:\\)/iu.test(value)) throw new Error('Public draft input refused.');
-  return value;
-}
-export function validateCustomerDrafts(input) {
-  if (!exact(input, ['requestId', 'documents', 'sourceToolCallIds'])) throw new Error('Unexpected selectors.');
-  publicText(input.requestId, 128);
-  if (!Array.isArray(input.documents) || input.documents.length < 1 || input.documents.length > 5
-    || !Array.isArray(input.sourceToolCallIds) || input.sourceToolCallIds.length < 1 || input.sourceToolCallIds.length > 20) throw new Error('Bounded documents and references required.');
-  for (const document of input.documents) {
-    if (!exact(document, ['name', 'content']) || typeof document.name !== 'string' || document.name.length > 100
-      || !/^[A-Za-z0-9][A-Za-z0-9_-]*\.md$/u.test(document.name)) throw new Error('Safe Markdown name required.');
-    publicText(document.content, 24000);
-  }
-  if (new Set(input.documents.map(row => row.name)).size !== input.documents.length
-    || input.documents.reduce((sum, row) => sum + row.content.length, 0) > 60000
-    || new Set(input.sourceToolCallIds).size !== input.sourceToolCallIds.length) throw new Error('Duplicate or oversized input.');
-  for (const id of input.sourceToolCallIds) publicText(id, 200);
-  return { requestId: input.requestId, documents: input.documents.map(({ name, content }) => ({ name, content })), sourceToolCallIds: [...input.sourceToolCallIds] };
-}
+import { FACTORY_CUSTOMER_INPUT, validateCustomerDrafts } from './contracts.mjs';
+export { validateCustomerDrafts } from './contracts.mjs';
 const response = value => ({ content: [{ type: 'text', text: JSON.stringify(value) }], details: value,
-  ...(['blocked', 'unavailable', 'unconfigured'].includes(value.status) ? { isError: true } : {}) });
-const refused = (status, reason) => response({ plugin: 'workspace-factory-customers', status, reason, sources: [], sent: false, humanReviewRequired: true });
+  ...(['blocked', 'unavailable', 'unconfigured', 'partial'].includes(value.status) ? { isError: true } : {}) });
+const refused = (status, reason) => response({ plugin: 'workspace-factory-customers', status, reason, sources: [], sent: false, humanReviewed: false, humanReviewRequired: true, externalActions: false, verifiedBuyer: false, contactPermission: false });
 export function factoryCustomersExtension({ client, authorize } = {}) {
   return pi => pi.registerTool({ name: FACTORY_CUSTOMER_TOOLS[0], label: 'Save public customer research drafts',
     description: 'Only when requested, save model-written public customer research drafts through original Workspace artifacts. Reference exact successful original workspace_public_search/browser tool call IDs from this conversation. The Host verifies sources, current authority and idempotency. No research orchestration, business task, contact, sending or buyer verification.',
-    parameters: schema({ requestId: string(128), documents: { type: 'array', minItems: 1, maxItems: 5,
-      items: schema({ name: { ...string(100), pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*\\.md$' }, content: string(24000) }, ['name', 'content']) },
-      sourceToolCallIds: { type: 'array', minItems: 1, maxItems: 20, uniqueItems: true, items: string(200) } }, ['requestId', 'documents', 'sourceToolCallIds']),
+    parameters: FACTORY_CUSTOMER_INPUT, approval: 'write',
     async execute(_id, input, signal, _update, ctx) {
+      let phase = 'input';
       try {
-        input = validateCustomerDrafts(input);
+        signal?.throwIfAborted(); input = validateCustomerDrafts(input);
         if (typeof client?.save !== 'function' || typeof authorize !== 'function') return refused('unconfigured', 'ORIGINAL_ARTIFACT_SAVE_HOST_REQUIRED');
         if (!ctx?.model) return refused('blocked', 'EXACT_MODEL_RECEIVER_REQUIRED');
-        signal?.throwIfAborted(); await authorize(signal, ctx.model); signal?.throwIfAborted();
+        phase = 'authorization'; await authorize(signal, ctx.model); signal?.throwIfAborted();
         let saved;
+        phase = 'operation';
         try { saved = await client.save(input, signal, ctx.model); }
-        finally { await authorize(signal, ctx.model); signal?.throwIfAborted(); }
-        if (!saved || saved.plugin !== 'workspace-factory-customers' || typeof saved.status !== 'string') throw new Error('Original save receipt required.');
+        finally { phase = 'authorization'; signal?.throwIfAborted(); await authorize(signal, ctx.model); signal?.throwIfAborted(); phase = 'operation'; }
+        phase = 'receipt';
+        if (!saved || saved.plugin !== 'workspace-factory-customers' || !['saved-draft', 'partial', 'blocked', 'unavailable', 'unconfigured'].includes(saved.status)
+          || !Array.isArray(saved.sources) || saved.sent !== false || saved.humanReviewed !== false || saved.humanReviewRequired !== true
+          || saved.externalActions !== false || saved.verifiedBuyer !== false || saved.contactPermission !== false) throw new Error('Invalid original save receipt.');
         return response(saved);
-      } catch {
-        return refused('blocked', signal?.aborted ? 'ORIGINAL_OPERATION_CANCELLED' : 'PUBLIC_DRAFT_OR_ORIGINAL_HOST_OPERATION_REFUSED');
+      } catch (error) {
+        const conflicts = ['PUBLIC_DRAFT_REQUEST_CHANGED', 'PUBLIC_DRAFT_ARTIFACT_CHANGED', 'ORIGINAL_PUBLIC_SOURCE_RECEIPT_REQUIRED', 'PUBLIC_SOURCE_URL_REFUSED', 'PUBLIC_SOURCE_METADATA_LIMIT'];
+        return refused('blocked', signal?.aborted || error?.name === 'AbortError' ? 'ORIGINAL_OPERATION_CANCELLED'
+          : phase === 'input' ? 'FACTORY_CUSTOMER_INPUT_INVALID'
+          : phase === 'authorization' || [401, 403].includes(error?.status) ? 'ORIGINAL_AUTHORIZATION_REFUSED'
+          : phase === 'receipt' ? 'INVALID_ORIGINAL_SAVE_RECEIPT'
+          : conflicts.includes(error?.code) ? error.code : 'ORIGINAL_HOST_OPERATION_FAILED');
       }
     } });
 }

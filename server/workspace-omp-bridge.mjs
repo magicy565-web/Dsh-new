@@ -31,6 +31,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
   const engineScope = factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
     async complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, isolationDirectory, savedSession, saveSession }) {
+      input.signal?.throwIfAborted();
       await checkWorkspaceOmpPaths(paths); await authorize();
       const user = input.messages.filter(row => row.role === 'user').at(-1);
       if (!user || typeof user.content !== 'string') throw new ProviderError('PUBLIC_TEXT_REQUIRED', 'Use the original public text admission.');
@@ -54,6 +55,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
       for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS']) if (typeof infrastructure[key] === 'string') childEnv[key] = infrastructure[key];
       // No service token/API key appears in argv, logs or env. The selected
       // model configuration crosses the private fd only, and never the model context.
+      input.signal?.throwIfAborted();
       return await new Promise((resolve, reject) => {
         const child = spawn(paths.bun, [path.join(root, 'server/workspace-omp-worker.mjs')], { cwd: isolationDirectory, env: childEnv, detached: true, stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
         onWorkerLifecycle({ phase: 'spawn', pid: child.pid });
@@ -61,6 +63,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         const lines = createInterface({ input: channel, crlfDelay: Infinity });
         const send = value => { if (!channel.destroyed) channel.write(JSON.stringify(value) + '\n'); };
         let terminateTimer, killTimer;
+        const operations = new Map();
         const stop = () => { if (childClosed || killTimer) return; send({ type: 'abort' });
           // Let the official root/child AbortSignals settle first. Escalation
           // remains bounded and targets only this owned worker/process group.
@@ -73,31 +76,36 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         lines.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP line transport closed.')); });
         const finishSuccess = () => { if (childClosed && cleanupComplete && resultVerified) finish(null, { ...pendingResult, runtime: { ...pendingResult.runtime, workerExitObserved: true } }); };
         input.signal?.addEventListener('abort', stop, { once: true });
+        if (input.signal?.aborted) stop();
         const allowed = new Set(factoryCustomers || factoryInquiries ? [] : ['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
         const handleLine = async line => {
           bytes += Buffer.byteLength(line); if (bytes > 8_000_000 || Buffer.byteLength(line) > 2_000_000) { finish(new ProviderError('OMP_PROTOCOL_LIMIT', 'OMP exceeded its admitted transport limit.')); return; }
           let message; try { message = JSON.parse(line); } catch { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'OMP returned an invalid transport receipt.')); return; }
+          if (message.type === 'cancelRequest') { operations.get(message.id)?.abort(); return; }
           if (message.type === 'request') {
+            if (!Number.isSafeInteger(message.id) || message.id < 1 || operations.has(message.id)) { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'Invalid original operation identifier.')); return; }
+            const operation = new AbortController(); operations.set(message.id, operation);
+            const rpcSignal = input.signal ? AbortSignal.any([input.signal, operation.signal]) : operation.signal;
             try {
-              await authorize(); let result;
+              rpcSignal.throwIfAborted(); await authorize(); rpcSignal.throwIfAborted(); let result;
               if (message.method === 'authorize') result = true;
               else if (message.method === 'saveSession') result = await saveSession(message.args[0]);
               else if (message.method === 'modelRequest') { if (++modelCalls > 4) throw new Error('Original model request bound exceeded.'); await input.onEvent?.({ type: 'pi.agent-session.request', engine: 'omp' }); result = true; }
               else if (factoryInquiries && ['factoryInquirySave', 'factoryInquiryRevalidate'].includes(message.method)) {
                 if (!inquiryClient) throw Error('Original inquiry Session client is unavailable.');
                 const [value, model] = message.args || [];
-                if (message.method === 'factoryInquirySave') result = await inquiryClient.save(value, input.signal, model);
-                else { await inquiryClient.revalidateReceipt(value, model, input.signal); result = true; }
+                if (message.method === 'factoryInquirySave') result = await inquiryClient.save(value, rpcSignal, model);
+                else { await inquiryClient.revalidateReceipt(value, model, rpcSignal); result = true; }
               } else if (factoryCustomers && message.method === 'factoryCustomerSave') {
                 if (!customerClient) throw Error('Original public draft Session client unavailable.');
-                result = await customerClient.save(message.args?.[0], input.signal, message.args?.[1]);
+                result = await customerClient.save(message.args?.[0], rpcSignal, message.args?.[1]);
               } else if (factoryMaterials && ['factoryMaterialsStatus', 'factoryMaterialsRead', 'factoryDocumentRead', 'factoryMaterialsRevalidate'].includes(message.method)) {
                 if (!materialsClient) throw Error('Original Library Session client is unavailable.');
                 const [value, model] = message.args || [];
-                if (message.method === 'factoryMaterialsStatus') result = await materialsClient.status(input.signal, value);
-                else if (message.method === 'factoryMaterialsRead') result = await materialsClient.materials(value, input.signal, model);
-                else if (message.method === 'factoryDocumentRead') result = await materialsClient.document(value, input.signal, model);
-                else { await materialsClient.revalidateReceipt(value, model, input.signal); result = true; }
+                if (message.method === 'factoryMaterialsStatus') result = await materialsClient.status(rpcSignal, value);
+                else if (message.method === 'factoryMaterialsRead') result = await materialsClient.materials(value, rpcSignal, model);
+                else if (message.method === 'factoryDocumentRead') result = await materialsClient.document(value, rpcSignal, model);
+                else { await materialsClient.revalidateReceipt(value, model, rpcSignal); result = true; }
               } else if (allowed.has(message.method)) {
                 const args = message.args || []; if (args.length > 2) throw new Error('Invalid original client invocation.');
                 if (message.method === 'businessSubmit') result = await client.businessSubmit(args[0], input.signal);
@@ -105,8 +113,16 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 else if (message.method === 'businessStatus') result = await client.businessStatus(args[0], input.signal);
                 else result = await client[message.method](args[0] ?? {}, input.signal);
               } else throw new Error('This public OMP session cannot invoke that capability.');
-              send({ type: 'reply', id: message.id, result });
-            } catch (error) { if (syntheticResponses) onWorkerLifecycle({ phase: 'rpc-refused', method: message.method, code: error.code || error.name }); send({ type: 'reply', id: message.id, error: 'Original authorization or task operation refused; no replacement execution was admitted.' }); }
+              rpcSignal.throwIfAborted(); send({ type: 'reply', id: message.id, result });
+            } catch (error) {
+              if (syntheticResponses) onWorkerLifecycle({ phase: 'rpc-refused', method: message.method, code: error.code || error.name });
+              // Preserve only reviewed business codes, never arbitrary Host error text.
+              const codes = ['FACTORY_INQUIRY_SOURCE_CHANGED', 'FACTORY_INQUIRY_REQUEST_CHANGED', 'FACTORY_INQUIRY_ARTIFACT_CHANGED', 'FACTORY_INQUIRY_SOURCE_REFUSED',
+                'PUBLIC_DRAFT_REQUEST_CHANGED', 'PUBLIC_DRAFT_ARTIFACT_CHANGED', 'ORIGINAL_PUBLIC_SOURCE_RECEIPT_REQUIRED', 'PUBLIC_SOURCE_URL_REFUSED', 'PUBLIC_SOURCE_METADATA_LIMIT'];
+              send({ type: 'reply', id: message.id, error: 'Original authorization or task operation refused; no replacement execution was admitted.',
+                ...(codes.includes(error.code) ? { errorCode: error.code } : {}),
+                ...([400, 401, 403, 404, 409, 503].includes(error.status) ? { status: error.status } : {}) });
+            } finally { operations.delete(message.id); }
           } else if (message.type === 'event') {
             const event = message.event;
             if (typeof event?.toolName === 'string' && event.toolName.startsWith('workspace_')) await input.onEvent?.({
@@ -122,7 +138,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         };
         lines.on('line', line => { void handleLine(line).catch(() => finish(new ProviderError('OMP_SESSION_FAILED', 'The original OMP host operation stopped.'))); });
         child.on('error', () => finish(new ProviderError('OMP_UNAVAILABLE', 'The reviewed OMP runtime could not start.')));
-        child.on('close', code => { childClosed = true; clearTimeout(terminateTimer); clearTimeout(killTimer); lines.close();
+        child.on('close', code => { childClosed = true; for (const operation of operations.values()) operation.abort(); operations.clear(); clearTimeout(terminateTimer); clearTimeout(killTimer); lines.close();
           void cleanupSnapshots().then(() => {
             cleanupComplete = true; onWorkerLifecycle({ phase: 'exit', pid: child.pid, code });
             if (pendingResult && code === 0) finishSuccess();

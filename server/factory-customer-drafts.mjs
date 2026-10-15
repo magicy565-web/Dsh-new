@@ -1,15 +1,16 @@
 // Original-journal source lookup and original artifact persistence only.
 import { ApiError } from './runtime.mjs';
+import { createHash } from 'node:crypto';
 import { libraryReadHash } from './library-model-read-contract.mjs';
-import { validateCustomerDrafts } from '../packages/workspace-factory-customers/src/extension.js';
+import { validateCustomerDrafts } from '../packages/workspace-factory-customers/src/contracts.mjs';
 const fail = (code, status = 409) => { throw new ApiError(status, code, 'Original successful source receipts and current draft-save authority are required.'); };
 const flags = { humanReviewRequired: true, humanReviewed: false, sent: false, externalActions: false, verifiedBuyer: false, contactPermission: false };
 const url = value => { const u = new URL(value); if (u.protocol !== 'https:' || u.username || u.password || u.port) fail('PUBLIC_SOURCE_URL_REFUSED'); return u.href; };
 export function createFactoryCustomerDraftClient({ artifacts, store, identity, conversationId, runId, authorize, canSave, readJournal }) {
   async function save(input, signal) {
-    input = validateCustomerDrafts(input); await authorize(); signal?.throwIfAborted();
+    signal?.throwIfAborted(); input = validateCustomerDrafts(input); await authorize(); signal?.throwIfAborted();
     if (!canSave()) fail('BUSINESS_EXECUTION_INTENT_REQUIRED', 403);
-    const entries = await readJournal(), sources = [];
+    const entries = await readJournal(), sources = []; signal?.throwIfAborted(); await authorize(); signal?.throwIfAborted();
     for (const callId of input.sourceToolCallIds) {
       const rows = entries.filter(e => e.message?.role === 'toolResult' && e.message.toolCallId === callId);
       if (rows.length !== 1) fail('ORIGINAL_PUBLIC_SOURCE_RECEIPT_REQUIRED');
@@ -36,15 +37,19 @@ export function createFactoryCustomerDraftClient({ artifacts, store, identity, c
       try {
         const key = 'factory-customer-' + libraryReadHash([group, draft.name]);
         const original = store.read().artifacts.find(a => a.requestId === key);
-        const result = await artifacts.create({ requestId: key, filename: draft.name,
-          content: 'Human review required. NOT SENT. Unverified model draft; candidates are not verified buyers.\n\n' + draft.content
-            + '\n\n---\nOriginal public source receipts (not approval):\n' + JSON.stringify(sources, null, 2) + '\n',
+        const content = 'Human review required. NOT SENT. Unverified model draft; candidates are not verified buyers.\n\n' + draft.content
+          + '\n\n---\nOriginal public source receipts (not approval):\n' + JSON.stringify(sources, null, 2) + '\n';
+        const result = await artifacts.create({ requestId: key, filename: draft.name, content,
           description: 'Unreviewed public customer research draft.', metadata: { factoryCustomerDraft: { ...flags, requestGroup: group, batchHash, sources } },
           sourceConversationId: conversationId, sourceRunId: original?.sourceRunId || runId }, { check });
-        await authorize(); saved.push({ name: draft.name, artifactId: result.artifact.id, version: result.artifact.currentVersion, sha256: result.artifact.sha256, duplicate: result.duplicate === true });
+        const record = result.artifact, meta = record.metadata?.factoryCustomerDraft;
+        if (record.currentVersion !== 1 || record.sha256 !== createHash('sha256').update(content).digest('hex') || record.filename !== draft.name
+          || record.sourceConversationId !== conversationId || meta?.requestGroup !== group || meta.batchHash !== batchHash
+          || Object.entries(flags).some(([key, value]) => meta[key] !== value) || libraryReadHash(meta.sources) !== libraryReadHash(sources)) fail('PUBLIC_DRAFT_ARTIFACT_CHANGED');
+        signal?.throwIfAborted(); await authorize(); signal?.throwIfAborted(); saved.push({ name: draft.name, artifactId: result.artifact.id, version: result.artifact.currentVersion, sha256: result.artifact.sha256, duplicate: result.duplicate === true });
       } catch (error) { if ([401, 403, 409].includes(error.status) || signal?.aborted) throw error; failed = true; break; }
     }
-    await authorize();
+    signal?.throwIfAborted(); await authorize(); signal?.throwIfAborted();
     return { plugin: 'workspace-factory-customers', status: failed ? 'partial' : 'saved-draft', ...flags, sources, artifacts: saved,
       ...(failed ? { reason: 'ORIGINAL_ARTIFACT_SAVE_INCOMPLETE' } : {}) };
   }

@@ -36,7 +36,7 @@ const client = { save: async (input, signal, model) => {
   const receipt = session.messages.find(row => row.role === 'toolResult' && row.toolCallId === 'native-search');
   assert.equal(receipt.toolName, 'workspace_public_search'); assert.equal(receipt.details.status, 'sources_observed');
   return { plugin: 'workspace-factory-customers', status: 'saved-draft', sources: [{ toolCallId: 'native-search', url: observedURL }],
-    documents: [{ name: input.documents[0].name, artifactId: 'synthetic-save-client-receipt' }], sent: false, humanReviewRequired: true };
+    documents: [{ name: input.documents[0].name, artifactId: 'synthetic-save-client-receipt' }], sent: false, humanReviewRequired: true, humanReviewed: false, externalActions: false, verifiedBuyer: false, contactPermission: false };
 } };
 const specs = [
   { content: [{ type: 'toolCall', id: 'native-search', name: 'workspace_public_search', arguments: {

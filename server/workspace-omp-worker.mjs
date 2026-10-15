@@ -8,8 +8,15 @@ const write = value => fs.writeSync(3, JSON.stringify(value) + '\n');
 const input = createInterface({ input: fs.createReadStream(null, { fd: 3 }), crlfDelay: Infinity });
 const pending = new Map(); let nextId = 1, created, running = false, initializing;
 const lifecycle = new AbortController();
-const request = (method, args = []) => new Promise((resolve, reject) => {
-  const id = nextId++; pending.set(id, { resolve, reject }); write({ type: 'request', id, method, args });
+const request = (method, args = [], signal) => new Promise((resolve, reject) => {
+  signal?.throwIfAborted(); lifecycle.signal.throwIfAborted();
+  const id = nextId++;
+  const abort = () => { pending.delete(id); cleanup(); write({ type: 'cancelRequest', id }); reject(new DOMException('Original operation cancelled.', 'AbortError')); };
+  const cleanup = () => { signal?.removeEventListener('abort', abort); lifecycle.signal.removeEventListener('abort', abort); };
+  pending.set(id, { resolve, reject, cleanup });
+  signal?.addEventListener('abort', abort, { once: true }); lifecycle.signal.addEventListener('abort', abort, { once: true });
+  try { write({ type: 'request', id, method, args }); }
+  catch (error) { pending.delete(id); cleanup(); reject(error); }
 });
 const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult'];
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
@@ -17,17 +24,17 @@ async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
   created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials && !config.factoryCustomers,
     inquiryClient: config.factoryInquiries ? {
-      save: (input, _signal, model) => request('factoryInquirySave', [input, model]),
-      revalidateReceipt: (receipt, model) => request('factoryInquiryRevalidate', [receipt, model]),
+      save: (input, signal, model) => request('factoryInquirySave', [input, model], signal),
+      revalidateReceipt: (receipt, model, signal) => request('factoryInquiryRevalidate', [receipt, model], signal),
     } : null,
-    customerClient: config.factoryCustomers ? { save: async (input, _signal, model) => { await created.manager.flush(); return request('factoryCustomerSave', [input, model]); } } : null,
+    customerClient: config.factoryCustomers ? { save: async (input, signal, model) => { signal?.throwIfAborted(); await created.manager.flush(); return request('factoryCustomerSave', [input, model], signal); } } : null,
     materialsClient: config.factoryMaterials ? {
-      status: (_signal, model) => request('factoryMaterialsStatus', [model]),
-      materials: (input, _signal, model) => request('factoryMaterialsRead', [input, model]),
-      document: (input, _signal, model) => request('factoryDocumentRead', [input, model]),
-      revalidateReceipt: (receipt, model) => request('factoryMaterialsRevalidate', [receipt, model]),
+      status: (signal, model) => request('factoryMaterialsStatus', [model], signal),
+      materials: (input, signal, model) => request('factoryMaterialsRead', [input, model], signal),
+      document: (input, signal, model) => request('factoryDocumentRead', [input, model], signal),
+      revalidateReceipt: (receipt, model, signal) => request('factoryMaterialsRevalidate', [receipt, model], signal),
     } : null, lifecycleSignal: lifecycle.signal,
-    authorize: () => request('authorize'), onModelRequest: event => request('modelRequest', [event]),
+    authorize: signal => request('authorize', [], signal), onModelRequest: event => request('modelRequest', [event]),
     onModelAbort: () => { if (config.syntheticResponses) write({ type: 'nativeModelAbort' }); },
     onModelWaiting: () => { if (config.syntheticResponses) write({ type: 'nativeModelWaiting' }); } }));
   created.session.subscribe(event => {
@@ -55,8 +62,8 @@ input.on('line', line => {
   if (Buffer.byteLength(line) > 2_000_000) { process.exitCode = 1; input.close(); return; }
   let value; try { value = JSON.parse(line); } catch { process.exitCode = 1; input.close(); return; }
   if (value.type === 'reply') {
-    const operation = pending.get(value.id); if (!operation) return; pending.delete(value.id);
-    if (value.error) operation.reject(new Error(value.error)); else operation.resolve(value.result);
+    const operation = pending.get(value.id); if (!operation) return; pending.delete(value.id); operation.cleanup();
+    if (value.error) operation.reject(Object.assign(new Error(value.error), { code: value.errorCode, status: value.status })); else operation.resolve(value.result);
   } else if (value.type === 'abort') { lifecycle.abort(); void created?.session.abort(); }
   else if (value.type === 'start') void start(value.config).catch(async error => {
     write({ type: 'error', error: 'The official OMP session failed; no task completion or model fallback is implied.',

@@ -1,0 +1,73 @@
+{
+  "baseCommit": "d82d35fd7213012ff6b0e5f2f24d765aba021a9e",
+  "checks": [
+    {
+      "command": "OMP_BUILTINS_SDK_ROOT=$PWD/support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent node --test --test-concurrency=3 test/factory-*.test.mjs test/workspace-omp*.test.mjs test/omp-builtins.factory*.test.mjs test/pi-business-conversation.native.test.mjs test/pi-library-read*.test.mjs",
+      "exitCode": 0,
+      "summary": {
+        "tests": 133.0,
+        "pass": 133.0,
+        "fail": 0.0,
+        "cancelled": 0.0,
+        "skipped": 0.0,
+        "duration_ms": 134003.968873
+      },
+      "outputSHA256": "f0ae42c886f3cf0182b3e235934ef35c104d450bad326eb0597a72c213578ff0"
+    },
+    {
+      "command": "node --test test/factory-plugin-interfaces.test.mjs test/factory-inquiries.test.mjs",
+      "exitCode": 0,
+      "summary": {
+        "tests": 13.0,
+        "pass": 13.0,
+        "fail": 0.0,
+        "cancelled": 0.0,
+        "skipped": 0.0,
+        "duration_ms": 5436.692399
+      },
+      "outputSHA256": "014c7c58a7578ec42b4b41781c057c6df74b8d209a7ff864f107cff96a9a97e4"
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "countsOverlap": true,
+  "actualUpstreamSchemaCasesPerEngine": 47,
+  "extraBusinessPolicyCasesPerEngine": 7,
+  "engines": {
+    "pi": "1.1.0",
+    "omp": "18.10.4"
+  },
+  "realOrPaidModelCalls": 0,
+  "realEnterpriseBusinessAcceptance": false,
+  "actualComponents": [
+    "official Pi/OMP CLI package managers, Skill discovery, SDK AgentSession and tool loops",
+    "official upstream JSON Schema validators",
+    "original signed Session HTTP, Run authority, Library, artifact and Store services",
+    "original OMP/Pi terminal and original human controls"
+  ],
+  "syntheticComponents": [
+    "finite keyless faux model replies and tool choices",
+    "test identities, materials and public search bodies",
+    "explicitly identified injected save/transport callbacks in unit/SDK-only tests"
+  ],
+  "initialBroadRun": {
+    "tests": 133,
+    "passed": 131,
+    "skipped": 2,
+    "failed": 0,
+    "reason": "OMP_BUILTINS_SDK_ROOT was unset; both cases passed in the final explicitly configured run"
+  },
+  "rawBusinessOrSessionRuntimeRecordsCommitted": false,
+  "unverified": [
+    "real model autonomy/writing quality",
+    "real enterprise material or buyer acceptance",
+    "hosted CI success",
+    "integration of separate plan/monitor/ingestion/Shopify workstreams"
+  ]
+}

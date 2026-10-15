@@ -1,0 +1,117 @@
+{
+  "baseCommit": "d82d35fd7213012ff6b0e5f2f24d765aba021a9e",
+  "branch": "codex/standardize-factory-plugin-interfaces-20261015",
+  "upstreams": [
+    {
+      "package": "@earendil-works/pi-coding-agent",
+      "version": "1.1.0",
+      "license": "MIT",
+      "integrity": "sha512-SeEi/4hdcHNgA9UWlefZl7ZZpm3dzi2OoxNjDHsBJ9o298LNOtbL4DGKgitlEj6uCTccvtw6f2hlCkTPVJ2RXg==",
+      "metadataURL": "https://registry.npmjs.org/@earendil-works%2fpi-coding-agent/1.1.0",
+      "resolvedRepositoryTag": "v1.1.0",
+      "tagCommit": "abe508e1b89912adde45528136c3221eb69acdd7",
+      "npmGitHead": null,
+      "archiveContainsRootLicense": false,
+      "licenseURL": "https://raw.githubusercontent.com/earendil-works/pi/abe508e1b89912adde45528136c3221eb69acdd7/LICENSE",
+      "licenseSHA256": "0457f5bcec3b3b211605dfb5d1a49042fd638f3686a410fe099c24a25af13c48",
+      "installedDocsMatchTagResourceHashes": true
+    },
+    {
+      "package": "@oh-my-pi/pi-coding-agent",
+      "version": "18.10.4",
+      "license": "MIT",
+      "integrity": "sha512-JZqUebDzrBNIdtW5ztWQAre67QnCV6xVZ9/R2ZdOX5zGFUO7d73Nd5TYqTRRQZrjKD+bUnXLkqk3IE1cu4aDZQ==",
+      "metadataURL": "https://registry.npmjs.org/@oh-my-pi%2fpi-coding-agent/18.10.4",
+      "existingAudit": "support/omp-coding-agent/compactaudit.json",
+      "sourceCommitReportedByExistingAudit": "687892d1046ecaf18829b45f5b86928a308258f4",
+      "publisherBuildSigstoreVerified": false
+    }
+  ],
+  "runtimes": {
+    "node": "24.19.0",
+    "bun": "1.3.14",
+    "installScriptsExecuted": 0,
+    "newOptionalModelComponentsInstalled": false
+  },
+  "optionalSkillReference": {
+    "repository": "https://github.com/coreyhaines31/marketingskills",
+    "commit": "55ff469422c3592dac45bcad08dfb40221981c02",
+    "resource": "https://raw.githubusercontent.com/coreyhaines31/marketingskills/55ff469422c3592dac45bcad08dfb40221981c02/skills/cold-email/SKILL.md",
+    "declaredVersion": "2.2.0",
+    "reviewedRawSha256": "963540924147c3b74b7693bbc292ac2da3d407807c270f8a3123bd3432fdc337",
+    "fixedCommitResourceFetched": true,
+    "license": "MIT",
+    "licenseURL": "https://raw.githubusercontent.com/coreyhaines31/marketingskills/55ff469422c3592dac45bcad08dfb40221981c02/LICENSE",
+    "licenseRawSha256": "b70d71e24e40fce5da8f4b6f9cd862096a048e433db7f3c8cac5e348e6d34591",
+    "copyright": "Copyright (c) 2025 Corey Haines",
+    "use": "Independent short adaptation: evidence-based recipient relevance, one easy question, and genuinely new supplied material before considering follow-up.",
+    "sourceTextCopied": false,
+    "entireCollectionInstalled": false,
+    "sendingOrDomainSetupExecuted": false,
+    "accountOrMailboxAccess": false,
+    "automatedFollowup": false
+  },
+  "optionalSkillResourceAndLicenseRefetchedSHA256Matched": true,
+  "inspectedInstalledFiles": [
+    {
+      "path": "node_modules/@earendil-works/pi-coding-agent/docs/extensions.md",
+      "sha256": "bd2ed1f728173c1defc035e90c3894c308ae153fa08575c12b4a9988e11f8108"
+    },
+    {
+      "path": "node_modules/@earendil-works/pi-coding-agent/docs/packages.md",
+      "sha256": "5fe4a3009d7260fe1e2f54b64086fc3c8b4d678232bfa2dbc7e91fe588fc9ea5"
+    },
+    {
+      "path": "node_modules/@earendil-works/pi-coding-agent/docs/skills.md",
+      "sha256": "5b9805525b194474ef1fe5455a0917ef15ed7f710aa9bec2eee11879556469e5"
+    },
+    {
+      "path": "node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.d.ts",
+      "sha256": "61fae1c4347b04a0a486589f96fba1ca9676a89ae0a02e639c677e1f1e061298"
+    },
+    {
+      "path": "node_modules/@earendil-works/pi-agent-core/dist/types.d.ts",
+      "sha256": "298f599e6b24c0cfeb5f6e593cbe1a85b373b04ebc221491cb178b941dbef584"
+    },
+    {
+      "path": "node_modules/@earendil-works/pi-ai/dist/utils/validation.js",
+      "sha256": "25448fb499e38cd216b4a47d747ddf3b7750419d379e4bf4ca1578ada48d04d7"
+    },
+    {
+      "path": "support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent/LICENSE",
+      "sha256": "16c45f9d667442781f03fa198914cc39abcaa48ec5ed8f644643e554ca2fbf63"
+    },
+    {
+      "path": "support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent/src/extensibility/extensions/types.ts",
+      "sha256": "2e20eda46581676faa1f1eca809cedada556cca08bee5ecbe3ba10a9115e8330"
+    },
+    {
+      "path": "support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent/src/extensibility/extensions/wrapper.ts",
+      "sha256": "ad9393d2f125ffc16c00952fb1f336a734ccc003cb2fdb9754aa42e68bee74e3"
+    },
+    {
+      "path": "support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent/src/extensibility/plugins/manager.ts",
+      "sha256": "79073dda00c79fdc5f0a684e3338ef4ec0ad1511078d6ca9b72f8f957a8a0219"
+    },
+    {
+      "path": "support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent/src/extensibility/plugins/types.ts",
+      "sha256": "be6b0c1d1cdec2a82f02eb740894ed0ea90f7f7114356bf9244b1a97a0350762"
+    },
+    {
+      "path": "support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent/src/extensibility/skills.ts",
+      "sha256": "50892b528c20ab1fc901dad90e3900f05433d64767710e288d1821c96f50ea85"
+    },
+    {
+      "path": "support/omp-coding-agent/node_modules/@oh-my-pi/pi-ai/src/utils/validation.ts",
+      "sha256": "1601015e49dabca27c03b6d3ef2777bb95ad43e52c74eb669158204b577397fb"
+    },
+    {
+      "path": "support/omp-coding-agent/node_modules/@oh-my-pi/pi-ai/src/utils/schema/json-schema-validator.ts",
+      "sha256": "88f612ea459e73fc6c65db22a5ce38820dad5db06784024d6ab35f36d1a6a435"
+    }
+  ],
+  "newRuntimeDependencies": [],
+  "newFramework": false,
+  "realOrPaidModelCalls": 0,
+  "enterpriseRuntimeRecordsIncluded": false
+}

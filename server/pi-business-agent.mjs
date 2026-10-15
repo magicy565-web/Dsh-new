@@ -130,13 +130,14 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         request: async (route, init) => {
           // Inner Library reads use their original live Session/scope authority.
           // Outer tool/RPC/model boundaries still prove the Agent binding.
-          assertActive();
+          const signal = init.signal && input.signal ? AbortSignal.any([init.signal, input.signal]) : init.signal || input.signal;
+          signal?.throwIfAborted(); assertActive();
           const url = new URL(route, 'https://original-library.invalid');
           if (!url.pathname.startsWith('/api/library/model-read/factory/') || init.method !== 'GET') throw Error('Only the original read-only factory Library projection is admitted.');
           try {
             const value = await libraryModelRead.readFactoryForSession({ identity, recipientHash: init.headers['X-Workspace-Library-Recipient'],
-              suffix: url.pathname.slice('/api/library/model-read/factory/'.length), query: url.searchParams, signal: input.signal });
-            assertActive();
+              suffix: url.pathname.slice('/api/library/model-read/factory/'.length), query: url.searchParams, signal });
+            signal?.throwIfAborted(); assertActive();
             return new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } });
           } catch (error) {
             if (![401, 403, 404, 409].includes(error.status)) throw error;

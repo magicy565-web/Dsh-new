@@ -1,20 +1,52 @@
 {
   "name": "@workspace-agent/pi-factory-materials",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Read explicitly authorized factory materials through the original Workspace Library Session",
-  "keywords": ["pi-package"],
-  "engines": { "node": ">=24" },
-  "files": ["src", "skills", "README.md"],
-  "exports": { ".": "./src/extension.js" },
-  "pi": { "extensions": ["./src/extension.js"], "skills": ["./skills/factory-materials"] },
+  "keywords": [
+    "pi-package"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "files": [
+    "src",
+    "skills",
+    "README.md"
+  ],
+  "exports": {
+    ".": "./src/extension.js",
+    "./contracts": {
+      "types": "./src/contracts.d.mts",
+      "default": "./src/contracts.mjs"
+    }
+  },
+  "pi": {
+    "extensions": [
+      "./src/extension.js"
+    ],
+    "skills": [
+      "./skills/factory-materials"
+    ]
+  },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "1.1.0",
     "@oh-my-pi/pi-coding-agent": "18.10.4"
   },
   "peerDependenciesMeta": {
-    "@earendil-works/pi-coding-agent": { "optional": true },
-    "@oh-my-pi/pi-coding-agent": { "optional": true }
-  }
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@oh-my-pi/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/magicy565-web/workspace-agent.git",
+    "directory": "packages/workspace-factory-materials"
+  },
+  "main": "./src/extension.js"
 }

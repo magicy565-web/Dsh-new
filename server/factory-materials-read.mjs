@@ -53,7 +53,7 @@ export function createFactoryMaterialsRead({ library, artifacts, scope, authoriz
     if (suffix === 'status') return { ...base(), status: 'available', fields: [...policy.productFields], extractionPolicy: 'original-library-native-text-hints-v1' };
     if (suffix === 'materials') {
       const id = query.get('productId'), raw = query.get('limit') ?? '20';
-      if (!/^(?:[1-9]|1[0-9]|20)$/.test(raw) || id && !uuid(id)) fail(400, 'FACTORY_MATERIAL_INPUT_INVALID');
+      if (!/^(?:[1-9]|1[0-9]|20)$/.test(raw) || query.has('productId') && !uuid(id)) fail(400, 'FACTORY_MATERIAL_INPUT_INVALID');
       const refs = id ? policy.products.filter(p => p.id === id) : policy.products.slice(0, Number(raw));
       if (id && !refs.length) fail(404, 'FACTORY_PRODUCT_NOT_APPROVED');
       const rows = refs.map(product); assertCurrent();
@@ -65,9 +65,9 @@ export function createFactoryMaterialsRead({ library, artifacts, scope, authoriz
     const { ref, row, selected } = documentRef(match[1], Number(match[2]));
     const file = await artifacts.download(ref.asset.artifactId, { version: ref.asset.version });
     if (file.version.sha256 !== ref.asset.sha256) fail(409, 'FACTORY_DOCUMENT_ASSET_CHANGED');
-    assertCurrent();
+    assertCurrent(); signal?.throwIfAborted();
     const extracted = await extractFactoryDocument({ bytes: file.bytes, mimeType: file.mimeType, signal });
-    assertCurrent(); documentRef(match[1], Number(match[2]));
+    assertCurrent(); signal?.throwIfAborted(); documentRef(match[1], Number(match[2]));
     const latestReview = row.reviews.filter(r => r.documentVersion === selected.version && r.sha256 === ref.asset.sha256).at(-1);
     const cert = selected.certificate, today = new Date(clock()).toISOString().slice(0, 10);
     const document = safe({ id: row.id, revision: row.revision, documentVersion: selected.version, asset: ref.asset,

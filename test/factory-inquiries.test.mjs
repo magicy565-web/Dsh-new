@@ -37,6 +37,8 @@ test('model-written one or several drafts preserve exact body and original sourc
   assert.ok(file.bytes.toString().includes(input.documents[0].content)); assert.match(file.bytes.toString(), /NOT SENT/); assert.ok(file.bytes.toString().includes(f.asset.sha256));
   assert.ok(!file.bytes.toString().includes('Quotation review draft'));
   const replay = await client.save(input, undefined, MODEL); assert.equal(replay.artifacts[0].artifactId, first.artifacts[0].artifactId); assert.equal(replay.artifacts[0].duplicate, true);
+  const reordered = await client.save({ ...input, sources: [...input.sources].reverse() }, undefined, MODEL);
+  assert.equal(reordered.artifacts[0].artifactId, first.artifacts[0].artifactId); assert.equal(reordered.artifacts[0].duplicate, true);
   await client.revalidateReceipt(first, MODEL);
   await assert.rejects(client.revalidateReceipt({ ...first, humanReviewed: true }, MODEL), /approval/);
   for (const forged of [{ ...first, extraPrivatePayload: 'UNADMITTED_CACHE_DATA' },
@@ -81,4 +83,15 @@ test('source drift or cancellation at original artifact commit gate cannot persi
   f.app.artifacts.create = async (...args) => { flags.admitted = false; return original(...args); };
   await assert.rejects(client.save(input, undefined, MODEL), e => e.code === 'BUSINESS_EXECUTION_INTENT_REQUIRED');
   assert.equal(f.app.store.read().artifacts.filter(a => a.metadata.factoryInquiry).length, 0);
+});
+test('concurrent exact inquiry saves persist one artifact; edited original bytes refuse replay', async t => {
+  const { f, client } = await fixture(t), input = await saveInput(f);
+  const results = await Promise.all(Array.from({ length: 6 }, () => client.save(input, undefined, MODEL)));
+  assert.equal(new Set(results.map(r => r.artifacts[0].artifactId)).size, 1);
+  assert.equal(results.filter(r => !r.artifacts[0].duplicate).length, 1);
+  const id = results[0].artifacts[0].artifactId;
+  await f.app.artifacts.update(id, { content: 'Subsequently edited inquiry draft.' });
+  await assert.rejects(client.save(input, undefined, MODEL), e => e.code === 'FACTORY_INQUIRY_ARTIFACT_CHANGED' && e.status === 409);
+  assert.equal(f.app.store.read().artifacts.filter(a => a.metadata.factoryInquiry).length, 1);
+  assert.equal(f.app.artifacts.get(id).artifact.currentVersion, 2);
 });

@@ -121,7 +121,7 @@ test('thin save adapter bounds public drafts and preserves original authorizatio
     if (mode === 'revoke') permitted = false;
     if (mode === 'cancel') controller.abort();
     return { plugin: 'workspace-factory-customers', status: mode === 'host-blocked' ? 'blocked' : 'saved-draft',
-      requestId: input.requestId, documents: input.documents.map(row => ({ name: row.name })), sources: [], sent: false, humanReviewRequired: true };
+      requestId: input.requestId, documents: input.documents.map(row => ({ name: row.name })), sources: [], sent: false, humanReviewRequired: true, humanReviewed: false, externalActions: false, verifiedBuyer: false, contactPermission: false };
   } };
   factoryCustomersExtension({ client, authorize: async () => { authorized++; if (!permitted) throw new Error('Synthetic revocation'); } })({ registerTool: tool => tools.push(tool) });
   assert.deepEqual(tools.map(tool => tool.name), ['workspace_factory_customers_save']);

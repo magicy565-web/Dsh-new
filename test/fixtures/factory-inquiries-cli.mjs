@@ -10,9 +10,9 @@ export default async pi => {
     parameters: { type: 'object', properties: {}, additionalProperties: false },
     execute: async () => ({ content: [{ type: 'text', text: '{"otherPlugin":true}' }], details: {} }) });
   let calls = 0;
-  const source = { kind: 'factory-product', workspaceId: 'synthetic', recordId: documentId, revision: 1, projectionSha256: 'a'.repeat(64) };
+  const source = { kind: 'factory-product', workspaceId: 'synthetic', recordId: documentId, revision: 1, projectionSha256: 'a'.repeat(64), api: '/api/library/model-read/factory/materials?productId=' + documentId };
   const steps = disabled ? [['inquiries_other_plugin', {}]] : [[names[0], { inquiryDocumentId: documentId, documentVersion: 1, productId: documentId,
-    sources: [source, { ...source, kind: 'factory-document' }], documents: [{ name: 'reply.md', content: 'A model-written unreviewed fixture reply.' }], requestId: 'synthetic-save' }], ['inquiries_other_plugin', {}]];
+    sources: [{ ...source, kind: 'factory-document', documentVersion: 1, artifactId: documentId, version: 1, sha256: 'b'.repeat(64), api: '/api/library/model-read/factory/documents/' + documentId + '/1' }, source], documents: [{ name: 'reply.md', content: 'A model-written unreviewed fixture reply.' }], requestId: 'synthetic-save' }], ['inquiries_other_plugin', {}]];
   const next = context => {
     assert.equal(JSON.stringify(context).includes('Read authorized inquiry and factory facts'), !disabled,
       'The official manifest Skill follows package enable/disable state');
