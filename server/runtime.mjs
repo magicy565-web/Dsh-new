@@ -603,7 +603,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         ...(run.inputContext ? { inputContext: run.inputContext } : {}), workspaceExecution: run.workspaceExecution === true });
     },
     async resetSession(id) { ensureOpen(); return store.update(state => { const item = required(state, 'conversations', id); if (agentConversation(state, id)) throw agentConversationRouteError(); if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Stop the current request before resetting native session continuity.'); const previous = item.nativeSessionId || null; item.nativeSessionId = null; item.updatedAt = now(); activity(state, 'session_reset', 'New native session requested', 'Future requests start a new native session using saved visible context.', { conversationId: id, previousNativeSessionId: previous }); return { conversation: item }; }); },
-    async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }, { piTaskContext, businessAgentOwner } = {}) {
+    async createConversation(body, actor = { subject: 'local-operator', workspaceId: 'local' }, { piTaskContext, businessAgentOwner, serviceTaskContext, authorizeServiceTask } = {}) {
       ensureOpen();
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['title', 'inputContext', 'requestId'].includes(key))) throw new ApiError(400, 'INVALID_INPUT', 'Create a conversation with title, optional inputContext and requestId only.');
       const title = text(body.title, 'title', 160, 'New conversation');
@@ -615,8 +615,20 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const piTaskOwner = piTaskContext ? { subject, workspaceId } : null;
       if (businessAgentOwner && (piTaskContext || !provider.businessAgentRecipientFingerprint || businessAgentOwner.subject !== subject || businessAgentOwner.workspaceId !== workspaceId))
         throw new ApiError(409, 'BUSINESS_AGENT_BINDING_REQUIRED', 'Use the original reviewed member-bound business Agent adapter.');
-      const fingerprint = capabilityPayloadHash({ title, inputContext: selection, ...(piTaskOwner ? { piTaskOwner } : {}), ...(businessAgentOwner ? { businessAgentOwner } : {}) });
+      if (serviceTaskContext && (piTaskContext || businessAgentOwner || typeof authorizeServiceTask !== 'function' || !['admin', 'operator'].includes(actor.role)
+        || serviceTaskContext.subject !== subject || serviceTaskContext.workspaceId !== workspaceId || serviceTaskContext.modelRequired !== false
+        || !/^[A-Za-z0-9_-]{1,64}$/.test(serviceTaskContext.kind || '') || !/^[a-f0-9]{64}$/.test(serviceTaskContext.scopeHash || '')
+        || typeof serviceTaskContext.sourceConversationId !== 'string' || Object.values(selection).some(values => values.length)
+        || Object.keys(serviceTaskContext).some(field => !['kind', 'scopeHash', 'sourceConversationId', 'subject', 'workspaceId', 'modelRequired'].includes(field))))
+        throw new ApiError(403, 'SERVICE_TASK_CONTEXT_REQUIRED', 'Only an original authorized Host may create an empty service-only task context.');
+      const fingerprint = capabilityPayloadHash({ title, inputContext: selection, ...(piTaskOwner ? { piTaskOwner } : {}), ...(businessAgentOwner ? { businessAgentOwner } : {}), ...(serviceTaskContext ? { serviceTaskContext } : {}) });
       return store.update(state => {
+        if (serviceTaskContext) {
+          if (authorizeServiceTask(state) !== true) throw new ApiError(403, 'SERVICE_TASK_OWNER_REQUIRED', 'The original Host must revalidate current authorization at commit.');
+          const source = required(state, 'conversations', serviceTaskContext.sourceConversationId), sourceOwner = source.businessAgentOwner || source.piTaskOwner;
+          if (sourceOwner ? sourceOwner.subject !== subject || sourceOwner.workspaceId !== workspaceId : source.createdBy !== subject || source.workspaceId !== workspaceId)
+            throw new ApiError(403, 'SERVICE_TASK_OWNER_REQUIRED', 'Link only this actual member\'s original source conversation.');
+        }
         const receipts = state.workspaceConversationCreations ||= { version: 1, receipts: [] };
         if (receipts.version !== 1 || !Array.isArray(receipts.receipts)) throw new ApiError(409, 'CREATION_RECEIPT_INVALID', 'Conversation creation receipts need operator review.');
         const previous = key && receipts.receipts.find(receipt => receipt.subject === subject && receipt.workspaceId === workspaceId && receipt.requestId === key);
@@ -631,6 +643,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         item.createdBy = subject; item.workspaceId = workspaceId;
         if (piTaskOwner) item.piTaskOwner = piTaskOwner;
         if (businessAgentOwner) item.businessAgentOwner = structuredClone(businessAgentOwner);
+        if (serviceTaskContext) { item.serviceTaskOwner = { subject, workspaceId }; item.serviceTaskContext = structuredClone(serviceTaskContext); item.sourceConversationId = serviceTaskContext.sourceConversationId; }
         if (key) {
           item.creationRequestId = key;
           receipts.receipts.push({ subject, workspaceId, requestId: key, fingerprint, conversationId: item.id });
@@ -705,6 +718,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
     },
     async sendMessage(id, body, { museDraftContext, supplierDraftContext, agentPresetContext, piTaskContext, businessAgentContext } = {}) {
       ensureOpen();
+      if (required(store.read(), 'conversations', id).serviceTaskContext) throw new ApiError(409, 'SERVICE_TASK_MODEL_FORBIDDEN', 'This original linked service task accepts observations and controls, never model chat.');
       const businessOwner = required(store.read(), 'conversations', id).businessAgentOwner;
       if (businessOwner && (!businessAgentContext || businessAgentContext.subject !== businessOwner.subject || businessAgentContext.workspaceId !== businessOwner.workspaceId))
         throw new ApiError(403, 'BUSINESS_AGENT_BINDING_REQUIRED', 'Use this conversation member\'s original Session binding.');
@@ -776,7 +790,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       jobs.get(runId)?.controller.abort();
       return result;
     },
-    async createGoal(body) {
+    async createGoal(body, { serviceTaskContext, authorizeServiceTask } = {}) {
       ensureOpen();
       const title = text(body.title, 'title', 160);
       const description = body.description === '' ? '' : text(body.description, 'description', 20_000, '');
@@ -785,16 +799,21 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const key = body.requestId === undefined ? null : requestKey(body.requestId);
       const selected = normalizeInputContext(body.inputContext);
       return store.update(state => {
+        if (serviceTaskContext && (typeof authorizeServiceTask !== 'function' || authorizeServiceTask(state) !== true)) throw new ApiError(403, 'SERVICE_TASK_OWNER_REQUIRED', 'The original Host must revalidate current task authorization at commit.');
         const existing = key && state.goals.find(goal => goal.requestId === key);
         if (existing) {
+          const priorContext = required(state, 'conversations', existing.conversationId).serviceTaskContext;
+          if ((priorContext || serviceTaskContext) && capabilityPayloadHash(priorContext || null) !== capabilityPayloadHash(serviceTaskContext || null)) throw new ApiError(403, 'SERVICE_TASK_CONTEXT_REQUIRED', 'Use the original Host task context.');
           if (existing.title !== title || existing.description !== description || existing.maxSteps !== maxSteps || existing.maxOutputTokens !== maxOutputTokens || selected !== undefined && capabilityPayloadHash(existing.inputContext ?? null) !== capabilityPayloadHash(selected) || (body.conversationId && existing.conversationId !== body.conversationId)) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'This requestId was already used for a different goal.');
           return { goal: existing, duplicate: true };
         }
         const item = body.conversationId ? required(state, 'conversations', body.conversationId) : conversation(state, title);
         if (item.businessAgentOwner) throw new ApiError(409, 'BUSINESS_AGENT_CONVERSATION_ONLY', 'This public-business conversation uses original messages and task references; it cannot be adopted by a separate Goal loop.');
+        if ((item.serviceTaskContext || serviceTaskContext) && (!item.serviceTaskContext || !serviceTaskContext || capabilityPayloadHash(item.serviceTaskContext) !== capabilityPayloadHash(serviceTaskContext))) throw new ApiError(403, 'SERVICE_TASK_CONTEXT_REQUIRED', 'Generic Goal creation cannot adopt a service-only task.');
         if (agentConversation(state, item.id)) throw agentConversationRouteError();
         if (['running', 'awaiting_approval'].includes(item.status)) throw new ApiError(409, 'CONVERSATION_BUSY', 'Wait for or stop the current request before adding a goal here.');
         const goal = { id: randomUUID(), ...(selected !== undefined ? { inputContext: selected } : {}), title, description, conversationId: item.id, status: 'draft', stepCount: 0, maxSteps, maxOutputTokens, outputTokens: 0, output: '', nextStep: '', lastError: null, createdAt: now(), updatedAt: now(), revision: 0, runId: null, requestId: key, actionRequests: [] };
+        if (serviceTaskContext) { goal.serviceTask = { kind: serviceTaskContext.kind, scopeHash: serviceTaskContext.scopeHash, modelRequired: false }; goal.sourceConversationId = serviceTaskContext.sourceConversationId; }
         state.goals.push(goal);
         state.messages.push({ id: randomUUID(), conversationId: item.id, role: 'user', content: `${title}${description ? `\n\n${description}` : ''}`, status: 'complete', createdAt: now(), requestId: randomUUID(), goalId: goal.id });
         activity(state, 'created', 'Goal created', title, { goalId: goal.id, conversationId: item.id });
@@ -877,6 +896,10 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
         return { goal };
       });
       jobs.get(stoppedRun)?.controller.abort();
+      if (['pause', 'cancel'].includes(action) && ['paused', 'cancelled'].includes(result.goal.status) && result.goal.serviceTask?.scheduleId) {
+        const schedule = store.read().capabilities.schedules.find(item => item.id === result.goal.serviceTask.scheduleId);
+        if (schedule && (schedule.enabled || schedule.consent || schedule.status !== 'disabled')) await capabilities.disableSchedule(schedule.id);
+      }
       if (newRun && !newRun.queued) launchGoal(id, newRun.runId, newRun.revision);
       if (newRun?.queued) drainQueue();
       return result;

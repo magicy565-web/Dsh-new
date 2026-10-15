@@ -7,7 +7,7 @@ export function agentOwnerScope(state, actor) {
   const taskIds = new Set(tasks.filter(task => !owned(task)).map(task => task.id).filter(validId));
   const conversations = new Set(tasks.filter(task => !owned(task)).map(task => task.conversationId).filter(validId));
   const ids = new Set([...taskIds, ...conversations]);
-  for (const conversation of state.conversations || []) if ((conversation.piTaskOwner || conversation.businessAgentOwner) && !owned(conversation.piTaskOwner || conversation.businessAgentOwner)) {
+  for (const conversation of state.conversations || []) if ((conversation.piTaskOwner || conversation.businessAgentOwner || conversation.serviceTaskOwner) && !owned(conversation.piTaskOwner || conversation.businessAgentOwner || conversation.serviceTaskOwner)) {
     if (validId(conversation.id)) { ids.add(conversation.id); conversations.add(conversation.id); }
   }
   const runTask = run => run?.agentTaskId || run?.agentPresetContext?.taskId;
@@ -29,6 +29,7 @@ export function agentOwnerScope(state, actor) {
     || item.piTaskOwner && !owned(item.piTaskOwner)
     || item.businessAgentContext && !owned(item.businessAgentContext)
     || item.businessAgentOwner && !owned(item.businessAgentOwner)
+    || item.serviceTaskOwner && !owned(item.serviceTaskOwner)
     || item.binding && (ids.has(item.binding.runId) || ids.has(item.binding.conversationId) || ids.has(item.binding.goalId))
   ));
   let changed;

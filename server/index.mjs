@@ -10,6 +10,9 @@ import { createMuseDraftService } from './muse-draft-service.mjs';
 import { createSupplierService, supplierServiceHttp } from './supplier-service.mjs';
 import { SupplierServiceError } from './supplier-profile.mjs';
 import { createSupplierMonitoring } from './supplier-monitoring.mjs';
+import { createMarketValidationMonitor } from './market-validation-monitor.mjs';
+import { marketValidationMonitorHttp } from './market-validation-monitor-http.mjs';
+import { createMarketValidationLaunchReader } from './market-validation-launch-reader.mjs';
 import { createNativeSubscriptionFacility, loadSupplierNotificationOptions } from './native-subscription-facility.mjs';
 import { createGa4ProductTrafficAdapter } from './product-traffic-ga4.mjs';
 import { loadSupplierTrafficOptions } from './product-traffic-config.mjs';
@@ -94,7 +97,7 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
@@ -102,7 +105,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   if (businessAgent) provider = businessAgent.provider;
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
   try {
     if (businessAgent && Object.values(store.read().workspaceThreadHarness || {}).some(value => Array.isArray(value) && value.length))
       throw new Error('Existing alpha ThreadHarness records are retained. Review their archive/migration before enabling this adapter; no second executor or automatic state synchronization will adopt them.');
@@ -149,12 +152,19 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     supplierNotifications = createSupplierNotificationHost({ store, getCapabilities: () => capabilities, getSupplier: () => supplierService, options: supplierNotificationOptions, clock: accessClock, currentRole: subject => accessConfig.mode === 'enterprise' ? accessConfig.members.get(subject) : subject === 'local-operator' ? 'admin' : null });
     publicationAdapter = createShopifyPublicationAdapter({ store, environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock,
       readImage: (scope, ref) => supplierService.forActor({ subject: scope.subject, workspaceId: scope.workspaceId, role: scope.actorRole }).readImage(scope.conversationId, scope.serviceId, ref) });
-    capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [SUPPLIER_SHOPIFY_ADAPTER]: publicationAdapter, [SUPPLIER_MONITOR_NOTIFICATION_ADAPTER]: supplierNotifications.adapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
+    capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [SUPPLIER_SHOPIFY_ADAPTER]: publicationAdapter, [SUPPLIER_MONITOR_NOTIFICATION_ADAPTER]: supplierNotifications.adapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'market-validation-monitor' ? marketValidationMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
     museDrafts = piMuse ? createMuseDraftService({ store, runtime, piMuse, artifacts, provider }) : null;
     shopify = createShopifyClient({ environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock });
     if (!supplierTrafficAdapter && supplierTrafficOptions === null && capabilityEnvironment.WORKSPACE_SUPPLIER_TRAFFIC_CONFIG_FILE) supplierTrafficOptions = await loadSupplierTrafficOptions(capabilityEnvironment.WORKSPACE_SUPPLIER_TRAFFIC_CONFIG_FILE, { clock: accessClock, workspaceId: accessConfig.workspaceId || 'local' });
-    supplierMonitoring = await createSupplierMonitoring({ store, runtime, capabilities, shopify, clock: accessClock, notifications: supplierNotifications, authorizeOwner: (_state, monitor) => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(monitor.subject)) : monitor.subject === 'local-operator', trafficAdapter: supplierTrafficAdapter || (supplierTrafficOptions ? createGa4ProductTrafficAdapter({ ...supplierTrafficOptions, clock: accessClock }) : null) });
+    const sharedProductTrafficAdapter = supplierTrafficAdapter || (supplierTrafficOptions ? createGa4ProductTrafficAdapter({ ...supplierTrafficOptions, clock: accessClock }) : null);
+    supplierMonitoring = await createSupplierMonitoring({ store, runtime, capabilities, shopify, clock: accessClock, notifications: supplierNotifications, authorizeOwner: (_state, monitor) => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(monitor.subject)) : monitor.subject === 'local-operator', trafficAdapter: sharedProductTrafficAdapter });
+    if (!marketValidationOptions || Object.keys(marketValidationOptions).some(key => !['resolveLaunchReceipt', 'outcomeAdapter', 'trafficAdapter'].includes(key))) throw new TypeError('Use only the original Host receipt reader and reviewed data adapters.');
+    marketValidationMonitoring = await createMarketValidationMonitor({ store, runtime, capabilities, shopify, clock: accessClock, trafficAdapter: sharedProductTrafficAdapter?.contractVersion === 2 ? sharedProductTrafficAdapter : null, ...marketValidationOptions,
+      resolveLaunchReceipt: createMarketValidationLaunchReader({ store, artifacts, resolveLaunchReceipt: marketValidationOptions.resolveLaunchReceipt }),
+      authorizeOwner: (_state, actor) => actor.workspaceId === (accessConfig.workspaceId || 'local') && (accessConfig.mode === 'enterprise'
+        ? ['admin', 'operator'].includes(accessConfig.members.get(actor.subject)) && (!actor.sessionId || access.nativeSessionById(actor.sessionId)?.subject === actor.subject)
+        : actor.subject === 'local-operator') });
     supplierService = createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock: accessClock, monitoring: supplierMonitoring, notifications: supplierNotifications, publicationStatus: () => supplierPublication?.status(), ownerMcpConfigured: accessConfig.mode === 'enterprise' && typeof supplierOwnerMcpBinding?.readReviewedScope === 'function', ownerSessionMcpAvailable: accessConfig.mode === 'enterprise',
       readMuseImage: async (actor, cid, ref) => { if (!piMuse || piMuse.snapshot(actor).conversationId !== cid) throw new SupplierServiceError(404, 'SUPPLIER_IMAGE_UNAVAILABLE', 'Use the original reviewed Muse owner and Session.'); piMuse.forActor(actor); const file = await piMuse.native.bindSession(piMuse.actor).download({ artifactId: ref.artifactId, version: ref.version, sha256: ref.sha256 }); return { ...file, version: { sha256: file.sha256 } }; } });
     supplierPublication = await createSupplierPublication({ store, capabilities, shopify, adapter: publicationAdapter, clock: accessClock });
@@ -185,7 +195,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (!builtinAgent && !businessAgentOptions.engineAdapter) throw new Error('The business conversation adapter requires the original configured Agent member service.');
       businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead, artifacts });
     }
-  } catch (error) { await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
+  } catch (error) { await marketValidationMonitoring?.close(); await supplierMonitoring?.close(); await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
   const agentPrivacy = createAgentOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
   const supplierMcpExtension = bridge => createSupplierWorkerMcpExtension({ bridge, service: supplierService, store, workspaceId: accessConfig.workspaceId || 'local', memberRole: subject => accessConfig.mode === 'enterprise' ? accessConfig.members.get(subject) : subject === 'local-operator' ? 'admin' : null });
@@ -320,6 +330,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
+        if (await marketValidationMonitorHttp({ service: marketValidationMonitoring, req, res, pathname, context, respond })) return;
         if (!builtinAgent && pathname === '/api/agent-ui/v1/status') return await respond(res, 200, disabledAgentUiStatus());
         if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, respond })) return;
         if (await supplierServiceHttp({ service: supplierService, access, req, res, pathname, context, respond })) return;
@@ -421,6 +432,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (await draftHttp(req, res, pathname, context, body)) return;
       if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, body, respond })) return;
       if (await supplierServiceHttp({ service: supplierService, access, req, res, pathname, context, body, respond })) return;
+      if (await marketValidationMonitorHttp({ service: marketValidationMonitoring, req, res, pathname, context, body, respond })) return;
       const ownedFileMutation = pathname.match(/^\/api\/artifacts\/([^/]+)$/);
       if (ownedFileMutation && musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Original Muse receipt files are immutable and use the original binding.');
       const supplyWrite = await supplyHttp({ supply, method, pathname, body, actor: context });
@@ -554,7 +566,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, businessLibrary, businessAgent, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, businessAgent, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, marketValidationMonitoring, access, diagnostics,
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');
@@ -574,7 +586,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         server.closeIdleConnections();
         try {
           // Signal both domains before waiting, so a connector cannot delay model cancellation.
-          const results = await Promise.allSettled([builtinAgent?.close(), capabilities.close?.(), runtime.close(), museHost?.close(), piMuse?.close(), supplierMonitoring?.close()]);
+          const results = await Promise.allSettled([builtinAgent?.close(), capabilities.close?.(), runtime.close(), museHost?.close(), piMuse?.close(), supplierMonitoring?.close(), marketValidationMonitoring?.close()]);
           await artifacts.close?.();
           const failure = results.find(result => result.status === 'rejected');
           if (failure) throw failure.reason;
