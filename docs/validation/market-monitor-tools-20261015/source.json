@@ -5,7 +5,7 @@
   "sourceFiles": [
     {
       "path": "packages/workspace-market-validation/package.json",
-      "sha256": "68e0ea5d6ea2c31eb47cb0d43fba4ee872d350c61a15ec693062f929570d9868"
+      "sha256": "878748d02c8e471031296a5263de35f75b14ce30895bfbd71c850063fa372780"
     },
     {
       "path": "packages/workspace-market-validation/src/extension.js",
@@ -13,7 +13,7 @@
     },
     {
       "path": "packages/workspace-market-validation/src/monitor.js",
-      "sha256": "ac5f4e8264497e53ef036a3003aa022a7e5ca73fc5e57b2d187d7740b09e1d0a"
+      "sha256": "91893c77da2703f6e90e1d8b5d9c6cf346ea2e4a56b2622adfcb03c04b7154d1"
     },
     {
       "path": "packages/workspace-market-validation/src/plan.mjs",
@@ -21,7 +21,7 @@
     },
     {
       "path": "packages/workspace-market-validation/skills/market-validation/SKILL.md",
-      "sha256": "a21ced3be4361eada2e232242a4b523d779bd1a842feebf9c2fac3466cf91664"
+      "sha256": "0839c318a03712d2439fcec4f5e39b9c72c37759caee76121220050562063e16"
     },
     {
       "path": "server/index.mjs",
@@ -33,7 +33,7 @@
     },
     {
       "path": "server/workspace-omp-bridge.mjs",
-      "sha256": "5c5db9917b103bc18432192f986461f3d439f6113a226bd04931bf05e8f14e59"
+      "sha256": "2cbf5f8d0bc928ba99d4e598c5191002524ccf1015e59f049a620643a470dba4"
     },
     {
       "path": "server/workspace-omp-worker.mjs",
@@ -45,11 +45,11 @@
     },
     {
       "path": "server/market-validation-monitor-client.mjs",
-      "sha256": "060800623d861529e03efd046f84bc99d180b60401ec4079ad26fa1e3b6cb0f7"
+      "sha256": "1eb46804300d8bc52c63b38038ac488ad87521efec7e7b81507567c88204353f"
     },
     {
       "path": "server/market-validation-monitor.mjs",
-      "sha256": "5dbd5314edc5bd1579d1f4c0f8df4d8231a84a7c9e9d8f54a1604939bd64e3ac"
+      "sha256": "8db6ce4117d87e3a3fddb67fa53fe56aa48c37303d5ec98540d55c14aef629d2"
     },
     {
       "path": "server/market-validation-launch-reader.mjs",
@@ -57,23 +57,23 @@
     },
     {
       "path": "server/market-validation-assessment.mjs",
-      "sha256": "d33828475e1f631b4808502830b7e80a169db1247aa0948f576378781e364287"
+      "sha256": "935f9fe4baaf7ccce93160ab8544f5564236718943a0bc44ac09d76590d14dea"
     },
     {
       "path": "test/market-validation-assessment.test.mjs",
-      "sha256": "876eb82ec880eac72131787e883e8daad51a43f07d75faab7e7f93c31180012e"
+      "sha256": "eb35a53aefcf16f475887b75a5ab0558f7c17ffac0cb9c9954f363d1eb1bb2a1"
     },
     {
       "path": "test/market-validation-monitor-tools.test.mjs",
-      "sha256": "c8ead99feb1021d1762af149aa2a4f179c7437149113d0ee43df18d0af0e6e84"
+      "sha256": "86ab205e07d1d802afa5d6c246c50b271ee257ae3377e3eb99c8bce8c4b185cb"
     },
     {
       "path": "test/market-validation-monitor.test.mjs",
-      "sha256": "738f13386237f8530609c9877397fbbafadfadc5ede6dd282dacc2b3abb13a80"
+      "sha256": "5333e8bfa13b86ef539e1bc0d22bd065f8c47168497b1c4cdffbbcd25afe9533"
     },
     {
       "path": "test/market-validation-monitor.http.test.mjs",
-      "sha256": "d34d30afd35eed35e7de81995306119926fb90618d1f1f4ad7dfab00a4be2c9f"
+      "sha256": "b3c802eefab13607475a6aa1ce9d644b95a23c5abdd67835b3b1d9a338e4e8bc"
     },
     {
       "path": "test/market-validation-package.test.mjs",
@@ -85,7 +85,7 @@
     },
     {
       "path": "test/workspace-omp-integrated-factory.test.mjs",
-      "sha256": "56efee7ef223876e2c65cd28d964abe4550acdd1e94a760483fd30ee327c0db3"
+      "sha256": "569a9d90dbd1d155b990620c30a46c3bdf278faf7bf12de45bf41560a8501277"
     },
     {
       "path": "test/fixtures/market-validation-sdk.mjs",
@@ -97,7 +97,7 @@
     },
     {
       "path": "test/fixtures/pi-task-helpers.mjs",
-      "sha256": "38c8dcc15b2429be9d8b5034b8662e97c152a1aa4ca9fb9638cf369a61e521ba"
+      "sha256": "19da6986f22da6aca1d18dacd5a28a2fa611571718ccf005d2731b7277e59ca8"
     },
     {
       "path": "test/fixtures/factory-materials-read.mjs",
@@ -106,8 +106,29 @@
     {
       "path": "scripts/workspace-omp.mjs",
       "sha256": "e3507b3bc2f39a5f60a485a1fb328a90d2076cfa80fe34fdea85bb736240087e"
+    },
+    {
+      "path": "server/capabilities.mjs",
+      "sha256": "1b8b4b83bbf2184dc9fb137ebac1428f8b4087e59e3eab09c816209f09cfda2a"
+    },
+    {
+      "path": "server/agent/privacy.mjs",
+      "sha256": "b35dbcb90c8844b351477e56c16a688fca2885c1c9e48eddc93895bedc3af784"
+    },
+    {
+      "path": "src/Management.tsx",
+      "sha256": "6010deffe9a379efed0951ae49329ca618739c4dfbfbb16c3a127743753ec643"
+    },
+    {
+      "path": "test/ui.dom.test.mjs",
+      "sha256": "5f900d505bf41d5c2fe2cd8a177cc7b1a5ba18866add65543f64f6d19571018e"
+    },
+    {
+      "path": "test/agent-service.helpers.mjs",
+      "sha256": "ba365f79e79438d8cea45aaf686590c34c2615b689a744af68576443cf4bdf61"
     }
   ],
   "containsCredentials": false,
-  "containsBusinessRuntimeData": false
+  "containsBusinessRuntimeData": false,
+  "closeoutBasedOn": "5b56db69bce3b71f3eb10f87be4f4bd67ecf1578"
 }

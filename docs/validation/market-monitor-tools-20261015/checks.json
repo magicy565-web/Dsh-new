@@ -56,6 +56,62 @@
       "exitCode": 0,
       "durationMs": 17964.533808,
       "note": "After original launcher temporary-directory cleanup fix; original human permissions, approvals, checkpoints, business controls and recovery."
+    },
+    {
+      "tests": 280,
+      "pass": 280,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "command": "OMP_BUILTINS_SDK_ROOT=$PWD/support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent node --test --test-concurrency=3 test/factory-*.test.mjs test/workspace-omp*.test.mjs test/omp-builtins.factory*.test.mjs test/pi-business-conversation.native.test.mjs test/pi-library-read*.test.mjs test/market-validation*.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs test/runtime-v2.test.mjs test/capabilities.test.mjs",
+      "exitCode": 0,
+      "durationMs": 223051.263038,
+      "note": "Pristine 5b56db69bce3b71f3eb10f87be4f4bd67ecf1578 before this audit-closeout edit; full regression passes, not a partial rerun.",
+      "testedCommit": "5b56db69bce3b71f3eb10f87be4f4bd67ecf1578"
+    },
+    {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "command": "node --test --test-name-pattern='monitor proposal, original human' test/workspace-omp-integrated-factory.test.mjs",
+      "exitCode": 0,
+      "durationMs": 56534.315387,
+      "note": "One actual original Host/official OMP round trip: durable requests, original human schedule/control approval and execution, actual ScheduleRuns, Agent query, idempotent control receipt, missing payment null."
+    },
+    {
+      "tests": 366,
+      "pass": 364,
+      "fail": 2,
+      "skipped": 0,
+      "cancelled": 0,
+      "command": "OMP_BUILTINS_SDK_ROOT=$PWD/support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent node --test --test-concurrency=3 test/factory-*.test.mjs test/workspace-omp*.test.mjs test/omp-builtins.factory*.test.mjs test/pi-business-conversation.native.test.mjs test/pi-library-read*.test.mjs test/market-validation*.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs test/runtime-v2.test.mjs test/capabilities.test.mjs test/ui.dom.test.mjs test/agent-service.http.test.mjs test/supplier-publication*.test.mjs test/supplier-monitoring.test.mjs",
+      "exitCode": 1,
+      "durationMs": 245537.73452,
+      "note": "Expanded scope 364/366; only two original Agent install/Python assertions used the outdated 3-preset fixture while the original service already exposes factory-export as a fourth preset. Production preset behavior unchanged."
+    },
+    {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "command": "node --test test/agent-service.http.test.mjs",
+      "exitCode": 0,
+      "durationMs": 2766.457494,
+      "note": "Updated original expected preset list to include existing factory-export; all strict HTTP/install/download/Python checks remain."
+    },
+    {
+      "tests": 366,
+      "pass": 366,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "command": "OMP_BUILTINS_SDK_ROOT=$PWD/support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent node --test --test-concurrency=3 test/factory-*.test.mjs test/workspace-omp*.test.mjs test/omp-builtins.factory*.test.mjs test/pi-business-conversation.native.test.mjs test/pi-library-read*.test.mjs test/market-validation*.test.mjs test/library-api.test.mjs test/library-containment.test.mjs test/library-recovery.test.mjs test/runtime-v2.test.mjs test/capabilities.test.mjs test/ui.dom.test.mjs test/agent-service.http.test.mjs test/supplier-publication*.test.mjs test/supplier-monitoring.test.mjs",
+      "exitCode": 0,
+      "durationMs": 250396.94812,
+      "note": "Complete final-source affected regression after all control/assessment fixes and original preset fixture correction. Includes production React bundle in jsdom, actual original Host and official SDK, shared Agent/capability/supplier compatibility. No real model or business operations."
     }
   ],
   "build": {
@@ -89,7 +145,35 @@
     "Original actual approved acquisition execution receipt resolver defaults to null.",
     "Exact channel-attributed verified net-payment counts and supporting source evidence are not connected; Shopify retained quantities are not net-paid units.",
     "Qualified inquiry source and valid traffic/coverage matching the selected definition are not connected.",
-    "Reviewed comparable market benchmark source, dates, category, region, channel and units are not connected."
+    "Reviewed comparable market benchmark source, dates, category, region, channel and units are not connected.",
+    "FastMoss/Amazon paid MCPs are future user-provided external data services; neither researched nor connected, and no dedicated plugin created."
   ],
-  "countsOverlap": true
+  "countsOverlap": true,
+  "latestCompleteRunIndex": 9,
+  "closeoutBasedOn": "5b56db69bce3b71f3eb10f87be4f4bd67ecf1578",
+  "packageVersion": "0.2.1",
+  "auditFixes": [
+    "Merge every original required measurement gap into assessment; no passed or provisional:false with required gaps.",
+    "Reject contradictory zero-order/positive-net-unit cohorts in normalized source and pure assessment.",
+    "Conversion numerator/denominator and benchmark use the same bounded 0..1 proportion; reject over-one source counts.",
+    "Resolve consumed recurring schedule approvals through original consent, revision and hashes after scheduledAt advances.",
+    "Persist monitor.control proposals in original approvals; original human decision plus separate original control execution atomically consumes and stores receipt on that same record.",
+    "Extend original ownership traversal to approval payload references; no permission or role expansion."
+  ],
+  "controlContract": {
+    "ledger": "original capabilities.approvals",
+    "action": "monitor.control",
+    "decision": "original human Session/CSRF /api/approvals/:id/decision",
+    "execution": "original /api/goals/:goalId/market-validation-monitor/control with exact approvalId and human confirmed:true",
+    "atomicRecords": [
+      "original Approval consumption/executionReceipt",
+      "original Goal/monitor state",
+      "original Schedule consent retirement"
+    ],
+    "newApprovalOrSchedulingFramework": false,
+    "modelCanDecideOrExecute": false,
+    "durableProposalRequiresOriginalRunExecutionIntent": true,
+    "legacyExplicitManualHumanControlsCompatible": true
+  },
+  "uiVerification": "Production React bundle + jsdom + actual original HTTP/Store; not a visual browser acceptance."
 }

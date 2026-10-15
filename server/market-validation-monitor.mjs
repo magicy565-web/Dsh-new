@@ -103,6 +103,10 @@ function outcomeObservation(value, scope, adapterId) {
   if (scope.businessMode === 'b2c') for (const [net, gross] of [['netPaidOrders', 'paidOrders'], ['netPaidUnits', 'paidUnits'], ['refundedUnits', 'paidUnits']]) {
     if (value.metrics[net] != null && value.metrics[gross] != null && value.metrics[net] > value.metrics[gross]) fail('OUTCOME_OBSERVATION_INVALID', 'Net or refunded cohort counts cannot exceed the acknowledged paid cohort.', 502);
   }
+  if (value.metrics.netPaidOrders != null && value.metrics.netPaidUnits != null &&
+      (value.metrics.netPaidUnits < value.metrics.netPaidOrders || (value.metrics.netPaidOrders === 0) !== (value.metrics.netPaidUnits === 0))) fail('OUTCOME_OBSERVATION_INVALID', 'Net paid order and product unit counts contradict one another.', 502);
+  if (scope.resultAssessment?.metric === 'conversion_rate' && value.metrics.netPaidOrders != null && value.resultEvidence?.validVisits != null
+      && value.metrics.netPaidOrders > value.resultEvidence.validVisits) fail('OUTCOME_OBSERVATION_INVALID', 'The selected conversion proportion permits at most one attributed net paid order conversion per valid visit.', 502);
   let resultEvidence;
   if (value.resultEvidence != null) {
     const e = value.resultEvidence;
@@ -340,6 +344,69 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
         goal.serviceTask.scopeHash !== task.scopeHash || record.expectedGoalDefinitionHash !== args.expectedGoalDefinitionHash ||
         schedule.consent.definitionHash !== args.expectedGoalDefinitionHash || hash(goalDefinition(goal, state)) !== args.expectedGoalDefinitionHash) fail('SCHEDULE_CLAIM_RETIRED', 'Only the original current approved ScheduleRun may dispatch this task.');
   }
+  function controlScope(state, actor, body) {
+    const { goal, task } = owned(state, actor, body.goalId);
+    if (!['pause', 'resume', 'cancel'].includes(body.action)) fail('INVALID_INPUT', 'Select pause, resume or cancel.', 400);
+    if (body.action === 'resume' && (task.status === 'cancelled' || goal.status === 'cancelled')) fail('MONITOR_CANCELLED', 'A cancelled task cannot resume.');
+    if (body.action === 'resume' && clock() >= Date.parse(task.scope.endAt)) fail('MONITOR_WINDOW_ENDED', 'The original window cannot be extended.');
+    const schedule = state.capabilities.schedules.find(row => row.id === task.scheduleId);
+    if (!schedule) fail('MONITOR_SCOPE_CHANGED', 'The original monitor schedule is required.');
+    return { action: 'monitor.control', resource: `goal:${goal.id}`, payload: { goalId: goal.id, sourceConversationId: task.scope.conversationId,
+      action: body.action, scopeHash: task.scopeHash, scheduleId: schedule.id, scheduleRevision: schedule.revision,
+      expectedGoalStatus: goal.status, expectedTaskStatus: task.status, goalDefinitionHash: hash(goalDefinition(goal, state)) } };
+  }
+  async function requestControl(actor, body, route = {}) {
+    fields(body, ['goalId', 'action']); route.signal?.throwIfAborted();
+    if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503);
+    const scope = controlScope(store.read(), actor, body), payloadHash = hash(scope.payload);
+    const matching = state => state.capabilities.approvals.findLast(row => row.action === scope.action && row.resource === scope.resource
+      && row.payloadHash === payloadHash && ['pending', 'approved'].includes(row.status) && Date.parse(row.expiresAt) > clock());
+    const prior = matching(store.read()); if (prior) return { approval: copy(prior) };
+    try {
+      return await capabilities.requestApproval(scope, { onCreated(state, approval) {
+        route.signal?.throwIfAborted(); if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503); route.check?.(state);
+        if (hash(controlScope(state, actor, body).payload) !== payloadHash) fail('MONITOR_SCOPE_CHANGED', 'Re-propose the current exact task state.');
+        if (state.capabilities.approvals.some(row => row.id !== approval.id && row.action === scope.action && row.resource === scope.resource
+          && row.payloadHash === payloadHash && ['pending', 'approved'].includes(row.status) && Date.parse(row.expiresAt) > clock())) fail('MONITOR_APPROVAL_PENDING', 'The original matching request already exists.');
+      } });
+    } catch (error) { if (error.code !== 'MONITOR_APPROVAL_PENDING') throw error; owner(store.read(), actor); return { approval: copy(matching(store.read())) }; }
+  }
+  async function control(actor, body) {
+    fields(body, ['goalId', 'action', 'expectedScopeHash', 'confirmed', 'approvalId']);
+    const { task } = owned(store.read(), actor, body.goalId);
+    if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503);
+    if (body.expectedScopeHash !== task.scopeHash || body.confirmed !== true || !['pause', 'resume', 'cancel'].includes(body.action)) fail('MONITOR_SCOPE_CHANGED', 'Confirm the exact task and action.');
+    // An exact consumed receipt is an idempotent replay, never a new control.
+    function replay(state) {
+      if (body.approvalId === undefined) return null;
+      const record = state.capabilities.approvals.find(row => row.id === body.approvalId);
+      if (record?.status !== 'consumed' || !record.executionReceipt) return null;
+      if (record.action !== 'monitor.control' || record.resource !== `goal:${body.goalId}` || record.payload?.action !== body.action
+        || record.payload.scopeHash !== body.expectedScopeHash || record.payloadHash !== hash(record.payload)) fail('APPROVAL_MISMATCH', 'Use the exact original control approval.', 403);
+      return copy(record.executionReceipt);
+    }
+    const prior = replay(store.read());
+    if (prior) return { ...projection(store.read(), body.goalId), controlReceipt: prior, duplicate: true };
+    controlScope(store.read(), actor, body);
+    if (body.action === 'resume' && hash(await launch(actor, task.scope)) !== task.scopeHash) fail('LAUNCH_SCOPE_CHANGED', 'Reconcile the original launch receipt.');
+    const result = await store.update(state => {
+      if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503);
+      const { goal, task: current } = owned(state, actor, body.goalId), duplicate = replay(state);
+      if (duplicate) return { receipt: duplicate, duplicate: true };
+      const scope = controlScope(state, actor, body);
+      const approval = body.approvalId === undefined ? null : capabilities.consumeApprovalInTransaction(state, body.approvalId, scope);
+      if (current.status !== 'cancelled') {
+        current.status = body.action === 'resume' ? 'ready' : body.action === 'cancel' ? 'cancelled' : 'paused';
+        goal.status = body.action === 'resume' ? 'draft' : current.status;
+        capabilities.disableScheduleInTransaction(state, current.scheduleId);
+      }
+      const receipt = { approvalId: approval?.id ?? null, goalId: goal.id, action: body.action, scopeHash: current.scopeHash,
+        status: current.status, appliedAt: now(), scheduleEnabled: false, modelRequired: false };
+      if (approval) approval.executionReceipt = copy(receipt);
+      return { receipt, duplicate: false };
+    });
+    return { ...projection(store.read(), body.goalId), controlReceipt: result.receipt, duplicate: result.duplicate };
+  }
   return {
     forActor(actor) { actor = { subject: actor?.subject, workspaceId: actor?.workspaceId, ...(actor?.role ? { role: actor.role } : {}), sessionId: actor?.session?.id || actor?.sessionId || null }; return {
       create: (body, route) => create(actor, body, route),
@@ -349,23 +416,9 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
       list(sourceConversationId) { const state = store.read(); owner(state, actor); ownedSource(state, actor, sourceConversationId); return state.goals.filter(goal => goal.serviceTask?.kind === KIND && goal.marketValidationMonitor?.scope.conversationId === sourceConversationId && goal.marketValidationMonitor.subject === actor.subject && goal.marketValidationMonitor.workspaceId === actor.workspaceId).map(goal => projection(state, goal.id)); },
       get(goalId) { owned(store.read(), actor, goalId); return projection(store.read(), goalId); },
       observe: body => observe(actor, body),
-      async control(body) {
-        fields(body, ['goalId', 'action', 'expectedScopeHash', 'confirmed']);
-        const { task } = owned(store.read(), actor, body.goalId);
-        if (closing) fail('SHUTTING_DOWN', 'Monitoring is closing.', 503);
-        if (body.expectedScopeHash !== task.scopeHash || body.confirmed !== true || !['pause', 'resume', 'cancel'].includes(body.action)) fail('MONITOR_SCOPE_CHANGED', 'Confirm the exact task and control action.');
-        if (body.action === 'resume' && (task.status === 'cancelled' || taskFor(store.read(), body.goalId).goal.status === 'cancelled')) fail('MONITOR_CANCELLED', 'A cancelled task cannot resume.');
-        if (body.action === 'resume' && clock() >= Date.parse(task.scope.endAt)) fail('MONITOR_WINDOW_ENDED', 'The real seven-day window cannot be extended by resuming.');
-        if (body.action === 'resume') {
-          if (hash(await launch(actor, task.scope)) !== task.scopeHash) fail('LAUNCH_SCOPE_CHANGED', 'Reconcile the original launch receipt.');
-          if (task.scheduleId) await capabilities.disableSchedule(task.scheduleId);
-          await store.update(state => { const { goal, task: current } = owned(state, actor, body.goalId); if (current.status === 'cancelled' || goal.status === 'cancelled') fail('MONITOR_CANCELLED', 'A cancelled task cannot resume.'); current.status = 'ready'; goal.status = 'draft'; });
-        } else {
-          await store.update(state => { const { goal, task: current } = owned(state, actor, body.goalId); if (current.status === 'cancelled') return; current.status = body.action === 'cancel' ? 'cancelled' : 'paused'; goal.status = current.status; });
-          if (task.scheduleId) await capabilities.disableSchedule(task.scheduleId);
-        }
-        return projection(store.read(), body.goalId);
-      },
+      controlApprovalScope: body => controlScope(store.read(), actor, body),
+      requestControl: (body, route) => requestControl(actor, body, route),
+      control: body => control(actor, body),
     }; },
     async dispatch(args) {
       validateClaim(store.read(), args);

@@ -8,7 +8,7 @@ import { fork } from 'node:child_process';
 import { once } from 'node:events';
 
 export const API = '/api/agent/v1';
-export const PRESET_IDS = ['procurement', 'supplier-sourcing', 'opportunity-discovery'];
+export const PRESET_IDS = ['procurement', 'supplier-sourcing', 'opportunity-discovery', 'factory-export'];
 export const EVENT_KINDS = ['accepted', 'stage', 'thinking', 'progress', 'artifact', 'done', 'error'];
 export const MODEL_TEXT = '当前资料的缺口应逐项核对。';
 export const INPUTS = {

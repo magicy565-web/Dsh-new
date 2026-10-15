@@ -14,7 +14,7 @@ const DAY = 86400000;
 async function fixture(t, options = {}) {
   const directory = await fs.mkdtemp('/tmp/market-monitor-http-'), keys = generateKeyPairSync('ed25519');
   let clock = Date.parse('2026-10-12T10:00:00Z'), app, transport, receipt, planId, members = [
-    { subject: 'owner', role: 'admin' }, { subject: 'other', role: 'operator' }, { subject: 'viewer', role: 'viewer' },
+    { subject: 'owner', role: 'admin' }, { subject: 'other', role: options.otherRole || 'operator' }, { subject: 'viewer', role: 'viewer' },
   ], sessions = new Map(), resolveGate = null, resolverEntered = null;
   const access = { mode: 'enterprise', publicOrigin: 'https://workspace.example', workspaceId: 'fixture-workspace', issuer: 'fixture-ingress', keyId: 'fixture-only-key',
     publicKey: keys.publicKey.export({ type: 'spki', format: 'pem' }), members };
@@ -185,4 +185,39 @@ test('plan Artifact mutation during original receipt resolution is fenced before
   await f.app.artifacts.update(f.receipt.planId, { description: 'Synthetic metadata revision during original receipt resolution' });
   release(); const result = await pending;
   assert.equal(result.data.error.code, 'MARKET_PLAN_RECEIPT_MISMATCH'); assert.equal(f.app.store.read().goals.length, 0); assert.equal(f.app.store.read().conversations.length, 1);
+});
+
+test('original control approvals reject pending, denied, expired, foreign and stale requests; human execution consumes once', async t => {
+  const f = await fixture(t, { otherRole: 'admin' }), task = (await f.create()).data;
+  const scoped = () => f.app.marketValidationMonitoring.forActor({ subject: 'owner', workspaceId: 'fixture-workspace', role: 'admin' });
+  const propose = action => scoped().requestControl({ goalId: task.goalId, action });
+  const execute = (approval, action = approval.payload.action) => f.api(route(task) + '/control', { method: 'POST', body: { ...control(task, action), approvalId: approval.id } });
+  const decide = (approval, decision) => f.api(`/api/approvals/${approval.id}/decision`, { method: 'POST', body: { decision, confirmed: true } });
+  const requests = await Promise.all([propose('pause'), propose('pause'), propose('pause')]);
+  const pending = requests[0].approval; assert.ok(requests.every(row => row.approval.id === pending.id));
+  assert.equal((await execute(pending)).data.error.code, 'APPROVAL_REQUIRED');
+  assert.equal(scoped().get(task.goalId).status, 'ready');
+  assert.equal((await f.api(`/api/approvals/${pending.id}/decision`, { method: 'POST', body: { decision: 'approved', confirmed: true }, headers: { 'X-CSRF-Token': 'wrong' } })).status, 403);
+  await f.login('other');
+  assert.equal((await f.api(`/api/approvals/${pending.id}/decision`, { subject: 'other', method: 'POST', body: { decision: 'approved', confirmed: true } })).status, 404);
+  const foreign = await f.api('/api/bootstrap', { subject: 'other' }); assert.ok(!JSON.stringify(foreign.data).includes(pending.id));
+  await decide(pending, 'denied'); assert.equal((await execute(pending)).data.error.code, 'APPROVAL_REQUIRED');
+  const expired = (await propose('pause')).approval; await decide(expired, 'approved'); f.advance(301000);
+  assert.equal((await execute(expired)).data.error.code, 'APPROVAL_EXPIRED'); assert.equal(scoped().get(task.goalId).status, 'ready');
+  const stale = (await propose('pause')).approval; await decide(stale, 'approved');
+  assert.equal((await f.api(route(task) + '/control', { method: 'POST', body: control(task, 'pause') })).status, 200); // Existing explicit manual human control remains compatible.
+  assert.equal((await execute(stale)).data.error.code, 'APPROVAL_MISMATCH');
+  const resume = (await propose('resume')).approval; await decide(resume, 'approved');
+  f.receipt.approved = false; assert.equal((await execute(resume)).data.error.code, 'REAL_LAUNCH_RECEIPT_REQUIRED');
+  assert.equal(f.app.capabilities.getApproval(resume.id).status, 'approved'); f.receipt.approved = true;
+  const applied = await execute(resume); assert.equal(applied.status, 200, JSON.stringify(applied.data));
+  assert.equal(applied.data.controlReceipt.approvalId, resume.id); assert.equal(applied.data.status, 'ready'); assert.equal(applied.data.scheduleEnabled, false);
+  const revision = f.app.capabilities.getSchedule(task.scheduleId).revision;
+  const duplicate = await execute(resume); assert.equal(duplicate.status, 200); assert.equal(duplicate.data.duplicate, true);
+  assert.equal(f.app.capabilities.getSchedule(task.scheduleId).revision, revision);
+  assert.equal((await execute(resume, 'cancel')).data.error.code, 'APPROVAL_MISMATCH');
+  const receipt = f.app.capabilities.getApproval(resume.id).executionReceipt;
+  assert.equal(receipt.action, 'resume'); assert.equal(receipt.modelRequired, false); assert.equal(receipt.scheduleEnabled, false);
+  const unbound = await f.api('/api/approvals', { method: 'POST', body: { action: 'monitor.control', resource: `goal:${task.goalId}`, payload: { goalId: task.goalId } } });
+  assert.equal(unbound.data.error.code, 'HOST_BOUND_APPROVAL_REQUIRED');
 });

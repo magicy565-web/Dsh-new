@@ -12,7 +12,13 @@ export function assessMarketValidation({ scope, sample, windowComplete }) {
   const complete = outcomes?.status === 'available' && outcomes.dataLagSeconds === 0
     && outcomes.coverage?.from === scope.startAt && outcomes.coverage?.to === scope.endAt;
   // Retained Shopify quantities and B2B inquiries are never payment evidence.
-  const counts = Number.isSafeInteger(orders) && orders >= 0 && Number.isSafeInteger(units) && units >= orders;
+  const counts = Number.isSafeInteger(orders) && orders >= 0 && Number.isSafeInteger(units) && units >= orders && (orders === 0) === (units === 0);
+  if (orders !== null && units !== null && !counts) gap('NET_PAID_COUNTS_INCONSISTENT');
+  const required = sample.measurement;
+  const requiredComplete = required?.status === 'observed_not_adjudicated' && Array.isArray(required.gaps) && required.gaps.length === 0;
+  result.requiredMetricGaps = Array.isArray(required?.gaps) ? structuredClone(required.gaps) : [];
+  if (!requiredComplete) gap('REQUIRED_MEASUREMENT_INCOMPLETE');
+  for (const item of result.requiredMetricGaps) gap('REQUIRED_METRIC_NOT_MEASURED:' + item.metric);
   const paid = counts && complete && proof?.evidenceKind === 'real' && proof?.paymentStatus === 'net_paid_verified'
     && typeof proof.evidenceRef === 'string' && proof.evidenceRef.length > 0 && proof.coverageRatio === 1;
   if (!windowComplete) gap('WINDOW_NOT_ENDED');
@@ -39,17 +45,19 @@ export function assessMarketValidation({ scope, sample, windowComplete }) {
     channelId: benchmark.channelId, windowHours: benchmark.windowHours, observedAt: benchmark.observedAt, validVisitDefinition: benchmark.validVisitDefinition };
   const enoughTraffic = Number.isSafeInteger(visits) && visits >= 0 && selection && Number.isSafeInteger(selection.minimumValidVisits) && selection.minimumValidVisits > 0 && proof.validVisitDefinition === selection.validVisitDefinition && visits >= selection.minimumValidVisits;
   if (!enoughTraffic) gap('VALID_TRAFFIC_SAMPLE_INSUFFICIENT');
-  if (windowComplete && paid && orders > 0 && comparable && enoughTraffic) {
+  const conversionInRange = selection?.metric !== 'conversion_rate' || Number.isSafeInteger(visits) && visits >= 0 && counts && orders <= visits;
+  if (!conversionInRange) gap('CONVERSION_RATE_OUT_OF_RANGE');
+  if (windowComplete && requiredComplete && conversionInRange && paid && orders > 0 && comparable && enoughTraffic) {
     result.observed = selection.metric === 'sales_units' ? units : orders / visits;
     result.ratio = result.observed / benchmark.value;
     result.difference = { thresholdValue: benchmark.value * result.threshold, deltaFromThreshold: result.observed - benchmark.value * result.threshold, unit: selection.unit };
     result.status = result.ratio >= result.threshold ? 'passed' : 'below_benchmark';
     result.recommendations.push(result.status === 'passed' ? 'review_continuation_with_human' : 'review_offer_and_acquisition_strategy');
-  } else if (windowComplete && complete && paid && orders === 0 && visits === 0) {
+  } else if (windowComplete && requiredComplete && conversionInRange && complete && paid && orders === 0 && visits === 0) {
     result.status = 'traffic_anomaly'; result.recommendations.push('check_acquisition_delivery_and_collection');
-  } else if (windowComplete && complete && paid && orders === 0 && inquiries > 0) {
+  } else if (windowComplete && requiredComplete && conversionInRange && complete && paid && orders === 0 && inquiries > 0) {
     result.status = 'strategy_optimization_needed'; result.recommendations.push('review_price_offer_followup_and_checkout_without_assuming_cause');
-  } else if (windowComplete && complete && paid && orders === 0 && inquiries === 0 && enoughTraffic) {
+  } else if (windowComplete && requiredComplete && conversionInRange && complete && paid && orders === 0 && inquiries === 0 && enoughTraffic) {
     result.status = 'low_demand_pending_review'; result.recommendations.push('review_demand_with_traffic_quality_and_sample_uncertainty');
   } else result.recommendations.push('connect_missing_evidence_and_review_sample_coverage');
   result.provisional = !windowComplete || result.gaps.some(g => g !== 'INQUIRY_OUTCOME_NOT_CONNECTED');

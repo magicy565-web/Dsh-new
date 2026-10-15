@@ -10,7 +10,7 @@ function fixture(metric = 'sales_units') {
     unit: metric === 'sales_units' ? 'net_paid_units_per_168h' : 'net_paid_orders_per_valid_visit', benchmarkWindow: { from: '2026-09-23T00:00:00.000Z', to: '2026-09-30T00:00:00.000Z' }, benchmarkSourceId: 'reviewed-fixture', validVisitDefinition: 'Bot-filtered exact-channel unique valid visits', minimumValidVisits: 100 };
   const scope = { startAt: '2026-10-01T00:00:00.000Z', endAt: '2026-10-08T00:00:00.000Z', resultAssessment: selection,
     marketBenchmark: { ...selection, coverage: { ...selection.benchmarkWindow }, sourceId: 'reviewed-fixture', evidenceKind: 'real', reviewed: true, evidenceRef: 'synthetic-only-benchmark', windowHours: 168, value: metric === 'sales_units' ? 100 : 0.1, observedAt: '2026-09-30T00:00:00.000Z' } };
-  const sample = { outcomes: { status: 'available', dataLagSeconds: 0, coverage: { from: scope.startAt, to: scope.endAt }, sourceId: 'synthetic-outcomes',
+  const sample = { measurement: { status: 'observed_not_adjudicated', gaps: [] }, outcomes: { status: 'available', dataLagSeconds: 0, coverage: { from: scope.startAt, to: scope.endAt }, sourceId: 'synthetic-outcomes',
     metrics: { netPaidUnits: 70, netPaidOrders: 7 }, resultEvidence: { evidenceKind: 'real', paymentStatus: 'net_paid_verified', evidenceRef: 'synthetic-only-payment', coverageRatio: 1, validVisitDefinition: selection.validVisitDefinition, validVisits: 100, qualifiedInquiries: 0 } } };
   return { scope, sample, windowComplete: true };
 }
@@ -50,4 +50,20 @@ test('plan choice is explicit and optional; model cannot embed approved numeric 
   plan.paths[0].resultAssessment.marketAverage = 100; assert.throws(() => validatePlanInput(input)); delete plan.paths[0].resultAssessment.marketAverage;
   plan.paths[0].resultAssessment.metric = 'conversion_rate'; assert.throws(() => validatePlanInput(input));
   plan.paths[0].resultAssessment.metric = 'sales_units'; plan.paths[0].resultAssessment.benchmarkWindow.to = plan.paths[0].resultAssessment.benchmarkWindow.from; assert.throws(() => validatePlanInput(input));
+});
+
+test('required measurement gaps or contradictory paid counts cannot pass or imply low demand', () => {
+  const missing = fixture(); missing.sample.measurement = { status: 'insufficient_evidence', gaps: [{ metric: 'checkouts', status: 'unconfigured', reason: 'SELECTED_METRIC_NOT_MEASURED' }] };
+  const result = assessMarketValidation(missing); assert.equal(result.status, 'insufficient_evidence'); assert.equal(result.provisional, true); assert.equal(result.goalVerified, false);
+  assert.deepEqual(result.requiredMetricGaps, missing.sample.measurement.gaps); assert.ok(result.gaps.includes('REQUIRED_METRIC_NOT_MEASURED:checkouts'));
+  delete missing.sample.measurement; assert.equal(assessMarketValidation(missing).status, 'insufficient_evidence');
+  const contradiction = fixture(); contradiction.sample.outcomes.metrics.netPaidOrders = 0;
+  const invalid = assessMarketValidation(contradiction); assert.equal(invalid.status, 'insufficient_evidence'); assert.equal(invalid.provisional, true); assert.ok(invalid.gaps.includes('NET_PAID_COUNTS_INCONSISTENT'));
+});
+test('conversion proportion and benchmark use the same 0..1 bound; over-one order conversion input is rejected', () => {
+  const f = fixture('conversion_rate'); f.sample.outcomes.metrics = { netPaidOrders: 101, netPaidUnits: 101 };
+  const invalid = assessMarketValidation(f); assert.equal(invalid.status, 'insufficient_evidence'); assert.equal(invalid.provisional, true); assert.ok(invalid.gaps.includes('CONVERSION_RATE_OUT_OF_RANGE'));
+  f.sample.outcomes.metrics = { netPaidOrders: 100, netPaidUnits: 100 }; f.scope.marketBenchmark.value = 1;
+  const upper = assessMarketValidation(f); assert.equal(upper.status, 'passed'); assert.equal(upper.observed, 1);
+  f.scope.marketBenchmark.value = 1.01; assert.equal(assessMarketValidation(f).status, 'insufficient_evidence');
 });

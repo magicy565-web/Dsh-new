@@ -50,6 +50,9 @@ export async function taskFixture(t, { directory: selectedDirectory, enterprise 
   const address = await app.listen(listenPort);
   const sessions = new Map();
   const f = { directory, app, faux, enterprise, token: TOKEN_A, baseURL: `http://127.0.0.1:${address.port}`,
+    // Clearing a fixture cache triggers the same original signed login on the
+    // next request; it never installs an identity or bypasses Session expiry.
+    clearWorkspaceSession(subject) { sessions.delete(subject); },
     async workspace(route, { subject = 'member-b', body, headers = {} } = {}) {
       if (!sessions.has(subject)) {
         const target = '/api/session/login';

@@ -658,3 +658,44 @@ test('template schedule UI makes fresh goal mode explicit, bounds standing appro
     assert.deepEqual(ui.errors, []);
   } finally { window.close(); await api.close(); }
 });
+
+test('management UI: original monitor control approval is separate from execution and returns a durable consumed receipt', async () => {
+  let receipt;
+  const api = await fixture({ capabilityEnvironment: {}, marketValidationOptions: { async resolveLaunchReceipt() { return structuredClone(receipt); } } });
+  const actor = { subject: 'local-operator', workspaceId: 'local', role: 'admin' };
+  const { conversation } = await api.app.runtime.createConversation({ title: 'Synthetic monitor UI source', requestId: 'monitor-ui-source' }, actor);
+  const plan = { timeZone: 'UTC', paths: [{ mode: 'b2c', acquisition: [{ id: 'fixture-source' }], metrics: [{ id: 'net_paid_units', definition: 'Synthetic net paid cohort' }], salesRequirement: { metric: 'net_paid_units', target: 1, definition: 'Fixture only' } }] };
+  const { libraryReadHash } = await import('../server/library-model-read-contract.mjs');
+  const { artifact } = await api.app.artifacts.create({ requestId: 'monitor-ui-plan', filename: 'market-validation-plan.json', sourceConversationId: conversation.id,
+    content: JSON.stringify({ schema: 'workspace.market-validation-plan.v1', plan }), metadata: { marketValidationPlan: { ownerHash: libraryReadHash(['local', 'local-operator', conversation.id]), planHash: libraryReadHash(plan) } } });
+  receipt = { id: 'fixture-ui-launch', planId: artifact.id, planRevision: 1, planSha256: artifact.sha256, planHash: libraryReadHash(plan), planAcquisitionId: 'fixture-source',
+    approved: true, status: 'launched', evidenceKind: 'real', launchKind: 'acquisition', startedAt: new Date(Date.now() - 3600000).toISOString(),
+    timezone: 'UTC', productId: 'gid://shopify/Product/123', shopId: 'gid://shopify/Shop/1', variantIds: [], channelId: 'fixture-source', businessMode: 'b2c', conversationId: conversation.id };
+  const task = await api.app.marketValidationMonitoring.forActor(actor).create({ requestId: 'monitor-ui-create', planId: artifact.id, planRevision: 1, launchReceiptId: receipt.id });
+  const ui = await renderWorkspace(api);
+  try {
+    await openManagement(ui, '技能'); await managementTab(ui, '审批记录');
+    for (const action of ['pause', 'resume', 'cancel']) {
+      const before = api.app.marketValidationMonitoring.forActor(actor).get(task.goalId);
+      const { approval } = await api.app.marketValidationMonitoring.forActor(actor).requestControl({ goalId: task.goalId, action });
+      await ui.click(ui.aria('刷新管理数据'));
+      await waitFor(() => ui.document.querySelector(`[data-approval-id="${approval.id}"]`), 'monitor request in original management approvals');
+      let card = ui.document.querySelector(`[data-approval-id="${approval.id}"]`);
+      assert.ok(card.textContent.includes('控制七天监测任务'));
+      await ui.click(ui.button('批准此请求', card));
+      await waitFor(() => api.state.capabilities.approvals.find(row => row.id === approval.id)?.status === 'approved', 'human monitor approval recorded');
+      assert.equal(api.app.marketValidationMonitoring.forActor(actor).get(task.goalId).status, before.status);
+      await waitFor(() => ui.button('执行已批准动作', ui.document.querySelector(`[data-approval-id="${approval.id}"]`)), 'approved monitor execution button rendered');
+      card = ui.document.querySelector(`[data-approval-id="${approval.id}"]`);
+      await ui.click(ui.button('执行已批准动作', card));
+      await waitFor(() => api.state.capabilities.approvals.find(row => row.id === approval.id)?.status === 'consumed', 'original monitor execution consumed approval');
+      const current = api.app.marketValidationMonitoring.forActor(actor).get(task.goalId);
+      assert.equal(current.status, action === 'resume' ? 'ready' : action === 'pause' ? 'paused' : 'cancelled'); assert.equal(current.scheduleEnabled, false);
+      const stored = api.state.capabilities.approvals.find(row => row.id === approval.id);
+      assert.equal(stored.executionReceipt.action, action); assert.equal(stored.executionReceipt.modelRequired, false);
+      assert.ok(api.requests.some(row => row.path === `/api/goals/${task.goalId}/market-validation-monitor/control` && row.body.approvalId === approval.id && row.body.confirmed === true));
+      await waitFor(() => !ui.document.querySelector(`[data-approval-id="${approval.id}"]`) && !ui.aria('刷新管理数据').disabled, 'consumed monitor card and request lock released');
+    }
+    assert.deepEqual(ui.errors, []);
+  } finally { ui.window.close(); await api.close(); }
+});

@@ -13,6 +13,7 @@ test('monitor schemas and runtime reject model approval, changed start, extra sc
     const r = await f.invoke(0, args); assert.equal(r.details.reason, 'MARKET_MONITOR_INPUT_INVALID'); assert.equal(r.isError, true);
     assert.deepEqual(JSON.parse(r.content[0].text), r.details);
   }
+  assert.equal((await f.invoke(2, { goalId: 'original', action: 'pause', confirmed: true })).details.reason, 'MARKET_MONITOR_INPUT_INVALID');
   assert.equal(calls, 0); assert.equal((await f.invoke(2, { goalId: 'original', action: 'enable' })).isError, true);
 });
 test('unconfigured, failures, revoked authorization and abort return bounded recognizable errors', async () => {

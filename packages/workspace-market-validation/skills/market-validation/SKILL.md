@@ -21,6 +21,8 @@ Shopify 是首个店铺渠道，店铺上架不等于获客。复用原 supplier
 
 Host 每次向模型发送上下文前须用原 owned journal 派生工具调用来源，执行 `revalidateReceipt`，包括 reload/fork/switch/compaction。不能只验证首次工具调用，不能让模型提交自己的权限、sources 证明或缓存审批。未完成 Host 绑定之前，此包仅可组合的开发能力，不是已上线的业务入口。
 
-监测薄工具：`workspace_market_monitor_request` 只提出原禁用 Goal/Schedule 与原 schedule.enable 审批请求；必须有真实获客启动回执，不能以模型 confirmed 自审。`workspace_market_monitor_status` 查询实时审批与测量；`workspace_market_monitor_control_request` 返回原人类 Session/CSRF 暂停、取消、恢复入口，applied=false，模型不能自行执行。恢复不延长 168 小时且需重新启用审批。
+监测薄工具：`workspace_market_monitor_request` 只提出原禁用 Goal/Schedule 与原 schedule.enable 审批请求；必须有真实获客启动回执，不能以模型 confirmed 自审。`workspace_market_monitor_status` 查询实时审批与测量；`workspace_market_monitor_control_request` 把暂停、取消、恢复申请写入原审批记录，初始 applied=false；用户在原管理页批准后单独执行原人类 Session/CSRF 控制入口，原记录消费后可查询真实回执。模型不能自行批准或执行。恢复不延长 168 小时且需重新启用审批。
 
 七天结果仅按显式 resultAssessment 选择的销量或转化率比较 70%；缺选择或可信可比基准写基准不足，不默认通过。基准保留原来源、品类、地区、渠道、窗口、单位和有效访问口径；模型不能提供已审核均值。真实净支付成交且达到阈值才可给证据层 passed，原 Goal 仍须人审。无订单且无流量先检查投放/采集异常；足够有效流量且无订单无咨询仅低需求待复核；有咨询无成交仅提示价格/报价/跟进/结账等策略优化方向，不能断定原因。缺数据留 null，样本、覆盖或延迟不足保留不确定性，Shopify retained 数量不是净支付销量。
+
+所有原计划必选测量缺口必须合并入结果判定，缺项不得 passed 或 provisional=false。净支付零订单必须对应零销量；矛盾计数拒绝。转化率以每个有效访问至多一次归因净支付订单转化计，分子和基准比例均不得超过 1；多单/访问原始比值不冒充该比例。

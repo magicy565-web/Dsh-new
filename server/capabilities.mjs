@@ -264,13 +264,14 @@ export async function createCapabilityService({ store, clock = () => Date.now(),
   function approvalScope(input) {
     object(input, ['action', 'resource', 'payload', 'expiresInSeconds']);
     const action = text(input.action, 'action', 128);
-    if (!['connector.execute', 'schedule.enable'].includes(action)) fail(400, 'UNSUPPORTED_APPROVAL', 'Only connector.execute and schedule.enable approvals are supported.');
+    if (!['connector.execute', 'schedule.enable', 'monitor.control'].includes(action)) fail(400, 'UNSUPPORTED_APPROVAL', 'Use an original connector, schedule or Host-bound monitor control approval.');
     const resource = text(input.resource, 'resource', 400);
     const payload = rejectSecrets(json(input.payload));
     return { action, resource, payload, payloadHash: capabilityPayloadHash(payload) };
   }
   async function requestApproval(input, trusted = {}) {
     const scope = approvalScope(input);
+    if (scope.action === 'monitor.control' && typeof trusted.onCreated !== 'function') fail(403, 'HOST_BOUND_APPROVAL_REQUIRED', 'Monitor control requests must be bound by the original Host.');
     const expiresInSeconds = integer(input.expiresInSeconds, 'expiresInSeconds', 1, 3600, 300);
     return mutate(state => { const at = milliseconds(); const approval = { id: randomUUID(), ...scope, status: 'pending', createdAt: new Date(at).toISOString(), expiresAt: new Date(at + expiresInSeconds * 1000).toISOString(), decidedAt: null, consumedAt: null }; state.capabilities.approvals.push(approval); trusted.onCreated?.(state, approval); return { approval }; });
   }
@@ -295,7 +296,7 @@ export async function createCapabilityService({ store, clock = () => Date.now(),
     if (Date.parse(approval.expiresAt) <= milliseconds()) fail(403, 'APPROVAL_EXPIRED', 'Approval expired. Review a new request.');
     if (approval.status !== 'approved') fail(403, 'APPROVAL_REQUIRED', 'This action has not been approved.');
     if (approval.action !== scope.action || approval.resource !== scope.resource || approval.payloadHash !== capabilityPayloadHash(scope.payload) || approval.payloadHash !== capabilityPayloadHash(approval.payload)) fail(403, 'APPROVAL_MISMATCH', 'Approval does not match the current action, resource, configuration, and payload.');
-    approval.status = 'consumed'; approval.consumedAt = now();
+    approval.status = 'consumed'; approval.consumedAt = now(); return approval;
   }
   function executionInput(input) {
     object(input, ['action', 'resource', 'payload', 'approvalId']);
@@ -399,7 +400,12 @@ export async function createCapabilityService({ store, clock = () => Date.now(),
       return { schedule };
     });
   }
-  async function disableSchedule(id) { return mutate(state => { const schedule = requireItem(state, 'schedules', id); schedule.enabled = false; schedule.status = 'disabled'; schedule.consent = null; schedule.updatedAt = now(); schedule.revision += 1; return { schedule }; }); }
+  function disableScheduleInTransaction(state, id) {
+    ensureOpen(); const schedule = requireItem(state, 'schedules', id);
+    schedule.enabled = false; schedule.status = 'disabled'; schedule.consent = null; schedule.updatedAt = now(); schedule.revision += 1;
+    return { schedule };
+  }
+  async function disableSchedule(id) { return mutate(state => disableScheduleInTransaction(state, id)); }
   async function tick() {
     ensureOpen();
     if (!dispatchGoal) return { status: 'blocked', error: { code: 'DISPATCH_UNAVAILABLE', message: 'No local goal dispatcher is configured.' }, runs: [] };
@@ -467,6 +473,9 @@ export async function createCapabilityService({ store, clock = () => Date.now(),
     getPromptSkills: () => listSkills().filter(item => item.enabled).slice(0, 20).map(({ id, name, instructions, revision }) => ({ id, name, instructions, revision })),
     createSkill, updateSkill, deleteSkill: id => remove('skills', id),
     createConnector, updateConnector, deleteConnector: id => remove('connectors', id), executeConnector, connectorApprovalRequest,
+    // Server-only transaction seams: reuse the original approval consumption
+    // and schedule retirement atomically with a business control. No HTTP/RPC.
+    consumeApprovalInTransaction: (state, id, scope) => { ensureOpen(); return consumeApproval(state, id, scope); }, disableScheduleInTransaction,
     requestApproval, decideApproval, createSchedule, updateSchedule, deleteSchedule: id => remove('schedules', id), enableSchedule, disableSchedule, scheduleApprovalRequest, tick, close,
   };
 }

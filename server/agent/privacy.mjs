@@ -30,6 +30,7 @@ export function agentOwnerScope(state, actor) {
     || item.businessAgentContext && !owned(item.businessAgentContext)
     || item.businessAgentOwner && !owned(item.businessAgentOwner)
     || item.serviceTaskOwner && !owned(item.serviceTaskOwner)
+    || item.payload && references(item.payload)
     || item.binding && (ids.has(item.binding.runId) || ids.has(item.binding.conversationId) || ids.has(item.binding.goalId))
   ));
   let changed;

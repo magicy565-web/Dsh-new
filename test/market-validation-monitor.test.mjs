@@ -308,7 +308,9 @@ test('selected plan visits/cart/checkout/refunds expose gaps rather than substit
 });
 
 test('original final summary includes evidence assessment; contract fixture can pass 70% but never verifies Goal or proves real payment', async t => {
+  for (const missingRequired of [false, true]) {
   const f = await fixture(t, { outcomes: true });
+  if (missingRequired) f.receipt.requiredMetrics = [{ id: 'net_paid_units', definition: 'Required net paid units' }, { id: 'checkouts', definition: 'Required exact checkouts, not connected' }];
   const selection = { metric: 'sales_units', category: 'synthetic cups', region: 'synthetic', channelId: f.receipt.channelId,
     unit: 'net_paid_units_per_168h', benchmarkWindow: { from: '2026-10-04T09:00:00.000Z', to: '2026-10-11T09:00:00.000Z' }, benchmarkSourceId: 'fixture-benchmark', validVisitDefinition: 'synthetic exact-channel valid visits', minimumValidVisits: 100 };
   f.receipt.resultAssessment = selection;
@@ -321,8 +323,31 @@ test('original final summary includes evidence assessment; contract fixture can 
     resultEvidence: { evidenceKind: 'real', evidenceRef: 'synthetic-payment-not-live', paymentStatus: 'net_paid_verified', coverageRatio: 1,
       validVisitDefinition: selection.validVisitDefinition, validVisits: 100, qualifiedInquiries: 0 } }));
   f.advance(8 * DAY); const result = await f.bound().observe(input(task));
-  assert.equal(result.summary.assessment.status, 'passed'); assert.equal(result.summary.assessment.ratio, .7);
+  if (missingRequired) {
+    assert.equal(result.summary.assessment.status, 'insufficient_evidence'); assert.equal(result.summary.assessment.provisional, true);
+    assert.equal(result.observation.sample.outcomes.metrics.netPaidUnits, 70);
+    assert.deepEqual(result.summary.assessment.requiredMetricGaps.map(row => row.metric), ['checkouts']);
+  } else { assert.equal(result.summary.assessment.status, 'passed'); assert.equal(result.summary.assessment.ratio, .7); }
   assert.equal(result.summary.assessment.benchmark.sourceId, 'fixture-benchmark'); assert.equal(result.summary.goalVerified, false);
   assert.equal(f.bound().get(task.goalId).goalStatus, 'review_required');
   assert.equal(f.store.read().runs.length, 0);
+  }
+});
+
+test('reviewed outcome adapter rejects contradictory net payment and over-one conversion proportions without recording a measured zero', async t => {
+  for (const conversion of [false, true]) {
+    const f = await fixture(t, { outcomes: true, noShop: true });
+    if (conversion) f.receipt.resultAssessment = { metric: 'conversion_rate', category: 'fixture', region: 'fixture', channelId: f.receipt.channelId,
+      unit: 'net_paid_orders_per_valid_visit', benchmarkSourceId: 'unconnected', benchmarkWindow: { from: '2026-10-04T09:00:00.000Z', to: '2026-10-11T09:00:00.000Z' }, validVisitDefinition: 'One attributed conversion at most per valid visit', minimumValidVisits: 100 };
+    const task = await f.bound().create(f.request());
+    f.outcome(scope => ({ ...scope, sourceId: 'reviewed-outcomes', status: 'available', sampledAt: new Date(Date.parse(scope.to) + 1000).toISOString(), dataLagSeconds: 0,
+      definition: 'Synthetic adversarial payment contract', metrics: conversion ? { netPaidUnits: 101, netPaidOrders: 101 } : { netPaidUnits: 70, netPaidOrders: 0 },
+      resultEvidence: { evidenceKind: 'real', evidenceRef: 'synthetic-invalid-payment', paymentStatus: 'net_paid_verified', coverageRatio: 1,
+        validVisitDefinition: 'One attributed conversion at most per valid visit', validVisits: 100, qualifiedInquiries: 0 } }));
+    f.advance(8 * DAY); const result = await f.bound().observe(input(task));
+    assert.equal(result.observation.sample.outcomes.status, 'unavailable'); assert.equal(result.observation.sample.outcomes.metrics.netPaidUnits, null);
+    assert.ok(result.observation.sample.errors.some(error => error.code === 'OUTCOME_OBSERVATION_INVALID'));
+    assert.equal(result.summary.assessment.status, 'insufficient_evidence'); assert.equal(result.summary.assessment.provisional, true);
+    assert.equal(result.summary.goalVerified, false);
+  }
 });

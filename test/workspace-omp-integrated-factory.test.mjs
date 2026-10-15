@@ -39,7 +39,7 @@ async function fixture(t, { profile = 'ingestion', policy, readOnly = false, rea
   } });
   const created = await f.workspace('/api/conversations', { subject: 'member-a', body: { title: 'Synthetic integrated factory capability', requestId: randomUUID(), inputContext: empty() } });
   assert.equal(created.status, 201, created.text); const cid = created.json.conversation.id;
-  return Object.assign(f, { cid, responses, lifecycle, async send(execute = !readOnly) {
+  return Object.assign(f, { cid, responses, lifecycle, advance(ms) { clock += ms; f.clearWorkspaceSession('member-a'); }, async send(execute = !readOnly) {
     // Advance only the original test access clock between scripted turns, so
     // accelerated keyless calls respect the unchanged 240/minute limiter.
     clock += 61000;
@@ -134,7 +134,7 @@ test('original HTTP cancel reaches the new ingestion commit fence and retains th
   assert.equal((await f.app.artifacts.download(f.asset.artifactId, { version: 1 })).version.sha256, f.asset.sha256);
 });
 
-test('actual OMP monitor tools propose disabled original tasks, read human approval/progress and defer controls to original HTTP', { timeout: 180000 }, async t => {
+test('actual OMP monitor proposal, original human approval/enable, durable dispatch and Agent query form one original Host round trip', { timeout: 180000 }, async t => {
   let f;
   const options = { async resolveLaunchReceipt(input) {
     // Synthetic acquisition record supplied through the real Host seam. This
@@ -161,7 +161,7 @@ test('actual OMP monitor tools propose disabled original tasks, read human appro
     return (await f.journal()).entries.findLast(e => e.message?.toolName === tool).message.details;
   }
   assert.equal((await invoke('workspace_market_monitor_request', input)).reason, 'BUSINESS_EXECUTION_INTENT_REQUIRED');
-  const requested = await invoke('workspace_market_monitor_request', input, true);
+  let requested = await invoke('workspace_market_monitor_request', input, true);
   assert.equal(requested.status, 'available', JSON.stringify(requested));
   const task = requested.task;
   assert.equal(task.scheduleEnabled, false); assert.equal(task.observationCount, 0); assert.equal(requested.approval.status, 'pending');
@@ -171,27 +171,89 @@ test('actual OMP monitor tools propose disabled original tasks, read human appro
   assert.equal(f.app.store.read().goals.length, 1); assert.equal(f.app.store.read().capabilities.approvals.length, 1);
   assert.deepEqual((await f.app.capabilities.tick()).runs, []);
   await assert.rejects(f.app.capabilities.enableSchedule(task.scheduleId, {}), { code: 'APPROVAL_REQUIRED' });
+  // A due occurrence remains unclaimed while the original approval is pending.
+  // Advance only the original injected test clock and renew through its signed
+  // HTTP login; no Session expiry or production limit is bypassed.
+  f.advance(86400000);
+  assert.deepEqual((await f.app.capabilities.tick()).runs, []);
+  assert.equal((await invoke('workspace_market_monitor_status', { goalId: task.goalId })).approval.status, 'expired');
+  requested = await invoke('workspace_market_monitor_request', input, true);
+  assert.equal(requested.approval.status, 'pending'); assert.equal(requested.task.goalId, task.goalId);
   // Actual original human Session + CSRF approval and enable endpoints.
   const decision = await f.workspace(`/api/approvals/${requested.approval.id}/decision`, { subject: 'member-a', body: { decision: 'approved', confirmed: true } });
   assert.equal(decision.status, 200, decision.text);
+  assert.equal(f.app.capabilities.getSchedule(task.scheduleId).enabled, false);
+  assert.deepEqual((await f.app.capabilities.tick()).runs, []);
   const enabled = await f.workspace(`/api/schedules/${task.scheduleId}/enable`, { subject: 'member-a', body: { approvalId: requested.approval.id } });
   assert.equal(enabled.status, 200, enabled.text);
-  assert.equal((await invoke('workspace_market_monitor_status', { goalId: task.goalId })).approval.status, 'consumed');
+  async function dispatchAndQuery(expectedCount) {
+    await f.app.capabilities.tick();
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const rows = f.app.store.read().capabilities.scheduleRuns.filter(row => row.goalId === task.goalId);
+      if (rows.length === expectedCount && rows.every(row => row.status === 'completed')) break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    const rows = f.app.store.read().capabilities.scheduleRuns.filter(row => row.goalId === task.goalId);
+    assert.equal(rows.length, expectedCount); assert.ok(rows.every(row => row.status === 'completed' && row.serviceReceipt.modelRequired === false));
+    const progress = await invoke('workspace_market_monitor_status', { goalId: task.goalId });
+    assert.equal(progress.approval.status, 'consumed'); assert.equal(progress.task.observationCount, expectedCount);
+    assert.equal(progress.task.latestDispatch.id, rows.at(-1).id); assert.equal(progress.task.latestDispatch.status, 'completed');
+    assert.equal(progress.task.latestDispatch.receipt.modelRequired, false); assert.equal(progress.task.latestDispatch.receipt.readOnly, true);
+    assert.equal(progress.task.latestDispatch.receipt.outcomeStatus, 'unconfigured');
+    assert.equal(progress.task.latestMeasurement.status, 'insufficient_evidence');
+    assert.equal(progress.task.latestMeasurement.metrics.net_paid_units.value, null);
+    assert.equal(progress.task.latestMeasurement.metrics.net_paid_units.status, 'unconfigured');
+    assert.equal(progress.task.latestMeasurement.goalVerified, false); assert.equal(progress.task.goalVerified, false);
+    assert.equal(progress.task.startAt, task.startAt); assert.equal(progress.task.endAt, task.endAt);
+    return progress;
+  }
+  await dispatchAndQuery(1);
+  assert.equal((await invoke('workspace_market_monitor_control_request', { goalId: task.goalId, action: 'pause' })).reason, 'BUSINESS_EXECUTION_INTENT_REQUIRED');
+  assert.equal(f.app.store.read().capabilities.approvals.filter(row => row.action === 'monitor.control').length, 0);
   async function humanControl(action) {
-    const proposed = await invoke('workspace_market_monitor_control_request', { goalId: task.goalId, action });
+    const before = f.app.marketValidationMonitoring.forActor({ subject: 'member-a', workspaceId: 'pi-enterprise-test' }).get(task.goalId);
+    const proposed = await invoke('workspace_market_monitor_control_request', { goalId: task.goalId, action }, true);
     assert.equal(proposed.status, 'human_action_required'); assert.equal(proposed.humanControl.applied, false);
+    const unchanged = f.app.marketValidationMonitoring.forActor({ subject: 'member-a', workspaceId: 'pi-enterprise-test' }).get(task.goalId);
+    assert.equal(unchanged.status, before.status); assert.equal(unchanged.scheduleEnabled, before.scheduleEnabled);
+    const unconfirmed = await f.workspace(proposed.humanControl.path, { subject: 'member-a', body: proposed.humanControl.body });
+    assert.equal(unconfirmed.status, 409); // Human confirmation is required here, not a model field.
+
+    const approval = proposed.controlRequests.findLast(row => row.action === action);
+    assert.equal(approval.status, 'pending'); assert.equal(proposed.humanControl.body.approvalId, approval.id);
+    const repeated = await invoke('workspace_market_monitor_control_request', { goalId: task.goalId, action }, true);
+    assert.equal(repeated.humanControl.body.approvalId, approval.id);
+    const premature = await f.workspace(proposed.humanControl.path, { subject: 'member-a', body: { ...proposed.humanControl.body, confirmed: true } });
+    assert.equal(premature.status, 403); assert.equal(premature.json.error.code, 'APPROVAL_REQUIRED');
+    const approved = await f.workspace(proposed.humanControl.decisionPath, { subject: 'member-a', body: { decision: 'approved', confirmed: true } });
+    assert.equal(approved.status, 200, approved.text);
+    assert.equal(f.app.marketValidationMonitoring.forActor({ subject: 'member-a', workspaceId: 'pi-enterprise-test' }).get(task.goalId).status, before.status);
     const response = await f.workspace(proposed.humanControl.path, { subject: 'member-a', body: { ...proposed.humanControl.body, confirmed: true } });
-    assert.equal(response.status, 200, response.text);
-    return invoke('workspace_market_monitor_status', { goalId: task.goalId });
+    assert.equal(response.status, 200, response.text); assert.equal(response.json.controlReceipt.approvalId, approval.id);
+    const revision = f.app.capabilities.getSchedule(task.scheduleId).revision;
+    const replayed = await f.workspace(proposed.humanControl.path, { subject: 'member-a', body: { ...proposed.humanControl.body, confirmed: true } });
+    assert.equal(replayed.status, 200, replayed.text); assert.equal(replayed.json.duplicate, true);
+    assert.equal(f.app.capabilities.getSchedule(task.scheduleId).revision, revision);
+    const queried = await invoke('workspace_market_monitor_status', { goalId: task.goalId });
+    const record = queried.controlRequests.find(row => row.id === approval.id);
+    assert.equal(record.status, 'consumed'); assert.equal(record.receipt.action, action); assert.equal(record.receipt.modelRequired, false);
+    return queried;
   }
   assert.equal((await humanControl('pause')).task.status, 'paused');
+  f.advance(86400000); assert.deepEqual((await f.app.capabilities.tick()).runs, []);
+  assert.equal((await invoke('workspace_market_monitor_status', { goalId: task.goalId })).task.observationCount, 1);
   assert.equal((await humanControl('resume')).task.scheduleEnabled, false);
   const resumed = await invoke('workspace_market_monitor_request', input, true);
   assert.notEqual(resumed.approval.id, requested.approval.id); assert.equal(resumed.approval.status, 'pending');
+  const resumedDecision = await f.workspace(`/api/approvals/${resumed.approval.id}/decision`, { subject: 'member-a', body: { decision: 'approved', confirmed: true } });
+  assert.equal(resumedDecision.status, 200, resumedDecision.text);
+  const resumedEnable = await f.workspace(`/api/schedules/${task.scheduleId}/enable`, { subject: 'member-a', body: { approvalId: resumed.approval.id } });
+  assert.equal(resumedEnable.status, 200, resumedEnable.text); await dispatchAndQuery(2);
   assert.equal((await humanControl('cancel')).task.status, 'cancelled');
-  assert.equal((await invoke('workspace_market_monitor_control_request', { goalId: task.goalId, action: 'resume' })).reason, 'MONITOR_CANCELLED');
+  assert.equal((await invoke('workspace_market_monitor_control_request', { goalId: task.goalId, action: 'resume' }, true)).reason, 'MONITOR_CANCELLED');
   assert.equal((await invoke('workspace_market_monitor_status', { goalId: 'unknown-foreign-goal' })).reason, 'MONITOR_NOT_FOUND');
-  assert.equal(f.app.store.read().capabilities.scheduleRuns.length, 0); assert.equal(f.faux.state.callCount, 0);
+  f.advance(86400000); assert.deepEqual((await f.app.capabilities.tick()).runs, []);
+  assert.equal(f.app.store.read().capabilities.scheduleRuns.length, 2); assert.equal(f.faux.state.callCount, 0);
   // The original journal remains historical. Forged cached status/metrics are
   // replaced from owned records before a real SDK provider context is sent.
   const journal = await f.journal();
