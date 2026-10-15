@@ -159,8 +159,8 @@
     },
     {
       "path": "test/shopify-product-package.test.mjs",
-      "sha256": "83ad3a82b3e550df66c5c40ce74ef86e80a7b4b4e26aef63229d6029b6263b40",
-      "bytes": 8298
+      "sha256": "3358bf28ad4f5f48c5df6f066cba8aa0665fa84189c3b4fc124dfc5eff49f86b",
+      "bytes": 8297
     },
     {
       "path": "test/workspace-omp-shopify-product.test.mjs",

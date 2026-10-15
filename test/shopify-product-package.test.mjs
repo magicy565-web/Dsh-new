@@ -100,4 +100,3 @@ test('copied Shopify product package uses official OMP local link, manifest, Ski
     sourcePackagePreserved: true, clientReads: 0, syntheticAgentBearerDoesNotConfigureLibrary: true,
     paidModelCalls: 0, realLibraryAuthorizationVerified: false });
 });
-

@@ -1,0 +1,64 @@
+✔ original Library images, model prose and original proposal idempotency without a second catalog or shop write (347.400136ms)
+✔ two separate original human approvals execute draft then exact-channel publish; no acquisition, Goal or schedule (565.404125ms)
+✔ closed inputs, original execution intent, exact images, cancellation and revoked authority refuse before saves (118.339165ms)
+✔ source revision and image changes fence original approved operations and cached disclosures (142.285285ms)
+✔ lost synthetic Shopify response reconciles the same original operation without another creation (216.054844ms)
+✔ missing Shopify configuration is explicit while source proposals remain private and inert (106.736638ms)
+▶ cancellation or source/Run revocation during original shop verification cannot commit a new review approval
+  ✔ cancel (98.834695ms)
+  ✔ source (100.884606ms)
+  ✔ run (111.223334ms)
+✔ cancellation or source/Run revocation during original shop verification cannot commit a new review approval (311.942141ms)
+✔ cold original-app reopen preserves the proposal, exact operation and remote product for read-only reconciliation (252.718029ms)
+✔ actual Pi SDK chooses original reads and saves model prose into the original supplier record with synthetic authority (159.436606ms)
+✔ actual HTTP publication routes preserve original approval binding and exact query recovery across restart (604.369888ms)
+✔ original session revocation stops later Shopify steps and releases its existing watcher (146.712101ms)
+✔ an expired original session before admission preserves the approval without any external call (84.557582ms)
+✔ compatible HTTP review/decision/execute/reconcile routes repair the original draft and keep publication separately approved (336.180899ms)
+✔ host defaults and the original disabled connector block writes without preparing approval (56.08202ms)
+✔ original approval and connectorRuns create one exact draft then publish a separately approved version (398.500977ms)
+✔ repeated submissions, lost local response and cold reopen retain the same operation, approval and remote product (193.291312ms)
+✔ changed preview invalidates the previous approval and allows a separate current review without writing (105.445229ms)
+✔ remote draft acknowledgement lost after price update is read-only reconciled after restart (197.189737ms)
+✔ lost create acknowledgement preserves a partial draft and never automatically performs missing variant writes (140.466893ms)
+✔ publication response loss is reconciled by product marker and channel receipt without a second publish (223.721994ms)
+✔ pending media can later be reconciled and unowned or altered external markers never count as completion (127.225669ms)
+✔ a review response gap before approval creation resumes the original operation rather than leaving preparing forever (38.114074ms)
+✔ turning off writes retains read-only access to an original uncertain receipt (135.404516ms)
+✔ a remote image replacement after draft creation cannot be published as the original approved preview (132.977261ms)
+▶ content or publication metadata changed during activation is observed before any channel publish
+  ✔ content (195.727646ms)
+  ✔ publication_marker (179.356921ms)
+✔ content or publication metadata changed during activation is observed before any channel publish (375.98968ms)
+✔ older draft reconciliation cannot replace a later publication and unknown latest receipts are visibly uncertain (179.34988ms)
+✔ an expired unused review remains recorded and a new explicit review can request a fresh original approval (39.352551ms)
+✔ revoking the original connector after staging interrupts transfer without creating a product (68.967111ms)
+✔ a credential omitted from the original broker cannot be replaced by the host secret (21.004713ms)
+✔ same media identity with a changed CDN URL is incomplete and cannot be published (110.45336ms)
+✔ image transfer follows the exact reviewed original file reference before staged authorization (17.272298ms)
+✔ original Muse image transfer retains the approved administrator role and uses the owned Session reader (96.036006ms)
+✔ separately approved lost-create repair reuses exact product/media without rewriting original attempt checkpoints (268.762763ms)
+✔ unknown draft must be reconciled first and unknown media needs its own explicit observed-ID review (107.607375ms)
+✔ acknowledged create plus rejected retail variant repairs only the missing variant on the original identity (158.241356ms)
+✔ lost repair response survives reopen and only reads original repair receipt without a second variant update (256.129409ms)
+✔ an existing Connector does not acquire the repair capability automatically (81.141343ms)
+▶ changed remote content, substituted media and active products cannot execute an earlier repair review
+  ✔ title (111.187289ms)
+  ✔ media (120.477372ms)
+  ✔ active (112.859166ms)
+✔ changed remote content, substituted media and active products cannot execute an earlier repair review (345.648151ms)
+✔ a repair whose retail goal was already completed does not write it again (117.99527ms)
+▶ failed media, unconfirmed upload and already acknowledged variant writes are explicit non-repairable states
+  ✔ failed_media (86.17413ms)
+  ✔ unconfirmed_upload (82.199897ms)
+  ✔ acknowledged_variant (103.404816ms)
+✔ failed media, unconfirmed upload and already acknowledged variant writes are explicit non-repairable states (273.129407ms)
+✔ duplicate repair requests create one original approval and admit at most one variant mutation (155.798677ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4564.777109

@@ -78,5 +78,8 @@
     "fullRepositorySuite": false
   },
   "sourceManifest": "source.json",
-  "note": "22 and86 final groups are distinct test files;52 fence checks overlap. All three ran after final cancellation-fence change."
+  "note": "22 and86 final groups are distinct test files;52 fence checks overlap. All three ran after final cancellation-fence change.",
+  "postTestFormattingOnly": [
+    "Removed one extra EOF blank line from test/shopify-product-package.test.mjs; executable assertions and implementation unchanged."
+  ]
 }
