@@ -1,0 +1,119 @@
+{
+  "featureBaseline": "1d703db12089a5763d9856bce4284c8745130a6b",
+  "integrationBaseline": "8eb33701bb5f70be74e5285c7c864b248d79be3b",
+  "testedRuntimeCommit": "71064c3bc50984269593a8692b7b99cb3dee31c1",
+  "files": [
+    {
+      "path": "docs/SHOPIFY-PRODUCT-PLUGIN.md",
+      "bytes": 7229,
+      "sha256": "b99d21792751a8ba31bc894610c1c3bb1ab81df5cc12409c901c909fa7f097d4"
+    },
+    {
+      "path": "docs/validation/shopify-product-plugin-20261015/README.md",
+      "bytes": 6470,
+      "sha256": "78bbf6929177fde1b32ab0a8b0dd263dfc37d2105c3bd76eb962cf2d8543a293"
+    },
+    {
+      "path": "packages/workspace-shopify-product/README.md",
+      "bytes": 11698,
+      "sha256": "5e618dd7ae98c055097e78d4c6c56ebb70a1ffe2d645201cc6cafe29af174016"
+    },
+    {
+      "path": "packages/workspace-shopify-product/package.json",
+      "bytes": 849,
+      "sha256": "5f9db74f757dc08e268cdcba15e4e3d3ac5579bdbb9d1ccdf7b5423f7b086fb4"
+    },
+    {
+      "path": "packages/workspace-shopify-product/skills/shopify-product/SKILL.md",
+      "bytes": 3328,
+      "sha256": "ae08ce5a62f1bef0b0d12c00fdb2cac2ca6a62c20143e2d5ac91a872f6a73160"
+    },
+    {
+      "path": "packages/workspace-shopify-product/sources.json",
+      "bytes": 2750,
+      "sha256": "984965d39ef7de08d581456a77c2c38ebb660bd34e0133b16a381cf5ec87eda1"
+    },
+    {
+      "path": "packages/workspace-shopify-product/src/contracts.d.mts",
+      "bytes": 2246,
+      "sha256": "c517e97b0ec431607c6001a639b0591543daf1c0371e8c47216c55456ee115ca"
+    },
+    {
+      "path": "packages/workspace-shopify-product/src/contracts.mjs",
+      "bytes": 5750,
+      "sha256": "b7c3d039ff1e04265e62ee3bb3b387b3b5b35359cb40f373b284b8e4152e22a4"
+    },
+    {
+      "path": "packages/workspace-shopify-product/src/extension.js",
+      "bytes": 5279,
+      "sha256": "31a4fc83f6aa13651571ac5be4358af05d3f1485e97b2d557476fbc260ca0224"
+    },
+    {
+      "path": "server/shopify-product-client.mjs",
+      "bytes": 16106,
+      "sha256": "9e061df38f3f6d80a3ae415b7aecb5d3a38ecf59721bcc08830f42ea81f0fad7"
+    },
+    {
+      "path": "server/shopify-publication.mjs",
+      "bytes": 35732,
+      "sha256": "0c1f48077018b9b55c1f8443732d2daea11fc7fbb014d79446fccec295ffc63f"
+    },
+    {
+      "path": "server/shopify-variant-publication.mjs",
+      "bytes": 3190,
+      "sha256": "417f0304908cd3f99883ea34ed6bb3459ded50ab3dcb25404ace8215aecf7760"
+    },
+    {
+      "path": "server/supplier-draft.mjs",
+      "bytes": 14407,
+      "sha256": "9c635a09a110e467603ade20f8f24f727398792660721e2ff16cb4714b9d9105"
+    },
+    {
+      "path": "server/supplier-publication.mjs",
+      "bytes": 31028,
+      "sha256": "bea43a54285bac1d14653114e8730bf0a7b0dbaaa9d583a5f282cc95548ed44f"
+    },
+    {
+      "path": "server/supplier-service.mjs",
+      "bytes": 28050,
+      "sha256": "bea0a52d92cfc1943ca1fdf53debc2083b6f659acb3eadfad5daf36b8bd5847b"
+    },
+    {
+      "path": "server/workspace-omp-bridge.mjs",
+      "bytes": 20294,
+      "sha256": "f8f02122ca8f998f6d7fc0f02abd243279c49fe8c1639566ce43c16efc26304f"
+    },
+    {
+      "path": "test/fixtures/shopify-product-contracts.mjs",
+      "bytes": 3761,
+      "sha256": "5a495dc02355ea97429f67cbefca34e4de1e94826d398fa45c610aedc8b26b60"
+    },
+    {
+      "path": "test/fixtures/shopify-product.mjs",
+      "bytes": 6376,
+      "sha256": "824f01fe8fdbc167433f344da8a2bc37af3da9767b29f8d69f5ea5eecb2cdd7c"
+    },
+    {
+      "path": "test/fixtures/supplier-shopify-http.mjs",
+      "bytes": 6721,
+      "sha256": "a586f68159da153ca5066d3531513d24c00f0e475449e8bfdbba4c4e16db2f60"
+    },
+    {
+      "path": "test/shopify-product-client.test.mjs",
+      "bytes": 27591,
+      "sha256": "64e283796e0d6c35f44f4d5876572caa6889ff2ee4f299edc4249af1b022970e"
+    },
+    {
+      "path": "test/shopify-product-contracts.test.mjs",
+      "bytes": 2671,
+      "sha256": "80acf7074b03eb6dfc2786868a073dba38c6b6a824d3a4e053736e2c241ee8e7"
+    },
+    {
+      "path": "test/workspace-omp-shopify-product.test.mjs",
+      "bytes": 9283,
+      "sha256": "d2f9921f2ac27c49f0c61eb57e4052569494200945a8576f6c8eeb0c79c014be"
+    }
+  ],
+  "evidenceDirectoryExcludedToAvoidSelfHash": "docs/validation/shopify-product-variants-20261015",
+  "note": "Subsequent commits add only docs/source metadata/evidence; runtime code is fixed to testedRuntimeCommit."
+}

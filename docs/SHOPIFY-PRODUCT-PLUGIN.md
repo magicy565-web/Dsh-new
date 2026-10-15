@@ -1,12 +1,12 @@
 # Shopify 商品上传独立插件实施交付（2026-10-15）
 
-基线：PR80 `8eb33701bb5f70be74e5285c7c864b248d79be3b`。分支：`codex/shopify-product-plugin-20261015`。这是**首版上传工具包实现与合成工程验收**，不是旧研究提交或完整代运营实现。未合并 main、部署、调用真实店铺／模型／Ads、创建或修改真实凭据／权限。
+基线：PR80 `8eb33701bb5f70be74e5285c7c864b248d79be3b`。分支：`codex/shopify-product-plugin-20261015`。首个单规格版本固定在 `1d703db12089a5763d9856bce4284c8745130a6b`；当前 **0.2.0 增加多规格上传，见 [更新说明与最新验收](validation/shopify-product-variants-20261015/README.md)**。这是上传工具包实现与合成工程验收，不是旧研究提交或完整代运营实现。未合并 main、部署、调用真实店铺／模型／Ads、创建或修改真实凭据／权限。
 
 实现文件为 [独立包](../packages/workspace-shopify-product/README.md) 和 [原 Host client](../server/shopify-product-client.mjs)。依赖已有商品／图片；不重复 E 的资料识别或建档。九个工具可由模型自由选择，Skill 提供方法；没有新 Agent Loop、工作流引擎、任务注册表、审批系统或预算账本。
 
 ## 原服务唯一归属与必要共享改动
 
-| 原位置 | 本次改动及必要性 |
+| 原位置 | 原上传包接线及必要性（多规格增量另见最新验收） |
 | --- | --- |
 | `factory-materials-read.mjs`、`workspace-procurement/src/workspace-factory-materials-client.mjs` | 增加 **opt-in** `images` 字段与闭合引用校验；原产品 revision／artifact version／SHA 不变，不扩大现有审核策略 |
 | `library-model-read.mjs` | 进程内同步 authority fence，重用原 live Session、成员／workspace、模型接收方和期限；用于原 Store 提交时防止异步间隙越权 |
@@ -17,7 +17,7 @@
 | Host／launcher／terminal allowlists | 新 `shopify-product` 选项，防止历史其他 profile 的会话静默迁入；原端口／进程／Session 协议不变 |
 | `test/fixtures/pi-task-helpers.mjs` | 仅测试注入原 createApp 的本地 synthetic Shopify fetch/environment，用于真实原应用验收；不改生产默认配置 |
 
-商品创建、图片 staged upload、媒体就绪、单变体价／SKU、DRAFT／ACTIVE／Publication、写后回查都由原 publisher 实现；本包没有添加 GraphQL 连接器或新的 Admin 查询。原 API 固定 `2026-10`，没有自动换成 latest。执行仍需原 host 写入 flag、已启用的原 connector、已核验 scope 和精确已批准操作同时满足；本包不启用生产 connector。
+商品创建、图片 staged upload、媒体就绪、单/多变体价／SKU、DRAFT／ACTIVE／Publication、写后回查都由原 publisher 实现；本包没有添加 GraphQL 连接器或新的 Admin 查询。原 API 固定 `2026-10`，没有自动换成 latest。执行仍需原 host 写入 flag、已启用的原 connector、已核验 scope 和精确已批准操作同时满足；本包不启用生产 connector。
 
 ## 配置、原审批和状态语义
 
@@ -33,7 +33,7 @@
 
 E 管原资料进入 Library。本包消费原产品和图，不识别新产品。商品草稿／发布归原 supplier publication，七天验证包只能引用原对象与明确外部曝光证据。所有本包回执 `acquisition:{startedAt:null,launchEvidence:false}`；不启动 monitor／Goal／schedule，不生成 LaunchReceipt，不把上架冒充真实营销启动。外部数据 MCP 等用户日后提供再接入，本版不做连接。
 
-首版不含多变体、库存、订单售后、营销发布、广告、价格批量维护、任意文件上传、富文本编辑器或持久通知。新提案是原 supplier row，而非对已发布商品的任意编辑工具。变更原资料会使旧 source-linked 提案不可执行；需原资料重审和新的提案／审批，不能覆盖原回执。
+当前版本已支持原 SKU 的明确多规格组合；不含库存、订单售后、营销发布、广告、价格批量维护、任意文件上传、富文本编辑器或持久通知。新提案是原 supplier row，而非对已发布商品的任意编辑工具。变更原资料会使旧 source-linked 提案不可执行；需原资料重审和新的提案／审批，不能覆盖原回执。
 
 ## 可复核验收与限制
 

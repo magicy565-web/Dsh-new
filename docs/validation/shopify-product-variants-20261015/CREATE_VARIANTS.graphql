@@ -1,0 +1,3 @@
+mutation SupplierCreateReviewedVariants($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+  productVariantsBulkCreate(productId: $productId, variants: $variants, strategy: REMOVE_STANDALONE_VARIANT) { productVariants { id } userErrors { field message } }
+}

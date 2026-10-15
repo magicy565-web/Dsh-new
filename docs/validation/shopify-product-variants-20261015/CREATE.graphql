@@ -1,0 +1,3 @@
+mutation SupplierCreateDraft($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
+  productCreate(product: $product, media: $media) { product { id handle media(first: 12) { nodes { id } pageInfo { hasNextPage } } variants(first: 2) { nodes { id } pageInfo { hasNextPage } } } userErrors { field message } }
+}

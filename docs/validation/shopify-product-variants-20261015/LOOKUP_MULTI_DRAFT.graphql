@@ -1,0 +1,5 @@
+query SupplierMultiDraftReceipt($identifier: ProductIdentifierInput!) { product: productByIdentifier(identifier: $identifier) { id handle title descriptionHtml status publishedAt onlineStoreUrl
+  intent: metafield(namespace: "cnsubscribe_workspace", key: "draft_intent") { value }
+  release: metafield(namespace: "cnsubscribe_workspace", key: "publication_intent") { value }
+  options { name optionValues { name } } variants(first: 101) { nodes { id sku price selectedOptions { name value } media(first: 2) { nodes { id } pageInfo { hasNextPage } } } pageInfo { hasNextPage } }
+  media(first: 12) { nodes { id mediaContentType status alt ... on MediaImage { image { url } } } pageInfo { hasNextPage } } } }

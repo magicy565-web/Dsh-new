@@ -1,0 +1,61 @@
+{
+  "testedRuntimeCommit": "71064c3bc50984269593a8692b7b99cb3dee31c1",
+  "fullAffectedRegression": {
+    "command": "node --test --test-concurrency=1 test/shopify-product-client.test.mjs test/shopify-product-contracts.test.mjs test/shopify-product-package.test.mjs test/workspace-omp-shopify-product.test.mjs test/supplier-publication.test.mjs test/supplier-publication.http.test.mjs test/shopify-readiness.test.mjs test/factory-materials-read.test.mjs test/workspace-omp.test.mjs test/workspace-omp-factory-materials.test.mjs test/market-validation-monitor-tools.test.mjs test/market-validation-plan.test.mjs",
+    "exitCode": 0,
+    "stats": {
+      "tests": 125,
+      "pass": 125,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "durationMs": 162075.623457,
+    "log": "full.log"
+  },
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0,
+    "log": "build.log",
+    "rawLog": "build.raw.json"
+  },
+  "syntax": {
+    "exitCode": 0,
+    "files": 15
+  },
+  "schemas": {
+    "passed": 5,
+    "apiVersion": "2026-10",
+    "results": "schema-validation.json"
+  },
+  "unconfiguredStartup": {
+    "exitCode": 0,
+    "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin HOME=/tmp WORKSPACE_OMP_PROFILE=shopify-product node scripts/workspace-omp.mjs --check",
+    "result": "unconfigured-check.json"
+  },
+  "upstreamValidators": {
+    "pi": "1.1.0",
+    "omp": "18.10.4",
+    "casesPerEngine": 67,
+    "extraBusinessPolicyCasesPerEngine": 5
+  },
+  "environment": {
+    "node": "24.19.0",
+    "npm": "11.9.0",
+    "pi": "1.1.0",
+    "omp": "18.10.4",
+    "bun": "1.3.14"
+  },
+  "limits": {
+    "realOrPaidModelCalls": 0,
+    "realShopifyRequests": 0,
+    "shopifyLogins": 0,
+    "adsOrExternalMessages": 0,
+    "newCredentialsOrPermissionExpansion": false,
+    "externalDataMcpConnections": 0,
+    "mainMerge": false,
+    "deployment": false,
+    "fullRepositorySuite": false,
+    "realBusinessAcceptance": false
+  }
+}

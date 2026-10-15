@@ -3,21 +3,60 @@
   "version": "0.2.0",
   "license": "UNLICENSED",
   "private": true,
-  "baseline": { "pr": 80, "sha": "8eb33701bb5f70be74e5285c7c864b248d79be3b", "repository": "magicy565-web/workspace-agent" },
+  "baseline": {
+    "pr": 80,
+    "sha": "8eb33701bb5f70be74e5285c7c864b248d79be3b",
+    "repository": "magicy565-web/workspace-agent"
+  },
   "implementation": "First-party dependency-free extension/Skill and process-private adapters to original Workspace services. No imported community Shopify connector, new GraphQL operations or app authorization.",
   "lockedRuntimes": [
-    { "name": "@earendil-works/pi-coding-agent", "version": "1.1.0", "lock": "../../package-lock.json", "license": "MIT", "notice": "../../THIRD_PARTY_NOTICES.md" },
-    { "name": "@oh-my-pi/pi-coding-agent", "version": "18.10.4", "lock": "../../support/omp-coding-agent/package-lock.json", "license": "MIT", "notice": "../../support/omp-coding-agent/compactaudit.json" },
-    { "name": "bun", "version": "1.3.14", "lock": "../../support/omp-bun-linux-x64/package-lock.json", "license": "MIT", "notice": "../../support/omp-bun-linux-x64/runtime-audit.json" }
+    {
+      "name": "@earendil-works/pi-coding-agent",
+      "version": "1.1.0",
+      "lock": "../../package-lock.json",
+      "license": "MIT",
+      "notice": "../../THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "name": "@oh-my-pi/pi-coding-agent",
+      "version": "18.10.4",
+      "lock": "../../support/omp-coding-agent/package-lock.json",
+      "license": "MIT",
+      "notice": "../../support/omp-coding-agent/compactaudit.json"
+    },
+    {
+      "name": "bun",
+      "version": "1.3.14",
+      "lock": "../../support/omp-bun-linux-x64/package-lock.json",
+      "license": "MIT",
+      "notice": "../../support/omp-bun-linux-x64/runtime-audit.json"
+    }
   ],
   "officialReferences": [
     "https://shopify.dev/docs/api/usage/versioning",
     "https://shopify.dev/docs/api/admin-graphql/2026-10/mutations/stagedUploadsCreate",
     "https://shopify.dev/docs/api/admin-graphql/2026-10/mutations/productCreate",
-    "https://shopify.dev/docs/api/admin-graphql/2026-10/mutations/publishablePublish"
+    "https://shopify.dev/docs/api/admin-graphql/2026-10/mutations/publishablePublish",
+    "https://shopify.dev/docs/api/admin-graphql/2026-10/mutations/productVariantsBulkCreate",
+    "https://shopify.dev/docs/api/admin-graphql/2026-10/enums/ProductVariantsBulkCreateStrategy",
+    "https://shopify.dev/docs/api/admin-graphql/2026-10/input-objects/ProductVariantsBulkInput",
+    "https://shopify.dev/docs/api/admin-graphql/2026-10/input-objects/VariantOptionValueInput",
+    "https://shopify.dev/docs/api/admin-graphql/2026-10/input-objects/ProductCreateInput",
+    "https://shopify.dev/docs/api/admin-graphql/2026-10/objects/ProductVariant",
+    "https://shopify.dev/docs/api/usage/limits"
   ],
   "apiVersion": "2026-10",
   "realShopifyVerification": false,
   "realModelVerification": false,
-  "externalMcpConnection": false
+  "externalMcpConnection": false,
+  "multiVariantBaseline": "1d703db12089a5763d9856bce4284c8745130a6b",
+  "multiVariantLimits": {
+    "maxSourceSkus": 100,
+    "maxOptionDimensions": 3,
+    "resultPageDefault": 5,
+    "resultPageMax": 10,
+    "inventory": "unknown_not_written",
+    "partialRecovery": "read_only_original_operation_no_legacy_repair"
+  },
+  "schemaVerification": "Shopify Skill validator1.17.1 and integrity-verified @shopify/ai-toolkit2.1.2 admin_2026-10 schema; development only, no runtime dependency or real store call."
 }
