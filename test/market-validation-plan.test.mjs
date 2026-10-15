@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { materialsFixture, MODEL, RECIPIENT } from './fixtures/factory-materials-read.mjs';
 import { taskFixture } from './fixtures/pi-task-helpers.mjs';
-import { marketPlan } from './fixtures/market-validation-plan-data.mjs';
+import { marketPlan, marketServicePlan } from './fixtures/market-validation-plan-data.mjs';
 import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { createMarketValidationPlanClient, MARKET_PLAN_FLAGS } from '../server/market-validation-plan.mjs';
 import { validatePlanInput } from '../packages/workspace-market-validation/src/plan.mjs';
@@ -177,4 +177,62 @@ test('ordinary package is unconfigured; bound tools require current receiver and
   const refused = await bound[0].execute('id', read, undefined, undefined, { model: MODEL });
   assert.equal(refused.details.status, 'blocked'); assert.deepEqual(refused.details.sources, []); assert.equal(calls, 1);
   assert.ok(!JSON.stringify(refused).includes('private error'));
+});
+
+test('original plan API saves derived pre-service review as unreviewed; trusted launch reader requires exact prior human target confirmation', async t => {
+  const { f, client, input, selectors } = await fixture(t);
+  const plan = marketServicePlan(f.product.id, f.product.revision), selected = { ...await input(), plan, requestId: 'pre-service-original-artifact' };
+  const saved = await client.save(selected, undefined, MODEL); assert.equal(saved.humanReviewed, false); assert.equal(saved.startedAt, null);
+  const review = saved.preServiceReview[0]; assert.equal(review.marketReferences[0].sevenDayReference.mean, 100); assert.equal(review.serviceTarget.targetUnits, 50);
+  assert.equal(review.serviceTarget.confirmationStatus, 'unreviewed'); await client.revalidateReceipt(saved, MODEL);
+  const forged = structuredClone(saved); forged.preServiceReview[0].marketReferences[0].statistics.mean = 999;
+  await assert.rejects(client.revalidateReceipt(forged, MODEL), { code: 'MARKET_PLAN_CACHE_REFUSED' });
+  const row = f.app.store.read().artifacts.find(item => item.id === saved.artifact.artifactId), file = await f.app.artifacts.download(row.id, { version: 1 });
+  const document = JSON.parse(file.bytes); assert.equal(document.preServiceReview[0].marketReferences[0].statistics.median, 400);
+  const { createMarketValidationLaunchReader } = await import('../server/market-validation-launch-reader.mjs');
+  let confirmed = false, modified = false;
+  const actor = { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' };
+  const read = createMarketValidationLaunchReader({ store: f.app.store, artifacts: f.app.artifacts, async resolveLaunchReceipt(request) {
+    const target = request.planArtifact.preServiceReview[0].serviceTarget;
+    return { id: 'synthetic-service-launch', planId: row.id, planRevision: 1, planSha256: row.sha256, planHash: row.metadata.marketValidationPlan.planHash,
+      conversationId: row.sourceConversationId, businessMode: 'b2c', timezone: plan.timeZone, planAcquisitionId: plan.paths[0].acquisition[0].id,
+      channelId: 'shopify-execution', startedAt: new Date(Date.now()).toISOString(),
+      ...(confirmed ? { serviceTargetConfirmation: { status: 'approved', evidenceKind: 'real', approvalId: 'synthetic-human-plan-approval', evidenceRef: 'synthetic-only-not-business-approval', approvedBy: actor.subject, workspaceId: actor.workspaceId,
+        approvedAt: row.createdAt, planId: row.id, planRevision: 1, planHash: row.metadata.marketValidationPlan.planHash,
+        targetHash: modified ? 'f'.repeat(64) : target.targetHash, referenceHash: target.referenceHash, reviewHash: target.reviewHash } } : {}) };
+  } });
+  const request = { actor, planId: row.id, planRevision: 1, launchReceiptId: 'synthetic-service-launch' };
+  await assert.rejects(read(request), { code: 'MARKET_PLAN_RECEIPT_MISMATCH' }); confirmed = true;
+  const accepted = await read(request); assert.equal(accepted.serviceTarget.proposal.targetUnits, 50); assert.equal(accepted.serviceTarget.marketReference.channelId, 'tiktok_shop');
+  assert.equal(accepted.serviceTarget.confirmation.approvalId, 'synthetic-human-plan-approval'); modified = true;
+  await assert.rejects(read(request), { code: 'MARKET_PLAN_RECEIPT_MISMATCH' });
+  const changed = structuredClone(plan); changed.paths[0].serviceTarget.targetUnits = 60; changed.paths[0].serviceTarget.adjustmentBasisPoints = 6000; changed.paths[0].salesRequirement.target = 60;
+  await assert.rejects(client.save({ ...selected, plan: changed }, undefined, MODEL), { code: 'MARKET_PLAN_REQUEST_CHANGED' });
+  const revised = await client.save({ ...selected, plan: changed, requestId: 'separate-unreviewed-target-revision' }, undefined, MODEL);
+  assert.notEqual(revised.artifact.artifactId, saved.artifact.artifactId); assert.equal(revised.preServiceReview[0].serviceTarget.confirmationStatus, 'unreviewed');
+  assert.equal(accepted.serviceTarget.proposal.targetUnits, 50); // A new draft cannot move the already frozen original standard.
+  await f.app.artifacts.update(row.id, { content: JSON.stringify({ ...document, plan: changed }) }); modified = false;
+  await assert.rejects(read(request), { code: 'MARKET_PLAN_RECEIPT_MISMATCH' });
+});
+
+test('original plan API preserves legacy unknown and forecast coverage in reference-only drafts but refuses their service targets without an artifact', async t => {
+  const { f, client, input } = await fixture(t);
+  for (const timeBasis of [undefined, 'forecast']) {
+    const plan = marketServicePlan(f.product.id, f.product.revision), ref = plan.paths[0].marketReference;
+    if (timeBasis === undefined) { delete ref.timeBasis; delete ref.salesCoverage; delete ref.timeBasisSource; }
+    else {
+      ref.timeBasis = timeBasis; ref.salesDefinition = 'Future 30-day sales forecast; NOT historical sales';
+      ref.salesCoverage = { from: ref.history.to, to: new Date(Date.parse(ref.history.to) + 30 * 86400000).toISOString(), days: 30 };
+      ref.timeBasisSource = 'Synthetic forecast field and coverage; no real provider call.';
+    }
+    const selected = { ...await input(), plan, requestId: 'time-' + String(timeBasis) }, before = savedRows(f).length;
+    await assert.rejects(client.save(selected, undefined, MODEL)); assert.equal(savedRows(f).length, before);
+    delete plan.paths[0].serviceTarget;
+    const saved = await client.save(selected, undefined, MODEL), summary = saved.preServiceReview[0].marketReferences[0];
+    assert.equal(summary.timeBasis, timeBasis ?? 'unknown'); assert.equal(summary.sevenDayReference, null);
+    assert.equal(summary.suitableForTargetProposal, false); assert.equal(saved.humanReviewed, false); assert.equal(saved.startedAt, null);
+    await client.revalidateReceipt(saved, MODEL);
+    const doc = JSON.parse((await f.app.artifacts.download(saved.artifact.artifactId, { version: 1 })).bytes);
+    assert.deepEqual(doc.plan, plan); assert.deepEqual(doc.preServiceReview[0].marketReferences[0].salesCoverage, ref.salesCoverage ?? null);
+  }
 });

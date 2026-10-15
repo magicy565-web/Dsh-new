@@ -4,7 +4,7 @@ import { ApiError } from './runtime.mjs';
 import { libraryReadHash } from './library-model-read-contract.mjs';
 import { supplierOwned } from './supplier-draft.mjs';
 import { looksLikeCredential } from './security.mjs';
-import { validateProductInput, validatePlanInput } from '../packages/workspace-market-validation/src/plan.mjs';
+import { validateProductInput, validatePlanInput, buildPreServiceReview, referencesForPath } from '../packages/workspace-market-validation/src/plan.mjs';
 
 const fail = (status, code) => { throw new ApiError(status, code, 'Use the original owned conversation, current authorized product sources and an unreviewed plan.'); };
 export const MARKET_PLAN_FLAGS = Object.freeze({ humanReviewRequired: true, humanReviewed: false, externalActions: false, startedAt: null });
@@ -72,13 +72,14 @@ export function createMarketValidationPlanClient({ materialsClient, artifacts, s
   function envelope(selected, ctx) {
     return { schema: 'workspace.market-validation-plan.v1', plan: selected.plan, sources: ctx.sources, extraction: ctx.extraction,
       contentOrigin: 'model-draft-unverified', ...MARKET_PLAN_FLAGS,
+      ...(selected.plan.paths.some(path => referencesForPath(path).length) ? { preServiceReview: buildPreServiceReview(selected.plan) } : {}),
       execution: { status: 'not_started', durationDays: 7, timeZone: selected.plan.timeZone,
-        startPolicy: 'approved_actual_launch_with_baseline_and_authorized_traffic', baseline: null, actualStartedAt: null, endsAt: null },
+        startPolicy: selected.plan.paths.some(path => path.serviceTarget) ? 'approved_actual_acquisition_after_exact_pre_service_target_confirmation' : 'approved_actual_launch_with_baseline_and_authorized_traffic', baseline: null, actualStartedAt: null, endsAt: null },
       shopifyHandoff: clone(MARKET_SHOPIFY_HANDOFF) };
   }
   const artifactRef = (row, duplicate) => ({ artifactId: row.id, version: row.currentVersion, sha256: row.sha256, duplicate });
   const saveReceipt = (selected, ctx, row, duplicate) => ({ plugin, status: 'saved-draft', input: inputSelectors(selected),
-    ...provenance(ctx), planHash: libraryReadHash(selected.plan), sourceHash: libraryReadHash(provenance(ctx)), artifact: artifactRef(row, duplicate), ...MARKET_PLAN_FLAGS });
+    ...provenance(ctx), planHash: libraryReadHash(selected.plan), sourceHash: libraryReadHash(provenance(ctx)), artifact: artifactRef(row, duplicate), ...(selected.plan.paths.some(path => referencesForPath(path).length) ? { preServiceReview: buildPreServiceReview(selected.plan) } : {}), ...MARKET_PLAN_FLAGS });
   async function save(input, signal, model) {
     const selected = validatePlanInput(input);
     if (looksLikeCredential(JSON.stringify(selected))) fail(400, 'RAW_CREDENTIAL_REJECTED');

@@ -9,10 +9,10 @@ import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/wo
 import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
 import { TOKEN_A } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
-import { marketPlan } from './fixtures/market-validation-plan-data.mjs';
+import { marketPlan, marketServicePlan } from './fixtures/market-validation-plan-data.mjs';
 const empty = () => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });
 const ingestionTools = ['workspace_factory_ingestion_status', 'workspace_factory_ingestion_read', 'workspace_factory_ingestion_save', 'workspace_factory_ingestion_query', 'workspace_skill'];
-async function fixture(t, { profile = 'ingestion', policy, readOnly = false, readOnlyLoop = false, marketValidationOptions = {} } = {}) {
+async function fixture(t, { profile = 'ingestion', policy, readOnly = false, readOnlyLoop = false, marketValidationOptions = {}, marketPlanForProduct = null } = {}) {
   let f, clock = Date.now(); const responses = [], lifecycle = [];
   f = await materialsFixture(t, { marketValidationOptions, accessClock: () => clock, policy: policy === null ? null : data => ({ factoryIngestion: {
     uploads: [data.asset], companyRevision: 1, products: [], fields: { company: ['legalName'], product: ['name'] },
@@ -20,7 +20,7 @@ async function fixture(t, { profile = 'ingestion', policy, readOnly = false, rea
     if (profile === 'plan') responses.push(
       { tool: 'workspace_market_validation_product', arguments: { productId: data.product.id, documents: [{ documentId: data.document.id, documentVersion: 1 }] },
         expectedToolNames: ['workspace_factory_materials_status', 'workspace_factory_materials', 'workspace_factory_document', 'workspace_market_validation_product', 'workspace_market_validation_plan_save', 'workspace_market_monitor_request', 'workspace_market_monitor_status', 'workspace_market_monitor_control_request', 'workspace_skill'] },
-      { tool: 'workspace_market_validation_plan_save', arguments: { productId: data.product.id, documents: [{ documentId: data.document.id, documentVersion: 1 }], plan: marketPlan('dual'), requestId: 'original-dual-plan' }, sourcesFromPreviousTools: true },
+      { tool: 'workspace_market_validation_plan_save', arguments: { productId: data.product.id, documents: [{ documentId: data.document.id, documentVersion: 1 }], plan: marketPlanForProduct ? marketPlanForProduct(data.product) : marketPlan('dual'), requestId: 'original-dual-plan' }, sourcesFromPreviousTools: true },
       { text: 'Synthetic unreviewed dual-path plan saved. No launch or spend.' });
     else responses.push(
       { tool: 'workspace_factory_ingestion_status', arguments: {}, expectedToolNames: ingestionTools },
@@ -306,4 +306,23 @@ for (const action of ['cancel', 'logout']) test(`actual original ${action} while
   assert.equal((await completion).status, action === 'cancel' ? 'cancelled' : 'failed');
   assert.equal(f.app.store.read().goals.length, 0); assert.equal(f.app.store.read().capabilities.schedules.length, 0);
   assert.equal(f.app.store.read().capabilities.approvals.length, 0); assert.equal(f.app.store.read().capabilities.scheduleRuns.length, 0);
+});
+
+test('actual original Host/OMP saves the pre-service market reference and proposed sales standard through existing plan tools without starting service', { timeout: 90000 }, async t => {
+  const f = await fixture(t, { profile: 'plan', marketPlanForProduct: product => marketServicePlan(product.id, product.revision) });
+  const run = await f.send(); assert.equal(run.status, 'succeeded', JSON.stringify({ run, lifecycle: f.lifecycle }));
+  const saved = (await f.journal()).entries.find(e => e.message?.toolName === 'workspace_market_validation_plan_save').message.details;
+  assert.equal(saved.status, 'saved-draft'); assert.equal(saved.humanReviewed, false); assert.equal(saved.startedAt, null);
+  const review = saved.preServiceReview[0]; assert.equal(review.marketReferences[0].sourcePlatform, 'tiktok');
+  assert.equal(review.marketReferences[0].schema, 'workspace.market-reference-summary.v2'); assert.equal(review.marketReferences[0].timeBasis, 'historical_estimated');
+  assert.deepEqual(review.marketReferences[0].salesCoverage, review.marketReferences[0].history); assert.ok(review.marketReferences[0].timeBasisSource);
+  assert.equal(review.marketReferences[0].statistics.mean, 400); assert.equal(review.marketReferences[0].statistics.median, 400);
+  assert.equal(review.marketReferences[0].sevenDayReference.mean, 100); assert.equal(review.serviceTarget.targetUnits, 50);
+  assert.equal(review.serviceTarget.crossChannelReference, true); assert.equal(review.serviceTarget.confirmationStatus, 'unreviewed');
+  const file = await f.app.artifacts.download(saved.artifact.artifactId, { version: saved.artifact.version }), document = JSON.parse(file.bytes);
+  assert.equal(document.plan.paths[0].serviceTarget.metric, 'net_paid_units'); assert.equal(document.preServiceReview[0].serviceTarget.reviewHash, review.serviceTarget.reviewHash);
+  assert.equal(document.execution.status, 'not_started'); assert.equal(document.execution.actualStartedAt, null);
+  assert.equal(f.app.store.read().goals.length, 0); assert.equal(f.app.store.read().capabilities.schedules.length, 0);
+  f.responses.splice(0, f.responses.length, { text: 'Synthetic reference and proposed sales standard remain draft; real source and human confirmation are not configured.' });
+  assert.equal((await f.send(false)).status, 'succeeded'); assert.equal(f.faux.state.callCount, 0);
 });

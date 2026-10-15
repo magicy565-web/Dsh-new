@@ -1,5 +1,7 @@
 # Monitor tools and assessment engineering evidence — 2026-10-15
 
+Historical snapshot: the results and 31-file manifest below describe commit `8eb33701bb5f70be74e5285c7c864b248d79be3b`. The later pre-service target delivery has its own [current evidence](../market-pre-service-target-20261015/README.md); these hashes must not be used for that later source.
+
 Branch: `codex/integrate-factory-capabilities-20261015`; incremental base `921318b5771a63fd72fe6d71cb352ba4466ae4e6`; PR #80 stays Draft against PR #68's original `d82d35fd7213012ff6b0e5f2f24d765aba021a9e` development baseline. No main edits/merge, deployment, real business execution or paid model call.
 
 Latest acceptance: final expanded affected regression **366/366**, zero failures/skips/cancellations, exit 0, 250.397 seconds. Pristine `5b56db6` also passed the original complete 280-case range. `checks.json.latestCompleteRunIndex` identifies the final authoritative run; earlier failures below are historical. Current manifest: 31 implementation/test SHA-256 entries.

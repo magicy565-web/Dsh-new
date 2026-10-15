@@ -1,5 +1,7 @@
 # Original monitor tools and evidence assessment
 
+Package 0.3.0 adds the current pre-service sales-standard business contract in [MARKET-PRE-SERVICE-SALES-TARGET.md](MARKET-PRE-SERVICE-SALES-TARGET.md). New service targets explicitly use sales units confirmed before start. The legacy direct market-comparison interface below remains separate and does not replace the service standard.
+
 These additive interfaces ship in `@workspace-agent/pi-market-validation` 0.2.1. Pi 1.1.0 and OMP 18.10.4 remain pinned; no new dependency, scheduler, state ledger, approval system or model loop is introduced. The explicit `market-validation` Host profile admits the tools; ordinary package loading has no ambient member, Library, launch or effect authority.
 
 | Tool | Closed input | Original operation |

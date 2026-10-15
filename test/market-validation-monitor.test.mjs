@@ -1,3 +1,5 @@
+import { marketServicePlan } from './fixtures/market-validation-plan-data.mjs';
+import { buildPreServiceReview, freezeConfirmedServiceTarget } from '../packages/workspace-market-validation/src/plan.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
@@ -350,4 +352,26 @@ test('reviewed outcome adapter rejects contradictory net payment and over-one co
     assert.equal(result.summary.assessment.status, 'insufficient_evidence'); assert.equal(result.summary.assessment.provisional, true);
     assert.equal(result.summary.goalVerified, false);
   }
+});
+
+test('original monitor freezes the pre-service target in its scope and evaluates sales attainment separately from cross-channel market comparison', async t => {
+  const f = await fixture(t, { outcomes: true, noShop: true }), plan = marketServicePlan('11111111-1111-4111-8111-111111111111');
+  const path = plan.paths[0]; path.serviceTarget.executionChannelId = f.receipt.channelId;
+  const review = buildPreServiceReview(plan)[0].serviceTarget, context = { planId: f.receipt.planId, planRevision: 1, planHash: 'c'.repeat(64), planSha256: 'd'.repeat(64),
+    subject: 'local-operator', workspaceId: 'local', channelId: f.receipt.channelId, startedAt: f.receipt.startedAt };
+  const confirmation = { status: 'approved', evidenceKind: 'real', approvalId: 'synthetic-pre-service-review', evidenceRef: 'synthetic-only-human-record', approvedBy: context.subject, workspaceId: context.workspaceId,
+    approvedAt: '2026-10-11T00:00:00.000Z', planId: context.planId, planRevision: 1, planHash: context.planHash, targetHash: review.targetHash, referenceHash: review.referenceHash, reviewHash: review.reviewHash };
+  f.receipt.serviceTarget = freezeConfirmedServiceTarget(path, confirmation, context);
+  f.receipt.requiredMetrics = [{ id: 'net_paid_units', definition: 'Original preconfirmed net paid unit standard' }];
+  const task = await f.bound().create(f.request()); assert.equal(task.serviceTarget.proposal.targetUnits, 50);
+  f.outcome(scope => ({ ...scope, sourceId: 'reviewed-outcomes', status: 'available', sampledAt: new Date(Date.parse(scope.to) + 1000).toISOString(), dataLagSeconds: 0,
+    definition: 'Synthetic exact execution-channel net paid units', metrics: { netPaidOrders: 1, netPaidUnits: 35 }, resultEvidence: { evidenceKind: 'real', evidenceRef: 'synthetic-only-payment', paymentStatus: 'net_paid_verified',
+      coverageRatio: 1, validVisitDefinition: 'Synthetic exact valid visits', validVisits: 100, qualifiedInquiries: 0 } }));
+  f.advance(8 * DAY); const result = await f.bound().observe(input(task));
+  assert.equal(result.summary.assessment.serviceTargetAssessment.status, 'passed'); assert.equal(result.summary.assessment.targetUnits, 50);
+  assert.equal(result.summary.assessment.marketComparison.status, 'insufficient_evidence'); assert.equal(result.summary.assessment.crossChannelReference, true);
+  assert.equal(result.summary.goalVerified, false); assert.equal(f.bound().get(task.goalId).goalStatus, 'review_required');
+  f.receipt.serviceTarget.proposal.targetUnits = 60;
+  await assert.rejects(f.bound().observe(input(task, 'no-posthoc-standard-change')), { code: 'SERVICE_TARGET_CONFIRMATION_REQUIRED' });
+  assert.equal(f.bound().get(task.goalId).observations.length, 1); assert.equal(f.store.read().runs.length, 0);
 });
