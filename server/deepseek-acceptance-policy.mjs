@@ -1,58 +1,59 @@
 import { createHash } from 'node:crypto';
-import { loadPiProviderConfig } from './pi-provider-config.mjs';
 import { looksLikeCredential } from '../packages/workspace-procurement/src/public-input.mjs';
+import { workspaceOmpConfiguration } from './workspace-omp-host.mjs';
 
-export const ACCEPTANCE_LIMITS = Object.freeze({ maxModelCalls: 3, contextWindow: 128000, maxOutputTokens: 1600 });
-export const ACCEPTANCE_ENV_NAMES = Object.freeze(['PI_PROVIDER', 'PI_MODEL', 'PI_BASE_URL', 'DEEPSEEK_API_KEY',
-  'WS_AGENT_URL', 'WS_AGENT_TOKEN', 'WORKSPACE_OMP_PROVIDER_COST_JSON', 'WORKSPACE_OMP_LIVE_BUDGET_VERIFIED',
-  'WORKSPACE_DEEPSEEK_BUDGET_EVIDENCE']);
+// User reconfirmed the total remaining allowance as CNY5. No historical billing
+// JSON, freshness window, external hard-cap attestation or file reservation.
+export const ACCEPTANCE_LIMITS = Object.freeze({ remainingCny: 5, maxModelCalls: 2, maxOutputTokens: 512, maxRequestBytes: 12000 });
+export const DEEPSEEK_PRICES = Object.freeze({ checkedOn: '2026-10-15',
+  source: 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing/',
+  inputPeakCnyPerMillion: 2, outputPeakCnyPerMillion: 8,
+  ompUsdPerMillion: { input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0.3 } });
+export const ACCEPTANCE_ENV_NAMES = Object.freeze(['DEEPSEEK_API_KEY', 'WS_AGENT_URL', 'WS_AGENT_TOKEN']);
 export const presence = (environment = {}) => Object.fromEntries(ACCEPTANCE_ENV_NAMES.map(name =>
   [name, typeof environment[name] === 'string' && environment[name].trim().length > 0]));
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 export function acceptanceConfiguration(environment = {}) {
-  if (environment.PI_PROVIDER !== 'deepseek') fail('EXPLICIT_DEEPSEEK_PROVIDER_REQUIRED');
-  let configuration;
-  try { configuration = loadPiProviderConfig(environment); } catch { fail('PINNED_DEEPSEEK_MODEL_CONFIGURATION_REQUIRED'); }
-  if (!configuration.apiKey.trim()) fail('DEEPSEEK_KEY_NOT_BOUND');
-  if (!environment.WS_AGENT_URL || !environment.WS_AGENT_TOKEN) fail('EXISTING_WORKSPACE_BINDING_REQUIRED');
-  return configuration;
+  return workspaceOmpConfiguration({ PI_PROVIDER: 'deepseek', PI_MODEL: 'deepseek-flash',
+    DEEPSEEK_API_KEY: environment.DEEPSEEK_API_KEY || '',
+    WORKSPACE_OMP_PROVIDER_COST_JSON: JSON.stringify(DEEPSEEK_PRICES.ompUsdPerMillion),
+    WORKSPACE_OMP_LIVE_BUDGET_VERIFIED: '1' });
+}
+export function measuredUsage(messages) {
+  const responses = messages.filter(m => m.role === 'assistant');
+  let upperCny = 0;
+  for (const message of responses) {
+    const u = message.usage;
+    if (!['stop', 'toolUse'].includes(message.stopReason) || !u
+      || !['input', 'output', 'cacheRead', 'cacheWrite', 'totalTokens'].every(k => Number.isSafeInteger(u[k]) && u[k] >= 0)
+      || u.totalTokens <= 0 || u.output > 512 || u.totalTokens > 32512) fail('UNCERTAIN_USAGE_STOP_DO_NOT_RETRY');
+    upperCny += ((u.input + u.cacheRead + u.cacheWrite) * 2 + u.output * 8) / 1e6;
+  }
+  if (upperCny > ACCEPTANCE_LIMITS.remainingCny) fail('REMAINING_BUDGET_EXCEEDED');
+  return { responses: responses.length, usageUpperCny: upperCny };
 }
 
-// This validates a maintainer's reconciled billing attestation; it cannot query
-// or independently certify an account. Flags alone are never balance evidence.
-export function validateBudgetEvidence(value, model, now = Date.now()) {
-  const fresh = Date.parse(value?.verifiedAt), expiry = Date.parse(value?.expiresAt);
-  const reference = x => typeof x === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$/.test(x);
-  if (value?.schema !== 'workspace.deepseek-readonly-budget.v1' || value.provider !== 'workspace-deepseek'
-    || value.model !== model || !reference(value.receiptId) || !reference(value.billingEvidenceRef)
-    || !reference(value.priceEvidenceRef) || !reference(value.hardCapEvidenceRef)
-    || value.hardCapVerified !== true || value.currency !== 'CNY' || value.approvedCapCny !== 5
-    || !Number.isFinite(fresh) || !Number.isFinite(expiry) || fresh > now || now - fresh > 15 * 60_000
-    || expiry <= now || expiry > fresh + 60 * 60_000) fail('RECONCILED_BUDGET_EVIDENCE_REQUIRED');
-  const { spentCny, remainingCny, inputUpperCnyPerMillion, outputUpperCnyPerMillion } = value;
-  if (![spentCny, remainingCny, inputUpperCnyPerMillion, outputUpperCnyPerMillion].every(Number.isFinite)
-    || spentCny < 0 || spentCny >= 5 || remainingCny <= 0 || remainingCny > 5
-    || Math.abs(spentCny + remainingCny - 5) > 1e-9
-    || inputUpperCnyPerMillion <= 0 || outputUpperCnyPerMillion <= 0) fail('CUMULATIVE_REMAINDER_AND_PRICES_REQUIRED');
-  const { maxModelCalls, contextWindow, maxOutputTokens } = ACCEPTANCE_LIMITS;
-  const ceilingCny = Math.ceil(maxModelCalls * (contextWindow * inputUpperCnyPerMillion + maxOutputTokens * outputUpperCnyPerMillion)) / 1_000_000;
-  if (ceilingCny > remainingCny) fail('VERIFIED_REMAINDER_TOO_SMALL');
-  return { ceilingCny, remainingCny, expiresAt: expiry, receiptId: value.receiptId,
-    evidenceSha256: createHash('sha256').update(JSON.stringify(value)).digest('hex') };
-}
-
-export function modelAdmission(configuration, budget, now = Date.now) {
-  let calls = 0;
-  return { calls: () => calls, async beforeModelRequest({ model, context }) {
-    if (now() >= budget.expiresAt) fail('BUDGET_EVIDENCE_EXPIRED');
-    if (model.provider !== configuration.providerId || model.id !== configuration.model
-      || model.baseUrl !== configuration.baseUrl || model.contextWindow !== ACCEPTANCE_LIMITS.contextWindow
-      || model.maxTokens > ACCEPTANCE_LIMITS.maxOutputTokens) fail('MODEL_RECEIVER_CHANGED');
-    // Byte bound is deliberately conservative relative to the pinned 128k
-    // context, including messages/tool schemas; never infer free input usage.
-    if (Buffer.byteLength(JSON.stringify(context), 'utf8') > 120_000) fail('ACCEPTANCE_CONTEXT_LIMIT');
-    if (calls >= ACCEPTANCE_LIMITS.maxModelCalls) fail('ACCEPTANCE_MODEL_CALL_LIMIT');
-    calls++;
+// Transport restriction only; original OMP owns the model/tool/session loop and
+// its no-retry policy. Installed only in the owned Bun acceptance process.
+export function boundedDeepseekFetch(fetchImpl) {
+  let requests = 0, uncertain = false;
+  return { requests: () => requests, fetch: async (input, init) => {
+    if (uncertain || requests >= ACCEPTANCE_LIMITS.maxModelCalls) fail('UNCERTAIN_OR_EXHAUSTED_STOP_DO_NOT_RETRY');
+    const request = new Request(input, init);
+    if (request.url !== 'https://api.deepseek.com/chat/completions' || request.method !== 'POST') fail('PINNED_DEEPSEEK_REQUEST_REQUIRED');
+    const text = await request.text();
+    if (Buffer.byteLength(text) > ACCEPTANCE_LIMITS.maxRequestBytes) fail('SHORT_INPUT_LIMIT');
+    const body = JSON.parse(text);
+    if (body.model !== 'deepseek-flash' || body.tools?.some(t => t.function?.name !== 'workspace_business_tasks')) fail('PINNED_READONLY_MODEL_REQUIRED');
+    body.max_tokens = Math.min(body.max_tokens || 512, 512);
+    body.thinking = { type: 'disabled' };
+    delete body.max_completion_tokens; delete body.reasoning_effort; delete body.store; delete body.prompt_cache_retention;
+    for (const m of body.messages || []) if (m.role === 'developer') m.role = 'system';
+    for (const t of body.tools || []) delete t.function.strict;
+    requests++;
+    try { const response = await fetchImpl(new Request(request, { body: JSON.stringify(body), redirect: 'error' }));
+      if (!response.ok) uncertain = true; return response;
+    } catch { uncertain = true; fail('UNCERTAIN_CHARGE_STOP_DO_NOT_RETRY'); }
   } };
 }
 

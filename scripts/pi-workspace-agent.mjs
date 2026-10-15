@@ -87,7 +87,7 @@ export async function createWorkspaceAgentRuntime({ client, isolationDirectory, 
 // A transport-only guard around the official API: fixed per-response token cap,
 // no retry, disabled reasoning, and no credential text in transcript/UI output.
 // It does not replace the official Agent loop or the backend budget authority.
-export async function createWorkspaceAgentModel(configuration, secrets = [], { beforeModelRequest = async () => {} } = {}) {
+export async function createWorkspaceAgentModel(configuration, secrets = []) {
   if (!configuration.apiKey?.trim()) throw new Error('The existing host model key is missing. Configure the selected provider safely outside chat; no sample or alternate account is used.');
   const hidden = [configuration.apiKey, ...secrets].filter(Boolean);
   const redact = value => typeof value === 'string' ? hidden.reduce((text, secret) => text.replaceAll(secret, '[REDACTED]'), value)
@@ -95,10 +95,6 @@ export async function createWorkspaceAgentModel(configuration, secrets = [], { b
       ? Object.fromEntries(Object.entries(value).map(([key, item]) => [redact(key), redact(item)])) : value;
   const original = openAICompletionsApi();
   const guarded = method => (model, context, options) => lazyStream(model, async () => {
-    // Optional admission hook for bounded acceptance. The official SDK still
-    // owns serialization, streaming and AgentSession/tool execution.
-    try { await beforeModelRequest({ model, context }); }
-    catch { throw new Error('The configured model admission refused this request. No provider request was sent.'); }
     const signal = options?.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000);
     const source = original[method](model, context, { ...options, signal, env: {}, maxTokens: Math.min(1600, options?.maxTokens ?? 1600), maxRetries: 0, timeoutMs: 60_000, reasoning: 'off' });
     return {

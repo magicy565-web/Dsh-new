@@ -1,0 +1,58 @@
+{
+  "checkedAt": "2026-10-15T14:22:02.205Z",
+  "sourceParent": "1fe3a469cc2028f3b04fb765163a099dc7c4e467",
+  "baseline": "6d1d1175f60802960b411ff751c6dad003d8570f",
+  "tests": 22,
+  "pass": 22,
+  "fail": 0,
+  "skipped": 0,
+  "cancelled": 0,
+  "durationMs": 9661.230673,
+  "exitCode": 0,
+  "buildPassed": true,
+  "sdk": {
+    "omp": "18.10.4",
+    "bun": "1.3.14",
+    "originalSessionAndTools": true
+  },
+  "deepseekWire": "explicit-mock-only",
+  "actualPaidRequests": 0,
+  "newSpendCny": 0,
+  "userConfirmedRemainingCny": 5,
+  "needsBillingJson": false,
+  "environmentPresence": {
+    "DEEPSEEK_API_KEY": false,
+    "WS_AGENT_URL": false,
+    "WS_AGENT_TOKEN": false
+  },
+  "files": [
+    {
+      "path": "scripts/acceptance-deepseek-readonly.mjs",
+      "sha256": "65dd1e9f25144e25a7a7d8142e630353613c94e94cc73d73d9d896735e6de94f"
+    },
+    {
+      "path": "server/deepseek-acceptance-policy.mjs",
+      "sha256": "d359ce8990bf3845888e922e12bcc0be9429e59694f8dd6dce08339f66f7bdb0"
+    },
+    {
+      "path": "scripts/pi-workspace-agent.mjs",
+      "sha256": "325ba2674a3bb5a84a17f2d5ea5e446b98b95a1c0b4042b0e84c6f67db1b2a50"
+    },
+    {
+      "path": "test/deepseek-acceptance-policy.test.mjs",
+      "sha256": "59dd5c9927e80513acc071f867b1e82ad1a597992774a020eb10dc7f54ae270e"
+    },
+    {
+      "path": "test/deepseek-readonly-wire.test.mjs",
+      "sha256": "f25faa7c5bfbf4210fc6f3aa42677f9e3d9933f9032bdc74ebaebacbc94c09d3"
+    },
+    {
+      "path": "test/fixtures/deepseek-omp-readonly-wire.mjs",
+      "sha256": "ea7ec69a97e0acf4cc376472ceebc5f29fe114a2aefb2958114683317f874406"
+    },
+    {
+      "path": "docs/DEEPSEEK-READONLY-ACCEPTANCE.md",
+      "sha256": "155f5cf233dc19f631911ed66995fcf664addb301b18da4433b4a6dfccc60758"
+    }
+  ]
+}

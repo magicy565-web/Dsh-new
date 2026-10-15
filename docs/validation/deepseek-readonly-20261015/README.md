@@ -1,5 +1,7 @@
 # DeepSeek read-only acceptance engineering evidence — 2026-10-15
 
+Historical snapshot at `1fe3a469cc2028f3b04fb765163a099dc7c4e467`. Superseded by [minimal OMP acceptance](../deepseek-omp-minimal-20261015/README.md) after the user reconfirmed CNY5 remaining. The old billing JSON/reservation requirements and Pi-only entrance below are no longer current; source hashes belong to that historical commit.
+
 Baseline `6d1d1175f60802960b411ff751c6dad003d8570f`; independent branch `codex/deepseek-readonly-acceptance-20261015`. Final affected regression **40/40 passed**, zero failures/skips/cancellations, exit 0, 6610.586984 ms. Earlier 8/38/40-case runs overlap; do not add their counts. `npm run build` passed (TypeScript + Vite), with the existing >500 kB chunk warning. Final diff whitespace check passed. See checks.json and source.json.
 
 Actual official Pi 1.1.0 ModelRuntime/AgentSession and SDK DeepSeek OpenAI wire run against mocked SSE. The model actually dispatches the original `workspace_business_tasks` tool to the original Workspace HTTP/Store and receives member-owned task metadata. A second mocked response uses its exact source ID/API, and the verifier checks that final answer. The seeded business stages, records, model choices and usage are explicitly synthetic. No real DeepSeek response, account balance or production business evidence is asserted. OMP was not installed/executed or changed in this round.
