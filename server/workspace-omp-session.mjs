@@ -203,7 +203,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       const message = entry.message;
       if (message?.role === 'toolResult' && !admittedTools.includes(message.toolName)
         || message?.role === 'assistant' && message.content?.some(block => block.type === 'toolCall' && !admittedTools.includes(block.name)))
-        throw new Error('The selected OMP profile cannot inherit non-admitted tool receipts.');
+        throw new Error(factoryMaterials ? 'The selected OMP profile cannot inherit non-admitted tool receipts.'
+          : 'The public OMP profile cannot inherit private or non-admitted tool receipts.');
       if (message?.role === 'toolResult' && message.toolName === 'workspace_public_document') {
         const selected = (publicTools.publicFiles || []).find(file => file.id === message.details?.documentId && file.sha256 === message.details?.sha256);
         if (!selected) throw new Error('The cached public document was revoked or its exact selected bytes changed. No model request is admitted.');

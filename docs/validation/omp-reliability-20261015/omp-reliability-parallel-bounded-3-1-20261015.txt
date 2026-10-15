@@ -1,0 +1,11 @@
+✔ actual official OMP TUI consumes natural input through original local HTTP Run, with no UI model or second ledger (6229.204361ms)
+ℹ Actual default Node launcher in real POSIX PTY -> official InteractiveMode; input handled:true -> original HTTP Conversation/Run -> isolated official OMP worker -> sendMessage receipt. UI provider disabled; finite keyless server fixture only.
+✔ default official terminal stays interactive without credentials and displays original unconfigured refusal with zero Runs (3073.525297ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10154.644194

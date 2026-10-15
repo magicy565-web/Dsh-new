@@ -24,7 +24,7 @@ test('actual official OMP TUI consumes natural input through original local HTTP
       LANG: 'C.UTF-8', TERM: 'xterm-256color', PI_CODING_AGENT_DIR: directory + '/agent', PI_NO_TITLE: '1',
       WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: TOKEN_A, WS_AGENT_SESSION_DIR: directory,
       WORKSPACE_OMP_TERMINAL_DIAGNOSTIC: '1' }, stdio: ['pipe', 'pipe', 'pipe'] });
-  const exit = once(driver, 'close'); let raw = '', buffer = '', error = '', terminalExit; const driverTrace = [];
+  const exit = once(driver, 'close'); let raw = '', buffer = '', error = '', terminalExit, phase = 'initialize', passed = false; const driverTrace = [];
   driver.stderr.on('data', data => { error += data; });
   driver.stdout.on('data', data => {
     buffer += data;
@@ -33,21 +33,25 @@ test('actual official OMP TUI consumes natural input through original local HTTP
   });
   const write = text => driver.stdin.write(JSON.stringify({ type: 'write', text }) + '\n');
   const command = text => { write('\x15'); write(text + '\r'); };
-  t.after(async () => { if (driver.exitCode === null) driver.stdin.write(JSON.stringify({ type: 'stop' }) + '\n'); await exit; await fs.rm(directory, { recursive: true, force: true }); });
+  t.after(async () => {
+    if (!passed) t.diagnostic(JSON.stringify({ phase, terminalExit: terminalExit ?? null, driverExit: driver.exitCode, driverTrace,
+      stderr: error.slice(-12000).replaceAll(TOKEN_A, '[synthetic binding omitted]'), scrollback: raw.slice(-12000).replaceAll(TOKEN_A, '[synthetic binding omitted]') }));
+    if (driver.exitCode === null) driver.stdin.write(JSON.stringify({ type: 'stop' }) + '\n'); await exit; await fs.rm(directory, { recursive: true, force: true });
+  });
   await until(() => raw.includes('terminal model disabled'), () => 'Official OMP TUI did not initialize: ' + error + raw.slice(-3500) + JSON.stringify({ driverTrace, terminalExit }));
-  command('Organize these explicitly public synthetic factory materials.');
+  phase = 'natural-input'; command('Organize these explicitly public synthetic factory materials.');
   await until(() => raw.includes('OMP_ORIGINAL_HTTP_TERMINAL_REPLY'), () => 'Original HTTP/Run reply did not reach official UI: ' + raw.slice(-3500));
   const state = f.app.store.read(); assert.equal(state.runs.length, 1); assert.equal(state.runs[0].status, 'succeeded'); assert.ok(state.runs[0].businessAgentContext);
   assert.equal(state.workspaceAgentTasks.tasks.length, 0); assert.equal(f.faux.state.callCount, 0);
   assert.equal(state.conversations.length, 1); assert.equal(state.conversations[0].businessAgentSession.engineScope, 'omp:18.10.4:public-v1');
-  const marker = raw.length; command('/ws-front-status'); await until(() => raw.slice(marker).includes(state.runs[0].id), 'Exact current Run receipt was not displayed.');
+  phase = 'status'; const marker = raw.length; command('/ws-front-status'); await until(() => raw.slice(marker).includes(state.runs[0].id), 'Exact current Run receipt was not displayed.');
   await new Promise(resolve => setTimeout(resolve, 100));
-  command('!cat /tmp/forbidden-synthetic'); await until(() => raw.includes('Shell and Python execution are unavailable'), () => 'Original public input boundary was not enforced: ' + raw.slice(-3500));
+  phase = 'shell-refusal'; command('!cat /tmp/forbidden-synthetic'); await until(() => raw.includes('Shell and Python execution are unavailable'), () => 'Original public input boundary was not enforced: ' + raw.slice(-3500));
   write('\x15');
   command('/export /tmp/forbidden-synthetic'); await until(() => raw.includes('Only the original human task commands'), 'Foreign builtin command was not blocked.');
   assert.equal(f.app.store.read().runs.length, 1); assert.ok(!raw.includes(TOKEN_A));
   write('\x15');
-  command('/quit'); await until(() => terminalExit !== undefined, 'Official OMP UI did not exit: ' + raw.slice(-1000)); assert.equal(terminalExit, 0); assert.equal((await exit)[0], 0, error);
+  phase = 'quit'; command('/quit'); await until(() => terminalExit !== undefined, 'Official OMP UI did not exit: ' + raw.slice(-1000)); assert.equal(terminalExit, 0); assert.equal((await exit)[0], 0, error); passed = true;
   t.diagnostic('Actual default Node launcher in real POSIX PTY -> official InteractiveMode; input handled:true -> original HTTP Conversation/Run -> isolated official OMP worker -> sendMessage receipt. UI provider disabled; finite keyless server fixture only.');
 });
 
@@ -109,21 +113,26 @@ test('default official terminal stays interactive without credentials and displa
   const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp.mjs'], {
     cwd: directory, env: { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory, LANG: 'C.UTF-8', TERM: 'xterm-256color',
       PI_NO_TITLE: '1', WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WS_AGENT_URL: f.baseURL }, stdio: ['pipe', 'pipe', 'pipe'] });
-  const exit = once(driver, 'close'); let raw = '', buffer = '', terminalExit;
+  const exit = once(driver, 'close'); let raw = '', buffer = '', terminalExit, error = '', phase = 'initialize', passed = false;
+  driver.stderr.on('data', data => { error += data; });
   driver.stdout.on('data', data => { buffer += data;
     while (buffer.includes('\n')) { const cut = buffer.indexOf('\n'), event = JSON.parse(buffer.slice(0, cut)); buffer = buffer.slice(cut + 1);
       if (event.type === 'output') raw += event.data; if (event.type === 'exit') terminalExit = event.code; }
   });
   const command = text => { driver.stdin.write(JSON.stringify({ type: 'write', text: '\x15' + text + '\r' }) + '\n'); };
-  t.after(async () => { if (driver.exitCode === null) driver.stdin.write(JSON.stringify({ type: 'stop' }) + '\n'); await exit; await fs.rm(directory, { recursive: true, force: true }); });
+  t.after(async () => {
+    if (!passed) t.diagnostic(JSON.stringify({ phase, terminalExit: terminalExit ?? null, driverExit: driver.exitCode,
+      stderr: error.slice(-12000), scrollback: raw.slice(-12000) }));
+    if (driver.exitCode === null) driver.stdin.write(JSON.stringify({ type: 'stop' }) + '\n'); await exit; await fs.rm(directory, { recursive: true, force: true });
+  });
   await until(() => raw.includes('terminal model disabled'), () => 'Unconfigured official UI did not initialize: ' + raw.slice(-2000));
-  command('Organize explicitly supplied public factory text.');
+  phase = 'natural-unconfigured-refusal'; command('Organize explicitly supplied public factory text.');
   await until(() => raw.includes('BUSINESS_AGENT_UNCONFIGURED'), () => 'Original HTTP refusal was not displayed: ' + raw.slice(-2500));
   assert.equal(f.app.store.read().runs.length, 0); assert.equal(f.faux.state.callCount, 0);
-  command('/ws-task {"title":"Public","content":"Public text","requestId":"ui-no-host-review"}');
+  phase = 'binding-unconfigured-refusal'; command('/ws-task {"title":"Public","content":"Public text","requestId":"ui-no-host-review"}');
   await until(() => raw.includes('EXISTING_WORKSPACE_BINDING_REQUIRED'), 'Unconfigured original command should return its binding gap.');
   assert.equal(f.app.store.read().runs.length, 0); assert.equal(f.faux.state.callCount, 0);
-  command('/quit'); await until(() => terminalExit !== undefined, 'Unconfigured official UI did not close.'); assert.equal(terminalExit, 0, raw.slice(-6000)); assert.equal((await exit)[0], 0, raw.slice(-6000));
+  phase = 'quit'; command('/quit'); await until(() => terminalExit !== undefined, 'Unconfigured official UI did not close.'); assert.equal(terminalExit, 0, raw.slice(-6000)); assert.equal((await exit)[0], 0, raw.slice(-6000)); passed = true;
 });
 
 test('official terminal human stop confirmation preserves the original Run on Escape, then natively cancels that exact Run', { timeout: 45000 }, async t => {

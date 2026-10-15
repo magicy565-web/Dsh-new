@@ -1,0 +1,20 @@
+✔ enterprise OMP terminal transport preserves native Session, CSRF, exact identity and original execution readiness (262.431224ms)
+✔ real official OMP TUI keeps natural input read-only even when the model submits, and enables only human-confirmed explicit execution (7341.842263ms)
+✔ official OMP enterprise Session terminal performs original human approval controls (4616.921632ms)
+✔ official OMP enterprise Session terminal performs original human checkpoint controls (4600.277876ms)
+✔ official OMP enterprise Session terminal performs original human business controls (10879.210808ms)
+✔ actual official OMP TUI consumes natural input through original local HTTP Run, with no UI model or second ledger (8843.548423ms)
+ℹ Actual default Node launcher in real POSIX PTY -> official InteractiveMode; input handled:true -> original HTTP Conversation/Run -> isolated official OMP worker -> sendMessage receipt. UI provider disabled; finite keyless server fixture only.
+✔ UI-only original execution/recovery commands return unconfigured without dispatch, while human status/cancel/approval remain separate (3.375143ms)
+✔ terminal transport refuses a legacy Pi host and enterprise Session without creating a conversation or Run (61.220344ms)
+✔ original public terminal receipt enforces enterprise Session, conversation ownership and exact Run membership (3295.827305ms)
+✔ default official terminal stays interactive without credentials and displays original unconfigured refusal with zero Runs (4442.991563ms)
+✔ official terminal human stop confirmation preserves the original Run on Escape, then natively cancels that exact Run (9249.27147ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 56827.840797
