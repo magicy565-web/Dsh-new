@@ -154,6 +154,13 @@ coverage:{from,to} 及 metrics:{原计划指标id:{value,definition}}。coverage
 实际 startedAt，observedAt 不早于覆盖截止，不接受错产品/渠道/变体或未来区间。
 只保存白名单聚合字段。没有来源明确记 unavailable，并在总结保留缺口；观察不等于验证。
 
+baseline 缺失不阻止基于有效原获客回执创建任务；经过原调度批准或显式人工观察控制后，
+可以开始观测。传入了 baseline 却不满足上述来源/范围/时间要求时仍拒绝。七天结束的
+`window_ended` 只表示时间窗口结束。必要指标缺失时保留 null/gaps 和
+`insufficient_evidence`；即使必要指标都有实测数据，也只返回
+`observed_not_adjudicated`、`goalVerified:false`。此时 `provisional:false` 只说明必要指标
+无缺口，不说明目标达标。没有 baseline 不能当作投放前为零，也不能据此计算提升或因果效果。
+
 ## 时间、恢复和总结
 
 七天为真实获客启动后 168 小时；原 IANA 时区保留用于本地日期展示，跨夏令时不偷偷

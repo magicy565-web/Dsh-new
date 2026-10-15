@@ -106,6 +106,19 @@ test('create accepts only references; one receipt maps to one durable Goal/Sched
   assert.equal(restored.goalId, tasks[0].goalId); assert.equal(f.store.read().goals.length, 1); assert.equal(f.store.read().capabilities.schedules.length, 1);
   await assert.rejects(f.runtime.updateGoal(restored.goalId, { action: 'start', requestId: 'forbidden-model' }), { code: 'SERVICE_TASK_MODEL_FORBIDDEN' });
 });
+test('missing baseline permits authorized observation, but measured zero and window completion never verify the goal', async t => {
+  const f = await fixture(t, { outcomes: true });
+  f.receipt.salesRequirement = { metric: 'net_paid_units', target: 0, definition: 'Synthetic target only; an observation is not goal adjudication.' };
+  const task = await f.bound().create(f.request());
+  assert.equal(task.baseline.status, 'unavailable'); assert.equal(task.baseline.value, null); assert.equal(task.scheduleEnabled, false);
+  f.advance(8 * DAY);
+  const result = await f.bound().observe(input(task));
+  assert.equal(result.summary.baseline.status, 'unavailable'); assert.equal(result.summary.baseline.value, null);
+  assert.equal(result.observation.sample.outcomes.status, 'available'); assert.equal(result.observation.sample.outcomes.metrics.netPaidUnits, 0);
+  assert.equal(result.summary.measurement.status, 'observed_not_adjudicated'); assert.equal(result.summary.provisional, false);
+  assert.equal(result.summary.goalVerified, false); assert.equal(f.bound().get(task.goalId).status, 'window_ended');
+  assert.equal(f.store.read().runs.length, 0);
+});
 test('original schedule approval and dispatch run seven daily observations with unchanged goal hash and no model', async t => {
   const f = await fixture(t, { outcomes: true }), task = await f.bound().create(f.request());
   await assert.rejects(f.capabilities.enableSchedule(task.scheduleId, {}), { code: 'APPROVAL_REQUIRED' });

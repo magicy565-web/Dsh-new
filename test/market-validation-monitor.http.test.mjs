@@ -171,11 +171,14 @@ test('Host reads original plan version/hash and channel binding, never trusts a 
 });
 test('plan-selected required metrics appear in the HTTP summary even when paid/order sources are missing', async t => {
   const f = await fixture(t, { metrics: ['visits', 'add_to_cart', 'checkouts', 'refunds', 'net_paid_units'] }), task = (await f.create()).data;
+  assert.equal(task.baseline.status, 'unavailable'); assert.equal(task.baseline.value, null);
   f.advance(8 * DAY); await f.login();
   const result = await f.api(route(task) + '/observe', { method: 'POST', body: read(task) }); assert.equal(result.status, 200, JSON.stringify(result.data));
   assert.equal(result.data.summary.measurement.status, 'insufficient_evidence'); assert.equal(result.data.summary.goalVerified, false);
   assert.deepEqual(result.data.summary.measurement.gaps.map(item => item.metric), ['visits', 'add_to_cart', 'checkouts', 'refunds', 'net_paid_units']);
   assert.equal(result.data.summary.baseline.status, 'unavailable'); assert.equal(f.app.store.read().goals.length, 1);
+  assert.equal((await f.api(route(task))).data.status, 'window_ended'); assert.equal(result.data.summary.baseline.value, null);
+  assert.equal(result.data.summary.sample.outcomes.metrics.netPaidUnits, null); assert.equal(result.data.summary.provisional, true);
 });
 test('plan Artifact mutation during original receipt resolution is fenced before any task creation', async t => {
   const f = await fixture(t), release = f.deferResolver(), pending = f.create(); await release.entered;
