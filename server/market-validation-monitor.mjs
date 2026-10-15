@@ -4,6 +4,7 @@ import { validateResultAssessment, validateFrozenServiceTarget } from '../packag
 import { ApiError } from './runtime.mjs';
 import { productCohortMetrics, SUPPLIER_METRIC_DEFINITION } from './supplier-metrics.mjs';
 import { validateProductTrafficObservation } from './product-traffic-contract.mjs';
+import { validateShopifyMarketScope } from './shopify-market-scope.mjs';
 
 const DAY = 86400000;
 const KIND = 'market-validation-monitor';
@@ -36,7 +37,7 @@ function receiptScope(receipt, request, clock) {
       receipt.approved !== true || receipt.status !== 'launched' || receipt.evidenceKind !== 'real' || receipt.launchKind !== 'acquisition' ||
       !instant(receipt.startedAt) || Date.parse(receipt.startedAt) > clock() || !['b2b', 'b2c'].includes(receipt.businessMode) ||
       !gid('Product', receipt.productId) || !gid('Shop', receipt.shopId) || !reference(receipt.channelId) || !id(receipt.conversationId) ||
-      !Array.isArray(receipt.variantIds) || receipt.variantIds.length > 250 || new Set(receipt.variantIds).size !== receipt.variantIds.length || receipt.variantIds.some(value => !gid('ProductVariant', value))) {
+      !Array.isArray(receipt.variantIds) || !receipt.variantIds.length || receipt.variantIds.length > 250 || new Set(receipt.variantIds).size !== receipt.variantIds.length || receipt.variantIds.some(value => !gid('ProductVariant', value))) {
     fail('REAL_LAUNCH_RECEIPT_REQUIRED', 'An original approved acquisition launch receipt with a real start time is required.');
   }
   try { if (typeof receipt.timezone !== 'string') throw Error(); new Intl.DateTimeFormat('en', { timeZone: receipt.timezone }).format(); }
@@ -81,7 +82,7 @@ function receiptScope(receipt, request, clock) {
     windowDefinition: '168 elapsed hours from the real approved acquisition launch; local dates are display labels',
     requiredMetrics: requiredMetrics.map(item => ({ id: item.id, definition: item.definition })),
     salesRequirement: receipt.salesRequirement ? { metric: receipt.salesRequirement.metric, target: receipt.salesRequirement.target, definition: receipt.salesRequirement.definition } : null,
-    baseline, ...(serviceTarget ? { serviceTarget } : {}), ...(resultAssessment ? { resultAssessment } : {}), ...(marketBenchmark ? { marketBenchmark } : {}) };
+    baseline, ...(receipt.shopifyScope ? { shopifyScope: validateShopifyMarketScope(receipt.shopifyScope, receipt) } : {}), ...(serviceTarget ? { serviceTarget } : {}), ...(resultAssessment ? { resultAssessment } : {}), ...(marketBenchmark ? { marketBenchmark } : {}) };
 }
 
 // This validates an already authorized source, not its authorization. The Host
@@ -105,6 +106,9 @@ function outcomeObservation(value, scope, adapterId) {
   if (scope.businessMode === 'b2c') for (const [net, gross] of [['netPaidOrders', 'paidOrders'], ['netPaidUnits', 'paidUnits'], ['refundedUnits', 'paidUnits']]) {
     if (value.metrics[net] != null && value.metrics[gross] != null && value.metrics[net] > value.metrics[gross]) fail('OUTCOME_OBSERVATION_INVALID', 'Net or refunded cohort counts cannot exceed the acknowledged paid cohort.', 502);
   }
+  if (scope.shopifyScope && ['paidUnits', 'netPaidUnits', 'refundedUnits'].some(k => value.metrics[k] != null)
+    && (value.unitBasis?.unit !== scope.shopifyScope.outcomeQuantityUnit || value.unitBasis?.unitsPerPack !== scope.shopifyScope.saleUnit.unitsPerPack
+      || value.unitBasis?.shopifyScopeHash !== hash(scope.shopifyScope))) fail('OUTCOME_UNIT_BASIS_REQUIRED', 'The reviewed outcome adapter must acknowledge the exact mapping and physical-unit/pack definition.', 502);
   if (value.metrics.netPaidOrders != null && value.metrics.netPaidUnits != null &&
       (value.metrics.netPaidUnits < value.metrics.netPaidOrders || (value.metrics.netPaidOrders === 0) !== (value.metrics.netPaidUnits === 0))) fail('OUTCOME_OBSERVATION_INVALID', 'Net paid order and product unit counts contradict one another.', 502);
   if (scope.resultAssessment?.metric === 'conversion_rate' && value.metrics.netPaidOrders != null && value.resultEvidence?.validVisits != null
@@ -118,7 +122,7 @@ function outcomeObservation(value, scope, adapterId) {
       || !['validVisits', 'qualifiedInquiries'].every(k => e[k] === null || Number.isSafeInteger(e[k]) && e[k] >= 0)) fail('OUTCOME_OBSERVATION_INVALID', 'Result evidence requires reviewed net payment, valid traffic counts and coverage.');
     resultEvidence = copy(e);
   }
-  return { ...(resultEvidence ? { resultEvidence } : {}), status: value.status, sourceId: adapterId, sampledAt: value.sampledAt, dataLagSeconds: value.dataLagSeconds,
+  return { ...(resultEvidence ? { resultEvidence } : {}), ...(scope.shopifyScope && value.unitBasis ? { unitBasis: { unit: value.unitBasis.unit, unitsPerPack: value.unitBasis.unitsPerPack, shopifyScopeHash: value.unitBasis.shopifyScopeHash } } : {}), status: value.status, sourceId: adapterId, sampledAt: value.sampledAt, dataLagSeconds: value.dataLagSeconds,
     definition: value.definition, metrics: copy(value.metrics), attribution: 'exact_product_and_channel', coverage: { from: scope.from, to: scope.to } };
 }
 
@@ -194,7 +198,10 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
       const serviceTaskContext = linked ? { kind: KIND, scopeHash, sourceConversationId: scope.conversationId, subject: actor.subject, workspaceId: actor.workspaceId, modelRequired: false } : null;
       const taskAdmission = serviceTaskContext ? { serviceTaskContext, authorizeServiceTask: state => { route.signal?.throwIfAborted(); owner(state, actor); return true; } } : {};
       const taskConversationId = linked ? (await runtime.createConversation({ title: '七天市场验证观察任务', requestId: `market-context-${key}` }, actor, taskAdmission)).conversation.id : scope.conversationId;
-      const { goal } = await runtime.createGoal({ requestId: `market-monitor-${key}`, title: '七天市场验证观察', description: JSON.stringify(scope), conversationId: taskConversationId, maxSteps: 1, maxOutputTokens: 1600 }, taskAdmission);
+      // Full mappings live in the original task below. Bind their hash in the
+      // Goal description without duplicating 100 SKU mappings into bounded text.
+      const description = scope.shopifyScope ? { planId: scope.planId, planRevision: scope.planRevision, launchReceiptId: scope.launchReceiptId, productId: scope.productId, shopId: scope.shopId, scopeHash } : scope;
+      const { goal } = await runtime.createGoal({ requestId: `market-monitor-${key}`, title: '七天市场验证观察', description: JSON.stringify(description), conversationId: taskConversationId, maxSteps: 1, maxOutputTokens: 1600 }, taskAdmission);
       await store.update(state => {
         route.signal?.throwIfAborted(); owner(state, actor); const current = state.goals.find(row => row.id === goal.id);
         if (current.marketValidationMonitor) { if (current.marketValidationMonitor.scopeHash !== scopeHash) fail('LAUNCH_SCOPE_CHANGED', 'The original launch scope changed.'); return; }
@@ -232,7 +239,8 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
       if (binding.shopify !== shopify.fingerprint) fail('SHOPIFY_SCOPE_CHANGED', 'The original Shopify binding changed.');
       await shopify.verify();
       const product = await shopify.readProductPublication({ productId: scope.productId, signal });
-      if (product.shopId !== scope.shopId || scope.variantIds.some(value => !product.variantIds.includes(value))) fail('SHOPIFY_SCOPE_CHANGED', 'The original product or shop changed.');
+      if (product.shopId !== scope.shopId || scope.variantIds.some(value => !product.variantIds.includes(value))
+        || scope.shopifyScope && (product.shopDomain !== scope.shopifyScope.shopDomain || hash([...product.variantIds].sort()) !== hash(scope.variantIds))) fail('SHOPIFY_SCOPE_CHANGED', 'The original product or complete reviewed variant set changed.');
       const orders = [], cursors = new Set(); let after = null;
       do {
         const page = await shopify.readProductOrders({ productId: scope.productId, from: scope.from, to: scope.to, after, signal });
@@ -244,8 +252,12 @@ export async function createMarketValidationMonitor({ store, runtime, capabiliti
       } while (after && !signal.aborted);
       if (signal.aborted) throw Error('aborted');
       sample.cohort = { status: 'available', quantities: productCohortMetrics(orders, scope), sourceId: 'shopify_admin_orders_2026-10',
+        ...(scope.shopifyScope ? { quantityBasis: { unit: scope.shopifyScope.shopifyQuantityUnit, retailUnit: scope.shopifyScope.saleUnit.unit, unitsPerPack: scope.shopifyScope.saleUnit.unitsPerPack } } : {}),
         definition: SUPPLIER_METRIC_DEFINITION, dataLagSeconds: null, freshness: 'unknown', attribution: 'exact_product_all_channels', paidStatus: 'unsupported' };
-    } catch (error) { sample.cohort = unknown('unavailable', 'SHOPIFY_READ_FAILED'); sample.errors.push({ source: 'shopify', code: error.code || 'SOURCE_READ_FAILED' }); }
+    } catch (error) {
+      if (scope.shopifyScope && ['SHOPIFY_SCOPE_CHANGED', 'SHOPIFY_VARIANTS_INCOMPLETE', 'SHOPIFY_IDENTITY_MISMATCH', 'SHOPIFY_PRODUCT_OBSERVATION_INVALID'].includes(error.code)) throw error;
+      sample.cohort = unknown('unavailable', 'SHOPIFY_READ_FAILED'); sample.errors.push({ source: 'shopify', code: error.code || 'SOURCE_READ_FAILED' });
+    }
     if (trafficAdapter) try {
       if (binding.traffic !== trafficAdapter.id) fail('TRAFFIC_SCOPE_CHANGED', 'The original traffic adapter changed.');
       const status = shopify?.status();

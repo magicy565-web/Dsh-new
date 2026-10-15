@@ -11,6 +11,7 @@ import { validatePlanInput } from '../packages/workspace-market-validation/src/p
 import { MARKET_MONITOR_TOOLS } from '../packages/workspace-market-validation/src/monitor.js';
 import extension, { marketValidationExtension, MARKET_VALIDATION_TOOLS } from '../packages/workspace-market-validation/src/extension.js';
 import { publicPdfBytes } from './fixtures/workspace-omp-public-pdf.mjs';
+import { seedMarketPublication } from './fixtures/shopify-market-scope.mjs';
 
 async function fixture(t, documentBytes = null) {
   const f = await materialsFixture(t), flags = { active: true, admitted: true };
@@ -192,9 +193,10 @@ test('original plan API saves derived pre-service review as unreviewed; trusted 
   const { createMarketValidationLaunchReader } = await import('../server/market-validation-launch-reader.mjs');
   let confirmed = false, modified = false;
   const actor = { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' };
+  const publication = await f.app.store.update(state => seedMarketPublication(state, { actor, conversationId: row.sourceConversationId, productId: f.product.id }));
   const read = createMarketValidationLaunchReader({ store: f.app.store, artifacts: f.app.artifacts, async resolveLaunchReceipt(request) {
     const target = request.planArtifact.preServiceReview[0].serviceTarget;
-    return { id: 'synthetic-service-launch', planId: row.id, planRevision: 1, planSha256: row.sha256, planHash: row.metadata.marketValidationPlan.planHash,
+    return { ...publication.launch, id: 'synthetic-service-launch', planId: row.id, planRevision: 1, planSha256: row.sha256, planHash: row.metadata.marketValidationPlan.planHash,
       conversationId: row.sourceConversationId, businessMode: 'b2c', timezone: plan.timeZone, planAcquisitionId: plan.paths[0].acquisition[0].id,
       channelId: 'shopify-execution', startedAt: new Date(Date.now()).toISOString(),
       ...(confirmed ? { serviceTargetConfirmation: { status: 'approved', evidenceKind: 'real', approvalId: 'synthetic-human-plan-approval', evidenceRef: 'synthetic-only-not-business-approval', approvedBy: actor.subject, workspaceId: actor.workspaceId,

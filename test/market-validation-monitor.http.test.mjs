@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
-import { generateKeyPairSync } from 'node:crypto';
+import { generateKeyPairSync, randomUUID } from 'node:crypto';
 import { createApp } from '../server/index.mjs';
 import { signWorkspaceRequest } from '../server/auth-ingress.mjs';
 import { localHttpTransport } from './fixtures/local-http.mjs';
 import { libraryReadHash } from '../server/library-model-read-contract.mjs';
+import { seedMarketPublication } from './fixtures/shopify-market-scope.mjs';
 
 // Actual original App HTTP, signed ingress, ephemeral Sessions, Runtime,
 // dispatcher and timer. These signing keys exist only in process memory for
@@ -53,15 +54,19 @@ async function fixture(t, options = {}) {
   const source = await api('/api/conversations', { method: 'POST', body: { title: 'Original business Agent source', requestId: 'source-original' } });
   assert.equal(source.status, 201, JSON.stringify(source.data));
   const sourceId = source.data.conversation.id;
+  const owner = { subject: 'owner', workspaceId: 'fixture-workspace', role: 'admin' };
+  const product = (await app.businessLibrary.createProduct({ requestId: randomUUID(), name: 'Synthetic monitored product',
+    skus: Array.from({ length: 4 }, (_, i) => ({ id: randomUUID(), code: 'SYNTHETIC-' + i, specs: [{ key: 'Size', value: String(i) }] })) }, owner)).product;
+  const publication = await app.store.update(state => seedMarketPublication(state, { actor: owner, conversationId: sourceId, productId: product.id }));
   const plan = { timeZone: 'Asia/Shanghai', paths: [{ mode: 'b2c', acquisition: [{ id: 'approved-source' }],
     metrics: (options.metrics || ['net_paid_units']).map(id => ({ id, definition: `Original selected metric: ${id}` })),
     salesRequirement: { metric: 'net_paid_units', target: 1, definition: 'A paid unit is not an inquiry or a view.' } }] };
   const saved = await app.artifacts.create({ requestId: 'original-plan-artifact', filename: 'market-validation-plan.json',
-    content: JSON.stringify({ schema: 'workspace.market-validation-plan.v1', plan }), sourceConversationId: sourceId,
+    content: JSON.stringify({ schema: 'workspace.market-validation-plan.v1', plan, sources: publication.sources }), sourceConversationId: sourceId,
     metadata: { marketValidationPlan: { ownerHash: libraryReadHash(['fixture-workspace', 'owner', sourceId]), planHash: libraryReadHash(plan) } } });
   planId = saved.artifact.id;
-  receipt = { id: 'original-launch', planId, planRevision: 1, planSha256: saved.artifact.sha256, planHash: libraryReadHash(plan), planAcquisitionId: 'approved-source', approved: true, status: 'launched', evidenceKind: 'real', launchKind: 'acquisition',
-    startedAt: '2026-10-12T09:00:00.000Z', timezone: 'Asia/Shanghai', productId: 'gid://shopify/Product/123', variantIds: [], shopId: 'gid://shopify/Shop/1', channelId: 'approved-source', businessMode: 'b2c', conversationId: sourceId };
+  receipt = { ...publication.launch, id: 'original-launch', planId, planRevision: 1, planSha256: saved.artifact.sha256, planHash: libraryReadHash(plan), planAcquisitionId: 'approved-source', approved: true, status: 'launched', evidenceKind: 'real', launchKind: 'acquisition',
+    startedAt: '2026-10-12T09:00:00.000Z', timezone: 'Asia/Shanghai', channelId: 'approved-source', businessMode: 'b2c', conversationId: sourceId };
   return { get app() { return app; }, sourceId, get receipt() { return receipt; }, api, login,
     create: (patch = {}) => api(`/api/conversations/${sourceId}/market-validation-monitors`, { method: 'POST', body: { requestId: 'monitor-original', planId, planRevision: 1, launchReceiptId: 'original-launch', confirmed: true, ...patch } }),
     advance(value) { clock += value; }, async restart() { await stop(); await start(); await login(); },

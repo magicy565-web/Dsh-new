@@ -1,6 +1,7 @@
 import { buildPreServiceReview, freezeConfirmedServiceTarget, preServiceHash, referencesForPath } from '../packages/workspace-market-validation/src/plan.mjs';
 import { ApiError } from './runtime.mjs';
 import { libraryReadHash } from './library-model-read-contract.mjs';
+import { readShopifyMarketScope } from './shopify-market-scope.mjs';
 
 // Read the original Artifact; neither model flags nor this reader grant launch
 // approval. The injected original acquisition service must resolve its own
@@ -32,6 +33,7 @@ export function createMarketValidationLaunchReader({ store, artifacts, resolveLa
         startedAt: original.startedAt, createdAt: row.createdAt, channelId: original.channelId }); } catch { reject(); }
       if (document.preServiceReview && preServiceHash(document.preServiceReview) !== preServiceHash(buildPreServiceReview(document.plan))) reject();
     }
-    return { ...original, serviceTarget, requiredMetrics: path.metrics.map(item => ({ id: item.id, definition: item.definition })), salesRequirement: path.salesRequirement, resultAssessment: path.resultAssessment ?? null };
+    const shopifyScope = original.businessMode === 'b2c' ? readShopifyMarketScope({ state: store.read(), actor: input.actor, launch: original, sources: document.sources }) : null;
+    return { ...original, ...(shopifyScope ? { shopifyScope } : {}), serviceTarget, requiredMetrics: path.metrics.map(item => ({ id: item.id, definition: item.definition })), salesRequirement: path.salesRequirement, resultAssessment: path.resultAssessment ?? null };
   };
 }
