@@ -159,3 +159,83 @@ value; no account or model request was made.
 Only source/tests/sanitized evidence are committed. Raw runtime logs and generated
 reports stay outside the repository. Additional paid requests **0**; no main
 merge, deployment, real user material, external sending or credential changes.
+
+
+## Single real attempt and native conversation follow-up
+
+The user authorized exactly one real local acceptance run after the HTTP-boundary
+work, within remaining CNY4.999838. The official Chinese and English pricing pages
+were successfully rechecked before sending: Flash 1M context, CNY2/million input
+miss and CNY8/million output peak. The existing CNY2.680768 failure-inclusive
+reserve remained below that allowance. The team had only this active agent and
+no other Node/Bun model processes. An exclusive process lock plus an exclusive
+persisted start marker guarded this one run. No second paid run was performed.
+
+The executed base was `f2eb0630372cf9b0a09a62d59005d6fcc5ad4072`, with only a
+pre-run tool-name/error-boolean observer added to its returned receipt. The
+synthetic public product file described an unbranded 500ml cup and an RFQ of 100
+units for Germany, with capacity/delivery/prices/certification unknown. Input and
+runtime receipts are outside Git under
+`/workspace/local-deepseek-acceptance-20261015/`; they were not committed.
+
+**Result: real provider connected, local save workflow failed.** Official Flash
+made **2 actual HTTP requests**, both with complete validated usage, in **6237ms**.
+The model chose `workspace_factory_capabilities` and `read` successfully, then
+`workspace_factory_rfq_requirements` and `workspace_factory_match_prepare` both
+returned tool errors. The next logical provider entry was stopped before a third
+HTTP send with `LOCAL_TOOL_ERROR_STOP_DO_NOT_RETRY`. **No output file or output
+SHA exists.** No model substitute, business Host or WS binding was used.
+
+The two confirmed usage responses produced a conservative **CNY0.009334** total.
+Known cumulative authorization consumption is **CNY0.009496**, leaving
+**CNY4.990504**; these are estimates, not an account-balance query. There was no
+uncertain usage. The pre-existing failure return did not retain token subtotals
+or concrete tool arguments/error bodies, so those cannot be reconstructed or
+fabricated. Later source changes add confirmed token totals and safe error codes
+to future receipts; they do not retroactively add evidence to this attempt.
+
+Offline inspection found a concrete contract mismatch: RFQ/factory tools
+advertised unrestricted Record/Unknown fields while execution rejected all but
+fixed scalar fields. Their schemas now advertise exactly the accepted fields
+and types, without weakening execution authorization. Mock HTTP tests cover a
+valid factory chain and a rejected null RFQ, including stopping before another
+send. This repairs the mismatch, but the discarded live arguments mean it cannot
+be claimed as the proven sole cause or a verified live repair.
+
+The user's subsequent requirement was a changeable one-sentence goal with
+continuation. `factory:local --session FILE.jsonl --task 'natural-language goal'`
+now creates/opens the **original OMP SessionManager** file, retaining the same ID
+and transcript. It can answer/ask about gaps without saving, or write only when
+requested. Reuse the same explicit file and replace `--task` for the next user
+turn; there is no fixed tool sequence, fixed report, replacement model loop, new
+session DB or frontend. This is an SDK command entry with persisted continuation,
+not an interactive TUI. [A complete non-secret command](../../WORKSPACE-OMP-LOCAL.md)
+is provided for this environment.
+
+Only deliberate `--session` opts into retaining transcript/selected data. Temporary
+auth storage and input snapshots are still removed. Native custom entries bind
+the local profile to selected source paths/hashes, output directory and model;
+changed selection, foreign profile, symlink, concurrent lock or previous unknown
+billing refuses continuation before inference. In-progress billing markers are
+flushed through the original SDK before a prompt and finalized after it, so a
+crash cannot silently turn an unconfirmed request into zero cost. Each explicit
+new turn retains the original per-task HTTP restrictions; there is no persistent
+wallet accounting.
+
+No-paid tests exercise two different natural-language goals: first read and ask
+for missing delivery/quantity without writing; then continue the same original
+history with quantity200 and request an introduction in `intro.md`. A separate
+question-only turn uses no tools. These are finite-substitute **contract tests**,
+not evidence that a real model autonomously achieved these new flows. The real
+paid attempt above remains the only live result and remains failed at tool stage.
+
+Final source validation: **81 tests passed**, zero failures/skips; TypeScript/Vite
+build passed with the existing non-blocking bundle-size warning. The local suite
+contains nine tests; the wire suite has eighteen mock HTTP scenarios plus its
+reservation-math check. No second paid run was used for any source repair or
+conversation-continuation test.
+
+The exact documented full command was also executed with `--check`: configured
+unverified, key/cost/reviewed-budget present, zero model requests, no session file
+created. Without `--task`, persistent mode asks for the user's goal instead of
+starting the old default report template.

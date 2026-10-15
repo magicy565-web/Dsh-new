@@ -32,6 +32,8 @@ Repository verification: `node --test test/pi-procurement-package.test.mjs`. It 
 
 For selected local product files and new saved Markdown/text drafts without any Host,
 the repository adds `npm run factory:local -- --input ./product.md --output-dir .`.
-It reuses the official OMP Session/provider and native read/write tools, with exact
+Add `--session /workspace/factory-session.jsonl --task "your natural-language goal"`
+to create/continue an original OMP Session by the same file, including question-only
+turns without a fixed report/tool sequence. It reuses the official OMP Session/provider and native read/write tools, with exact
 file selection and exclusive output creation. See [local entry](../../docs/WORKSPACE-OMP-LOCAL.md).
 The ordinary package remains portable and does not import repository server code.

@@ -9,7 +9,7 @@ test('local HTTP fee reservations are below the existing remaining CNY5 authoriz
  assert.ok(LOCAL_DEEPSEEK_LIMITS.failureInclusiveUpperCny<LOCAL_DEEPSEEK_LIMITS.maxTaskReserveCny);
  assert.ok(LOCAL_DEEPSEEK_LIMITS.maxTaskReserveCny<5-0.000162);
 });
-for(const mode of ['happy','cached','http500','network-error','stream-error','truncated','missing-usage','partial-usage','inconsistent-usage','oversized-usage','empty-response','output-contract','oversize-first','oversize-after-read','bad-tool','exhausted']){
+for(const mode of ['happy','cached','factory-valid','factory-invalid','http500','network-error','stream-error','truncated','missing-usage','partial-usage','inconsistent-usage','oversized-usage','empty-response','output-contract','oversize-first','oversize-after-read','bad-tool','exhausted']){
  test('actual original OMP HTTP guard: '+mode,{timeout:20000},async()=>{
   const child=spawn(workspaceOmpPaths({}).bun,['test/fixtures/workspace-omp-local-wire.mjs'],{env:{PATH:process.env.PATH,HOME:'/tmp',LOCAL_WIRE_MODE:mode},stdio:['ignore','pipe','pipe']});
   let out='',err='';child.stdout.on('data',d=>out+=d);child.stderr.on('data',d=>err+=d);

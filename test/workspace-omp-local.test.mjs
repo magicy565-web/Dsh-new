@@ -110,3 +110,55 @@ test('DeepSeek local preflight reports provider/model and configuration booleans
     DEEPSEEK_API_KEY:'explicit-synthetic-preflight-only',WORKSPACE_OMP_PROVIDER_COST_JSON:JSON.stringify(DEEPSEEK_PRICES.ompUsdPerMillion),WORKSPACE_OMP_LIVE_BUDGET_VERIFIED:'1'}),model:'unsupported'}});
   assert.equal(unsupported.status,'provider-unsupported');assert.equal(unsupported.modelRequests,0);assert.equal(unsupported.providerLimits,null);
 });
+
+test('natural-language goals create and continue the same original OMP Session without a fixed report workflow', {timeout:30000}, async t=>{
+  const options={...await fixture(t),sessionFile:null};options.sessionFile=options.directory+'/dialogue.jsonl';
+  const first=await runLocalFactory({configuration,options:{...options,task:'先读取产品资料，只问我需要补充哪些交期信息，不要写报告。'},syntheticResponses:[
+    {tool:'read',arguments:{path:'input-1'},expectedToolNames:names,expectedContextText:'不要写报告'},
+    {text:'请补充客户希望的交期和数量。'},
+  ]});
+  assert.equal(first.status,'completed-local-turn',JSON.stringify(first));assert.deepEqual(first.saved,[]);
+  assert.equal(first.answer,'请补充客户希望的交期和数量。');assert.equal(first.localSession.resumed,false);
+  assert.equal(first.localSession.file,options.sessionFile);assert.equal(first.localSession.originalSdkPersisted,true);
+  const second=await runLocalFactory({configuration,options:{...options,task:'数量为200，交期仍待确认。改为写一份简短产品介绍，保存intro.md。'},syntheticResponses:[
+    {tool:'read',arguments:{path:'input-1'},expectedContextText:'请补充客户希望的交期和数量。'},
+    {tool:'write',arguments:{path:'intro.md',content:'Synthetic introduction: 500ml cup. Quantity 200. Delivery pending. Source input-1.'},expectedContextText:'数量为200'},
+    {text:'已保存产品介绍，交期仍待确认。'},
+  ]});
+  assert.equal(second.status,'saved-local-drafts',JSON.stringify(second));assert.equal(second.localSession.id,first.localSession.id);
+  assert.equal(second.localSession.resumed,true);assert.equal(second.saved[0].name,'intro.md');
+  assert.deepEqual(second.toolReceipts.map(r=>r.tool),['read','write']);
+  const lines=(await fs.readFile(options.sessionFile,'utf8')).split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}});
+  assert.ok(lines.some(e=>e.type==='session'&&e.id===first.localSession.id));
+  assert.ok(lines.some(e=>e.type==='custom'&&e.customType==='workspace-local-binding'));
+  assert.ok(!JSON.stringify(lines).includes('apiKey'));assert.equal((await fs.stat(options.sessionFile)).mode&0o777,0o600);
+  assert.ok(!await fs.stat(options.sessionFile+'.lock').catch(()=>null));
+  await fs.writeFile(options.inputs[0],product+'Changed source.\n');
+  const changed=await runLocalFactory({configuration,options,syntheticResponses:[{text:'Must never run.'}]});
+  assert.equal(changed.status,'stopped');assert.equal(changed.reason,'LOCAL_SESSION_SELECTION_OR_BILLING_REFUSED');assert.equal(changed.modelRequests,0);
+  await fs.writeFile(options.inputs[0],product);
+  // Use original JSONL custom metadata, not another session registry or DB.
+  const lastTurn=lines.filter(e=>e.type==='custom'&&e.customType==='workspace-local-turn').at(-1);
+  lastTurn.data.billingUncertain=true;
+  await fs.writeFile(options.sessionFile,lines.map(e=>JSON.stringify(e)).join('\n')+'\n');
+  const uncertain=await runLocalFactory({configuration,options,syntheticResponses:[{text:'Must never run.'}]});
+  assert.equal(uncertain.reason,'LOCAL_SESSION_SELECTION_OR_BILLING_REFUSED');assert.equal(uncertain.modelRequests,0);
+});
+
+test('persistent local Session rejects symlink, foreign profile and concurrent continuation before model admission', {timeout:20000}, async t=>{
+  const options=await fixture(t),sessionFile=options.directory+'/guarded.jsonl';
+  const started=await runLocalFactory({configuration,options:{...options,sessionFile,task:'只追问缺项，不保存。'},syntheticResponses:[{text:'请提供交期。'}]});
+  assert.equal(started.status,'completed-local-turn',JSON.stringify(started));assert.equal(started.toolReceipts.length,0);
+  await fs.symlink(sessionFile,options.directory+'/linked.jsonl');
+  const linked=await runLocalFactory({configuration,options:{...options,sessionFile:options.directory+'/linked.jsonl'},syntheticResponses:[{text:'Must never run.'}]});
+  assert.equal(linked.reason,'LOCAL_SYMLINK_REFUSED');assert.equal(linked.modelRequests,0);
+  await fs.writeFile(sessionFile+'.lock','');
+  const busy=await runLocalFactory({configuration,options:{...options,sessionFile},syntheticResponses:[{text:'Must never run.'}]});
+  assert.equal(busy.reason,'LOCAL_SESSION_BUSY');assert.equal(busy.modelRequests,0);await fs.unlink(sessionFile+'.lock');
+  const original=await fs.readFile(sessionFile,'utf8');
+  await fs.writeFile(sessionFile,original.replace('omp:18.10.4:local-factory-v1','omp:18.10.4:public-v1'));
+  const foreign=await runLocalFactory({configuration,options:{...options,sessionFile},syntheticResponses:[{text:'Must never run.'}]});
+  assert.equal(foreign.reason,'LOCAL_SESSION_SELECTION_OR_BILLING_REFUSED');assert.equal(foreign.modelRequests,0);
+  assert.equal(parseLocalArguments(['--input',options.inputs[0],'--output-dir',options.outputDirectory,'--session',sessionFile,'--task','任意一句话目标']).task,'任意一句话目标');
+  assert.match(parseLocalArguments(['--input',options.inputs[0],'--output-dir',options.outputDirectory,'--session',sessionFile]).task,/Ask what goal/);
+});

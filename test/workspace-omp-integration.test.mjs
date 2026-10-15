@@ -9,6 +9,7 @@ const configured = { PI_PROVIDER: 'deepseek', PI_MODEL: 'deepseek-flash', DEEPSE
 const privateProfiles = ['factory-materials', 'factory-customers', 'factory-inquiries', 'factory-ingestion', 'market-validation', 'shopify-product'];
 
 test('local file and original Session read profiles reject Shopify flags/clients before SDK or I/O', async () => {
+  await assert.rejects(createWorkspaceOmpSession({ localSession: {}, shopifyProduct: true }), /LOCAL_SESSION_PROFILE_REFUSED/);
   for (const remote of [{ shopifyProduct: true }, { productClient: {} }]) {
     await assert.rejects(createWorkspaceOmpSession({ localFactory: {}, ...remote }), /Local factory files cannot inherit/);
     await assert.rejects(createWorkspaceOmpSession({ readOnlyBusiness: true, ...remote }), /Session business reads require/);

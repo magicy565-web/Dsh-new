@@ -5,6 +5,10 @@ export const FACTORY_GUIDANCE = 'This version serves Chinese factories, not buye
 const result = value => ({ content: [{ type: 'text', text: JSON.stringify(value) }], details: value });
 const rfqFields = ['product', 'spec', 'quantity', 'target_market', 'requested_delivery', 'requirements'];
 const factoryFields = ['product', 'spec', 'available_quantity', 'production_capacity', 'lead_time', 'supply_conditions', 'source'];
+// Advertise the same field names and scalar values that execution accepts.
+// An unconstrained Record/Unknown invited arguments the tool then rejected.
+const fieldSchema = fields => Type.Object(Object.fromEntries(fields.map(name =>
+  [name, Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()]))])), { additionalProperties: false });
 const supplied = value => value !== undefined && value !== null && value !== '';
 function publicFields(input, allowed) {
   if (!input || typeof input !== 'object' || Array.isArray(input)
@@ -28,7 +32,7 @@ export function registerFactoryTools(pi, client, configuration, { factoryTasks =
       unavailable: ['factory-private-product-capacity-intake', 'historical-inquiry-records', 'overseas-buyer-distributor-discovery',
         'quotation-sample-followup-execution', 'external-worker-delegation', 'Shopify-sale-fulfillment', 'external-sending', 'order-acceptance', 'payments', 'future-notifications'], sources: [] }); } });
   pi.registerTool({ name: 'workspace_factory_rfq_requirements', label: 'Organize overseas customer RFQ',
-    parameters: Type.Object({ rfq: Type.Record(Type.String(), Type.Unknown()) }, { additionalProperties: false }),
+    parameters: Type.Object({ rfq: fieldSchema(rfqFields) }, { additionalProperties: false }),
     description: 'Organize explicitly supplied public overseas customer purchase requirements for a Chinese factory: product/spec/quantity/target_market/requested_delivery/requirements. Missing fields stay pending; unsaved draft, no inquiry record or quote created.',
     async execute(_id, { rfq }, signal) {
       signal?.throwIfAborted();
@@ -38,7 +42,7 @@ export function registerFactoryTools(pi, client, configuration, { factoryTasks =
         sources: evidence(rfq, 'input.rfq'), detail: 'Customer RFQ preparation only. Factory capabilities, delivery commitments and buyer identity are not inferred or verified.' });
     } });
   pi.registerTool({ name: 'workspace_factory_match_prepare', label: 'Prepare factory supply matching',
-    parameters: Type.Object({ rfq: Type.Record(Type.String(), Type.Unknown()), factoryOffer: Type.Optional(Type.Record(Type.String(), Type.Unknown())) }, { additionalProperties: false }),
+    parameters: Type.Object({ rfq: fieldSchema(rfqFields), factoryOffer: Type.Optional(fieldSchema(factoryFields)) }, { additionalProperties: false }),
     description: 'Prepare evidence and gaps for matching customer RFQ against explicitly supplied public materials of this factory. Accepts product/spec/available_quantity/production_capacity/lead_time/supply_conditions/source. No Library read, invented capacity, automatic suitability decision, supplier selection or sale.',
     async execute(_id, { rfq, factoryOffer = {} }, signal) {
       signal?.throwIfAborted();

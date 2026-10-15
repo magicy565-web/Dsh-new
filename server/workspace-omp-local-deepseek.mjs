@@ -17,6 +17,7 @@ export function createLocalDeepseekTransport({ configuration, fetchImpl = global
   if (!localDeepseekConfigured(configuration)) throw Object.assign(Error('LOCAL_PINNED_DEEPSEEK_REQUIRED'), { code: 'LOCAL_PINNED_DEEPSEEK_REQUIRED' });
   const controller = new AbortController();
   let actual = 0, confirmed = 0, spent = 0, pending = false, rawUsage = null, stopped = null, contractViolation = false;
+  const confirmedUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
   const reserve = (LOCAL_DEEPSEEK_LIMITS.unconfirmedInputTokenReserve * DEEPSEEK_PRICES.inputPeakCnyPerMillion
     + LOCAL_DEEPSEEK_LIMITS.maxOutputTokens * DEEPSEEK_PRICES.outputPeakCnyPerMillion) / 1e6;
   function stop(code = 'LOCAL_UNCERTAIN_CHARGE_STOP_DO_NOT_RETRY') {
@@ -77,9 +78,10 @@ export function createLocalDeepseekTransport({ configuration, fetchImpl = global
       if (u.input + u.cacheRead + u.cacheWrite !== rawUsage.input || u.output !== rawUsage.output || u.totalTokens !== rawUsage.total
         || !message.content?.some(b => b.type === 'toolCall' || b.type === 'text' && b.text.trim())) refuse('LOCAL_UNCERTAIN_USAGE_STOP_DO_NOT_RETRY');
       spent += measured.usageUpperCny; confirmed++; pending = false;
+      confirmedUsage.inputTokens += rawUsage.input; confirmedUsage.outputTokens += rawUsage.output; confirmedUsage.totalTokens += rawUsage.total;
     },
     finish() { if (stopped || pending || actual !== confirmed) refuse(stopped || 'LOCAL_UNCERTAIN_USAGE_STOP_DO_NOT_RETRY'); },
-    report() { return { actualProviderRequests: actual, confirmedResponses: confirmed, confirmedUsageUpperCny: spent,
+    report() { return { actualProviderRequests: actual, confirmedResponses: confirmed, confirmedUsage: { ...confirmedUsage }, confirmedUsageUpperCny: spent,
       chargeUpperCny: contractViolation ? null : spent + (pending ? reserve : 0), billingUncertain: pending,
       stoppedReason: stopped, accountChargedCny: null, limits: LOCAL_DEEPSEEK_LIMITS }; },
   };

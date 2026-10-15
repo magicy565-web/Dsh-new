@@ -8,7 +8,8 @@ import { test, afterEach } from 'node:test';
 import { JSDOM } from 'jsdom';
 import http from 'node:http';
 import { Readable } from 'node:stream';
-import { generateKeyPairSync } from 'node:crypto';
+import { generateKeyPairSync, randomUUID } from 'node:crypto';
+import { seedMarketPublication } from './fixtures/shopify-market-scope.mjs';
 import { signWorkspaceRequest } from '../server/auth-ingress.mjs';
 import { localHttpTransport } from './fixtures/local-http.mjs';
 import { installBrowserPlatform } from './fixtures/browser-platform.mjs';
@@ -664,13 +665,16 @@ test('management UI: original monitor control approval is separate from executio
   const api = await fixture({ capabilityEnvironment: {}, marketValidationOptions: { async resolveLaunchReceipt() { return structuredClone(receipt); } } });
   const actor = { subject: 'local-operator', workspaceId: 'local', role: 'admin' };
   const { conversation } = await api.app.runtime.createConversation({ title: 'Synthetic monitor UI source', requestId: 'monitor-ui-source' }, actor);
+  const product = (await api.app.businessLibrary.createProduct({ requestId: randomUUID(), name: 'Synthetic monitor UI product',
+    skus: [{ id: randomUUID(), code: 'SYNTHETIC-UI', specs: [{ key: 'Size', value: '500ml' }] }] }, actor)).product;
+  const publication = await api.app.store.update(state => seedMarketPublication(state, { actor, conversationId: conversation.id, productId: product.id }));
   const plan = { timeZone: 'UTC', paths: [{ mode: 'b2c', acquisition: [{ id: 'fixture-source' }], metrics: [{ id: 'net_paid_units', definition: 'Synthetic net paid cohort' }], salesRequirement: { metric: 'net_paid_units', target: 1, definition: 'Fixture only' } }] };
   const { libraryReadHash } = await import('../server/library-model-read-contract.mjs');
   const { artifact } = await api.app.artifacts.create({ requestId: 'monitor-ui-plan', filename: 'market-validation-plan.json', sourceConversationId: conversation.id,
-    content: JSON.stringify({ schema: 'workspace.market-validation-plan.v1', plan }), metadata: { marketValidationPlan: { ownerHash: libraryReadHash(['local', 'local-operator', conversation.id]), planHash: libraryReadHash(plan) } } });
-  receipt = { id: 'fixture-ui-launch', planId: artifact.id, planRevision: 1, planSha256: artifact.sha256, planHash: libraryReadHash(plan), planAcquisitionId: 'fixture-source',
+    content: JSON.stringify({ schema: 'workspace.market-validation-plan.v1', plan, sources: publication.sources }), metadata: { marketValidationPlan: { ownerHash: libraryReadHash(['local', 'local-operator', conversation.id]), planHash: libraryReadHash(plan) } } });
+  receipt = { ...publication.launch, id: 'fixture-ui-launch', planId: artifact.id, planRevision: 1, planSha256: artifact.sha256, planHash: libraryReadHash(plan), planAcquisitionId: 'fixture-source',
     approved: true, status: 'launched', evidenceKind: 'real', launchKind: 'acquisition', startedAt: new Date(Date.now() - 3600000).toISOString(),
-    timezone: 'UTC', productId: 'gid://shopify/Product/123', shopId: 'gid://shopify/Shop/1', variantIds: [], channelId: 'fixture-source', businessMode: 'b2c', conversationId: conversation.id };
+    timezone: 'UTC', channelId: 'fixture-source', businessMode: 'b2c', conversationId: conversation.id };
   const task = await api.app.marketValidationMonitoring.forActor(actor).create({ requestId: 'monitor-ui-create', planId: artifact.id, planRevision: 1, launchReceiptId: receipt.id });
   const ui = await renderWorkspace(api);
   try {

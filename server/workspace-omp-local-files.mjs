@@ -9,7 +9,7 @@ import { looksLikeCredential } from '../packages/workspace-procurement/src/publi
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every(k => keys.includes(k));
-async function plainPath(filename) {
+export async function plainPath(filename) {
   if (!path.isAbsolute(filename)) fail('LOCAL_ABSOLUTE_SELECTION_REQUIRED');
   let current = path.parse(filename).root, stat;
   for (const part of filename.slice(current.length).split(path.sep).filter(Boolean)) {
