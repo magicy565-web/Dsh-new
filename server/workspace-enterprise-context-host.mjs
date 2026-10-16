@@ -84,6 +84,14 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
     ||!timingSafeEqual(Buffer.from(proof.credentialScreening.mac,'hex'),Buffer.from(memoryProofMac(proof),'hex')))fail('OSS_PRIVATE_CREDENTIAL_SCREEN_REQUIRED');
    if(proof.memory){if(Object.entries(proof.query).some(([k,v])=>proof.memory[k]!==v))fail('OSS_PRIVATE_RECEIPT_REFUSED');checkMemory(proof.memory);}
   }
+  // Historical receipts may be superseded while an explicit tool projection
+  // refreshes. A summary has no toolResult to refresh: its persisted obligation
+  // must still be the current fact (including an observed absence) at dispatch.
+  function assertCurrentMemoryProof(proof){
+   if(proof?.kind!=='memory')fail('OSS_PRIVATE_RECEIPT_REFUSED');checkMemoryProof(proof);
+   if(proof.memory){const row=checkMemory(proof.memory);if(row.status!=='active'||hash(row)!==hash(proof.memory))fail('OSS_CACHE_RECEIPT_CHANGED');}
+   else if(store.read().businessLibrary.enterpriseMemories.some(row=>row.workspaceId===identity.workspaceId&&row.status==='active'&&row.audience==='internal'&&Object.entries(proof.query).every(([k,v])=>row[k]===v)))fail('OSS_CACHE_RECEIPT_CHANGED');
+  }
   function observe(proof){
    if(proof.kind==='memory')for(const [id,old]of observed)if(id!==key(proof)&&old.kind==='memory'&&hash(old.query)===hash(proof.query))observed.delete(id);
    if(!observed.has(key(proof))&&observed.size>=8)fail('OSS_PRIVATE_RECEIPT_LIMIT');observed.set(key(proof),proof);
@@ -230,6 +238,11 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
     if(!live||live.subject!==identity.subject||live.role!==identity.role||live.workspaceId!==identity.workspaceId||hash(libraryRecipientForModel(receiver))!==recipientHash)fail('OSS_SESSION_REVOKED');
     if(authority)for(const pin of selected.sources){const source=sourceFor(pin.asset,signal);if(source.authorization.scopeFingerprint!==authority.authorization.scopeFingerprint)fail('OSS_LIBRARY_SCOPE_CHANGED');}
     if(memoryMethods.length)turnCurrent();
+    const memoryProofs=payload.memoryProofs??[];
+    if(!Array.isArray(memoryProofs)||memoryProofs.length>8||payload.modelCalls!==undefined&&!Array.isArray(payload.memoryProofs))fail('OSS_FINAL_DISCLOSURE_REQUIRED');
+    for(const proof of memoryProofs)assertCurrentMemoryProof(proof);
+    for(const proof of observed.values())if(proof.kind==='memory')assertCurrentMemoryProof(proof);
+    const coveredQueries=new Set(memoryProofs.map(proof=>hash(proof.query)));
     for(const [messages,isContext]of [[payload.messages,false],[payload.context,true]])for(const message of messages||[]){
      if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_enterprise_context_')||message.isError)continue;
      const receipt=message.details,proof=receipt?.authorization;
@@ -238,13 +251,10 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
      if(!operation||proof.scopeHash!==scopeHash||proof.nativeSessionId!==nativeSessionId
       ||message.toolName!=='workspace_enterprise_context_'+operation.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()))fail('OSS_PRIVATE_RECEIPT_REFUSED');
      control.verifyBody(proof,receipt);
+     if(payload.modelCalls!==undefined&&proof.kind==='memory'&&!coveredQueries.has(hash(proof.query)))fail('OSS_PRIVATE_SNAPSHOT_REQUIRED');
      if(proof.kind==='parse')assertScreened(proof);
      for(const source of proofSources(proof)){const current=sourceFor(source.asset,signal);if(hash({documentId:current.documentId,revision:current.revision,documentVersion:current.documentVersion,asset:source.asset})!==hash(source))fail('OSS_SOURCE_VERSION_CHANGED');}
-     if(isContext&&proof.kind==='memory'){
-      const current=proof.memory?checkMemory(proof.memory):null;
-      if(current&&(current.status!=='active'||hash(current)!==hash(proof.memory)))fail('OSS_CACHE_RECEIPT_CHANGED');
-      if(!current&&store.read().businessLibrary.enterpriseMemories.some(row=>row.status==='active'&&row.audience==='internal'&&Object.entries(proof.query).every(([k,v])=>row[k]===v)))fail('OSS_CACHE_RECEIPT_CHANGED');
-     }
+     if(isContext&&proof.kind==='memory')assertCurrentMemoryProof(proof);
     }
     return true;
    },

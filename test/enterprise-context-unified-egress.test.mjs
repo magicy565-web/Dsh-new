@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {workspaceOmpPaths} from '../server/workspace-omp-runtime.mjs';
-for(const mode of ['wire-safe','wire-error','source-model','policy-model','memory-model','source-authorize','wire-source-fetch','wire-memory-fetch','wire-revoke-fetch','legacy-plain','legacy-base64','legacy-hex','forged-proof','proof-native','proof-scope','proof-revision','proof-source','proof-statement'])test('unified original Host/SDK egress: '+mode,{timeout:25000},()=>{
+for(const mode of ['wire-safe','wire-error','source-model','policy-model','memory-model','source-authorize','wire-source-fetch','wire-memory-fetch','wire-revoke-fetch','legacy-plain','legacy-base64','legacy-hex','forged-proof','proof-native','proof-scope','proof-revision','proof-source','proof-statement','compact-current','compact-updated','compact-revoked','compact-race-updated-fetch','compact-empty-current','compact-empty-added','compact-empty-race-added-fetch'])test('unified original Host/SDK egress: '+mode,{timeout:25000},()=>{
  const result=spawnSync(workspaceOmpPaths({}).bun,['test/fixtures/enterprise-context-unified-egress.mjs',mode],{env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},encoding:'utf8',timeout:23000});
  assert.equal(result.status,0,result.stdout+result.stderr);console.log(result.stdout.trim());
 });

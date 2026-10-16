@@ -293,7 +293,9 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         const permit=async wireBody=>{
           if(enterpriseContextHost){
             const control=enterpriseContextHost.open(manager.getSessionId());
-            await control.authorizeDisclosure({messages:manager.getEntries().flatMap(e=>e.message?[e.message]:[]),context:context.messages,modelCalls:callNumber,...(wireBody===undefined?{}:{wireBody})},signal,model);
+            const snapshot=manager.getBranch().findLast(e=>e.type==='custom'&&e.customType==='workspace-plugin-disclosure-snapshot'&&e.data?.id==='workspace-enterprise-context-private-v1')?.data.snapshot;
+            const memoryProofs=(snapshot?.proofs||[]).filter(proof=>proof.kind==='memory');
+            await control.authorizeDisclosure({messages:manager.getEntries().flatMap(e=>e.message?[e.message]:[]),context:context.messages,memoryProofs,modelCalls:callNumber,...(wireBody===undefined?{}:{wireBody})},signal,model);
           }
           signal?.throwIfAborted();
         };

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {workspaceOmpPaths} from '../server/workspace-omp-runtime.mjs';
 import {fixture,conversation,send,journal} from './fixtures/enterprise-context-integration.mjs';
 const query={subjectType:'customer',subjectId:'synthetic-buyer',factKey:'shipping.preference'};
 const remember=statement=>({tool:'workspace_enterprise_context_structured_memory_remember',arguments:{...query,statement}});
@@ -34,4 +36,23 @@ test('unified native plugin persists two-source remember1/lookup1/remember2/look
 test('memory-enabled native status remains a status proof across the next Run',{timeout:30000},async t=>{
  const f=await fixture(t,{memory:true,allSources:true,script:()=>[{tool:'workspace_enterprise_context_status',arguments:{}},reply]}),cid=await conversation(f);
  for(let i=0;i<2;i++){const run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(run.events.some(e=>e.type==='pi.tool.failed'),false);const message=(await journal(f,cid)).filter(row=>row.message?.toolName==='workspace_enterprise_context_status').at(-1).message;assert.equal(message.isError,false);assert.equal(message.details.authorization.kind,'status');assert.equal(message.details.authorization.sources.length,2);}
+});
+
+for(const mode of ['current','updated','empty-added'])test('signed Host compacted memory across real Runs: '+mode,{timeout:60000},async t=>{
+ const initial=mode==='empty-added'?lookup:remember('Synthetic compacted revision one.');
+ const f=await fixture(t,{memory:true,allSources:true,script:()=>[initial,reply]}),cid=await conversation(f),first=await send(f,cid);
+ assert.equal(first.status,'succeeded',JSON.stringify(first.error));assert.equal(first.events.some(e=>e.type==='pi.tool.failed'),false);
+ const mapping=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;
+ const compact=spawnSync(workspaceOmpPaths({}).bun,['test/fixtures/enterprise-context-compact.mjs',mapping.sessionFile,'--memory-summary'],{env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},encoding:'utf8',timeout:10000});
+ assert.equal(compact.status,0,compact.stderr);assert.equal(JSON.parse(compact.stdout).privateMessages,0);
+ if(mode!=='current'){
+  f.responses.splice(0,f.responses.length,remember('Synthetic newer fact from Session B.'),reply);
+  const other=await conversation(f),written=await send(f,other);await receipt(f,other,written,remember('').tool,mode==='updated'?2:1);
+  assert.notEqual(f.app.store.read().conversations.find(row=>row.id===other).businessAgentSession.agentSessionId,mapping.agentSessionId);
+ }
+ const before=await fs.readFile(mapping.sessionFile);f.responses.splice(0,f.responses.length,{...reply,expectedContextText:mode==='empty-added'?'SYNTHETIC_NO_MEMORY_FOUND':'Synthetic compacted revision one.'});
+ const resumed=await send(f,cid);assert.notEqual(resumed.id,first.id);
+ assert.equal(resumed.status,mode==='current'?'succeeded':'failed',JSON.stringify(resumed.error));assert.equal(resumed.events.filter(e=>e.type==='pi.agent-session.request').length,mode==='current'?1:0);
+ assert.deepEqual((await fs.readFile(mapping.sessionFile)).subarray(0,before.length),before,'Old compacted journal/proofs must not be rewritten.');
+ console.log(JSON.stringify({acceptance:'signed-host-memory-compaction',mode,originalRuns:true,summaryToolResults:0,modelDispatches:resumed.events.filter(e=>e.type==='pi.agent-session.request').length,realModelRequests:0}));
 });

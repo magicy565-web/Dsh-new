@@ -7,10 +7,12 @@ const file=process.argv[2];assert.ok(file?.startsWith('/tmp/enterprise-context-h
 const sdk=await loadWorkspaceOmpSdk(workspaceOmpPaths({}).packageRoot),manager=await sdk.SessionManager.open(file,path.dirname(file),undefined,{throwIfMissing:true});
 const last=manager.getBranch().filter(row=>row.type==='message').at(-1);assert.ok(last);
 const legacy=process.argv[3]==='--legacy-summary';
-const text=legacy?manager.getBranch().find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message.details.text:'';
+const memory=process.argv[3]==='--memory-summary';
+const memoryObservation=memory?manager.getBranch().find(row=>row.message?.toolName?.startsWith('workspace_enterprise_context_structured_memory_')).message.details:null;
+const text=memory?(memoryObservation.memory?.statement||'SYNTHETIC_NO_MEMORY_FOUND'):legacy?manager.getBranch().find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message.details.text:'';
 manager.appendCompaction('SYNTHETIC_DOC_SUMMARY_RETAINS_ORIGINAL_SOURCE_OBLIGATIONS '+text,undefined,last.id,100,{fromExtension:true});await manager.flush();
 const context=manager.buildSessionContext();
 const summaryContainsLegacyBody=legacy&&JSON.stringify(context.messages).includes(JSON.stringify(text).slice(1,-1));
-if(legacy)assert.equal(summaryContainsLegacyBody,true);
+if(legacy)assert.equal(summaryContainsLegacyBody,true);if(memory)assert.equal(JSON.stringify(context.messages).includes(text),true);
 const privateMessages=context.messages.filter(row=>row.toolName?.startsWith('workspace_enterprise_context_')).length;
 assert.equal(privateMessages,0);console.log(JSON.stringify({privateMessages,summaryContainsLegacyBody,realModelRequests:0,syntheticSummary:true}));
