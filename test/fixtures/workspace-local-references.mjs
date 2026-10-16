@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {runLocalFactorySession} from '../../scripts/workspace-omp-local.mjs';
 import {workspaceOmpPaths} from '../../server/workspace-omp-runtime.mjs';
+import {loadWorkspaceOmpSdk} from '../../server/workspace-omp-session.mjs';
 import {acceptanceConfiguration} from '../../server/deepseek-acceptance-policy.mjs';
 import {publicPdfBytes} from './workspace-omp-public-pdf.mjs';
 const root=await fs.mkdtemp('/tmp/owner-reference-test-'),archive=root+'/enterprise-A/project-one';
@@ -23,7 +24,8 @@ async function turn(goal,script,changes={},fence){
   const directory=root+'/run-'+traces.length;await fs.mkdir(directory);let step=0;
   const result=await runLocalFactorySession({directory,paths,configuration,options:{...options,...changes,task:goal}}, {referenceFence:fence,fetchImpl:async request=>{
     totalRequests++;const body=await request.json(),results=body.messages.filter(m=>m.role==='tool').map(m=>{try{return JSON.parse(m.content);}catch{return null;}}).filter(Boolean);
-    const spec=script(step++,results);assert.ok(spec,'UNEXPECTED_REPLAY');return frame(body,spec);
+    assert.equal(JSON.stringify(body).includes('workspace-plugin-disclosure-snapshot'),false,'dependency ledger is not model context');
+    const spec=script(step++,results,body);assert.ok(spec,'UNEXPECTED_REPLAY');return frame(body,spec);
   }});
   sessionId ||= result.localSession?.id;
   if(result.status!=='stopped'){if(!changes.sessionFile)assert.equal(result.localSession.id,sessionId);assert.equal(result.paidModelVerified,false);assert.equal(result.provider.billingUncertain,false);}
@@ -144,6 +146,127 @@ try{
   assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,1);
   result=await turn('Revoked cached Session must not call another model.',()=>stop,{sessionFile:inFlight,inputs:[]},revokeInFlight);
   assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,0);
+  // Resource changes deliberately leave the default epoch unchanged. An empty
+  // resource/context check still permits access, exactly reproducing the gap.
+  const secondSource=JSON.parse(await fs.readFile(archive+'/INDEX.json','utf8')).sources.products[1].original.file;
+  const resourceTraces=[];
+  for(const resource of [sourcePath,secondSource]){
+    result=await turn('Any mixed-memory source denial blocks disclosure.',()=>call('workspace_local_memory_query',{key:'followup'}),
+      {sessionFile:root+'/mixed-'+resourceTraces.length+'.jsonl',inputs:[]},async request=>!request.resources.includes(resource));
+    assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,1);assert.equal(result.answer,undefined);
+    resourceTraces.push({boundary:'mixed-memory-source',mockRequests:1,epochChanged:false});
+  }
+  for(const phase of ['model:context','model:disclose']){
+    let materialRead=false,revoked=false;
+    const phaseFence=async request=>{
+      if(request.operation==='memory:deliver')materialRead=true;
+      if(materialRead&&request.operation===phase)revoked=true;
+      return !(revoked&&request.resources.includes(secondSource));
+    };
+    result=await turn('Revoke before a further model sees the memory.',()=>call('workspace_local_memory_query',{key:'followup'}),
+      {sessionFile:root+'/'+phase.replace(':','-')+'.jsonl',inputs:[]},phaseFence);
+    assert.equal(materialRead,true);assert.equal(revoked,true);assert.equal(result.status,'stopped',phase);assert.equal(result.provider.actualProviderRequests,1,phase);
+    assert.equal(result.answer,undefined);assert.equal(result.provider.billingUncertain,false);
+    resourceTraces.push({boundary:phase,mockRequests:1,epochChanged:false});
+  }
+  let resourceRevoked=false;
+  const unchangedEpochFence=async request=>!(resourceRevoked&&request.resources.includes(secondSource));
+  const generatedSession=root+'/resource-inflight.jsonl';
+  result=await turn('Revoke a single source while the model is generating.',(step,results)=>{
+    if(!step)return call('workspace_local_memory_query',{key:'followup'});
+    assert.equal(latest(results,'memories').memories[0].record.references.length,2);resourceRevoked=true;
+    return {text:'SYNTHETIC_WITHHELD_FINAL_ANSWER'};
+  },{sessionFile:generatedSession,inputs:[]},unchangedEpochFence);
+  assert.equal(resourceRevoked,true);assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,2);
+  assert.equal(result.provider.confirmedResponses,2);assert.equal(result.provider.billingUncertain,false);assert.equal(result.answer,undefined);
+  resourceTraces.push({boundary:'model:complete',mockRequests:2,epochChanged:false,answerReturned:false});
+  result=await turn('The revoked saved Session cannot disclose cached material again.',()=>stop,{sessionFile:generatedSession,inputs:[]},unchangedEpochFence);
+  assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,0);
+  resourceTraces.push({boundary:'resume-after-inflight-revocation',mockRequests:0,epochChanged:false});
+  let finalRevoked=false,finalBoundary=false;
+  const finalFence=async request=>{
+    if(request.operation==='final:deliver'){finalBoundary=true;finalRevoked=true;}
+    return !(finalRevoked&&request.resources.includes(secondSource));
+  };
+  result=await turn('Revoke only at the local CLI final delivery boundary.',step=>step?{text:'SYNTHETIC_WITHHELD_AT_FINAL_DELIVERY'}:call('workspace_local_memory_query',{key:'followup'}),
+    {sessionFile:root+'/final-delivery.jsonl',inputs:[]},finalFence);
+  assert.equal(finalBoundary,true);assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,2);
+  assert.equal(result.provider.confirmedResponses,2);assert.equal(result.provider.billingUncertain,false);assert.equal(result.answer,undefined);
+  resourceTraces.push({boundary:'final:deliver',mockRequests:2,epochChanged:false,answerReturned:false});
+  const cachedSession=root+'/cached-dependencies.jsonl';let cachedRevoked=false;
+  const cachedFence=async request=>!(cachedRevoked&&request.resources.includes(secondSource));
+  result=await turn('Seed a real native Session containing mixed-source memory.',step=>step?stop:call('workspace_local_memory_query',{key:'followup'}),{sessionFile:cachedSession,inputs:[]},cachedFence);
+  assert.equal(result.status,'completed-local-turn',JSON.stringify(result));
+  const cachedEntries=(await fs.readFile(cachedSession,'utf8')).trim().split('\n').map(JSON.parse);
+  assert.ok(cachedEntries.some(e=>e.message?.role==='toolResult'&&e.message.toolName==='workspace_local_memory_query'&&JSON.stringify(e.message.content).includes('Synthetic proposed follow-up')));
+  const snapshot=cachedEntries.filter(e=>e.customType==='workspace-plugin-disclosure-snapshot').at(-1).data.snapshot;
+  assert.ok(snapshot.files.some(item=>item.file===secondSource));
+  cachedRevoked=true;
+  result=await turn('Revoke one source of an already populated native Session.',()=>stop,{sessionFile:cachedSession,inputs:[]},cachedFence);
+  assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,0);
+  resourceTraces.push({boundary:'populated-session-resume',mockRequests:0,epochChanged:false});
+  // Actual native compaction removes tool receipts from effective model context.
+  // The summary is explicitly synthetic, not another model/compaction request.
+  const compactedSession=root+'/compacted-dependencies.jsonl';await fs.writeFile(compactedSession,cachedEntries.map(JSON.stringify).join('\n')+'\n',{mode:0o600});
+  const sdk=await loadWorkspaceOmpSdk(paths.packageRoot),manager=await sdk.SessionManager.open(compactedSession,root,undefined,{throwIfMissing:true,initialCwd:root});
+  const firstKept=manager.getBranch().filter(e=>e.type==='message').at(-1);
+  manager.appendCompaction('SYNTHETIC_SUMMARY_FROM_MIXED_MEMORY; proposed follow-up, with no citation list.',undefined,firstKept.id,120,{fromExtension:true});
+  assert.equal(manager.buildSessionContext().messages.some(m=>m.role==='toolResult'),false);await manager.close();
+  let compactedRevoked=false;
+  const compactedFence=async request=>!(compactedRevoked&&request.resources.includes(secondSource));
+  result=await turn('Resume a native compacted context without old tool messages.',(_step,results,body)=>{
+    assert.equal(results.length,0);assert.ok(JSON.stringify(body.messages).includes('SYNTHETIC_SUMMARY_FROM_MIXED_MEMORY'));return stop;
+  },{sessionFile:compactedSession,inputs:[]},compactedFence);
+  assert.equal(result.status,'completed-local-turn',JSON.stringify(result));assert.equal(result.provider.actualProviderRequests,1);
+  compactedRevoked=true;
+  result=await turn('A compacted summary still inherits all original source restrictions.',()=>stop,{sessionFile:compactedSession,inputs:[]},compactedFence);
+  assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,0);
+  resourceTraces.push({boundary:'native-compacted-resume',oldToolMessagesInContext:0,mockRequestsAfterRevocation:0,epochChanged:false});
+  const noProof=root+'/missing-disclosure-proof.jsonl';
+  await fs.writeFile(noProof,cachedEntries.map(e=>JSON.stringify(e.customType==='workspace-plugin-disclosure-snapshot'?{...e,customType:'explicit-fixture-proof-removed'}:e)).join('\n')+'\n',{mode:0o600});
+  result=await turn('Do not guess dependencies from an old unproven Session.',()=>stop,{sessionFile:noProof,inputs:[]});
+  assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,0);
+  resourceTraces.push({boundary:'missing-trusted-ledger',mockRequests:0});
+  const missingSourceArchive=root+'/missing-source-archive';await fs.cp(archive,missingSourceArchive,{recursive:true});await fs.chmod(missingSourceArchive,0o700);
+  const missingChanges={sessionFile:root+'/missing-source.jsonl',inputs:[],archive:{...options.archive,directory:missingSourceArchive}};
+  result=await turn('Seed then remove one synthetic retained source.',step=>step?stop:call('workspace_local_memory_query',{key:'followup'}),missingChanges);
+  assert.equal(result.status,'completed-local-turn',JSON.stringify(result));await fs.unlink(missingSourceArchive+'/'+secondSource);
+  result=await turn('Missing retained source refuses all cached continuation.',()=>stop,missingChanges);
+  assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,0);
+  resourceTraces.push({boundary:'missing-source-resume',mockRequests:0});
+  await fs.writeFile(root+'/selected-only.txt','Synthetic source for native selected read.');
+  const selectedHash=hash(await fs.readFile(root+'/selected-only.txt'));let selectedRevoked=false;
+  result=await turn('Native read shares the selected-source disclosure fence.',step=>{
+    if(!step)return call('read',{path:'input-1'});selectedRevoked=true;return {text:'SYNTHETIC_WITHHELD_SELECTED_ANSWER'};
+  },{sessionFile:root+'/selected-revocation.jsonl',inputs:[root+'/selected-only.txt']},async request=>!(selectedRevoked&&request.resources.includes('selected-source:'+selectedHash)));
+  assert.equal(selectedRevoked,true);assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,2);assert.equal(result.answer,undefined);
+  resourceTraces.push({boundary:'native-selected-read',mockRequests:2,epochChanged:false,answerReturned:false});
+  let manifestRevoked=false;
+  result=await turn('Manifest metadata is also a selected-source dependency.',()=>{manifestRevoked=true;return {text:'SYNTHETIC_WITHHELD_MANIFEST_ANSWER'};},
+    {sessionFile:root+'/manifest-revocation.jsonl',inputs:[root+'/selected-only.txt']},async request=>!(manifestRevoked&&request.resources.includes('selected-source:'+selectedHash)));
+  assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,1);assert.equal(result.answer,undefined);
+  resourceTraces.push({boundary:'selected-manifest-metadata',mockRequests:1,epochChanged:false,answerReturned:false});
+  const reboundArchive=root+'/rebound-source-archive';await fs.cp(archive,reboundArchive,{recursive:true});await fs.chmod(reboundArchive,0o700);
+  const reboundChanges={sessionFile:root+'/rebound-source.jsonl',inputs:[root+'/selected-only.txt'],archive:{...options.archive,directory:reboundArchive}};let reboundRead,reboundRevoked=false;
+  const reboundFence=async request=>!(reboundRevoked&&request.resources.includes('selected-source:'+selectedHash));
+  result=await turn('Retain selected bytes before reusing their input label.',(step,results)=>{
+    if(step===0)return call('workspace_local_material_read',{inputId:'input-1',documentKey:'selected-only'});
+    if(step===1){reboundRead=latest(results,'readRef');return call('workspace_local_source_keep',{requestId:'retain-selected',readRef:reboundRead.readRef});}
+    if(step===2)return call('read',{path:'input-1'});return stop;
+  },reboundChanges,reboundFence);
+  assert.equal(result.status,'completed-local-turn',JSON.stringify(result));
+  result=await turn('Withhold completed draft and restored source metadata after revocation.',step=>{
+    if(!step)return call('write',{path:'synthetic-withheld-draft.md',content:'Synthetic derived note; authorization may be revoked later.'});
+    reboundRevoked=true;return {text:'SYNTHETIC_WITHHELD_SOURCE_METADATA'};
+  },reboundChanges,reboundFence);
+  assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,2);assert.equal(result.answer,undefined);
+  assert.equal(result.materialMetadataWithheld,true);assert.deepEqual(result.revalidatedPriorSources,[]);assert.deepEqual(result.saved,[]);
+  assert.equal(result.localWritesMayExist,true);assert.equal((await fs.stat(root+'/drafts/synthetic-withheld-draft.md')).isFile(),true);
+  resourceTraces.push({boundary:'failure-metadata',mockRequests:2,epochChanged:false,sourceAndDraftMetadataReturned:false,completedWriteRetained:true});
+  await fs.writeFile(root+'/replacement.txt','Different synthetic selected source.');reboundRevoked=true;
+  result=await turn('Rebinding input-1 cannot clear the old source restriction.',()=>stop,{...reboundChanges,inputs:[root+'/replacement.txt']},reboundFence);
+  assert.equal(result.status,'stopped');assert.equal(result.provider.actualProviderRequests,0);
+  resourceTraces.push({boundary:'selected-input-label-rebound',mockRequestsAfterRevocation:0,epochChanged:false,oldOriginalRetained:true});
   // Retention is independently composable and idempotent; it creates no facts.
   const retained=root+'/source-only';await fs.mkdir(retained,{mode:0o700});await fs.writeFile(root+'/retention.txt','Synthetic retained-only source; MOQ 100.');let kept;
   result=await turn('Only retain a source; do not create a reference or memory.',(step,results)=>{
@@ -186,7 +309,7 @@ try{
   assert.equal(hash(await fs.readFile(archive+'/INDEX.json')),beforeRead);
   console.log(JSON.stringify({passed:true,evidenceKind:'real-file-parsers-and-native-omp-with-finite-mock-http',realProviderRequests:0,customerSharing:false,
     ownerModeOnly:true,privateDirectoryAndSymlinkAdmission:true,profiles:3,separateProducts:2,referenceRevisionsPreserved:true,changedOnlyRequestedProduct:true,rawOriginalsPreserved:true,sourceOnlyRetentionAndIdempotency:true,
-    sameNativeSession:true,continueAfterOriginalsRemoved:true,readOnlyDidNotWrite:true,ocrNotClaimed:true,businessMemorySeparateProposal:true,
+    sameNativeSession:true,continueAfterOriginalsRemoved:true,readOnlyDidNotWrite:true,ocrNotClaimed:true,businessMemorySeparateProposal:true,unchangedEpochResourceRechecks:true,resourceTraces,
     authorityArgumentsCannotGrantOrConfirm:true,mixedProductRejected:true,staleRevisionRejected:true,protectedSessionCannotDisableGuard:true,
     cachedBodyTamperingDenied:true,changedEpochDenied:true,confirmedFixtureOverwriteDenied:true,realApprovalFlow:'NOT_IMPLEMENTED',twoDenyAdapterContexts:true,realTwoCustomerAuthorization:'NOT_IMPLEMENTED',historicalAndDerivedMemoryDenials:true,inFlightDeliveryDenied:true,revokedSessionModelRequests:0,traces,totalMockHttpRequests:totalRequests}));
 }finally{await fs.rm(root,{recursive:true,force:true});}

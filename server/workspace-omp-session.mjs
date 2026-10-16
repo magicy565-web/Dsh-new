@@ -53,7 +53,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     throw Error('Session business reads require the original public tool profile.');
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
   const disclosureGuards=[],originalAuthorize=authorize;
-  authorize=async(...args)=>{await originalAuthorize(...args);for(const guard of disclosureGuards)await guard.check();};
+  authorize=async(...args)=>{await originalAuthorize(...args);for(const guard of disclosureGuards)await guard.check(...args);};
   const plugins = localFactory ? await projectPlugins(pluginConfiguration) : null;
   const declaredFiles = new Set(plugins?.enabled.flatMap(plugin => plugin.extensions));
   const nativePluginFiles = plugins ? (await sdk.discoverExtensionPaths(plugins.paths, cwd, undefined, { ambient: false }))
@@ -271,6 +271,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         await onModelRequest({ modelCalls: callNumber });
         const signal = options?.signal;
         if (signal?.aborted) throw new Error('Workspace OMP turn cancelled.');
+        if(localFactory)await authorize({phase:'model:disclose'});
         if (syntheticResponses) {
           const spec = syntheticResponses[callNumber - 1];
           if (!spec) throw new Error('Finite explicit faux responses exhausted; no real provider fallback.');
@@ -284,7 +285,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
           });
           const message = buildSynthetic(spec, model, callNumber, context);
           completedUsage.set(callNumber, message.usage);
-          await authorize();
+          await authorize(localFactory?{phase:'model:complete'}:undefined);
           stream.push({ type: 'start', partial: message });
           for (let i = 0; i < message.content.length; i++) {
             const block = message.content[i]; stream.push(block.type === 'toolCall'
@@ -300,7 +301,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
             ...(providerTransport ? { fetch: providerTransport.fetch, onSseEvent: providerTransport.onSseEvent, acceptEmptyResponse: true,
               signal: AbortSignal.any([options?.signal, providerTransport.signal].filter(Boolean)) } : {}) });
           for await (const event of upstream) {
-            if (event.type === 'done') { providerTransport?.complete(event.message); completedUsage.set(callNumber, event.message?.usage); await authorize(); }
+            if (event.type === 'done') { providerTransport?.complete(event.message); completedUsage.set(callNumber, event.message?.usage); await authorize(localFactory?{phase:'model:complete'}:undefined); }
             if (event.type === 'error') providerTransport?.stop('LOCAL_PROVIDER_ERROR_STOP_DO_NOT_RETRY');
             stream.push(event);
           }
@@ -353,6 +354,10 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     authorize, referenceFence,addDisclosureGuard:(check,id)=>{
       if(typeof check!=='function'||typeof id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(id))throw Error('WORKSPACE_DISCLOSURE_GUARD_INVALID');
       disclosureGuards.push({id,check});
+    },disclosureSnapshot:id=>manager.getBranch().findLast(entry=>entry.type==='custom'&&entry.customType==='workspace-plugin-disclosure-snapshot'&&entry.data?.id===id)?.data.snapshot,
+    recordDisclosure:(id,snapshot)=>{
+      if(!disclosureGuards.some(guard=>guard.id===id)||Buffer.byteLength(JSON.stringify(snapshot))>65536)throw Error('WORKSPACE_DISCLOSURE_SNAPSHOT_REFUSED');
+      manager.appendCustomEntry('workspace-plugin-disclosure-snapshot',{id,snapshot});
     },history: manager.buildSessionContext().messages, diagnostics: (name, report) => pluginDiagnostics.set(name, report) }));
   const simplified = factoryInquiries || factoryCustomers || factoryIngestion || marketValidation || shopifyProduct;
   const admittedTools = localFactory ? [] : readOnlyBusiness ? ['workspace_business_tasks', 'workspace_business_result'] : [...(simplified ? [] : ORDINARY_FACTORY_TOOLS), ...skillTools.map(t => t.name), ...(!simplified && factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : []), ...(shopifyProduct ? SHOPIFY_PRODUCT_TOOLS : [])];

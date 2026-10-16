@@ -1,6 +1,6 @@
 {
   "name": "@workspace-agent/pi-local-materials",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Selected local materials, file-first owner references and separate memory proposals for original OMP",

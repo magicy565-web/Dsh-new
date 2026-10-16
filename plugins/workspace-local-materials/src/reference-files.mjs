@@ -20,6 +20,9 @@ export async function ownerFileWorkspace(config,{packageRoot,fence=async()=>true
   if(!pinned.isDirectory()||pinned.uid!==uid||(pinned.mode&0o777)!==0o700)fail('LOCAL_REFERENCE_PRIVATE_OWNER_DIRECTORY_REQUIRED');
   const scope={mode:'local-owner',ownerUid:uid,enterprise:config.enterprise,project:config.project};
   let revoked=false,epoch;
+  // Only real, successfully checked reads populate this footprint. Model
+  // citations/arguments never supply the disclosure dependency list.
+  const reads=new Map();
   async function guard(operation='read',resources=[]){
     if(revoked)fail('LOCAL_REFERENCE_ACCESS_REVOKED');
     const current=await plainPath(root);
@@ -40,8 +43,25 @@ export async function ownerFileWorkspace(config,{packageRoot,fence=async()=>true
     await guard('file:read',[relative]);const file=locate(relative);await plainPath(file);
     const handle=await fs.open(file,constants.O_RDONLY|constants.O_NOFOLLOW);
     try{const stat=await handle.stat();if(!stat.isFile()||stat.size>262144||(stat.mode&0o077))fail('LOCAL_REFERENCE_FILE_REFUSED');
-      const bytes=await handle.readFile();if(sha&&digest(bytes)!==sha)fail('LOCAL_REFERENCE_HASH_CHANGED');await guard('file:read',[relative]);return bytes;
+      const bytes=await handle.readFile(),hash=digest(bytes);
+      if(sha&&hash!==sha||relative!=='INDEX.json'&&reads.has(relative)&&reads.get(relative)!==hash)fail('LOCAL_REFERENCE_HASH_CHANGED');
+      await guard('file:read',[relative]);if(!reads.has(relative)&&reads.size>=512)fail('LOCAL_REFERENCE_DISCLOSURE_LIMIT');reads.set(relative,relative==='INDEX.json'?null:hash);return bytes;
     }finally{await handle.close();}
+  }
+  const dependencies=()=>[...reads].map(([file,sha256])=>({file,sha256}));
+  async function restoreDependencies(items){
+    if(!Array.isArray(items)||items.length>512)fail('LOCAL_REFERENCE_HISTORY_DEPENDENCIES_REQUIRED');
+    for(const item of items){
+      exact(item,['file','sha256']);
+      if(!(item.file==='INDEX.json'&&item.sha256===null)&&!/^[a-f0-9]{64}$/.test(item.sha256||''))fail('LOCAL_REFERENCE_HISTORY_DEPENDENCIES_REQUIRED');
+      await read(item.file,item.sha256??undefined);
+    }
+  }
+  async function reauthorize(extra=[],operation='context'){
+    const items=dependencies(),resources=[...items.map(item=>item.file),...extra];
+    await guard(operation,resources);
+    await restoreDependencies(items);
+    return guard(operation,resources);
   }
   const empty=()=>({schema:1,scope,generation:0,sources:{},references:{},memories:{},requests:{}});
   async function load(){
@@ -83,5 +103,5 @@ export async function ownerFileWorkspace(config,{packageRoot,fence=async()=>true
     }finally{lock.release();}
   }
   await guard('open');
-  return {scope,guard,load,read,immutable,transaction,epoch:()=>epoch};
+  return {scope,guard,load,read,immutable,transaction,dependencies,restoreDependencies,reauthorize,epoch:()=>epoch};
 }

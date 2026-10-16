@@ -7,10 +7,12 @@ import { localToolArgumentSummary } from './receipts.mjs';
 // Original OMP file loader owns factory binding; no ambient configuration,
 // repository imports, server client, credential lookup or separate model loop.
 export default async function extension(pi) {
-  let host;
+  let host,references;
   pi.events.emit('workspace:plugin-host', { accept: value => { host = value; } });
   const guarded=tool=>host?.selection?.options?.archive?{...tool,async execute(...args){
-    await host.authorize();const result=await tool.execute(...args);await host.authorize();return result;
+    await host.authorize();const result=await tool.execute(...args);
+    if(tool.name==='read'&&!result.isError)await references.noteSelectedRead(args[1]?.path);
+    await host.authorize();return result;
   }}:tool;
   registerFactoryTools({registerTool:tool=>pi.registerTool(guarded(tool))}, null, 'local-files', { localOnly: true });
   if (!host?.selection) return; // Ordinary OMP: public drafts only, no file grant.
@@ -26,7 +28,7 @@ export default async function extension(pi) {
   for(const tool of fileTools)if(tool.name!=='read'||files.manifest.length)pi.registerTool(guarded(tool));
   if(selection.options?.archive){
     const {registerReferenceTools}=await import('./reference-tools.mjs');
-    const references=await registerReferenceTools(pi,host,files,fileTools.find(tool=>tool.name==='read'));
+    references=await registerReferenceTools(pi,host,files,fileTools.find(tool=>tool.name==='read'));
     await files.restoreReadSources(host.history,{archivedSource:references.archivedSource});
   }else await files.restoreReadSources(host.history);
   const context = await createLocalContextExtension({ packageRoot: host.packageRoot, files, authorize });

@@ -5,10 +5,37 @@ import {businessMemory} from './business-memory.mjs';
 import {looksLikeCredential} from './public-input.mjs';
 import {pairLocalToolHistory} from './pairs.mjs';
 export async function createReferences({config,files,readTool,packageRoot,fence}){
-  const store=await ownerFileWorkspace(config,{packageRoot,fence}),cache=new Map();
+  const store=await ownerFileWorkspace(config,{packageRoot,fence}),cache=new Map(),selected=new Map();
   const statistics={sourceReads:0,referenceWrites:0,memoryWrites:0};
   const bounded=(value,max=1000)=>{if(typeof value!=='string'||value.length>max||looksLikeCredential(value))fail('LOCAL_REFERENCE_TEXT_REFUSED');return value;};
-  async function authorize(){return store.guard('context');}
+  const selectedKey=source=>'selected-source:'+source.sha256;
+  function rememberSelected(source,content=false){
+    const key=source.sha256+':'+source.name,previous=selected.get(key);
+    if(!previous&&selected.size>=256)fail('LOCAL_REFERENCE_DISCLOSURE_LIMIT');
+    selected.set(key,{name:source.name,sha256:source.sha256,content:content||previous?.content===true});
+  }
+  // Selected manifest metadata is also disclosed by the host. Its stable hash
+  // resource is independent of input-N, which can be reused for another file.
+  for(const source of files.manifest)rememberSelected(source);
+  async function authorize({phase='context'}={}){return store.reauthorize([...new Set([...selected.values()].map(selectedKey))],phase);}
+  async function noteSelectedRead(inputId){
+    const source=files.manifest.find(item=>item.id===inputId);if(!source)fail('LOCAL_INPUT_NOT_SELECTED');
+    await files.snapshot(inputId);rememberSelected(source,true);
+    await store.guard('selected:read',[selectedKey(source)]);
+  }
+  function disclosureSnapshot(){return {schema:1,scope:store.scope,epoch:store.epoch(),files:store.dependencies(),selected:[...selected.values()]};}
+  async function restoreDisclosure(snapshot){
+    exact(snapshot,['schema','scope','epoch','files','selected']);
+    if(snapshot.schema!==1||!same(snapshot.scope,store.scope)||snapshot.epoch!==store.epoch()||!Array.isArray(snapshot.selected)||snapshot.selected.length>256)fail('LOCAL_REFERENCE_HISTORY_DEPENDENCIES_REQUIRED');
+    await store.restoreDependencies(snapshot.files);
+    for(const source of snapshot.selected){
+      exact(source,['name','sha256','content']);
+      if(typeof source.name!=='string'||!source.name||source.name.length>200||!/^[a-f0-9]{64}$/.test(source.sha256||'')||typeof source.content!=='boolean')fail('LOCAL_REFERENCE_HISTORY_DEPENDENCIES_REQUIRED');
+      if(source.content&&!await archivedSource(source))fail('LOCAL_REFERENCE_HISTORY_SOURCE_NOT_RETAINED');
+      rememberSelected(source,source.content);
+    }
+    await authorize();
+  }
   const unique=items=>[...new Map(items.map(item=>[item.file,item])).values()];
   async function finish(data){if(data.files){data.files=unique(data.files);for(const file of data.files)await store.read(file.file,file.sha256);}const authorization=await store.guard('deliver',(data.files||[]).map(f=>f.file));return {...data,authorization};}
   async function view(parsed,input){
@@ -28,6 +55,7 @@ export async function createReferences({config,files,readTool,packageRoot,fence}
     bounded(input.purpose||'',300);await authorize();
     const parsed=await parseSelectedSource({files,readTool,inputId:input.inputId,documentKey:input.documentKey,purpose:input.purpose});
     if(parsed.status==='unavailable')return finish(parsed);
+    rememberSelected(parsed,true);
     cache.set(parsed.readRef,parsed);statistics.sourceReads++;return view(parsed,input);
   }
   async function fromStored(item,original){
@@ -164,7 +192,7 @@ export async function createReferences({config,files,readTool,packageRoot,fence}
   }
   const memory=businessMemory({store,readReference,commitRequest,bounded});
   async function verifyReceipt(data){
-    const auth=await authorize();if(!same(data.authorization?.scope,auth.scope)||data.authorization?.epoch!==auth.epoch)fail('LOCAL_REFERENCE_HISTORY_REAUTHORIZE');
+    const auth=await store.guard('context');if(!same(data.authorization?.scope,auth.scope)||data.authorization?.epoch!==auth.epoch)fail('LOCAL_REFERENCE_HISTORY_REAUTHORIZE');
     for(const ref of data.files||[]){const bytes=await store.read(ref.file,ref.sha256);
       if(ref.file.startsWith('memory/')){const memory=JSON.parse(bytes);if(!same(memory.scope,store.scope))fail('LOCAL_REFERENCE_SCOPE_MISMATCH');
         const index=await store.load();for(const source of memory.references)await readReference(index,source.key,source.revision,source.storage.sha256);}
@@ -184,6 +212,10 @@ export async function createReferences({config,files,readTool,packageRoot,fence}
     const pairs=pairLocalToolHistory(messages),paired=new Set(pairs.map(pair=>pair.result));
     for(const message of messages)if(message.role==='toolResult'&&message.toolName?.startsWith('workspace_local_')&&message.isError!==true&&!paired.has(message))fail('LOCAL_REFERENCE_HISTORY_PAIR_REQUIRED');
     for(const {call,result}of pairs){
+      if(call.name==='read'&&result.isError===false){
+        const source=result.details?.sources?.find(item=>item.kind==='user-selected-local-file'&&item.recordId===call.arguments?.path);
+        if(!source||result.details.privateLibrary!==false||!await archivedSource(source))fail('LOCAL_CACHED_SOURCE_REFUSED');
+      }
       if(!call.name.startsWith('workspace_local_')||result.isError===true)continue;
       if(!result.details?.authorization||result.content?.length!==1||result.content[0]?.type!=='text'||result.content[0].text!==JSON.stringify(result.details))fail('LOCAL_REFERENCE_CACHED_BODY_CHANGED');
       const data=result.details;await verifyReceipt(data);
@@ -197,9 +229,13 @@ export async function createReferences({config,files,readTool,packageRoot,fence}
     }
   }
   await store.load();
-  async function archivedSource(source){const index=await store.load();
+  async function archivedSource(source){
+    const current=files.manifest.find(item=>item.sha256===source.sha256&&item.name===source.name);
+    if(current){await files.snapshot(current.id);rememberSelected(current,true);return true;}
+    const index=await store.load();
     const item=Object.values(index.sources).flat().find(v=>v.sha256===source.sha256&&v.name===source.name);if(!item)return false;
-    await fromStored(item);return true;}
+    await fromStored(item);rememberSelected(source,true);return true;}
   return {source,save,keep,query,versions,archivedSource,memorySave:async input=>{const value=await memory.save(input);statistics.memoryWrites++;return value;},
-    memoryQuery:async input=>finish(await memory.query(input)),authorize,verifyHistory,report:()=>({...statistics,mode:'local-owner',customerSharing:false}),store};
+    memoryQuery:async input=>finish(await memory.query(input)),authorize,verifyHistory,noteSelectedRead,disclosureSnapshot,restoreDisclosure,
+    report:()=>({...statistics,mode:'local-owner',customerSharing:false}),store};
 }

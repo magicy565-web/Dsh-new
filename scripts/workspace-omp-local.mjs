@@ -130,7 +130,7 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
     if (last?.role !== 'assistant' || last.stopReason !== 'stop' || !localSession && !files.saved.length) throw Error('LOCAL_TASK_INCOMPLETE');
     transport?.finish();
     await files.authorize(controller.signal);
-    await created.authorizeDisclosure();
+    await created.authorizeDisclosure({phase:'final:deliver'});
     return { status: files.saved.length ? 'saved-local-drafts' : 'completed-local-turn', selectedInputs: files.manifest, saved: files.saved, toolReceipts,
       revalidatedPriorSources: files.restoredSources,
       ...(sessionInfo ? { localSession: sessionInfo, answer: last.content.filter(b => b.type === 'text').map(b => b.text).join('\n') } : {}),
@@ -144,8 +144,10 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
       ...(['PROJECT_PLUGIN_REQUIRED','WORKSPACE_PLUGIN_REQUIRED'].includes(error.code) ? {
         pluginError: { id:error.pluginId, entry:error.pluginEntry, message:error.message } } : {}),
       ...(sessionInfo ? { localSession: sessionInfo } : {}),
-      modelRequests: created?.modelCalls() || 0, ...(transport ? { provider: transport.report() } : {}), saved: files?.saved || [], toolReceipts,
-      revalidatedPriorSources: files?.restoredSources || [], doNotAutomaticallyRetry: true };
+      modelRequests: created?.modelCalls() || 0, ...(transport ? { provider: transport.report() } : {}),
+      saved: input.options.archive?[]:files?.saved || [], toolReceipts,
+      revalidatedPriorSources: input.options.archive?[]:files?.restoredSources || [],
+      ...(input.options.archive?{materialMetadataWithheld:true,localWritesMayExist:true}:{}),doNotAutomaticallyRetry: true };
   } finally {
     clearTimeout(timer); process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop);
     try {

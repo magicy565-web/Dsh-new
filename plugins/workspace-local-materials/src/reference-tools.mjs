@@ -3,7 +3,18 @@ const string={type:'string'},number={type:'integer',minimum:0};
 const object=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
 export async function registerReferenceTools(pi,host,files,readTool){
   const references=await createReferences({config:host.selection.options.archive,files,readTool,packageRoot:host.packageRoot,fence:host.referenceFence});
-  host.addDisclosureGuard(references.authorize,'workspace-local-owner-references-v1');
+  const guardId='workspace-local-owner-references-v1',previous=host.disclosureSnapshot(guardId);
+  if(host.history.length&&!previous)throw Error('LOCAL_REFERENCE_HISTORY_DEPENDENCIES_REQUIRED');
+  if(previous)await references.restoreDisclosure(previous);
+  let lastSnapshot=previous?JSON.stringify(previous):null;
+  function recordDependencies(){
+    const snapshot=references.disclosureSnapshot(),serialized=JSON.stringify(snapshot);
+    if(serialized!==lastSnapshot){host.recordDisclosure(guardId,snapshot);lastSnapshot=serialized;}
+  }
+  host.addDisclosureGuard(async boundary=>{
+    await references.authorize(boundary);
+    if(boundary?.phase==='model:disclose')recordDependencies();
+  },guardId);
   await references.verifyHistory(host.history);
   const names={
     workspace_local_material_read:['source',object({inputId:string,documentKey:string,purpose:string,offset:number,limit:number,rowStart:{type:'integer',minimum:1}},['inputId','documentKey']),
@@ -31,7 +42,10 @@ export async function registerReferenceTools(pi,host,files,readTool){
       }catch(error){const reason=/^[A-Z0-9_]+$/.test(error.code||error.message||'')?error.code||error.message:'LOCAL_REFERENCE_OPERATION_REFUSED';
         return {isError:true,content:[{type:'text',text:JSON.stringify({status:'blocked',reason,customerSharing:false})}],details:{status:'blocked',reason}};}
     }});
-  pi.on('context',async event=>{await references.verifyHistory(event.messages);});
+  pi.on('context',async event=>{
+    await references.verifyHistory(event.messages);await references.authorize({phase:'model:context'});
+    recordDependencies();
+  });
   host.diagnostics('references',references.report);
   return references;
 }
