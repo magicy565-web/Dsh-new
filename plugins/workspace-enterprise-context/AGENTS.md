@@ -10,3 +10,5 @@ Development knowledge only, never business memory.
 - Validate Node24, pinned Bun/OMP, original Host/source guards/lifecycle, cancellations and packaging/build; report real components versus stand-ins.
 - Status proof dependencies cover every actually disclosed source, not just the first-source alias; incomplete legacy status proofs fail closed. Preserve non-first-source checks after worker exit.
 - Reject known Docling credential values/recognized encodings at the Node response boundary. Keep full responses, matches and actual/synthetic credential values out of errors, worker data, journals, model context and logs.
+
+- Restored parse proofs require Node-authenticated screening evidence before the first model request, including SDK compaction. Never grandfather a plugin version or trust a screening flag; keep old journals intact and do not send summaries to a model for cleanup.

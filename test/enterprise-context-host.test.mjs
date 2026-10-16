@@ -230,12 +230,12 @@ for(const legacy of ['missing','truncated'])test('two-source status refuses '+le
  const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;await fs.writeFile(map.sessionFile,entries.map(JSON.stringify).join('\n')+'\n');
  const run=await send(f,cid);assert.equal(run.status,'failed');assert.equal(calls(run),0);assert.equal(f.state.calls,0);
 });
-test('legacy single-source parse proof retains safe native continuation',{timeout:60000},async t=>{
+test('unscreened legacy single-source parse refuses native continuation',{timeout:60000},async t=>{
  const f=await fixture(t),cid=await conversation(f);assert.equal((await send(f,cid)).status,'succeeded');const entries=await journal(f,cid);
- for(const entry of entries){if(entry.customType==='workspace-plugin-disclosure-snapshot')for(const proof of entry.data.snapshot.proofs)if(proof.kind==='parse')delete proof.sources;
-  if(entry.message?.toolName==='workspace_enterprise_context_parse_upload'){delete entry.message.details.authorization.sources;entry.message.content[0].text=JSON.stringify(entry.message.details);}}
+ for(const entry of entries){if(entry.customType==='workspace-plugin-disclosure-snapshot')for(const proof of entry.data.snapshot.proofs)if(proof.kind==='parse'){delete proof.sources;delete proof.credentialScreening;}
+  if(entry.message?.toolName==='workspace_enterprise_context_parse_upload'){delete entry.message.details.authorization.sources;delete entry.message.details.authorization.credentialScreening;entry.message.content[0].text=JSON.stringify(entry.message.details);}}
  const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;await fs.writeFile(map.sessionFile,entries.map(JSON.stringify).join('\n')+'\n');
- const run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(f.state.calls,2);
+ const run=await send(f,cid);assert.equal(run.status,'failed');assert.equal(calls(run),0);assert.equal(f.state.calls,1);
 });
 test('Node refuses a credential-bearing cached body before accepting its valid body hash',{timeout:60000},async t=>{
  const f=await fixture(t),cid=await conversation(f);assert.equal((await send(f,cid)).status,'succeeded');
@@ -279,4 +279,47 @@ for(const channel of ['success-errors-array','http-error-body'])test('Node conta
  assert.equal(Object.hasOwn(receipt.details,'text'),false);
  const strings=[...stringsIn(entries),...stringsIn(f.app.store.read())];
  assert.equal(strings.some(text=>text.includes(f.state.doclingSecret)||text.includes(encodeURIComponent(f.state.doclingSecret))||text.includes(marker)),false,'upstream error crossed Node boundary');
+});
+
+async function compact(f,cid,legacy=false){
+ const mapping=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;
+ const child=spawn(workspaceOmpPaths({}).bun,['test/fixtures/enterprise-context-compact.mjs',mapping.sessionFile,...legacy?['--legacy-summary']:[]],{env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},stdio:['ignore','pipe','pipe']});
+ let out='';child.stdout.on('data',data=>out+=data);child.stderr.resume();
+ assert.equal(await new Promise(resolve=>child.once('close',resolve)),0,'SDK compaction failed');assert.equal(JSON.parse(out).privateMessages,0);
+}
+test('legacy unscreened credential parse compaction refuses restore before any model request',{timeout:60000},async t=>{
+ const f=await fixture(t),cid=await conversation(f);assert.equal((await send(f,cid)).status,'succeeded');
+ const entries=await journal(f,cid),receipt=entries.find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message;
+ const {authorization,...body}=receipt.details;body.text='SYNTHETIC_LEGACY_UNSCREENED '+f.state.doclingSecret;
+ const old={...authorization,bodyHash:libraryReadHash(body)};delete old.sources;delete old.credentialScreening;
+ receipt.details={...body,authorization:old};receipt.content[0].text=JSON.stringify(receipt.details);
+ for(const entry of entries)if(entry.customType==='workspace-plugin-disclosure-snapshot')entry.data.snapshot.proofs=entry.data.snapshot.proofs.map(proof=>proof.kind==='parse'?old:proof);
+ const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;
+ await fs.writeFile(map.sessionFile,entries.map(JSON.stringify).join('\n')+'\n');await compact(f,cid,true);
+ const before=await fs.readFile(map.sessionFile,'utf8');
+ f.responses.splice(0,f.responses.length,{text:'SYNTHETIC should never run',expectedContextText:'SYNTHETIC_LEGACY_UNSCREENED'});
+ const run=await send(f,cid);assert.equal(calls(run),0,'legacy summary reached a model request');assert.equal(run.status,'failed');assert.equal(f.state.calls,1);
+ // Preserve original journal, including the synthetic legacy record, without printing its value.
+ assert.equal((await fs.readFile(map.sessionFile,'utf8')).startsWith(before),true);
+});
+test('screened parse restores same compacted SDK Session without parsing again',{timeout:60000},async t=>{
+ const f=await fixture(t),cid=await conversation(f);assert.equal((await send(f,cid)).status,'succeeded');
+ const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;
+ await compact(f,cid);f.responses.splice(0,f.responses.length,{text:'SYNTHETIC safe compacted continuation',expectedContextText:'SYNTHETIC_DOC_SUMMARY_RETAINS_ORIGINAL_SOURCE_OBLIGATIONS'});
+ const run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(calls(run),1);assert.equal(f.state.calls,1);
+ assert.equal(f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession.agentSessionId,map.agentSessionId);
+});
+
+for(const mutation of ['flag-only','forged-mac','changed-body','changed-session'])test('screening evidence refuses '+mutation+' before model restore',{timeout:60000},async t=>{
+ const f=await fixture(t),cid=await conversation(f);assert.equal((await send(f,cid)).status,'succeeded');const entries=await journal(f,cid);
+ const alter=proof=>{if(proof.kind!=='parse')return;
+  if(mutation==='flag-only')proof.credentialScreening={policy:'known-docling-credential-v1'};
+  if(mutation==='forged-mac')proof.credentialScreening.mac='0'.repeat(64);
+  if(mutation==='changed-body')proof.bodyHash='1'.repeat(64);
+  if(mutation==='changed-session')proof.nativeSessionId='synthetic-foreign-native-session';
+ };
+ for(const entry of entries){if(entry.customType==='workspace-plugin-disclosure-snapshot')for(const proof of entry.data.snapshot.proofs)alter(proof);
+  if(entry.message?.toolName==='workspace_enterprise_context_parse_upload'){alter(entry.message.details.authorization);entry.message.content[0].text=JSON.stringify(entry.message.details);}}
+ const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;await fs.writeFile(map.sessionFile,entries.map(JSON.stringify).join('\n')+'\n');
+ await compact(f,cid);const run=await send(f,cid);assert.equal(run.status,'failed');assert.equal(calls(run),0);assert.equal(f.state.calls,1);
 });

@@ -13,6 +13,8 @@ export async function registerNativeContext(pi,host,factory){
  const key=proof=>JSON.stringify(proof);
  if(host.history.length&&!previous)fail('OSS_PRIVATE_SNAPSHOT_REQUIRED');
  if(previous){if(previous.schema!==1||previous.scopeHash!==binding.scopeHash||previous.nativeSessionId!==host.nativeSessionId||!Array.isArray(previous.proofs)||previous.proofs.length>8)fail('OSS_PRIVATE_SNAPSHOT_REQUIRED');
+  // Node checks both current sources and authenticated credential-screening
+  // evidence here, before compacted summaries can reach the first model call.
   for(const proof of previous.proofs){await control.check(proof,host.signal,host.getModel());proofs.set(key(proof),proof);}}
  const snapshot=()=>({schema:1,scopeHash:binding.scopeHash,nativeSessionId:host.nativeSessionId,proofs:[...proofs.values()]});let last=previous?JSON.stringify(previous):null;
  const record=()=>{const value=snapshot(),serialized=JSON.stringify(value);if(last!==serialized){host.recordDisclosure(guardId,value);last=serialized;}};

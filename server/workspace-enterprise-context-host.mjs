@@ -1,6 +1,6 @@
 // Existing Node Host owns every identity, Library grant, source and Artifact.
 // This adapter adds no grant registry, account, service or persistence ledger.
-import {createHash} from 'node:crypto';
+import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {createEnterpriseContextClient,createDoclingSourceReader} from '../plugins/workspace-enterprise-context/src/oss.mjs';
 import {libraryReadHash as hash,normalizeLibraryRecipient,libraryRecipientForModel} from './library-model-read-contract.mjs';
 import {looksLikeCredential} from './security.mjs';
@@ -55,16 +55,31 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
    expiresAt:authority?.authorization.expiresAt||new Date(clock()+60000).toISOString(),customerIds:[selected.customerId],uploads:selected.sources.map(row=>row.asset),memoryIds:[],sourceRefs:[]},
    authorize:async({model,signal,target})=>{await current(model,signal);if(target)await sourceCurrent(assetOf(target),signal,model);return true;},
    assertUploadCurrent:async({model,signal,...target})=>{await sourceCurrent(assetOf(target),signal,model);return true;},artifacts,doclingReader:docling,clock});
+  // Only Node mints this evidence after inspecting the complete response/body.
+  // Bind every receipt field and the current credential; a version/flag or a
+  // copied attestation cannot upgrade an unscreened legacy compacted receipt.
+  function screeningMac(proof){
+   const {credentialScreening,...payload}=proof;
+   return createHmac('sha256',connection.apiKey).update('workspace-docling-credential-screen-v1\0'+hash(payload)).digest('hex');
+  }
+  function assertScreened(proof){
+   if(proof.kind!=='parse')return;
+   const evidence=proof.credentialScreening;
+   if(typeof connection.apiKey!=='string'||!connection.apiKey||evidence?.policy!=='known-docling-credential-v1'
+    ||!/^[a-f0-9]{64}$/.test(evidence.mac||'')
+    ||!timingSafeEqual(Buffer.from(evidence.mac,'hex'),Buffer.from(screeningMac(proof),'hex')))fail('OSS_PRIVATE_CREDENTIAL_SCREEN_REQUIRED');
+  }
   function remember(body,kind='parse'){
    assertNoKnownCredentialEcho(body,[connection.apiKey]);
    const sources=kind==='status'?body.sources:[body.source];
    const proof={kind,source:body.source,sources:structuredClone(sources),bodyHash:hash(body),scopeHash,nativeSessionId};
+   if(kind==='parse')proof.credentialScreening={policy:'known-docling-credential-v1',mac:screeningMac(proof)};
    if(!observed.has(key(proof))&&observed.size>=8)fail('OSS_PRIVATE_RECEIPT_LIMIT');
    observed.set(key(proof),proof);return {...body,authorization:proof};
   }
   function proofSources(proof){
-   // Old parse receipts disclosed one source. Old status receipts did not pin
-   // their full list, so they cannot safely resume or survive compaction.
+   // Source compatibility never confers credential-screening evidence.
+   // Unscreened old parse receipts are independently refused by assertScreened.
    const sources=proof.sources??(proof.kind==='parse'?[proof.source]:null);
    if(!Array.isArray(sources)||!sources.length||sources.length>8||hash(sources[0])!==hash(proof.source)
     ||proof.kind==='parse'&&sources.length!==1)fail('OSS_PRIVATE_RECEIPT_REFUSED');
@@ -99,6 +114,7 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
    },
    async check(proof,signal,receiver){
     if(proof?.scopeHash!==scopeHash||proof.nativeSessionId!==nativeSessionId||!['parse','status'].includes(proof.kind)||!/^[a-f0-9]{64}$/.test(proof.bodyHash||''))fail('OSS_PRIVATE_RECEIPT_REFUSED');
+    assertScreened(proof);
     for(const pin of proofSources(proof)){
      const source=await sourceCurrent(pin?.asset,signal,receiver,{bytes:true});
      if(hash({documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset:pin.asset})!==hash(pin))fail('OSS_SOURCE_VERSION_CHANGED');
