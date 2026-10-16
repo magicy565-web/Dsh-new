@@ -55,6 +55,21 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     if(freeTradeHost){const {assertFreeTradeHost}=await import('./workspace-free-trade-host.mjs');assertFreeTradeHost(freeTradeHost);}
     else{const {assertEnterpriseContextHost}=await import('./workspace-enterprise-context-host.mjs');assertEnterpriseContextHost(enterpriseContextHost);}
   }
+  // Resolve the explicitly selected plugin before legacy profile dependencies.
+  // A physically removed package must report its own useful missing-package
+  // error even when the optional historical Pi frontend is not installed.
+  const simplifiedProfile = scopedHost || factoryInquiries || factoryCustomers || factoryIngestion || marketValidation || shopifyProduct;
+  const module = (enabled, name, entry='extension.js') => enabled ? requiredBusinessModule(name, entry) : {};
+  const {shopifyProductExtension, SHOPIFY_PRODUCT_TOOLS=[], SHOPIFY_PRODUCT_SAFE_REASONS=[]} = await module(shopifyProduct,'workspace-shopify-product');
+  const {marketValidationMonitorExtension, MARKET_MONITOR_TOOLS=[]} = await module(marketValidation,'workspace-market-validation','monitor.js');
+  const {marketValidationExtension, MARKET_VALIDATION_TOOLS=[]} = await module(marketValidation,'workspace-market-validation');
+  const {factoryIngestionExtension, FACTORY_INGESTION_TOOLS=[]} = await module(factoryIngestion,'workspace-factory-ingestion');
+  const {factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS=[]} = await module(factoryInquiries,'workspace-factory-inquiries');
+  const {factoryCustomersExtension, FACTORY_CUSTOMER_TOOLS=[]} = await module(factoryCustomers,'workspace-factory-customers');
+  const {factoryMaterialsExtension, FACTORY_MATERIAL_TOOLS=[]} = await module(factoryMaterials,'workspace-factory-materials');
+  const {factoryExtension, ORDINARY_FACTORY_TOOLS=[]} = await module(!localFactory && !readOnlyBusiness && !simplifiedProfile,'workspace-procurement');
+  const {registerWorkspaceReadTools} = await module(readOnlyBusiness,'workspace-procurement','workspace-read.mjs');
+  const {libraryReadHash} = await module(factoryMaterials || factoryIngestion,'workspace-procurement','library-model-read-contract.mjs');
   // Pure local/plugin sessions must not load legacy Pi/HTTP profile modules.
   // Selected historical profiles retain their original imports and guards.
   const { workspaceOmpPublicProfile } = !localFactory && !scopedHost
@@ -77,18 +92,6 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     || marketValidation && (!factoryMaterials || !planClient || factoryCustomers || factoryInquiries) || factoryInquiries && (!factoryMaterials || !inquiryClient)
     || factoryMaterials && (!materialsClient || factoryCustomers) || privateProfile && (ordinaryTools || uiOnly)) throw Error('Use the reviewed original private Session profile.');
 
-  const simplifiedProfile = scopedHost || factoryInquiries || factoryCustomers || factoryIngestion || marketValidation || shopifyProduct;
-  const module = (enabled, name, entry='extension.js') => enabled ? requiredBusinessModule(name, entry) : {};
-  const {shopifyProductExtension, SHOPIFY_PRODUCT_TOOLS=[], SHOPIFY_PRODUCT_SAFE_REASONS=[]} = await module(shopifyProduct,'workspace-shopify-product');
-  const {marketValidationMonitorExtension, MARKET_MONITOR_TOOLS=[]} = await module(marketValidation,'workspace-market-validation','monitor.js');
-  const {marketValidationExtension, MARKET_VALIDATION_TOOLS=[]} = await module(marketValidation,'workspace-market-validation');
-  const {factoryIngestionExtension, FACTORY_INGESTION_TOOLS=[]} = await module(factoryIngestion,'workspace-factory-ingestion');
-  const {factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS=[]} = await module(factoryInquiries,'workspace-factory-inquiries');
-  const {factoryCustomersExtension, FACTORY_CUSTOMER_TOOLS=[]} = await module(factoryCustomers,'workspace-factory-customers');
-  const {factoryMaterialsExtension, FACTORY_MATERIAL_TOOLS=[]} = await module(factoryMaterials,'workspace-factory-materials');
-  const {factoryExtension, ORDINARY_FACTORY_TOOLS=[]} = await module(!localFactory && !readOnlyBusiness && !simplifiedProfile,'workspace-procurement');
-  const {registerWorkspaceReadTools} = await module(readOnlyBusiness,'workspace-procurement','workspace-read.mjs');
-  const {libraryReadHash} = await module(privateProfile,'workspace-procurement','library-model-read-contract.mjs');
   // A single model-disclosure boundary refreshes the SAME original selector once.
   // Mutable cached views/status are always replaced; source/authority/extra keys
   // remain in the key and must pass the original client's validation.

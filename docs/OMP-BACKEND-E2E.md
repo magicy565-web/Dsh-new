@@ -1,5 +1,7 @@
 # Native OMP backend E2E status (2026-10-16 UTC)
 
+Later independent run: [Codex Cloud acceptance](OMP-CODEX-CLOUD-ACCEPTANCE.md) starts at `16340ca0f7ef24cf61ea358534420e73a07b60a4`. Its native lock and persistent synthetic Session tests pass in the selected Codex Cloud environment, and it fixes a separately reproduced signal-cleanup issue. The dot-environment failures below remain historical evidence, not the result for that environment. No real provider or enterprise-service acceptance is implied.
+
 ## Source and scope
 
 The tested backend is the PR93 integration (`bacd9e9b1f07817b573783e7fbb9e36b43405075`) plus development commits `3ee5e4b0689f42d5d5e81315d60c4078ba1ac917` and `ea2e2e9df1a86b8696fd039adcd28af7dc62bd79`, on `codex/omp-unified-cloud-build-20261016`. This follow-up changes only test import isolation and this report. It does not change the agent loop, native locks, provider admission, runtime permissions or frontend.

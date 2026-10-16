@@ -47,7 +47,10 @@ if(process.argv.includes('--check-missing-profiles')){
   for(const[name,flags]of Object.entries(selected)){
     await assert.rejects(createWorkspaceOmpSession({packageRoot:workspaceOmpPaths({}).packageRoot,cwd,agentDir:directory+'/missing-agent',sessionDirectory:cwd,
       configuration,syntheticResponses:[{text:'must not execute'}],onModelRequest:()=>{requests++;},...flags}),
-      error=>error.code==='WORKSPACE_PLUGIN_REQUIRED'&&error.pluginId===name&&error.message.includes(name));
+      error=>{
+        assert.equal(error.code,'WORKSPACE_PLUGIN_REQUIRED','Missing '+name+': '+error.message);
+        assert.equal(error.pluginId,name);assert.ok(error.message.includes(name));return true;
+      });
   }
   assert.equal(requests,0);console.log(JSON.stringify({missingBusinessProfiles:7,usefulErrors:true,realProviderRequests:0}));
 }

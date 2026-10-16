@@ -3,7 +3,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { workspaceOmpPaths } from '../server/workspace-omp-runtime.mjs';
 import { workspaceOmpConfiguration, workspaceOmpConfigured } from '../server/workspace-omp-configuration.mjs';
 import { verifyWorkspaceOmpRuntime } from '../server/workspace-omp-runtime.mjs';
@@ -58,6 +58,8 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
   if (!globalThis.Bun) throw Error('LOCAL_REVIEWED_BUN_REQUIRED');
   const { createLocalSelection, plainPath } = await import('../server/workspace-local-selection.mjs');
   let files, created, transport, localSession, sessionLock, sessionInfo, preflight;
+  let unregisterShutdown, finishShutdown;
+  const shutdownFinished = new Promise(resolve => { finishShutdown = resolve; });
   const toolReceipts = [];
   const toolArguments = new Map();
   const controller = new AbortController(), stop = () => { controller.abort(); void created?.session.abort(); };
@@ -88,6 +90,11 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
     if (!nativeLock.ready) throw Object.assign(Error(nativeLock.reason), { code: nativeLock.reason });
     if (!input.syntheticResponses && !workspaceOmpConfigured(input.configuration)) throw Object.assign(Error('LOCAL_MODEL_COST_AND_BUDGET_REQUIRED'), { code: 'LOCAL_MODEL_COST_AND_BUDGET_REQUIRED' });
     if (!input.syntheticResponses) transport = createLocalDeepseekTransport({ configuration: input.configuration, fetchImpl, onStop: stop });
+    // The SDK's global signal handler exits after upstream cleanup callbacks.
+    // Join that supported teardown so it cannot preempt our Session flush and
+    // sidecar removal. Keep its signal exit semantics and native locks intact.
+    const postmortem = await import(pathToFileURL(path.resolve(input.paths.packageRoot, '../pi-utils/src/postmortem.ts')).href);
+    unregisterShutdown = postmortem.register('workspace-local-turn', () => { stop(); return shutdownFinished; }, { exitOnly: true });
     if (localSession) try { sessionLock = await fs.open(localSession.file + '.lock', 'wx', 0o600); }
       catch (error) { if (error.code === 'EEXIST') throw Error('LOCAL_SESSION_BUSY'); throw error; }
     const authorize = async () => {
@@ -156,12 +163,14 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
   } finally {
     clearTimeout(timer); process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop);
     try {
-      if (created && localSession) {
-        created.manager.appendCustomEntry('workspace-local-turn', { billingUncertain: transport?.report().billingUncertain === true,
-          stoppedReason: transport?.report().stoppedReason || null });
-        await created.manager.flush();
-      }
-    } finally { try { await created?.close(); } finally { await files?.close(); if (sessionLock) { await sessionLock.close(); await fs.unlink(localSession.file + '.lock'); } } }
+      try {
+        if (created && localSession) {
+          created.manager.appendCustomEntry('workspace-local-turn', { billingUncertain: transport?.report().billingUncertain === true,
+            stoppedReason: transport?.report().stoppedReason || null });
+          await created.manager.flush();
+        }
+      } finally { try { await created?.close(); } finally { await files?.close(); if (sessionLock) { await sessionLock.close(); await fs.unlink(localSession.file + '.lock'); } } }
+    } finally { unregisterShutdown?.(); finishShutdown(); }
   }
 }
 export async function runLocalFactory({ options, configuration, paths = workspaceOmpPaths({}), syntheticResponses = null }) {
