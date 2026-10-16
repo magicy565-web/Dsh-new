@@ -1,31 +1,27 @@
-import { shopifyProductExtension, SHOPIFY_PRODUCT_TOOLS, SHOPIFY_PRODUCT_SAFE_REASONS } from '../plugins/workspace-shopify-product/src/extension.js';
-// A single model-disclosure boundary refreshes the SAME original selector once.
-// Mutable cached views/status are always replaced; source/authority/extra keys
-// remain in the key and must pass the original client's validation.
-const shopifySnapshotKey = receipt => {
-  const { view, status, ...source } = receipt;
-  return 'shopify:' + libraryReadHash(source);
-};
-import { marketValidationMonitorExtension, MARKET_MONITOR_TOOLS } from '../plugins/workspace-market-validation/src/monitor.js';
 // Bun-only integration with the reviewed official OMP SDK. This file supplies
 // configuration and a provider transport; OMP owns the agent/tool/session loop.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { libraryReadHash } from './library-model-read-contract.mjs';
-import { factoryIngestionExtension, FACTORY_INGESTION_TOOLS } from '../plugins/workspace-factory-ingestion/src/extension.js';
-import { marketValidationExtension, MARKET_VALIDATION_TOOLS } from '../plugins/workspace-market-validation/src/extension.js';
-import { factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS } from '../plugins/workspace-factory-inquiries/src/extension.js';
-import { factoryCustomersExtension, FACTORY_CUSTOMER_TOOLS } from '../plugins/workspace-factory-customers/src/extension.js';
-import { factoryMaterialsExtension, FACTORY_MATERIAL_TOOLS } from '../plugins/workspace-factory-materials/src/extension.js';
-import { registerWorkspaceReadTools } from '../plugins/workspace-procurement/src/workspace-read.mjs';
-import { factoryExtension } from '../plugins/workspace-procurement/src/extension.js';
-import { ORDINARY_FACTORY_TOOLS } from '../plugins/workspace-procurement/src/extension.js';
 import { workspaceOmpPublicProfile } from './workspace-omp-public-profile.mjs';
 import { createWorkspaceOmpPublicTools, createWorkspaceOmpSyntheticPublicFetch, WORKSPACE_OMP_PUBLIC_PDF_POLICY } from './workspace-omp-public-tools.mjs';
 import { createWorkspaceOmpPublicTask } from './workspace-omp-public-task.mjs';
 import { projectPlugins } from './workspace-plugin-config.mjs';
+
+
+// Import optional business code only for a selected business profile. Missing
+// dependencies are explicit errors, never silently replaced by another plugin.
+async function requiredBusinessModule(name, entry) {
+  const file = new URL('../plugins/' + name + '/src/' + entry, import.meta.url);
+  try { await fs.access(file); }
+  catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    throw Object.assign(new Error('Enabled business profile requires plugin ' + name + ' (' + entry + '); reinstall it or disable the profile.'),
+      {code:'WORKSPACE_PLUGIN_REQUIRED',pluginId:name,pluginEntry:entry});
+  }
+  return import(file.href);
+}
 
 export const OMP_VERSION = '18.10.4';
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
@@ -66,6 +62,26 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   if (engineScope !== expectedScope || factoryIngestion && (factoryMaterials || factoryCustomers || factoryInquiries || marketValidation || !ingestionClient)
     || marketValidation && (!factoryMaterials || !planClient || factoryCustomers || factoryInquiries) || factoryInquiries && (!factoryMaterials || !inquiryClient)
     || factoryMaterials && (!materialsClient || factoryCustomers) || privateProfile && (ordinaryTools || uiOnly)) throw Error('Use the reviewed original private Session profile.');
+
+  const simplifiedProfile = factoryInquiries || factoryCustomers || factoryIngestion || marketValidation || shopifyProduct;
+  const module = (enabled, name, entry='extension.js') => enabled ? requiredBusinessModule(name, entry) : {};
+  const {shopifyProductExtension, SHOPIFY_PRODUCT_TOOLS=[], SHOPIFY_PRODUCT_SAFE_REASONS=[]} = await module(shopifyProduct,'workspace-shopify-product');
+  const {marketValidationMonitorExtension, MARKET_MONITOR_TOOLS=[]} = await module(marketValidation,'workspace-market-validation','monitor.js');
+  const {marketValidationExtension, MARKET_VALIDATION_TOOLS=[]} = await module(marketValidation,'workspace-market-validation');
+  const {factoryIngestionExtension, FACTORY_INGESTION_TOOLS=[]} = await module(factoryIngestion,'workspace-factory-ingestion');
+  const {factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS=[]} = await module(factoryInquiries,'workspace-factory-inquiries');
+  const {factoryCustomersExtension, FACTORY_CUSTOMER_TOOLS=[]} = await module(factoryCustomers,'workspace-factory-customers');
+  const {factoryMaterialsExtension, FACTORY_MATERIAL_TOOLS=[]} = await module(factoryMaterials,'workspace-factory-materials');
+  const {factoryExtension, ORDINARY_FACTORY_TOOLS=[]} = await module(!localFactory && !readOnlyBusiness && !simplifiedProfile,'workspace-procurement');
+  const {registerWorkspaceReadTools} = await module(readOnlyBusiness,'workspace-procurement','workspace-read.mjs');
+  const {libraryReadHash} = await module(privateProfile,'workspace-procurement','library-model-read-contract.mjs');
+  // A single model-disclosure boundary refreshes the SAME original selector once.
+  // Mutable cached views/status are always replaced; source/authority/extra keys
+  // remain in the key and must pass the original client's validation.
+  const shopifySnapshotKey = receipt => {
+    const { view, status, ...source } = receipt;
+    return 'shopify:' + libraryReadHash(source);
+  };
 
   lifecycleSignal?.throwIfAborted();
   if (!configuration?.providerId || !configuration.model || !configuration.baseUrl || !uiOnly && !syntheticResponses && !configuration.apiKey)

@@ -1,23 +1,9 @@
-import { loadPiProviderConfig } from './pi-provider-config.mjs';
+import { workspaceOmpConfiguration, workspaceOmpConfigured } from './workspace-omp-configuration.mjs';
 import { existsSync } from 'node:fs';
 import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from './workspace-omp-bridge.mjs';
 
-// Host configuration only: never scans credentials/accounts or discovers a
-// provider. Unknown prices/balance are not treated as zero-cost or free usage.
-export function workspaceOmpConfiguration(environment = {}) {
-  const configuration = loadPiProviderConfig(environment);
-  let cost = null;
-  if (environment.WORKSPACE_OMP_PROVIDER_COST_JSON) {
-    try { cost = JSON.parse(environment.WORKSPACE_OMP_PROVIDER_COST_JSON); } catch { throw new Error('The trusted host OMP price configuration is invalid.'); }
-    if (!cost || Object.keys(cost).some(key => !['input', 'output', 'cacheRead', 'cacheWrite'].includes(key))
-      || ['input', 'output', 'cacheRead', 'cacheWrite'].some(key => !Number.isFinite(cost[key]) || cost[key] < 0)) throw new Error('Use reviewed per-million-token OMP provider prices for every cost field.');
-  }
-  return { ...configuration, cost, remainingBudgetVerified: environment.WORKSPACE_OMP_LIVE_BUDGET_VERIFIED === '1' };
-}
-export function workspaceOmpConfigured(configuration) {
-  return Boolean(configuration.apiKey && configuration.cost && configuration.remainingBudgetVerified);
-}
+export { workspaceOmpConfiguration, workspaceOmpConfigured } from './workspace-omp-configuration.mjs';
 export function workspaceOmpPublicToolConfiguration(environment = {}) {
   const searchProvider = environment.WORKSPACE_OMP_PUBLIC_SEARCH_PROVIDER || 'duckduckgo';
   if (!['duckduckgo', 'startpage', 'disabled'].includes(searchProvider)) throw new Error('Use one explicitly reviewed keyless public search provider.');

@@ -39,8 +39,16 @@ export async function projectPlugins({ root = DEFAULT_PLUGIN_ROOT, disabled = []
     const enabled = !none && config.extensions.some(p=>path.resolve(root,p)===directory) && !disabledNames.has(entry.name) && !disabledNames.has(manifest.name);
     installed.push({ name:manifest.name, directory, id:entry.name, enabled, extensions, skills, manifest });
   }
-  // Even absent/uninstalled entries must never turn an out-of-root path into code.
-  for (const p of config.extensions) if (!/^\.\/[A-Za-z0-9][A-Za-z0-9_-]*$/.test(p)) refuse();
+  // Missing disabled/unselected packages are not dependencies. An explicitly
+  // requested, non-disabled missing entry is a useful configuration error.
+  for (const p of config.extensions) {
+    if (!/^\.\/[A-Za-z0-9][A-Za-z0-9_-]*$/.test(p)) refuse();
+    const id=p.slice(2);
+    if (!none && !disabledNames.has(id) && !installed.some(plugin=>plugin.id===id)) {
+      throw Object.assign(new Error('Enabled plugin ' + id + ' is missing; reinstall it, remove its enabled path, or explicitly disable it.'),
+        {code:'PROJECT_PLUGIN_REQUIRED',pluginId:id,pluginEntry:'package.json'});
+    }
+  }
   const enabled=installed.filter(p=>p.enabled);
   return { root, installed, enabled, paths:enabled.map(p=>p.directory), skills:enabled.flatMap(p=>p.skills) };
 }

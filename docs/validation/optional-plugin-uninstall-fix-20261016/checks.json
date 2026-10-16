@@ -1,0 +1,72 @@
+{
+  "baseCommit": "b2a490f31706bbe50e147636645d573cdf1ac6a7",
+  "scope": "optional old business package uninstall / local entry only",
+  "sevenPhysicalSourceRemovals": [
+    "workspace-factory-customers",
+    "workspace-factory-ingestion",
+    "workspace-factory-inquiries",
+    "workspace-factory-materials",
+    "workspace-market-validation",
+    "workspace-procurement",
+    "workspace-shopify-product"
+  ],
+  "isolatedServerScriptsAndPluginsCopied": true,
+  "freshProcessPerRemoval": true,
+  "localPreflightCases": 7,
+  "nativeSessionCases": 7,
+  "sameNativeSession": true,
+  "actualNativeFileSaves": 7,
+  "finiteSyntheticSdkResponses": 21,
+  "realProviderRequests": 0,
+  "missingLegacyProfileErrors": 7,
+  "missingEnabledDirectoryError": "PROJECT_PLUGIN_REQUIRED",
+  "missingBusinessEntryError": "WORKSPACE_PLUGIN_REQUIRED",
+  "directoryDisableAndNoPluginsPriority": true,
+  "tests": {
+    "localAndUninstall": {
+      "passed": 15,
+      "failed": 0,
+      "files": [
+        "test/workspace-omp-plugin-uninstall.test.mjs",
+        "test/workspace-omp-plugins.test.mjs",
+        "test/workspace-omp-local.test.mjs",
+        "test/workspace-omp-local-budget.test.mjs"
+      ],
+      "privateLogSha256": "74449dbad0a3ecb5a46217367b3fdd412608bb313d44827cc5d4c14bf57d1ae3"
+    },
+    "legacyBindings": {
+      "passed": 8,
+      "failed": 0,
+      "profiles": [
+        "public factory",
+        "Session read-only",
+        "customers",
+        "inquiries",
+        "materials",
+        "ingestion",
+        "plan",
+        "Shopify adapter"
+      ],
+      "privateLogSha256": "88fd5a56568213c8619c64f0aaa8b75e80b67b394da49dd4ef749e47e2c67c45"
+    },
+    "totalPassed": 23,
+    "totalFailed": 0
+  },
+  "build": {
+    "passed": true,
+    "command": "npm run build",
+    "staticPackagePackChecks": 9,
+    "privateLogSha256": "b1c0641bc54ec63817288d1e6edfee9bb8b124692a356fac437d1f789fb9ef4c",
+    "nonBlockingAdvisory": "Existing Vite chunk-size advisory"
+  },
+  "realPersonalAgentOrMcpServiceInvoked": false,
+  "newPaidCalls": 0,
+  "newSpendCny": 0,
+  "historicalConservativeApiCostCny": 0.074952,
+  "unconfirmedBilling": false,
+  "mainOrDeploymentChanged": false,
+  "realCredentialsCreated": false,
+  "permissionsExpanded": false,
+  "fullBackendSuiteRun": false,
+  "rawRuntimeDataCommitted": false
+}

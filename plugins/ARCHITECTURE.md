@@ -6,6 +6,10 @@ The seven migrated packages retain compatible tools and original client/receipt 
 
 For the seven-day verification direction, Shopify operations are intended to be separate **MCP services on the user's cloud computer**, reached through the user's server bridge and chosen by the Agent according to intent. Project query interfaces and long-running task state remain explicit product capabilities; operating steps are not hardcoded into a Skill, queue or Agent Loop. None of that MCP connection or deployment is completed by this migration.
 
+Muse and Grokbot are a different boundary: **real Personal Agents tied by the user's server to already authorized accounts, consuming those accounts' quotas**. They must not be reduced to ordinary MCP tools, a provider model alias, a mocked response or a model substitute. Their authorization, delegated work and actual account usage need real receipts; a DeepSeek API token budget does not attest to their account quota. This uninstall repair invokes neither Personal Agent and changes no account authorization.
+
+The seven-day verification module is a **project launcher that establishes budgets, Worker delegation and Goals**, not a hardcoded operating sequence. Its future work should reuse existing task/Goal/receipt and query state; it must not create a second queue or Agent Loop. MCP services, Personal Agents, the user's bridge and the main OMP application have distinct responsibilities. This paragraph records the interface direction only; no new business engineering is implemented in this repair.
+
 ## Required adapter changes, not implemented here
 
 1. Define and discover the actual authorized MCP tool schemas/endpoints on that cloud computer; identify bridge routing, existing identity and cancellation semantics. Do not guess URLs, credentials or scopes.

@@ -1,3 +1,4 @@
+import { verifyWorkspaceOmpRuntime } from '../server/workspace-omp-runtime.mjs';
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -18,18 +19,7 @@ const help = 'Workspace · 官方 OMP 18.10.4 前端，原 Workspace HTTP/任务
   + '使用现有 WS_AGENT_URL/WS_AGENT_TOKEN 和选定模型配置。价格与剩余预算未证明时 OMP 未配置。\n'
   + '默认 public 只接受公开资料；资料／询盘 profile 另需原 Library 审核策略，旧 Pi/private transcript 不迁移。\n'
   + '审批、取消、恢复与文书仍使用原 Workspace 页面/API；终端本身不调用模型。';
-export async function verifyWorkspaceOmpRuntime(paths) {
-  await checkWorkspaceOmpPaths(paths);
-  const audit = JSON.parse(await fs.readFile(path.join(root, 'support/omp-bun-linux-x64/runtime-audit.json')));
-  if (createHash('sha256').update(await fs.readFile(paths.bun)).digest('hex') !== audit.binarySha256) throw new Error('Bun 可执行文件与已审计官方 1.3.14 artifact 不一致。');
-  return await new Promise((resolve, reject) => {
-    const child = spawn(paths.bun, ['--version'], { env: { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin' }, stdio: ['ignore', 'pipe', 'ignore'] }); let text = '';
-    child.stdout.on('data', data => { text += data; }); child.on('error', reject); child.on('close', code => {
-      if (code === 0 && text.trim() === '1.3.14') resolve({ omp: '18.10.4', bun: text.trim(), integrity: 'verified' });
-      else reject(new Error('官方固定 Bun 版本验证失败。'));
-    });
-  });
-}
+export { verifyWorkspaceOmpRuntime } from '../server/workspace-omp-runtime.mjs';
 export async function main(args = process.argv.slice(2), environment = process.env) {
   if (args.includes('--help')) { console.log(help); return; }
   if (args.length > 1 || args.some(arg => !['--check', '--serve', '--terminal'].includes(arg))) throw new Error('使用 --help；不接受凭据、任意会话文件或隐式引擎切换参数。');

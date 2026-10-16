@@ -57,7 +57,9 @@ try{
   await config([]);await turn('Coexistence: use the static info tool and confirm.',[...localNames,'workspace_plugin_info'],[{tool:'workspace_plugin_info',args:{}},{text:'Both plugins coexist.'}]);
   await turn('Explicit disable wins over enabled paths.',['workspace_plugin_info'],[{tool:'workspace_plugin_info',args:{}},{text:'Only probe remains.'}],{disabledPlugins:[local]});
   await turn('No plugins override keeps only conversation.',[],[{text:'No plugin tools.'}],{noPlugins:true});
+  await fs.writeFile(plugins+'/config.json',JSON.stringify({extensions:['./'+info],disabledExtensions:[]}));
   await fs.rm(plugins+'/'+local,{recursive:true});await turn('Local package uninstalled: only static probe remains.',['workspace_plugin_info'],[{tool:'workspace_plugin_info',args:{}},{text:'No local material capability remains.'}]);
+  await fs.writeFile(plugins+'/config.json',JSON.stringify({extensions:[],disabledExtensions:[]}));
   await fs.rm(plugins+'/'+info,{recursive:true});await turn('Both packages uninstalled: conversation still works.',[],[{text:'Conversational Session continues.'}]);
   assert.equal(hash(await fs.readFile(root+'/out/first.md')),firstSha);
   console.log(JSON.stringify({passed:true,evidenceKind:'original-omp-native-loader-and-file-executors-with-finite-mock-http',independentPackagesLoaded:loaded.length,

@@ -1,3 +1,4 @@
+import { workspaceOmpPaths, checkWorkspaceOmpPaths } from './workspace-omp-runtime.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -15,16 +16,7 @@ export const OMP_INGESTION_ENGINE_SCOPE = 'omp:18.10.4:factory-ingestion-v1';
 export const OMP_SHOPIFY_ENGINE_SCOPE = 'omp:18.10.4:shopify-product-v1';
 export const OMP_MARKET_ENGINE_SCOPE = 'omp:18.10.4:market-validation-v1';
 export const OMP_INQUIRIES_ENGINE_SCOPE = 'omp:18.10.4:factory-inquiries-v1';
-export function workspaceOmpPaths(env = {}) {
-  return { bun: env.WORKSPACE_BUN_BIN || path.join(root, 'support/omp-bun-linux-x64/node_modules/@oven/bun-linux-x64-baseline/bin/bun'),
-    packageRoot: env.WORKSPACE_OMP_PACKAGE_ROOT || path.join(root, 'support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent') };
-}
-export async function checkWorkspaceOmpPaths(paths) {
-  if (!path.isAbsolute(paths.bun) || !path.isAbsolute(paths.packageRoot)) throw new Error('Workspace OMP paths must be absolute reviewed host paths.');
-  await fs.access(paths.bun);
-  const manifest = JSON.parse(await fs.readFile(path.join(paths.packageRoot, 'package.json')));
-  if (manifest.name !== '@oh-my-pi/pi-coding-agent' || manifest.version !== '18.10.4') throw new Error('Install the fixed official OMP 18.10.4 package; no Node or alternate engine fallback is implicit.');
-}
+export { workspaceOmpPaths, checkWorkspaceOmpPaths } from './workspace-omp-runtime.mjs';
 export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, syntheticResponses = null,
   syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
   if (syntheticPublicSearchResponses && !syntheticResponses) throw new Error('Public HTTP fixtures require the explicit finite keyless model fixture; production cannot select them.');

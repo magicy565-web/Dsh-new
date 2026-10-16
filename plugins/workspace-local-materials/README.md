@@ -6,7 +6,7 @@ The original native OMP file loader loads `pi.extensions`; `pi.skills` supplies 
 
 ## Install, enable, configure and unload
 
-Place the package under a reviewed plugin root with `config.json` (see ../README.md). Enable `./workspace-local-materials` in `extensions`; explicit `disabledExtensions` or `--disable-plugin workspace-local-materials` wins. Remove the enabled entry or delete the installed package to uninstall, then restart. No hidden direct registration remains. Launch the existing bounded CLI with `--plugin-dir /absolute/reviewed/plugin-root`, `--input`, `--output-dir`, `--session` and a goal. A root outside the repo is accepted only as an explicit user-selected trusted directory. OMP extensions execute trusted code, not sandboxed code.
+Place the package under a reviewed plugin root with `config.json` (see ../README.md). Enable `./workspace-local-materials` in `extensions`; explicit `disabledExtensions` or `--disable-plugin workspace-local-materials` wins. Remove its enabled entry or explicitly disable its directory ID before deleting the package, then restart. Enabled-but-missing packages report a useful error; unselected/disabled missing packages do not block conversation. No hidden direct registration remains. Launch the existing bounded CLI with `--plugin-dir /absolute/reviewed/plugin-root`, `--input`, `--output-dir`, `--session` and a goal. A root outside the repo is accepted only as an explicit user-selected trusted directory. OMP extensions execute trusted code, not sandboxed code.
 
 ```sh
 npm run factory:local -- --input /ABS/product.md --output-dir /ABS/output \

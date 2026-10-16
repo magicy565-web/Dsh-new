@@ -1,5 +1,5 @@
 import { matchesKey } from '@earendil-works/pi-tui';
-import { workspaceTerminalInputPolicy, validatePublicBusinessInput } from '../plugins/workspace-procurement/src/workspace.mjs';
+import { validatePublicBusinessInput } from './workspace-public-input.mjs';
 
 const commands = new Set(['ws-task', 'ws-status', 'ws-business-status', 'ws-cancel', 'ws-resume', 'ws-approve',
   'ws-continue', 'ws-business-cancel', 'ws-business-resume', 'ws-stop', 'ws-front-status', 'ws-execute', 'quit']);
@@ -37,4 +37,14 @@ export function workspaceOmpPublicProfile(activeTools) {
     pi.on('session_before_tree', () => ({ cancel: true }));
     pi.on('session_before_compact', () => ({ cancel: true }));
   };
+}
+
+function workspaceTerminalInputPolicy(data, editorText = '') {
+  if (['ctrl+g', 'ctrl+v', 'alt+v', 'tab'].some(key => matchesKey(data, key)))
+    return 'External editors, file completion and clipboard attachments are unavailable in this explicit-text Workspace profile.';
+  if (matchesKey(data, 'enter')) {
+    const input = editorText.trim();
+    if (input.startsWith('/') && !commands.has(input.split(/\s+/)[0].slice(1)))
+      return 'Only /ws-* task commands and /quit are available in this Workspace profile.';
+  }
 }

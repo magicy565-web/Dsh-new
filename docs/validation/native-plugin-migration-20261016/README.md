@@ -2,6 +2,8 @@
 
 Base: `aa6262f14a7252c8a83c57237654623b59811d18`. Implementation checkpoint: `764d8cf994ed83dfdf3967d8100f71315e8bb965`. Work remains on `codex/local-context-budget-fix-20261016`; main and deployment are unchanged. This migration adds **zero paid model calls**; historical conservative API cost remains **CNY 0.074952**. No credentials were created or printed, and no operational material or actual model output is committed.
 
+Coverage correction: the original lifecycle test below removed local/probe packages from an outside-repository plugin root while the seven legacy source packages remained installed. It did **not** prove the actual local entry survived deleting those seven source directories. The b2a490f source still had static/transitive imports that broke that case. The focused follow-up uninstall repair adds fresh-process source-copy deletion tests and narrows the uninstall/configuration semantics; this old evidence is not retroactively relabeled as that proof.
+
 ## Delivered
 
 - All seven business packages present on the base branch moved from `packages/` to canonical `plugins/` paths. Their source modules and Skills retain their interfaces; active imports, packaging scripts, tests and guides now use the new paths. No parallel copy or dual registration remains. Historical validation documents keep their original historical references.

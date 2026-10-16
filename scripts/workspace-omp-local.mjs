@@ -4,9 +4,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
-import { workspaceOmpConfiguration, workspaceOmpConfigured } from '../server/workspace-omp-host.mjs';
-import { verifyWorkspaceOmpRuntime } from './workspace-omp.mjs';
+import { workspaceOmpPaths } from '../server/workspace-omp-runtime.mjs';
+import { workspaceOmpConfiguration, workspaceOmpConfigured } from '../server/workspace-omp-configuration.mjs';
+import { verifyWorkspaceOmpRuntime } from '../server/workspace-omp-runtime.mjs';
 import { createLocalDeepseekTransport, LOCAL_DEEPSEEK_LIMITS, localDeepseekConfigured } from '../server/workspace-omp-local-deepseek.mjs';
 import { validatePublicBusinessInput } from '../server/workspace-public-input.mjs';
 import { projectPlugins } from '../server/workspace-plugin-config.mjs';
@@ -130,6 +130,8 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
     const reason = /^[A-Z0-9_]+$/.test(error.code || error.message || '') ? error.code || error.message : 'LOCAL_TASK_INCOMPLETE';
     transport?.stop(transport.report().stoppedReason || reason);
     return { status: 'stopped', reason: transport?.report().stoppedReason || reason,
+      ...(['PROJECT_PLUGIN_REQUIRED','WORKSPACE_PLUGIN_REQUIRED'].includes(error.code) ? {
+        pluginError: { id:error.pluginId, entry:error.pluginEntry, message:error.message } } : {}),
       ...(sessionInfo ? { localSession: sessionInfo } : {}),
       modelRequests: created?.modelCalls() || 0, ...(transport ? { provider: transport.report() } : {}), saved: files?.saved || [], toolReceipts,
       revalidatedPriorSources: files?.restoredSources || [], doNotAutomaticallyRetry: true };
