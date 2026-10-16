@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
+import { workspaceOmpPaths } from '../server/workspace-omp-runtime.mjs';
 import { LOCAL_DEEPSEEK_LIMITS } from '../server/workspace-omp-local-deepseek.mjs';
 test('local HTTP fee reservations are below the existing remaining CNY5 authorization',()=>{
  assert.equal(LOCAL_DEEPSEEK_LIMITS.normalCompletionUpperCny,0.544768);

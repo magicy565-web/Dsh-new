@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { runLocalFactorySession } from '../../scripts/workspace-omp-local.mjs';
 import { acceptanceConfiguration } from '../../server/deepseek-acceptance-policy.mjs';
-import { workspaceOmpPaths } from '../../server/workspace-omp-bridge.mjs';
+import { workspaceOmpPaths } from '../../server/workspace-omp-runtime.mjs';
 import { LOCAL_DEEPSEEK_LIMITS } from '../../server/workspace-omp-local-deepseek.mjs';
 const mode=process.env.LOCAL_WIRE_MODE,root=await fs.mkdtemp('/tmp/local-provider-wire-');
 let requests=0, validatedWireRequests=0;

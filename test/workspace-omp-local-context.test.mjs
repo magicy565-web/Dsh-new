@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
+import { workspaceOmpPaths } from '../server/workspace-omp-runtime.mjs';
 test('original OMP context pruning completes three turns within the bounded conversation payload', { timeout: 40000 }, async () => {
   const child = spawn(workspaceOmpPaths({}).bun, ['test/fixtures/workspace-omp-local-context.mjs'], { env: { PATH: process.env.PATH, HOME: '/tmp' }, stdio: ['ignore','pipe','pipe'] });
   let out = '', err = ''; child.stdout.on('data', d => out += d); child.stderr.on('data', d => err += d);

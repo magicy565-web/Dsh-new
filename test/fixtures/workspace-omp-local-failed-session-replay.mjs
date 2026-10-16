@@ -11,7 +11,7 @@ const sourceRoot=path.resolve(process.argv[3]||'.'), evidence=path.resolve(proce
 const resumeFailedLeaf=process.env.LOCAL_REPLAY_FROM==='failed';
 const load=relative=>import(pathToFileURL(path.join(sourceRoot,relative)).href);
 const [{runLocalFactorySession},{acceptanceConfiguration},{workspaceOmpPaths}]=await Promise.all([
-  load('scripts/workspace-omp-local.mjs'),load('server/deepseek-acceptance-policy.mjs'),load('server/workspace-omp-bridge.mjs')]);
+  load('scripts/workspace-omp-local.mjs'),load('server/deepseek-acceptance-policy.mjs'),load('server/workspace-omp-runtime.mjs')]);
 const paths=workspaceOmpPaths({});
 const {Tokenizer}=await import(pathToFileURL(path.join(paths.packageRoot,'../pi-agent-core/src/tokenizer.ts')).href);
 const tokenizer=new Tokenizer();

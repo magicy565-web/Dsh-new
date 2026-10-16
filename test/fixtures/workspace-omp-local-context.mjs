@@ -7,7 +7,7 @@ import { createWorkspaceOmpSession } from '../../server/workspace-omp-session.mj
 import { createLocalFactoryFiles } from '../../server/workspace-omp-local-files.mjs';
 import { createLocalDeepseekTransport, LOCAL_DEEPSEEK_LIMITS } from '../../server/workspace-omp-local-deepseek.mjs';
 import { acceptanceConfiguration } from '../../server/deepseek-acceptance-policy.mjs';
-import { workspaceOmpPaths } from '../../server/workspace-omp-bridge.mjs';
+import { workspaceOmpPaths } from '../../server/workspace-omp-runtime.mjs';
 import { createLocalContextExtension } from '../../server/workspace-omp-local-context.mjs';
 const configuration = acceptanceConfiguration({ DEEPSEEK_API_KEY: 'explicit-mock-http-unused' });
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');

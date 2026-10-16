@@ -4,7 +4,6 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createWorkspaceOmpPublicTools, snapshotWorkspaceOmpPublicFiles } from '../../server/workspace-omp-public-tools.mjs';
 
 export const publicPdfHash = bytes => createHash('sha256').update(bytes).digest('hex');
 function serializePdf(objects) {
@@ -46,6 +45,7 @@ export function publicLongPdfBytes() {
 }
 
 async function main() {
+  const { createWorkspaceOmpPublicTools, snapshotWorkspaceOmpPublicFiles } = await import('../../server/workspace-omp-public-tools.mjs');
   const packageRoot = process.env.WORKSPACE_OMP_PACKAGE_ROOT, cwd = process.cwd();
   assert.equal(Bun.version, '1.3.14');
   assert.equal(JSON.parse(await fs.readFile(path.join(packageRoot, 'package.json'))).version, '18.10.4');
