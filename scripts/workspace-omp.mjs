@@ -6,14 +6,24 @@ import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {workspaceOmpPaths,verifyWorkspaceOmpRuntime} from '../server/workspace-omp-runtime.mjs';
 import {projectPlugins} from '../server/workspace-plugin-config.mjs';
+import {workspaceOmpConfiguration} from '../server/workspace-omp-configuration.mjs';
+import {inspectNativeLock,localSessionPreflight} from '../server/workspace-omp-local-environment.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 export {verifyWorkspaceOmpRuntime} from '../server/workspace-omp-runtime.mjs';
 export async function inspectNativeWorkspace(environment={}) {
-  const runtime=await verifyWorkspaceOmpRuntime(workspaceOmpPaths(environment));
+  const paths=workspaceOmpPaths(environment),runtime=await verifyWorkspaceOmpRuntime(paths);
   const plugins=await projectPlugins();
-  return {status:'ready-model-unconfigured',runtime,entry:'official-native-omp',workspaceHttpRequired:false,
+  const nativeLock=await inspectNativeLock(paths);
+  let localSessionPrerequisites;
+  try { localSessionPrerequisites=localSessionPreflight(workspaceOmpConfiguration(environment),nativeLock); }
+  catch { localSessionPrerequisites={status:nativeLock.ready?'configuration-invalid':'environment-unavailable',
+    modelStatus:'configuration-invalid',preflightReady:false,persistentSessionVerified:false,paidModelVerified:false,
+    environment:{nativeLock},blockers:[...(nativeLock.ready?[]:[nativeLock.reason]),'LOCAL_MODEL_CONFIGURATION_INVALID']}; }
+  return {status:'offline-preview-ready',readinessScope:'pinned-runtime-and-plugin-manifests-only',runtime,entry:'official-native-omp',workspaceHttpRequired:false,
     workspaceHostStarted:false,wsBindingUsed:false,modelRequests:0,
     model:{status:'unconfigured',nativePreview:'offline-no-model',credentialsRead:false},
+    localSessionPrerequisites:{...localSessionPrerequisites,configurationScope:'supplied-process-environment-only',
+      credentialFilesRead:false,selectedFilesChecked:false,modelRequests:0},
     plugins:plugins.installed.map(p=>({id:p.id,package:p.name,discovered:true,enabled:p.enabled,
       loading:'manifest-validated; run npm run build:omp for native-loader verification',
       capability:p.id==='workspace-local-materials'?'public-drafts; exact local file selection required for file access'
@@ -22,7 +32,7 @@ export async function inspectNativeWorkspace(environment={}) {
 export async function main(args=process.argv.slice(2),environment=process.env) {
   if(args.includes('--help')){
     console.log('npm start / npm run workspace: official OMP 18.10.4 native TUI, offline no-model preview.\n'
-      +'npm run workspace -- --check: all project plugin manifests and pinned runtime, zero model calls.\n'
+      +'npm run workspace -- --check: pinned runtime/plugin manifests plus separately scoped native-lock and supplied-process model configuration checks; zero model calls.\n'
       +'npm run workspace -- --input /ABS/material.md --output-dir /ABS/output "一句话目标" [--check]: existing bounded local native Session.\n'
       +'Native TUI has no credentials, HTTP Host, model calls or persistent Session. Local execution retains its original explicit model/cost/budget requirements.\n'
       +'Old HTTP frontend: npm run legacy:workspace -- --serve (explicit only).');return;

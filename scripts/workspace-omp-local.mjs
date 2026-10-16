@@ -10,6 +10,7 @@ import { verifyWorkspaceOmpRuntime } from '../server/workspace-omp-runtime.mjs';
 import { createLocalDeepseekTransport, LOCAL_DEEPSEEK_LIMITS, localDeepseekConfigured } from '../server/workspace-omp-local-deepseek.mjs';
 import { validatePublicBusinessInput } from '../server/workspace-public-input.mjs';
 import { projectPlugins } from '../server/workspace-plugin-config.mjs';
+import { checkLocalNativeLock, localSessionPreflight } from '../server/workspace-omp-local-environment.mjs';
 const filename = fileURLToPath(import.meta.url);
 const help = 'npm run factory:local -- --input PRODUCT.md [--input RFQ.txt] --output-dir EXISTING_DIR "一句话目标" [--session FILE.jsonl] [--plugin-dir DIR] [--plugin-config NAME.json] [--public-only] [--disable-plugin NAME] [--no-plugins] [--check]\n'
   + '--public-only 仅用于无本地输入、无 archive 的公开会话；例如 --plugin-config config.free-trade.json。不会开启 ERP 私有授权。\n'
@@ -56,8 +57,7 @@ export function parseLocalArguments(args) {
 export async function runLocalFactorySession(input, { fetchImpl = globalThis.fetch, referenceFence, publicTenderClient } = {}) {
   if (!globalThis.Bun) throw Error('LOCAL_REVIEWED_BUN_REQUIRED');
   const { createLocalSelection, plainPath } = await import('../server/workspace-local-selection.mjs');
-  const { createWorkspaceOmpSession } = await import('../server/workspace-omp-session.mjs');
-  let files, created, transport, localSession, sessionLock, sessionInfo;
+  let files, created, transport, localSession, sessionLock, sessionInfo, preflight;
   const toolReceipts = [];
   const toolArguments = new Map();
   const controller = new AbortController(), stop = () => { controller.abort(); void created?.session.abort(); };
@@ -78,15 +78,14 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
         outputDirectory: path.resolve(input.options.outputDirectory), provider: input.configuration.providerId, model: input.configuration.model,
         ...(input.options.archive?{archive:{...input.options.archive,ownerUid:process.getuid()}}:{}),...(input.options.publicOnly?{publicOnly:true}:{}) } };
     }
-    if (input.options.check) return { status: !workspaceOmpConfigured(input.configuration) ? 'model-unconfigured'
-        : localDeepseekConfigured(input.configuration) ? 'configured-unverified' : 'provider-unsupported',
+    const nativeLock = await checkLocalNativeLock({ packageRoot: input.paths.packageRoot, directory: input.directory });
+    preflight = localSessionPreflight(input.configuration, nativeLock);
+    if (input.options.check) return { ...preflight,
       selectedInputs: files.manifest, modelRequests: 0, localFilesReady: true, saved: [],
       plugins: { discovered: selectedPlugins.installed.map(p => p.id), enabled: selectedPlugins.enabled.map(p => p.id) },
-      modelConfiguration: { provider: input.configuration.providerId, model: input.configuration.model,
-        apiKeyPresent: Boolean(input.configuration.apiKey), costPresent: Boolean(input.configuration.cost),
-        remainingBudgetReviewed: input.configuration.remainingBudgetVerified === true },
       providerLimits: localDeepseekConfigured(input.configuration) ? LOCAL_DEEPSEEK_LIMITS : null,
-      ...(localSession ? { localSession: { file: localSession.file, resumed: localSession.resume, modelRequests: 0 } } : {}) };
+      ...(localSession ? { localSession: { file: localSession.file, exists: localSession.resume, resumed: false, modelRequests: 0 } } : {}) };
+    if (!nativeLock.ready) throw Object.assign(Error(nativeLock.reason), { code: nativeLock.reason });
     if (!input.syntheticResponses && !workspaceOmpConfigured(input.configuration)) throw Object.assign(Error('LOCAL_MODEL_COST_AND_BUDGET_REQUIRED'), { code: 'LOCAL_MODEL_COST_AND_BUDGET_REQUIRED' });
     if (!input.syntheticResponses) transport = createLocalDeepseekTransport({ configuration: input.configuration, fetchImpl, onStop: stop });
     if (localSession) try { sessionLock = await fs.open(localSession.file + '.lock', 'wx', 0o600); }
@@ -100,6 +99,7 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
       }
     };
     let taskMessageStart = 0;
+    const { createWorkspaceOmpSession } = await import('../server/workspace-omp-session.mjs');
     created = await createWorkspaceOmpSession({ packageRoot: input.paths.packageRoot, cwd: sessionParent || input.directory,
       agentDir: input.directory + '/agent', sessionDirectory: sessionParent || input.directory + '/sessions', localSession,
       configuration: input.configuration, localFactory: files, providerTransport: transport, syntheticResponses: input.syntheticResponses,
@@ -143,7 +143,8 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
   } catch (error) {
     const reason = /^[A-Z0-9_]+$/.test(error.code || error.message || '') ? error.code || error.message : 'LOCAL_TASK_INCOMPLETE';
     transport?.stop(transport.report().stoppedReason || reason);
-    return { status: 'stopped', reason: transport?.report().stoppedReason || reason,
+    return { ...(preflight ? { environment: preflight.environment, modelStatus: preflight.modelStatus, blockers: preflight.blockers } : {}),
+      status: 'stopped', reason: transport?.report().stoppedReason || reason,
       ...(error.stage?{errorStage:error.stage}:{}),
       ...(['PROJECT_PLUGIN_REQUIRED','WORKSPACE_PLUGIN_REQUIRED'].includes(error.code) ? {
         pluginError: { id:error.pluginId, entry:error.pluginEntry, message:error.message } } : {}),
@@ -192,7 +193,7 @@ export async function main(args = process.argv.slice(2)) {
   }
   if (args.includes('--help')) { console.log(help); return; }
   const result = await runLocalFactory({ options: parseLocalArguments(args), configuration: workspaceOmpConfiguration(process.env) });
-  console.log(JSON.stringify(result)); if (result.status === 'stopped') process.exitCode = 2;
+  console.log(JSON.stringify(result)); if (['stopped', 'environment-unavailable'].includes(result.status)) process.exitCode = 2;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === filename) main().catch(() => {
   console.log(JSON.stringify({ status: 'stopped', reason: 'LOCAL_CONFIGURATION_SELECTION_OR_CLEANUP_REFUSED', modelRequests: null, doNotAutomaticallyRetry: true })); process.exitCode = 2;

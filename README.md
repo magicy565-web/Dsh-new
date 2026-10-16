@@ -29,6 +29,8 @@ npm run workspace -- --input /ABS/product.md --output-dir /ABS/existing-output "
 
 去掉 --check 的实际执行仍需原有显式模型、价格和预算配置。不得因为预览界面成功而推断真实模型或持久恢复已通过。本次云环境拒绝 OMP 原生持久文件锁，持久续聊/恢复回归尚未通过；未删除或替换锁安全机制。
 
+默认 --check 的 offline-preview-ready 只表示固定运行时及插件清单通过；localSessionPrerequisites 单独报告原生锁、当前传入进程配置及阻塞项。锁预检使用同版官方 primitive 做取得、释放、重新取得、释放，不创建 Session 或调用模型。显式本地 --check 在锁不可用时返回 environment-unavailable、退出码 2；实际执行在创建 Session 或调用模型前停止。preflightReady 也不代表持久续聊、恢复、真实模型或预算已验收。已有 JSONL 只标为 exists，不标为已恢复。
+
 ## 插件与旧服务
 
 - 原生插件唯一目录为 plugins/，沿用官方 manifest/extension/skill 加载，无新 AgentLoop、队列或数据库
@@ -38,3 +40,4 @@ npm run workspace -- --input /ABS/product.md --output-dir /ABS/existing-output "
 - 旧服务仅通过 npm run legacy:workspace -- --serve 显式启动；不属于默认原生入口，也不在此次云构建中启动
 
 [本轮范围、命令与验收限制](docs/OMP-UNIFIED-BUILD.md) · [插件说明](plugins/README.md) · [原本地会话说明](docs/WORKSPACE-OMP-LOCAL.md)
+

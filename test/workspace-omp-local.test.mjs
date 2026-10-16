@@ -43,15 +43,18 @@ test('no-Host original OMP reads selected local product, calls existing local fa
 test('local CLI preflight works without any model key, Host or WS credentials and does not invoke a model', {timeout:20000}, async t=>{
   const options=await fixture(t);
   const result=await runLocalFactory({options:{...options,check:true},configuration});
-  assert.equal(result.status,'model-unconfigured');assert.equal(result.localFilesReady,true);assert.equal(result.modelRequests,0);
+  assert.equal(result.modelStatus,'model-unconfigured');assert.equal(result.preflightReady,false);
+  assert.equal(result.status,result.environment.nativeLock.ready?'model-unconfigured':'environment-unavailable');assert.equal(result.localFilesReady,true);assert.equal(result.modelRequests,0);
   const refused=await runLocalFactory({options,configuration});assert.equal(refused.status,'stopped');assert.equal(refused.modelRequests,0);
-  assert.equal(refused.reason,'LOCAL_MODEL_COST_AND_BUDGET_REQUIRED');assert.deepEqual(await fs.readdir(options.outputDirectory),[]);
+  assert.equal(refused.reason,result.environment.nativeLock.ready?'LOCAL_MODEL_COST_AND_BUDGET_REQUIRED':'LOCAL_NATIVE_LOCK_UNAVAILABLE');assert.deepEqual(await fs.readdir(options.outputDirectory),[]);
   const child=spawn('npm',['run','factory:local','--','--input',options.inputs[0],'--output-dir',options.outputDirectory,'--check'],{
     cwd:path.resolve('.'),env:{PATH:process.env.PATH,HOME:options.directory,TMPDIR:options.directory,NO_COLOR:'1'},stdio:['ignore','pipe','pipe']});
   let output='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>output+=d);
-  assert.equal(await new Promise(resolve=>child.once('close',resolve)),0,output);
+  const exit=await new Promise(resolve=>child.once('close',resolve));
   const report=output.split('\n').map(line=>{try{return JSON.parse(line);}catch{return null;}}).find(v=>v?.localFilesReady);
-  assert.equal(report.modelRequests,0);assert.equal(report.status,'model-unconfigured');
+  assert.equal(exit,report.environment.nativeLock.ready?0:2,output);
+  assert.equal(report.modelRequests,0);assert.equal(report.modelStatus,'model-unconfigured');
+  assert.equal(report.status,report.environment.nativeLock.ready?'model-unconfigured':'environment-unavailable');
   assert.throws(()=>parseLocalArguments(['--input','one.md']),/SELECTION/);
   assert.throws(()=>parseLocalArguments(['--input','one.md','--output-dir','.','--execute-anything']),/UNKNOWN/);
 });
@@ -98,17 +101,20 @@ test('DeepSeek local preflight reports provider/model and configuration booleans
   const options={...await fixture(t),check:true};
   const selected={PI_PROVIDER:'deepseek',PI_MODEL:'deepseek-flash'};
   const missing=await runLocalFactory({options,configuration:workspaceOmpConfiguration(selected)});
-  assert.equal(missing.status,'model-unconfigured');assert.equal(missing.modelRequests,0);
+  assert.equal(missing.modelStatus,'model-unconfigured');assert.equal(missing.preflightReady,false);
+  assert.equal(missing.status,missing.environment.nativeLock.ready?'model-unconfigured':'environment-unavailable');assert.equal(missing.modelRequests,0);
   assert.deepEqual(missing.modelConfiguration,{provider:'workspace-deepseek',model:'deepseek-flash',apiKeyPresent:false,costPresent:false,remainingBudgetReviewed:false});
   const configured=await runLocalFactory({options,configuration:workspaceOmpConfiguration({...selected,
     DEEPSEEK_API_KEY:'explicit-synthetic-preflight-only',WORKSPACE_OMP_PROVIDER_COST_JSON:JSON.stringify(DEEPSEEK_PRICES.ompUsdPerMillion),WORKSPACE_OMP_LIVE_BUDGET_VERIFIED:'1'})});
-  assert.equal(configured.status,'configured-unverified');assert.equal(configured.modelRequests,0);
+  assert.equal(configured.modelStatus,'configured-unverified');assert.equal(configured.preflightReady,configured.environment.nativeLock.ready);
+  assert.equal(configured.status,configured.environment.nativeLock.ready?'configured-unverified':'environment-unavailable');assert.equal(configured.modelRequests,0);
   assert.equal(configured.providerLimits.maxRequests,8);assert.equal(configured.providerLimits.maxRequestBytes,128*1024);
   assert.deepEqual(configured.modelConfiguration,{provider:'workspace-deepseek',model:'deepseek-flash',apiKeyPresent:true,costPresent:true,remainingBudgetReviewed:true});
   assert.ok(!JSON.stringify(configured).includes('explicit-synthetic-preflight-only'));assert.deepEqual(await fs.readdir(options.outputDirectory),[]);
   const unsupported=await runLocalFactory({options,configuration:{...workspaceOmpConfiguration({...selected,
     DEEPSEEK_API_KEY:'explicit-synthetic-preflight-only',WORKSPACE_OMP_PROVIDER_COST_JSON:JSON.stringify(DEEPSEEK_PRICES.ompUsdPerMillion),WORKSPACE_OMP_LIVE_BUDGET_VERIFIED:'1'}),model:'unsupported'}});
-  assert.equal(unsupported.status,'provider-unsupported');assert.equal(unsupported.modelRequests,0);assert.equal(unsupported.providerLimits,null);
+  assert.equal(unsupported.modelStatus,'provider-unsupported');assert.equal(unsupported.preflightReady,false);
+  assert.equal(unsupported.status,unsupported.environment.nativeLock.ready?'provider-unsupported':'environment-unavailable');assert.equal(unsupported.modelRequests,0);assert.equal(unsupported.providerLimits,null);
 });
 
 test('natural-language goals create and continue the same original OMP Session without a fixed report workflow', {timeout:30000}, async t=>{

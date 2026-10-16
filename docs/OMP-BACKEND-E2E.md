@@ -66,3 +66,65 @@ Actual external provider calls in this run: **0**. Finite model responses and mo
 ## Evidence handling
 
 Raw TAP and configuration-presence receipts are retained locally under ignored `evidence/backend-*` files. They are not committed. No session JSONL, selected product, draft, local registry, credential, browser handshake, screenshot or runtime artifact is included in this source-only follow-up.
+
+## Native preflight follow-up (2026-10-16 UTC)
+
+This follow-up is based on development HEAD `cae3981d334a98c60eba9f96e27becc4623cf3e5`. It selectively adapts the acquire/release/reacquire preflight from `f929906f675f3784c4c180a4ed1a3b563b948394`; it does not merge that older branch. Changes are limited to the current default check, explicit local-session gate, focused tests and these acceptance notes. Frontend work remains paused.
+
+### What the probe establishes
+
+- The installed `@oh-my-pi/pi-utils@18.10.4/src/file-lock.ts` calls `@oh-my-pi/pi-natives` `FileLock.tryAcquire`. The native Session storage uses that same primitive in `#acquireOsPublishLock`, at `src/session/session-storage.ts:768` in the installed package.
+- The installed source describes Linux locking as abstract Unix sockets, Windows locking as named mutexes and other Unix platforms as `flock(2)`. Calling this Linux failure a `flock` failure would be inaccurate.
+- The actual probe in the tested cloud process returns `ready:false`, `LOCAL_NATIVE_LOCK_UNAVAILABLE`, `phase:acquire`, `errno:1`. It fails before the first lease, so release and reacquire are not reached on this environment. Those phases are covered by explicit stubs.
+- Read-only OS status reports `NoNewPrivs:1`, `Seccomp:2` and zero effective capabilities. A single syscall-trace attempt was refused at `PTRACE_TRACEME` with EPERM; tracing was stopped without escalation or an alternate route. These observations do not identify which syscall or policy rejected the native lock.
+
+No runtime lock was replaced, disabled, emulated or redirected to evade a denial. Temporary probe directories are cleaned, and cleanup failures are themselves sanitized unavailable results. The probe cannot establish cross-process contention safety, actual Session writes, output-filesystem suitability or crash recovery.
+
+### Readiness and exit semantics
+
+- Default `npm run workspace -- --check` retains all 11 plugin inventory entries and reports `offline-preview-ready`, scoped explicitly to `pinned-runtime-and-plugin-manifests-only`. Its zero exit status is an inventory check, not persistent-session acceptance.
+- `localSessionPrerequisites` separately contains native-lock readiness, model configuration status and blockers. Its configuration scope is the environment explicitly supplied to this process; it does not search credential files or accounts. The preview still receives an isolated HOME and no provider configuration.
+- Explicit local `--check` validates selected files, preserves existing Session bytes, does not instantiate/load a Session, and reports `environment-unavailable` with exit 2 when the native lock is unavailable. Existing JSONL is labelled `exists:true`, `resumed:false` because no resume was attempted.
+- Actual local execution, including synthetic fixtures, stops with `LOCAL_NATIVE_LOCK_UNAVAILABLE` before importing/creating the Session, acquiring the local Session sidecar or contacting a model. There is no alternate locking path.
+- `preflightReady:true` means only that the temporary lock probe and existing configuration-presence/admission checks passed. `persistentSessionVerified` and `paidModelVerified` remain false. `configured-unverified` is not live-provider success, current balance verification or new spending authorization.
+
+### Staged acceptance
+
+The original working directory contains 106 uncommitted browser-preview paths, including default-entry and README edits. They were neither changed nor uploaded. Tests for this follow-up use a separate source staging directory: the default entry, preview gate, package manifest and relevant docs were restored from the exact remote HEAD, the backend/test/plugin source hashes were compared against its recursive Git tree, then only the listed preflight changes were applied. The official audited runtime installation is reused; no browser-preview source is part of the exercised execution path. This is validation of the staged affected backend path, not a claim that the mixed original working tree or full 2,839-entry repository was tested.
+
+Passed commands:
+
+```sh
+node --test --test-concurrency=1 test/workspace-omp-local-environment.test.mjs
+# 15/15: lock order, first/reacquire/release failures, package pin, synthetic non-bypass,
+# configuration scope/redaction, existing Session preservation, invalid configuration,
+# cleanup/start/output/timeout failure handling.
+
+node --test --test-concurrency=1 test/workspace-omp-unified.test.mjs test/workspace-omp-local-budget.test.mjs
+# 7/7: default readiness/inventory and prior bounded-admission regressions.
+
+node --test --test-concurrency=1 \
+  --test-name-pattern='local CLI preflight|selection rejects|native local file guards|DeepSeek local preflight|cached read provenance' \
+  test/workspace-omp-local.test.mjs
+# 5/5 selected file/configuration/provenance checks.
+
+node --test --test-concurrency=1 \
+  --test-name-pattern='one natural-language goal|explicit public-only CLI|actual npm positional' \
+  test/workspace-omp-local-entry.test.mjs
+# 3/3 selected parsing/public/archive/CLI preflight checks.
+
+npm run build:omp
+# All 11 plugin packages compile, discover and register; no business tool/model run.
+```
+
+The existing persistent two-turn test was also run unchanged in expectation:
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='default native Session asks first' test/workspace-omp-local-entry.test.mjs
+```
+
+**0/1 passed; still blocked**, now with the precise `LOCAL_NATIVE_LOCK_UNAVAILABLE` receipt, acquire errno 1, zero model requests, zero tool receipts and no saved output. The expected completed persistent turn was not reached. No `--no-session` substitute or skipped test is counted as persistence evidence. Cancellation after a read cannot be validated until a real Session can reach that point, so no unrelated cancellation fixture was added.
+
+### Supported next requirement
+
+The selected cloud execution environment must support the unchanged official native `FileLock.tryAcquire` primitive. Its provider/administrator must supply a supported environment capability or an approved environment change; this source patch does not repair that capability and no security/network setting was changed. Once available, rerun the exact probe, then the persistent two-turn, plugin-removal and reference suites, and add bounded cancellation/restart acceptance. A successful probe alone is insufficient. Real-provider E2E still needs separately reviewed model, price, budget and authorization; this follow-up made **0 external model requests**. Raw receipts/TAP remain local and are excluded from the commit.

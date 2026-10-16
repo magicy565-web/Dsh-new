@@ -28,7 +28,8 @@ test('explicit public-only CLI admits no private inputs or archive and selects t
  const options=parseLocalArguments(args);assert.equal(options.publicOnly,true);assert.equal(options.pluginConfig,'config.free-trade.json');assert.deepEqual(options.inputs,[]);
  for(const extra of [['--input',path.join(f.directory,'product.md')],['--archive-dir',f.directory],['--enterprise','private']])assert.throws(()=>parseLocalArguments([...args,...extra]),/LOCAL_PUBLIC_ONLY_INPUT_REFUSED/);
  const output=await npm(f,[...args,'--check']);const receipt=output.split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}}).find(row=>row.localFilesReady);
- assert.equal(receipt.status,'model-unconfigured');assert.equal(receipt.modelRequests,0);assert.deepEqual(receipt.selectedInputs,[]);assert.deepEqual(await fs.readdir(path.join(f.directory,'out')),[]);
+ assert.equal(receipt.modelStatus,'model-unconfigured');assert.equal(receipt.preflightReady,false);
+ assert.equal(receipt.status,receipt.environment.nativeLock.ready?'model-unconfigured':'environment-unavailable');assert.equal(receipt.modelRequests,0);assert.deepEqual(receipt.selectedInputs,[]);assert.deepEqual(await fs.readdir(path.join(f.directory,'out')),[]);
 });
 test('default native Session asks first, then restores that same Session and can write first using prior source', { timeout: 30000 }, async t => {
   const f = await fixture(t), names = ['read', 'write', 'workspace_factory_capabilities', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare'];
@@ -51,18 +52,22 @@ async function npm(f, args) {
   const child = spawn('npm', ['run', 'factory:local', '--', ...args], { cwd: path.resolve('.'),
     env: { PATH: process.env.PATH, HOME: f.directory, TMPDIR: f.directory, NO_COLOR: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = ''; for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { output += chunk; });
-  assert.equal(await new Promise(resolve => child.once('close', resolve)), 0, output); return output;
+  const exit=await new Promise(resolve => child.once('close', resolve));
+  const receipt=args.includes('--check')?output.split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}}).find(row=>row.localFilesReady):null;
+  assert.equal(exit,receipt?.environment.nativeLock.ready===false?2:0,output); return output;
 }
 test('actual npm positional goal preflight and help need no Host/key and do not create a Session', { timeout: 20000 }, async t => {
   const f = await fixture(t), output = await npm(f, [...f.args, '先看资料并追问，暂不写报告。', '--check']);
   const receipt = output.split('\n').flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; } }).find(r => r.localFilesReady);
-  assert.equal(receipt.status, 'model-unconfigured'); assert.equal(receipt.modelRequests, 0); assert.equal(receipt.localSession.resumed, false);
+  assert.equal(receipt.modelStatus, 'model-unconfigured'); assert.equal(receipt.preflightReady,false);
+  assert.equal(receipt.status,receipt.environment.nativeLock.ready?'model-unconfigured':'environment-unavailable'); assert.equal(receipt.modelRequests, 0); assert.equal(receipt.localSession.resumed, false);
   assert.equal(receipt.localSession.file, path.join(f.directory, 'out/factory-session.jsonl')); assert.deepEqual(await fs.readdir(path.join(f.directory, 'out')), []);
   const archive=path.join(f.directory,'owner-archive');await fs.mkdir(archive,{mode:0o700});
   const ownerArgs=['--output-dir',path.join(f.directory,'out'),'--archive-dir',archive,'--enterprise','enterprise-A','--project','project-one'];
   const ownerOutput=await npm(f,[...ownerArgs,'只查询现有档案。','--check']);
   const ownerReceipt=ownerOutput.split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}}).find(r=>r.localFilesReady);
-  assert.equal(ownerReceipt.status,'model-unconfigured');assert.equal(ownerReceipt.modelRequests,0);assert.deepEqual(ownerReceipt.selectedInputs,[]);
+  assert.equal(ownerReceipt.modelStatus,'model-unconfigured');assert.equal(ownerReceipt.preflightReady,false);
+  assert.equal(ownerReceipt.status,ownerReceipt.environment.nativeLock.ready?'model-unconfigured':'environment-unavailable');assert.equal(ownerReceipt.modelRequests,0);assert.deepEqual(ownerReceipt.selectedInputs,[]);
   assert.deepEqual(await fs.readdir(archive),[]);assert.deepEqual(await fs.readdir(path.join(f.directory,'out')),[]);
   assert.throws(()=>parseLocalArguments(ownerArgs.slice(0,-2)),/LOCAL_REFERENCE_SCOPE_REQUIRED/);
   const help = await npm(f, ['--help']); assert.match(help, /一句话目标/); assert.match(help, /factory-session.jsonl/); assert.match(help, /每条命令执行一个目标后退出/); assert.match(help, /零模型请求/);

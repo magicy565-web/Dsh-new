@@ -9,6 +9,13 @@ test('single default entry verifies native runtime and all plugin states without
   const r=await inspectNativeWorkspace({});
   assert.equal(r.workspaceHttpRequired,false);assert.equal(r.workspaceHostStarted,false);assert.equal(r.wsBindingUsed,false);
   assert.equal(r.modelRequests,0);assert.equal(r.model.status,'unconfigured');assert.equal(r.plugins.length,11);
+  assert.equal(r.status,'offline-preview-ready');assert.equal(r.readinessScope,'pinned-runtime-and-plugin-manifests-only');
+  const local=r.localSessionPrerequisites;
+  assert.equal(local.modelStatus,'model-unconfigured');assert.equal(local.preflightReady,false);
+  assert.equal(local.status,local.environment.nativeLock.ready?'model-unconfigured':'environment-unavailable');
+  assert.equal(local.persistentSessionVerified,false);assert.equal(local.paidModelVerified,false);
+  assert.equal(local.modelRequests,0);assert.equal(local.credentialFilesRead,false);assert.equal(local.selectedFilesChecked,false);
+  assert.equal(local.configurationScope,'supplied-process-environment-only');
   assert.deepEqual(r.plugins.filter(p=>p.enabled).map(p=>p.id),['workspace-local-materials']);
   for(const p of r.plugins.filter(p=>!['workspace-local-materials','workspace-plugin-info'].includes(p.id)))assert.match(p.capability,/unconfigured/);
 });
