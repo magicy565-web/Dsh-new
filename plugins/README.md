@@ -24,6 +24,8 @@ The first seven packages were moved from `packages/` with interfaces preserved; 
 
 Enable by adding `./directory-name` to `extensions`. Disable by removing the enabled path, or retaining it and adding `extension-module:directory-name` (or the exact package name) to `disabledExtensions`. **Disable wins**, including per-invocation `--disable-plugin directory-name` and `--no-plugins`. The bounded host applies this filter before explicit-only OMP loading because OMP explicit-only discovery does not otherwise apply ambient disabled settings. Uninstall by removing the enabled entry and deleting the installed package directory; stale in-root entries never re-create a missing package. Restart/reinvoke to apply configuration; no hot-unload engine is invented. Adding a new compliant package and enabling its declared path requires no Session source edit.
 
+Duplicate tool names across enabled entries fail startup, rather than registering two executors or silently shadowing one. In particular, the historical factory package and the new local package share three public draft tool names: choose one of those two in a local profile. The independent probe and other non-colliding packages can coexist. OMP-injected inline experiment tools are not admitted by this host; only declared, enabled package entry points contribute active tools.
+
 ```sh
 npm run plugins:check                 # source/manifest/entry/dependency/resource checks; zero execution
 npm run plugins:pack-check            # also verify npm pack dry-run closure; no install scripts

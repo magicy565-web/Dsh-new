@@ -1,0 +1,99 @@
+{
+  "baseCommit": "aa6262f14a7252c8a83c57237654623b59811d18",
+  "implementationCheckpoint": "764d8cf994ed83dfdf3967d8100f71315e8bb965",
+  "branch": "codex/local-context-budget-fix-20261016",
+  "migratedBusinessPackages": 7,
+  "newBusinessPackages": 1,
+  "sideEffectFreeProbePackages": 1,
+  "totalNativePackages": 9,
+  "pluginRoot": "plugins",
+  "nativeRuntime": "@oh-my-pi/pi-coding-agent@18.10.4",
+  "defaultEnabled": [
+    "workspace-local-materials"
+  ],
+  "explicitlyDisabled": [
+    "workspace-plugin-info"
+  ],
+  "nativeLifecycle": {
+    "passed": true,
+    "outsideRepoCopy": true,
+    "independentlyLoadedEntries": 9,
+    "normalStopTurns": 8,
+    "mockHttpRequests": 14,
+    "realProviderRequests": 0,
+    "sameNativeSession": true,
+    "disablePriority": true,
+    "restartAndReenable": true,
+    "uninstall": true,
+    "coexistence": true,
+    "oldSourceAndOutputHashesPreserved": true,
+    "ambientOrUndeclaredHookExecuted": false,
+    "hiddenFactoryRegistration": false
+  },
+  "tests": {
+    "localLoaderContextBudget": {
+      "passed": 16,
+      "failed": 0,
+      "files": [
+        "test/workspace-omp-local.test.mjs",
+        "test/workspace-omp-local-budget.test.mjs",
+        "test/workspace-omp-plugins.test.mjs",
+        "test/workspace-omp-context-pairing.test.mjs",
+        "test/workspace-omp-local-context.test.mjs"
+      ],
+      "privateLogSha256": "8e3f9e3d822e48563e26588977513cb39fbcbfd77111a052beddeecb9324813d"
+    },
+    "migratedPackageInterfaces": {
+      "passed": 33,
+      "failed": 0,
+      "files": [
+        "test/pi-procurement-package.test.mjs",
+        "test/factory-materials-package.test.mjs",
+        "test/factory-customers-package.test.mjs",
+        "test/factory-inquiries-package.test.mjs",
+        "test/factory-ingestion-package.test.mjs",
+        "test/market-validation-package.test.mjs",
+        "test/shopify-product-package.test.mjs",
+        "test/factory-plugin-interfaces.test.mjs"
+      ],
+      "privateLogSha256": "f44b1f0cf002dea9084a93b55bba471dd61568eede3cbe38194e8acf54edb102"
+    },
+    "publicDraftParity": {
+      "passed": 1,
+      "failed": 0,
+      "file": "test/workspace-local-draft-parity.test.mjs"
+    },
+    "totalPassed": 50,
+    "totalFailed": 0
+  },
+  "build": {
+    "passed": true,
+    "command": "npm run build",
+    "staticPackClosures": 9,
+    "factoryImportsDuringStaticCheck": 0,
+    "modelRequestsDuringStaticCheck": 0,
+    "privateLogSha256": "8b9930f8ac93834261229622fb7c935c34bd36a6dfad11cbb47489948994230c",
+    "nonBlockingAdvisory": "Existing Vite chunk size advisory"
+  },
+  "limits": {
+    "maxRequestBytes": 131072,
+    "maxMessages": 64,
+    "maxToolSchemas": 32,
+    "maxActualRequestsPerTask": 8,
+    "maxOutputTokensPerRequest": 512,
+    "observedInputContinuationCeiling": 32000,
+    "unconfirmedInputReserve": 1100000,
+    "failureInclusiveTaskUpperCny": 2.680768,
+    "twoTurnGroupStopOnFailureUpperCny": 3.225536
+  },
+  "newPaidRequests": 0,
+  "newSpendCny": 0,
+  "historicalConservativeApiCostCny": 0.074952,
+  "remainingAuthorizationEstimateCny": 4.925048,
+  "realMcpOrShopifyConnectionVerified": false,
+  "credentialsCreated": false,
+  "permissionsExpanded": false,
+  "fullBackendSuiteRun": false,
+  "mainOrDeploymentChanged": false,
+  "rawRuntimeArtifactsCommitted": false
+}

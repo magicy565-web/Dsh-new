@@ -1,6 +1,7 @@
 # @workspace-agent/pi-local-materials maintenance memory
 
 This is committed development knowledge, never runtime/company memory.
+- The public draft subset in src/drafts.mjs is vendored from the existing factory package with a standalone JSON-schema adapter. Keep its behavior in parity with plugins/workspace-procurement/src/factory.mjs; no HTTP/business client portion is vendored.
 - Native manifest: package.json `pi.extensions` / `pi.skills`; original OMP 18.10.4 loader owns execution. No new Agent Loop.
 - Keep tool names, schemas, receipt provenance and authorization boundaries compatible. Skills guide choices, not fixed steps.
 - Standalone code must not import server/* or another repository-only path. Ordinary installation grants no Workspace client, credentials or enterprise permissions.
