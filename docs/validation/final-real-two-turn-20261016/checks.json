@@ -1,0 +1,126 @@
+{
+  "sourceCommit": "09834c10ec653678b76ed015184ecb31953d4b08",
+  "evidenceKind": "real-official-omp-final-two-turn",
+  "syntheticPublicInput": true,
+  "keyNamePresent": true,
+  "priceCheckedOn": "2026-10-16T01:15:18.051Z",
+  "pricesCnyPerMillion": {
+    "input": 2,
+    "output": 8
+  },
+  "historicalConservativeCostCny": 0.05161,
+  "remainingAuthorizationBeforeCny": 4.94839,
+  "admittedTwoTurnWorstUpperCny": 3.225536,
+  "otherModelRuntimes": 0,
+  "priorBillingUncertain": false,
+  "status": "passed",
+  "actualProviderRequests": 3,
+  "confirmedResponses": 3,
+  "billingUncertain": false,
+  "groupConservativeCostCny": 0.023342,
+  "totalConservativeCostCny": 0.074952,
+  "remainingAuthorizationEstimateCny": 4.925048,
+  "requests": [
+    {
+      "turn": 1,
+      "response": 1,
+      "stopReason": "stop",
+      "inputCacheMiss": 707,
+      "cacheRead": 2560,
+      "cacheWrite": 0,
+      "rawInput": 3267,
+      "output": 155,
+      "totalTokens": 3422
+    },
+    {
+      "turn": 2,
+      "response": 1,
+      "stopReason": "toolUse",
+      "inputCacheMiss": 535,
+      "cacheRead": 2944,
+      "cacheWrite": 0,
+      "rawInput": 3479,
+      "output": 113,
+      "totalTokens": 3592
+    },
+    {
+      "turn": 2,
+      "response": 2,
+      "stopReason": "stop",
+      "inputCacheMiss": 297,
+      "cacheRead": 3456,
+      "cacheWrite": 0,
+      "rawInput": 3753,
+      "output": 25,
+      "totalTokens": 3778
+    }
+  ],
+  "sessionId": "01a140cf-08d4-7000-8a17-1788259c7f4d",
+  "sessionShaBefore": "3d7797ddbdabb698405a6d8dbf2bc8119f8f0eb798f530d70082ac5ae2410582",
+  "sessionShaAfter": "df48d36cbca80212e7ea12547fec1c0b967ba05dcb1c77d29c3647f8b027baec",
+  "inputSha256": "cb1f33c7ab3d2f1572b8c714d2e5db3376361565cef1d9a4828a6bf9ac30c505",
+  "turns": [
+    {
+      "number": 1,
+      "status": "completed-local-turn",
+      "normalStop": true,
+      "paidModelVerified": true,
+      "evidenceKind": "official-omp-local-files",
+      "modelRequests": 1,
+      "actualProviderRequests": 1,
+      "confirmedResponses": 1,
+      "billingUncertain": false,
+      "elapsedMs": 3567,
+      "nativeHistoryAppendOnly": true,
+      "userTurnsAfter": 4,
+      "oldOutputsUnchanged": true,
+      "sessionId": "01a140cf-08d4-7000-8a17-1788259c7f4d",
+      "resumed": true,
+      "sessionShaBefore": "3d7797ddbdabb698405a6d8dbf2bc8119f8f0eb798f530d70082ac5ae2410582",
+      "sessionShaAfter": "6b55f5fd4a749f590d0c32789c808df091e4fccfb772dc0c7a4334bc4531b478",
+      "tools": [],
+      "files": []
+    },
+    {
+      "number": 2,
+      "status": "saved-local-drafts",
+      "normalStop": true,
+      "paidModelVerified": true,
+      "evidenceKind": "official-omp-local-files",
+      "modelRequests": 2,
+      "actualProviderRequests": 2,
+      "confirmedResponses": 2,
+      "billingUncertain": false,
+      "elapsedMs": 4714,
+      "nativeHistoryAppendOnly": true,
+      "userTurnsAfter": 5,
+      "oldOutputsUnchanged": true,
+      "sessionId": "01a140cf-08d4-7000-8a17-1788259c7f4d",
+      "resumed": true,
+      "sessionShaBefore": "6b55f5fd4a749f590d0c32789c808df091e4fccfb772dc0c7a4334bc4531b478",
+      "sessionShaAfter": "df48d36cbca80212e7ea12547fec1c0b967ba05dcb1c77d29c3647f8b027baec",
+      "tools": [
+        {
+          "name": "write",
+          "isError": false,
+          "argumentValidation": "sdk-and-executor-accepted"
+        }
+      ],
+      "files": [
+        {
+          "name": "short-intro-final.md",
+          "sha256": "617badcf7eab723e75b097f1f15c55126c23e4b526ee028370f17e64a96e79c8",
+          "receiptShaMatches": true,
+          "bytes": 453,
+          "sourceShaMatches": true
+        }
+      ]
+    }
+  ],
+  "originalFailureReclassified": false,
+  "rawOutputsCommitted": false,
+  "fullSuiteOrBuildRun": false,
+  "mainOrDeploymentChanged": false,
+  "credentialsChanged": false,
+  "businessFunctionalityExpanded": false
+}
