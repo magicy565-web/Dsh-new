@@ -11,10 +11,10 @@ const fixed={plugin:'workspace-enterprise-context-oss',visibility:'internal',can
 const assetOf=input=>({artifactId:input.artifactId,version:input.version,sha256:input.sha256});
 export function assertEnterpriseContextHost(value){if(!brands.has(value))fail('OSS_ORIGINAL_HOST_REQUIRED');}
 export async function createEnterpriseContextSessionBinding({identity,access,instanceId,sessionClient,libraryModelRead,artifacts,store,
-  recipient:rawRecipient,selection,connection={},authorizeParserTransfer,clock=Date.now}={}){
+  recipient:rawRecipient,selection,connection={},authorizeParserTransfer,memoryLedger=null,turnContext=null,clock=Date.now}={}){
  if(access?.mode!=='enterprise'||!identity?.sessionId||!sessionClient?.readOnlySession||!instanceId)fail('OSS_ORIGINAL_HOST_REQUIRED');
  if(selection?.enabled!==true||selection.reviewed!==true||typeof selection.customerId!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(selection.customerId)
-  ||Object.keys(selection).some(key=>!['enabled','reviewed','customerId','sources'].includes(key))||!Array.isArray(selection.sources)||!selection.sources.length||selection.sources.length>8)fail('OSS_ORIGINAL_SELECTION_REQUIRED');
+  ||Object.keys(selection).some(key=>!['enabled','reviewed','customerId','sources','allowMemoryRead','allowMemoryWrite'].includes(key))||['allowMemoryRead','allowMemoryWrite'].some(k=>selection[k]!==undefined&&typeof selection[k]!=='boolean')||!Array.isArray(selection.sources)||!selection.sources.length||selection.sources.length>8)fail('OSS_ORIGINAL_SELECTION_REQUIRED');
  const selected=structuredClone(selection),recipient=normalizeLibraryRecipient(rawRecipient),recipientHash=hash(recipient);
  async function current(model,signal){
   signal?.throwIfAborted();if(hash(libraryRecipientForModel(model))!==recipientHash)fail('OSS_MODEL_RECEIVER_CHANGED');
@@ -44,10 +44,57 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
  const parserRecipient=docling?Object.freeze({kind:'docling',destination:new URL('/v1/convert/file',connection.baseURL).href}):null;
  const scopeHash=hash({instanceId,sessionId:identity.sessionId,workspaceId:identity.workspaceId,subject:identity.subject,selection:selected,recipient,
   libraryScope:authority?.authorization.scopeFingerprint||'unconfigured',doclingOrigin:docling?new URL(connection.baseURL).origin:null,parserRecipient,parserPurpose,parserTransfer});
- const binding={scopeHash,describe:()=>({scopeHash,configured:Boolean(docling&&authority)}),open(nativeSessionId){
+ const memoryMethods=memoryLedger&&docling&&authority?['structuredMemoryLookup','structuredMemoryRemember'].filter(method=>selected[method==='structuredMemoryLookup'?'allowMemoryRead':'allowMemoryWrite']===true):[];
+ const binding={scopeHash,memoryMethods,describe:()=>({scopeHash,configured:Boolean(docling&&authority),memoryMethods}),open(nativeSessionId,turn=turnContext){
   if(typeof nativeSessionId!=='string'||!nativeSessionId)fail('OSS_NATIVE_SESSION_REQUIRED');
   const observed=new Map();let conversions=0;
   const key=proof=>hash(proof);
+  const actor={subject:identity.subject,role:identity.role,workspaceId:identity.workspaceId};
+  function turnCurrent(){
+   const state=store.read(),run=state.runs.find(row=>row.id===turn?.runId),conversation=state.conversations.find(row=>row.id===turn?.conversationId);
+   if(!turn||run?.status!=='running'||run.conversationId!==conversation?.id||conversation.activeRunId!==run.id
+    ||run.requestId!==turn.requestId||run.businessAgentContext?.sessionId!==identity.sessionId
+    ||run.businessAgentContext?.role!==identity.role||conversation.businessAgentOwner?.subject!==identity.subject||conversation.businessAgentOwner?.workspaceId!==identity.workspaceId
+    ||run.businessAgentContext?.subject!==identity.subject||run.businessAgentContext?.workspaceId!==identity.workspaceId)fail('OSS_ORIGINAL_RUN_CHANGED');
+  }
+  function safe(value){assertNoKnownCredentialEcho(value,[connection.apiKey]);if(looksLikeCredential(JSON.stringify(value)))fail('OSS_CACHED_CONTEXT_CREDENTIAL');}
+  function memoryMac(value){return createHmac('sha256',connection.apiKey).update('enterprise-private-screen-v1\0'+hash(value)).digest('hex');}
+  function sealMemory(value){safe(value);return {policy:'known-docling-credential-v1',mac:memoryMac(value)};}
+  function checkMemory(memory){
+   const row=memoryLedger.revalidateSnapshot(memory,{actor});
+   const {credentialScreening,...source}=memory.source;
+   const scope=Object.fromEntries(['workspaceId','audience','customerId','subjectType','subjectId','factKey'].map(k=>[k,memory[k]]));
+   const value={statement:memory.statement,source,scope};
+   if(credentialScreening?.policy!=='known-docling-credential-v1'||!/^[a-f0-9]{64}$/.test(credentialScreening.mac||'')
+    ||!timingSafeEqual(Buffer.from(credentialScreening.mac,'hex'),Buffer.from(memoryMac(value),'hex')))fail('OSS_PRIVATE_CREDENTIAL_SCREEN_REQUIRED');
+   safe(memory);
+   const expected=selected.sources.map(pin=>({kind:'document',ref:pin.documentId,revision:sourceFor(pin.asset).revision,version:sourceFor(pin.asset).documentVersion,sha256:pin.asset.sha256,artifactId:pin.asset.artifactId,artifactVersion:pin.asset.version}));
+   if(hash(memory.source.dependencies)!==hash(expected))fail('OSS_MEMORY_SOURCE_REVOKED');
+   return row;
+  }
+  function queryOf(input){
+   if(!input||['subjectType','subjectId','factKey'].some(k=>typeof input[k]!=='string'||!/^[A-Za-z0-9._@:+|/-]{1,128}$/.test(input[k])))fail('OSS_STRUCTURED_MEMORY_INPUT_INVALID');
+   return Object.fromEntries(['subjectType','subjectId','factKey'].map(k=>[k,input[k]]));
+  }
+  function memoryProofMac(proof){const {credentialScreening,...payload}=proof;return createHmac('sha256',connection.apiKey).update('workspace-structured-memory-screen-v1\0'+hash(payload)).digest('hex');}
+  function checkMemoryProof(proof){
+   if(!memoryMethods.length||proof.scopeHash!==scopeHash||proof.nativeSessionId!==nativeSessionId||!['structuredMemoryLookup','structuredMemoryRemember'].includes(proof.operation))fail('OSS_PRIVATE_RECEIPT_REFUSED');
+   queryOf(proof.query);
+   if(proof.credentialScreening?.policy!=='known-docling-credential-v1'||!/^[a-f0-9]{64}$/.test(proof.credentialScreening.mac||'')
+    ||!timingSafeEqual(Buffer.from(proof.credentialScreening.mac,'hex'),Buffer.from(memoryProofMac(proof),'hex')))fail('OSS_PRIVATE_CREDENTIAL_SCREEN_REQUIRED');
+   if(proof.memory){if(Object.entries(proof.query).some(([k,v])=>proof.memory[k]!==v))fail('OSS_PRIVATE_RECEIPT_REFUSED');checkMemory(proof.memory);}
+  }
+  function observe(proof){
+   if(proof.kind==='memory')for(const [id,old]of observed)if(id!==key(proof)&&old.kind==='memory'&&hash(old.query)===hash(proof.query))observed.delete(id);
+   if(!observed.has(key(proof))&&observed.size>=8)fail('OSS_PRIVATE_RECEIPT_LIMIT');observed.set(key(proof),proof);
+  }
+  function mintMemory(result,query,operation,statement){
+   safe(result);if(result.memory)checkMemory(result.memory);
+   const body={...result,...fixed,operation,memoryQuery:query};
+   const sources=selected.sources.map(pin=>{const source=sourceFor(pin.asset);return {documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset:pin.asset};});
+   const proof={kind:'memory',operation,query,...(statement===undefined?{}:{statement}),memory:result.memory||null,source:sources[0],sources,bodyHash:hash(body),scopeHash,nativeSessionId};
+   proof.credentialScreening={policy:'known-docling-credential-v1',mac:memoryProofMac(proof)};observe(proof);return {...body,authorization:proof};
+  }
   async function sourceCurrent(asset,signal,receiver,{bytes=false}={}){
    await current(receiver,signal);const grant=sourceFor(asset,signal);
    if(grant.authorization.scopeFingerprint!==authority?.authorization.scopeFingerprint)fail('OSS_LIBRARY_SCOPE_CHANGED');
@@ -139,28 +186,77 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
    },
    verifyBody(proof,receipt){const {authorization,...body}=receipt||{};
     assertNoKnownCredentialEcho(body,[connection.apiKey]);
+    if(proof?.kind==='memory'){
+     checkMemoryProof(proof);if(hash(authorization)!==hash(proof)||hash(body)!==proof.bodyHash||hash(body.memory||null)!==hash(proof.memory)||hash(body.memoryQuery)!==hash(proof.query)||body.operation!==proof.operation)fail('OSS_PRIVATE_CACHED_BODY_CHANGED');return;
+    }
     const sources=proofSources(proof),disclosed=proof.kind==='status'?body.sources:[body.source];
     if(hash(authorization)!==hash(proof)||hash(body)!==proof.bodyHash||hash(disclosed)!==hash(sources)
      ||hash(body.source)!==hash(proof.source))fail('OSS_PRIVATE_CACHED_BODY_CHANGED');
    },
    async check(proof,signal,receiver){
-    if(proof?.scopeHash!==scopeHash||proof.nativeSessionId!==nativeSessionId||!['parse','status'].includes(proof.kind)||!/^[a-f0-9]{64}$/.test(proof.bodyHash||''))fail('OSS_PRIVATE_RECEIPT_REFUSED');
+    if(proof?.scopeHash!==scopeHash||proof.nativeSessionId!==nativeSessionId||!['parse','status','memory'].includes(proof.kind)||!/^[a-f0-9]{64}$/.test(proof.bodyHash||''))fail('OSS_PRIVATE_RECEIPT_REFUSED');
+    if(proof.kind==='memory')checkMemoryProof(proof);
     assertScreened(proof);
     for(const pin of proofSources(proof)){
      const source=await sourceCurrent(pin?.asset,signal,receiver,{bytes:true});
      if(hash({documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset:pin.asset})!==hash(pin))fail('OSS_SOURCE_VERSION_CHANGED');
      if(proof.kind==='parse')await checkParserGrant('parse.reuse',pin.asset,signal,receiver);
     }
-    if(!observed.has(key(proof))&&observed.size>=8)fail('OSS_PRIVATE_RECEIPT_LIMIT');observed.set(key(proof),proof);
+    observe(proof);
    },
-   async finalCheck(signal,receiver){await control.authorizeContext(signal,receiver);for(const proof of observed.values())await control.check(proof,signal,receiver);},
+   async structuredMemoryLookup(input,signal,receiver){
+    if(!memoryMethods.includes('structuredMemoryLookup'))fail('OSS_STRUCTURED_MEMORY_NOT_AUTHORIZED');
+    await control.authorizeContext(signal,receiver);turnCurrent();const query=queryOf(input);
+    const result=await memoryLedger.lookup({audience:'internal',...query},{actor,signal});
+    await control.authorizeContext(signal,receiver);turnCurrent();return mintMemory(result,query,'structuredMemoryLookup');
+   },
+   async structuredMemoryRemember(input,signal,receiver){
+    if(!memoryMethods.includes('structuredMemoryRemember'))fail('OSS_STRUCTURED_MEMORY_WRITE_NOT_AUTHORIZED');
+    await control.authorizeContext(signal,receiver);turnCurrent();const query=queryOf(input);
+    if(typeof input.statement!=='string'||!input.statement.trim()||input.statement.length>4000)fail('OSS_STRUCTURED_MEMORY_INPUT_INVALID');safe(input);
+    const sourceDependencies=selected.sources.map(pin=>{const source=sourceFor(pin.asset,signal);return {kind:'document',ref:pin.documentId,revision:source.revision,version:source.documentVersion,sha256:pin.asset.sha256,artifactId:pin.asset.artifactId,artifactVersion:pin.asset.version};});
+    const result=await memoryLedger.rememberFromConversationTurn({requestId:'memory:'+hash([turn.requestId,query,input.statement]).slice(0,48),audience:'internal',...query,statement:input.statement},actor,{conversationId:turn.conversationId,runId:turn.runId,sourceDependencies,screenSource:sealMemory,assertCurrent:()=>{turnCurrent();control.assertDisclosureCurrent({messages:[],context:[]},receiver,signal);}});
+    await control.authorizeContext(signal,receiver);turnCurrent();return mintMemory(result,query,'structuredMemoryRemember',input.statement);
+   },
+   async refresh(proof,signal,receiver){
+    if(proof?.kind!=='memory')fail('OSS_PRIVATE_RECEIPT_REFUSED');await control.check(proof,signal,receiver);turnCurrent();
+    const result=await memoryLedger.lookup({audience:'internal',...proof.query},{actor,signal});
+    if(proof.memory&&!result.found)fail('OSS_MEMORY_SOURCE_REVOKED');return mintMemory(result,proof.query,proof.operation,proof.statement);
+   },
+   async authorizeDisclosure(payload,signal,receiver){await control.authorizeContext(signal,receiver);return control.assertDisclosureCurrent(payload,receiver,signal);},
+   assertDisclosureCurrent(payload,receiver,signal){
+    signal?.throwIfAborted();safe(payload);
+    const live=access.nativeSessionById(identity.sessionId);
+    if(!live||live.subject!==identity.subject||live.role!==identity.role||live.workspaceId!==identity.workspaceId||hash(libraryRecipientForModel(receiver))!==recipientHash)fail('OSS_SESSION_REVOKED');
+    if(authority)for(const pin of selected.sources){const source=sourceFor(pin.asset,signal);if(source.authorization.scopeFingerprint!==authority.authorization.scopeFingerprint)fail('OSS_LIBRARY_SCOPE_CHANGED');}
+    if(memoryMethods.length)turnCurrent();
+    for(const [messages,isContext]of [[payload.messages,false],[payload.context,true]])for(const message of messages||[]){
+     if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_enterprise_context_')||message.isError)continue;
+     const receipt=message.details,proof=receipt?.authorization;
+     if(!proof||message.content?.length!==1||message.content[0].text!==JSON.stringify(receipt))fail('OSS_PRIVATE_HISTORY_REFUSED');
+     const operation=proof.kind==='parse'?'parseUpload':proof.kind==='status'?'status':proof.kind==='memory'?proof.operation:null;
+     if(!operation||proof.scopeHash!==scopeHash||proof.nativeSessionId!==nativeSessionId
+      ||message.toolName!=='workspace_enterprise_context_'+operation.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()))fail('OSS_PRIVATE_RECEIPT_REFUSED');
+     control.verifyBody(proof,receipt);
+     if(proof.kind==='parse')assertScreened(proof);
+     for(const source of proofSources(proof)){const current=sourceFor(source.asset,signal);if(hash({documentId:current.documentId,revision:current.revision,documentVersion:current.documentVersion,asset:source.asset})!==hash(source))fail('OSS_SOURCE_VERSION_CHANGED');}
+     if(isContext&&proof.kind==='memory'){
+      const current=proof.memory?checkMemory(proof.memory):null;
+      if(current&&(current.status!=='active'||hash(current)!==hash(proof.memory)))fail('OSS_CACHE_RECEIPT_CHANGED');
+      if(!current&&store.read().businessLibrary.enterpriseMemories.some(row=>row.status==='active'&&row.audience==='internal'&&Object.entries(proof.query).every(([k,v])=>row[k]===v)))fail('OSS_CACHE_RECEIPT_CHANGED');
+     }
+    }
+    return true;
+   },
+   async finalCheck(signal,receiver){await control.authorizeContext(signal,receiver);for(const proof of observed.values())await control.check(proof,signal,receiver);control.assertDisclosureCurrent({messages:[],context:[]},receiver,signal);for(const proof of observed.values())if(proof.kind==='memory'&&proof.memory){const row=checkMemory(proof.memory);if(row.status!=='active'||hash(row)!==hash(proof.memory))fail('OSS_CACHE_RECEIPT_CHANGED');}},
   };return Object.freeze(control);
  }};brands.add(binding);return Object.freeze(binding);
 }
 export function enterpriseContextHostFromRpc(descriptor,request){
  if(!/^[a-f0-9]{64}$/.test(descriptor?.scopeHash||'')||typeof request!=='function')fail('OSS_ORIGINAL_HOST_REQUIRED');
- const binding={scopeHash:descriptor.scopeHash,open(nativeSessionId){const call=(method,args,signal)=>request('enterpriseContext',[nativeSessionId,method,args],signal);
-  return {...Object.fromEntries(['status','memorySearch','memoryAdd','memoryHistory','parseUpload'].map(method=>[method,(input,signal,model)=>call(method,[input,model],signal)])),
+ const binding={scopeHash:descriptor.scopeHash,memoryMethods:descriptor.memoryMethods||[],open(nativeSessionId){const call=(method,args,signal)=>request('enterpriseContext',[nativeSessionId,method,args],signal);
+  return {...Object.fromEntries(['status','memorySearch','memoryAdd','memoryHistory','parseUpload','structuredMemoryLookup','structuredMemoryRemember'].map(method=>[method,(input,signal,model)=>call(method,[input,model],signal)])),
+   refresh:(proof,signal,model)=>call('refresh',[proof,model],signal),authorizeDisclosure:(payload,signal,model)=>call('authorizeDisclosure',[payload,model],signal),
    authorizeContext:(signal,model)=>call('authorizeContext',[model],signal),check:(proof,signal,model)=>call('check',[proof,model],signal),verifyBody:(proof,receipt)=>call('verifyBody',[proof,receipt])};
  }};brands.add(binding);return Object.freeze(binding);
 }

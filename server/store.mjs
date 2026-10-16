@@ -19,7 +19,7 @@ const abandonedWriteName = /^workspace\.(?:json|v[12]\.backup\.json)\.[a-f0-9]{8
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 const iso = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
 const freshCapabilities = () => ({ version: 1, ...Object.fromEntries(capabilityCollections.map(key => [key, []])) });
-const freshBusinessLibrary = time => ({ version: 1, company: { id: 'company', revision: 1, legalName: '', displayName: '', description: '', createdAt: time, updatedAt: time }, products: [], documents: [], operations: [], conversationReferences: [] });
+const freshBusinessLibrary = time => ({ version: 1, company: { id: 'company', revision: 1, legalName: '', displayName: '', description: '', createdAt: time, updatedAt: time }, products: [], documents: [], operations: [], conversationReferences: [], disclosureGrants: [], enterpriseMemories: [] });
 const fresh = () => {
   const time = new Date().toISOString();
   return { version: STORE_VERSION, meta: { sequence: 0, createdAt: time, updatedAt: time }, ...Object.fromEntries([...baseCollections, 'runs', 'artifacts'].map(key => [key, []])), capabilities: freshCapabilities(), businessLibrary: freshBusinessLibrary(time), settings: { ...defaultSettings } };
@@ -371,6 +371,8 @@ export async function openStore(directory) {
       // Earlier v3 snapshots remain valid without rewriting them on startup.
       // The first reference edit creates this optional collection in its own transaction.
       result.businessLibrary.conversationReferences ??= [];
+      result.businessLibrary.disclosureGrants ??= [];
+      result.businessLibrary.enterpriseMemories ??= [];
       return result;
     },
     diagnostics: () => structuredClone({ state: closed ? 'closed' : poisoned ? 'writes-stopped' : 'open', schemaVersion: STORE_VERSION, supportedVersions: [...SUPPORTED_STORE_VERSIONS], startup, migrationBackup: backupStatuses[0], migrationBackups: backupStatuses, durability: poisoned ? 'uncertain' : 'confirmed', sequence: state.meta.sequence, warnings }),

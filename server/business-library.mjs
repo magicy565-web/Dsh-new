@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { ApiError } from './runtime.mjs';
 import { validateJson } from './store.mjs';
+import { validateDisclosureGrant } from './enterprise-disclosure-policy.mjs';
+import { validateEnterpriseMemory } from './enterprise-memory-ledger.mjs';
 
 const fail = (code, message, status = 400) => { throw new ApiError(status, code, message); };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
@@ -129,7 +131,7 @@ function checkProductLinks(state, item) {
 }
 function validatePersistedLibrary(state) {
   const lib = library(state);
-  fields(lib, ['version', 'company', 'products', 'documents', 'operations', 'conversationReferences'], 'stored library');
+  fields(lib, ['version', 'company', 'products', 'documents', 'operations', 'conversationReferences', 'disclosureGrants', 'enterpriseMemories'], 'stored library');
   fields(lib.company, ['id', 'revision', 'legalName', 'displayName', 'description', 'createdAt', 'updatedAt'], 'stored company');
   for (const key of ['legalName', 'displayName', 'description']) text(lib.company[key], key, key === 'description' ? 16000 : 300);
   const timestamps = entity => {
@@ -173,6 +175,16 @@ function validatePersistedLibrary(state) {
     if (!conversationId(binding.conversationId)) fail('INVALID_INPUT', 'Invalid original conversation identity.'); integer(binding.revision, 'reference revision');
     if (binding.id !== binding.conversationId || !Number.isFinite(Date.parse(binding.updatedAt))) fail('INVALID_INPUT', 'Invalid stored conversation references.');
     referenceSelection({ products: binding.products, documents: binding.documents });
+  }
+  if (lib.disclosureGrants !== undefined) {
+    for (const grant of array(lib.disclosureGrants, 'stored disclosure grants', 5000)) {
+      try { validateDisclosureGrant(grant); } catch { fail('INVALID_INPUT', 'Invalid stored disclosure grant.'); }
+    }
+  }
+  if (lib.enterpriseMemories !== undefined) {
+    for (const memory of array(lib.enterpriseMemories, 'stored enterprise memories', 10000)) {
+      try { validateEnterpriseMemory(memory); } catch { fail('INVALID_INPUT', 'Invalid stored enterprise memory.'); }
+    }
   }
 }
 function referenceSelection(value) {

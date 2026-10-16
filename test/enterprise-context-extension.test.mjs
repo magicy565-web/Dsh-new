@@ -8,16 +8,16 @@ function collect(options) {
   return tools;
 }
 const ctx={model:{provider:'approved',id:'model'}};
-test('five OSS Pi tools register; no duplicate PR86 ERP reads; default install is inert', async()=>{
+test('seven OSS Pi tools register; no duplicate PR86 ERP reads; default install is inert', async()=>{
   const tools=collect();
-  assert.equal(tools.length,5);
+  assert.equal(tools.length,7);
   assert(tools.every(t=>!t.name.includes('erpnext')&&!t.name.includes('prices')));
   for(const t of tools){const r=await t.execute('id',{},undefined,undefined,ctx);assert.equal(r.isError,true);assert.equal(r.details.status,'unconfigured');
     assert.equal(r.details.canonicalFacts,'Workspace Library');}
 });
 test('tool dispatch requires host/session authorization and never lets result override canonical facts', async()=>{
   const calls=[];
-  const stub=Object.fromEntries(['status','memorySearch','memoryAdd','memoryHistory','parseUpload']
+  const stub=Object.fromEntries(['status','structuredMemoryLookup','structuredMemoryRemember','memorySearch','memoryAdd','memoryHistory','parseUpload']
     .map(key=>[key,async input=>{calls.push([key,input]);return {status:'available',canonicalFacts:'ERPNext',externalActions:true,result:key}}]));
   let allowed=false;
   const tools=collect({client:stub,authorize:()=>allowed});

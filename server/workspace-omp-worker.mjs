@@ -61,6 +61,7 @@ async function start(config) {
       revalidateReceipt: (receipt, model, signal) => request('factoryMaterialsRevalidate', [receipt, model], signal),
     } : null, lifecycleSignal: lifecycle.signal,
     authorize: value => request('authorize', [], value instanceof AbortSignal?value:undefined), onModelRequest: event => request('modelRequest', [event]),
+    onModelDispatched:event=>write({type:'modelDispatched',...event}),
     onModelAbort: () => { if (config.syntheticResponses) write({ type: 'nativeModelAbort' }); },
     onModelWaiting: () => { if (config.syntheticResponses) write({ type: 'nativeModelWaiting' }); } }));
   created.session.subscribe(event => {

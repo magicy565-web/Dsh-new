@@ -64,7 +64,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
       return await new Promise((resolve, reject) => {
         const child = spawn(paths.bun, [path.join(root, 'server/workspace-omp-worker.mjs')], { cwd: isolationDirectory, env: childEnv, detached: true, stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
         onWorkerLifecycle({ phase: 'spawn', pid: child.pid });
-        const channel = child.stdio[3]; let settled = false, bytes = 0, modelCalls = 0, childClosed = false, cleanupComplete = false, pendingResult = null, resultVerified = false;
+        const channel = child.stdio[3]; let settled = false, bytes = 0, modelCalls = 0, preparedCalls=0, permittedCall=0, childClosed = false, cleanupComplete = false, pendingResult = null, resultVerified = false;
         const lines = createInterface({ input: channel, crlfDelay: Infinity });
         const send = value => { if (!channel.destroyed) channel.write(JSON.stringify(value) + '\n'); };
         let terminateTimer, killTimer;
@@ -102,19 +102,21 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               if (message.method === 'authorize') result = true;
               else if (message.method === 'saveSession') {
                 result = await saveSession(message.args[0]);
-                if(enterpriseContext&&!enterpriseControl){enterpriseNativeId=message.args[0].agentSessionId;enterpriseControl=enterpriseContextHost.open(enterpriseNativeId);}
+                if(enterpriseContext&&!enterpriseControl){enterpriseNativeId=message.args[0].agentSessionId;enterpriseControl=enterpriseContextHost.open(enterpriseNativeId,{conversationId:input.conversationId,runId:run.id,requestId:run.requestId});}
                 if(enterpriseContext&&enterpriseNativeId!==message.args[0].agentSessionId)throw Error('Original native Session required.');
               }
-              else if (message.method === 'modelRequest') { if (++modelCalls > 4) throw new Error('Original model request bound exceeded.'); await input.onEvent?.({ type: 'pi.agent-session.request', engine: 'omp' }); result = true; }
+              else if (message.method === 'modelRequest') { if(enterpriseContext){if(++preparedCalls>4||message.args?.[0]?.modelCalls!==preparedCalls)throw Error('Original model request bound exceeded.');await input.onEvent?.({type:'pi.agent-session.admission',engine:'omp'});}else{if(++modelCalls>4)throw Error('Original model request bound exceeded.');await input.onEvent?.({type:'pi.agent-session.request',engine:'omp'});}result=true; }
               else if(enterpriseContext&&message.method==='enterpriseContext'){
                 const [nativeId,method,args=[]]=message.args||[];
                 if(typeof nativeId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(nativeId)||!Array.isArray(args)||args.length>2
                   ||enterpriseNativeId&&nativeId!==enterpriseNativeId||savedSession&&savedSession.agentSessionId!==nativeId)throw Error('Original native Session required.');
-                if(!enterpriseControl){enterpriseNativeId=nativeId;enterpriseControl=enterpriseContextHost.open(nativeId);}
-                if(method==='authorizeContext')result=await enterpriseControl.authorizeContext(rpcSignal,args[0]);
+                if(!enterpriseControl){enterpriseNativeId=nativeId;enterpriseControl=enterpriseContextHost.open(nativeId,{conversationId:input.conversationId,runId:run.id,requestId:run.requestId});}
+                if(method==='authorizeDisclosure'){if(args[0]?.modelCalls!==preparedCalls)throw Error('OSS_FINAL_DISCLOSURE_REQUIRED');result=enterpriseControl.assertDisclosureCurrent(args[0],args[1],rpcSignal);permittedCall=preparedCalls;}
+                else if(method==='refresh')result=await enterpriseControl.refresh(args[0],rpcSignal,args[1]);
+                else if(method==='authorizeContext')result=await enterpriseControl.authorizeContext(rpcSignal,args[0]);
                 else if(method==='check'){if(syntheticResponses)onWorkerLifecycle({phase:'enterpriseSourceCheck'});result=await enterpriseControl.check(args[0],rpcSignal,args[1]);}
                 else if(method==='verifyBody')result=await enterpriseControl.verifyBody(args[0],args[1]);
-                else if(['status','memorySearch','memoryAdd','memoryHistory','parseUpload'].includes(method))result=await enterpriseControl[method](args[0],rpcSignal,args[1]);
+                else if(['status','memorySearch','memoryAdd','memoryHistory','parseUpload','structuredMemoryLookup','structuredMemoryRemember'].includes(method))result=await enterpriseControl[method](args[0],rpcSignal,args[1]);
                 else throw Error('Original enterprise-context capability required.');
               }
               else if(freeTrade&&message.method==='freeTrade'){
@@ -193,6 +195,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 ...(codes.includes(error.code)||enterpriseContext&&/^(?:OSS|DOCLING)_[A-Z0-9_]+$/.test(error.code||'')||freeTrade&&(/^FREE_TRADE_[A-Z0-9_]+$/.test(error.code||'')||['ERP_REVIEWED_CONNECTION_REQUIRED','SAM_API_KEY_REQUIRED','ORIGINAL_AUTHORIZATION_REFUSED','REMOTE_AUTHORIZATION_REFUSED','ERP_RECORD_MISMATCH','ERP_FIELD_SHAPE_INVALID','NETWORK_UNAVAILABLE','REQUEST_TIMEOUT','SECRET_ECHO_REFUSED'].includes(error.code)) ? { errorCode: error.code } : {}),
                 ...([400, 401, 403, 404, 409, 503].includes(error.status)||freeTrade&&['blocked','unavailable','unconfigured'].includes(error.status) ? { status: error.status } : {}) });
             } finally { operations.delete(message.id); }
+          } else if(message.type==='modelDispatched'&&enterpriseContext){if(message.modelCalls!==permittedCall||message.modelCalls!==modelCalls+1)throw Error('OSS_FINAL_DISCLOSURE_REQUIRED');modelCalls++;await input.onEvent?.({type:'pi.agent-session.request',engine:'omp'});
           } else if (message.type === 'event') {
             const event = message.event;
             if (typeof event?.toolName === 'string' && event.toolName.startsWith('workspace_')) await input.onEvent?.({

@@ -37,7 +37,7 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 }
 
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null, localSession = null,
-  configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
+  configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {},
   maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {}, referenceFence, enterpriseContextHost = null, freeTradeHost = null, publicTenderClient = null,
   factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
@@ -207,7 +207,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     }
     return monitorSnapshots;
   }
-  let modelCalls = 0; const completedUsage = new Map();
+  let modelCalls = 0, preparedCalls=0; const completedUsage = new Map();
   const customApi = uiOnly ? 'workspace-omp-ui-only-disabled' : syntheticResponses ? 'workspace-omp-explicit-faux' : 'workspace-omp-pinned-openai';
   const buildSynthetic = (spec, model, callNumber, context) => {
     let args = spec.arguments || {};
@@ -283,19 +283,30 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         // Fail stale private sources before recording/reserving another model
         // request. Recheck below after the host request hook closes its race.
         if(scopedHost)await authorize({phase:'model:prepare'});
-        const callNumber = ++modelCalls;
+        const callNumber = enterpriseContextHost?++preparedCalls:++modelCalls;
         if (callNumber > maxModelCalls || model.provider !== configuration.providerId || model.id !== configuration.model || model.baseUrl !== configuration.baseUrl)
           throw new Error('The original admitted request count or pinned OMP receiver changed.');
         await onModelRequest({ modelCalls: callNumber });
         const signal = options?.signal;
         if (signal?.aborted) throw new Error('Workspace OMP turn cancelled.');
         if(localFactory||scopedHost)await authorize({phase:'model:disclose'});
+        const permit=async wireBody=>{
+          if(enterpriseContextHost){
+            const control=enterpriseContextHost.open(manager.getSessionId());
+            await control.authorizeDisclosure({messages:manager.getEntries().flatMap(e=>e.message?[e.message]:[]),context:context.messages,modelCalls:callNumber,...(wireBody===undefined?{}:{wireBody})},signal,model);
+          }
+          signal?.throwIfAborted();
+        };
+        await permit();
+        let dispatched=false;
+        const dispatch=()=>{if(!dispatched){dispatched=true;if(enterpriseContextHost){modelCalls=callNumber;onModelDispatched({modelCalls:callNumber});}}};
         if (syntheticResponses) {
           const spec = syntheticResponses[callNumber - 1];
           if (!spec) throw new Error('Finite explicit faux responses exhausted; no real provider fallback.');
           if (spec.expectedToolNames) assert.deepEqual((context.tools || []).map(tool => tool.name).sort(), [...spec.expectedToolNames].sort());
           if (spec.forbiddenContextText) assert.ok(!JSON.stringify(context.messages).includes(spec.forbiddenContextText), 'Explicit fixture refused stale or forged monitor context.');
           if (spec.expectedContextText) assert.ok(JSON.stringify(context.messages).includes(spec.expectedContextText), 'Explicit fixture expected the original public tool/child receipt.');
+          dispatch();
           if (spec.wait) await new Promise((resolve, reject) => {
             const timer = setTimeout(resolve, spec.wait);
             signal?.addEventListener('abort', () => { clearTimeout(timer); onModelAbort(); reject(new Error('Explicit synthetic model cancelled')); }, { once: true });
@@ -314,8 +325,15 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         } else {
           // Retain the official provider transport. The separate API identifier
           // avoids replacing any built-in handler or recursively dispatching.
+          const disclosureAbort=new AbortController();
           const upstream = sdk.streamSimple({ ...model, api: 'openai-completions' }, context, { ...options, apiKey: configuration.apiKey,
             maxTokens: Math.min(Math.floor(maxTokens / maxModelCalls), options?.maxTokens || Infinity), maxRetries: 0,
+            ...(enterpriseContextHost?{signal:AbortSignal.any([signal,disclosureAbort.signal].filter(Boolean)),fetch:async(input,init)=>{
+              try{if(dispatched)throw Error('OSS_MODEL_RETRY_NOT_ADMITTED');
+                const request=new Request(input instanceof Request?input.clone():input,init),body=await request.clone().text();
+                await permit(body);dispatch();return await globalThis.fetch(request);
+              }catch(error){disclosureAbort.abort(error);throw error;}
+            }}:{}),
             ...(providerTransport ? { fetch: providerTransport.fetch, onSseEvent: providerTransport.onSseEvent, acceptEmptyResponse: true,
               signal: AbortSignal.any([options?.signal, providerTransport.signal].filter(Boolean)) } : {}) });
           for await (const event of upstream) {

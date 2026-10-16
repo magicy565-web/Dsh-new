@@ -40,6 +40,9 @@ import { createShopifyClient } from './shopify.mjs';
 import { createCommerceService } from './commerce.mjs';
 import { createSupplyNetworkService } from './supply-network.mjs';
 import { supplyHttp } from './supply-http.mjs';
+import {createEnterpriseDisclosurePolicy} from './enterprise-disclosure-policy.mjs';
+import {createEnterpriseMemoryLedger} from './enterprise-memory-ledger.mjs';
+import {createOpenFgaClient} from './enterprise-openfga.mjs';
 import { libraryHttp } from './library-http.mjs';
 import { createSourcingMcpAuth, handleSourcingMcpHttp } from './sourcing-mcp.mjs';
 import { createRunOutputService } from './run-output.mjs';
@@ -97,7 +100,7 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, enterpriseDisclosureOptions = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
@@ -105,7 +108,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   if (businessAgent) provider = businessAgent.provider;
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
+  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure, enterpriseMemory, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
   try {
     if (businessAgent && Object.values(store.read().workspaceThreadHarness || {}).some(value => Array.isArray(value) && value.length))
       throw new Error('Existing alpha ThreadHarness records are retained. Review their archive/migration before enabling this adapter; no second executor or automatic state synchronization will adopt them.');
@@ -114,6 +117,11 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
     businessLibrary = createBusinessLibraryService({ store, artifacts, clock: accessClock });
+    if (enterpriseDisclosureOptions?.openfga && accessConfig.mode !== 'enterprise') throw Error('OpenFGA disclosure requires enterprise access mode.');
+    enterpriseDisclosure=createEnterpriseDisclosurePolicy({store,library:businessLibrary,artifacts,
+      fga:enterpriseDisclosureOptions?.openfga?createOpenFgaClient(enterpriseDisclosureOptions.openfga):null,
+      workspaceId:accessConfig.workspaceId||'local',resolveResource:({resourceId,forGrant})=>enterpriseMemory?.resolveResource({resourceId,forGrant}),clock:accessClock});
+    enterpriseMemory=createEnterpriseMemoryLedger({store,library:businessLibrary,disclosure:enterpriseDisclosure,workspaceId:accessConfig.workspaceId||'local',clock:accessClock});
     libraryModelRead = createLibraryModelRead({ library: businessLibrary, artifacts, access, policy: libraryModelReadPolicy, clock: accessClock });
     dotAuth = dotWorkerConfig && createDotWorkerAuth({ tokenDigest: dotWorkerConfig.tokenDigest });
     if (dotWorkerConfig?.enabled === true && !dotAuth)
@@ -356,7 +364,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (pathname.startsWith('/api/library/') || /^\/api\/conversations\/[^/]+\/library-references$/.test(pathname)) {
           const query = Object.fromEntries(url.searchParams);
           if ([...url.searchParams.keys()].length !== Object.keys(query).length) throw new ApiError(400, 'INVALID_INPUT', 'Duplicate library query parameters are not allowed.');
-          const result = await libraryHttp({ library: businessLibrary, method, pathname, query, actor: context });
+          const result = await libraryHttp({ library: businessLibrary, disclosure:enterpriseDisclosure,memory:enterpriseMemory, method, pathname, query, actor: context });
           if (result) return await respond(res, result.status, result.body);
         }
         if (pathname === '/api/runs') return await respond(res, 200, runtime.listRuns());
@@ -454,7 +462,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (method === 'POST' && pathname === '/api/commerce-projects') return await respond(res, 201, await commerce.create(body, context));
       const commerceAction = pathname.match(/^\/api\/commerce-projects\/([^/]+)\/(stage-research|stage-worker-research|sync-orders)$/);
       if (method === 'POST' && commerceAction) return await respond(res, 200, await commerce[{ 'stage-research': 'stageResearch', 'stage-worker-research': 'stageWorkerResearch', 'sync-orders': 'syncOrders' }[commerceAction[2]]](commerceAction[1], body, context));
-      const libraryWrite = await libraryHttp({ library: businessLibrary, method, pathname, body, actor: context });
+      const libraryWrite = await libraryHttp({ library: businessLibrary, disclosure:enterpriseDisclosure,memory:enterpriseMemory, method, pathname, body, actor: context });
       if (libraryWrite) return await respond(res, libraryWrite.status, libraryWrite.body);
       if (method === 'POST' && ['/api/session/login', '/api/session/logout'].includes(pathname)) {
         if (Object.keys(body).length) throw new ApiError(400, 'INVALID_INPUT', 'Session actions require an empty JSON object.');
@@ -566,7 +574,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, businessLibrary, businessAgent, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, marketValidationMonitoring, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, enterpriseDisclosure,enterpriseMemory, businessAgent, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, marketValidationMonitoring, access, diagnostics,
     // In-process integration only: no HTTP/model endpoint creates an ERP grant.
     // Reuse this actual instance's current Session client and private identity.
     async freeTradeSessionBinding(identity,options={}) {
@@ -577,7 +585,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     },
     async enterpriseContextSessionBinding(identity,options={}) {
       const {createEnterpriseContextSessionBinding}=await import('./workspace-enterprise-context-host.mjs');
-      return createEnterpriseContextSessionBinding({...options,identity,access,instanceId,libraryModelRead,artifacts,store,
+      return createEnterpriseContextSessionBinding({...options,identity,access,instanceId,libraryModelRead,artifacts,store,memoryLedger:enterpriseMemory,
         sessionClient:builtinAgent.sessionReadonlyClient(identity),clock:accessClock||Date.now});
     },
     async listen(port = 8787, host = '127.0.0.1') {

@@ -1,7 +1,26 @@
 import { ApiError } from './runtime.mjs';
 
 /** Existing library transport shared by the original native conversation Host. */
-export async function libraryHttp({ library, method, pathname, query = {}, body = {}, actor }) {
+export async function libraryHttp({ library, disclosure = null, memory = null, method, pathname, query = {}, body = {}, actor }) {
+  const adminOnly = () => { if (actor?.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'An administrator role is required for customer disclosure policy management.'); };
+  if (memory) {
+    const memoryMatch = pathname.match(/^\/api\/library\/memory\/([a-f0-9-]{36})(?:\/(history|revoke))?$/u);
+    if (method === 'GET' && pathname === '/api/library/memory/status') { adminOnly(); return { status: 200, body: memory.status() }; }
+    if (method === 'GET' && pathname === '/api/library/memory') { adminOnly(); return { status: 200, body: memory.list({ customerId: query.customerId ?? null, audience: query.audience }, actor) }; }
+    if (method === 'GET' && memoryMatch && !memoryMatch[2]) { if (actor?.role !== 'admin' && actor?.role !== 'operator') throw new ApiError(403, 'ROLE_REQUIRED', 'A workspace member role is required to read enterprise memory.'); return { status: 200, body: await memory.read(memoryMatch[1], { actor, customerId: query.customerId ?? null }) }; }
+    if (method === 'GET' && memoryMatch?.[2] === 'history') { adminOnly(); return { status: 200, body: memory.history(memoryMatch[1], actor) }; }
+    if (method === 'POST' && pathname === '/api/library/memory') { return { status: 201, body: await memory.remember(body, actor) }; }
+    if (method === 'POST' && memoryMatch?.[2] === 'revoke') { return { status: 200, body: await memory.revoke(memoryMatch[1], body, actor) }; }
+  }
+  if (disclosure) {
+    const grantMatch = pathname.match(/^\/api\/library\/disclosure\/grants\/([a-f0-9-]{36})\/revoke$/u);
+    const explainMatch = pathname.match(/^\/api\/library\/disclosure\/resources\/(products|documents)\/([^/]+)$/u);
+    if (method === 'GET' && pathname === '/api/library/disclosure/status') { adminOnly(); return { status: 200, body: disclosure.status() }; }
+    if (method === 'GET' && pathname === '/api/library/disclosure/grants') { adminOnly(); return { status: 200, body: disclosure.list({ customerId: query.customerId, resourceType: query.resourceType, status: query.status }) }; }
+    if (method === 'GET' && explainMatch) { adminOnly(); return { status: 200, body: disclosure.explain({ customerId: query.customerId, resourceType: explainMatch[1] === 'products' ? 'product' : 'document', resourceId: explainMatch[2] }) }; }
+    if (method === 'POST' && pathname === '/api/library/disclosure/grants') { return { status: 201, body: await disclosure.grant(body, actor) }; }
+    if (method === 'POST' && grantMatch) { return { status: 200, body: await disclosure.revoke(grantMatch[1], body, actor) }; }
+  }
   const reference = pathname.match(/^\/api\/conversations\/([^/]+)\/library-references$/);
   if (reference) { try { reference[1] = decodeURIComponent(reference[1]); } catch { throw new ApiError(400, 'INVALID_PATH', 'Invalid conversation identifier.'); } }
   if (reference && actor.nativeAgentId && reference[1] !== actor.nativeAgentId) throw new ApiError(404, 'NOT_FOUND', 'Use the original owned conversation.');
