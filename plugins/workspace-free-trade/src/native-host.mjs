@@ -8,7 +8,8 @@ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 // identity. Normalize only reviewed adapter codes, never exception messages.
 const adapterCodes=new Set(['SAM_API_KEY_REQUIRED','ERP_REVIEWED_CONNECTION_REQUIRED','ORIGINAL_AUTHORIZATION_REFUSED','OPERATION_CANCELLED',
   'RATE_LIMITED','REDIRECT_REFUSED','REMOTE_AUTHORIZATION_REFUSED','REMOTE_HTTP_ERROR','REMOTE_NOT_JSON','RESPONSE_TOO_LARGE','EMPTY_RESPONSE',
-  'REMOTE_SCHEMA_INVALID','REQUEST_TIMEOUT','NETWORK_UNAVAILABLE','ERP_RECORD_MISMATCH','ERP_FIELD_SHAPE_INVALID','SECRET_ECHO_REFUSED']);
+  'REMOTE_SCHEMA_INVALID','REQUEST_TIMEOUT','NETWORK_UNAVAILABLE','ERP_RECORD_MISMATCH','ERP_FIELD_SHAPE_INVALID','SECRET_ECHO_REFUSED',
+  'FREE_TRADE_PRIVATE_READ_CAPACITY']);
 async function callAdapter(run){try{return await run();}catch(error){
   if(error instanceof TradeError)throw error;
   if(adapterCodes.has(error.code))throw new TradeError(error.code,['blocked','unconfigured','unavailable'].includes(error.status)?error.status:'blocked',
@@ -54,8 +55,8 @@ export async function registerNativeTrade(pi,host,factory){
   let last=previous?JSON.stringify(previous):null;
   function record(){const value=snapshot(),serialized=JSON.stringify(value);if(last!==serialized){host.recordDisclosure(guardId,value);last=serialized;}}
   async function authorize({phase='context'}={}){
-    await control.authorizeContext(host.signal,host.getModel());
-    const refresh=['model:disclose','model:complete','final:deliver'].includes(phase);
+    await control.authorizeContext(host.signal,host.getModel(),{phase});
+    const refresh=['model:prepare','model:disclose','model:complete','final:deliver'].includes(phase);
     for(const proof of footprints.values())await control.check(proof,host.signal,host.getModel(),{refresh,phase});
     if(phase==='model:disclose')record();
   }

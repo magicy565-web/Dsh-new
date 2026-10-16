@@ -1,5 +1,7 @@
 # PR86 → 原 Host 集成验收
 
+本目录记录 `a3d6328` 初次接线验收。后续 0.1.2 容量预留、TED 脱敏诊断与当前任务白名单检查见相邻 `free-trade-capacity-diagnostics-20261016/`；本目录的旧结果与旧源码哈希保持历史含义。
+
 基于 `be0c3c1deb175e0076c14d312bc3157f87ff07d0`，选择性接收 PR86 固定头 `92b23961bbbb26e9118f849a2ade062dd19686f0`。正式包只有 `plugins/workspace-free-trade` 0.1.1；TED/SAM/ERPNext 原客户端的 Git blob 仍为 `1f3facd337726163aeee0933c6bae3ec3b546a31`。没有接入 PR87，也没有回退 be0 的本地资料/权限修复。
 
 ## 当前可运行范围

@@ -50,3 +50,14 @@ Issue #85 是已写入仓库的共享分工记录，不能等同 Dot 已读。Wo
 公开会话显式用 `--public-only --plugin-config config.free-trade.json`，禁止同时带本地私有输入/archive；相同会话不能从私有输入切换成公开模式。默认配置保持不开启此插件。准确命令、限额及私有接线契约见插件 README。
 
 真实匿名 TED 查询只执行一页/limit1，一次请求收到 HTTP403，阶段为网络/API拒绝，未自动重试，不宣称已连通或获得采购机会。SAM/真实 ERPNext/付费模型本轮未测；原 SDK 和原 Host 验收使用明确合成数据与有限模型。原 Artifact 业务保存尚未接线，原生 Session 持久化不能冒充已保存报价；报价仍 `persisted:false`。验证结果和下一步在 `docs/validation/free-trade-host-integration-20261016/`。未合并 main、部署或触发外部业务写入。
+
+
+## PR89 收尾：容量预留与 TED 诊断（0.1.2）
+
+继续同一 writer、同一 `codex/free-trade-host-integration-20261016` 分支，从 `a3d6328a7311fc330ad7051901ee297063c3ae20` 修复两项问题。真实原 Host/OMP SDK 加有限模型复现三份私有投影需要 18 次读取而上限 16，原实现直到 Node 最终交付才失败。现在在工具网络读取前预留所有后续重验，第三份投影提前返回 `FREE_TRADE_PRIVATE_READ_CAPACITY`；前两份首轮 12 次、同会话续轮 16 次完成。下一模型轮若不能为完成/最终交付留足容量，在请求记账前拒绝。16 总额及准备、发送、完成、worker 最终、Node 最终的独立来源/撤权检查均保留，没有复用旧重验结果。
+
+TED 客户端增加可选可信进程内诊断观察器：正文最多 2048 bytes/250ms，只输出固定信号及脱敏头白名单，诊断最多 1024 bytes；不输出正文、任意头、cookie、授权、URL、异常文本，不附在模型工具参数或 SAM 凭据请求上。兼容错误码 `REMOTE_AUTHORIZATION_REFUSED` 不等同缺 key。官方发布公告 Search API 无需 key；旧 403 没有响应头/正文，不能事后断言来源。
+
+当前任务容器只读策略 `/etc/codex/network-policy.json` 为 restricted、151条 HTTP egress 规则，无匹配 `api.ted.europa.eu`，有 `api.deepseek.com`。父会话策略不可见，不能互相代用；旧响应及代理拒绝日志不可得，不能把当前配置当历史 403 的确定归因。未改变网络/代理/权限，未再请求 TED，未付费。
+
+本轮结果、日志/源码哈希和当前白名单脱敏证据在 `docs/validation/free-trade-capacity-diagnostics-20261016/`。下一步仍是原环境明确允许精确 TED API 域名后，另行授权一次诊断联调；真实 SAM/ERP/模型与原 Artifact 保存尚未完成。PR87 的 `13cccff0df703e6471329cd0e1815aee3f6179a9` 仅记作后续接收线索，本轮未拉入或接线。后续若另获安排，只能选择性接到更新后的 PR89 底座，不能覆盖旧 Host、启用 Mem0 或再写一套 ERP 客户端。

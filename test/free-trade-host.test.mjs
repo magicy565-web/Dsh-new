@@ -14,14 +14,15 @@ const erpInput={doctype:'Quotation',name:'Q-SYNTHETIC',fields};
 const tools=['workspace_free_trade_status','workspace_tender_search','workspace_erpnext_read','workspace_erpnext_prepare_quotation'];
 // JSON object order is not authority; restore normalizes an equivalent request.
 const responses=[{tool:'workspace_erpnext_read',arguments:{fields,name:erpInput.name,doctype:erpInput.doctype},expectedToolNames:tools},{text:'Synthetic authorized projection; not a real ERP quote.'}];
-async function fixture(t,{script=responses,life=()=>{},missing=false,publicAllowed=false,pluginConfiguration={}}={}){
- const state={allowed:true,fields:new Set(fields),erpCalls:0,row:{name:'Q-SYNTHETIC',currency:'USD',grand_total:321,modified:'2026-10-16 00:00:00'}};
+async function fixture(t,{script=responses,life=()=>{},missing=false,publicAllowed=false,pluginConfiguration={},records=[erpInput]}={}){
+ const state={allowed:true,fields:new Set(fields),erpCalls:0,recordRequests:[],row:{name:'Q-SYNTHETIC',currency:'USD',grand_total:321,modified:'2026-10-16 00:00:00'}};
  const server=createServer((req,res)=>{
   state.erpCalls++;const u=new URL(req.url,'http://fixture');
   assert.equal(req.method,'GET');assert.equal(u.pathname,'/api/resource/Quotation');assert.equal(u.searchParams.get('limit_page_length'),'1');
-  assert.deepEqual(JSON.parse(u.searchParams.get('filters')),[['Quotation','name','=','Q-SYNTHETIC']]);
+  const filters=JSON.parse(u.searchParams.get('filters')),name=filters[0]?.[3];
+  assert.ok(records.some(record=>record.name===name));assert.deepEqual(filters,[['Quotation','name','=',name]]);state.recordRequests.push(name);
   const selected=JSON.parse(u.searchParams.get('fields'));assert.ok(selected.every(field=>fields.includes(field)));
-  res.setHeader('content-type','application/json');res.end(JSON.stringify({data:[Object.fromEntries(selected.map(field=>[field,state.row[field]]))]}));
+  const row={...state.row,name};res.setHeader('content-type','application/json');res.end(JSON.stringify({data:[Object.fromEntries(selected.map(field=>[field,row[field]]))]}));
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
  const origin='http://127.0.0.1:'+server.address().port;
@@ -31,9 +32,9 @@ async function fixture(t,{script=responses,life=()=>{},missing=false,publicAllow
  let f;const lifecycle=[];
  const options={recipient,engineAdapter:createWorkspaceOmpEngineAdapter({paths:workspaceOmpPaths({}),configuration,freeTrade:true,pluginConfiguration,syntheticResponses:script,onWorkerLifecycle:event=>{lifecycle.push(event);life(event,state);}}),
   resolveBinding:async({actor,sessionReadonlyClient})=>({client:sessionReadonlyClient(actor),model,
-   freeTradeHost:await f.app.freeTradeSessionBinding(actor,{policy:{enabled:true,reviewed:true,workspaceId:actor.workspaceId,subject:actor.subject,recipient,expiresAt,origin,records:[erpInput]},
+   freeTradeHost:await f.app.freeTradeSessionBinding(actor,{policy:{enabled:true,reviewed:true,workspaceId:actor.workspaceId,subject:actor.subject,recipient,expiresAt,origin,records},
     connection:missing?{}:{baseUrl:origin,apiKey:'fixture-erp-read-only',apiSecret:'fixture-erp-secret-only',allowLoopbackHttpForTests:true},
-    authorizeRecord:async scope=>state.allowed&&scope.origin===origin&&scope.doctype===erpInput.doctype&&scope.name===erpInput.name&&scope.fields.every(field=>state.fields.has(field)),
+    authorizeRecord:async scope=>state.allowed&&scope.origin===origin&&records.some(record=>scope.doctype===record.doctype&&scope.name===record.name)&&scope.fields.every(field=>state.fields.has(field)),
     authorizeTool:async()=>publicAllowed})})};
  f=await taskFixture(t,{enterprise:true,businessAgentOptions:options});
  return {...f,state,lifecycle};
@@ -48,6 +49,31 @@ async function send(f,cid){
 }
 async function journal(f,cid){const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;assert.ok(map);return (await fs.readFile(map.sessionFile,'utf8')).trim().split('\n').map(JSON.parse);}
 const modelCalls=run=>run.events.filter(event=>event.type==='pi.agent-session.request').length;
+test('three-record native SDK request refuses excess projection before HTTP and preserves final capacity',{timeout:60000},async t=>{
+ const records=[erpInput,{...erpInput,name:'Q-SYNTHETIC-2'},{...erpInput,name:'Q-SYNTHETIC-3'}];
+ const script=[{parallelTools:records.map(argumentsValue=>({name:'workspace_erpnext_read',arguments:argumentsValue})),expectedToolNames:tools},
+  {text:'Two synthetic records accepted; third refused by read-capacity preflight. No live ERP verification.'}];
+ const f=await fixture(t,{records,script}),cid=await conversation(f),run=await send(f,cid);
+ assert.equal(run.status,'succeeded',JSON.stringify({error:run.error,lifecycle:f.lifecycle,erpCalls:f.state.erpCalls}));
+ const receipts=(await journal(f,cid)).filter(e=>e.message?.toolName==='workspace_erpnext_read').map(e=>e.message);
+ assert.equal(receipts.filter(receipt=>!receipt.isError).length,2);assert.equal(receipts.filter(receipt=>receipt.details?.reason==='FREE_TRADE_PRIVATE_READ_CAPACITY').length,1);
+ assert.equal(modelCalls(run),2);assert.equal(f.state.erpCalls,12);assert.ok(!f.state.recordRequests.includes(records[2].name));
+ // Same proofs on resume must reserve both model rounds and both final gates.
+ f.state.erpCalls=0;f.state.recordRequests=[];const second=await send(f,cid);
+ assert.equal(second.status,'succeeded',JSON.stringify(second.error));assert.equal(modelCalls(second),2);assert.equal(f.state.erpCalls,16);
+ assert.ok(!f.state.recordRequests.includes(records[2].name));
+});
+test('native capacity preflight refuses an unaffordable further model round before request accounting',{timeout:60000},async t=>{
+ const records=[erpInput,{...erpInput,name:'Q-SYNTHETIC-2'},{...erpInput,name:'Q-SYNTHETIC-3'}];
+ const script=[{parallelTools:records.map(argumentsValue=>({name:'workspace_erpnext_read',arguments:argumentsValue}))},
+  {tool:'workspace_free_trade_status',arguments:{}},{text:'SYNTHETIC_UNAFFORDABLE_THIRD_ROUND'}];
+ const f=await fixture(t,{records,script}),cid=await conversation(f),run=await send(f,cid);
+ // Eight reads precede the rejected third request; the original worker still
+ // performs its two-source delivery check before refusing incomplete output.
+ assert.equal(run.status,'failed');assert.equal(modelCalls(run),2);assert.equal(f.state.erpCalls,10);
+ assert.ok(f.lifecycle.some(event=>event.phase==='rpc-refused'&&event.operation==='authorizeContext'&&event.code==='FREE_TRADE_PRIVATE_READ_CAPACITY'));
+ assert.ok(!f.app.store.read().messages.some(row=>row.content?.includes('SYNTHETIC_UNAFFORDABLE_THIRD_ROUND')));
+});
 test('original Host actual Bun SDK reads exact ERP projection, seals receipts and restores that Session', {timeout:60000},async t=>{
  const f=await fixture(t),cid=await conversation(f),first=await send(f,cid);assert.equal(first.status,'succeeded',JSON.stringify(first.error));
  let entries=await journal(f,cid);const receipt=entries.find(e=>e.message?.toolName==='workspace_erpnext_read').message;
@@ -66,6 +92,14 @@ test('private ERP grant revoked during actual native model generation withholds 
  const f=await fixture(t,{script:[responses[0],{text:'SYNTHETIC_WITHHELD_PRIVATE_ANSWER',wait:100}],life:(event,state)=>{if(event.phase==='nativeModelWaiting')state.allowed=false;}});
  const cid=await conversation(f),run=await send(f,cid);assert.equal(run.status,'failed');assert.equal(modelCalls(run),2);
  assert.ok(!f.app.store.read().messages.some(row=>row.content?.includes('SYNTHETIC_WITHHELD_PRIVATE_ANSWER')));
+});
+for(const boundary of ['model:prepare','model:disclose','model:complete','final:deliver'])test('original SDK preserves revocation at '+boundary,{timeout:60000},async t=>{
+ let revoked=false;const withheld='SYNTHETIC_PHASE_WITHHELD';
+ const f=await fixture(t,{script:[responses[0],{text:withheld}],life:(event,state)=>{
+  if(event.phase==='freeTradeCheck'&&event.boundary===boundary){revoked=true;state.allowed=false;}
+ }}),cid=await conversation(f),run=await send(f,cid);
+ assert.equal(revoked,true);assert.equal(run.status,'failed');assert.equal(modelCalls(run),boundary==='model:prepare'?1:2);
+ assert.ok(!f.app.store.read().messages.some(row=>row.content?.includes(withheld)));
 });
 test('private ERP missing safe credentials is truthful unconfigured and sends zero requests',{timeout:60000},async t=>{
  const f=await fixture(t,{missing:true}),cid=await conversation(f),run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify({error:run.error,lifecycle:f.lifecycle}));

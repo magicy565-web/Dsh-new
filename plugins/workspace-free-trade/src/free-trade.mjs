@@ -1,4 +1,5 @@
 /** Free trade adapters: official HTTP APIs, no model/queue/store/credential discovery. */
+import {httpFailureDiagnostic,emitDiagnostic} from './http-diagnostics.mjs';
 const TED = 'https://api.ted.europa.eu/v3/notices/search';
 const SAM = 'https://api.sam.gov/opportunities/v2/search';
 export const TED_FIELDS = Object.freeze(['publication-number', 'notice-title', 'publication-date',
@@ -68,15 +69,20 @@ export function validateTenderInput(input) {
   return Object.freeze(out);
 }
 /** One bounded request. No retry, redirect, background operation or response-body logging. */
-export async function requestJson(url, { method = 'GET', headers = {}, body, signal, fetchImpl = globalThis.fetch, timeoutMs = 15000, maxBytes = 524288 } = {}) {
+export async function requestJson(url, { method = 'GET', headers = {}, body, signal, fetchImpl = globalThis.fetch, timeoutMs = 15000, maxBytes = 524288, onDiagnostic } = {}) {
   integer(timeoutMs, 1, 30000); integer(maxBytes, 1, 1048576);
   const combined = AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]);
-  let response;
+  let response,diagnosed=false;
   try {
     combined.throwIfAborted();
     response = await fetchImpl(url, { method, headers: { Accept: 'application/json', ...headers },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), redirect: 'manual', signal: combined });
     combined.throwIfAborted();
+    if(!response.ok&&response.status>=400&&typeof onDiagnostic==='function'){
+      // An optional trusted observer receives a bounded whitelist projection.
+      // Failure of diagnostics never substitutes for the original HTTP error.
+      diagnosed=true;try{emitDiagnostic(onDiagnostic,await httpFailureDiagnostic(response,{signal:combined}));}catch{}
+    }
     if (response.redirected || (response.status >= 300 && response.status < 400)) fail('REDIRECT_REFUSED');
     if (response.status === 429) {
       const after = response.headers.get('retry-after');
@@ -99,12 +105,16 @@ export async function requestJson(url, { method = 'GET', headers = {}, body, sig
     if (!object(data)) fail('REMOTE_SCHEMA_INVALID', 'unavailable');
     return data;
   } catch (error) {
+    if(!response&&!diagnosed)emitDiagnostic(onDiagnostic,{stage:'transport',classification:signal?.aborted?'cancelled':combined.aborted?'timeout':'network_unavailable',httpStatus:null,causeProven:false});
     if (signal?.aborted) fail('OPERATION_CANCELLED');
+    // The HTTP status arrived before diagnostic sampling. Its known refusal
+    // must not turn into a transport timeout because the error body stalled.
+    if(diagnosed&&error instanceof TradeError)throw error;
     if (combined.aborted) fail('REQUEST_TIMEOUT', 'unavailable');
     if (error instanceof TradeError) throw error;
     fail(error instanceof SyntaxError ? 'REMOTE_NOT_JSON' : 'NETWORK_UNAVAILABLE', 'unavailable');
   } finally {
-    if (response?.body && !response.body.locked) await response.body.cancel().catch(() => {});
+    if (response?.body && !response.body.locked) void response.body.cancel().catch(() => {});
   }
 }
 const mmddyyyy = x => `${x.slice(5, 7)}/${x.slice(8, 10)}/${x.slice(0, 4)}`;
@@ -130,7 +140,7 @@ function publicRecord(row, provider, retrievedAt) {
     retrievedAt, eligibility: 'not_assessed', openForBids: null
   };
 }
-export function createTenderClient({ samApiKey, fetchImpl = globalThis.fetch, timeoutMs = 15000, now = () => new Date() } = {}) {
+export function createTenderClient({ samApiKey, fetchImpl = globalThis.fetch, timeoutMs = 15000, now = () => new Date(), onDiagnostic } = {}) {
   if (samApiKey !== undefined) credential(samApiKey);
   return Object.freeze({
     status() { return { ted: 'configured_unverified', sam: samApiKey ? 'configured_unverified' : 'unconfigured' }; },
@@ -139,7 +149,7 @@ export function createTenderClient({ samApiKey, fetchImpl = globalThis.fetch, ti
       if (input.provider === 'sam' && !samApiKey) fail('SAM_API_KEY_REQUIRED', 'unconfigured');
       const url = new URL(input.provider === 'ted' ? TED : SAM);
       let options = { signal, fetchImpl, timeoutMs };
-      if (input.provider === 'ted') options = { ...options, method: 'POST', headers: { 'Content-Type': 'application/json' },
+      if (input.provider === 'ted') options = { ...options, ...(typeof onDiagnostic==='function'?{onDiagnostic:value=>onDiagnostic({provider:'ted',operation:'anonymous-published-search',...value})}:{}),method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: { query: input.query, fields: [...TED_FIELDS], page: input.page, limit: input.limit, paginationMode: 'PAGE_NUMBER' } };
       else {
         const params = { api_key: samApiKey, postedFrom: mmddyyyy(input.postedFrom), postedTo: mmddyyyy(input.postedTo), limit: input.limit, offset: input.pageIndex };

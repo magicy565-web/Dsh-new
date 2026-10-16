@@ -10,10 +10,10 @@ const filename=fileURLToPath(import.meta.url),paths=workspaceOmpPaths({});
 if(process.argv.includes('--live-child')){
  const {runLocalFactorySession}=await import('./workspace-omp-local.mjs');
  const {createTenderClient}=await import('../plugins/workspace-free-trade/src/free-trade.mjs');
- const root=await fs.mkdtemp('/tmp/free-trade-ted-live-');let requests=0,httpStatus=null;const started=Date.now();
+ const root=await fs.mkdtemp('/tmp/free-trade-ted-live-');let requests=0,httpStatus=null;const started=Date.now(),diagnostics=[];
  try{
   await fs.mkdir(root+'/out',{mode:0o700});await fs.mkdir(root+'/run');
-  const tenders=createTenderClient({timeoutMs:15000,fetchImpl:async(url,options)=>{
+  const tenders=createTenderClient({timeoutMs:15000,onDiagnostic:value=>{if(diagnostics.length<1)diagnostics.push(value);},fetchImpl:async(url,options)=>{
     if(++requests!==1||new URL(url).origin!=='https://api.ted.europa.eu'||Object.keys(options.headers).some(key=>key.toLowerCase()==='authorization'))throw Error('ANONYMOUS_SINGLE_REQUEST_REQUIRED');
     const response=await fetch(url,options);httpStatus=response.status;return response;
   }});
@@ -24,7 +24,7 @@ if(process.argv.includes('--live-child')){
   const receipt=entries.find(e=>e.message?.toolName==='workspace_tender_search')?.message.details;
   console.log(JSON.stringify({kind:'real-anonymous-ted-api-through-native-omp-with-finite-model',success:receipt?.status==='ok',apiRequests:requests,httpStatus,
    stage:receipt?.status==='ok'?'completed':result.status==='stopped'?'native-host':'ted-network-or-api',reason:receipt?.reason||result.reason||null,
-   elapsedMs:Date.now()-started,returned:receipt?.items?.length??0,notices:(receipt?.items||[]).map(row=>({noticeId:row.noticeId,sourceUrl:row.sourceUrl,openForBids:row.openForBids,eligibility:row.eligibility})),
+   elapsedMs:Date.now()-started,diagnostics,returned:receipt?.items?.length??0,notices:(receipt?.items||[]).map(row=>({noticeId:row.noticeId,sourceUrl:row.sourceUrl,openForBids:row.openForBids,eligibility:row.eligibility})),
    pagination:receipt?.pagination??null,retrievedAt:receipt?.retrievedAt??null,credentialsUsed:false,realModelRequests:0,modelEvidence:'finite-synthetic-only',samLiveTested:false,erpLiveTested:false}));
   if(receipt?.status!=='ok')process.exitCode=2;
  }finally{await fs.rm(root,{recursive:true,force:true});}

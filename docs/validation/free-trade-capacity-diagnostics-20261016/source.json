@@ -1,0 +1,61 @@
+{
+  "base": "a3d6328a7311fc330ad7051901ee297063c3ae20",
+  "files": [
+    {
+      "path": "docs/FREE-TRADE-HANDOFF.md",
+      "sha256": "a2f2b0b945f19052072d13aa80535905ce9ff00661d8172ed066701b2ce0648e"
+    },
+    {
+      "path": "docs/validation/free-trade-host-integration-20261016/README.md",
+      "sha256": "8388baacfb3ddf0a0fcbb514a19f62f7dcb8c5fe3d878709c0222ef43201fa89"
+    },
+    {
+      "path": "plugins/workspace-free-trade/README.md",
+      "sha256": "346d7929de8d367b9b0af52f46e2471ec7139d8e86d933122ef97972e3b433c5"
+    },
+    {
+      "path": "plugins/workspace-free-trade/package.json",
+      "sha256": "590233d9da99c3979aa7356b3997df2f604a9a11b7bc564191fab70188f7d045"
+    },
+    {
+      "path": "plugins/workspace-free-trade/skills/free-trade/SKILL.md",
+      "sha256": "7cc035882d547fe93619c5402b2a988ece57c49a04a597c1b0591e57ea0e1fd4"
+    },
+    {
+      "path": "plugins/workspace-free-trade/src/free-trade.mjs",
+      "sha256": "024561446584b19872822cfbabf8392873b86350f2d593f8c71efc67d52a0072"
+    },
+    {
+      "path": "plugins/workspace-free-trade/src/http-diagnostics.mjs",
+      "sha256": "94397bb8b0000e2367ba6b674e3fd01dbb7a627a6de8969c471c9ccb4cec3624"
+    },
+    {
+      "path": "plugins/workspace-free-trade/src/native-host.mjs",
+      "sha256": "bf3e70484c68304bfaf57957fb948e423ea351085fb64ae53412dbb449cf1d2c"
+    },
+    {
+      "path": "scripts/acceptance-free-trade-ted.mjs",
+      "sha256": "4d35949074025d1bd5df81f8637ee6c1bd2ab8a01ef2caeeb35c321c54b9102e"
+    },
+    {
+      "path": "server/workspace-free-trade-host.mjs",
+      "sha256": "d6444e156b28b56bc14b1cc4fd903c3551e075460a77bc34084388a0d2d113b0"
+    },
+    {
+      "path": "server/workspace-omp-bridge.mjs",
+      "sha256": "2133c30a2b6e18168009d02fae6b42753395a43232a683760b143b59c0e19f7f"
+    },
+    {
+      "path": "server/workspace-omp-session.mjs",
+      "sha256": "9871312b41cb0ac221aa0531b9818a15a074636c04b3baca8193247c6769a4be"
+    },
+    {
+      "path": "test/free-trade-diagnostics.test.mjs",
+      "sha256": "c462e8484a18413f728595cdd48c676024e1ca54ddfe33f99b4125d5523751a9"
+    },
+    {
+      "path": "test/free-trade-host.test.mjs",
+      "sha256": "5c32073179aa6e5abfd25bc99dd7c426790c254b7c036ce6dc07928b5752c23b"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Free foreign-trade solutions for the existing Pi Host
 
-Private additive package `@workspace-agent/pi-free-trade` 0.1.1. It implements two vertical building blocks: discovering public procurement opportunities and consulting existing ERPNext commercial records. No new Agent, ERP, CRM, database, queue, scheduler or UI. It does not replace `workspace-procurement` or the existing inquiry/Library/Shopify plugins.
+Private additive package `@workspace-agent/pi-free-trade` 0.1.2. It implements two vertical building blocks: discovering public procurement opportunities and consulting existing ERPNext commercial records. No new Agent, ERP, CRM, database, queue, scheduler or UI. It does not replace `workspace-procurement` or the existing inquiry/Library/Shopify plugins.
 
 ## Tools and actual scope
 
@@ -66,7 +66,11 @@ freeTradeHost: await app.freeTradeSessionBinding(actor, {
 
 These names represent existing trusted Host inputs, not configuration supplied by the model. Policy requires `enabled:true`, `reviewed:true`, matching `workspaceId` and `subject`, exact `recipient:{kind,provider,model,destination}`, `expiresAt`, fixed `origin` and one to eight `{doctype,name,fields}` selections. Both this selection and the current record callback must allow the exact read. The actual app instance injects its own access, identity and Session client; an OS owner UID is insufficient. The connection is not configured automatically from environment or chat. This branch adds no production ERP instance, account, grant UI or new HTTP endpoint.
 
-Actual successful ERP receipts receive request/body/projection/scope/native-Session hashes. At most eight distinct private projections and sixteen ERP reads (including freshness checks) are admitted per worker turn. Cached receipts are checked before another model request; freshness is checked at dispatch, completion, worker delivery and original Node final delivery. A changed source requires a new reviewed context rather than silently preserving stale text. Private Session files remain trusted Host-owned data; these hashes do not make arbitrary user-edited journals authoritative.
+Actual successful ERP receipts receive request/body/projection/scope/native-Session hashes. The snapshot format holds at most eight distinct private projections; each worker turn still allows at most **sixteen total ERP reads, including freshness checks**. This does not promise eight reads will fit. Before a tool read, Node reserves its source request plus all five independent future freshness passes: model preparation before request accounting, dispatch after the Host hook, completion, worker delivery and Node final delivery. Concurrent admissions reserve their slots before I/O. Insufficient capacity returns `FREE_TRADE_PRIVATE_READ_CAPACITY` before the new ERP request; it does not defer the failure to final delivery or increase the limit. Failed read attempts conservatively retain their slot for that turn. Before another model round, the remaining phase reservations are checked again before request accounting.
+
+For a first response requesting three fresh projections followed by one answer, all three would require `3 + 6 + 3 + 3 + 3 = 18` reads. The third is now refused before HTTP; the two admitted projections finish in 12. The native SDK test resumes that same Session and finishes at exactly 16 while refusing unaffordable tool re-reads. A further model round that cannot leave room for all delivery checks is refused before its request is counted. No freshness pass is cached, combined or removed.
+
+Cached receipts are checked before another model request; a changed source requires a new reviewed context rather than silently preserving stale text. Private Session files remain trusted Host-owned data; these hashes do not make arbitrary user-edited journals authoritative.
 
 Standalone public Sessions have no private ERP binding. A selected local/private context without this original Host binding blocks non-status outbound operations. Public tender searches from a private Host require separate affirmative current outbound authorization. Missing safe ERP connection returns `unconfigured` with zero ERP network requests.
 
@@ -96,11 +100,21 @@ Tender receipts retain notice languages/arrays and date/time values without inve
 
 External content is untrusted data, not instructions. No contacts, bids, transactions or automatic retries occur. Transport is limited to one request, 15-second default timeout (maximum 30 seconds), 512 KiB response default and 64 KiB tool output. Redirects are refused; throttling exposes a safe retry delay but does not retry. Errors exclude remote bodies, URLs containing credentials and arbitrary exception text.
 
+### Diagnosing a TED refusal
+
+The published-notice Search API uses `api.ted.europa.eu` and requires no API key. Historical `REMOTE_AUTHORIZATION_REFUSED` is a compatibility error for HTTP401/403; it is not proof of a missing key. The previous one-request acceptance retained status only, so its specific origin/intermediary cause cannot be recovered from that record.
+
+Trusted code may opt into `createTenderClient({onDiagnostic})`. Only TED HTTP failures receive this observer; it is not attached to SAM's credential-bearing requests or exposed as a model tool argument. The live acceptance script can record one such projection **if separately authorized to run again**. No new TED request was made for the 0.1.2 follow-up.
+
+The diagnostic samples at most 2048 response-body bytes for at most 250ms, then cancels the body. It emits only fixed body-signal labels, HTTP status, coarse classification and a header whitelist: normalized MIME, numeric retry delay, `Via` presence, enum server hint, challenge flag and a recognized intermediary-policy enum. The encoded diagnostic is capped at 1024 bytes. Raw text, header values outside these derived enums, cookies, authorization, request IDs, URLs, secrets and exception text are never emitted. A stalled body/cancellation or failed observer cannot mask the original HTTP error. Signals are untrusted observations, not definitive attribution (`causeProven:false`).
+
+The current task container's read-only `/etc/codex/network-policy.json` reports `restricted` with 151 HTTP egress host rules and **no match for `api.ted.europa.eu`**; `api.deepseek.com` is present. This is current-container evidence, not a view of the parent conversation's environment and not proof of the historical response's origin. A later authorized TED test first needs that environment's exact API host permitted. No network policy, proxy or permission was changed. Existing logs contain no retained response headers/body or readable proxy rejection record.
+
 This package creates no Artifact or permanent record. The original Host/native approved file tools must save selected receipts/drafts, with provenance and access rules. Private receipt reauthorization is integrated as described above. Business Artifact saving remains unimplemented; native Session persistence is not a saved business Artifact or an ERP document. `prepared-draft` explicitly has `persisted:false`, `humanReviewed:false`, `pricingRulesApplied:false`, `totalsCalculated:false`; ERPNext remains the authority for its actual commercial documents.
 
 ## Verification and coordination
 
-See `docs/FREE-TRADE-HANDOFF.md` and `docs/validation/free-trade-host-integration-20261016/` in the repository. Integration base: `be0c3c1deb175e0076c14d312bc3157f87ff07d0`; original adapter from PR86 head `92b23961bbbb26e9118f849a2ade062dd19686f0` is unchanged. Coordination: https://github.com/magicy565-web/workspace-agent/issues/85.
+See `docs/FREE-TRADE-HANDOFF.md`, the initial `docs/validation/free-trade-host-integration-20261016/` evidence and the subsequent `docs/validation/free-trade-capacity-diagnostics-20261016/` evidence. Integration base: `be0c3c1deb175e0076c14d312bc3157f87ff07d0`; the initial a3d6328 integration preserved the PR86 client unchanged. Version0.1.2 adds optional bounded diagnostic observation to that same client; it does not add another TED/SAM/ERP implementation. Coordination: https://github.com/magicy565-web/workspace-agent/issues/85.
 
 Node24 adapter tests and actual original Host/Bun SDK tests use synthetic identities, grants, ERP records and finite model responses. One separately authorized anonymous TED request traversed the actual native tool path and received HTTP 403 (`REMOTE_AUTHORIZATION_REFUSED`); no live TED success is claimed and no automatic retry occurred. Live SAM, deployed ERPNext and paid model inference were not tested. The historical `free-trade-20261016` evidence describes the earlier standalone PR86 run, not this integration.
 

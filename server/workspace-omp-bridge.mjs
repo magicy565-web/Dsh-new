@@ -103,7 +103,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                   ||freeNativeId&&nativeId!==freeNativeId||savedSession&&savedSession.agentSessionId!==nativeId)throw Error('Original native Session required.');
                 if(!freeControl){freeNativeId=nativeId;freeControl=freeTradeHost.open(nativeId);}
                 if(method==='authorize')result=await freeControl.authorize(args[0],rpcSignal,args[1]);
-                else if(method==='authorizeContext')result=await freeControl.authorizeContext(rpcSignal,args[0]);
+                else if(method==='authorizeContext')result=await freeControl.authorizeContext(rpcSignal,args[0],args[1]);
                 else if(method==='read')result=await freeControl.erp.read(args[0],rpcSignal,args[1]);
                 else if(method==='seal')result=await freeControl.seal(args[0],args[1],rpcSignal,args[2]);
                 else if(method==='verifyBody')result=await freeControl.verifyBody(args[0],args[1]);

@@ -1,6 +1,6 @@
 // In-process bridge only. Original Host owns identity, resource grants and safe
 // connection injection. This creates no account, grant store, route or ERP.
-import {createErpNextClient,createTenderClient,validateErpRead} from '../plugins/workspace-free-trade/src/free-trade.mjs';
+import {createErpNextClient,createTenderClient,validateErpRead,TradeError} from '../plugins/workspace-free-trade/src/free-trade.mjs';
 import {libraryReadHash as hash,normalizeLibraryRecipient,libraryRecipientForModel} from './library-model-read-contract.mjs';
 const instances=new WeakSet();
 const fail=code=>{throw Object.assign(Error(code),{code});};
@@ -42,12 +42,29 @@ export async function createFreeTradeSessionBinding({access,identity,sessionClie
   const binding={scopeHash,describe:()=>({scopeHash,erp:connection.baseUrl&&connection.apiKey&&connection.apiSecret?'configured_unverified':'unconfigured',tenders:tenderClient.status()}),
     open(nativeSessionId){
       if(typeof nativeSessionId!=='string'||!nativeSessionId)fail('FREE_TRADE_NATIVE_SESSION_REQUIRED');
-      let reads=0;const observed=new Map();
+      let reads=0;const observed=new Map(),admitted=new Set();
+      const maxReads=16;
+      // All five freshness passes stay independent: before request accounting,
+      // after its Host hook, completion, worker delivery and Node delivery.
+      const remainingPasses={'model:prepare':5,'model:disclose':4,'model:complete':3,'final:deliver':2};
+      function reserve(count,passes=5,extra=0){
+        if(reads+extra+passes*count>maxReads)throw new TradeError('FREE_TRADE_PRIVATE_READ_CAPACITY');
+      }
       const erp=createErpNextClient({...connection,authorizeRecord:(request,signal,model)=>{
         if(request.origin!==origin)fail('FREE_TRADE_ERP_ORIGIN_CHANGED');
         return recordAllowed({doctype:request.doctype,name:request.name,fields:request.fields},signal,model);
       }});
-      async function read(input,signal,model){if(++reads>16)fail('FREE_TRADE_PRIVATE_READ_LIMIT');return erp.read(input,signal,model);}
+      async function sourceRead(input,signal,model){if(reads>=maxReads)fail('FREE_TRADE_PRIVATE_READ_LIMIT');reads++;return erp.read(input,signal,model);}
+      async function read(raw,signal,model){
+        const input=validateErpRead(raw);await recordAllowed(input,signal,model);
+        if(erp.status()==='unconfigured')return erp.read(input,signal,model);
+        const key=hash(input),next=new Set([...observed.keys(),...admitted,key]);
+        reserve(next.size,5,1);
+        // Reserve synchronously before I/O so concurrent tool calls cannot each
+        // admit themselves against the same empty footprint. Failed attempts
+        // conservatively retain their slot for this worker turn.
+        admitted.add(key);return sourceRead(input,signal,model);
+      }
       const control={enterprise:true,tenders:tenderClient,erp:{status:()=>erp.status(),read},
         async authorize({tool,input},signal,model){
           await current(model,signal);
@@ -67,7 +84,7 @@ export async function createFreeTradeSessionBinding({access,identity,sessionClie
           if(!exact(proof,['request','receiptHash','projectionHash','scopeHash','nativeSessionId'])||proof.scopeHash!==scopeHash
             ||proof.nativeSessionId!==nativeSessionId||![proof.receiptHash,proof.projectionHash].every(value=>/^[a-f0-9]{64}$/.test(value||'')))fail('FREE_TRADE_PRIVATE_RECEIPT_INVALID');
           await recordAllowed(proof.request,signal,model);
-          if(refresh){const fresh=await read(proof.request,signal,model);if(hash(fresh.record)!==proof.projectionHash)fail('FREE_TRADE_ERP_PROJECTION_CHANGED');}
+          if(refresh){const fresh=await sourceRead(proof.request,signal,model);if(hash(fresh.record)!==proof.projectionHash)fail('FREE_TRADE_ERP_PROJECTION_CHANGED');}
           observed.set(hash(proof.request),proof);
         },
         verifyBody(proof,receipt){
@@ -75,9 +92,9 @@ export async function createFreeTradeSessionBinding({access,identity,sessionClie
           if(hash(authorization)!==hash(proof)||hash(body)!==proof.receiptHash||hash(body.record)!==proof.projectionHash
             ||body.doctype!==proof.request.doctype||body.name!==proof.request.name||hash(body.fields)!==hash(proof.request.fields))fail('FREE_TRADE_PRIVATE_CACHED_BODY_CHANGED');
         },
-        async authorizeContext(signal,model){return current(model,signal);},
-        async finalCheck(signal,model){await current(model,signal);for(const proof of observed.values())await control.check(proof,signal,model,{refresh:true});},
-        report:()=>({mode:'original-enterprise-session',privateReads:reads,maxPrivateReads:16,realCustomerAuthorizationClaimed:false})};
+        async authorizeContext(signal,model,{phase}={}){await current(model,signal);if(Object.hasOwn(remainingPasses,phase))reserve(observed.size,remainingPasses[phase]);},
+        async finalCheck(signal,model){await current(model,signal);reserve(observed.size,1);for(const proof of observed.values())await control.check(proof,signal,model,{refresh:true});},
+        report:()=>({mode:'original-enterprise-session',privateReads:reads,maxPrivateReads:maxReads,realCustomerAuthorizationClaimed:false})};
       return Object.freeze(control);
     }};
   instances.add(binding);return Object.freeze(binding);
@@ -95,7 +112,7 @@ export function freeTradeHostFromRpc(descriptor,request){
       seal:(input,body,signal,model)=>call('seal',[input,body,model],signal),
       check:(proof,signal,model,options={})=>call('check',[proof,model,options],signal),
       verifyBody:(proof,receipt)=>call('verifyBody',[proof,receipt]),
-      authorizeContext:(signal,model)=>call('authorizeContext',[model],signal),
+      authorizeContext:(signal,model,options={})=>call('authorizeContext',[model,options],signal),
       report:()=>({mode:'original-host-private-fd',realCustomerAuthorizationClaimed:false})};
   }};
   instances.add(binding);return Object.freeze(binding);

@@ -226,8 +226,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       args = { ...args, sourceToolCallIds: context.messages.filter(message => message.role === 'toolResult'
         && ['workspace_public_search', 'workspace_public_browser'].includes(message.toolName) && !message.isError).map(message => message.toolCallId) };
     }
-    if (spec.parallelTools && (!localFactory || !Array.isArray(spec.parallelTools) || spec.parallelTools.length !== 5
-      || spec.parallelTools.some(tool => tool.name !== 'write'))) throw Error('Finite local concurrent-write fixture refused.');
+    if(spec.parallelTools&&!(Array.isArray(spec.parallelTools)&&(localFactory&&spec.parallelTools.length===5&&spec.parallelTools.every(tool=>tool.name==='write')
+      ||freeTradeHost&&spec.parallelTools.length===3&&spec.parallelTools.every(tool=>tool.name==='workspace_erpnext_read'))))throw Error('Finite scoped concurrent-tool fixture refused.');
     const content = spec.parallelTools ? spec.parallelTools.map((tool, index) => ({ type: 'toolCall', id: `workspace-omp-${callNumber}-${index}`, name: tool.name, arguments: tool.arguments }))
       : spec.tool ? [{ type: 'toolCall', id: `workspace-omp-${callNumber}`, name: spec.tool, arguments: args }]
       : [{ type: 'text', text: spec.text || 'Explicit synthetic model response.' }];
@@ -271,7 +271,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         }
         // Fail stale private sources before recording/reserving another model
         // request. Recheck below after the host request hook closes its race.
-        if(freeTradeHost)await authorize({phase:'model:disclose'});
+        if(freeTradeHost)await authorize({phase:'model:prepare'});
         const callNumber = ++modelCalls;
         if (callNumber > maxModelCalls || model.provider !== configuration.providerId || model.id !== configuration.model || model.baseUrl !== configuration.baseUrl)
           throw new Error('The original admitted request count or pinned OMP receiver changed.');
