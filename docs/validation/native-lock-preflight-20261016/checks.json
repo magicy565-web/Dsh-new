@@ -1,0 +1,57 @@
+{
+  "sourceCommit": "b8866e95f2c655603c7b55529b579f91c9626fa1",
+  "runtime": {
+    "node": "v24.19.0",
+    "bun": "1.3.14",
+    "bunShaMatchesAudit": true,
+    "dependencyLockFilesEqualPriorInstall": true
+  },
+  "native": {
+    "packageVersion": "18.10.4",
+    "buildVersion": "18.10.4",
+    "addonFilename": "pi_natives.linux-x64-modern.node",
+    "stale": false,
+    "forcedVariant": false
+  },
+  "nativeLock": {
+    "api": "FileLock.tryAcquire",
+    "tmpPassed": true,
+    "workspacePassed": true,
+    "contenderBlocked": true,
+    "reacquiredAfterRelease": true,
+    "lockOrPermissionOrSandboxBypass": false
+  },
+  "configurationNamePresence": {
+    "DEEPSEEK_API_KEY": true,
+    "PI_PROVIDER": false,
+    "PI_MODEL": false,
+    "WORKSPACE_OMP_PROVIDER_COST_JSON": false,
+    "WORKSPACE_OMP_LIVE_BUDGET_VERIFIED": false
+  },
+  "keyContentReadOrPrinted": false,
+  "dotEnvPresent": false,
+  "focusedTests": [
+    {
+      "file": "test/workspace-omp-context-pairing.test.mjs",
+      "exitCode": 0,
+      "passed": 1,
+      "failed": 0,
+      "logSha256": "57993e971fd8e90b1a316aef1bb0fa965b46176e77ff3a23faaf3df090a48147"
+    },
+    {
+      "file": "test/workspace-omp-local-context.test.mjs",
+      "exitCode": 0,
+      "passed": 1,
+      "failed": 0,
+      "logSha256": "bf418bae5d053a88f88df05f4ff25e781902ccefbd46386a3e820861270bdb7d"
+    }
+  ],
+  "newPaidRequests": 0,
+  "newSpendCny": 0,
+  "otherEnvironmentEpermRootCause": "UNKNOWN; not reproduced here",
+  "productSourceChanges": 0,
+  "fullBackendOrBuildRerun": false,
+  "credentialsChanged": false,
+  "mainOrDeploymentChanged": false,
+  "automaticTasksResumed": false
+}
