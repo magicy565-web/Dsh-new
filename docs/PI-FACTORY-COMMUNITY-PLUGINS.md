@@ -2,7 +2,7 @@
 
 产品使用者是中国工厂，目标是整理本厂产品与供货材料、理解海外客户 RFQ，并在有真实工具证据时研究潜在经销商。不要把本版本当作让工厂选择供应商买货的产品。旧采购源码和文书链保留为明确非默认的历史兼容回归。
 
-本厂普通包名称为 `@workspace-agent/pi-factory`，兼容目录仍是 `packages/workspace-procurement`。标准默认入口只公开工厂配置状态、客户 RFQ 整理、本厂已提供材料的匹配准备，以及原成员任务/结果读取。它不会创建采购任务，不读取企业私库，不编造产品、产能、MOQ 或交期；供货是否匹配始终待人工确认。缺绑定为 `unconfigured`，静态能力或合法配置不代表已连接。
+本厂普通包名称为 `@workspace-agent/pi-factory`，兼容目录仍是 `plugins/workspace-procurement`。标准默认入口只公开工厂配置状态、客户 RFQ 整理、本厂已提供材料的匹配准备，以及原成员任务/结果读取。它不会创建采购任务，不读取企业私库，不编造产品、产能、MOQ 或交期；供货是否匹配始终待人工确认。缺绑定为 `unconfigured`，静态能力或合法配置不代表已连接。
 
 工厂包使用 [官方包规范](https://github.com/earendil-works/pi/blob/abe508e1b89912adde45528136c3221eb69acdd7/packages/coding-agent/docs/packages.md)的 manifest/default extension 和 [官方 SDK](https://github.com/earendil-works/pi/blob/abe508e1b89912adde45528136c3221eb69acdd7/packages/coding-agent/docs/sdk.md)。普通模式保留其他工具、命令和会话操作。受控模式仍单独显式选择，保留原身份、预算、批准以及 Library 缓存逐次重鉴权与精确模型接收方约束；安装普通包不会激活受控模式或迁移私库会话。
 

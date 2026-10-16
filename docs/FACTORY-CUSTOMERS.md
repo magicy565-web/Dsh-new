@@ -10,4 +10,4 @@ Current package acceptance passes 4/4 with zero skips and is reproducible with `
 
 [Earlier committed evidence](validation/factory-customers-20261015/README.md) records the retired implementation. Its four-stage/three-document results are historical, not acceptance of the new thin save interface. The single earlier real native DDG request returned `PROVIDER_REFUSED` with zero sources; no exact HTTP code was exposed. Real customer-source/navigation verification remains blocked. No retry, alternative provider, challenge bypass or paid fallback was used. Community source/license records elsewhere in this repository remain unchanged; reading fixed GitHub method sources is not evidence of an actual overseas customer.
 
-The package [README](../packages/workspace-factory-customers/README.md) defines the injection contract. No actual factory materials, credentials, contact, order, deployment, merge or main change is part of package acceptance.
+The package [README](../plugins/workspace-factory-customers/README.md) defines the injection contract. No actual factory materials, credentials, contact, order, deployment, merge or main change is part of package acceptance.

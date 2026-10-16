@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Type } from '@earendil-works/pi-ai';
-import { validatePublicBusinessInput } from '../packages/workspace-procurement/src/workspace.mjs';
+import { validatePublicBusinessInput } from '../plugins/workspace-procurement/src/workspace.mjs';
 
 export const WORKSPACE_OMP_PUBLIC_REVIEW_TOOL = 'workspace_factory_public_review';
 const agentName = 'factory-text-review';

@@ -10,7 +10,7 @@ Issue #75；从 PR #68 精确 `d82d35fd7213012ff6b0e5f2f24d765aba021a9e` 开发�
 | `workspace_market_validation_plan_save` / client.save | 同上 + `{sources, plan, requestId}` | `status:saved-draft`、`artifact:{artifactId,version,sha256,duplicate}`、planHash/sourceHash 与原来源 |
 | client.revalidateReceipt | receipt, currentModel, signal | 重新检查原权限、源版本及回执完整性；不匹配抛错 |
 
-`plan` 的完整 JSON Schema 和严格数据校验见 `packages/workspace-market-validation/src/plan.mjs`。核心字段是 schemaVersion:1、goal、mode:b2b/b2c/dual、rationale、productState、supply:{dropshipping,oem,odm}、paths、timeZone、budget、commission、questions、assumptions。每条 path 独立包含受众、市场、offer、销量要求、选择的指标、获客来源、自由 steps 和成功/停止标准。没有固定营销流程或固定文书数量。
+`plan` 的完整 JSON Schema 和严格数据校验见 `plugins/workspace-market-validation/src/plan.mjs`。核心字段是 schemaVersion:1、goal、mode:b2b/b2c/dual、rationale、productState、supply:{dropshipping,oem,odm}、paths、timeZone、budget、commission、questions、assumptions。每条 path 独立包含受众、市场、offer、销量要求、选择的指标、获客来源、自由 steps 和成功/停止标准。没有固定营销流程或固定文书数量。
 
 保存的是原 artifact JSON `workspace.market-validation-plan.v1`，包含 plan、sources、extraction、固定安全状态和 Shopify handoff。所有输出固定 `humanReviewRequired:true, humanReviewed:false, externalActions:false, startedAt:null`。JSON 的 execution 固定 `status:not_started, durationDays:7, actualStartedAt:null, baseline:null, endsAt:null`。B 路只需接 artifact 的精确版本/hash 和 planHash；它们不能作为生产批准或真实启动证据。后续批准/启动/采集应继续使用原任务/审批/预算服务，不写回新账本。编辑需新 requestId，原计划版本保留待审。
 
@@ -55,7 +55,7 @@ npm run workspace -- --check
 ```sh
 support/omp-bun-linux-x64/node_modules/@oven/bun-linux-x64-baseline/bin/bun \
   support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent/dist/cli.js \
-  --no-extensions --no-skills -e ./packages/workspace-market-validation --help
+  --no-extensions --no-skills -e ./plugins/workspace-market-validation --help
 ```
 
 更有意义的真实 SDK/Skill 加载及有限 keyless 替身工具选择验证随测试运行；具体运行结果见 `docs/validation/market-validation-plan-20261015/README.md`。该测试不能证明真实模型选择、真实企业授权、真实商店或真实七天观测。不得使用开发环境作真实发布或投放。

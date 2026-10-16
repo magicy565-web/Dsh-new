@@ -4,12 +4,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS } from '../packages/workspace-factory-inquiries/src/extension.js';
-import { validateInquiryDrafts, factoryInquiryHash } from '../packages/workspace-factory-inquiries/src/drafts.mjs';
+import { factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS } from '../plugins/workspace-factory-inquiries/src/extension.js';
+import { validateInquiryDrafts, factoryInquiryHash } from '../plugins/workspace-factory-inquiries/src/drafts.mjs';
 import { inquiryFixture } from './fixtures/factory-inquiries-data.mjs';
 
 const repository = fileURLToPath(new URL('..', import.meta.url));
-const source = path.join(repository, 'packages/workspace-factory-inquiries');
+const source = path.join(repository, 'plugins/workspace-factory-inquiries');
 const piCli = path.join(repository, 'node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js');
 const bun = path.join(repository, 'support/omp-bun-linux-x64/node_modules/@oven/bun-linux-x64-baseline/bin/bun');
 const ompRoot = path.join(repository, 'support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Compile } from 'typebox/compile';
-import { SHOPIFY_PRODUCT_INPUTS, validateShopifyProductInput } from '../../packages/workspace-shopify-product/src/contracts.mjs';
+import { SHOPIFY_PRODUCT_INPUTS, validateShopifyProductInput } from '../../plugins/workspace-shopify-product/src/contracts.mjs';
 const engine = process.argv[2], check = engine === 'pi' ? (s, v) => Compile(s).Check(v)
   : (await import('../../support/omp-coding-agent/node_modules/@oh-my-pi/pi-ai/src/utils/schema/json-schema-validator.ts')).isJsonSchemaValueValid;
 const id = '11111111-1111-4111-8111-111111111111', hash = 'a'.repeat(64);

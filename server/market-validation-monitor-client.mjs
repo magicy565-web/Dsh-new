@@ -1,8 +1,8 @@
 import { capabilityPayloadHash } from './capabilities.mjs';
 import { ApiError } from './runtime.mjs';
 import { libraryReadHash as hash } from './library-model-read-contract.mjs';
-import { validate } from '../packages/workspace-market-validation/src/plan.mjs';
-import { MONITOR_REQUEST_SCHEMA, MONITOR_STATUS_SCHEMA, MONITOR_CONTROL_SCHEMA } from '../packages/workspace-market-validation/src/monitor.js';
+import { validate } from '../plugins/workspace-market-validation/src/plan.mjs';
+import { MONITOR_REQUEST_SCHEMA, MONITOR_STATUS_SCHEMA, MONITOR_CONTROL_SCHEMA } from '../plugins/workspace-market-validation/src/monitor.js';
 
 // Narrow per-Run binding. All durable task, permission and approval state stays
 // in the original services. Cached context is refreshed, never trusted as state.

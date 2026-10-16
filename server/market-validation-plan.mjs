@@ -4,7 +4,7 @@ import { ApiError } from './runtime.mjs';
 import { libraryReadHash } from './library-model-read-contract.mjs';
 import { supplierOwned } from './supplier-draft.mjs';
 import { looksLikeCredential } from './security.mjs';
-import { validateProductInput, validatePlanInput, buildPreServiceReview, referencesForPath } from '../packages/workspace-market-validation/src/plan.mjs';
+import { validateProductInput, validatePlanInput, buildPreServiceReview, referencesForPath } from '../plugins/workspace-market-validation/src/plan.mjs';
 
 const fail = (status, code) => { throw new ApiError(status, code, 'Use the original owned conversation, current authorized product sources and an unreviewed plan.'); };
 export const MARKET_PLAN_FLAGS = Object.freeze({ humanReviewRequired: true, humanReviewed: false, externalActions: false, startedAt: null });

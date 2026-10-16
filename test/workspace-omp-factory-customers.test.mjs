@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
-import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { taskFixture, TOKEN_A } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
 const model = { provider: 'factory-customers-host-faux', id: 'finite', api: 'openai-completions', baseUrl: 'https://synthetic.invalid' };

@@ -17,7 +17,7 @@ npm run workspace
 
 本轮运行器安装适用于Linux x64。交互TTY下 `npm run workspace`／`npm run agent:dev` 自动打开官方OMP终端，自然输入沿原HTTP Conversation/Run；非TTY及 `npm start` 提供原网页服务。终端UI不另调用模型。无模型／成员绑定／已审价格与剩余预算时可启动，模型执行返回明确未配置；先用 `npm run workspace -- --check` 检查，配置存在不代表在线已验证。中文配置、授权边界与协作接口见 [Workspace OMP](docs/WORKSPACE-OMP.md)。
 
-工厂包为 `@workspace-agent/pi-factory`，兼容目录 `packages/workspace-procurement`；普通模式五工具，受控模式增加原 `factory-export` 文书提交。宿主另显式提供固定公开搜索、已有浏览器检查、精确选定文件读与原生公开文字子代理审阅。原Pi1.1.0保留 `npm run agent:pi` 显式回退。旧Pi／私库缓存不迁入；任意本机文件和命令不开放，没有第二业务账本。
+工厂包为 `@workspace-agent/pi-factory`，兼容目录 `plugins/workspace-procurement`；普通模式五工具，受控模式增加原 `factory-export` 文书提交。宿主另显式提供固定公开搜索、已有浏览器检查、精确选定文件读与原生公开文字子代理审阅。原Pi1.1.0保留 `npm run agent:pi` 显式回退。旧Pi／私库缓存不迁入；任意本机文件和命令不开放，没有第二业务账本。
 
 [默认入口与原生命周期11项检查](docs/validation/workspace-omp-core-20261014/default-acceptance.json)覆盖真实HTTP／SDK、独立manifest加载、续聊、取消退出、重启恢复、原文书SHA、人工审批与分别继续。模型均为明确合成替身；原Pi／Library／包组合53项亦实际通过。另有 [工厂文书与重载检查](docs/validation/factory-export-20261014/README.md)、[内置搜索／浏览器诊断](docs/validation/omp-builtins-factory-20261014/README.md)、[内置子代理诊断](docs/validation/omp-builtin-task-20261014/README.md) 和 [固定社区候选检查](docs/validation/pi-community-20261014/README.md)。
 

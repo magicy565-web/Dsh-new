@@ -1,2 +1,2 @@
 // Compatibility import: the standalone package owns the shared implementation.
-export * from '../../packages/workspace-procurement/src/workspace-read.mjs';
+export * from '../../plugins/workspace-procurement/src/workspace-read.mjs';

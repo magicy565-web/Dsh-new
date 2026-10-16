@@ -21,7 +21,7 @@ Import seam (the authority functions below must be the integrating host's real o
 
 ```js
 import { createFactoryLibraryIngestionClient } from './factory-library-ingestion.mjs';
-import { factoryIngestionExtension } from '../packages/workspace-factory-ingestion/src/extension.js';
+import { factoryIngestionExtension } from '../plugins/workspace-factory-ingestion/src/extension.js';
 
 const ingestionClient = createFactoryLibraryIngestionClient({
   store, artifacts, identity, conversationId: conversation.id,

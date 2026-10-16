@@ -12,7 +12,7 @@ for (const engine of ['pi', 'omp']) test(`product DTOs match actual ${engine} JS
 });
 test('copied export has declarations and only intended package files', async t => {
   const dir = await fs.mkdtemp('/tmp/shopify-product-types-'); t.after(() => fs.rm(dir, { recursive: true, force: true }));
-  const copied = path.join(dir, 'node_modules/@workspace-agent/pi-shopify-product'); await fs.cp(path.join(root, 'packages/workspace-shopify-product'), copied, { recursive: true });
+  const copied = path.join(dir, 'node_modules/@workspace-agent/pi-shopify-product'); await fs.cp(path.join(root, 'plugins/workspace-shopify-product'), copied, { recursive: true });
   const file = path.join(dir, 'consumer.mts'); await fs.writeFile(file, `import {validateShopifyProductInput, type PublicationReviewInput} from '@workspace-agent/pi-shopify-product/contracts';
 const x = validateShopifyProductInput('read', {productId:'synthetic'}); const id: string = x.productId;
 // @ts-expect-error publication requires exact selected channel

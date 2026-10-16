@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
-import { validatePublicBusinessInput } from '../packages/workspace-procurement/src/workspace.mjs';
+import { validatePublicBusinessInput } from '../plugins/workspace-procurement/src/workspace.mjs';
 
 // The UI-only SDK does not carry evidence of the backend model's remaining
 // cash budget. Keep execution/recovery on the reviewed original host/web path.

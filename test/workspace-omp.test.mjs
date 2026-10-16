@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
-import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
 import { taskFixture, TOKEN_A, TOKEN_B, until, api } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
@@ -232,7 +232,7 @@ test('actual official OMP CLI loads the standard factory extension beside native
   await fs.writeFile(directory + '/public-product.md', 'Public synthetic factory cup; capacity unknown and needs human review.\n');
   const copiedPackage = directory + '/copied-factory-package';
   await fs.mkdir(copiedPackage);
-  for (const item of ['package.json', 'src', 'skills']) await fs.cp(repository + '/packages/workspace-procurement/' + item, copiedPackage + '/' + item, { recursive: true });
+  for (const item of ['package.json', 'src', 'skills']) await fs.cp(repository + '/plugins/workspace-procurement/' + item, copiedPackage + '/' + item, { recursive: true });
   assert.equal(await fs.stat(copiedPackage + '/node_modules').then(() => true).catch(() => false), false);
   const env = { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory, PI_CODING_AGENT_DIR: directory + '/agent',
     PI_NO_TITLE: '1', NO_COLOR: '1', TERM: 'dumb', WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WORKSPACE_OMP_PUBLIC_FIXTURE: directory + '/public-product.md' };

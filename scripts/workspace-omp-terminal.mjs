@@ -4,7 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createWorkspaceOmpSession } from '../server/workspace-omp-session.mjs';
 import { workspaceOmpConfiguration } from '../server/workspace-omp-host.mjs';
-import { existingBinding } from '../packages/workspace-procurement/src/extension.js';
+import { existingBinding } from '../plugins/workspace-procurement/src/extension.js';
 import { createWorkspaceOmpTerminalClient, workspaceOmpTerminalControlClient } from '../server/workspace-omp-terminal-client.mjs';
 import { workspaceOmpTerminalExtension } from '../server/workspace-omp-terminal-extension.mjs';
 import { createOwnerRpcTransport } from '../tui/owner-rpc.mjs';

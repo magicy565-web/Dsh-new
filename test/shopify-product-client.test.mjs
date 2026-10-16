@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import { createApp } from '../server/index.mjs';
 import { productFixture, draft, multiDraft, MODEL } from './fixtures/shopify-product.mjs';
 import { createShopifyProductClient } from '../server/shopify-product-client.mjs';
-import { shopifyProductExtension } from '../packages/workspace-shopify-product/src/extension.js';
+import { shopifyProductExtension } from '../plugins/workspace-shopify-product/src/extension.js';
 const PUB = 'gid://shopify/Publication/7';
 async function fixture(t, options) {
   const f = await productFixture(t, options), guards = { live: true, writable: true };

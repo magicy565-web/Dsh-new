@@ -9,7 +9,7 @@ import { openStore } from '../server/store.mjs';
 import { createArtifactService } from '../server/artifacts.mjs';
 import { createBusinessLibraryService } from '../server/business-library.mjs';
 import { createFactoryLibraryIngestionClient, readFactoryLibrarySource } from '../server/factory-library-ingestion.mjs';
-import { leaves, validateIntake } from '../packages/workspace-factory-ingestion/src/contract.mjs';
+import { leaves, validateIntake } from '../plugins/workspace-factory-ingestion/src/contract.mjs';
 import { libraryReadHash as hash } from '../server/library-model-read-contract.mjs';
 const model = { provider: 'ingestion-explicit-faux', id: 'finite', api: 'openai-completions', baseUrl: 'https://synthetic.invalid' };
 const recipient = { kind: 'pi-coding-agent', provider: model.provider, model: model.id, destination: model.baseUrl };

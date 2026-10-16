@@ -1,6 +1,6 @@
 import { capabilityPayloadHash as hash, goalDefinition } from './capabilities.mjs';
 import { assessMarketValidation } from './market-validation-assessment.mjs';
-import { validateResultAssessment, validateFrozenServiceTarget } from '../packages/workspace-market-validation/src/plan.mjs';
+import { validateResultAssessment, validateFrozenServiceTarget } from '../plugins/workspace-market-validation/src/plan.mjs';
 import { ApiError } from './runtime.mjs';
 import { productCohortMetrics, SUPPLIER_METRIC_DEFINITION } from './supplier-metrics.mjs';
 import { validateProductTrafficObservation } from './product-traffic-contract.mjs';

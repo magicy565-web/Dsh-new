@@ -1,4 +1,4 @@
-import { buildPreServiceReview, freezeConfirmedServiceTarget, preServiceHash, referencesForPath } from '../packages/workspace-market-validation/src/plan.mjs';
+import { buildPreServiceReview, freezeConfirmedServiceTarget, preServiceHash, referencesForPath } from '../plugins/workspace-market-validation/src/plan.mjs';
 import { ApiError } from './runtime.mjs';
 import { libraryReadHash } from './library-model-read-contract.mjs';
 import { readShopifyMarketScope } from './shopify-market-scope.mjs';

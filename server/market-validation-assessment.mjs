@@ -1,4 +1,4 @@
-import { validateFrozenServiceTarget } from '../packages/workspace-market-validation/src/plan.mjs';
+import { validateFrozenServiceTarget } from '../plugins/workspace-market-validation/src/plan.mjs';
 // Pure evidence assessment, separate from human goal verification. Inputs come
 // from the original frozen plan/launch and reviewed outcome adapter, never tools.
 function assessMarketComparison({ scope, sample, windowComplete }) {

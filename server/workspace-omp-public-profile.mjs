@@ -1,5 +1,5 @@
 import { matchesKey } from '@earendil-works/pi-tui';
-import { workspaceTerminalInputPolicy, validatePublicBusinessInput } from '../packages/workspace-procurement/src/workspace.mjs';
+import { workspaceTerminalInputPolicy, validatePublicBusinessInput } from '../plugins/workspace-procurement/src/workspace.mjs';
 
 const commands = new Set(['ws-task', 'ws-status', 'ws-business-status', 'ws-cancel', 'ws-resume', 'ws-approve',
   'ws-continue', 'ws-business-cancel', 'ws-business-resume', 'ws-stop', 'ws-front-status', 'ws-execute', 'quit']);

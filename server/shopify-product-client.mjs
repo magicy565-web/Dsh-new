@@ -4,7 +4,7 @@ import { ApiError } from './runtime.mjs';
 import { libraryReadHash } from './library-model-read-contract.mjs';
 import { supplierOwned, supplierFind, assertSupplierProductSource } from './supplier-draft.mjs';
 import { looksLikeCredential } from './security.mjs';
-import { SHOPIFY_PRODUCT_PLUGIN as plugin, validateShopifyProductInput } from '../packages/workspace-shopify-product/src/contracts.mjs';
+import { SHOPIFY_PRODUCT_PLUGIN as plugin, validateShopifyProductInput } from '../plugins/workspace-shopify-product/src/contracts.mjs';
 const fail = (status, code) => { throw new ApiError(status, code, 'Use the original authorized product, image, Run and human-approved operation.'); };
 const clone = structuredClone;
 const acquisition = Object.freeze({ startedAt: null, launchEvidence: false });

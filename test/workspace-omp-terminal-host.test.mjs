@@ -4,7 +4,7 @@ import { fauxAssistantMessage } from '@earendil-works/pi-ai/providers/faux';
 import { createWorkspaceOmpHostRequest } from '../server/workspace-omp-terminal-host.mjs';
 import { createWorkspaceOmpTerminalClient } from '../server/workspace-omp-terminal-client.mjs';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
-import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { taskFixture, TOKEN_A, TOKEN_B, api, until } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
 

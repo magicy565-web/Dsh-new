@@ -4,7 +4,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { workspaceOmpPaths, checkWorkspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
 import { workspaceOmpConfiguration, workspaceOmpConfigured, workspaceOmpPublicToolConfiguration } from '../server/workspace-omp-host.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));

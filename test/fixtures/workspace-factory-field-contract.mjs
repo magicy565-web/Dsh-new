@@ -1,7 +1,7 @@
 // Pinned official OMP validation plus the real registered tools; no model/network.
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-import { registerFactoryTools } from '../../packages/workspace-procurement/src/factory.mjs';
+import { registerFactoryTools } from '../../plugins/workspace-procurement/src/factory.mjs';
 import { workspaceOmpPaths } from '../../server/workspace-omp-bridge.mjs';
 const {validateToolArguments}=await import(pathToFileURL(workspaceOmpPaths({}).packageRoot+'/../pi-ai/src/utils/validation.ts').href);
 const registered=[];let unexpectedServiceReads=0;

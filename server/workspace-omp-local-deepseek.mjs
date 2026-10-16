@@ -16,12 +16,12 @@ export const LOCAL_DEEPSEEK_LIMITS = Object.freeze({ maxRequests: 8, maxRequestB
   normalCompletionUpperCny: 8 * (32000 * 2 + 512 * 8) / 1e6,
   failureInclusiveUpperCny: (7 * (32000 * 2 + 512 * 8) + 1100000 * 2 + 512 * 8) / 1e6,
   priceSource: DEEPSEEK_PRICES.source, priceCheckedOn: DEEPSEEK_PRICES.checkedOn });
-const tools = ['read','write','workspace_factory_capabilities','workspace_factory_rfq_requirements','workspace_factory_match_prepare'];
 export const localDeepseekConfigured = configuration => configuration?.providerId === 'workspace-deepseek'
   && configuration.model === 'deepseek-flash' && configuration.baseUrl === 'https://api.deepseek.com';
 export function createLocalDeepseekTransport({ configuration, fetchImpl = globalThis.fetch, onStop = () => {} }) {
   if (!localDeepseekConfigured(configuration)) throw Object.assign(Error('LOCAL_PINNED_DEEPSEEK_REQUIRED'), { code: 'LOCAL_PINNED_DEEPSEEK_REQUIRED' });
   const controller = new AbortController();
+  const tools = [];
   let actual = 0, confirmed = 0, spent = 0, pending = false, rawUsage = null, stopped = null, contractViolation = false;
   const confirmedUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
   const reserve = (LOCAL_DEEPSEEK_LIMITS.unconfirmedInputTokenReserve * DEEPSEEK_PRICES.inputPeakCnyPerMillion
@@ -45,11 +45,17 @@ export function createLocalDeepseekTransport({ configuration, fetchImpl = global
   }, { maxModelCalls: LOCAL_DEEPSEEK_LIMITS.maxRequests, maxRequestBytes: LOCAL_DEEPSEEK_LIMITS.maxRequestBytes,
     maxOutputTokens: LOCAL_DEEPSEEK_LIMITS.maxOutputTokens, allowedToolNames: tools });
   return { signal: controller.signal, stop,
+    configureTools(names) {
+      if (actual || pending || stopped || !Array.isArray(names) || names.length > 32 || new Set(names).size !== names.length
+        || names.some(name => typeof name !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(name))) refuse('LOCAL_PLUGIN_TOOL_CONFIGURATION_REFUSED');
+      tools.splice(0,tools.length,...names);
+    },
     async fetch(input, init) {
       ready();
       try {
         const request = new Request(input, init), body = await request.clone().json();
-        if (!Array.isArray(body.messages) || body.messages.length > 64 || !Array.isArray(body.tools) || body.tools.length > 5
+        if (body.tools === undefined) body.tools = []; // Native provider omits tools for a conversational-only Session.
+        if (!Array.isArray(body.messages) || body.messages.length > 64 || !Array.isArray(body.tools) || body.tools.length > 32
           || body.messages.some(m => !['system','developer','user','assistant','tool'].includes(m.role)
             || m.content != null && typeof m.content !== 'string' && !(Array.isArray(m.content)
               && m.content.every(b => b.type === 'text' && typeof b.text === 'string')))) refuse('LOCAL_TEXT_REQUEST_REQUIRED');

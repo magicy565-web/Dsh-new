@@ -1,0 +1,37 @@
+{
+  "name": "@workspace-agent/pi-local-materials",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Explicitly selected local material drafts for pinned original OMP",
+  "keywords": [
+    "pi-package"
+  ],
+  "files": [
+    "src",
+    "skills",
+    "README.md",
+    "AGENTS.md"
+  ],
+  "main": "./src/extension.js",
+  "exports": {
+    ".": "./src/extension.js",
+    "./files": "./src/files.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./src/extension.js"
+    ],
+    "skills": [
+      "./skills/local-materials"
+    ]
+  },
+  "peerDependencies": {
+    "@oh-my-pi/pi-coding-agent": "18.10.4"
+  },
+  "peerDependenciesMeta": {
+    "@oh-my-pi/pi-coding-agent": {
+      "optional": true
+    }
+  }
+}

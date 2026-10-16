@@ -7,7 +7,7 @@ The existing Library upload/product/document/version/review APIs remain the only
 writers. Missing capacity, MOQ, lead time and certificate verification stay
 missing; the Skill asks focused follow-up questions instead of inventing facts.
 
-`packages/workspace-factory-materials` is a standalone private local Pi/OMP
+`plugins/workspace-factory-materials` is a standalone private local Pi/OMP
 package with a standard extension/Skill manifest. It exposes
 `workspace_factory_materials_status`, `workspace_factory_materials` and
 `workspace_factory_document`. Ordinary installation injects no client or authority

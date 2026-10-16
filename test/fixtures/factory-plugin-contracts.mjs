@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { Compile } from 'typebox/compile';
-import { FACTORY_MATERIAL_INPUTS, validateFactoryMaterialInput } from '../../packages/workspace-factory-materials/src/contracts.mjs';
-import { FACTORY_CUSTOMER_INPUT, validateCustomerDrafts } from '../../packages/workspace-factory-customers/src/contracts.mjs';
-import { FACTORY_INQUIRY_INPUT, validateInquiryDrafts } from '../../packages/workspace-factory-inquiries/src/contracts.mjs';
+import { FACTORY_MATERIAL_INPUTS, validateFactoryMaterialInput } from '../../plugins/workspace-factory-materials/src/contracts.mjs';
+import { FACTORY_CUSTOMER_INPUT, validateCustomerDrafts } from '../../plugins/workspace-factory-customers/src/contracts.mjs';
+import { FACTORY_INQUIRY_INPUT, validateInquiryDrafts } from '../../plugins/workspace-factory-inquiries/src/contracts.mjs';
 import { inquiryFixture } from './factory-inquiries-data.mjs';
-import { factoryInquiryHash } from '../../packages/workspace-factory-inquiries/src/drafts.mjs';
+import { factoryInquiryHash } from '../../plugins/workspace-factory-inquiries/src/drafts.mjs';
 const engine = process.argv[2];
 const check = engine === 'pi' ? (schema, value) => Compile(schema).Check(value)
   : (await import('../../support/omp-coding-agent/node_modules/@oh-my-pi/pi-ai/src/utils/schema/json-schema-validator.ts')).isJsonSchemaValueValid;
@@ -57,6 +57,6 @@ for (const [schema, validate, value] of [
   [FACTORY_INQUIRY_INPUT, validateInquiryDrafts, { ...inquiry, sources: [{ ...inquiry.sources[0], documentVersion: 3 }, inquiry.sources[1]] }],
   [FACTORY_INQUIRY_INPUT, validateInquiryDrafts, { ...inquiry, sources: [inquiry.sources[0], { ...inquiry.sources[1], workspaceId: 'other' }] }],
 ]) { assert.equal(check(schema, value), true); assert.throws(() => validate(value)); policies++; }
-const source = await fs.readFile(new URL('../../packages/workspace-factory-inquiries/src/extension.js', import.meta.url), 'utf8');
+const source = await fs.readFile(new URL('../../plugins/workspace-factory-inquiries/src/extension.js', import.meta.url), 'utf8');
 assert.ok(source.includes('parameters: FACTORY_INQUIRY_INPUT'));
 console.log(JSON.stringify({ engine, upstreamVersion: engine === 'pi' ? '1.1.0' : '18.10.4', rawSchemaCases: checked, businessPolicyCases: policies, modelCalls: 0 }));

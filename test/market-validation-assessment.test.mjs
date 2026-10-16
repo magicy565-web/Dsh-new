@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assessMarketValidation } from '../server/market-validation-assessment.mjs';
 import { marketPlan } from './fixtures/market-validation-plan-data.mjs';
-import { validatePlanInput } from '../packages/workspace-market-validation/src/plan.mjs';
+import { validatePlanInput } from '../plugins/workspace-market-validation/src/plan.mjs';
 // Pure synthetic contract examples; none proves an external market average,
 // real payment, live acquisition or elapsed seven-day business acceptance.
 function fixture(metric = 'sales_units') {

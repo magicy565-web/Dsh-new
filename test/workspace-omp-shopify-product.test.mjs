@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { productFixture, empty, draft, multiDraft } from './fixtures/shopify-product.mjs';
-import { SHOPIFY_PRODUCT_TOOLS } from '../packages/workspace-shopify-product/src/extension.js';
+import { SHOPIFY_PRODUCT_TOOLS } from '../plugins/workspace-shopify-product/src/extension.js';
 async function send(f, steps, { write = false } = {}) {
   // Model/HTTP bursts are finite scripts, while humans take time to review.
   // Advance the original fixture clock between turns; keep its 240/minute

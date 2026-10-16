@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { taskFixture, TOKEN_A } from './pi-task-helpers.mjs';
 import { fakeShopify } from './supplier-shopify-http.mjs';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../../server/workspace-omp-bridge.mjs';
-import { createWorkspaceClient } from '../../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../../plugins/workspace-procurement/src/workspace.mjs';
 import { request } from '../agent-service.helpers.mjs';
 import { libraryReadHash } from '../../server/library-model-read-contract.mjs';
 export const MODEL = { provider: 'shopify-product-explicit-faux', id: 'finite', api: 'openai-completions', baseUrl: 'https://synthetic.invalid' };

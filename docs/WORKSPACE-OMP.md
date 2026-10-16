@@ -68,7 +68,7 @@ node scripts/workspace-omp-install.mjs --check
 
 ## 工厂能力与审核
 
-普通独立包 `@workspace-agent/pi-factory` 的兼容目录是 `packages/workspace-procurement`。普通模式公开五个工厂／历史读取工具；受控Workspace宿主另明确启用 `workspace_factory_task`，仅提交原 `factory-export` 文书预设。用户是供货工厂，旧买方采购链只是兼容回归。
+普通独立包 `@workspace-agent/pi-factory` 的兼容目录是 `plugins/workspace-procurement`。普通模式公开五个工厂／历史读取工具；受控Workspace宿主另明确启用 `workspace_factory_task`，仅提交原 `factory-export` 文书预设。用户是供货工厂，旧买方采购链只是兼容回归。
 
 公开产品资料、客户来源材料和RFQ进入原任务四阶段，生成产品材料、客户匹配证据及待审核开发信。保留稳定requestId、原taskId、原阶段Run、原文书字节／SHA；重载不自动恢复或再提交。来源未独立核验、供货缺项和部分失败保持可见。文书完成不是获客、供货承诺、发送或销售证明。
 

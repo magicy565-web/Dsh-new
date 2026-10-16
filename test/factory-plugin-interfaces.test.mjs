@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { factoryMaterialsExtension } from '../packages/workspace-factory-materials/src/extension.js';
-import { factoryCustomersExtension } from '../packages/workspace-factory-customers/src/extension.js';
-import { factoryInquiriesExtension } from '../packages/workspace-factory-inquiries/src/extension.js';
-import { factoryInquiryHash } from '../packages/workspace-factory-inquiries/src/drafts.mjs';
+import { factoryMaterialsExtension } from '../plugins/workspace-factory-materials/src/extension.js';
+import { factoryCustomersExtension } from '../plugins/workspace-factory-customers/src/extension.js';
+import { factoryInquiriesExtension } from '../plugins/workspace-factory-inquiries/src/extension.js';
+import { factoryInquiryHash } from '../plugins/workspace-factory-inquiries/src/drafts.mjs';
 import { inquiryFixture } from './fixtures/factory-inquiries-data.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const data = inquiryFixture(factoryInquiryHash);
@@ -28,7 +28,7 @@ test('private package manifests expose portable dependency-free contracts, decla
   await fs.mkdir(path.join(directory, 'node_modules/@workspace-agent'), { recursive: true });
   const imports = [];
   for (const kind of ['materials', 'customers', 'inquiries']) {
-    const original = path.join(root, `packages/workspace-factory-${kind}`), copied = path.join(directory, `node_modules/@workspace-agent/pi-factory-${kind}`);
+    const original = path.join(root, `plugins/workspace-factory-${kind}`), copied = path.join(directory, `node_modules/@workspace-agent/pi-factory-${kind}`);
     await fs.cp(original, copied, { recursive: true });
     const manifest = JSON.parse(await fs.readFile(path.join(copied, 'package.json')));
     assert.equal(manifest.version, '0.2.0'); assert.equal(manifest.private, true); assert.equal(manifest.license, 'UNLICENSED');

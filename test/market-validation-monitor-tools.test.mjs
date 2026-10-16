@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marketValidationMonitorExtension, MARKET_MONITOR_TOOLS } from '../packages/workspace-market-validation/src/monitor.js';
+import { marketValidationMonitorExtension, MARKET_MONITOR_TOOLS } from '../plugins/workspace-market-validation/src/monitor.js';
 const input = { requestId: 'propose', planId: 'original', planRevision: 1, launchReceiptId: 'launch' };
 function fixture(client, authorize = async signal => signal?.throwIfAborted()) {
   const tools = []; marketValidationMonitorExtension({ client, authorize })({ registerTool: t => tools.push(t) });

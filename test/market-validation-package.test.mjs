@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 const repository = fileURLToPath(new URL('..', import.meta.url));
-const source = path.join(repository, 'packages/workspace-market-validation');
+const source = path.join(repository, 'plugins/workspace-market-validation');
 const bun = path.join(repository, 'support/omp-bun-linux-x64/node_modules/@oven/bun-linux-x64-baseline/bin/bun');
 const ompRoot = path.join(repository, 'support/omp-coding-agent/node_modules/@oh-my-pi/pi-coding-agent');
 const facts = [];

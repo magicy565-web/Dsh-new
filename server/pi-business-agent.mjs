@@ -14,7 +14,7 @@ import { createShopifyProductClient } from './shopify-product-client.mjs';
 import { createMarketValidationPlanClient } from './market-validation-plan.mjs';
 import { createFactoryInquiryClient } from './factory-inquiries.mjs';
 import { createFactoryCustomerDraftClient } from './factory-customer-drafts.mjs';
-import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
+import { createWorkspaceFactoryMaterialsClient } from '../plugins/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { ApiError } from './runtime.mjs';
 import { AgentHttpError } from './agent/auth.mjs';
 import { ProviderError } from './provider.mjs';

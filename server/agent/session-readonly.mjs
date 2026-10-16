@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { AgentHttpError } from './auth.mjs';
 import { artifactNameValid } from './store.mjs';
-import { createWorkspaceBusinessReads } from '../../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceBusinessReads } from '../../plugins/workspace-procurement/src/workspace.mjs';
 
 const fail = (status, code) => { throw new AgentHttpError(status, code, { code }); };
 // Host-internal client only. Identity comes from the original conversation

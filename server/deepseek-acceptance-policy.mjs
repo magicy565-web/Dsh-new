@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { looksLikeCredential } from '../packages/workspace-procurement/src/public-input.mjs';
+import { looksLikeCredential } from '../plugins/workspace-procurement/src/public-input.mjs';
 import { workspaceOmpConfiguration } from './workspace-omp-host.mjs';
 
 // User reconfirmed the total remaining allowance as CNY5. No historical billing

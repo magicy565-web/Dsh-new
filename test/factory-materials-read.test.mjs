@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { randomUUID, createHash } from 'node:crypto';
 import { taskFixture, api } from './fixtures/pi-task-helpers.mjs';
-import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
+import { createWorkspaceFactoryMaterialsClient } from '../plugins/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { libraryReadHash } from '../server/library-model-read-contract.mjs';
 import { extractFactoryDocument } from '../server/factory-document-extract.mjs';
 import { publicPdfBytes, publicLongPdfBytes } from './fixtures/workspace-omp-public-pdf.mjs';

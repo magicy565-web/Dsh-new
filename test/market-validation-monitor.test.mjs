@@ -1,5 +1,5 @@
 import { marketServicePlan } from './fixtures/market-validation-plan-data.mjs';
-import { buildPreServiceReview, freezeConfirmedServiceTarget } from '../packages/workspace-market-validation/src/plan.mjs';
+import { buildPreServiceReview, freezeConfirmedServiceTarget } from '../plugins/workspace-market-validation/src/plan.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';

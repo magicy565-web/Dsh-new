@@ -6,7 +6,7 @@ const root = process.argv[2], directory = process.argv[3];
 const load = relative => import(pathToFileURL(path.join(root, relative)).href);
 const sdk = await load('node_modules/@earendil-works/pi-coding-agent/dist/index.js');
 const ai = await load('node_modules/@earendil-works/pi-ai/dist/index.js');
-const { factoryCustomersExtension } = await load('packages/workspace-factory-customers/src/extension.js');
+const { factoryCustomersExtension } = await load('plugins/workspace-factory-customers/src/extension.js');
 let externalRequests = 0; globalThis.fetch = async () => { externalRequests++; throw Error('External network forbidden in this finite fixture.'); };
 const faux = ai.fauxProvider({ api: 'faux', provider: 'factory-customers-pi-faux', models: [{ id: 'finite', maxTokens: 256 }] });
 const modelRuntime = await sdk.ModelRuntime.create({ credentials: new ai.InMemoryCredentialStore(), modelsPath: null, refreshOnCreate: false, allowModelNetwork: false });

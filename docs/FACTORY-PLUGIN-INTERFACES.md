@@ -17,7 +17,7 @@ These are tested versions, not a promise of compatibility with arbitrary future 
 
 Both upstream coding-agent packages declare MIT. The OMP package contains its complete MIT notice; the installed Pi archive omits a root LICENSE file, so its repository license was checked separately at the resolved v1.1.0 tag commit. Registry archive integrity is pinned in the existing lockfiles. Metadata/license checks do not claim independent publisher provenance verification; the OMP audit still states `publisherBuildSigstoreVerified: false`. See the scoped validation evidence for checked paths, hashes and source URLs. These private business adapters declare `UNLICENSED`; upstream MIT does not grant a new license to this repository. No upstream implementation code or Skill collection was copied into these changes.
 
-The optional inquiry-writing reference remains cold-email 2.2.0 at `55ff469422c3592dac45bcad08dfb40221981c02`. Its resource/license SHA-256 values were re-fetched and matched `packages/workspace-factory-inquiries/sources.json`. It supplies optional method guidance. Customer work has no fixed four stages, inquiry work has no fixed three drafts, and saving is optional. The existing Skills retain that distinction.
+The optional inquiry-writing reference remains cold-email 2.2.0 at `55ff469422c3592dac45bcad08dfb40221981c02`. Its resource/license SHA-256 values were re-fetched and matched `plugins/workspace-factory-inquiries/sources.json`. It supplies optional method guidance. Customer work has no fixed four stages, inquiry work has no fixed three drafts, and saving is optional. The existing Skills retain that distinction.
 
 ## Composable tools and DTOs
 

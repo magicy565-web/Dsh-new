@@ -7,8 +7,8 @@ import { isIP } from 'node:net';
 import { createHash, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { Type } from '@earendil-works/pi-ai';
-import { validatePublicBusinessInput } from '../packages/workspace-procurement/src/workspace.mjs';
-import { looksLikeCredential } from '../packages/workspace-procurement/src/public-input.mjs';
+import { validatePublicBusinessInput } from '../plugins/workspace-procurement/src/workspace.mjs';
+import { looksLikeCredential } from '../plugins/workspace-procurement/src/public-input.mjs';
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const response = value => ({ content: [{ type: 'text', text: JSON.stringify(value) }], details: value });

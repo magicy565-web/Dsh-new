@@ -6,7 +6,7 @@ import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { materialsFixture, MODEL, RECIPIENT } from './fixtures/factory-materials-read.mjs';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
-import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { TOKEN_A } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
 const empty = () => ({ artifacts: [], skills: [], memoryIds: [], connectorActions: [] });

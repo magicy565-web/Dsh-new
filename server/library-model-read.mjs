@@ -2,7 +2,7 @@ import { ApiError } from './runtime.mjs';
 import { createFactoryMaterialsRead, validateFactoryMaterialsPolicy } from './factory-materials-read.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { COMPANY_MODEL_FIELDS, PRODUCT_MODEL_FIELDS, libraryReadHash, normalizeLibraryRecipient } from './library-model-read-contract.mjs';
-import { asset as ingestionAsset } from '../packages/workspace-factory-ingestion/src/contract.mjs';
+import { asset as ingestionAsset } from '../plugins/workspace-factory-ingestion/src/contract.mjs';
 
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
 const fail = (status, code, message) => { throw new ApiError(status, code, message); };

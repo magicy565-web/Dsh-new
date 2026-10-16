@@ -5,11 +5,11 @@ import { randomUUID } from 'node:crypto';
 import { materialsFixture, MODEL, RECIPIENT } from './fixtures/factory-materials-read.mjs';
 import { taskFixture } from './fixtures/pi-task-helpers.mjs';
 import { marketPlan, marketServicePlan } from './fixtures/market-validation-plan-data.mjs';
-import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
+import { createWorkspaceFactoryMaterialsClient } from '../plugins/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { createMarketValidationPlanClient, MARKET_PLAN_FLAGS } from '../server/market-validation-plan.mjs';
-import { validatePlanInput } from '../packages/workspace-market-validation/src/plan.mjs';
-import { MARKET_MONITOR_TOOLS } from '../packages/workspace-market-validation/src/monitor.js';
-import extension, { marketValidationExtension, MARKET_VALIDATION_TOOLS } from '../packages/workspace-market-validation/src/extension.js';
+import { validatePlanInput } from '../plugins/workspace-market-validation/src/plan.mjs';
+import { MARKET_MONITOR_TOOLS } from '../plugins/workspace-market-validation/src/monitor.js';
+import extension, { marketValidationExtension, MARKET_VALIDATION_TOOLS } from '../plugins/workspace-market-validation/src/extension.js';
 import { publicPdfBytes } from './fixtures/workspace-omp-public-pdf.mjs';
 import { seedMarketPublication } from './fixtures/shopify-market-scope.mjs';
 

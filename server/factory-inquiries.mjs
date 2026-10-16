@@ -2,7 +2,7 @@
 import { ApiError } from './runtime.mjs';
 import { createHash } from 'node:crypto';
 import { libraryReadHash } from './library-model-read-contract.mjs';
-import { validateInquiryDrafts } from '../packages/workspace-factory-inquiries/src/contracts.mjs';
+import { validateInquiryDrafts } from '../plugins/workspace-factory-inquiries/src/contracts.mjs';
 const fail = (status, code) => { throw new ApiError(status, code, 'Original authority, unchanged source references and unreviewed draft content are required.'); };
 const flags = { humanReviewRequired: true, humanReviewed: false, sent: false, externalActions: false };
 const selectors = input => ({ inquiryDocumentId: input.inquiryDocumentId, documentVersion: input.documentVersion, productId: input.productId });

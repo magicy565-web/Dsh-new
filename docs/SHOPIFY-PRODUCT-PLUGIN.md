@@ -2,7 +2,7 @@
 
 基线：PR80 `8eb33701bb5f70be74e5285c7c864b248d79be3b`。分支：`codex/shopify-product-plugin-20261015`。首个单规格版本固定在 `1d703db12089a5763d9856bce4284c8745130a6b`；当前 **0.2.0 增加多规格上传，见 [更新说明与最新验收](validation/shopify-product-variants-20261015/README.md)**。这是上传工具包实现与合成工程验收，不是旧研究提交或完整代运营实现。未合并 main、部署、调用真实店铺／模型／Ads、创建或修改真实凭据／权限。
 
-实现文件为 [独立包](../packages/workspace-shopify-product/README.md) 和 [原 Host client](../server/shopify-product-client.mjs)。依赖已有商品／图片；不重复 E 的资料识别或建档。九个工具可由模型自由选择，Skill 提供方法；没有新 Agent Loop、工作流引擎、任务注册表、审批系统或预算账本。
+实现文件为 [独立包](../plugins/workspace-shopify-product/README.md) 和 [原 Host client](../server/shopify-product-client.mjs)。依赖已有商品／图片；不重复 E 的资料识别或建档。九个工具可由模型自由选择，Skill 提供方法；没有新 Agent Loop、工作流引擎、任务注册表、审批系统或预算账本。
 
 ## 原服务唯一归属与必要共享改动
 

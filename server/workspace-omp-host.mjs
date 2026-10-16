@@ -1,6 +1,6 @@
 import { loadPiProviderConfig } from './pi-provider-config.mjs';
 import { existsSync } from 'node:fs';
-import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from './workspace-omp-bridge.mjs';
 
 // Host configuration only: never scans credentials/accounts or discovers a

@@ -1,7 +1,7 @@
 // Pure projection/comparison for the ORIGINAL publisher. No transport, task,
 // credentials, persistence or retry. Review contains only explicit source SKUs.
 import { supplierHash, supplierFail } from './supplier-profile.mjs';
-import { shopifyCombinationKey } from '../packages/workspace-shopify-product/src/contracts.mjs';
+import { shopifyCombinationKey } from '../plugins/workspace-shopify-product/src/contracts.mjs';
 export const multiVariantPreview = scope => Array.isArray(scope.preview.options);
 export function inspectReviewedVariants(scope, product, mediaIds, acknowledgedIds, normalizeMoney) {
   const expected = scope.preview.variants, actual = product.variants.nodes, issues = [];

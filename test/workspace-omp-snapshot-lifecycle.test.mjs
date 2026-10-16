@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import { watch } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { createWorkspaceOmpEngineAdapter, workspaceOmpPaths } from '../server/workspace-omp-bridge.mjs';
 import { taskFixture, TOKEN_A } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';

@@ -10,7 +10,7 @@ import { createBusinessLibraryService } from './business-library.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { libraryReadHash as hash, normalizeLibraryRecipient, libraryRecipientForModel } from './library-model-read-contract.mjs';
 import { workspaceOmpPaths, checkWorkspaceOmpPaths } from './workspace-omp-bridge.mjs';
-import { INGESTION_PLUGIN, validateIntake, exact, asset, UUID, leaves } from '../packages/workspace-factory-ingestion/src/contract.mjs';
+import { INGESTION_PLUGIN, validateIntake, exact, asset, UUID, leaves } from '../plugins/workspace-factory-ingestion/src/contract.mjs';
 
 const flags = Object.freeze({ visibility: 'internal', humanConfirmed: false, independentVerification: false, externalActions: false });
 const fail = (code, status = 409) => { throw new ApiError(status, code, 'Original authorized uploads, unchanged evidence and protected Library fields are required.'); };

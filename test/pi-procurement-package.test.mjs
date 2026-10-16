@@ -8,7 +8,7 @@ import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/provid
 import { taskFixture, TOKEN_A, TOKEN_B } from './fixtures/pi-task-helpers.mjs';
 
 // Historical directory/import names retained; default audience is Chinese factory.
-const source = fileURLToPath(new URL('../packages/workspace-procurement', import.meta.url));
+const source = fileURLToPath(new URL('../plugins/workspace-procurement', import.meta.url));
 const cli = fileURLToPath(new URL('../node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js', import.meta.url));
 const publicTask = { type: 'procurement', title: 'Public synthetic standalone package procurement', requestId: 'standalone-procurement-synthetic',
   input: { product: 'Public synthetic cup', spec: 'Explicit public synthetic specification', quantity: 10,
@@ -96,7 +96,7 @@ test('explicit non-default historical procurement compatibility retains original
   }
   if (process.env.PI_PROCUREMENT_EVIDENCE_FILE) await fs.writeFile(process.env.PI_PROCUREMENT_EVIDENCE_FILE,
     JSON.stringify({ version: 1, syntheticOnly: true, officialPiVersion: '1.1.0', nodeVersion: process.version,
-      standalonePackage: 'packages/workspace-procurement', purpose: 'historical-buyer-procurement-regression-only', packageCopiedOutsideRepository: true, packageHasNodeModules: false,
+      standalonePackage: 'plugins/workspace-procurement', purpose: 'historical-buyer-procurement-regression-only', packageCopiedOutsideRepository: true, packageHasNodeModules: false,
       transport: 'actual-original-http', frontend: 'official-sdk-explicit-faux', backend: 'original-pi-durable-explicit-faux',
       originalTaskId: evidence.taskId, originalTaskCount: tasks.length, originalRunCount: state.runs.length,
       originalSuccessfulStages: tasks[0].steps.filter(row => row.status === 'succeeded').length,

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
-import { createWorkspaceClient } from '../packages/workspace-procurement/src/workspace.mjs';
+import { createWorkspaceClient } from '../plugins/workspace-procurement/src/workspace.mjs';
 import { taskFixture, until, api, TOKEN_A, TOKEN_B } from './fixtures/pi-task-helpers.mjs';
 import { request } from './agent-service.helpers.mjs';
 const BASE = '/api/agent/v1/tasks';

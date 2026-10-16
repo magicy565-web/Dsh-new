@@ -2,7 +2,7 @@
 import { ApiError } from './runtime.mjs';
 import { createHash } from 'node:crypto';
 import { libraryReadHash } from './library-model-read-contract.mjs';
-import { validateCustomerDrafts } from '../packages/workspace-factory-customers/src/contracts.mjs';
+import { validateCustomerDrafts } from '../plugins/workspace-factory-customers/src/contracts.mjs';
 const fail = (code, status = 409) => { throw new ApiError(status, code, 'Original successful source receipts and current draft-save authority are required.'); };
 const flags = { humanReviewRequired: true, humanReviewed: false, sent: false, externalActions: false, verifiedBuyer: false, contactPermission: false };
 const url = value => { const u = new URL(value); if (u.protocol !== 'https:' || u.username || u.password || u.port) fail('PUBLIC_SOURCE_URL_REFUSED'); return u.href; };

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { taskFixture } from './fixtures/pi-task-helpers.mjs';
 import { materialsFixture, MODEL, RECIPIENT } from './fixtures/factory-materials-read.mjs';
-import { createWorkspaceFactoryMaterialsClient } from '../packages/workspace-procurement/src/workspace-factory-materials-client.mjs';
+import { createWorkspaceFactoryMaterialsClient } from '../plugins/workspace-procurement/src/workspace-factory-materials-client.mjs';
 import { createFactoryInquiryClient } from '../server/factory-inquiries.mjs';
 async function fixture(t) {
   const f = await materialsFixture(t), flags = { admitted: true, active: true };

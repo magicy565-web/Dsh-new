@@ -54,7 +54,12 @@
     "agent:dev": "node --env-file-if-exists=.env scripts/workspace-omp.mjs",
     "factory:local": "node --env-file-if-exists=.env scripts/workspace-omp-local.mjs",
     "workspace": "node --env-file-if-exists=.env scripts/workspace-omp.mjs",
-    "agent:pi": "node --env-file-if-exists=.env scripts/pi-workspace-agent.mjs"
+    "agent:pi": "node --env-file-if-exists=.env scripts/pi-workspace-agent.mjs",
+    "plugins:check": "node scripts/check-plugins.mjs",
+    "plugins:pack-check": "node scripts/check-plugins.mjs --pack",
+    "prebuild": "npm run plugins:pack-check",
+    "predev": "npm run plugins:check",
+    "prestart": "npm run plugins:check"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.28",

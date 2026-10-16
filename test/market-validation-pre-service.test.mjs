@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { marketServicePlan } from './fixtures/market-validation-plan-data.mjs';
-import { validatePlanInput, summarizeMarketReference, buildPreServiceReview, freezeConfirmedServiceTarget, validateFrozenServiceTarget, preServiceHash } from '../packages/workspace-market-validation/src/plan.mjs';
+import { validatePlanInput, summarizeMarketReference, buildPreServiceReview, freezeConfirmedServiceTarget, validateFrozenServiceTarget, preServiceHash } from '../plugins/workspace-market-validation/src/plan.mjs';
 import { assessMarketValidation } from '../server/market-validation-assessment.mjs';
 const productId = '11111111-1111-4111-8111-111111111111';
 const input = plan => ({ productId, documents: [], requestId: 'synthetic-pre-service', sources: [{ kind: 'factory-product', recordId: productId, revision: 1, workspaceId: 'synthetic', projectionSha256: 'a'.repeat(64), api: '/synthetic' }], plan });

@@ -74,7 +74,7 @@ await fs.writeFile(agentDir + '/web-search.json', JSON.stringify({ tools: { sour
   webSearch: { enabled: true, allowedProviders: ['duckduckgo'] }, searchRouting: { providers: ['duckduckgo'], useCurrentModel: false, fallbackOn: ['network'] },
   fetchRouting: { providers: ['http'], allowRemoteHostedProviders: false }, fetch: { defaultMode: 'raw', allowedModes: ['raw'] }, workflow: 'none' }));
 for (const pkg of packagePaths) await pi('install', pkg);
-const factoryPackage = root + '/factory-package'; await fs.cp(repo + '/packages/workspace-procurement', factoryPackage, { recursive: true }); await pi('install', factoryPackage);
+const factoryPackage = root + '/factory-package'; await fs.cp(repo + '/plugins/workspace-procurement', factoryPackage, { recursive: true }); await pi('install', factoryPackage);
 await pi('list');
 await pi('mcp', 'add', 'community-web', '--', process.execPath, packagePaths[0] + '/dist/mcp-cli.js');
 const mcpList = await pi('mcp', 'list'); assert.match(mcpList.output, /connected, 2 tools/);
