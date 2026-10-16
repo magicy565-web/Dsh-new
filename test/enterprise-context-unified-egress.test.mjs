@@ -5,7 +5,9 @@ import {spawnSync} from 'node:child_process';
 import {workspaceOmpPaths} from '../server/workspace-omp-runtime.mjs';
 for(const mode of ['wire-safe','wire-error','source-model','policy-model','memory-model','source-authorize','wire-source-fetch','wire-memory-fetch','wire-revoke-fetch','legacy-plain','legacy-base64','legacy-hex','forged-proof','proof-native','proof-scope','proof-revision','proof-source','proof-statement','compact-current','compact-updated','compact-revoked','compact-race-updated-fetch','compact-empty-current','compact-empty-added','compact-empty-race-added-fetch'])test('unified original Host/SDK egress: '+mode,{timeout:25000},()=>{
  const result=spawnSync(workspaceOmpPaths({}).bun,['test/fixtures/enterprise-context-unified-egress.mjs',mode],{env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},encoding:'utf8',timeout:23000});
- assert.equal(result.status,0,result.stdout+result.stderr);console.log(result.stdout.trim());
+ assert.equal(result.status,0,result.stdout+result.stderr);
+ if(['compact-race-updated-fetch','compact-empty-race-added-fetch'].includes(mode)){const receipt=JSON.parse(result.stdout.trim().split('\n').at(-1));assert.equal(receipt.bMutation?.completed,true);assert.equal(receipt.bMutation?.verified,true);assert.equal(receipt.bMutation?.revision,mode==='compact-race-updated-fetch'?2:1);assert.equal(receipt.bMutation?.diskMatchesStore,true);assert.equal(receipt.bMutation?.storeMatchesReceipt,true);assert.equal(receipt.bMutation?.sourceRef,'conv-b');assert.equal(receipt.bMutation?.sourceRun,'run-b');assert.equal(receipt.bMutation?.sourceMessage,'user-b');assert.equal(receipt.bMutation?.sourceDependencies,2);}
+ console.log(result.stdout.trim());
 });
 
 test('fresh Bun processes restore explicit synthetic proofs and refuse missing/rotated configuration or a new Host instance',{timeout:30000},async t=>{
@@ -19,4 +21,9 @@ test('fresh Bun processes restore explicit synthetic proofs and refuse missing/r
  assert.ok(appended.length<=1);for(const row of appended){assert.equal(row.type,'custom');assert.equal(row.customType,'session_exit','Only the official SDK exit record may be appended after refusal.');}
  assert.notEqual(refused.pid,seed.pid);assert.equal(refused.blocked,true);assert.equal(refused.mockFetches,0);assert.equal(refused.admittedModelCalls,0);}
  console.log(JSON.stringify({acceptance:'cross-process-proof-boundary',distinctProcesses:true,sameNativeSession:true,explicitSyntheticBindingRestored:true,rotatedKeyRefused:true,unconfiguredRefused:true,newHostInstanceRefused:true,realModelRequests:0}));
+});
+
+for(const mode of ['compact-race-updated-fetch','compact-empty-race-added-fetch'])for(const [fault,reason]of [['write-failed','B_TOOL_FAILED'],['write-throws','B_WRITE_FAILED'],['wrong-revision','B_REVISION_MISMATCH'],['not-persisted','B_PERSISTENCE_MISSING']])test('B oracle refuses '+fault+' in '+mode,{timeout:25000},()=>{
+ const result=spawnSync(workspaceOmpPaths({}).bun,['test/fixtures/enterprise-context-unified-egress.mjs',mode,'',fault],{env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},encoding:'utf8',timeout:23000});
+ assert.equal(result.signal,null,result.stderr);assert.equal(result.status,1,result.stdout+result.stderr);assert.match(result.stderr,new RegExp(reason));assert.equal(result.stdout.trim(),'','Failed B evidence must never emit a success receipt.');
 });

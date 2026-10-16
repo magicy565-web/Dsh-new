@@ -1,5 +1,7 @@
 # 模型前拒绝过期的 memory compaction（2026-10-16 UTC）
 
+后续对两个 Request.text 竞态 fixture 的 B 写入独立性进行了[测试 oracle 修正](OMP-B-RACE-ORACLE-FIX-20261016.md)：原 B 断言可能被 A 的预期失败 catch 吞掉。本轮生产修复不变，新增独立 Store/磁盘/source 核验及故障对照；不能仅凭旧 `mutated:true` 或零 fetch 认定 B 写入成功。
+
 固定起点：`9e60b481c11c19ce02e61801ba7fe9ff62efccd6`。沿用 `codex/omp-structured-memory-integration-20261016` 和原隔离 worktree，不切换/覆盖其他分支，不合并 PR96/97/98。依赖、原生锁和安全配置不变。
 
 ## 真实 SDK 反例
