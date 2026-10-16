@@ -8,11 +8,11 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "node scripts/workspace-omp.mjs",
     "dev:web": "vite --host 127.0.0.1",
     "dev:server": "node --env-file-if-exists=.env server/index.mjs",
-    "build": "tsc --noEmit && vite build",
-    "start": "node --env-file-if-exists=.env scripts/workspace-omp.mjs --serve",
+    "build": "node scripts/build-omp.mjs",
+    "start": "node scripts/workspace-omp.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test-backend.mjs",
     "test:ui": "npm run build && node --test test/ui.dom.test.mjs",
@@ -51,15 +51,16 @@
     "test:agent:acceptance": "node test/agent-service.acceptance.mjs",
     "test:agent:client": "python3 test/agent-client.test.py",
     "agent:tui": "node scripts/pi-workspace-tui.mjs",
-    "agent:dev": "node --env-file-if-exists=.env scripts/workspace-omp.mjs",
+    "agent:dev": "node scripts/workspace-omp.mjs",
     "factory:local": "node --env-file-if-exists=.env scripts/workspace-omp-local.mjs",
-    "workspace": "node --env-file-if-exists=.env scripts/workspace-omp.mjs",
+    "workspace": "node scripts/workspace-omp.mjs",
     "agent:pi": "node --env-file-if-exists=.env scripts/pi-workspace-agent.mjs",
     "plugins:check": "node scripts/check-plugins.mjs",
     "plugins:pack-check": "node scripts/check-plugins.mjs --pack",
-    "prebuild": "npm run plugins:pack-check",
-    "predev": "npm run plugins:check",
-    "prestart": "npm run plugins:check"
+    "build:web": "tsc --noEmit && vite build",
+    "build:omp": "node scripts/build-omp.mjs",
+    "test:omp": "node --test test/workspace-omp-unified.test.mjs",
+    "legacy:workspace": "node --env-file-if-exists=.env scripts/workspace-omp-legacy.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.28",

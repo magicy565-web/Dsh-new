@@ -4,9 +4,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { workspaceOmpPublicProfile } from './workspace-omp-public-profile.mjs';
-import { createWorkspaceOmpPublicTools, createWorkspaceOmpSyntheticPublicFetch, WORKSPACE_OMP_PUBLIC_PDF_POLICY } from './workspace-omp-public-tools.mjs';
-import { createWorkspaceOmpPublicTask } from './workspace-omp-public-task.mjs';
 import { projectPlugins } from './workspace-plugin-config.mjs';
 
 
@@ -58,6 +55,14 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     if(freeTradeHost){const {assertFreeTradeHost}=await import('./workspace-free-trade-host.mjs');assertFreeTradeHost(freeTradeHost);}
     else{const {assertEnterpriseContextHost}=await import('./workspace-enterprise-context-host.mjs');assertEnterpriseContextHost(enterpriseContextHost);}
   }
+  // Pure local/plugin sessions must not load legacy Pi/HTTP profile modules.
+  // Selected historical profiles retain their original imports and guards.
+  const { workspaceOmpPublicProfile } = !localFactory && !scopedHost
+    ? await import('./workspace-omp-public-profile.mjs') : {};
+  const { createWorkspaceOmpPublicTools, createWorkspaceOmpSyntheticPublicFetch, WORKSPACE_OMP_PUBLIC_PDF_POLICY } = !localFactory && !scopedHost
+    ? await import('./workspace-omp-public-tools.mjs') : {};
+  const { createWorkspaceOmpPublicTask } = !localFactory && !scopedHost
+    ? await import('./workspace-omp-public-task.mjs') : {};
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
   const disclosureGuards=[],originalAuthorize=authorize;
   authorize=async(...args)=>{await originalAuthorize(...args);for(const guard of disclosureGuards)await guard.check(...args);};
@@ -397,7 +402,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
     extensions: [...(shopifyProduct ? [shopifyProductExtension({ client: productClient, authorize })] : []), ...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(localFactory || scopedHost ? [] : readOnlyBusiness ? [pi => registerWorkspaceReadTools(pi, client, { library: false })] : simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
       pi => [...publicExtension.tools, ...publicTask.tools, ...skillTools].forEach(tool => pi.registerTool(tool)),
-      ...ordinaryTools ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
+      ...ordinaryTools || localFactory || scopedHost ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
     disableExtensionDiscovery: true, additionalExtensionPaths: nativePluginFiles, skills: selectedSkills.skills, appendSystemPrompt: privateProfile || factoryCustomers ? undefined : factorySkillContent,
     rules: [], contextFiles: [], promptTemplates: [], slashCommands: [],
     enableMCP: false, enableLsp: false, enableIrc: false, skipPythonPreflight: true,

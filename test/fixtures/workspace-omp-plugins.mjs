@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {runLocalFactorySession} from '../../scripts/workspace-omp-local.mjs';
 import {loadWorkspaceOmpSdk} from '../../server/workspace-omp-session.mjs';
-import {workspaceOmpPaths} from '../../server/workspace-omp-bridge.mjs';
+import {workspaceOmpPaths} from '../../server/workspace-omp-runtime.mjs';
 import {projectPlugins} from '../../server/workspace-plugin-config.mjs';
 import {acceptanceConfiguration} from '../../server/deepseek-acceptance-policy.mjs';
 globalThis.fetch=async()=>{throw Error('REAL_NETWORK_FORBIDDEN');};

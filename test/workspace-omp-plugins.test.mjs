@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
-import {workspaceOmpPaths} from '../server/workspace-omp-bridge.mjs';
+import {workspaceOmpPaths} from '../server/workspace-omp-runtime.mjs';
 test('native OMP loads outside-repo plugin packages and preserves disable, uninstall, coexistence and Session recovery', {timeout:60000}, async()=>{
   const child=spawn(workspaceOmpPaths({}).bun,['test/fixtures/workspace-omp-plugins.mjs'],{
     env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},stdio:['ignore','pipe','pipe']});

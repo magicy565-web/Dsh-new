@@ -23,3 +23,7 @@ __pycache__/
 .mini-build/
 factory-session.jsonl
 factory-session.jsonl.lock
+
+.cache/
+.omp-build/
+source-manifest.json

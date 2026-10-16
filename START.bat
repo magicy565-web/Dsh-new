@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-node --env-file-if-exists=.env server/index.mjs
+node scripts/workspace-omp.mjs
 pause

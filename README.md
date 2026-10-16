@@ -1,26 +1,40 @@
-# Workspace · 中国工厂开发版
+# Workspace · 原生 OMP 单入口
 
-默认前端使用官方 OMP 18.10.4，Bun固定1.3.14；原Workspace身份、Session、Store、Runtime、业务任务、人工审批和Pi Durable阶段继续持有执行权威。本地资料任务可直接通过原 OMP SDK 生成并保存本地草稿；显式服务模式仍保留原四阶段文书流程。未知产能、客户来源和商业条件保留待核对。
+默认应用是官方 OMP 18.10.4，运行于固定 Bun 1.3.14。npm start、npm run workspace、npm run dev 和桌面启动脚本都进入原生 TUI，不启动旧 Workspace HTTP 服务，不要求 WS_AGENT_URL/token。
 
+## 当前可运行命令
 
-无需远程 Workspace 服务器的一句话会话入口：`npm run factory:local -- --input ./product.md --output-dir ./out "先看资料，问我缺项，不要生成报告"`。输入文件和输出目录必须已存在；默认在所选输出目录使用 `factory-session.jsonl`，下次保持同一资料、目录和模型、换一句目标即可继续原生 OMP 会话。`--session` 可指定其他私有会话文件，`--task` 写法继续兼容。每条命令完成一个目标后退出；不预设工具顺序，不默认生成报告，结果不覆盖已有文件。`--check` 只做预检，不调用模型或创建会话文件。实际执行仍需原安全模型配置及已审价格／预算。见 [本地入口](docs/WORKSPACE-OMP-LOCAL.md) 与 [最终集成离线检查](docs/validation/final-native-context-integration-20261015/README.md)。业务历史、企业共享资料、审批和远程 Worker 保留原服务边界。
-
-本集成开发分支同时保留原 Shopify 完整 SKU/变体回执与七天监测范围，以及 PR80 历史时间口径修复。Shopify/市场等远程能力继续需要原服务授权，未配置明确不可用；本地资料五工具保持独立。固定提交、冲突处理和无付费回归见 [集成说明](docs/validation/integrated-local-shopify-20261015/README.md)。
+Linux x64 / Node 24：
 
 ```sh
-npm ci --ignore-scripts
 node scripts/setup-omp-runtime.mjs
-node scripts/workspace-omp-install.mjs
-npm run build
-npm run workspace
+WORKSPACE_OMP_AUDITED_NPM_CACHE="$PWD/.cache/npm-omp" node scripts/workspace-omp-install.mjs
+npm run build:omp
+npm run test:omp
+npm run workspace -- --check
+npm start
 ```
 
-本轮运行器安装适用于Linux x64。交互TTY下 `npm run workspace`／`npm run agent:dev` 自动打开官方OMP终端，自然输入沿原HTTP Conversation/Run；非TTY及 `npm start` 提供原网页服务。终端UI不另调用模型。无模型／成员绑定／已审价格与剩余预算时可启动，模型执行返回明确未配置；先用 `npm run workspace -- --check` 检查，配置存在不代表在线已验证。中文配置、授权边界与协作接口见 [Workspace OMP](docs/WORKSPACE-OMP.md)。
+这条原生路径只安装 support 中两份锁文件的 Bun/OMP 依赖，无需先装旧网页的 React/Vite/Pi 依赖。安装禁用生命周期脚本并排除可选模型组件。npm run build 与 build:omp 相同，验证插件打包闭包、Bun 编译和官方 OMP 独立发现/注册。
 
-工厂包为 `@workspace-agent/pi-factory`，兼容目录 `plugins/workspace-procurement`；普通模式五工具，受控模式增加原 `factory-export` 文书提交。宿主另显式提供固定公开搜索、已有浏览器检查、精确选定文件读与原生公开文字子代理审阅。原Pi1.1.0保留 `npm run agent:pi` 显式回退。旧Pi／私库缓存不迁入；任意本机文件和命令不开放，没有第二业务账本。
+默认 TUI 是明确的离线 no-model 预览：空的隔离 HOME、不读账号密钥、不调用模型、不保存会话、不执行 shell，加载 plugins/config.json 中显式启用的项目扩展。当前默认只启用 workspace-local-materials 的三个公开草稿工具；没有授予本地文件或企业资料访问。所有 11 个包可发现，不代表企业服务已经配置。模型与原生持久会话需另外验收。
 
-[默认入口与原生命周期11项检查](docs/validation/workspace-omp-core-20261014/default-acceptance.json)覆盖真实HTTP／SDK、独立manifest加载、续聊、取消退出、重启恢复、原文书SHA、人工审批与分别继续。模型均为明确合成替身；原Pi／Library／包组合53项亦实际通过。另有 [工厂文书与重载检查](docs/validation/factory-export-20261014/README.md)、[内置搜索／浏览器诊断](docs/validation/omp-builtins-factory-20261014/README.md)、[内置子代理诊断](docs/validation/omp-builtin-task-20261014/README.md) 和 [固定社区候选检查](docs/validation/pi-community-20261014/README.md)。
+## 已有本地会话
 
-新[公开工具契约与检查](docs/validation/omp-public-tools-20261014/README.md)覆盖官方SDK工具、来源与原任务文书、撤销/变更资料缓存的模型前拒绝。真实DuckDuckGo和Startpage查询均不可用、零来源，不能写成已连接或已获客。真实余额、真实私密资料、真实获客与同伴结果／恢复UI尚未验收。本地路径修复后已由真实 DeepSeek 自主 read→write 保存带来源SHA的缺项说明，3次HTTP请求、6.304秒；同一原生JSONL真实续聊也已保存英文询问邮件，回合结束请求在12KB长度闸门前停止，长会话仍有上下文限制。历史首轮工具错误仍保留记录。此前 [DeepSeek 基础连通](docs/validation/deepseek-model-live-20261015/README.md) 已单独完成，不代表本地业务链在线验收。文书只是待人工审核草稿。本次续聊保守费用0.013636元，已知累计0.038716元、剩余授权估算4.961284元；没有真实私库访问、外部发送、商店写入、部署或main合并。七天未来通知的持续同意／持久收件人权限未开发。
+继续复用原有原生 Session、资料选择和权限边界：
 
-[旧README完整历史](docs/archive/README-before-omp-20261014.md)、[旧选型记录](docs/PI-OPEN-SOURCE-SELECTION.md) 和 [PR60接线记录](docs/PI-AGENT-RUNTIME-NOTES.md) 已归档；[原Pi运行边界](docs/PI-RUNTIME.md)、[原Library契约](docs/PI-LIBRARY-MODEL-READ.md)、[微信客户端](docs/WECHAT-CLIENT.md)、源码、许可与既有验收保留。归档不授权历史部署或外部执行。清理范围见 [清理记录](docs/validation/omp-cleanup-20261014/inventory.json)。
+```sh
+npm run workspace -- --input /ABS/product.md --output-dir /ABS/existing-output "先看资料，问我缺项" --check
+```
+
+去掉 --check 的实际执行仍需原有显式模型、价格和预算配置。不得因为预览界面成功而推断真实模型或持久恢复已通过。本次云环境拒绝 OMP 原生持久文件锁，持久续聊/恢复回归尚未通过；未删除或替换锁安全机制。
+
+## 插件与旧服务
+
+- 原生插件唯一目录为 plugins/，沿用官方 manifest/extension/skill 加载，无新 AgentLoop、队列或数据库
+- 外部/Host 绑定业务默认禁用并标记 unconfigured。Mem0 继续关闭，Docling 原件传出继续要求既有精确授权
+- Shopify、工厂、询盘、客户、七天监测、免费贸易和企业资料插件复用基线，不重复 cherry-pick
+- Brain/Medusa 等未完成审查的候选未接入共享 Host/Artifact
+- 旧服务仅通过 npm run legacy:workspace -- --serve 显式启动；不属于默认原生入口，也不在此次云构建中启动
+
+[本轮范围、命令与验收限制](docs/OMP-UNIFIED-BUILD.md) · [插件说明](plugins/README.md) · [原本地会话说明](docs/WORKSPACE-OMP-LOCAL.md)
