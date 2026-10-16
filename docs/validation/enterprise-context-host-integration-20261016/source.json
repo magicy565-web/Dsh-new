@@ -1,0 +1,107 @@
+{
+  "base": "cbbad133049747e3d28720ba885b3613eb7f5a34",
+  "upstreamHead": "13cccff0df703e6471329cd0e1815aee3f6179a9",
+  "upstreamAdapterGitBlob": "7e018dbd4337eec3b58a6a53b7ddcca89bffacf1",
+  "files": [
+    {
+      "path": "docs/ENTERPRISE-CONTEXT-OSS-20261016.md",
+      "sha256": "843f9db01994fbcd216bc9bee9e971a806bf94437b6d019b60fb9ae20cbb1214"
+    },
+    {
+      "path": "plugins/config.enterprise-context.json",
+      "sha256": "e5ef40118ce1a8f0af34e3c0f6856c15bad702f19029bf64b14fbe617572b12a"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/AGENTS.md",
+      "sha256": "7cbcf98009f0db08b60b1b8e00aab2a50bdab0f454064e28298358e8e9e78579"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/README.md",
+      "sha256": "70fea5210477fc94ee767fb12f91d15b4eb811ef62389ff14060d2e84ce32ec7"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/package.json",
+      "sha256": "d323207952214a6d08f3ebc6068d1571eb93125deec242c676a12848c7dc81d3"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/skills/enterprise-context/SKILL.md",
+      "sha256": "fe32b53ad825283714969ab560b2137617988d780f58c30dfd4f16b397671770"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/src/extension.js",
+      "sha256": "837ae96d3c8a08383ddb166527dcfa6e9c84db286f05fb79ffa8cd1dea6d321c"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/src/native-host.mjs",
+      "sha256": "fa17667d3db4912c4409117b3f322b4f370669239a390584abdf91ba60f345fb"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/src/oss.mjs",
+      "sha256": "1a3851b4bb19901120f27d60462d0796b643c9e6648e18b07561bf4a11dc9a25"
+    },
+    {
+      "path": "plugins/workspace-free-trade/src/native-host.mjs",
+      "sha256": "9bd208da61a05378f0bdde92a321c3399253773790d66b4e8026ec386abde0f7"
+    },
+    {
+      "path": "scripts/enterprise-context-preflight.mjs",
+      "sha256": "e91417afbcdfc4e71986a14c4b50c97ad8482ff20ec042ef9fb556572c6bb1ee"
+    },
+    {
+      "path": "server/factory-materials-read.mjs",
+      "sha256": "93afd7145c0b85b4724936a5ade1bf73682e339e45eb5c99dea5e932d344c38a"
+    },
+    {
+      "path": "server/index.mjs",
+      "sha256": "e17707e8c7dc5940d0b28a1c7c505f86f5cec29fcf1c8050da2f147979db2752"
+    },
+    {
+      "path": "server/library-model-read.mjs",
+      "sha256": "f2e305783dbfea04d004b57b8b71b68097010b83ffda37d40a0bde92d932ea7a"
+    },
+    {
+      "path": "server/pi-business-agent.mjs",
+      "sha256": "6214a7003e53bb83a895bacd65ed15374325047a25d52dbe3fbd6d832caafaa4"
+    },
+    {
+      "path": "server/workspace-enterprise-context-host.mjs",
+      "sha256": "5e0c0b1b00d5524433ed87257114ddc8ca91488f40a03ecbbfc275cb153d5931"
+    },
+    {
+      "path": "server/workspace-omp-bridge.mjs",
+      "sha256": "7c23966d8daf57d52d63918cfa5a90432bb6a0ac25d8aad7291bcf6db07a9a61"
+    },
+    {
+      "path": "server/workspace-omp-session.mjs",
+      "sha256": "f7df62887ffeb76bbfa62447da812a8b829d1758a64cdfe9552f0315f1756707"
+    },
+    {
+      "path": "server/workspace-omp-worker.mjs",
+      "sha256": "8cb1edd1939cbb382bb79dbc693f07f7892ca26aa871b8f162d6261ed37dd4e7"
+    },
+    {
+      "path": "test/enterprise-context-extension.test.mjs",
+      "sha256": "5e9cb269a2df5a7b72076ab43577783322129a7c8e7eaad448cc93e8885ec528"
+    },
+    {
+      "path": "test/enterprise-context-host.test.mjs",
+      "sha256": "53ec40038524c4705a948e959cac2181cc1994f4dfff238cd4bf9ed8f0d8771d"
+    },
+    {
+      "path": "test/enterprise-context-oss.test.mjs",
+      "sha256": "8b16b2305f6515e659aeb9af883e1795e5797f7fce0ba2996a99dec601ecf2bb"
+    },
+    {
+      "path": "test/fixtures/enterprise-context-compact.mjs",
+      "sha256": "b10eae6541eefe116dc29999faf1d6074e5f5369f8c4a07a95a196db4799f426"
+    },
+    {
+      "path": "test/fixtures/workspace-omp-plugins.mjs",
+      "sha256": "807879c464603bfcf6357ff3574ae2bf1212b8ae32baf9e394bd48f16e3f4a6f"
+    },
+    {
+      "path": "test/workspace-omp-plugins.test.mjs",
+      "sha256": "5c5eb98e6a42363b7e430546b066d2f9972499d9233fee6cd8e2146f4542b561"
+    }
+  ]
+}

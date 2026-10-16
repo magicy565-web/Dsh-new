@@ -46,7 +46,12 @@ export function createFactoryMaterialsRead({ library, artifacts, scope, authoriz
     if (!selected || libraryReadHash(selected.asset) !== libraryReadHash(ref.asset)) fail(409, 'FACTORY_DOCUMENT_ASSET_CHANGED');
     return { ref, row, selected };
   }
-  return { async read(suffix, query = new URLSearchParams(), { signal, assertCurrent }) {
+  return { source(asset) {
+    const pin=policy?.documents.find(ref=>libraryReadHash(ref.asset)===libraryReadHash(asset));
+    if(!pin)fail(403,'FACTORY_DOCUMENT_NOT_APPROVED');
+    const {row,selected}=documentRef(pin.id,pin.documentVersion);
+    return {documentId:row.id,revision:row.revision,documentVersion:selected.version,asset:structuredClone(pin.asset)};
+  }, async read(suffix, query = new URLSearchParams(), { signal, assertCurrent }) {
     assertCurrent(); signal?.throwIfAborted();
     if (!policy) return { plugin: 'workspace-factory-materials', status: 'unconfigured', reason: 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', sources: [] };
     if ([...query.keys()].some(k => !(['materials'].includes(suffix) ? ['productId', 'limit'] : []).includes(k) || query.getAll(k).length !== 1)) fail(400, 'FACTORY_MATERIAL_INPUT_INVALID');

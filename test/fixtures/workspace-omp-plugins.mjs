@@ -44,7 +44,7 @@ try{
   // Ambient code and undeclared package hooks must not execute.
   await fs.mkdir(root+'/.omp/extensions',{recursive:true});await fs.writeFile(root+'/.omp/extensions/evil.js',"throw Error('AMBIENT_EXTENSION_EXECUTED');");
   await fs.mkdir(plugins+'/'+local+'/hooks/pre',{recursive:true});await fs.writeFile(plugins+'/'+local+'/hooks/pre/evil.js',"throw Error('UNDECLARED_HOOK_EXECUTED');");
-  const found=await projectPlugins({root:plugins});assert.equal(found.installed.length,10);
+  const found=await projectPlugins({root:plugins});assert.equal(found.installed.length,11);
   const sdk=await loadWorkspaceOmpSdk(paths.packageRoot);
   for(const p of found.installed){const extensions=await sdk.loadExtensions(p.extensions,root);assert.deepEqual(extensions.errors,[]);
     loaded.push({id:p.id,extensionCount:extensions.extensions.length,toolNames:extensions.extensions.flatMap(e=>[...e.tools.keys()])});}

@@ -22,8 +22,12 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
+  // This explicit finite fixture cannot accidentally probe a real tender,
+  // model or private service. Its local Docling HTTP stays on the Node Host.
+  if(config.enterpriseContext&&config.syntheticResponses)globalThis.fetch=async()=>{throw Error('FINITE_ENTERPRISE_WORKER_NETWORK_FORBIDDEN');};
   const freeTradeHost=config.freeTrade?(await import('./workspace-free-trade-host.mjs')).freeTradeHostFromRpc(config.freeTradeDescriptor,request):null;
-  created = await (initializing = createWorkspaceOmpSession({ ...config, freeTradeHost,client:config.freeTrade?undefined:client, factoryTasks: !config.freeTrade && !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
+  const enterpriseContextHost=config.enterpriseContext?(await import('./workspace-enterprise-context-host.mjs')).enterpriseContextHostFromRpc(config.enterpriseContextDescriptor,request):null;
+  created = await (initializing = createWorkspaceOmpSession({ ...config, enterpriseContextHost,freeTradeHost,client:config.freeTrade||config.enterpriseContext?undefined:client, factoryTasks: !config.enterpriseContext && !config.freeTrade && !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
     productClient: config.shopifyProduct ? {
       ...Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, (value, signal, model) => request('shopifyProduct', [method, value, model], signal)])),
       refresh: (receipt, model, signal, images) => request('shopifyProduct', ['refresh', receipt, model, images], signal),

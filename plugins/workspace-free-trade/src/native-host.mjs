@@ -36,7 +36,7 @@ function pairs(messages){
 }
 export async function registerNativeTrade(pi,host,factory){
   const previous=host?.disclosureSnapshot?.(guardId),binding=host?.freeTrade;
-  const privateContext=Boolean(binding||host?.selection&&!host.selection.options.publicOnly);
+  const privateContext=Boolean(binding||host?.privateContext||host?.selection&&!host.selection.options?.publicOnly);
   if(!binding){
     if(previous)fail('FREE_TRADE_ORIGINAL_HOST_REQUIRED');
     pi.on?.('context',async(event,ctx)=>{

@@ -44,7 +44,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     || options.resolveControlBinding !== undefined && typeof options.resolveControlBinding !== 'function')
     throw new TypeError('Use the existing Pi provider and a trusted existing member binding resolver.');
   const engineAdapter = options.engineAdapter;
-  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:factory-ingestion-v1', 'omp:18.10.4:market-validation-v1', 'omp:18.10.4:shopify-product-v1','omp:18.10.4:free-trade-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
+  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:factory-ingestion-v1', 'omp:18.10.4:market-validation-v1', 'omp:18.10.4:shopify-product-v1','omp:18.10.4:free-trade-v1','omp:18.10.4:enterprise-context-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
@@ -73,10 +73,11 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       throw error;
     }
     if (!binding?.client?.bindingIdentity || !engineAdapter && !binding.modelRuntime || !binding?.model) fail(409, 'BUSINESS_AGENT_UNCONFIGURED', 'The existing Host member/model binding is not configured.');
-    if (binding.client.readOnlySession && !['omp:18.10.4:public-v1','omp:18.10.4:free-trade-v1'].includes(engineAdapter?.scope))
+    if (binding.client.readOnlySession && !['omp:18.10.4:public-v1','omp:18.10.4:free-trade-v1','omp:18.10.4:enterprise-context-v1'].includes(engineAdapter?.scope))
       fail(403, 'SESSION_READONLY_PROFILE_REQUIRED', 'Session business reads cannot enable Library or other profiles.');
     if (conversation.businessAgentSession && (conversation.businessAgentSession.engineScope || 'pi:1.1.0') !== (engineAdapter?.scope || 'pi:1.1.0'))
       fail(403, 'BUSINESS_AGENT_ENGINE_CHANGED', 'This transcript belongs to another engine scope. Start a fresh public-only conversation; private Pi history cannot migrate.');
+    if(engineAdapter?.scope==='omp:18.10.4:enterprise-context-v1'&&!binding.enterpriseContextHost)fail(409,'BUSINESS_AGENT_UNCONFIGURED','Original enterprise context Host required.');
     if(engineAdapter?.scope==='omp:18.10.4:free-trade-v1'&&!binding.freeTradeHost)fail(409,'BUSINESS_AGENT_UNCONFIGURED','The original reviewed free-trade Host binding is missing.');
     let proof;
     try { proof = await binding.client.bindingIdentity(signal); }
@@ -206,7 +207,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
             if (libraryReadHash(libraryRecipientForModel(model)) !== recipientFingerprint) fail(403, 'LIBRARY_MODEL_RECIPIENT_CHANGED', 'Use the original receiver.');
           }, canSave, assertCurrent }) : Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, async () => ({ plugin: 'workspace-shopify-product', status: 'unconfigured', reason: 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', sources: [] })]));
       }
-      return engineAdapter.complete({ input, run, binding, client, authorize, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
+      return engineAdapter.complete({ input, run, binding, client, authorize,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();

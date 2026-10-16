@@ -60,6 +60,17 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
       projectionSha256: libraryReadHash(value), api: '/api/library/model-read/' + (kind === 'company' ? 'company' : 'products/' + record.id) } };
   }
   return {
+    // Same original document/Session authority, without running an extractor.
+    // A service adapter can narrow this scope but cannot create a grant.
+    factoryDocumentForSession({identity,recipientHash,asset,signal}) {
+      if(!scope?.factoryMaterials)fail(403,'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED','Original selection required.');
+      const check=()=>{
+        signal?.throwIfAborted();const live=access.nativeSessionById(identity?.sessionId);
+        if(!live||live.subject!==identity.subject||live.workspaceId!==identity.workspaceId||live.role!==identity.role||!['operator','admin'].includes(live.role))fail(403,'LIBRARY_SESSION_SCOPE_REQUIRED','Original live operator Session required.');
+        authorize({...live,session:live},recipientHash,true);return factory.source(asset);
+      };
+      const source=check();return {...source,authorization:structuredClone(authorization),assertCurrent:check};
+    },
     // Synchronous original-policy fence for an in-process source-backed commit.
     factoryMaterialsAuthorityForSession({ identity, recipientHash, signal }) {
       if (!scope?.factoryMaterials) fail(403, 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', 'Original materials selection required.');

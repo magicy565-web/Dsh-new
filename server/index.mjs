@@ -575,6 +575,11 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       return createFreeTradeSessionBinding({...options,identity,access,instanceId,
         sessionClient:builtinAgent.sessionReadonlyClient(identity),clock:accessClock||Date.now});
     },
+    async enterpriseContextSessionBinding(identity,options={}) {
+      const {createEnterpriseContextSessionBinding}=await import('./workspace-enterprise-context-host.mjs');
+      return createEnterpriseContextSessionBinding({...options,identity,access,instanceId,libraryModelRead,artifacts,store,
+        sessionClient:builtinAgent.sessionReadonlyClient(identity),clock:accessClock||Date.now});
+    },
     async listen(port = 8787, host = '127.0.0.1') {
       if (closed) throw new Error('The application is closed. Create a new application instance.');
       if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('Only loopback binding is supported. Enterprise access requires a same-host authenticated TLS ingress.');
