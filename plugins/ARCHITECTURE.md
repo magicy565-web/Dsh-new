@@ -20,3 +20,10 @@ The seven-day verification module is a **project launcher that establishes budge
 6. Add focused adapter/authorization/recovery tests before a separately authorized integration test against real services. No deployment, credentials, authorization creation, paid model call or real Shopify action is included here.
 
 Current independent local capability and package loading can be used without those remote service adapters. See each package's README/AGENTS/Skill for its present contract, and the existing server query/task implementations for compatibility references.
+
+
+## Independent owner references
+
+Local materials now has an opt-in private enterprise/project file directory: original versions, readable parsed text/tables, canonical reference records with Markdown projections, INDEX and separate proposed business notes. It stays independent of Workspace HTTP and uses original OMP composable tools/Session. There is no vector database, RAG pipeline, fixed intake sequence or additional Agent Loop.
+
+This is owner mode only. Existing server signed identity, revocation, recipient/revision/field authorization and Library review/version machinery were audited as reuse candidates, but no real customer binding is connected to local files. Customer sharing and exports remain blocked until trusted identity and unavoidable disclosure checks cover originals, INDEX, parsed data, references, summaries, memory, history, caches and resumed Sessions. Deny-only fixtures are not two-customer authorization. Muse/Grokbot, seven-day launchers and remote adapters above are unchanged.

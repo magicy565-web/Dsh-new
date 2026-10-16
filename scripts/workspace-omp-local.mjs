@@ -12,6 +12,7 @@ import { validatePublicBusinessInput } from '../server/workspace-public-input.mj
 import { projectPlugins } from '../server/workspace-plugin-config.mjs';
 const filename = fileURLToPath(import.meta.url);
 const help = 'npm run factory:local -- --input PRODUCT.md [--input RFQ.txt] --output-dir EXISTING_DIR "一句话目标" [--session FILE.jsonl] [--plugin-dir DIR] [--disable-plugin NAME] [--no-plugins] [--check]\n'
+  + '本地所有者 references 可显式添加 --archive-dir PRIVATE_DIR --enterprise ID --project ID；目录须已存在、当前 UID 所有且权限 0700。不提供客户共享。资料已明确保留后，可不带 --input 继续同范围会话查询；普通模式仍固定原选择/哈希。\n'
   + '默认使用输出目录中的 factory-session.jsonl 创建/继续原生 OMP 会话；相同资料、目录和模型下，换一句目标即可继续。--session 可选择其他私有 JSONL 路径；--task "Goal" 仍可用。\n'
   + '没有目标时只询问目标，不默认生成报告。每条命令执行一个目标后退出，不是交互式 TUI；工具顺序和是否保存由目标决定。\n'
   + '--check 仅预检：零模型请求，不创建 JSONL。仅显式选择的本地文件，无 Workspace Host、WS URL/token、Library、Worker 或外部发送。实际执行仍需已有安全模型配置及已审价格/预算。';
@@ -22,9 +23,12 @@ export function parseLocalArguments(args) {
     const arg = args[i];
     if (arg === '--no-plugins') options.noPlugins = true;
     else if (arg === '--check') options.check = true;
-    else if (['--input','--output-dir','--task','--session','--plugin-dir','--disable-plugin'].includes(arg)) {
+    else if (['--input','--output-dir','--task','--session','--plugin-dir','--disable-plugin','--archive-dir','--enterprise','--project'].includes(arg)) {
       const value = args[++i]; if (!value || value.startsWith('--')) throw Error('LOCAL_ARGUMENT_REQUIRED');
-      if (arg === '--plugin-dir') options.pluginRoot = path.resolve(value);
+      if (arg === '--archive-dir') options.archiveDirectory=path.resolve(value);
+      else if (arg === '--enterprise') options.enterprise=value;
+      else if (arg === '--project') options.project=value;
+      else if (arg === '--plugin-dir') options.pluginRoot = path.resolve(value);
       else if (arg === '--disable-plugin') (options.disabledPlugins ||= []).push(value);
       else if (arg === '--input') options.inputs.push(path.resolve(value));
       else if (arg === '--output-dir' && !options.outputDirectory) options.outputDirectory = path.resolve(value);
@@ -36,12 +40,16 @@ export function parseLocalArguments(args) {
       options.task = arg; explicitTask = true;
     } else throw Error('LOCAL_UNKNOWN_ARGUMENT');
   }
-  if (!options.inputs.length || options.inputs.length > 4 || !options.outputDirectory || !options.task.trim() || options.task.length > 4000) throw Error('LOCAL_SELECTION_REQUIRED');
+  if ((!options.inputs.length&&!options.archiveDirectory) || options.inputs.length > 4 || !options.outputDirectory || !options.task.trim() || options.task.length > 4000) throw Error('LOCAL_SELECTION_REQUIRED');
   options.sessionFile ||= path.join(options.outputDirectory, 'factory-session.jsonl');
+  if(options.archiveDirectory||options.enterprise||options.project){
+    if(!options.archiveDirectory||!options.enterprise||!options.project)throw Error('LOCAL_REFERENCE_SCOPE_REQUIRED');
+    options.archive={directory:options.archiveDirectory,enterprise:options.enterprise,project:options.project};
+  }
   validatePublicBusinessInput(options.task);
   return options;
 }
-export async function runLocalFactorySession(input, { fetchImpl = globalThis.fetch } = {}) {
+export async function runLocalFactorySession(input, { fetchImpl = globalThis.fetch, referenceFence } = {}) {
   if (!globalThis.Bun) throw Error('LOCAL_REVIEWED_BUN_REQUIRED');
   const { createLocalSelection, plainPath } = await import('../server/workspace-local-selection.mjs');
   const { createWorkspaceOmpSession } = await import('../server/workspace-omp-session.mjs');
@@ -62,8 +70,9 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
       if (!sessionParentStat.isDirectory()) throw Error('LOCAL_SESSION_DIRECTORY_REQUIRED');
       let stat; try { stat = await plainPath(file); } catch (error) { if (error.code !== 'ENOENT') throw error; }
       if (stat && (!stat.isFile() || stat.size > 2 * 1024 * 1024)) throw Error('LOCAL_SESSION_FILE_REFUSED');
-      localSession = { file, resume: Boolean(stat), binding: { manifest: files.manifest, inputs: input.options.inputs.map(f => path.resolve(f)),
-        outputDirectory: path.resolve(input.options.outputDirectory), provider: input.configuration.providerId, model: input.configuration.model } };
+      localSession = { file, resume: Boolean(stat), binding: { manifest: input.options.archive?[]:files.manifest, inputs: input.options.archive?[]:input.options.inputs.map(f => path.resolve(f)),
+        outputDirectory: path.resolve(input.options.outputDirectory), provider: input.configuration.providerId, model: input.configuration.model,
+        ...(input.options.archive?{archive:{...input.options.archive,ownerUid:process.getuid()}}:{}) } };
     }
     if (input.options.check) return { status: !workspaceOmpConfigured(input.configuration) ? 'model-unconfigured'
         : localDeepseekConfigured(input.configuration) ? 'configured-unverified' : 'provider-unsupported',
@@ -90,7 +99,7 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
     created = await createWorkspaceOmpSession({ packageRoot: input.paths.packageRoot, cwd: sessionParent || input.directory,
       agentDir: input.directory + '/agent', sessionDirectory: sessionParent || input.directory + '/sessions', localSession,
       configuration: input.configuration, localFactory: files, providerTransport: transport, syntheticResponses: input.syntheticResponses,
-      authorize, lifecycleSignal: controller.signal, pluginConfiguration: { root: input.options.pluginRoot, disabled: input.options.disabledPlugins, none: input.options.noPlugins },
+      authorize, lifecycleSignal: controller.signal, referenceFence, pluginConfiguration: { root: input.options.pluginRoot, disabled: input.options.disabledPlugins, none: input.options.noPlugins },
       maxModelCalls: LOCAL_DEEPSEEK_LIMITS.maxRequests, maxTokens: LOCAL_DEEPSEEK_LIMITS.maxRequests * LOCAL_DEEPSEEK_LIMITS.maxOutputTokens,
       onModelRequest: () => {
         if (transport && created?.session.agent.state.messages.slice(taskMessageStart).some(m => m.role === 'toolResult' && m.isError)) {
@@ -121,6 +130,7 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
     if (last?.role !== 'assistant' || last.stopReason !== 'stop' || !localSession && !files.saved.length) throw Error('LOCAL_TASK_INCOMPLETE');
     transport?.finish();
     await files.authorize(controller.signal);
+    await created.authorizeDisclosure();
     return { status: files.saved.length ? 'saved-local-drafts' : 'completed-local-turn', selectedInputs: files.manifest, saved: files.saved, toolReceipts,
       revalidatedPriorSources: files.restoredSources,
       ...(sessionInfo ? { localSession: sessionInfo, answer: last.content.filter(b => b.type === 'text').map(b => b.text).join('\n') } : {}),
@@ -130,6 +140,7 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
     const reason = /^[A-Z0-9_]+$/.test(error.code || error.message || '') ? error.code || error.message : 'LOCAL_TASK_INCOMPLETE';
     transport?.stop(transport.report().stoppedReason || reason);
     return { status: 'stopped', reason: transport?.report().stoppedReason || reason,
+      ...(error.stage?{errorStage:error.stage}:{}),
       ...(['PROJECT_PLUGIN_REQUIRED','WORKSPACE_PLUGIN_REQUIRED'].includes(error.code) ? {
         pluginError: { id:error.pluginId, entry:error.pluginEntry, message:error.message } } : {}),
       ...(sessionInfo ? { localSession: sessionInfo } : {}),

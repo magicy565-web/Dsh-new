@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises';
 import { constants } from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import { createHash } from 'node:crypto';
 import { looksLikeCredential } from './workspace-public-input.mjs';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -32,8 +33,17 @@ async function selectedBytes(filename, expected) {
     return { content: buffer.subarray(0, size), dev: stat.dev, ino: stat.ino };
   } finally { await handle.close(); }
 }
-export async function createLocalSelection({ inputs, outputDirectory, directory }) {
-  if (process.platform !== 'linux' || !Array.isArray(inputs) || inputs.length < 1 || inputs.length > 4) fail('LOCAL_SELECTION_REQUIRED');
+export async function createLocalSelection({ inputs, outputDirectory, directory, archive }) {
+  let archiveStat;
+  if(archive){
+    if(typeof archive!=='object'||Array.isArray(archive)||typeof archive.directory!=='string'||!path.isAbsolute(archive.directory)||Object.keys(archive).some(key=>!['directory','enterprise','project'].includes(key))
+      ||!['enterprise','project'].every(key=>/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(archive[key]||'')))fail('LOCAL_REFERENCE_SCOPE_REQUIRED');
+    const codeRoot=path.resolve(fileURLToPath(new URL('..',import.meta.url)));
+    if(archive.directory===codeRoot||archive.directory.startsWith(codeRoot+path.sep))fail('LOCAL_REFERENCE_DATA_MUST_BE_OUTSIDE_CODE');
+    archiveStat=await plainPath(archive.directory);
+    if(!archiveStat.isDirectory()||archiveStat.uid!==process.getuid()||(archiveStat.mode&0o777)!==0o700)fail('LOCAL_REFERENCE_PRIVATE_OWNER_DIRECTORY_REQUIRED');
+  }
+  if (process.platform !== 'linux' || !Array.isArray(inputs) || (!inputs.length&&!archive) || inputs.length > 4) fail('LOCAL_SELECTION_REQUIRED');
   outputDirectory = path.resolve(outputDirectory);
   const outputStat = await plainPath(outputDirectory);
   if (!outputStat?.isDirectory()) fail('LOCAL_EXISTING_OUTPUT_DIRECTORY_REQUIRED');
@@ -64,9 +74,11 @@ export async function createLocalSelection({ inputs, outputDirectory, directory 
       if (sha((await selectedBytes(file.filename, file)).content) !== file.sha256 || sha(await fs.readFile(file.snapshot)) !== file.sha256) fail('LOCAL_SOURCE_CHANGED');
     }
     signal?.throwIfAborted();
+    if(archive){const stat=await plainPath(archive.directory);
+      if(stat.dev!==archiveStat.dev||stat.ino!==archiveStat.ino||stat.uid!==process.getuid()||(stat.mode&0o777)!==0o700)fail('LOCAL_REFERENCE_ACCESS_REVOKED');}
   }
   let controller;
-  return { options: { inputs, outputDirectory, directory: directory + '/plugin-files' },
+  return { options: { inputs, outputDirectory, directory: directory + '/plugin-files',...(archive?{archive}:{}) },
     manifest: selected.map(({id,name,sha256}) => ({id,name,sha256})), authorize,
     get saved() { return controller?.saved || []; }, get restoredSources() { return controller?.restoredSources || []; },
     attach(value) { if (controller || JSON.stringify(value.manifest) !== JSON.stringify(this.manifest)) fail('LOCAL_PLUGIN_SELECTION_REFUSED'); controller = value; },

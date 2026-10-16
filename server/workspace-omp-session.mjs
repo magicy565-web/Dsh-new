@@ -42,7 +42,7 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null, localSession = null,
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {},
   maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
-  uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {},
+  uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {}, referenceFence,
   factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   if (providerTransport && !localFactory) throw Error('Bounded local provider transport requires the local factory profile.');
@@ -52,6 +52,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   if (readOnlyBusiness && (factoryMaterials || factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || shopifyProduct || productClient || ordinaryTools || uiOnly))
     throw Error('Session business reads require the original public tool profile.');
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
+  const disclosureGuards=[],originalAuthorize=authorize;
+  authorize=async(...args)=>{await originalAuthorize(...args);for(const guard of disclosureGuards)await guard.check();};
   const plugins = localFactory ? await projectPlugins(pluginConfiguration) : null;
   const declaredFiles = new Set(plugins?.enabled.flatMap(plugin => plugin.extensions));
   const nativePluginFiles = plugins ? (await sdk.discoverExtensionPaths(plugins.paths, cwd, undefined, { ambient: false }))
@@ -282,6 +284,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
           });
           const message = buildSynthetic(spec, model, callNumber, context);
           completedUsage.set(callNumber, message.usage);
+          await authorize();
           stream.push({ type: 'start', partial: message });
           for (let i = 0; i < message.content.length; i++) {
             const block = message.content[i]; stream.push(block.type === 'toolCall'
@@ -297,7 +300,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
             ...(providerTransport ? { fetch: providerTransport.fetch, onSseEvent: providerTransport.onSseEvent, acceptEmptyResponse: true,
               signal: AbortSignal.any([options?.signal, providerTransport.signal].filter(Boolean)) } : {}) });
           for await (const event of upstream) {
-            if (event.type === 'done') { providerTransport?.complete(event.message); completedUsage.set(callNumber, event.message?.usage); }
+            if (event.type === 'done') { providerTransport?.complete(event.message); completedUsage.set(callNumber, event.message?.usage); await authorize(); }
             if (event.type === 'error') providerTransport?.stop('LOCAL_PROVIDER_ERROR_STOP_DO_NOT_RETRY');
             stream.push(event);
           }
@@ -347,7 +350,10 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   }
   const pluginDiagnostics = new Map();
   if (plugins) eventBus.on('workspace:plugin-host', request => request.accept({ selection: localFactory, packageRoot, toolSession,
-    authorize, history: manager.buildSessionContext().messages, diagnostics: (name, report) => pluginDiagnostics.set(name, report) }));
+    authorize, referenceFence,addDisclosureGuard:(check,id)=>{
+      if(typeof check!=='function'||typeof id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(id))throw Error('WORKSPACE_DISCLOSURE_GUARD_INVALID');
+      disclosureGuards.push({id,check});
+    },history: manager.buildSessionContext().messages, diagnostics: (name, report) => pluginDiagnostics.set(name, report) }));
   const simplified = factoryInquiries || factoryCustomers || factoryIngestion || marketValidation || shopifyProduct;
   const admittedTools = localFactory ? [] : readOnlyBusiness ? ['workspace_business_tasks', 'workspace_business_result'] : [...(simplified ? [] : ORDINARY_FACTORY_TOOLS), ...skillTools.map(t => t.name), ...(!simplified && factoryTasks ? ['workspace_factory_task'] : []), ...publicExtension.toolNames, ...publicTask.toolNames, ...(factoryMaterials ? FACTORY_MATERIAL_TOOLS : []), ...(factoryCustomers ? FACTORY_CUSTOMER_TOOLS : []), ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : []), ...(shopifyProduct ? SHOPIFY_PRODUCT_TOOLS : [])];
   if (savedSession && !ordinaryTools) {
@@ -382,6 +388,11 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     ...ordinaryTools ? {} : { toolNames: [] }, spawns: '', hasUI, autoTitle: false, interactivePrompts: hasUI, eventBus, subagentEventBus,
     cacheWarming: false, allowSessionModelFallback: false });
   const session = created.session;
+  if(created.extensionsResult.errors.length)throw Object.assign(Error('PROJECT_PLUGIN_INITIALIZATION_FAILED'),{code:'PROJECT_PLUGIN_INITIALIZATION_FAILED',stage:'plugin-initialization'});
+  const requiredGuards=new Set(manager.getEntries().filter(e=>e.type==='custom'&&e.customType==='workspace-disclosure-guard-required').flatMap(e=>e.data?.ids||[]));
+  if([...requiredGuards].some(id=>!disclosureGuards.some(guard=>guard.id===id)))throw Error('WORKSPACE_DISCLOSURE_GUARD_REQUIRED');
+  const newGuards=disclosureGuards.map(guard=>guard.id).filter(id=>!requiredGuards.has(id));
+  if(newGuards.length)manager.appendCustomEntry('workspace-disclosure-guard-required',{ids:newGuards});
   if (localFactory) {
     const explicitFiles = new Set(plugins.enabled.flatMap(plugin => plugin.extensions));
     const names = created.extensionsResult.extensions.filter(extension => explicitFiles.has(extension.path))
@@ -397,7 +408,6 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       filterActiveTools: names => names.filter(name => admittedTools.includes(name)) });
     await revalidateFactoryContext(manager.getEntries().map(e => e.message), session.model, lifecycleSignal);
   }
-  assert.deepEqual(created.extensionsResult.errors, []);
   for (const forbidden of ['workspace_company_profile', 'workspace_products', 'workspace_product']) assert.ok(!session.getActiveToolNames().includes(forbidden));
   return { ...created, sdk, authStorage, modelRegistry, manager, engineScope, modelCalls: () => modelCalls,
     publicCapabilities: publicExtension.capabilities, localContext: () => pluginDiagnostics.get('local-materials')?.(), plugins: plugins && { discovered: plugins.installed.map(p => p.id), enabled: plugins.enabled.map(p => p.id) },
@@ -407,7 +417,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       return { promptTokens: sum('input'), completionTokens: sum('output'), totalTokens: sum('totalTokens') };
     },
     summarizeToolArguments: (...args) => pluginDiagnostics.get('arguments')?.(...args) || { objectArguments: args[1] !== null && typeof args[1] === 'object' && !Array.isArray(args[1]) },
-    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),
+    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:authorize,
     async close() { return closePromise ??= (async () => { try { await session.dispose(); } finally { await cleanup(); } })(); } };
   } catch (error) {
     try { await created?.session.dispose(); } finally { await cleanup(); }

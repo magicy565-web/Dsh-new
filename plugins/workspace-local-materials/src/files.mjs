@@ -34,8 +34,8 @@ async function selectedBytes(filename, expected) {
     return { content: buffer.subarray(0, size), dev: stat.dev, ino: stat.ino };
   } finally { await handle.close(); }
 }
-export async function createLocalFactoryFiles({ inputs, outputDirectory, directory }) {
-  if (process.platform !== 'linux' || !Array.isArray(inputs) || inputs.length < 1 || inputs.length > 4) fail('LOCAL_SELECTION_REQUIRED');
+export async function createLocalFactoryFiles({ inputs, outputDirectory, directory, archive }) {
+  if (process.platform !== 'linux' || !Array.isArray(inputs) || (!inputs.length&&!archive) || inputs.length > 4) fail('LOCAL_SELECTION_REQUIRED');
   outputDirectory = path.resolve(outputDirectory);
   const outputStat = await plainPath(outputDirectory);
   if (!outputStat?.isDirectory()) fail('LOCAL_EXISTING_OUTPUT_DIRECTORY_REQUIRED');
@@ -69,14 +69,23 @@ export async function createLocalFactoryFiles({ inputs, outputDirectory, directo
   }
   const provenance = () => [...used.values()].map(({ id, name, sha256 }) => ({ kind: 'user-selected-local-file', recordId: id, name, sha256, independentlyVerified: false }));
   return { authorize, manifest: selected.map(({ id, name, sha256 }) => ({ id, name, sha256 })), saved, restoredSources,
-    async restoreReadSources(messages) {
+    async snapshot(id,signal) {
+      await authorize(signal);const file=selected.find(f=>f.id===id);
+      if(!file)fail('LOCAL_INPUT_NOT_SELECTED');
+      const bytes=await fs.readFile(file.snapshot);await authorize(signal);
+      return {id:file.id,name:file.name,sha256:file.sha256,bytes};
+    },
+    async restoreReadSources(messages,{archivedSource}={}) {
       await authorize();
       const pairs = new Map(pairLocalToolHistory(messages).map(pair => [pair.result, pair.call]));
       for (const message of messages) {
         if (message.role !== 'toolResult' || message.toolName !== 'read' || message.isError !== false) continue;
         const id = pairs.get(message)?.arguments?.path, file = selected.find(f => f.id === id);
         const source = Array.isArray(message.details?.sources) && message.details.sources.find(s => s.kind === 'user-selected-local-file' && s.recordId === id);
-        if (!file || !source || source.name !== file.name || source.sha256 !== file.sha256 || message.details.privateLibrary !== false) fail('LOCAL_CACHED_SOURCE_REFUSED');
+        if (!file || !source || source.name !== file.name || source.sha256 !== file.sha256 || message.details.privateLibrary !== false) {
+          if(source&&message.details.privateLibrary===false&&await archivedSource?.(source))continue;
+          fail('LOCAL_CACHED_SOURCE_REFUSED');
+        }
         used.set(id, file);
       }
       await authorize(); restoredSources.splice(0, restoredSources.length, ...provenance());

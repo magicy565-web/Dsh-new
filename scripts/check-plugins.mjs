@@ -33,6 +33,10 @@ for(const plugin of plugins.installed){
         if(!Object.hasOwn(dependencies,name))throw Error('PLUGIN_UNDECLARED_DEPENDENCY: '+name);
       }
     }
+    for(const match of source.matchAll(/new URL\(['"](\.[^'"]+)['"],\s*import\.meta\.url\)/g)){
+      const target=path.resolve(path.dirname(filename),match[1]);if(!target.startsWith(directory+path.sep)||!(await fs.stat(target)).isFile())throw Error('PLUGIN_RESOURCE_MISSING');
+      required.add(path.relative(directory,target));
+    }
   }
   if(pack){
     const child=spawnSync('npm',['pack','--dry-run','--json','--ignore-scripts'],{cwd:directory,encoding:'utf8',

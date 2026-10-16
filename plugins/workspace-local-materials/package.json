@@ -1,9 +1,9 @@
 {
   "name": "@workspace-agent/pi-local-materials",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Explicitly selected local material drafts for pinned original OMP",
+  "description": "Selected local materials, file-first owner references and separate memory proposals for original OMP",
   "keywords": [
     "pi-package"
   ],
@@ -16,7 +16,9 @@
   "main": "./src/extension.js",
   "exports": {
     ".": "./src/extension.js",
-    "./files": "./src/files.mjs"
+    "./files": "./src/files.mjs",
+    "./references": "./src/references.mjs",
+    "./business-memory": "./src/business-memory.mjs"
   },
   "pi": {
     "extensions": [

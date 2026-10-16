@@ -51,5 +51,12 @@ test('actual npm positional goal preflight and help need no Host/key and do not 
   const receipt = output.split('\n').flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; } }).find(r => r.localFilesReady);
   assert.equal(receipt.status, 'model-unconfigured'); assert.equal(receipt.modelRequests, 0); assert.equal(receipt.localSession.resumed, false);
   assert.equal(receipt.localSession.file, path.join(f.directory, 'out/factory-session.jsonl')); assert.deepEqual(await fs.readdir(path.join(f.directory, 'out')), []);
+  const archive=path.join(f.directory,'owner-archive');await fs.mkdir(archive,{mode:0o700});
+  const ownerArgs=['--output-dir',path.join(f.directory,'out'),'--archive-dir',archive,'--enterprise','enterprise-A','--project','project-one'];
+  const ownerOutput=await npm(f,[...ownerArgs,'只查询现有档案。','--check']);
+  const ownerReceipt=ownerOutput.split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}}).find(r=>r.localFilesReady);
+  assert.equal(ownerReceipt.status,'model-unconfigured');assert.equal(ownerReceipt.modelRequests,0);assert.deepEqual(ownerReceipt.selectedInputs,[]);
+  assert.deepEqual(await fs.readdir(archive),[]);assert.deepEqual(await fs.readdir(path.join(f.directory,'out')),[]);
+  assert.throws(()=>parseLocalArguments(ownerArgs.slice(0,-2)),/LOCAL_REFERENCE_SCOPE_REQUIRED/);
   const help = await npm(f, ['--help']); assert.match(help, /一句话目标/); assert.match(help, /factory-session.jsonl/); assert.match(help, /每条命令执行一个目标后退出/); assert.match(help, /零模型请求/);
 });

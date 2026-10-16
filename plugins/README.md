@@ -13,7 +13,7 @@ OMP is the main application; the user's server is a retained optional service br
 | workspace-factory-ingestion | Source-backed product material intake | installed, not enabled | Original client + authorization required |
 | workspace-market-validation | Plans, comparable references, monitor and seven-day standard contracts | installed, not enabled | Original client + authorization; no new external data source |
 | workspace-shopify-product | Existing controlled product/image/draft/publication adapter | installed, not enabled | Existing client + original human approval; no new Shopify connector |
-| workspace-local-materials | Selected local read/write, RFQ drafts and native context hook | explicitly enabled | Selected exact paths/hashes and source-bound native Session |
+| workspace-local-materials | Selected local files/drafts, optional owner references and separate memory proposals | explicitly enabled | Exact selected paths/hashes; private owner directory; no customer sharing |
 | workspace-plugin-info | Side-effect-free loader probe | explicitly disabled | Static identity only |
 
 The first seven packages were moved from `packages/` with interfaces preserved; there is one canonical copy, no dual registration. Their controlled remote Host integrations retain existing explicit client injection and guards. The new local package extracts the former host-registered local capabilities. MCP data sources, Worker adapters, ordinary server modules and other branches are not promoted to plugins by this migration. No existing business plugin remains under packages/ on this branch.
@@ -35,7 +35,7 @@ npm run factory:local -- --input /ABS/product.md --output-dir /ABS/output \
   --session /ABS/project/conversation.jsonl --disable-plugin workspace-local-materials "继续对话"
 ```
 
-The original local CLI's model configuration and reviewed price/budget prerequisites are unchanged; commands above contain no key. Add `--check` for zero inference. Each invocation resumes the selected native Session when the source paths/hashes, model and output directory match. Disabling removes executable capabilities; it does not erase already authorized conversation history. Re-enabling revalidates source hashes before restoring successful prior reads. Existing files cannot be overwritten.
+The original local CLI's model configuration and reviewed price/budget prerequisites are unchanged; commands above contain no key. Add `--check` for zero inference. Each invocation resumes the selected native Session when the source paths/hashes, model and output directory match. Disabling removes executable capabilities; ordinary draft Sessions retain their previously authorized history. An owner-reference Session with a persisted required disclosure guard refuses resume when that guard is disabled or missing. Re-enabling revalidates source hashes before restoring successful prior reads. Existing files cannot be overwritten.
 
 `predev`, `prestart` and `prebuild` expose project discovery; build additionally checks pack contents. No plugin code or model is run during those static hooks. Ordinary web/remote business profiles keep their original explicit bindings; discovery does not auto-enable all migrated packages there.
 
@@ -44,6 +44,8 @@ The original local CLI's model configuration and reviewed price/budget prerequis
 Every package has README.md (purpose, lifecycle, interfaces, configuration, permissions, dependencies, evidence), declared skills/*/SKILL.md (business guidance, not a workflow) and AGENTS.md (maintenance memory for future developers). Package source files can be read directly by later development Agents.
 
 These are committed development artifacts. Real company material, credentials, native JSONL, model outputs, drafts and operational memory stay **outside Git**, in explicitly selected per-project/per-enterprise directories and existing OMP Session persistence. Use separate inputs/output/Session directories for separate enterprises; there is no invented memory database or automatic cross-enterprise discovery. The original 128KiB request, output-token/request-count/usage reconciliation and unknown-cost stop remain; trusted plugin tools are admitted dynamically and frozen before inference (at most 32 schemas) so adding a tool needs no hardcoded Session allowlist.
+
+Optional file-first owner references, source versions and separate memory proposals are documented in [workspace-local-materials/README.md](./workspace-local-materials/README.md). They use originals, readable parsed files, references and INDEX; no RAG or fixed workflow. They are not connected to real customer identity/permissions and must not be shared with customers.
 
 ## Validation scope
 
