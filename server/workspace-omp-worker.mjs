@@ -22,7 +22,8 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
-  created = await (initializing = createWorkspaceOmpSession({ ...config, client, factoryTasks: !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
+  const freeTradeHost=config.freeTrade?(await import('./workspace-free-trade-host.mjs')).freeTradeHostFromRpc(config.freeTradeDescriptor,request):null;
+  created = await (initializing = createWorkspaceOmpSession({ ...config, freeTradeHost,client:config.freeTrade?undefined:client, factoryTasks: !config.freeTrade && !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
     productClient: config.shopifyProduct ? {
       ...Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, (value, signal, model) => request('shopifyProduct', [method, value, model], signal)])),
       refresh: (receipt, model, signal, images) => request('shopifyProduct', ['refresh', receipt, model, images], signal),
@@ -55,7 +56,7 @@ async function start(config) {
       document: (input, signal, model) => request('factoryDocumentRead', [input, model], signal),
       revalidateReceipt: (receipt, model, signal) => request('factoryMaterialsRevalidate', [receipt, model], signal),
     } : null, lifecycleSignal: lifecycle.signal,
-    authorize: signal => request('authorize', [], signal), onModelRequest: event => request('modelRequest', [event]),
+    authorize: value => request('authorize', [], value instanceof AbortSignal?value:undefined), onModelRequest: event => request('modelRequest', [event]),
     onModelAbort: () => { if (config.syntheticResponses) write({ type: 'nativeModelAbort' }); },
     onModelWaiting: () => { if (config.syntheticResponses) write({ type: 'nativeModelWaiting' }); } }));
   created.session.subscribe(event => {
@@ -68,7 +69,7 @@ async function start(config) {
   await request('saveSession', [{ engineScope: created.engineScope, agentSessionId: created.manager.getSessionId(), sessionFile: created.manager.getSessionFile() }]);
   const startIndex = created.session.messages.length;
   await created.session.prompt(config.content, { expandPromptTemplates: false });
-  await request('authorize'); await created.manager.flush();
+  await created.authorizeDisclosure({phase:'final:deliver'}); await created.manager.flush();
   const messages = created.session.messages.slice(startIndex), last = messages.at(-1);
   if (last?.role !== 'assistant' || last.stopReason !== 'stop') throw new Error('The official OMP session did not produce a complete new answer.');
   const usage = created.usage();
@@ -88,7 +89,7 @@ input.on('line', line => {
   } else if (value.type === 'abort') { lifecycle.abort(); void created?.session.abort(); }
   else if (value.type === 'start') void start(value.config).catch(async error => {
     write({ type: 'error', error: 'The official OMP session failed; no task completion or model fallback is implied.',
-      ...(value.config.syntheticResponses ? { diagnostic: error.message } : {}) });
+      ...(value.config.syntheticResponses ? { diagnostic: error.message+(error.pluginReason?':'+error.pluginReason:'') } : {}) });
     await created?.close().catch(() => {}); process.exit(1);
   });
 });

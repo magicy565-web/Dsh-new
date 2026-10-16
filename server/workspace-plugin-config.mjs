@@ -17,10 +17,11 @@ async function localFile(root, relative, directory = false) {
   const stat = await fs.stat(file); if (directory ? !stat.isDirectory() : !stat.isFile()) refuse();
   return file;
 }
-export async function projectPlugins({ root = DEFAULT_PLUGIN_ROOT, disabled = [], none = false } = {}) {
+export async function projectPlugins({ root = DEFAULT_PLUGIN_ROOT, disabled = [], none = false, configuration = 'config.json' } = {}) {
   root = path.resolve(root);
   if ((await fs.lstat(root)).isSymbolicLink() || await fs.realpath(root) !== root) refuse();
-  const config = JSON.parse(await fs.readFile(await localFile(root,'config.json'),'utf8'));
+  if(!/^config(?:\.[a-z0-9-]+)?\.json$/.test(configuration))refuse();
+  const config = JSON.parse(await fs.readFile(await localFile(root,configuration),'utf8'));
   if (Object.keys(config).some(k=>!['extensions','disabledExtensions'].includes(k)) || !Array.isArray(config.extensions)
     || !Array.isArray(config.disabledExtensions) || [...config.extensions,...config.disabledExtensions,...disabled].some(v=>typeof v!=='string')) refuse();
   const disabledNames = new Set([...config.disabledExtensions,...disabled].map(v=>v.replace(/^extension-module:/,'')));

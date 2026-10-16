@@ -1,5 +1,5 @@
-import { verifyWorkspaceOmpRuntime } from '../server/workspace-omp-runtime.mjs';
 #!/usr/bin/env node
+import { verifyWorkspaceOmpRuntime } from '../server/workspace-omp-runtime.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';

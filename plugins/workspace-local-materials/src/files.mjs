@@ -34,8 +34,9 @@ async function selectedBytes(filename, expected) {
     return { content: buffer.subarray(0, size), dev: stat.dev, ino: stat.ino };
   } finally { await handle.close(); }
 }
-export async function createLocalFactoryFiles({ inputs, outputDirectory, directory, archive }) {
-  if (process.platform !== 'linux' || !Array.isArray(inputs) || (!inputs.length&&!archive) || inputs.length > 4) fail('LOCAL_SELECTION_REQUIRED');
+export async function createLocalFactoryFiles({ inputs, outputDirectory, directory, archive, publicOnly = false }) {
+  if(publicOnly&&(inputs?.length||archive))fail('LOCAL_PUBLIC_ONLY_INPUT_REFUSED');
+  if (process.platform !== 'linux' || !Array.isArray(inputs) || (!inputs.length&&!archive&&!publicOnly) || inputs.length > 4) fail('LOCAL_SELECTION_REQUIRED');
   outputDirectory = path.resolve(outputDirectory);
   const outputStat = await plainPath(outputDirectory);
   if (!outputStat?.isDirectory()) fail('LOCAL_EXISTING_OUTPUT_DIRECTORY_REQUIRED');

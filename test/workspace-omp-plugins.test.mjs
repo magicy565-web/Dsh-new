@@ -7,6 +7,6 @@ test('native OMP loads outside-repo plugin packages and preserves disable, unins
     env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},stdio:['ignore','pipe','pipe']});
   let out='',err='';child.stdout.on('data',d=>out+=d);child.stderr.on('data',d=>err+=d);
   const exit=await new Promise(resolve=>child.once('close',resolve));assert.equal(exit,0,err.slice(-6000)+out.slice(-3000));
-  const result=JSON.parse(out.trim());assert.equal(result.passed,true);assert.equal(result.realProviderRequests,0);assert.equal(result.independentPackagesLoaded,9);
+  const result=JSON.parse(out.trim());assert.equal(result.passed,true);assert.equal(result.realProviderRequests,0);assert.equal(result.independentPackagesLoaded,10);
   assert.equal(result.sameSessionId,true);assert.equal(result.disabledHasNoFactoryTools,true);assert.equal(result.uninstalledHasNoFactoryTools,true);
 });

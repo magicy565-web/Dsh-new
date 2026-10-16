@@ -23,6 +23,13 @@ test('one natural-language goal selects a persistent native Session without a fi
   assert.equal(parseLocalArguments([...f.args, '--session', explicit, goal]).sessionFile, explicit);
   for (const extra of [[goal, '另一个目标'], [goal, '--task', goal], ['--task', goal, '--task', goal], ['--unknown'], ['']]) assert.throws(() => parseLocalArguments([...f.args, ...extra]));
 });
+test('explicit public-only CLI admits no private inputs or archive and selects the reviewed plugin config',async t=>{
+ const f=await fixture(t),args=['--public-only','--plugin-config','config.free-trade.json','--output-dir',path.join(f.directory,'out'),'Only public procurement terms.'];
+ const options=parseLocalArguments(args);assert.equal(options.publicOnly,true);assert.equal(options.pluginConfig,'config.free-trade.json');assert.deepEqual(options.inputs,[]);
+ for(const extra of [['--input',path.join(f.directory,'product.md')],['--archive-dir',f.directory],['--enterprise','private']])assert.throws(()=>parseLocalArguments([...args,...extra]),/LOCAL_PUBLIC_ONLY_INPUT_REFUSED/);
+ const output=await npm(f,[...args,'--check']);const receipt=output.split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}}).find(row=>row.localFilesReady);
+ assert.equal(receipt.status,'model-unconfigured');assert.equal(receipt.modelRequests,0);assert.deepEqual(receipt.selectedInputs,[]);assert.deepEqual(await fs.readdir(path.join(f.directory,'out')),[]);
+});
 test('default native Session asks first, then restores that same Session and can write first using prior source', { timeout: 30000 }, async t => {
   const f = await fixture(t), names = ['read', 'write', 'workspace_factory_capabilities', 'workspace_factory_rfq_requirements', 'workspace_factory_match_prepare'];
   const first = await runLocalFactory({ options: parseLocalArguments([...f.args, '先读资料，问我缺项，暂不写文件。']), configuration: model, syntheticResponses: [

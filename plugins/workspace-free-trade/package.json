@@ -1,0 +1,17 @@
+{
+  "name": "@workspace-agent/pi-free-trade",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "description": "Free public procurement discovery and read-only ERPNext commercial adapters for the original Pi Host",
+  "keywords": ["pi-package"],
+  "license": "UNLICENSED",
+  "engines": { "node": ">=24" },
+  "main": "./src/extension.js",
+  "exports": { ".": "./src/extension.js", "./adapters": "./src/free-trade.mjs" },
+  "files": ["src", "skills", "README.md", "sources.json", "AGENTS.md"],
+  "pi": { "extensions": ["./src/extension.js"], "skills": ["./skills/free-trade"] },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "*", "@oh-my-pi/pi-coding-agent": "*" },
+  "peerDependenciesMeta": { "@earendil-works/pi-coding-agent": {"optional":true}, "@oh-my-pi/pi-coding-agent":{"optional":true} },
+  "repository": { "type":"git", "url":"git+https://github.com/magicy565-web/workspace-agent.git", "directory":"plugins/workspace-free-trade" }
+}

@@ -11,7 +11,8 @@ import { createLocalDeepseekTransport, LOCAL_DEEPSEEK_LIMITS, localDeepseekConfi
 import { validatePublicBusinessInput } from '../server/workspace-public-input.mjs';
 import { projectPlugins } from '../server/workspace-plugin-config.mjs';
 const filename = fileURLToPath(import.meta.url);
-const help = 'npm run factory:local -- --input PRODUCT.md [--input RFQ.txt] --output-dir EXISTING_DIR "一句话目标" [--session FILE.jsonl] [--plugin-dir DIR] [--disable-plugin NAME] [--no-plugins] [--check]\n'
+const help = 'npm run factory:local -- --input PRODUCT.md [--input RFQ.txt] --output-dir EXISTING_DIR "一句话目标" [--session FILE.jsonl] [--plugin-dir DIR] [--plugin-config NAME.json] [--public-only] [--disable-plugin NAME] [--no-plugins] [--check]\n'
+  + '--public-only 仅用于无本地输入、无 archive 的公开会话；例如 --plugin-config config.free-trade.json。不会开启 ERP 私有授权。\n'
   + '本地所有者 references 可显式添加 --archive-dir PRIVATE_DIR --enterprise ID --project ID；目录须已存在、当前 UID 所有且权限 0700。不提供客户共享。资料已明确保留后，可不带 --input 继续同范围会话查询；普通模式仍固定原选择/哈希。\n'
   + '默认使用输出目录中的 factory-session.jsonl 创建/继续原生 OMP 会话；相同资料、目录和模型下，换一句目标即可继续。--session 可选择其他私有 JSONL 路径；--task "Goal" 仍可用。\n'
   + '没有目标时只询问目标，不默认生成报告。每条命令执行一个目标后退出，不是交互式 TUI；工具顺序和是否保存由目标决定。\n'
@@ -21,13 +22,15 @@ export function parseLocalArguments(args) {
   const options = { inputs: [], outputDirectory: null, check: false, task: 'Ask what goal the user wants to accomplish with the selected material. Wait for their next instruction; do not start a report workflow without a requested goal.' };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--no-plugins') options.noPlugins = true;
+    if (arg === '--public-only') options.publicOnly = true;
+    else if (arg === '--no-plugins') options.noPlugins = true;
     else if (arg === '--check') options.check = true;
-    else if (['--input','--output-dir','--task','--session','--plugin-dir','--disable-plugin','--archive-dir','--enterprise','--project'].includes(arg)) {
+    else if (['--input','--output-dir','--task','--session','--plugin-dir','--plugin-config','--disable-plugin','--archive-dir','--enterprise','--project'].includes(arg)) {
       const value = args[++i]; if (!value || value.startsWith('--')) throw Error('LOCAL_ARGUMENT_REQUIRED');
       if (arg === '--archive-dir') options.archiveDirectory=path.resolve(value);
       else if (arg === '--enterprise') options.enterprise=value;
       else if (arg === '--project') options.project=value;
+      else if (arg === '--plugin-config') options.pluginConfig=value;
       else if (arg === '--plugin-dir') options.pluginRoot = path.resolve(value);
       else if (arg === '--disable-plugin') (options.disabledPlugins ||= []).push(value);
       else if (arg === '--input') options.inputs.push(path.resolve(value));
@@ -40,7 +43,8 @@ export function parseLocalArguments(args) {
       options.task = arg; explicitTask = true;
     } else throw Error('LOCAL_UNKNOWN_ARGUMENT');
   }
-  if ((!options.inputs.length&&!options.archiveDirectory) || options.inputs.length > 4 || !options.outputDirectory || !options.task.trim() || options.task.length > 4000) throw Error('LOCAL_SELECTION_REQUIRED');
+  if(options.publicOnly&&(options.inputs.length||options.archiveDirectory||options.enterprise||options.project))throw Error('LOCAL_PUBLIC_ONLY_INPUT_REFUSED');
+  if ((!options.inputs.length&&!options.archiveDirectory&&!options.publicOnly) || options.inputs.length > 4 || !options.outputDirectory || !options.task.trim() || options.task.length > 4000) throw Error('LOCAL_SELECTION_REQUIRED');
   options.sessionFile ||= path.join(options.outputDirectory, 'factory-session.jsonl');
   if(options.archiveDirectory||options.enterprise||options.project){
     if(!options.archiveDirectory||!options.enterprise||!options.project)throw Error('LOCAL_REFERENCE_SCOPE_REQUIRED');
@@ -49,7 +53,7 @@ export function parseLocalArguments(args) {
   validatePublicBusinessInput(options.task);
   return options;
 }
-export async function runLocalFactorySession(input, { fetchImpl = globalThis.fetch, referenceFence } = {}) {
+export async function runLocalFactorySession(input, { fetchImpl = globalThis.fetch, referenceFence, publicTenderClient } = {}) {
   if (!globalThis.Bun) throw Error('LOCAL_REVIEWED_BUN_REQUIRED');
   const { createLocalSelection, plainPath } = await import('../server/workspace-local-selection.mjs');
   const { createWorkspaceOmpSession } = await import('../server/workspace-omp-session.mjs');
@@ -60,7 +64,7 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
   const timer = setTimeout(stop, 60000);
   try {
-    const selectedPlugins = await projectPlugins({ root: input.options.pluginRoot, disabled: input.options.disabledPlugins, none: input.options.noPlugins });
+    const selectedPlugins = await projectPlugins({ root: input.options.pluginRoot, disabled: input.options.disabledPlugins, none: input.options.noPlugins, configuration:input.options.pluginConfig });
     files = await createLocalSelection({ ...input.options, directory: input.directory });
     let sessionParent, sessionParentStat;
     if (input.options.sessionFile) {
@@ -72,7 +76,7 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
       if (stat && (!stat.isFile() || stat.size > 2 * 1024 * 1024)) throw Error('LOCAL_SESSION_FILE_REFUSED');
       localSession = { file, resume: Boolean(stat), binding: { manifest: input.options.archive?[]:files.manifest, inputs: input.options.archive?[]:input.options.inputs.map(f => path.resolve(f)),
         outputDirectory: path.resolve(input.options.outputDirectory), provider: input.configuration.providerId, model: input.configuration.model,
-        ...(input.options.archive?{archive:{...input.options.archive,ownerUid:process.getuid()}}:{}) } };
+        ...(input.options.archive?{archive:{...input.options.archive,ownerUid:process.getuid()}}:{}),...(input.options.publicOnly?{publicOnly:true}:{}) } };
     }
     if (input.options.check) return { status: !workspaceOmpConfigured(input.configuration) ? 'model-unconfigured'
         : localDeepseekConfigured(input.configuration) ? 'configured-unverified' : 'provider-unsupported',
@@ -99,7 +103,7 @@ export async function runLocalFactorySession(input, { fetchImpl = globalThis.fet
     created = await createWorkspaceOmpSession({ packageRoot: input.paths.packageRoot, cwd: sessionParent || input.directory,
       agentDir: input.directory + '/agent', sessionDirectory: sessionParent || input.directory + '/sessions', localSession,
       configuration: input.configuration, localFactory: files, providerTransport: transport, syntheticResponses: input.syntheticResponses,
-      authorize, lifecycleSignal: controller.signal, referenceFence, pluginConfiguration: { root: input.options.pluginRoot, disabled: input.options.disabledPlugins, none: input.options.noPlugins },
+      authorize, lifecycleSignal: controller.signal, referenceFence, publicTenderClient, pluginConfiguration: { root: input.options.pluginRoot, disabled: input.options.disabledPlugins, none: input.options.noPlugins, configuration:input.options.pluginConfig },
       maxModelCalls: LOCAL_DEEPSEEK_LIMITS.maxRequests, maxTokens: LOCAL_DEEPSEEK_LIMITS.maxRequests * LOCAL_DEEPSEEK_LIMITS.maxOutputTokens,
       onModelRequest: () => {
         if (transport && created?.session.agent.state.messages.slice(taskMessageStart).some(m => m.role === 'toolResult' && m.isError)) {

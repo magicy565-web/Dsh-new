@@ -1,0 +1,59 @@
+{
+  "baseline": "b8866e95f2c655603c7b55529b579f91c9626fa1",
+  "files": [
+    {
+      "path": "docs/FREE-TRADE-HANDOFF.md",
+      "bytes": 4072,
+      "sha256": "c5c24c284765ec35f201d2f26b611edb5cbc5d8ead8020e8740a4ae0a6c7454e",
+      "gitBlobSha": "bca0201466f70a2ff671c53b062bc1a26c815ed0"
+    },
+    {
+      "path": "docs/validation/free-trade-20261016/checks.json",
+      "bytes": 2633,
+      "sha256": "2991c4ea7b746066cf1d2f24bf4152f4290d3dfbdf59d2593e73066e95f952f3",
+      "gitBlobSha": "81c80bc24e56a3d38486308760cc9edd606a7519"
+    },
+    {
+      "path": "packages/workspace-free-trade/README.md",
+      "bytes": 8527,
+      "sha256": "3b5f0c30f5f305a0925e0e08a96e16a0b7c970303c0dbb22603224cb94e383ce",
+      "gitBlobSha": "812fb80eeb5d79a8ac0cd22127e50c61e3a34031"
+    },
+    {
+      "path": "packages/workspace-free-trade/package.json",
+      "bytes": 953,
+      "sha256": "ee0f1c2d030e0574140f012fd810e9c38c1a1ceeae39779fbf71dd8cfc7e098a",
+      "gitBlobSha": "e858446d3fc05aa84e485a6f8594c25cd32b4633"
+    },
+    {
+      "path": "packages/workspace-free-trade/skills/free-trade/SKILL.md",
+      "bytes": 3598,
+      "sha256": "13c68c3f2fafde5154746a7800a4a2fdd0fd1d3e0fb8d6b3f8a768cb02b05a7a",
+      "gitBlobSha": "bed8402003a67046b88dbc7eddc606616fe5aa80"
+    },
+    {
+      "path": "packages/workspace-free-trade/sources.json",
+      "bytes": 2289,
+      "sha256": "037cc501a907f8f41b5568d7d8c5b782431c2f5b08b74a2055fb442767bcc0ec",
+      "gitBlobSha": "714a11b6a8be8f041189bec23b181cb6bfd8cf6c"
+    },
+    {
+      "path": "packages/workspace-free-trade/src/extension.js",
+      "bytes": 5300,
+      "sha256": "e5d56cf808b0ba87cdac96b34d6addbfc9b335a6cd215b9582fc75d29e888e53",
+      "gitBlobSha": "e0bc28822e9965eea81706c9cfccbefb57e47de8"
+    },
+    {
+      "path": "packages/workspace-free-trade/src/free-trade.mjs",
+      "bytes": 18826,
+      "sha256": "cd8151980740172b41e0dc147b973097bd0c42c3167f96b7f3ac778500e5946c",
+      "gitBlobSha": "1f3facd337726163aeee0933c6bae3ec3b546a31"
+    },
+    {
+      "path": "test/free-trade.test.mjs",
+      "bytes": 20783,
+      "sha256": "29095fb7345d6970f12b582faafd58b77315b4e0b44da266f7b63c65523c2dbb",
+      "gitBlobSha": "32568d2ef2a0041ddf43927036d97a9c46068808"
+    }
+  ]
+}

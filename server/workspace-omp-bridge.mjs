@@ -10,6 +10,7 @@ import { ProviderError } from './provider.mjs';
 import { snapshotWorkspaceOmpPublicFiles } from './workspace-omp-public-tools.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
+export const OMP_FREE_TRADE_SCOPE = 'omp:18.10.4:free-trade-v1';
 export const OMP_FACTORY_ENGINE_SCOPE = 'omp:18.10.4:factory-materials-v1';
 export const OMP_CUSTOMERS_ENGINE_SCOPE = 'omp:18.10.4:factory-customers-v1';
 export const OMP_INGESTION_ENGINE_SCOPE = 'omp:18.10.4:factory-ingestion-v1';
@@ -17,20 +18,22 @@ export const OMP_SHOPIFY_ENGINE_SCOPE = 'omp:18.10.4:shopify-product-v1';
 export const OMP_MARKET_ENGINE_SCOPE = 'omp:18.10.4:market-validation-v1';
 export const OMP_INQUIRIES_ENGINE_SCOPE = 'omp:18.10.4:factory-inquiries-v1';
 export { workspaceOmpPaths, checkWorkspaceOmpPaths } from './workspace-omp-runtime.mjs';
-export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, syntheticResponses = null,
+export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, syntheticResponses = null, freeTrade = false, pluginConfiguration = {},
   syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
   if (syntheticPublicSearchResponses && !syntheticResponses) throw new Error('Public HTTP fixtures require the explicit finite keyless model fixture; production cannot select them.');
   if (typeof factoryInquiries !== 'boolean') throw TypeError('Use one fixed reviewed OMP profile.');
   if (factoryInquiries || marketValidation || shopifyProduct) factoryMaterials = true;
   if (typeof factoryIngestion !== 'boolean' || typeof marketValidation !== 'boolean' || factoryIngestion && (factoryMaterials || factoryCustomers) || marketValidation && (factoryInquiries || factoryCustomers)) throw TypeError('Use one reviewed profile.');
-  const privateProfile = factoryMaterials || factoryIngestion;
+  if(typeof freeTrade!=='boolean'||freeTrade&&(factoryMaterials||factoryCustomers||factoryInquiries||factoryIngestion||marketValidation||shopifyProduct))throw Error('Use one reviewed free-trade profile.');
+  const privateProfile = factoryMaterials || factoryIngestion || freeTrade;
   if (typeof factoryMaterials !== 'boolean' || typeof factoryCustomers !== 'boolean' || factoryMaterials && factoryCustomers) throw TypeError('Use one fixed reviewed OMP profile.');
   if (typeof shopifyProduct !== 'boolean' || shopifyProduct && (factoryIngestion || marketValidation || factoryInquiries || factoryCustomers)) throw TypeError('Use one reviewed Shopify product profile.');
-  const engineScope = shopifyProduct ? OMP_SHOPIFY_ENGINE_SCOPE : factoryIngestion ? OMP_INGESTION_ENGINE_SCOPE : marketValidation ? OMP_MARKET_ENGINE_SCOPE : factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
+  const engineScope = freeTrade ? OMP_FREE_TRADE_SCOPE : shopifyProduct ? OMP_SHOPIFY_ENGINE_SCOPE : factoryIngestion ? OMP_INGESTION_ENGINE_SCOPE : marketValidation ? OMP_MARKET_ENGINE_SCOPE : factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
-    async complete({ input, run, binding, client, authorize, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory, savedSession, saveSession }) {
+    async complete({ input, run, binding, client, authorize, freeTradeHost = binding?.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory, savedSession, saveSession }) {
       input.signal?.throwIfAborted();
       await checkWorkspaceOmpPaths(paths); await authorize();
+      if(freeTrade){const {assertFreeTradeHost}=await import('./workspace-free-trade-host.mjs');assertFreeTradeHost(freeTradeHost);}
       const user = input.messages.filter(row => row.role === 'user').at(-1);
       if (!user || typeof user.content !== 'string') throw new ProviderError('PUBLIC_TEXT_REQUIRED', 'Use the original public text admission.');
       const sessionDirectory = path.join(isolationDirectory, 'sessions', binding.client.bindingFingerprint), agentDir = path.join(isolationDirectory, 'agent');
@@ -61,7 +64,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         const lines = createInterface({ input: channel, crlfDelay: Infinity });
         const send = value => { if (!channel.destroyed) channel.write(JSON.stringify(value) + '\n'); };
         let terminateTimer, killTimer;
-        const operations = new Map();
+        const operations = new Map();let freeControl,freeNativeId,delivering=false;
         const stop = () => { if (childClosed || killTimer) return; send({ type: 'abort' });
           // Let the official root/child AbortSignals settle first. Escalation
           // remains bounded and targets only this owned worker/process group.
@@ -72,10 +75,15 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           if (error) { stop(); reject(error); } else resolve(result); };
         channel.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP transport closed.')); });
         lines.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP line transport closed.')); });
-        const finishSuccess = () => { if (childClosed && cleanupComplete && resultVerified) finish(null, { ...pendingResult, runtime: { ...pendingResult.runtime, workerExitObserved: true } }); };
+        const finishSuccess = () => {
+          if(!childClosed||!cleanupComplete||!resultVerified||delivering)return;delivering=true;
+          void(async()=>{await authorize();if(freeTrade){if(!freeControl)throw Error();await freeControl.finalCheck(input.signal,binding.model);}
+            finish(null,{...pendingResult,runtime:{...pendingResult.runtime,workerExitObserved:true}});
+          })().catch(()=>finish(new ProviderError('OMP_DISCLOSURE_REFUSED','Original final disclosure authorization no longer permits this result.')));
+        };
         input.signal?.addEventListener('abort', stop, { once: true });
         if (input.signal?.aborted) stop();
-        const allowed = new Set(factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || shopifyProduct ? [] : client.readOnlySession ? ['businessTasks', 'businessStatus', 'businessResult'] : ['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
+        const allowed = new Set(freeTrade || factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || shopifyProduct ? [] : client.readOnlySession ? ['businessTasks', 'businessStatus', 'businessResult'] : ['businessPresets', 'businessSubmit', 'businessTasks', 'businessStatus', 'businessResult']);
         const handleLine = async line => {
           bytes += Buffer.byteLength(line); if (bytes > 8_000_000 || Buffer.byteLength(line) > 2_000_000) { finish(new ProviderError('OMP_PROTOCOL_LIMIT', 'OMP exceeded its admitted transport limit.')); return; }
           let message; try { message = JSON.parse(line); } catch { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'OMP returned an invalid transport receipt.')); return; }
@@ -89,6 +97,25 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               if (message.method === 'authorize') result = true;
               else if (message.method === 'saveSession') result = await saveSession(message.args[0]);
               else if (message.method === 'modelRequest') { if (++modelCalls > 4) throw new Error('Original model request bound exceeded.'); await input.onEvent?.({ type: 'pi.agent-session.request', engine: 'omp' }); result = true; }
+              else if(freeTrade&&message.method==='freeTrade'){
+                const [nativeId,method,args=[]]=message.args||[];
+                if(typeof nativeId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(nativeId)||!Array.isArray(args)||args.length>3
+                  ||freeNativeId&&nativeId!==freeNativeId||savedSession&&savedSession.agentSessionId!==nativeId)throw Error('Original native Session required.');
+                if(!freeControl){freeNativeId=nativeId;freeControl=freeTradeHost.open(nativeId);}
+                if(method==='authorize')result=await freeControl.authorize(args[0],rpcSignal,args[1]);
+                else if(method==='authorizeContext')result=await freeControl.authorizeContext(rpcSignal,args[0]);
+                else if(method==='read')result=await freeControl.erp.read(args[0],rpcSignal,args[1]);
+                else if(method==='seal')result=await freeControl.seal(args[0],args[1],rpcSignal,args[2]);
+                else if(method==='verifyBody')result=await freeControl.verifyBody(args[0],args[1]);
+                else if(method==='check'){
+                  if(syntheticResponses)onWorkerLifecycle({phase:'freeTradeCheck',boundary:args[2]?.phase});
+                  result=await freeControl.check(args[0],rpcSignal,args[1],args[2]);
+                }else if(method==='tenderSearch'){
+                  await freeControl.authorize({tool:'workspace_tender_search',input:args[0]},rpcSignal,binding.model);
+                  result=await freeControl.tenders.search(args[0],rpcSignal);
+                  await freeControl.authorize({tool:'workspace_tender_search',input:args[0]},rpcSignal,binding.model);
+                }else throw Error('Original free-trade read capability required.');
+              }
               else if (shopifyProduct && message.method === 'shopifyProduct') {
                 const [method, value, model, images] = message.args || [];
                 if (!productClient || !['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result', 'refresh'].includes(method)) throw Error('Original product method required.');
@@ -134,7 +161,8 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               } else throw new Error('This public OMP session cannot invoke that capability.');
               rpcSignal.throwIfAborted(); send({ type: 'reply', id: message.id, result });
             } catch (error) {
-              if (syntheticResponses) onWorkerLifecycle({ phase: 'rpc-refused', method: message.method, code: error.code || error.name });
+              if (syntheticResponses) onWorkerLifecycle({ phase: 'rpc-refused', method: message.method,
+                ...(message.method==='freeTrade'?{operation:message.args?.[1]}:{}),code: error.code || error.name });
               // Preserve only reviewed business codes, never arbitrary Host error text.
               const codes = ['SHOPIFY_PRODUCT_SKUS_NOT_SELECTED', 'SHOPIFY_PRODUCT_SKU_SOURCE_MISMATCH', 'SHOPIFY_PRODUCT_VARIANTS_INVALID', 'SHOPIFY_PRODUCT_SOURCE_CHANGED', 'SHOPIFY_PRODUCT_IMAGES_NOT_SELECTED', 'SHOPIFY_PRODUCT_IMAGE_NOT_SELECTED', 'SHOPIFY_PRODUCT_IMAGE_TOO_LARGE', 'SHOPIFY_PRODUCT_CACHE_REFUSED', 'SHOPIFY_PRODUCT_INPUT_INVALID', 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'SUPPLIER_PUBLICATION_STALE', 'SHOPIFY_SETUP_REQUIRED', 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', 'IDEMPOTENCY_CONFLICT', 'FACTORY_INQUIRY_SOURCE_CHANGED', 'FACTORY_INQUIRY_REQUEST_CHANGED', 'FACTORY_INQUIRY_ARTIFACT_CHANGED', 'FACTORY_INQUIRY_SOURCE_REFUSED',
                 'FACTORY_INGESTION_UPLOAD_NOT_APPROVED', 'FACTORY_INGESTION_SOURCE_CHANGED', 'FACTORY_INGESTION_TARGET_CHANGED', 'FACTORY_INGESTION_REQUEST_CHANGED', 'FACTORY_INGESTION_QUERY_REAUTHORIZE', 'FACTORY_INGESTION_FIELD_NOT_APPROVED', 'FACTORY_INGESTION_SCOPE_REFUSED', 'FACTORY_INGESTION_CACHE_CHANGED',
@@ -142,8 +170,8 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 'MARKET_PLAN_SOURCE_CHANGED', 'MARKET_PLAN_REQUEST_CHANGED', 'MARKET_PLAN_CACHE_REFUSED', 'MARKET_PLAN_DOCUMENT_NOT_LINKED', 'MARKET_PLAN_SOURCE_REFUSED',
                 'PUBLIC_DRAFT_REQUEST_CHANGED', 'PUBLIC_DRAFT_ARTIFACT_CHANGED', 'ORIGINAL_PUBLIC_SOURCE_RECEIPT_REQUIRED', 'PUBLIC_SOURCE_URL_REFUSED', 'PUBLIC_SOURCE_METADATA_LIMIT'];
               send({ type: 'reply', id: message.id, error: 'Original authorization or task operation refused; no replacement execution was admitted.',
-                ...(codes.includes(error.code) ? { errorCode: error.code } : {}),
-                ...([400, 401, 403, 404, 409, 503].includes(error.status) ? { status: error.status } : {}) });
+                ...(codes.includes(error.code)||freeTrade&&(/^FREE_TRADE_[A-Z0-9_]+$/.test(error.code||'')||['ERP_REVIEWED_CONNECTION_REQUIRED','SAM_API_KEY_REQUIRED','ORIGINAL_AUTHORIZATION_REFUSED','REMOTE_AUTHORIZATION_REFUSED','ERP_RECORD_MISMATCH','ERP_FIELD_SHAPE_INVALID','NETWORK_UNAVAILABLE','REQUEST_TIMEOUT','SECRET_ECHO_REFUSED'].includes(error.code)) ? { errorCode: error.code } : {}),
+                ...([400, 401, 403, 404, 409, 503].includes(error.status)||freeTrade&&['blocked','unavailable','unconfigured'].includes(error.status) ? { status: error.status } : {}) });
             } finally { operations.delete(message.id); }
           } else if (message.type === 'event') {
             const event = message.event;
@@ -167,7 +195,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.'));
           }).catch(() => finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.'))); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, readOnlyBusiness: client.readOnlySession === true, factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, readOnlyBusiness: !freeTrade&&client.readOnlySession === true, freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:freeTrade?{configuration:'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       });
     },
