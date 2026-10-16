@@ -1,6 +1,6 @@
 # Enterprise context through the original Workspace Host
 
-Private `@workspace-agent/pi-enterprise-context` 0.2.2. Selectively received PR87 repair `13cccff0df703e6471329cd0e1815aee3f6179a9` onto PR89 `cbbad133049747e3d28720ba885b3613eb7f5a34`. Canonical package: `plugins/workspace-enterprise-context`, with its adapter code inside the same package for standalone loading/packing. No older Host files or PR79 baseline were copied.
+Private `@workspace-agent/pi-enterprise-context` 0.2.3. Selectively received PR87 repair `13cccff0df703e6471329cd0e1815aee3f6179a9` onto PR89 `cbbad133049747e3d28720ba885b3613eb7f5a34`. Canonical package: `plugins/workspace-enterprise-context`, with its adapter code inside the same package for standalone loading/packing. No older Host files or PR79 baseline were copied.
 
 Workspace Library remains the authority for company/product/documents, current versions, SHA and human reviews. ERPNext exact-record reads stay in `workspace-free-trade`; this package adds no ERP client. Mem0 is disabled in this Host for search, add and history. No vector stack, account, database, permission store, approval service, scheduler or Agent Loop is added.
 
@@ -9,7 +9,7 @@ Workspace Library remains the authority for company/product/documents, current v
 | Tool | Current behavior |
 | --- | --- |
 | `workspace_enterprise_context_status` | Original source selection and service state, not a live service success. Configured private metadata receives original native provenance proofs. |
-| `workspace_enterprise_context_parse_upload` | Exact original `{artifactId,version,sha256}`, already selected by the trusted Host and authorized by original Library. Fixed reviewed Docling origin; no URL, customer or authority argument. |
+| `workspace_enterprise_context_parse_upload` | Exact original `{artifactId,version,sha256}`, already selected by the trusted Host and authorized by original Library plus a fresh explicit complete-file transfer check. Fixed reviewed Docling origin; no URL, customer or authority argument. |
 | `workspace_enterprise_context_memory_search` / `memory_add` / `memory_history` | Always `OSS_MEM0_DISABLED` in this integrated Host; no Mem0 request or approval flag. |
 
 Ordinary external installation and local CLI loading without the original Host return `unconfigured`. Loading a manifest does not authorize enterprise reads. The default project config leaves this package disabled. It can coexist with the probe/free-trade packages; an enterprise private context cannot inherit unguarded public tender outbound tools. ERP read and Docling use their separately reviewed original Host profiles; this patch does not merge their private bindings into a broader grant.
@@ -39,12 +39,19 @@ enterpriseContextHost: await app.enterpriseContextSessionBinding(actor, {
   recipient: existingReviewedModelRecipient,
   selection: existingReviewedCustomerDocumentSelection,
   connection: existingReviewedSafeDoclingConnection,
+  authorizeParserTransfer: existingLiveCompleteFileTransferCheck,
 })
 ```
 
 The app injects its own access, instance, Session client, Library authority, Artifact service and Store. Model arguments, bearer tokens, owner UID or a customer label cannot create authority. Selection is `{enabled:true,reviewed:true,customerId,sources:[{documentId,asset:{artifactId,version,sha256}}]}` with at most eight pins. `customerId` is trusted Host narrowing/namespace, not a new customer database or ACL: **each selected document must independently pass the existing exact Library policy**. It cannot expand that policy. Changing customer/selection/Host/Session/recipient binds a different scope and cannot inherit previous private native receipts.
 
 Connection is fixed reviewed `{reviewed:true,baseURL,apiKey}` supplied through the existing safe channel; optional trusted `timeoutMs` is 1–30000, default15000. This patch creates/configures none of those values in production. Missing Library grant or safe connection is explicitly unavailable/unconfigured; it never substitutes local extraction and calls it Docling. The original Library model policy must already authorize the actual signed operator/admin, exact model receiver, document ID/current revision/current document version and artifact version/SHA. No new HTTP grant endpoint or role exists.
+
+A model-field read policy is insufficient for complete original-file transfer. The trusted Node Host must also supply `authorizeParserTransfer(request)`, backed by its **existing** live consent source. Absence, anything other than `true`, error, cancellation or timeout fails closed with no original-file dispatch. This patch adds no production consent, credentials, grant endpoint or approval store. The callback is never supplied by tool/model input and never crosses to Bun.
+
+Every request pins `workspaceId`, `subject`, actual `sessionId`, `nativeSessionId`, model, exact `target:{artifactId,version,sha256}`, `documentId`, `documentRevision`, `documentVersion`, `recipient:{kind:'docling',destination:'<fixed-origin>/v1/convert/file'}`, `purpose:'document-extraction'`, `transfer:'complete-file'`, `action` and `signal`. Only explicit consent for **all** these file/receiver/purpose facts may return `true`; a generic field-read permission or a customer label is insufficient. The fixed transport configuration is copied at binding creation. Different recipient/file/version/SHA needs the original Host's own explicit authorization, never an automatic model fallback.
+
+This selectively reuses the live `checkParserGrant`/`verify` semantics from PR87 `b7bd2410a623a9d7ec654a0a826ac3778cae64c3` `server/enterprise-context-original-authority.mjs` inside the existing PR91 Host. Existing bridge checks retain original active Run ownership/cancellation; existing Library checks retain source authority. No second authority instance/module is attached. Checks run before source download, twice at post-download/pre-dispatch, after return and when a parse proof is reused/disclosed (including final delivery). Session/source are rechecked after an asynchronous consent decision. The decision wait is bounded by the existing trusted `timeoutMs` and original Run signal even if the callback ignores cancellation or resolves late. Arbitrary checker diagnostics are discarded. Library/status metadata remains independently guarded and cannot confer transfer consent.
 
 ## Dispatch and disclosure fences
 

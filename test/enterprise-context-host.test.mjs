@@ -13,7 +13,7 @@ import {libraryReadHash} from '../server/library-model-read-contract.mjs';
 const empty=()=>({artifacts:[],skills:[],memoryIds:[],connectorActions:[]});
 const names=['workspace_enterprise_context_status','workspace_enterprise_context_memory_search','workspace_enterprise_context_memory_add','workspace_enterprise_context_memory_history','workspace_enterprise_context_parse_upload'];
 const stop={text:'SYNTHETIC parsed-source answer; not actual Docling or model reasoning.'};
-async function fixture(t,{script,missing=false,noLibrary=false,timeoutMs=15000,life=()=>{},pluginConfiguration={},allSources=false}={}){
+async function fixture(t,{script,missing=false,noLibrary=false,timeoutMs=15000,life=()=>{},pluginConfiguration={},allSources=false,transfer=true}={}){
  const directory=await fs.mkdtemp('/tmp/enterprise-context-host-');
  const seed=await taskFixture(t,{directory,enterprise:true});const rows=[];
  for(const label of ['A','B']){
@@ -24,7 +24,7 @@ async function fixture(t,{script,missing=false,noLibrary=false,timeoutMs=15000,l
  }
  await seed.app.close();
  const state={calls:0,customer:'A',responseHook:null,responseText:'SYNTHETIC_DOCLING_TEXT',responsePayload:null,responseStatus:200,delay:0,held:null,closed:false,identity:null,
-  doclingSecret:'synthetic-docling-credential-'+randomUUID()+'@"/+&'};let f;const lifecycle=[];
+  transferAllowed:true,transferChecks:[],transferHook:null,parserDestination:null,doclingSecret:'synthetic-docling-credential-'+randomUUID()+'@"/+&'};let f;const lifecycle=[];
  const server=createServer(async(req,res)=>{
   state.calls++;assert.equal(req.method,'POST');assert.equal(req.url,'/v1/convert/file');
   const chunks=[];for await(const chunk of req)chunks.push(chunk);
@@ -37,16 +37,24 @@ async function fixture(t,{script,missing=false,noLibrary=false,timeoutMs=15000,l
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
  const connection={reviewed:true,baseURL:'http://127.0.0.1:'+server.address().port,apiKey:state.doclingSecret,timeoutMs};
+ state.parserDestination=connection.baseURL+'/v1/convert/file';
+ const authorizeParserTransfer=transfer?async request=>{
+  const {signal,...facts}=request;state.transferChecks.push(facts);if(state.transferHook)await state.transferHook(request);
+  const pin=rows.find(row=>row.documentId===request.documentId);
+  return state.transferAllowed===true&&request.transfer==='complete-file'&&request.purpose==='document-extraction'
+   &&request.recipient.kind==='docling'&&request.recipient.destination===state.parserDestination
+   &&request.documentRevision===pin?.revision&&request.documentVersion===pin?.documentVersion&&libraryReadHash(request.target)===libraryReadHash(pin?.asset);
+ }:undefined;
  const responses=script?script(rows):[{tool:'workspace_enterprise_context_parse_upload',arguments:rows[0].asset,expectedToolNames:names},stop];
  const engineAdapter=createWorkspaceOmpEngineAdapter({paths:workspaceOmpPaths({}),configuration:{providerId:MODEL.provider,model:MODEL.id,baseUrl:MODEL.baseUrl},enterpriseContext:true,
   pluginConfiguration,syntheticResponses:responses,onWorkerLifecycle:event=>{lifecycle.push(event);life(event,state,f);}});
  const policy={enabled:true,reviewed:true,workspaceId:'pi-enterprise-test',subject:'member-a',expiresAt:'2099-01-01T00:00:00.000Z',recipient:RECIPIENT,company:null,products:[],productFields:['name'],
   factoryMaterials:{products:[],productFields:['name'],documents:rows.map(row=>({id:row.documentId,revision:1,documentVersion:1,asset:row.asset}))}};
- const bindingOptions=()=>({recipient:RECIPIENT,selection:{enabled:true,reviewed:true,customerId:'customer-'+state.customer,sources:allSources?rows:[rows[state.customer==='A'?0:1]]},connection:missing?{}:connection});
+ const bindingOptions=()=>({recipient:RECIPIENT,selection:{enabled:true,reviewed:true,customerId:'customer-'+state.customer,sources:allSources?rows:[rows[state.customer==='A'?0:1]]},connection:missing?{}:connection,authorizeParserTransfer});
  f=await taskFixture(t,{directory,enterprise:true,libraryModelReadPolicy:noLibrary?null:policy,businessAgentOptions:{recipient:RECIPIENT,engineAdapter,
   resolveBinding:async({actor,sessionReadonlyClient})=>{state.identity=actor;return {client:sessionReadonlyClient(actor),model:MODEL,enterpriseContextHost:await f.app.enterpriseContextSessionBinding(actor,bindingOptions())};}}});
  t.after(async()=>{await f.app.close();await fs.rm(directory,{recursive:true,force:true});});
- return Object.assign(f,{rows,state,lifecycle,bindingOptions,responses});
+ return Object.assign(f,{rows,state,lifecycle,bindingOptions,responses,connection});
 }
 async function conversation(f){const r=await f.workspace('/api/conversations',{subject:'member-a',body:{title:'Synthetic enterprise sources',inputContext:empty()}});assert.equal(r.status,201,r.text);return r.json.conversation.id;}
 let next=0;
@@ -285,7 +293,7 @@ async function compact(f,cid,legacy=false){
  const mapping=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;
  const child=spawn(workspaceOmpPaths({}).bun,['test/fixtures/enterprise-context-compact.mjs',mapping.sessionFile,...legacy?['--legacy-summary']:[]],{env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},stdio:['ignore','pipe','pipe']});
  let out='';child.stdout.on('data',data=>out+=data);child.stderr.resume();
- assert.equal(await new Promise(resolve=>child.once('close',resolve)),0,'SDK compaction failed');assert.equal(JSON.parse(out).privateMessages,0);
+ assert.equal(await new Promise(resolve=>child.once('close',resolve)),0,'SDK compaction failed');const result=JSON.parse(out);assert.equal(result.privateMessages,0);if(legacy)assert.equal(result.summaryContainsLegacyBody,true);
 }
 test('legacy unscreened credential parse compaction refuses restore before any model request',{timeout:60000},async t=>{
  const f=await fixture(t),cid=await conversation(f);assert.equal((await send(f,cid)).status,'succeeded');
@@ -299,6 +307,7 @@ test('legacy unscreened credential parse compaction refuses restore before any m
  const before=await fs.readFile(map.sessionFile,'utf8');
  f.responses.splice(0,f.responses.length,{text:'SYNTHETIC should never run',expectedContextText:'SYNTHETIC_LEGACY_UNSCREENED'});
  const run=await send(f,cid);assert.equal(calls(run),0,'legacy summary reached a model request');assert.equal(run.status,'failed');assert.equal(f.state.calls,1);
+ assert.ok(f.lifecycle.some(event=>event.phase==='rpc-refused'&&event.operation==='check'&&event.code==='OSS_PRIVATE_CREDENTIAL_SCREEN_REQUIRED'));
  // Preserve original journal, including the synthetic legacy record, without printing its value.
  assert.equal((await fs.readFile(map.sessionFile,'utf8')).startsWith(before),true);
 });
@@ -322,4 +331,68 @@ for(const mutation of ['flag-only','forged-mac','changed-body','changed-session'
   if(entry.message?.toolName==='workspace_enterprise_context_parse_upload'){alter(entry.message.details.authorization);entry.message.content[0].text=JSON.stringify(entry.message.details);}}
  const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;await fs.writeFile(map.sessionFile,entries.map(JSON.stringify).join('\n')+'\n');
  await compact(f,cid);const run=await send(f,cid);assert.equal(run.status,'failed');assert.equal(calls(run),0);assert.equal(f.state.calls,1);
+});
+
+test('model-read grant alone never authorizes complete original file transfer',{timeout:60000},async t=>{
+ const f=await fixture(t,{transfer:false}),cid=await conversation(f);let downloads=0;const download=f.app.artifacts.download;
+ f.app.artifacts.download=async(...args)=>{downloads++;return download(...args);};const run=await send(f,cid);assert.equal(downloads,0);
+ assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(f.state.calls,0);
+ const receipt=(await journal(f,cid)).find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message;
+ assert.equal(receipt.isError,true);assert.equal(receipt.details.reason,'OSS_DOCLING_TRANSFER_NOT_APPROVED');assert.equal(receipt.details.authorization,undefined);
+});
+test('actual Host passes exact file document version SHA recipient purpose to live transfer check',{timeout:60000},async t=>{
+ const f=await fixture(t),run=await send(f,await conversation(f));assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(f.state.calls,1);
+ assert.ok(f.state.transferChecks.some(row=>row.action==='upload.dispatch'));assert.ok(f.state.transferChecks.some(row=>row.action==='upload.return'));
+ for(const check of f.state.transferChecks){assert.deepEqual(check.target,f.rows[0].asset);assert.equal(check.documentId,f.rows[0].documentId);assert.equal(check.documentRevision,1);assert.equal(check.documentVersion,1);
+  assert.equal(check.recipient.destination,f.state.parserDestination);assert.equal(check.transfer,'complete-file');assert.equal(check.purpose,'document-extraction');assert.equal(check.sessionId,f.state.identity.sessionId);}
+});
+for(const stage of ['before-read','after-download','after-return','cached-resume'])test('complete-file transfer revocation '+stage+' is live checked',{timeout:60000},async t=>{
+ const f=await fixture(t),cid=await conversation(f);
+ if(stage==='before-read')f.state.transferAllowed=false;
+ if(stage==='after-download'){const download=f.app.artifacts.download;f.app.artifacts.download=async(...args)=>{const file=await download(...args);f.state.transferAllowed=false;return file;};}
+ if(stage==='after-return')f.state.responseHook=()=>{f.state.transferAllowed=false;};
+ if(stage==='cached-resume'){assert.equal((await send(f,cid)).status,'succeeded');f.state.transferAllowed=false;}
+ const run=await send(f,cid);assert.equal(f.state.calls,['after-return','cached-resume'].includes(stage)?1:0);
+ if(stage==='cached-resume'){assert.equal(run.status,'failed');assert.equal(calls(run),0);}
+ else {assert.equal(run.status,'succeeded',JSON.stringify(run.error));const receipt=(await journal(f,cid)).find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message;
+  assert.equal(receipt.isError,true);assert.equal(receipt.details.reason,'OSS_DOCLING_TRANSFER_NOT_APPROVED');assert.equal(receipt.details.text,undefined);assert.equal(receipt.details.authorization,undefined);}
+});
+for(const stage of ['new-binding','after-download'])test('parser recipient change '+stage+' never inherits complete-file transfer consent',{timeout:60000},async t=>{
+ const f=await fixture(t),download=f.app.artifacts.download;
+ if(stage==='new-binding')f.connection.baseURL='http://127.0.0.1:9';
+ else f.app.artifacts.download=async(...args)=>{const file=await download(...args);f.state.parserDestination='http://127.0.0.1:9/v1/convert/file';f.connection.baseURL='http://127.0.0.1:9';return file;};
+ const cid=await conversation(f),run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(f.state.calls,0);
+ const receipt=(await journal(f,cid)).find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message;
+ assert.equal(receipt.details.reason,'OSS_DOCLING_TRANSFER_NOT_APPROVED');
+});
+for(const mutation of ['document-version','artifact-version','artifact-sha'])test('full-file dispatch refuses '+mutation+' change during live consent check',{timeout:60000},async t=>{
+ const f=await fixture(t);let changed=false;
+ f.state.transferHook=async request=>{if(request.action!=='upload.dispatch'||changed)return;changed=true;await f.app.store.update(state=>{
+  if(mutation==='document-version')state.businessLibrary.documents.find(row=>row.id===f.rows[0].documentId).currentVersion++;
+  if(mutation==='artifact-version')state.businessLibrary.documents.find(row=>row.id===f.rows[0].documentId).versions[0].asset.version++;
+  if(mutation==='artifact-sha')state.artifacts.find(row=>row.id===f.rows[0].asset.artifactId).versions[0].sha256='e'.repeat(64);
+ });};
+ const run=await send(f,await conversation(f));assert.equal(changed,true);assert.equal(run.status,'failed');assert.equal(f.state.calls,0);
+});
+test('original Run cancellation aborts a pending transfer check before file egress',{timeout:60000},async t=>{
+ const f=await fixture(t),cid=await conversation(f);let entered,grantAborted=false;const pending=new Promise(resolve=>entered=resolve);
+ f.state.transferHook=request=>new Promise(()=>{request.signal.addEventListener('abort',()=>{grantAborted=true;},{once:true});entered();});
+ const work=send(f,cid);await pending;assert.equal((await f.workspace(`/api/conversations/${cid}/cancel`,{subject:'member-a',body:{}})).status,200);
+ const run=await work;assert.equal(run.status,'cancelled');assert.equal(f.state.calls,0);assert.equal(grantAborted,true);
+});
+test('live transfer check timeout is bounded and never dispatches late consent',{timeout:60000},async t=>{
+ const f=await fixture(t,{timeoutMs:30}),cid=await conversation(f);let aborted=false;
+ f.state.transferHook=request=>new Promise(resolve=>{request.signal.addEventListener('abort',()=>{aborted=true;},{once:true});setTimeout(resolve,120);});
+ const run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(aborted,true);assert.equal(f.state.calls,0);
+ const receipt=(await journal(f,cid)).find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message;
+ assert.equal(receipt.isError,true);assert.equal(receipt.details.reason,'DOCLING_TIMEOUT');assert.equal(receipt.details.authorization,undefined);
+ await new Promise(resolve=>setTimeout(resolve,150));assert.equal(f.state.calls,0);
+});
+
+test('live transfer checker exceptions keep private diagnostics out of SDK and journal',{timeout:60000},async t=>{
+ const f=await fixture(t),cid=await conversation(f);f.state.transferHook=()=>{throw Error('SYNTHETIC_PRIVATE_GRANT_DIAGNOSTIC '+f.state.doclingSecret);};
+ const run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(f.state.calls,0);
+ const entries=await journal(f,cid),receipt=entries.find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message;
+ assert.equal(receipt.details.reason,'OSS_DOCLING_TRANSFER_NOT_APPROVED');assert.equal(receipt.details.authorization,undefined);
+ assert.equal([...stringsIn(entries),...stringsIn(f.app.store.read())].some(text=>text.includes(f.state.doclingSecret)||text.includes('SYNTHETIC_PRIVATE_GRANT_DIAGNOSTIC')),false);
 });

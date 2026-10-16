@@ -1,6 +1,6 @@
 {
   "name": "@workspace-agent/pi-enterprise-context",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
   "description": "Fail-closed self-hosted memory/Docling adapters; reuse PR86 ERPNext exact reads",

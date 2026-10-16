@@ -9,5 +9,8 @@ const last=manager.getBranch().filter(row=>row.type==='message').at(-1);assert.o
 const legacy=process.argv[3]==='--legacy-summary';
 const text=legacy?manager.getBranch().find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message.details.text:'';
 manager.appendCompaction('SYNTHETIC_DOC_SUMMARY_RETAINS_ORIGINAL_SOURCE_OBLIGATIONS '+text,undefined,last.id,100,{fromExtension:true});await manager.flush();
-const privateMessages=manager.buildSessionContext().messages.filter(row=>row.toolName?.startsWith('workspace_enterprise_context_')).length;
-assert.equal(privateMessages,0);console.log(JSON.stringify({privateMessages,realModelRequests:0,syntheticSummary:true}));
+const context=manager.buildSessionContext();
+const summaryContainsLegacyBody=legacy&&JSON.stringify(context.messages).includes(JSON.stringify(text).slice(1,-1));
+if(legacy)assert.equal(summaryContainsLegacyBody,true);
+const privateMessages=context.messages.filter(row=>row.toolName?.startsWith('workspace_enterprise_context_')).length;
+assert.equal(privateMessages,0);console.log(JSON.stringify({privateMessages,summaryContainsLegacyBody,realModelRequests:0,syntheticSummary:true}));

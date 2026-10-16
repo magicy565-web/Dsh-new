@@ -11,7 +11,7 @@ const fixed={plugin:'workspace-enterprise-context-oss',visibility:'internal',can
 const assetOf=input=>({artifactId:input.artifactId,version:input.version,sha256:input.sha256});
 export function assertEnterpriseContextHost(value){if(!brands.has(value))fail('OSS_ORIGINAL_HOST_REQUIRED');}
 export async function createEnterpriseContextSessionBinding({identity,access,instanceId,sessionClient,libraryModelRead,artifacts,store,
-  recipient:rawRecipient,selection,connection={},clock=Date.now}={}){
+  recipient:rawRecipient,selection,connection={},authorizeParserTransfer,clock=Date.now}={}){
  if(access?.mode!=='enterprise'||!identity?.sessionId||!sessionClient?.readOnlySession||!instanceId)fail('OSS_ORIGINAL_HOST_REQUIRED');
  if(selection?.enabled!==true||selection.reviewed!==true||typeof selection.customerId!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(selection.customerId)
   ||Object.keys(selection).some(key=>!['enabled','reviewed','customerId','sources'].includes(key))||!Array.isArray(selection.sources)||!selection.sources.length||selection.sources.length>8)fail('OSS_ORIGINAL_SELECTION_REQUIRED');
@@ -36,9 +36,14 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
  let authority;try{authority=sourceFor(selected.sources[0].asset);}catch(error){
   if(error.code!=='FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED')throw error;
  }
+ // Pin the actual transport configuration once; caller mutation cannot redirect
+ // a reader or change the screening key midway through this binding.
+ connection=Object.freeze({...connection});
+ const parserPurpose='document-extraction',parserTransfer='complete-file';
  const docling=connection.reviewed===true&&connection.baseURL&&connection.apiKey?createDoclingSourceReader(connection):null;
+ const parserRecipient=docling?Object.freeze({kind:'docling',destination:new URL('/v1/convert/file',connection.baseURL).href}):null;
  const scopeHash=hash({instanceId,sessionId:identity.sessionId,workspaceId:identity.workspaceId,subject:identity.subject,selection:selected,recipient,
-  libraryScope:authority?.authorization.scopeFingerprint||'unconfigured',doclingOrigin:docling?new URL(connection.baseURL).origin:null});
+  libraryScope:authority?.authorization.scopeFingerprint||'unconfigured',doclingOrigin:docling?new URL(connection.baseURL).origin:null,parserRecipient,parserPurpose,parserTransfer});
  const binding={scopeHash,describe:()=>({scopeHash,configured:Boolean(docling&&authority)}),open(nativeSessionId){
   if(typeof nativeSessionId!=='string'||!nativeSessionId)fail('OSS_NATIVE_SESSION_REQUIRED');
   const observed=new Map();let conversions=0;
@@ -51,10 +56,36 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
     await current(receiver,signal);sourceFor(asset,signal);
    }return grant;
   }
+  // Selective reuse of checkParserGrant/verify semantics from PR87
+  // b7bd2410a623a9d7ec654a0a826ac3778cae64c3:
+  // server/enterprise-context-original-authority.mjs. Session/Run/Library
+  // checks remain in this original Host + its existing bridge, not a second
+  // authority. Model-field disclosure alone never authorizes a full upload.
+  async function checkParserGrant(action,asset,signal,model){
+   const source=await sourceCurrent(asset,signal,model);
+   if(!parserRecipient||typeof authorizeParserTransfer!=='function')fail('OSS_DOCLING_TRANSFER_NOT_APPROVED');
+   const stop=AbortSignal.timeout(connection.timeoutMs??15000),grantSignal=signal?AbortSignal.any([signal,stop]):stop;
+   let cancel;
+   try{
+    const aborted=new Promise((_,reject)=>{cancel=()=>reject(Error('DOCLING_GRANT_ABORTED'));grantSignal.addEventListener('abort',cancel,{once:true});if(grantSignal.aborted)cancel();});
+    const granted=await Promise.race([aborted,Promise.resolve().then(()=>{
+     grantSignal.throwIfAborted();
+     return authorizeParserTransfer({action,workspaceId:identity.workspaceId,subject:identity.subject,sessionId:identity.sessionId,nativeSessionId,
+      model:structuredClone(model),target:{...asset},documentId:source.documentId,documentRevision:source.revision,documentVersion:source.documentVersion,
+      recipient:{...parserRecipient},purpose:parserPurpose,transfer:parserTransfer,signal:grantSignal});
+    })]);
+    grantSignal.throwIfAborted();if(granted!==true)fail('OSS_DOCLING_TRANSFER_NOT_APPROVED');
+   }catch{
+    if(signal?.aborted)fail('DOCLING_CANCELLED');if(stop.aborted)fail('DOCLING_TIMEOUT');fail('OSS_DOCLING_TRANSFER_NOT_APPROVED');
+   }finally{grantSignal.removeEventListener('abort',cancel);}
+   // Consent may await the original Host: recheck live Session/source after it.
+   await sourceCurrent(asset,signal,model);
+   return true;
+  }
   const client=createEnterpriseContextClient({scope:{enabled:true,reviewed:true,workspaceId:identity.workspaceId,subject:identity.subject,role:identity.role,
    expiresAt:authority?.authorization.expiresAt||new Date(clock()+60000).toISOString(),customerIds:[selected.customerId],uploads:selected.sources.map(row=>row.asset),memoryIds:[],sourceRefs:[]},
-   authorize:async({model,signal,target})=>{await current(model,signal);if(target)await sourceCurrent(assetOf(target),signal,model);return true;},
-   assertUploadCurrent:async({model,signal,...target})=>{await sourceCurrent(assetOf(target),signal,model);return true;},artifacts,doclingReader:docling,clock});
+   authorize:async({action,model,signal,target})=>{await current(model,signal);if(target)await checkParserGrant(action,assetOf(target),signal,model);return true;},
+   assertUploadCurrent:async({action,model,signal,...target})=>checkParserGrant(action,assetOf(target),signal,model),artifacts,doclingReader:docling,clock});
   // Only Node mints this evidence after inspecting the complete response/body.
   // Bind every receipt field and the current credential; a version/flag or a
   // copied attestation cannot upgrade an unscreened legacy compacted receipt.
@@ -118,6 +149,7 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
     for(const pin of proofSources(proof)){
      const source=await sourceCurrent(pin?.asset,signal,receiver,{bytes:true});
      if(hash({documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset:pin.asset})!==hash(pin))fail('OSS_SOURCE_VERSION_CHANGED');
+     if(proof.kind==='parse')await checkParserGrant('parse.reuse',pin.asset,signal,receiver);
     }
     if(!observed.has(key(proof))&&observed.size>=8)fail('OSS_PRIVATE_RECEIPT_LIMIT');observed.set(key(proof),proof);
    },

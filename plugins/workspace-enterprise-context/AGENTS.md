@@ -12,3 +12,5 @@ Development knowledge only, never business memory.
 - Reject known Docling credential values/recognized encodings at the Node response boundary. Keep full responses, matches and actual/synthetic credential values out of errors, worker data, journals, model context and logs.
 
 - Restored parse proofs require Node-authenticated screening evidence before the first model request, including SDK compaction. Never grandfather a plugin version or trust a screening flag; keep old journals intact and do not send summaries to a model for cleanup.
+
+- Complete original-file Docling egress additionally requires the existing Host's live authorizeParserTransfer callback for exact document/revision/version/artifact/SHA, fixed recipient and complete-file/document-extraction purpose. Reuse PR87 b7bd241 semantics inside this Host; never attach its old authority/Host or convert model-field read rights into transfer consent. Bound checker waits and retain Run cancellation.
