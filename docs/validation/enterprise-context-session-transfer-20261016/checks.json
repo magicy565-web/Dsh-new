@@ -1,0 +1,102 @@
+{
+  "node": "24.19.0",
+  "bun": "1.3.14",
+  "omp": "18.10.4",
+  "checks": [
+    {
+      "phase": "historical-reproduction",
+      "command": "node test/fixtures/enterprise-context-legacy-repro.mjs",
+      "exitCode": 0,
+      "passed": 1,
+      "logSha256": "4f2fedd5c69d41d664273c880f8cee07a1ff51c8ed8867d841df2bdc968aa7a1"
+    },
+    {
+      "phase": "final-host",
+      "command": "node --test test/enterprise-context-host.test.mjs",
+      "exitCode": 0,
+      "passed": 63,
+      "logSha256": "337d9b9277bffd6f2ac5a4430245615acc4f600a0ffd666ed3282c511d6f6918"
+    },
+    {
+      "phase": "final-compaction-assertions",
+      "command": "node --test --test-name-pattern='legacy unscreened credential|screened parse restores' test/enterprise-context-host.test.mjs",
+      "exitCode": 0,
+      "passed": 2,
+      "logSha256": "e33171a73a1bed8c7b194f28aa3f5d9986b39454eb5fcd6858a950a8963715a0"
+    },
+    {
+      "phase": "screening-specific-refusal",
+      "command": "node --test --test-name-pattern='legacy unscreened credential' test/enterprise-context-host.test.mjs",
+      "exitCode": 0,
+      "passed": 1,
+      "logSha256": "39d3fe932e1954f4bb8322b528ae6915c4be00accd084543e1ee90398444dfb5"
+    },
+    {
+      "phase": "transfer-targeted",
+      "command": "node --test --test-name-pattern='complete original|exact file document|complete-file transfer revocation|parser recipient change|full-file dispatch|pending transfer|live transfer check timeout' test/enterprise-context-host.test.mjs",
+      "exitCode": 0,
+      "passed": 13,
+      "logSha256": "968de04e229c42fd2986ca804c829e2f00e50e90b667082ec3351567fadf8e61"
+    },
+    {
+      "phase": "transfer-final-edge",
+      "command": "node --test --test-name-pattern='complete original|pending transfer|live transfer check timeout|checker exceptions' test/enterprise-context-host.test.mjs",
+      "exitCode": 0,
+      "passed": 4,
+      "logSha256": "31137ad9cc2a9cceac84008a20867dafd647de0f56e1ab820acaf553546badc4"
+    },
+    {
+      "phase": "final-adapters",
+      "command": "node --test test/enterprise-context-oss.test.mjs test/enterprise-context-extension.test.mjs",
+      "exitCode": 0,
+      "passed": 14,
+      "logSha256": "c1592db7a09e9aba802ca945aa4679049ccc13bfed992bc3d7fdfc861d18b4c5"
+    },
+    {
+      "phase": "compatibility",
+      "command": "node --test test/free-trade-host.test.mjs test/free-trade-native.test.mjs test/free-trade.test.mjs test/workspace-omp-plugins.test.mjs test/workspace-omp-plugin-uninstall.test.mjs test/workspace-omp-local-budget.test.mjs test/factory-materials-read.test.mjs",
+      "exitCode": 0,
+      "passed": 113,
+      "logSha256": "1b3290b57ac1576891b8debfa25c49d4de29a5feb48543aafcc8d43f0631ebff"
+    },
+    {
+      "phase": "build-pack-closure",
+      "command": "npm run build",
+      "exitCode": 0,
+      "passed": null,
+      "logSha256": "f3e351e3df4fca9e873e8821d753046283c89c90c40f6e2e320b54c4683b2297"
+    },
+    {
+      "phase": "preflight",
+      "command": "node scripts/enterprise-context-preflight.mjs",
+      "exitCode": 0,
+      "passed": null,
+      "logSha256": "d31e3a00af9ea0ce2242a3c2f907b27bc0cdbd5bdc7bfa01e951712ae89660ad"
+    },
+    {
+      "phase": "committed-source-package",
+      "command": "python3 scripts/package-pi-source.py --ref e0c4e7bb19daae23b492f4f2a016bd256a4f5347 --output /tmp/enterprise-context-session-transfer-source.zip",
+      "exitCode": 0,
+      "passed": null,
+      "logSha256": "16748164afbf11b8643d795897971cd6f516486454a143b657f9ecaee0551a66"
+    },
+    {
+      "phase": "source-package-verify",
+      "command": "Python ZIP manifest: verify all file SHA256 and prohibited runtime paths",
+      "exitCode": 0,
+      "passed": null,
+      "logSha256": "0c6270c050efb4ba5cab5bb88348af4a915a3687dfc8ab110e5d5ed6782b68e0"
+    }
+  ],
+  "uniquePrimaryTests": 190,
+  "primaryGroups": [
+    "final-host",
+    "final-adapters",
+    "compatibility"
+  ],
+  "otherRunsOverlapPrimaryOrReproduceHistoricalVulnerability": true,
+  "realModelRequests": 0,
+  "realDoclingParserRequests": 0,
+  "realErpRequests": 0,
+  "productionReady": false
+}

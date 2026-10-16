@@ -41,3 +41,10 @@ npm run build
 实际组件：Node24.19.0原Host、签名Session/member、Conversation/Run/取消、Library/Artifact/Store、Node↔Bun RPC、Bun1.3.14/OMP18.10.4原生loader/tool/Session/compaction、loopback HTTP。独立仓库外十一包发现、禁用/卸载、同会话恢复、既有来源/授权和readonly门禁均有实际SDK回归。Docling multipart字节真实经过本机HTTP，但parser/OCR响应、所有身份/资料/许可及模型决策均合成；没有真实Docling/模型/ERP验收。190个最终组的不同顶层工程用例是测试覆盖，绝不是上线结论；首轮、复现及定向重跑不重复累加。
 
 仍有阻塞：生产完整原件传输许可必须由现有可信Host另行提供，当前没有创建或扩大任何许可；真实Docling/模型/ERP版本、权限和业务质量未验；Artifact保存仍在原admission被`SESSION_READONLY_EXECUTION_REFUSED`拒绝。Library继续事实权威，Mem0固定禁用。未引入PR90共享Artifact、旧PR86 Host、AgentLoop/数据库/队列/审批、workspaceExecution旁路，未重试TED/改变网络/读取聊天密钥/创建实际配置凭据/付费/部署/修改或合并main/强推。只推开发分支源码、测试及验收材料；运行journal、上传原件、解析正文、凭据和日志均不入Git。
+
+## 提交与源码包 checkpoint
+
+- 第一项提交 `b86faf9240852eb42632d82748cad4e4c5376fba`，已push独立开发分支。
+- 第二项源码提交 `e0c4e7bb19daae23b492f4f2a016bd256a4f5347`，已push同一分支；后续仅补验收元数据。最终源码/锁文件hash见 `source.json`，各命令与本地日志hash见 `checks.json`，无日志内容入库。
+- `python3 scripts/package-pi-source.py --ref e0c4e7bb19daae23b492f4f2a016bd256a4f5347 --output /tmp/enterprise-context-session-transfer-source.zip` 实际构建提交源码包，2192个源码文件逐个通过ZIP manifest SHA256校验。归档SHA256 `982a80543dad19d69479c87877cf00161ddb49c4df2fe8a85d7c817445abaccd`；源码包是本地验收产物，未推Git，详细元数据见 `package.json`。源码包明确 `launchReady:false`，不包含依赖安装目录或原运行资料。插件单包闭包由build前置 `plugins:pack-check` 检查。
+- 远端复核：PR91父分支仍为指定 `f7353fea…`；本轮未修改该父分支或main，仅新分支前进。Draft PR以该父分支为base，便于单独审查本轮增量。

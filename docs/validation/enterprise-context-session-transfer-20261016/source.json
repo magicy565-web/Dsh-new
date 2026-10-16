@@ -1,0 +1,65 @@
+{
+  "baseline": "f7353fead48da4ce4cddcf91230a28d3caf6e7b7",
+  "checkpoint1": "b86faf9240852eb42632d82748cad4e4c5376fba",
+  "sourceCheckpoint": "e0c4e7bb19daae23b492f4f2a016bd256a4f5347",
+  "reusedReference": {
+    "commit": "b7bd2410a623a9d7ec654a0a826ac3778cae64c3",
+    "path": "server/enterprise-context-original-authority.mjs",
+    "sha256": "c1bddb38f504511a98c515614c8593f84d5cf789eeaa4eb18f5dc16d6c23d1fa",
+    "mode": "selective semantics in existing Host; no second authority"
+  },
+  "files": [
+    {
+      "path": "plugins/workspace-enterprise-context/AGENTS.md",
+      "sha256": "8fec821d4b40f7d4c59f4c668066c851e8ef3e6f9cc1d21600d26be7e231a601"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/README.md",
+      "sha256": "108d7e66ab8691c2ba733156abd1138ac84583c526834f32d35d9a348d196bf1"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/package.json",
+      "sha256": "0bfb3679aefd76f2f7a030db80b6c94aa77214c4465d01e9ff11267e142772ca"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/skills/enterprise-context/SKILL.md",
+      "sha256": "8e9978462fe69b0e4f6a844c622fcec24b76133a2ab43c035f6a939bdf61a9e4"
+    },
+    {
+      "path": "plugins/workspace-enterprise-context/src/native-host.mjs",
+      "sha256": "735fcbfef9d1f51a3b890eac2fd6ecaf0fc83ac3545128a29741f58c5a014bb1"
+    },
+    {
+      "path": "server/workspace-enterprise-context-host.mjs",
+      "sha256": "420b369f81c156a988384af52dfa1773c982bd9ad42dd732c3127dee2cf9edd5"
+    },
+    {
+      "path": "test/enterprise-context-host.test.mjs",
+      "sha256": "bb571d9725a027114aca32af92df0ef83e092fac6884422473a5d015e9aa72e6"
+    },
+    {
+      "path": "test/fixtures/enterprise-context-compact.mjs",
+      "sha256": "523d725335673d140db7e3403511a41f3bda0b15f30e41805443de5309200d00"
+    },
+    {
+      "path": "test/fixtures/enterprise-context-legacy-repro.mjs",
+      "sha256": "141361e3035e5b217d30b3187df43670768398ca4427a51b335bf83bda94cfa1"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "2a7969eb6e35551c7d75cf9aa944d4f461de86d1e84e1afb28312d8187fa19bb"
+    },
+    {
+      "path": "support/omp-coding-agent/package-lock.json",
+      "sha256": "ea0fa8026d67965e2a04acf9438036822cbb7709b9ef46a58726735bc6ab2895"
+    },
+    {
+      "path": "support/omp-bun-linux-x64/package-lock.json",
+      "sha256": "0fcc7f0c73c966d666248caf8d3fd22d8c7504b29450fd6264dfff81de72910d"
+    },
+    {
+      "path": "support/omp-bun-linux-x64/runtime-audit.json",
+      "sha256": "1006845595d885534a84ed7c5d217b61e98b22106b15cdabcbf6e2e0f40c498d"
+    }
+  ]
+}
