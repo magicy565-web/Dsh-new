@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createWorkspaceOmpSession } from '../../server/workspace-omp-session.mjs';
 import { createLocalFactoryFiles } from '../../server/workspace-omp-local-files.mjs';
-import { createLocalDeepseekTransport } from '../../server/workspace-omp-local-deepseek.mjs';
+import { createLocalDeepseekTransport, LOCAL_DEEPSEEK_LIMITS } from '../../server/workspace-omp-local-deepseek.mjs';
 import { acceptanceConfiguration } from '../../server/deepseek-acceptance-policy.mjs';
 import { workspaceOmpPaths } from '../../server/workspace-omp-bridge.mjs';
 import { createLocalContextExtension } from '../../server/workspace-omp-local-context.mjs';
@@ -34,7 +34,7 @@ async function scenario(control) {
       const transport = createLocalDeepseekTransport({ configuration, onStop: () => { controller.abort(); void created?.session.abort(); }, fetchImpl: async request => {
         requests++; totalRequests++;
         const raw = await request.text(), body = JSON.parse(raw); allBytes.push(Buffer.byteLength(raw));
-        assert.ok(Buffer.byteLength(raw) <= 12000); assert.equal(body.max_tokens, 512); assert.equal(body.thinking.type, 'disabled');
+        assert.ok(Buffer.byteLength(raw) <= LOCAL_DEEPSEEK_LIMITS.maxRequestBytes); assert.equal(body.max_tokens, 512); assert.equal(body.thinking.type, 'disabled');
         assert.equal(Boolean(body.tools[0].function.parameters.properties.i), control);
         const encoded = JSON.stringify(body.messages);
         for (let prior = 0; prior < turn; prior++) { assert.ok(encoded.includes(goals[prior])); assert.ok(encoded.includes(bodies[prior])); assert.ok(encoded.includes(finals[prior])); }
@@ -43,6 +43,17 @@ async function scenario(control) {
         if (requests === (turn === 1 ? 1 : 2)) return tool('write', { path: ['gaps.md','email.md','followup.md'][turn], content: bodies[turn] });
         return response(body, { content: finals[turn] }, 'stop');
       } });
+      // Keep the previous smoke-test ceiling in the failing control only.
+      if (control) {
+        const fetch = transport.fetch;
+        transport.fetch = async (input, init) => {
+          const request = new Request(input, init);
+          if (Buffer.byteLength(await request.clone().text()) > 12000) {
+            transport.stop('SHORT_INPUT_LIMIT'); throw Error('SHORT_INPUT_LIMIT');
+          }
+          return fetch(request);
+        };
+      }
       try {
         created = await createWorkspaceOmpSession({ packageRoot: workspaceOmpPaths({}).packageRoot, configuration,
           cwd: root, agentDir: directory + '/agent', sessionDirectory: root,

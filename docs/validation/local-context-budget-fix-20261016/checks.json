@@ -1,0 +1,205 @@
+{
+  "sourceBase": "b8866e95f2c655603c7b55529b579f91c9626fa1",
+  "newPaidRequests": 0,
+  "newSpendCny": 0,
+  "historicalConservativeCostCny": 0.05161,
+  "remainingAuthorizationEstimateCny": 4.94839,
+  "originalRealFailureRemainsStopped": true,
+  "originalRealBillingUncertain": false,
+  "originalRealSessionSha256": "3d7797ddbdabb698405a6d8dbf2bc8119f8f0eb798f530d70082ac5ae2410582",
+  "originalRealDraftSha256": "7b74995cc4bd71c2ee1206984c464f3411f05933b61e8e07573feb77a79a74ec",
+  "baseline": {
+    "passed": true,
+    "replayFrom": "pre-failure-snapshot-and-exact-real-tool-calls",
+    "originalSessionUnchanged": true,
+    "oldFailuresNotReclassified": true,
+    "priorUserGoals": 2,
+    "goalsProseToolPairsSourceAndSavedBodiesPreserved": true,
+    "actualMockHttpRequests": 2,
+    "realProviderRequests": 0,
+    "newSpendCny": 0,
+    "results": [
+      {
+        "status": "stopped",
+        "reason": "SHORT_INPUT_LIMIT",
+        "requests": 2,
+        "paidModelVerified": false,
+        "billingUncertain": false,
+        "saved": [
+          {
+            "name": "gap-review.md",
+            "sha256": "7b74995cc4bd71c2ee1206984c464f3411f05933b61e8e07573feb77a79a74ec"
+          }
+        ]
+      }
+    ],
+    "finalWireBytes": [
+      10927,
+      11253
+    ],
+    "rejectedPreNormalization": {
+      "bodySha256": "8f2bd429af6d5965253fc44d3a39aeaaa15b5d5dedf673f44c6a6f575513baaf",
+      "wireBytes": 12214,
+      "messagesBytes": 7930,
+      "schemasBytes": 4136,
+      "envelopeBytes": 148,
+      "messageObjectBytesByRole": {
+        "system": 675,
+        "user": 1182,
+        "assistant": 3755,
+        "tool": 2300
+      },
+      "messageContentBytesByRole": {
+        "system": 645,
+        "user": 1081,
+        "assistant": 717,
+        "tool": 1710
+      },
+      "nativeO200kEstimate": 3251,
+      "independentNativeTokenEstimates": {
+        "messages": 2302,
+        "schemas": 916,
+        "messageObjectsByRole": {
+          "system": 131,
+          "user": 332,
+          "assistant": 1068,
+          "tool": 779
+        }
+      },
+      "thinkingDisabled": false,
+      "maxOutputTokens": 512
+    },
+    "normalizedRejectedCandidateBytes": 12145
+  },
+  "repairedReproduction": {
+    "passed": true,
+    "replayFrom": "pre-failure-snapshot-and-exact-real-tool-calls",
+    "originalSessionUnchanged": true,
+    "oldFailuresNotReclassified": true,
+    "priorUserGoals": 2,
+    "goalsProseToolPairsSourceAndSavedBodiesPreserved": true,
+    "actualMockHttpRequests": 5,
+    "realProviderRequests": 0,
+    "newSpendCny": 0,
+    "results": [
+      {
+        "status": "saved-local-drafts",
+        "reason": null,
+        "requests": 3,
+        "paidModelVerified": false,
+        "billingUncertain": false,
+        "saved": [
+          {
+            "name": "gap-review.md",
+            "sha256": "7b74995cc4bd71c2ee1206984c464f3411f05933b61e8e07573feb77a79a74ec"
+          }
+        ]
+      },
+      {
+        "status": "saved-local-drafts",
+        "reason": null,
+        "requests": 2,
+        "paidModelVerified": false,
+        "billingUncertain": false,
+        "saved": [
+          {
+            "name": "short-intro.md",
+            "sha256": "ae7a94cc447823b3b2f170674425966321b28e5a14e025bc88da54fec421a7c4"
+          }
+        ]
+      }
+    ],
+    "finalWireBytes": [
+      10927,
+      11253,
+      12145,
+      12413,
+      13288
+    ]
+  },
+  "directFailedLeafResume": {
+    "passed": true,
+    "replayFrom": "actual-failed-leaf",
+    "originalSessionUnchanged": true,
+    "oldFailuresNotReclassified": true,
+    "priorUserGoals": 3,
+    "goalsProseToolPairsSourceAndSavedBodiesPreserved": true,
+    "actualMockHttpRequests": 3,
+    "realProviderRequests": 0,
+    "newSpendCny": 0,
+    "results": [
+      {
+        "status": "completed-local-turn",
+        "reason": null,
+        "requests": 1,
+        "paidModelVerified": false,
+        "billingUncertain": false,
+        "saved": []
+      },
+      {
+        "status": "saved-local-drafts",
+        "reason": null,
+        "requests": 2,
+        "paidModelVerified": false,
+        "billingUncertain": false,
+        "saved": [
+          {
+            "name": "short-intro.md",
+            "sha256": "ae7a94cc447823b3b2f170674425966321b28e5a14e025bc88da54fec421a7c4"
+          }
+        ]
+      }
+    ],
+    "finalWireBytes": [
+      12235,
+      12503,
+      13378
+    ]
+  },
+  "nativeTokenEstimatesAreNotDeepseekUsage": true,
+  "limits": {
+    "maxRequestBytes": 131072,
+    "maxMessages": 64,
+    "maxTools": 5,
+    "maxActualRequestsPerTask": 8,
+    "maxOutputTokens": 512,
+    "postUsageInputContinuationCeiling": 32000,
+    "unconfirmedInputTokenReserve": 1100000,
+    "perTaskReserveCny": 2.7
+  },
+  "upperBoundsCny": {
+    "allConfirmedTask": 0.544768,
+    "failureInclusiveTask": 2.680768,
+    "twoTurnGroupStopOnAnyFailure": 3.225536
+  },
+  "focusedTests": {
+    "budgetPolicy": {
+      "passed": 3
+    },
+    "nativeContextAndPairing": {
+      "passed": 2
+    },
+    "providerPreflight": {
+      "passed": 1
+    },
+    "selectedWireModes": {
+      "happy": {
+        "passed": true,
+        "mockHttpRequests": 3
+      },
+      "exhausted": {
+        "passed": true,
+        "mockHttpRequests": 8
+      },
+      "oversizeFirst": {
+        "passed": true,
+        "mockHttpRequests": 0
+      },
+      "oversizeAfterRead": {
+        "passed": true,
+        "mockHttpRequests": 1
+      }
+    }
+  },
+  "fullSuiteOrBuildRun": false
+}

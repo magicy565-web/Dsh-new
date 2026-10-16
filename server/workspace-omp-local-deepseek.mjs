@@ -1,7 +1,13 @@
 // Per-task admission around the existing official provider; no model loop or
 // persistent budget/account system. Reuse the reviewed request/usage helpers.
 import { boundedDeepseekFetch, measuredUsage, DEEPSEEK_PRICES } from './deepseek-acceptance-policy.mjs';
-export const LOCAL_DEEPSEEK_LIMITS = Object.freeze({ maxRequests: 8, maxRequestBytes: 12000, maxOutputTokens: 512,
+// The 12KB smoke-test wire cap includes schemas and all replayed history; it
+// cannot serve as a normal conversation limit. Bound outbound payload size
+// separately from billing. Native context projection still preserves unique
+// goals/bodies; complete provider usage gates every subsequent request.
+export const LOCAL_DEEPSEEK_LIMITS = Object.freeze({ maxRequests: 8, maxRequestBytes: 128 * 1024, maxOutputTokens: 512,
+  // A post-usage continuation ceiling, not an alleged pre-send tokenizer bound.
+  // The full published context reserve below covers the one unconfirmed send.
   validatedInputTokens: 32000,
   // Official Flash text context is 1M. Reserve 1.1M to cover either decimal or
   // binary interpretation on any one unconfirmed request; do not infer this

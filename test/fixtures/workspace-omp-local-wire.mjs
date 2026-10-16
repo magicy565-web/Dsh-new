@@ -25,7 +25,7 @@ try{
  // Multiple ordinary lines survive the upstream ReadTool's long-line truncation.
  await fs.writeFile(root+'/product.md',mode==='oversize-after-read'?('synthetic '.repeat(6)+'\n').repeat(300):'Synthetic wire product: cup; capacity unknown.\n');
  const result=await runLocalFactorySession({directory:root+'/run',paths:workspaceOmpPaths({}),configuration:acceptanceConfiguration({DEEPSEEK_API_KEY:'explicit-synthetic-wire-unused'}),
-  options:{inputs:[root+'/product.md'],outputDirectory:root+'/out',task:mode==='oversize-first'?'x'.repeat(20000):'Read input-1 and save a new local report. No sending.'}},
+  options:{inputs:[root+'/product.md'],outputDirectory:root+'/out',task:mode==='oversize-first'?'x'.repeat(LOCAL_DEEPSEEK_LIMITS.maxRequestBytes):mode==='oversize-after-read'?'x'.repeat(120000):'Read input-1 and save a new local report. No sending.'}},
   {fetchImpl:async request=>{
    requests++;assert.equal(request.url,'https://api.deepseek.com/chat/completions');assert.equal(request.redirect,'error');
    const text=await request.text(),body=JSON.parse(text);assert.ok(Buffer.byteLength(text)<=LOCAL_DEEPSEEK_LIMITS.maxRequestBytes);

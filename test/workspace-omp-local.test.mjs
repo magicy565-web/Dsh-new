@@ -103,7 +103,7 @@ test('DeepSeek local preflight reports provider/model and configuration booleans
   const configured=await runLocalFactory({options,configuration:workspaceOmpConfiguration({...selected,
     DEEPSEEK_API_KEY:'explicit-synthetic-preflight-only',WORKSPACE_OMP_PROVIDER_COST_JSON:JSON.stringify(DEEPSEEK_PRICES.ompUsdPerMillion),WORKSPACE_OMP_LIVE_BUDGET_VERIFIED:'1'})});
   assert.equal(configured.status,'configured-unverified');assert.equal(configured.modelRequests,0);
-  assert.equal(configured.providerLimits.maxRequests,8);assert.equal(configured.providerLimits.maxRequestBytes,12000);
+  assert.equal(configured.providerLimits.maxRequests,8);assert.equal(configured.providerLimits.maxRequestBytes,128*1024);
   assert.deepEqual(configured.modelConfiguration,{provider:'workspace-deepseek',model:'deepseek-flash',apiKeyPresent:true,costPresent:true,remainingBudgetReviewed:true});
   assert.ok(!JSON.stringify(configured).includes('explicit-synthetic-preflight-only'));assert.deepEqual(await fs.readdir(options.outputDirectory),[]);
   const unsupported=await runLocalFactory({options,configuration:{...workspaceOmpConfiguration({...selected,
