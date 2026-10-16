@@ -5,6 +5,7 @@
  * Production Host/session integration and any vector-memory approval are absent.
  */
 import { createHash } from 'node:crypto';
+import {assertNoKnownCredentialEcho} from './credential-echo.mjs';
 
 const fail = code => { const error = new Error(code); error.code = code; throw error; };
 const own = value => value !== null && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
@@ -52,7 +53,7 @@ async function json(response, signal, max = 2 * 1024 * 1024) {
   } finally { signal?.removeEventListener('abort',cancel);void reader.cancel().catch(()=>{});reader.releaseLock(); }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { fail('OSS_RESPONSE_INVALID'); }
 }
-function transport({ baseURL, headers = {}, fetchImpl = globalThis.fetch, timeoutMs = 60000, label }) {
+function transport({ baseURL, headers = {}, fetchImpl = globalThis.fetch, timeoutMs = 60000, label, sensitiveValues=[] }) {
   if (typeof fetchImpl !== 'function') fail('OSS_FETCH_REQUIRED');
   const base = origin(baseURL);
   return async (pathname, { method = 'GET', body, signal, multipart = false } = {}) => {
@@ -67,7 +68,7 @@ function transport({ baseURL, headers = {}, fetchImpl = globalThis.fetch, timeou
     } catch { if(signal?.aborted)fail(`${label}_CANCELLED`);if(stop.aborted)fail(`${label}_TIMEOUT`);fail(`${label}_UNAVAILABLE`); }
     try {
       if (!response.ok || response.redirected) fail(`${label}_UPSTREAM_REFUSED`);
-      return await json(response,requestSignal);
+      const value=await json(response,requestSignal);assertNoKnownCredentialEcho(value,sensitiveValues);return value;
     } catch(error){if(signal?.aborted)fail(`${label}_CANCELLED`);if(stop.aborted)fail(`${label}_TIMEOUT`);throw error;}
     finally{if(response.body&&!response.body.locked)void response.body.cancel().catch(()=>{});}
   };
@@ -121,7 +122,7 @@ const mimeToExt = new Map([
 export function createDoclingSourceReader({ baseURL, apiKey, fetchImpl, timeoutMs=15000 } = {}) {
   if(!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>30000)fail('DOCLING_TIMEOUT_INVALID');
   const url = credentials({ baseURL, apiKey }, ['apiKey']);
-  const request = transport({ baseURL: url, label: 'DOCLING', fetchImpl, timeoutMs,
+  const request = transport({ baseURL: url, label: 'DOCLING', fetchImpl, timeoutMs,sensitiveValues:[apiKey],
     headers: { 'X-API-Key': apiKey } });
   return async function doclingSourceReader({ bytes, mimeType, signal }) {
     signal?.throwIfAborted();

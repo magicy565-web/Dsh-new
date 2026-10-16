@@ -1,5 +1,7 @@
 # 企业资料原 Host 集成验收
 
+本目录是 `ba4f378` 初次接线的历史验收。后续审查发现的全来源最终披露及已知凭据回显修复见相邻 `enterprise-context-disclosure-fixes-20261016/`；不要将初次结果当作这两项缺陷已经验证。
+
 基于已复核 PR89 `cbbad133049747e3d28720ba885b3613eb7f5a34`，在 `codex/enterprise-context-host-integration-20261016` 选择性接收 PR87 `13cccff0df703e6471329cd0e1815aee3f6179a9` 的八文件增量。未复制旧 Host/PR79、未从 main 重做。唯一正式包为 `plugins/workspace-enterprise-context`0.2.0，适配器置于包内 `src/oss.mjs`，无第二个 ERPNext 客户端。
 
 ## 实现与边界

@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-16",
+  "base": "ba4f3789174b36ba7497eed707efe6ac513b1f14",
+  "branch": "codex/enterprise-context-host-integration-20261016",
+  "pullRequest": 91,
+  "packageVersion": "0.2.1",
+  "node": "24.19.0",
+  "bun": "1.3.14",
+  "omp": "18.10.4",
+  "checks": [
+    {
+      "name": "original-host-sdk-disclosure-and-echo",
+      "command": "env -i PATH=\"$PATH\" HOME=/tmp NO_COLOR=1 node --test test/enterprise-context-host.test.mjs",
+      "exitCode": 0,
+      "tests": 41,
+      "pass": 41,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "logBasename": "enterprise-disclosure-host-final.log",
+      "logSha256": "c3d5f54143d9d20750e85b93b6e4109cb5cb791c0654ca6fad8bdcec7b88980a"
+    },
+    {
+      "name": "final-cache-and-continuation-boundaries",
+      "command": "env -i PATH=\"$PATH\" HOME=/tmp NO_COLOR=1 node --test --test-name-pattern='complete disclosed list|legacy single-source parse|credential-bearing cached body' test/enterprise-context-host.test.mjs",
+      "exitCode": 0,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "logBasename": "enterprise-disclosure-final-boundaries.log",
+      "logSha256": "be1e905c62305365d565329b42d91350bdb65ddaca8424b6454030950f9c61cd"
+    },
+    {
+      "name": "original-authority-plugin-budget-regressions",
+      "command": "env -i PATH=\"$PATH\" HOME=/tmp NO_COLOR=1 node --test test/enterprise-context-oss.test.mjs test/enterprise-context-extension.test.mjs test/free-trade-host.test.mjs test/workspace-omp-plugins.test.mjs test/workspace-omp-local-context.test.mjs test/workspace-local-references.test.mjs test/workspace-omp-local-budget.test.mjs test/factory-materials-read.test.mjs",
+      "exitCode": 0,
+      "tests": 50,
+      "pass": 50,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "logBasename": "enterprise-disclosure-regression.log",
+      "logSha256": "b0522bec7f56affe022ea81d6e3c5e31341337622dcfb30d93a7996f8733b1f8"
+    },
+    {
+      "name": "build-and-pack-closure",
+      "command": "npm run build",
+      "exitCode": 0,
+      "packages": 11,
+      "existingBundleSizeWarning": true,
+      "logBasename": "enterprise-disclosure-build-final.log",
+      "logSha256": "95ecb1132000d80976290de87b9fbc551dc6adfac12c5e83439775ca9e8209e4"
+    }
+  ],
+  "counting": {
+    "executionsInRecordedGroups": 94,
+    "distinctTopLevelNodeCases": 93,
+    "overlap": 1,
+    "explanation": "Full Host group41 plus focused group3 (one positive continuation repeated, two later-added cache cases) plus distinct regression50. Other targeted/reproduction runs not added."
+  },
+  "sourceCoverageReproduction": {
+    "expectedFailuresBeforeFix": 4,
+    "mutationsOfNonFirstSource": [
+      "revision",
+      "archive",
+      "delete",
+      "withdraw-asset"
+    ],
+    "mutationStage": "inside first-source original Artifact download after successful owned worker exit",
+    "firstSourceStillValid": true,
+    "oldOutcome": "succeeded incorrectly",
+    "newOutcome": "OMP_DISCLOSURE_REFUSED; final text withheld",
+    "doclingRequests": 0,
+    "logSha256": "acf6c1f88f85ea2efc4e67c28d7a7f2b8d6a413fdefebc004f65749c7d7abf93"
+  },
+  "sourceCoverageFix": {
+    "proofDependencies": "complete actually disclosed sources array, independently checked",
+    "firstSourceAliasIsNotDependencyList": true,
+    "statusCoverageMatchesReceiptAndReviewedSelection": true,
+    "modelAndWorkerChecksRetained": true,
+    "NodeFinalRechecksAllSourcePinsAndBytes": true,
+    "legacyStatusMissingOrTruncatedCoverage": "refused before another model; no inferred upgrade",
+    "legacySingleSourceParse": "safe native continuation tested",
+    "twoSourcePositiveContinuation": true
+  },
+  "credentialEchoFix": {
+    "boundary": "Node decoded service JSON, parsed result, remembered body and cached-body acceptance",
+    "knownCredential": "new synthetic values only; no real key read",
+    "successTextEncodingsTested": [
+      "raw",
+      "URI",
+      "JSON escaping",
+      "Unicode escapes",
+      "HTML numeric entities",
+      "Base64",
+      "Base64url",
+      "hex",
+      "Base64 error phrase"
+    ],
+    "errorChannelsTested": [
+      "successful HTTP response errors array",
+      "HTTP503 response body discarded with static code"
+    ],
+    "cachedBodyCase": "valid hash but credential-bearing body stays in Node-only negative fixture and is refused; not written to a journal or sent to worker",
+    "guardCode": "OSS_CREDENTIAL_ECHO_REFUSED",
+    "errorContainsMatchOrCredential": false,
+    "completeResponseLogged": false,
+    "workerSessionStoreAndModelChecks": "worker receipt has no parsed text/proof; model context forbids safe body marker; decoded Session and original Store checked without printing secret or body"
+  },
+  "unchangedBoundaries": {
+    "artifactSave": "original SESSION_READONLY_EXECUTION_REFUSED before Run; no save tool or write-gate exception",
+    "mem0": "Host search/add/history remain disabled",
+    "paidRequests": 0,
+    "incrementalCostCny": 0,
+    "historicalConservativeModelCny": 0.074952,
+    "realDoclingServiceTested": false,
+    "realModelRequests": 0,
+    "tedRetries": 0,
+    "credentialsConfigured": false,
+    "networkPolicyChanged": false,
+    "permissionsExpanded": false,
+    "mainMerged": false,
+    "deployed": false
+  },
+  "logs": "Only aggregates/hashes committed. Raw logs, runtime files, complete upstream bodies and credential values are not committed or printed. All data/identity/service/model fixtures synthetic; actual Host/SDK and loopback HTTP used."
+}

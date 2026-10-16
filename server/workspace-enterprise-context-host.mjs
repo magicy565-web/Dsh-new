@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {createEnterpriseContextClient,createDoclingSourceReader} from '../plugins/workspace-enterprise-context/src/oss.mjs';
 import {libraryReadHash as hash,normalizeLibraryRecipient,libraryRecipientForModel} from './library-model-read-contract.mjs';
 import {looksLikeCredential} from './security.mjs';
+import {assertNoKnownCredentialEcho} from '../plugins/workspace-enterprise-context/src/credential-echo.mjs';
 const brands=new WeakSet(),fail=code=>{throw Object.assign(Error(code),{code});};
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const fixed={plugin:'workspace-enterprise-context-oss',visibility:'internal',canonicalFacts:'Workspace Library',externalActions:false};
@@ -55,9 +56,21 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
    authorize:async({model,signal,target})=>{await current(model,signal);if(target)await sourceCurrent(assetOf(target),signal,model);return true;},
    assertUploadCurrent:async({model,signal,...target})=>{await sourceCurrent(assetOf(target),signal,model);return true;},artifacts,doclingReader:docling,clock});
   function remember(body,kind='parse'){
-   const proof={kind,source:body.source,bodyHash:hash(body),scopeHash,nativeSessionId};
+   assertNoKnownCredentialEcho(body,[connection.apiKey]);
+   const sources=kind==='status'?body.sources:[body.source];
+   const proof={kind,source:body.source,sources:structuredClone(sources),bodyHash:hash(body),scopeHash,nativeSessionId};
    if(!observed.has(key(proof))&&observed.size>=8)fail('OSS_PRIVATE_RECEIPT_LIMIT');
    observed.set(key(proof),proof);return {...body,authorization:proof};
+  }
+  function proofSources(proof){
+   // Old parse receipts disclosed one source. Old status receipts did not pin
+   // their full list, so they cannot safely resume or survive compaction.
+   const sources=proof.sources??(proof.kind==='parse'?[proof.source]:null);
+   if(!Array.isArray(sources)||!sources.length||sources.length>8||hash(sources[0])!==hash(proof.source)
+    ||proof.kind==='parse'&&sources.length!==1)fail('OSS_PRIVATE_RECEIPT_REFUSED');
+   if(proof.kind==='status'&&hash(sources.map(source=>({documentId:source.documentId,asset:source.asset})))
+     !==hash(selected.sources.map(source=>({documentId:source.documentId,asset:source.asset}))))fail('OSS_PRIVATE_RECEIPT_REFUSED');
+   return sources;
   }
   const control={async authorizeContext(signal,receiver){await current(receiver,signal);if(authority)for(const pin of selected.sources)await sourceCurrent(pin.asset,signal,receiver);},
    async status(_input,signal,receiver){
@@ -73,20 +86,26 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
     if(++conversions>4)fail('OSS_PARSE_REQUEST_LIMIT');
     const asset=assetOf(input),source=await sourceCurrent(asset,signal,receiver);
     const parsed=await client.parseUpload(asset,signal,receiver);
+    assertNoKnownCredentialEcho(parsed,[connection.apiKey]);
     await sourceCurrent(asset,signal,receiver,{bytes:true});
     if(Buffer.byteLength(parsed.text)>48*1024||looksLikeCredential(parsed.text))fail('OSS_PARSE_OUTPUT_REFUSED');
     return remember({...parsed,...fixed,customerId:selected.customerId,source:{documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset}});
    },
    verifyBody(proof,receipt){const {authorization,...body}=receipt||{};
-    if(hash(authorization)!==hash(proof)||hash(body)!==proof.bodyHash)fail('OSS_PRIVATE_CACHED_BODY_CHANGED');
+    assertNoKnownCredentialEcho(body,[connection.apiKey]);
+    const sources=proofSources(proof),disclosed=proof.kind==='status'?body.sources:[body.source];
+    if(hash(authorization)!==hash(proof)||hash(body)!==proof.bodyHash||hash(disclosed)!==hash(sources)
+     ||hash(body.source)!==hash(proof.source))fail('OSS_PRIVATE_CACHED_BODY_CHANGED');
    },
    async check(proof,signal,receiver){
     if(proof?.scopeHash!==scopeHash||proof.nativeSessionId!==nativeSessionId||!['parse','status'].includes(proof.kind)||!/^[a-f0-9]{64}$/.test(proof.bodyHash||''))fail('OSS_PRIVATE_RECEIPT_REFUSED');
-    const source=await sourceCurrent(proof.source?.asset,signal,receiver,{bytes:true});
-    if(hash({documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset:proof.source.asset})!==hash(proof.source))fail('OSS_SOURCE_VERSION_CHANGED');
+    for(const pin of proofSources(proof)){
+     const source=await sourceCurrent(pin?.asset,signal,receiver,{bytes:true});
+     if(hash({documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset:pin.asset})!==hash(pin))fail('OSS_SOURCE_VERSION_CHANGED');
+    }
     if(!observed.has(key(proof))&&observed.size>=8)fail('OSS_PRIVATE_RECEIPT_LIMIT');observed.set(key(proof),proof);
    },
-   async finalCheck(signal,receiver){await current(receiver,signal);for(const proof of observed.values())await control.check(proof,signal,receiver);},
+   async finalCheck(signal,receiver){await control.authorizeContext(signal,receiver);for(const proof of observed.values())await control.check(proof,signal,receiver);},
   };return Object.freeze(control);
  }};brands.add(binding);return Object.freeze(binding);
 }

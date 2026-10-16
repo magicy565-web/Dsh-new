@@ -9,10 +9,11 @@ import {spawn} from 'node:child_process';
 import {taskFixture,api} from './fixtures/pi-task-helpers.mjs';
 import {MODEL,RECIPIENT} from './fixtures/factory-materials-read.mjs';
 import {createWorkspaceOmpEngineAdapter,workspaceOmpPaths} from '../server/workspace-omp-bridge.mjs';
+import {libraryReadHash} from '../server/library-model-read-contract.mjs';
 const empty=()=>({artifacts:[],skills:[],memoryIds:[],connectorActions:[]});
 const names=['workspace_enterprise_context_status','workspace_enterprise_context_memory_search','workspace_enterprise_context_memory_add','workspace_enterprise_context_memory_history','workspace_enterprise_context_parse_upload'];
 const stop={text:'SYNTHETIC parsed-source answer; not actual Docling or model reasoning.'};
-async function fixture(t,{script,missing=false,noLibrary=false,timeoutMs=15000,life=()=>{},pluginConfiguration={}}={}){
+async function fixture(t,{script,missing=false,noLibrary=false,timeoutMs=15000,life=()=>{},pluginConfiguration={},allSources=false}={}){
  const directory=await fs.mkdtemp('/tmp/enterprise-context-host-');
  const seed=await taskFixture(t,{directory,enterprise:true});const rows=[];
  for(const label of ['A','B']){
@@ -22,7 +23,8 @@ async function fixture(t,{script,missing=false,noLibrary=false,timeoutMs=15000,l
   rows.push({documentId:document.id,asset,revision:1,documentVersion:1});
  }
  await seed.app.close();
- const state={calls:0,customer:'A',responseHook:null,delay:0,held:null,closed:false,identity:null};let f;const lifecycle=[];
+ const state={calls:0,customer:'A',responseHook:null,responseText:'SYNTHETIC_DOCLING_TEXT',responsePayload:null,responseStatus:200,delay:0,held:null,closed:false,identity:null,
+  doclingSecret:'synthetic-docling-credential-'+randomUUID()+'@"/+&'};let f;const lifecycle=[];
  const server=createServer(async(req,res)=>{
   state.calls++;assert.equal(req.method,'POST');assert.equal(req.url,'/v1/convert/file');
   const chunks=[];for await(const chunk of req)chunks.push(chunk);
@@ -31,16 +33,16 @@ async function fixture(t,{script,missing=false,noLibrary=false,timeoutMs=15000,l
   if(state.responseHook)await state.responseHook();
   res.on('close',()=>{state.closed=true;});if(state.held){state.held();return;}
   if(state.delay)await new Promise(resolve=>setTimeout(resolve,state.delay));
-  if(!res.destroyed){res.setHeader('content-type','application/json');res.end(JSON.stringify({status:'success',document:{text_content:'SYNTHETIC_DOCLING_TEXT'},errors:[]}));}
+  if(!res.destroyed){res.statusCode=state.responseStatus;res.setHeader('content-type','application/json');res.end(JSON.stringify(state.responsePayload||{status:'success',document:{text_content:state.responseText},errors:[]}));}
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
- const connection={reviewed:true,baseURL:'http://127.0.0.1:'+server.address().port,apiKey:'fixture-docling-only',timeoutMs};
+ const connection={reviewed:true,baseURL:'http://127.0.0.1:'+server.address().port,apiKey:state.doclingSecret,timeoutMs};
  const responses=script?script(rows):[{tool:'workspace_enterprise_context_parse_upload',arguments:rows[0].asset,expectedToolNames:names},stop];
  const engineAdapter=createWorkspaceOmpEngineAdapter({paths:workspaceOmpPaths({}),configuration:{providerId:MODEL.provider,model:MODEL.id,baseUrl:MODEL.baseUrl},enterpriseContext:true,
   pluginConfiguration,syntheticResponses:responses,onWorkerLifecycle:event=>{lifecycle.push(event);life(event,state,f);}});
  const policy={enabled:true,reviewed:true,workspaceId:'pi-enterprise-test',subject:'member-a',expiresAt:'2099-01-01T00:00:00.000Z',recipient:RECIPIENT,company:null,products:[],productFields:['name'],
   factoryMaterials:{products:[],productFields:['name'],documents:rows.map(row=>({id:row.documentId,revision:1,documentVersion:1,asset:row.asset}))}};
- const bindingOptions=()=>({recipient:RECIPIENT,selection:{enabled:true,reviewed:true,customerId:'customer-'+state.customer,sources:[rows[state.customer==='A'?0:1]]},connection:missing?{}:connection});
+ const bindingOptions=()=>({recipient:RECIPIENT,selection:{enabled:true,reviewed:true,customerId:'customer-'+state.customer,sources:allSources?rows:[rows[state.customer==='A'?0:1]]},connection:missing?{}:connection});
  f=await taskFixture(t,{directory,enterprise:true,libraryModelReadPolicy:noLibrary?null:policy,businessAgentOptions:{recipient:RECIPIENT,engineAdapter,
   resolveBinding:async({actor,sessionReadonlyClient})=>{state.identity=actor;return {client:sessionReadonlyClient(actor),model:MODEL,enterpriseContextHost:await f.app.enterpriseContextSessionBinding(actor,bindingOptions())};}}});
  t.after(async()=>{await f.app.close();await fs.rm(directory,{recursive:true,force:true});});
@@ -191,4 +193,90 @@ test('private status metadata is source-pinned and cannot become forged customer
 test('original Agent bearer or external Worker cannot substitute for signed Library Session authority',{timeout:60000},async t=>{
  const f=await fixture(t);const response=await api(f,`/api/library/model-read/factory/documents/${f.rows[0].documentId}/1`);
  assert.ok([401,403].includes(response.status),response.text);assert.equal(f.state.calls,0);assert.equal(f.app.store.read().runs.length,0);
+});
+for(const mutation of ['revision','archive','delete','withdraw-asset'])test('two-source status refuses non-first '+mutation+' after worker exit at Node final disclosure',{timeout:60000},async t=>{
+ const text='SYNTHETIC_TWO_SOURCE_STATUS_WITHHELD';
+ const f=await fixture(t,{allSources:true,script:()=>[{tool:'workspace_enterprise_context_status',arguments:{}},{text}],life:(event,state)=>{if(event.phase==='exit'&&event.code===0)state.afterExit=true;}});
+ const download=f.app.artifacts.download;let changed=false;
+ f.app.artifacts.download=async(...args)=>{const file=await download(...args);if(f.state.afterExit&&!changed){
+  changed=true;assert.equal(args[0],f.rows[0].asset.artifactId);
+  await f.app.store.update(state=>{const documents=state.businessLibrary.documents,index=documents.findIndex(row=>row.id===f.rows[1].documentId),second=documents[index];
+   if(mutation==='revision')second.revision++;
+   else if(mutation==='archive')second.status='archived';
+   else if(mutation==='delete')documents.splice(index,1);
+   else state.artifacts.find(row=>row.id===f.rows[1].asset.artifactId).metadata.businessLibrary.visibility='withdrawn';
+  });
+ }return file;};
+ const cid=await conversation(f),run=await send(f,cid);
+ assert.equal(changed,true);assert.ok(f.lifecycle.some(event=>event.phase==='exit'&&event.code===0));assert.equal(calls(run),2);assert.equal(f.state.calls,0);
+ const first=f.app.businessLibrary.getDocument(f.rows[0].documentId).document;assert.equal(first.status,'active');assert.equal(first.revision,1);
+ assert.equal(run.status,'failed',JSON.stringify({error:run.error,mutation}));assert.equal(run.error.code,'OMP_DISCLOSURE_REFUSED');
+ assert.ok(!f.app.store.read().messages.some(row=>row.content?.includes(text)));
+ const receipt=(await journal(f,cid)).find(row=>row.message?.toolName==='workspace_enterprise_context_status').message.details;
+ assert.equal(receipt.sources.length,2);assert.deepEqual(receipt.authorization.sources,receipt.sources);
+});
+test('two-source status preserves the complete disclosed list across native Session continuation',{timeout:60000},async t=>{
+ const f=await fixture(t,{allSources:true,script:()=>[{tool:'workspace_enterprise_context_status',arguments:{}},stop]}),cid=await conversation(f);
+ assert.equal((await send(f,cid)).status,'succeeded');const first=(await journal(f,cid)).find(row=>row.message?.toolName==='workspace_enterprise_context_status').message.details;
+ assert.equal(first.sources.length,2);assert.deepEqual(first.authorization.sources,first.sources);
+ assert.equal((await send(f,cid)).status,'succeeded');assert.equal(f.state.calls,0);
+});
+for(const legacy of ['missing','truncated'])test('two-source status refuses '+legacy+' proof coverage before another model',{timeout:60000},async t=>{
+ const f=await fixture(t,{allSources:true,script:()=>[{tool:'workspace_enterprise_context_status',arguments:{}},stop]}),cid=await conversation(f);
+ assert.equal((await send(f,cid)).status,'succeeded');const entries=await journal(f,cid);
+ const alter=proof=>{if(proof?.kind!=='status')return;if(legacy==='missing')delete proof.sources;else proof.sources=proof.sources.slice(0,1);};
+ for(const entry of entries){if(entry.customType==='workspace-plugin-disclosure-snapshot')for(const proof of entry.data.snapshot.proofs)alter(proof);
+  if(entry.message?.toolName==='workspace_enterprise_context_status'){alter(entry.message.details.authorization);entry.message.content[0].text=JSON.stringify(entry.message.details);}}
+ const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;await fs.writeFile(map.sessionFile,entries.map(JSON.stringify).join('\n')+'\n');
+ const run=await send(f,cid);assert.equal(run.status,'failed');assert.equal(calls(run),0);assert.equal(f.state.calls,0);
+});
+test('legacy single-source parse proof retains safe native continuation',{timeout:60000},async t=>{
+ const f=await fixture(t),cid=await conversation(f);assert.equal((await send(f,cid)).status,'succeeded');const entries=await journal(f,cid);
+ for(const entry of entries){if(entry.customType==='workspace-plugin-disclosure-snapshot')for(const proof of entry.data.snapshot.proofs)if(proof.kind==='parse')delete proof.sources;
+  if(entry.message?.toolName==='workspace_enterprise_context_parse_upload'){delete entry.message.details.authorization.sources;entry.message.content[0].text=JSON.stringify(entry.message.details);}}
+ const map=f.app.store.read().conversations.find(row=>row.id===cid).businessAgentSession;await fs.writeFile(map.sessionFile,entries.map(JSON.stringify).join('\n')+'\n');
+ const run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(f.state.calls,2);
+});
+test('Node refuses a credential-bearing cached body before accepting its valid body hash',{timeout:60000},async t=>{
+ const f=await fixture(t),cid=await conversation(f);assert.equal((await send(f,cid)).status,'succeeded');
+ const clean=(await journal(f,cid)).find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message.details;
+ const {authorization,...body}=clean;body.text='SYNTHETIC_NODE_ONLY_CACHE_FIXTURE '+encodeURIComponent(f.state.doclingSecret);
+ const proof={...authorization,bodyHash:libraryReadHash(body)},binding=await f.app.enterpriseContextSessionBinding(f.state.identity,f.bindingOptions());
+ const control=binding.open(proof.nativeSessionId);
+ assert.throws(()=>control.verifyBody(proof,{...body,authorization:proof}),error=>error.code==='OSS_CREDENTIAL_ECHO_REFUSED');
+ // The deliberately unsafe legacy-shaped fixture exists only in Node memory;
+ // it was never written to a Session, sent to the worker or submitted to a model.
+ const strings=[...stringsIn(await journal(f,cid)),...stringsIn(f.app.store.read())];
+ assert.equal(strings.some(text=>text.includes(f.state.doclingSecret)||text.includes(encodeURIComponent(f.state.doclingSecret))),false);
+});
+const echoes={
+ raw:key=>key,uri:key=>encodeURIComponent(key),json:key=>JSON.stringify(key).slice(1,-1),
+ unicode:key=>[...key].map(char=>'\\u'+char.charCodeAt(0).toString(16).padStart(4,'0')).join(''),
+ html:key=>[...key].map(char=>'&#'+char.charCodeAt(0)+';').join(''),
+ base64:key=>Buffer.from(key).toString('base64'),base64url:key=>Buffer.from(key).toString('base64url'),hex:key=>Buffer.from(key).toString('hex'),
+ 'base64-error-phrase':key=>Buffer.from('An upstream error echoes '+key+' in context.').toString('base64'),
+};
+function stringsIn(value){if(typeof value==='string')return [value];if(value&&typeof value==='object')return Object.values(value).flatMap(stringsIn);return [];}
+for(const [encoding,encode]of Object.entries(echoes))test('Node refuses HTTP200 Docling '+encoding+' credential echo before worker/model disclosure',{timeout:60000},async t=>{
+ const marker='SYNTHETIC_REJECTED_SERVICE_BODY';const f=await fixture(t,{script:rows=>[{tool:'workspace_enterprise_context_parse_upload',arguments:rows[0].asset},
+  {text:'SYNTHETIC credential-bearing result was refused.',forbiddenContextText:marker}]}),cid=await conversation(f);
+ const encoded=encode(f.state.doclingSecret);f.state.responseText=marker+' '+encoded;
+ const run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(f.state.calls,1);assert.equal(calls(run),2);
+ const entries=await journal(f,cid),receipt=entries.find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message;
+ assert.equal(receipt.isError,true,'credential-bearing output reached worker');assert.equal(receipt.details.reason,'OSS_CREDENTIAL_ECHO_REFUSED');
+ assert.equal(Object.hasOwn(receipt.details,'text'),false);assert.equal(Object.hasOwn(receipt.details,'authorization'),false);
+ const strings=[...stringsIn(entries),...stringsIn(f.app.store.read())],leaked=strings.some(text=>text.includes(f.state.doclingSecret)||text.includes(encoded)||text.includes(marker));
+ assert.equal(leaked,false,'credential or upstream body entered worker Session/model/final channels');
+});
+for(const channel of ['success-errors-array','http-error-body'])test('Node contains credential echoes in Docling '+channel,{timeout:60000},async t=>{
+ const marker='SYNTHETIC_PRIVATE_UPSTREAM_ERROR';const f=await fixture(t,{script:rows=>[{tool:'workspace_enterprise_context_parse_upload',arguments:rows[0].asset},
+  {text:'SYNTHETIC upstream error safely refused.',forbiddenContextText:marker}]}),cid=await conversation(f);
+ f.state.responsePayload={status:'success',document:{text_content:'Synthetic ordinary text'},errors:[marker+' '+encodeURIComponent(f.state.doclingSecret)]};
+ if(channel==='http-error-body')f.state.responseStatus=503;
+ const run=await send(f,cid);assert.equal(run.status,'succeeded',JSON.stringify(run.error));assert.equal(f.state.calls,1);
+ const entries=await journal(f,cid),receipt=entries.find(row=>row.message?.toolName==='workspace_enterprise_context_parse_upload').message;
+ assert.equal(receipt.isError,true);assert.equal(receipt.details.reason,channel==='success-errors-array'?'OSS_CREDENTIAL_ECHO_REFUSED':'DOCLING_UPSTREAM_REFUSED');
+ assert.equal(Object.hasOwn(receipt.details,'text'),false);
+ const strings=[...stringsIn(entries),...stringsIn(f.app.store.read())];
+ assert.equal(strings.some(text=>text.includes(f.state.doclingSecret)||text.includes(encodeURIComponent(f.state.doclingSecret))||text.includes(marker)),false,'upstream error crossed Node boundary');
 });
