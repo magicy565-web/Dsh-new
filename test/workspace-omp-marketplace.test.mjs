@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import {nativeMarketplace,sendMarketplace,tool,journal,mapping} from './fixtures/marketplace-native.mjs';
 
 test('original signed Host/Store/WorkerDesk two native Session rounds discover, draft, exact retry and private status',{timeout:60000},async t=>{
- const f=await nativeMarketplace(t);
+ const f=await nativeMarketplace(t);f.proposal.requestId=' native-proposal '; // Original API normalizes bounded request text.
  const first=await sendMarketplace(f,[tool('find'),tool('propose',f.proposal),{text:'Internal unconfirmed draft only.'}]);assert.equal(first.status,'succeeded',JSON.stringify(first));
  const original=mapping(f),before=await fs.readFile(original.sessionFile),orders=f.app.store.read().workerOrders;assert.equal(orders.length,1);assert.equal(orders[0].status,'draft');
  const second=await sendMarketplace(f,[tool('find'),tool('propose',f.proposal),tool('order',{orderId:orders[0].id}),{text:'Original local draft remains unapproved.'}]);assert.equal(second.status,'succeeded',JSON.stringify(second));assert.equal(mapping(f).agentSessionId,original.agentSessionId);

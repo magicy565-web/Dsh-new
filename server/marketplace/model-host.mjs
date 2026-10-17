@@ -57,7 +57,7 @@ export function createMarketplaceModelHost({marketplace,store,access,readReviewe
   async function order(input,signal,model){object(input,['orderId']);const scope=await gate(model,signal);if(!scope)return marketplaceGap('MARKETPLACE_UNCONFIGURED');const projection=orderView(input.orderId,scope);await gate(model,signal,scope);const fresh=orderView(input.orderId,scope);if(!same(projection,fresh))fail('MARKETPLACE_SOURCE_CHANGED');return response('order',input,scope,fresh.view,fresh.sources);}
   async function propose(input,signal,model){const scope=await gate(model,signal);if(!scope)return marketplaceGap('MARKETPLACE_UNCONFIGURED');allowed(scope,'allowDrafts');allowed(scope,'allowOwnedOrderStatus');
    const created=await marketplace.createOrder(actor,input,{assertCurrent:state=>{const current=scopeFor(model,signal,state);if(!current||!same(scope,current))fail('MARKETPLACE_SCOPE_REQUIRED');allowed(current,'allowDrafts');allowed(current,'allowOwnedOrderStatus');return true;}});
-   await gate(model,signal,scope);const projection=orderView(created.id,scope);return response('propose',{orderId:created.id,requestId:input.requestId},scope,projection.view,projection.sources);}
+   await gate(model,signal,scope);const projection=orderView(created.id,scope);return response('propose',{orderId:created.id,requestId:input.requestId.trim()},scope,projection.view,projection.sources);}
   async function revalidateReceipt(receipt,signal,model){
    if(!receipt||receipt.plugin!==PLUGIN||!['status','find','order','propose'].includes(receipt.method))fail('MARKETPLACE_SOURCE_CHANGED');
    let fresh;
