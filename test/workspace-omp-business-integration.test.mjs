@@ -83,3 +83,13 @@ test('disabled native Brain cannot restore earlier guarded private history',{tim
  pluginConfiguration.disabled=['workspace-goal-intelligence'];
  const run=await send(f,[{text:'Must not reach model.'}]);assert.equal(run.status,'failed');assert.equal(run.events.filter(e=>e.type==='pi.agent-session.request').length,0);
 });
+
+test('Brain original Artifact first save works; stale prior context blocks later delivery (known continuation limitation)',{timeout:90000},async t=>{
+ const f=await productFixture(t,{host:true,nativeBusiness:true,appOptions:{goalBrainOptions:{originalReceiver:MODEL,reviewedGoals:[]}}});
+ const input={requestId:'synthetic-context-1',expectedRevision:0,goalIds:[],sourceRefs:[],businessModel:{valueProposition:'Synthetic unreviewed model note',customerSegments:[],revenueModel:'Unknown'},operatingFocus:[],unknowns:['No approved business goal yet'],notes:[]};
+ const first=await send(f,[tool('workspace_brain_context_save',input),{text:'Synthetic unreviewed context saved.'}]);assert.equal(first.status,'succeeded',JSON.stringify(first));
+ const second=await send(f,[tool('workspace_brain_context_save',{...input,requestId:'synthetic-context-2',expectedRevision:1,unknowns:['Updated synthetic note']}),{text:'Must not deliver with stale context receipt.'}]);
+ assert.equal(second.status,'failed');
+ const records=f.app.store.read().artifacts.filter(x=>x.metadata?.businessBrain?.key==='context');
+ assert.equal(records.length,1);assert.equal(records[0].currentVersion,2,'original atomic artifact update can persist before later disclosure is refused; do not retry a new request');
+});

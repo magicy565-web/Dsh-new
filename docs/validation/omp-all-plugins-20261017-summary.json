@@ -1,0 +1,100 @@
+{
+  "schema": "workspace.plugin-source-acceptance-summary.v1",
+  "recordedAt": "2026-10-17T03:41:16.185482+00:00",
+  "sourceCommit": "a996339c79956d14763219b7fd563f0949ee4eed",
+  "handoffCommit": "f436123bf199b0308708594cc5660ce98d981f5f",
+  "branch": "codex/omp-all-plugins-integration-20261017",
+  "draftPR": 99,
+  "runtime": {
+    "node": "24.19.0",
+    "bun": "1.3.14",
+    "omp": "18.10.4",
+    "medusaBuildSDK": "2.21.2"
+  },
+  "nativePluginsCompiledDiscoveredLoaded": 14,
+  "externalBusinessServices": "unconfigured; no real business calls",
+  "realModelCalls": 0,
+  "mem0Vector": "disabled",
+  "groupsOverlap": true,
+  "groups": [
+    {
+      "localLog": "integration-original-regression.tap",
+      "sha256": "295c53d7e3306ae8e8a23208e4ef98dbfc73c11a7d8875c06e4d7c8910636a0f",
+      "tests": 339,
+      "pass": 339,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-candidates-source-final.tap",
+      "sha256": "798f21f1c550d875518a2e9ec95c413a04f86e29d598bbd35b1618ad9cc3814b",
+      "tests": 286,
+      "pass": 286,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-shopify-seven-day.tap",
+      "sha256": "d85ff9c26c35227936a7740ee44d741c084f9ae01706b60f47c6417004cb2096",
+      "tests": 142,
+      "pass": 142,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-remaining-plugins.tap",
+      "sha256": "26a5750199c2b518f684d4c93220f563904cd54480eb2d27b5031d3c3d7a3bf6",
+      "tests": 122,
+      "pass": 122,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-business-host-final.tap",
+      "sha256": "620cd37abff65fe9243bf558e46b85e6818c82781cc26b262c3c0a5e6c2a53ec",
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-marketplace-original-host.tap",
+      "sha256": "a3b55ee2302b7c6ffb70eb641fa32c432122c43c05ff24cde81a279a8e23412e",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-conversation-dom-final.tap",
+      "sha256": "465b697ff10791d3415d225e22d09c304424b85bd24e8cfff945b0c54eee0aca",
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-medusa-plugin-contracts.tap",
+      "sha256": "c67a62e1c6517cb8dc7830d18b8fa507b7f2658f9ef426cef818f060f2249d17",
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "knownLimitations": [
+    "Business Host group contains one EXPECTED refusal test for a known Brain continuation limitation, not a successful sequential-memory-write acceptance. The second context update can persist before old context receipts block delivery.",
+    "Marketplace private model disclosure bridge not connected.",
+    "Not all isolated plugin profiles share one private Session.",
+    "No running Medusa DB/migration/real external service or full browser acceptance."
+  ],
+  "evidenceScope": "Sanitized development test metadata only. Logs stay ignored locally; no runtime business records or credentials are included."
+}

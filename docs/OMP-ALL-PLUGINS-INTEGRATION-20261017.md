@@ -63,15 +63,15 @@ PR94：Medusa 原生 Product/Variant/Option/Collection/SalesChannel/Inventory �
 
 使用 Node 24.19.0、固定 Bun 1.3.14、OMP 18.10.4。依赖安装禁用 lifecycle scripts，测试清空业务环境，仅本地临时文件与 loopback 合成端点。执行日志保留在忽略的 `evidence/`，不把运行资料、真实凭据或会话落入源码。
 
-截至 03:38 UTC 已完成（各套件有交集，不将它们相加冒充独立总数）：
+截至 03:41 UTC 已完成（各套件有交集，不将它们相加冒充独立总数）：
 
 | 执行组 | 结果 | 忽略目录中的本地日志 |
 | --- | --- | --- |
 | 原有 OMP/企业授权/Library/Store/结构化记忆 33 文件 | 339 passed，0 failed，0 skipped | integration-original-regression.tap |
-| 新候选源码功能 + 统一入口 | 284 passed，0 failed，0 skipped；之后 HTTP 微调另 6 passed，时钟固定另 11 passed | integration-candidates-source-final.tap / integration-brain-http-final.tap / integration-brain-observation-clock.tap |
+| 新候选源码功能 + 统一入口 | 286 passed，0 failed，0 skipped；包含 HTTP 修正和两个时钟推进回归 | integration-candidates-source-final.tap |
 | 七天/Shopify 专项 | 142 passed，0 failed，0 skipped | integration-shopify-seven-day.tap |
 | 外贸/入库包/原采购包 | 122 passed，0 failed，0 skipped | integration-remaining-plugins.tap |
-| 新同 Session 业务 Host | 7 passed，0 failed，0 skipped | integration-business-host.tap |
+| 新同 Session 业务 Host | 8 passed，0 failed，0 skipped：7 项功能检查 + 1 项已知 Brain 连续写入阻塞复现；后者不是完成验收 | integration-business-host-final.tap |
 | Marketplace 原 Host 冷启动 | 1 passed，0 failed，0 skipped | integration-marketplace-original-host.tap |
 | 原会话/Muse/采购 DOM，含新增 Brain 无配置页 | 18 passed，0 failed，0 skipped | integration-conversation-dom-final.tap |
 | Medusa 后端编译产物 + 实际 SDK 契约 | 4 passed，0 failed，0 skipped；持久层为明确单元替身 | integration-medusa-plugin-contracts.tap |
@@ -100,10 +100,12 @@ MEDUSA_DISABLE_TELEMETRY=1 npm --prefix packages/medusa-enterprise-product-conte
 
 OMP/Bun 的固定 support 包也须按各自 lockfile `npm ci --ignore-scripts`。没有运行 live smoke；不能把 loader 成功、SDK 替身或 skipped 当作真实连接成功。
 
+源码保存提交：`a996339c79956d14763219b7fd563f0949ee4eed`；[Draft PR #99](https://github.com/magicy565-web/workspace-agent/pull/99) 指向原开发基线分支，无 main 修改。后续收尾提交只补测试和验收说明。无运行正文的测试计数与原日志 SHA256 见 [验证摘要](validation/omp-all-plugins-20261017-summary.json)。
+
 ## 仍未完成
 
 - 14 个插件全部同一个私有业务 Session 的可信 Host/披露组合尚未完成；现有 enterprise/free-trade/local/intake 等隔离边界保留。
 - Marketplace 私有模型披露桥、统一 UI 导航与原企业 Provider 身份配置未接通；只有显式 mount 源码及原 Host 替身验收。
 - Medusa Product Context 后端实际实例、数据库迁移、Agent 读取面与 OMP 授权映射未验收；没有创建或连接实例。
-- 真实模型、Docling、FGA、ERPNext、Shopify、Medusa、Stripe、外部 Muse/Worker 全部未配置或未调用。浏览器端完整交互验收未完成；DOM 回归不能替代真实浏览器和真实服务验收。Brain context/decision 连续写入在新 business OMP profile 中尚无完整端到端用例，仍按未验收项处理。
+- 真实模型、Docling、FGA、ERPNext、Shopify、Medusa、Stripe、外部 Muse/Worker 全部未配置或未调用。浏览器端完整交互验收未完成；DOM 回归不能替代真实浏览器和真实服务验收。Brain context 连续写入在新 business OMP profile 中存在已复现阻塞：首次原 Artifact 保存成功；第二次修改可已提交到同一 Artifact v2，但原 journal 的旧 context 回执随后失效，Run 拒绝交付。复现用例通过只证明此拒绝和不重复建记录，不能算连续写入完成；不得用新 requestId 自动重试。decision 连续写入仍未完成端到端验收。
 - 不修改/合并 main，不强推，不部署，不操作服务器，不付费，不读取/创建真实凭据，不扩大权限，不导入运行资料。
