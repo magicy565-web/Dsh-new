@@ -1,9 +1,9 @@
-# Native fact bounded transport: acceptance pending
+# Native fact bounded transport: isolated SDK acceptance passed
 
-Date: 2026-10-17. Prepared source/test notes; this version does not claim the
-repaired SDK suite has passed or that a real provider/business flow has passed.
-The first actual SDK run failed as recorded below; the two test-only corrections
-are prepared for the same isolated rerun.
+Date: 2026-10-17. The repaired six-file run passed 63/63 with the original SDK
+and a finite synthetic provider. The first run failed 61/63 as recorded below;
+only two synthetic test files changed before the successful rerun. This does not
+claim real paid-provider, upload-to-fact business, unified UI or deployment acceptance.
 
 ## Exact source and scope
 
@@ -119,15 +119,31 @@ All five production files retain their exact reviewed v2 contents. The v3 delta
 is 5,024 bytes, SHA256
 `7c5b6aed02cef98988ee30af7c84740a8fd1baee942d469c87453f782707f71f`.
 Its full-source local preflight verified 1,245 files before/after, and syntax and
-patch checks passed. This test-only revision has not yet passed actual SDK
-verification. Do not substitute the first run's 61 passes for a complete pass.
+patch checks passed. The actual successful rerun is recorded separately below;
+the first run's 61 passes were not substituted for complete acceptance.
 
-## Isolated repaired SDK verification pending
+## Actual repaired SDK verification
 
-The reviewed package requests six test files in one serial invocation:
+The same isolated six-file command ran serially on the existing locked install.
+The source snapshot is the nine code/test paths saved in development commit
+`4a6418922cee9c2754a4f009783a329391ad965c`; the server fixture is the declared
+post-v2 source plus only the two v3 test changes, not a checkout or deployment
+of the complete development branch.
+
+Runtime versions: Node 24.19.0, Bun 1.3.14, OMP 18.10.4 and
+`@earendil-works/pi-ai` 1.1.0. The invocation used a clean `env -i`, explicit
+Node PATH, isolated verification HOME, `NO_COLOR=1`, and the two existing
+`WORKSPACE_BUN_BIN` / `WORKSPACE_OMP_PACKAGE_ROOT` runtime paths. No packages
+were reinstalled and no real provider was called. Sanitized test command:
 
 ```sh
-node --test --test-concurrency=1 \
+# Run inside the verified source directory. Paths below are sanitized variables
+# for the already checked original Node/Bun/OMP installation and isolated HOME.
+env -i PATH="$(dirname "$NODE"):/usr/bin:/bin" \
+  HOME="$TESTROOT/verification-home" NO_COLOR=1 \
+  WORKSPACE_BUN_BIN="$VERIFIED_BUN_BIN" \
+  WORKSPACE_OMP_PACKAGE_ROOT="$VERIFIED_OMP_PACKAGE_ROOT" \
+  "$NODE" --test --test-concurrency=1 \
   test/deepseek-acceptance-policy.test.mjs \
   test/workspace-omp-local-budget.test.mjs \
   test/workspace-omp-fact-lifecycle-contract.test.mjs \
@@ -136,10 +152,25 @@ node --test --test-concurrency=1 \
   test/workspace-omp-native-paid-sdk.test.mjs
 ```
 
-Repaired-run expectation, not a result: 63 tests = 20 new pure + 16 new actual-SDK
-+ 27 original.
-Exact runtime versions, exit/status counts, duration, source verification before/
-after and log size/hash must be recorded from the completed isolated run.
+Actual result: **63/63 passed**, exit **0**; failures/cancelled/skipped/todo all
+**0**. This includes **20 new pure + 16 new actual-SDK + 27 original** cases.
+Duration **78832.141384 ms**; start **21:43:09 UTC**, end **21:44:28 UTC**.
+
+Full-source verification passed **1,245 before**, **1,245 after** the v3 patch,
+and **1,245 after tests**, including original package/lock files. The five
+production hashes remained exactly the reviewed v2 hashes. The first failure
+log was rehashed unchanged; no failed attempt was erased.
+
+The successful default-spec log `tests.spec.log` is **6,255 bytes**, SHA256
+`98f60da3ac30d92f2de69f12d9bbf7f4790f75434b4d05fc808c85068eb3850d`.
+The v3 test-only archive is **73,030 bytes**, SHA256
+`a310b35798b10c9dbfaeebaa0840b6cf1d4cac5055583f06bfac33458f53cb62`.
+The separately retained 7,512-byte final verification report has SHA256
+`23c78c666eae483c5296665a2ea86778db20442c406a9477c10abc76b76d468c`.
+Full-source checker logs for application and post-test verification each have
+SHA256 `afe502135da327b613e060f84264c1df39e0537141aec9ab88868fc844d9d682`.
+Original runtime logs, uploaded files and private runtime paths are not included
+in this repository note.
 
 The test-only owned wrapper verifies the original official Bun runtime first,
 then uses its documented `--no-install --preload` to replace only provider fetch
@@ -172,10 +203,11 @@ The target is the existing PR99 development branch; no main merge, runtime
 replacement, paid call or broader authorization is implied. The original normal
 launcher still does not select the finite paid adapter automatically.
 
-Next verification is the exact same isolated six-file command above, applying
-only the two-file v3 delta to the already verified post-v2 source. Preserve the
-first failure and record the new result independently. Do not install replacement
-packages or weaken the original Context/document/receiver/current gates.
+The same isolated six-file rerun has now passed with the two-file v3 delta.
+No production gate changed to repair either initial failure. Do not install
+replacement packages or weaken Context/document/receiver/current checks.
+Source code remains frozen at the preserved development snapshot; this update
+only records evidence and the product handoff.
 
 After that gate, the requested product outcome is one original conversation:
 selected enterprise upload -> authorized source-backed fact save/read -> Brain
@@ -183,3 +215,5 @@ Context/Decision against the existing Goal -> continuation in the same Session.
 An actual user-facing original-project entry, explicit initial permissions and
 budgeted real-model acceptance still need to be connected and verified. Passing
 these finite tests alone is not delivery of that product workflow.
+
+See [the original-project product handoff](WORKSPACE-LIBRARY-TO-BRAIN-PRODUCT-HANDOFF-20261017.md) for the exact existing pages/APIs, normal receipt compatibility gap and staged completion criteria.
