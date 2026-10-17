@@ -2,6 +2,10 @@
 
 Date: 2026-10-17.
 
+Later same-day update: the separately recorded isolated SDK run passed 17/17.
+See [the SDK acceptance record](NATIVE-MEMORY-FACTS-SDK-ACCEPTANCE-20261017.md).
+The text below preserves the accurate state when this recovery commit was made.
+
 This development commit preserves eight previously reviewed source/test files
 after the local executor reverted to an older filesystem snapshot. It is not a
 deployment or an SDK acceptance claim. All eight files were recovered from the
