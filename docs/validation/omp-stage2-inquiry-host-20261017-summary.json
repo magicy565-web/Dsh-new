@@ -1,0 +1,222 @@
+{
+  "baseline": "c7fe96683c19925e5ff4a15ad3c997f574d7f859",
+  "productionAndTestCommit": "1b8546511c3088ca44c041d2e2686be1423f95ac",
+  "sourceTree": "51fb0d9d8ab7fbdec5a59422d7a8deeed7cf7b40",
+  "executionNote": "Final focused/shared/typecheck/build ran with identical committed production/test source before commit. Following edits are documentation only. Package and35-business interim groups preceded only the final inquiry-specific authorization-await ordering change; native business behavior did not change. Pack ran earlier; all plugin package files are byte-identical to baseline and final source. Counts overlap, do not sum.",
+  "runtime": {
+    "node": "24.19.0",
+    "bun": "1.3.14",
+    "omp": "18.10.4"
+  },
+  "environmentWhitelist": [
+    "PATH",
+    "HOME=/tmp",
+    "NO_COLOR=1"
+  ],
+  "counterexamples": [
+    {
+      "name": "after-worker-artifact-bytes",
+      "source": "baseline c7fe966 plus initial test",
+      "observed": "succeeded after original worker exit despite synthetic blob mutation",
+      "expected": "failed OMP_DISCLOSURE_REFUSED",
+      "logSha256": "f7cc2385521dd39d1ebdd5ad5c6f23d623cbfca3c1f0fafe8ded1bfaeb94d7ea",
+      "logNote": "Initial5-test run:3pass/2fail. One failure was the real missing Node fence; the readonly test also initially expected an unredacted403 code and was corrected to the existing plugin redaction, not a product change."
+    },
+    {
+      "name": "during-final-artifact-read",
+      "source": "intermediate Node fence before receipt race fix",
+      "observed": {
+        "control": "succeeded",
+        "source-version": "succeeded incorrectly",
+        "draft-version": "succeeded incorrectly"
+      },
+      "expected": "mutation cases failed OMP_DISCLOSURE_REFUSED",
+      "logSha256": "ae107663a7478460cbd4eca73bbd1dae2f6e35f95cb02c6d8263f95a7d772f0c"
+    }
+  ],
+  "checks": [
+    {
+      "name": "inquiry-focused",
+      "argv": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "test/workspace-omp-inquiry-continuation.test.mjs",
+        "test/factory-inquiries.test.mjs",
+        "test/workspace-omp-factory-inquiries.test.mjs"
+      ],
+      "log": "evidence/stage2-inquiry-focused-final.tap",
+      "logSha256": "bb95bc663dcc13daf563bd495845bf53ed132b6d165e22f98eb011457eb47f0c",
+      "exitCode": 0,
+      "finalProductionSource": true,
+      "tests": 23,
+      "passed": 23,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "name": "shared-native",
+      "argv": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "test/workspace-omp-business-context.test.mjs",
+        "test/workspace-omp-plugin-uninstall.test.mjs",
+        "test/workspace-omp-business-reset.test.mjs",
+        "test/workspace-omp-business-integration.test.mjs",
+        "test/workspace-omp-business-wire.test.mjs"
+      ],
+      "log": "evidence/stage2-inquiry-shared-final.tap",
+      "logSha256": "5a072e69eb9fa30e3094f115ba8cbd4e0d184e6f9288868b91ba96ad3e7b92c9",
+      "exitCode": 0,
+      "finalProductionSource": true,
+      "tests": 44,
+      "passed": 44,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "name": "typecheck",
+      "argv": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "log": "evidence/stage2-inquiry-typecheck-final.log",
+      "logSha256": "2fb03f0ed3b9d91f3c91365f5cf398c8fd176549d9cf08c51cd70230c8e99dfa",
+      "exitCode": 0,
+      "finalProductionSource": true
+    },
+    {
+      "name": "plugin-pack",
+      "argv": [
+        "npm",
+        "run",
+        "plugins:pack-check"
+      ],
+      "log": "evidence/stage2-inquiry-pack.log",
+      "logSha256": "0733dce885174b81fa2c0f72469e44452ecd91c56d3952b2ab2bd5c519bc5e20",
+      "exitCode": 0,
+      "finalProductionSource": false,
+      "pluginCount": 14
+    },
+    {
+      "name": "native-build",
+      "argv": [
+        "npm",
+        "run",
+        "build:omp"
+      ],
+      "log": "evidence/stage2-inquiry-build-final.log",
+      "logSha256": "2e4240aabf18980ecfd5e14e1bc917d65b21caa9b5d3f68be720a245d5d5e054",
+      "exitCode": 0,
+      "finalProductionSource": true,
+      "pluginCount": 14
+    }
+  ],
+  "intermediateChecks": [
+    {
+      "name": "package-context-local-uninstall",
+      "argv": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "test/factory-inquiries-package.test.mjs",
+        "test/workspace-omp-business-context.test.mjs",
+        "test/workspace-omp-local-draft-continuation.test.mjs",
+        "test/workspace-omp-plugin-uninstall.test.mjs"
+      ],
+      "log": "evidence/stage2-inquiry-shared.tap",
+      "logSha256": "53f0bf06cb1db391fd72b6eab6eea93e70730b3750693b24ab7f8929c8693c17",
+      "exitCode": 0,
+      "finalProductionSource": false,
+      "tests": 29,
+      "passed": 29,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "name": "business-brain-unified",
+      "argv": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "test/workspace-omp-business-integration.test.mjs",
+        "test/workspace-omp-business-wire.test.mjs",
+        "test/workspace-omp-brain-decision.test.mjs",
+        "test/workspace-omp-unified.test.mjs",
+        "test/workspace-omp-business-reset.test.mjs"
+      ],
+      "log": "evidence/stage2-inquiry-business.tap",
+      "logSha256": "523166bffdf563a100518b027e8b1d4209d3bc383fb997e05e58919d48d55f39",
+      "exitCode": 0,
+      "finalProductionSource": false,
+      "tests": 35,
+      "passed": 35,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "sourceSha256": {
+    "server/factory-inquiries.mjs": "33aa5d7be5f4f5915549d119030e0729ed18b1cdf025d85cf94dbe916c344b79",
+    "server/workspace-omp-bridge.mjs": "0e4d9b26b7b18fffe743580d5e4516a3e56c6ddce23d10df874b412a39c7b290",
+    "test/workspace-omp-inquiry-continuation.test.mjs": "3804013536bb5670671f1daa24610a021db0deed7076602340bbc115f2881da1",
+    "server/deepseek-acceptance-policy.mjs": "3e58e988f3f14d2e0b53e293fb2bb1c01d66aa01ff8a9ef11e029935bad436fd",
+    "server/workspace-omp-local-deepseek.mjs": "9c91de0f28c99e16c149cd20cd23fac74607fb0a6a6bb558886b4d1feffc887e",
+    "server/workspace-omp-session.mjs": "8d4143de9f375fe201df1b5301818c9896399d5c145a1b3172f7a221d7810bbf",
+    "server/workspace-omp-business-context.mjs": "2bfce2415322c3f2b5376370eb17cfcf767fc78c51c011d963a61e062fd255ad"
+  },
+  "assertedEvidence": {
+    "originalSignedHttpHost": true,
+    "originalStoreLibraryArtifact": true,
+    "originalOmpSdkWorkerFd3": true,
+    "sameNativeSessionAndFile": true,
+    "distinctOriginalRuns": 2,
+    "normalTurnModelCalls": [
+      4,
+      2
+    ],
+    "firstJournalPrefixAndArtifactUnchanged": true,
+    "draftStorage": "distinct internal Artifacts, each version1; no in-place update or new version authority",
+    "humanReviewed": false,
+    "humanReviewRequired": true,
+    "sent": false,
+    "externalActions": false,
+    "readonlyWriteRefused": true,
+    "sameRequestChangedBodyRefused": true,
+    "changedSourceModelCalls": 0,
+    "afterExitArtifactBytesRefused": true,
+    "sourceAndDraftVersionDuringFinalReadRefused": true,
+    "originalSignedHttpSessionRevocationRefused": true,
+    "noRollbackClaimForCommittedDrafts": true
+  },
+  "unchangedBoundaries": [
+    "same original Session/engine profile/recipient/identity",
+    "request IDs and source/version proof",
+    "model limits and original cumulative budget",
+    "original approval, revocation and cancellation",
+    "default offline preview and business TUI unsupported",
+    "Mem0 vectors disabled"
+  ],
+  "realAcceptance": {
+    "realModelRequestsThisRound": 0,
+    "realExternalBusinessRequestsThisRound": 0,
+    "newSpendCny": 0,
+    "realCredentialsOrRuntimeDataRead": false,
+    "currentSafeConfiguration": "unverified",
+    "currentBillingAndRemainingBudget": "unverified",
+    "completeRealTwoTurns": "unverified",
+    "historicalDeepseekConnection": "confirmed by existing sanitized repository report; not repeated"
+  },
+  "notRun": [
+    "full backend",
+    "full browser",
+    "real model",
+    "real external services",
+    "stages3-5"
+  ]
+}

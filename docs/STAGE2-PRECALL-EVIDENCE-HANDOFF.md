@@ -2,7 +2,7 @@
 
 **DeepSeek 历史真实接入已证实，不能表述为从未接入。** [2026-10-16原生Session记录](validation/live-two-turn-20261016/README.md)确认原入口实际发送两次 DeepSeek 请求，read/write 成功且usage完整；第三个最终确认请求在发送前触发 `SHORT_INPUT_LIMIT`，首轮没有正常 stop，第二轮没有提交。这证明历史连接，不证明真实两轮通过。
 
-本轮以 `b84adcb1cd0e5379143210aca952d73518e2425f` 为基线，只核对仓库脱敏记录和实际源码、增加有限替身回归。未读取密钥、当前环境配置、真实Session或服务器运行资料，未调用真实模型/服务、创建配置或接入服务器。产品代码和既有额度不变；固定五阶段顺序见 [开发计划](DEVELOPMENT-PLAN-HANDOFF.md)。阶段2仅完成无付费准备，真实两轮验收尚未执行。
+此前本地准备以 `b84adcb1cd0e5379143210aca952d73518e2425f` 为基线，仅新增测试与文档。用户要求继续后，当前工程源码推进至 `1b8546511c3088ca44c041d2e2686be1423f95ac`：原认证Host同Session两轮询盘草稿有限替身通过，并修复Node最终交付及来源/草稿读取期间的竞争缺口，见 [原Host验收](OMP-STAGE2-INQUIRY-HOST-20261017.md)。没有调整限额、既有预算或授权。未读取密钥、当前环境配置、真实Session或服务器运行资料，未调用真实模型/服务、创建配置或接入服务器。固定五阶段顺序见 [开发计划](DEVELOPMENT-PLAN-HANDOFF.md)；真实完整两轮仍未执行。
 
 | 下一次真实调用前的必要证据 | 仓库说明能证明什么 | 当前缺项与结论 |
 | --- | --- | --- |
@@ -17,7 +17,8 @@
 - 历史真实连接使用 `npm run factory:local` → `scripts/workspace-omp-local.mjs` → 原生OMP Session/provider。既有提交 `09834c10ec653678b76ed015184ecb31953d4b08` 已修复历史12,000-byte本地会话误限；当前本地 transport 为128KiB，独立短调用策略仍为12,000 bytes。本轮不再调整任何限额。完整原因、原离线重放与费用界限见 [既有修复](validation/local-context-budget-fix-20261016/README.md)。
 - 当前分支的新增回归走同一原入口、Session、原生读写工具及HTTP/SSE路径：首轮保存并正常stop，第二句话继承首轮正文/回答/来源，修改数量并保存 `inquiry-v2.md` 后正常stop。原工具只允许新文件名，所以采用草稿版本续改，首版/JSONL前缀原样保留；没有新增覆盖权限、Library/Artifact权威、外发或业务写入。模型响应均为有限替身，当前安全配置可用性、最新扣费、真实两轮仍未验收。见 [本轮证据](OMP-STAGE2-LOCAL-PREPARATION-20261017.md)。
 - 文档记载的现有候选是原认证 Host 的 `factory-inquiries` 会话及既有 Web/API；普通消息沿 `POST /api/conversations/{conversationId}/messages` 的原 Conversation/Run 处理。第一轮用 `workspace_factory_document`、`workspace_factory_materials` 读取已授权的原询盘/产品，由模型判断缺项并形成回复；用户原执行意图允许时，`workspace_factory_inquiry_save` 将正文及两份原 sources 写入原 Artifact。结果仍是 `saved-draft`、未人审、未发送。
+- 上述认证链现有当前分支工程证据：原签名HTTP、Store/Library/Artifact及原OMP worker实际执行；同一原生Session两个Run先保存数量100，再按下一句话改200，生成新的内部修订Artifact（两份各version1），首版及历史前缀不变。只读拒绝、同requestId改正文冲突、来源变化零模型请求、worker退出后草稿变化和最终读取期间来源/草稿升版、HTTP撤Session均覆盖。模型选择与正文仍为有限替身，不能冒充真实模型两轮。
 - 第二轮应续接同一原生Session/profile，重新验证当前来源和授权，再修改/补充内部草稿；核对原conversation/Run、artifact ID/version/SHA与来源。来源哈希不证明回复语义或商业条款正确，仍须人工复核。这里只列已有能力及待验标准，没有执行首调或生成真实草稿。
 - 当前[阶段1入口说明](OMP-STAGE1-TUI-20261017.md)优先：默认入口是离线预览；business TUI明确不支持，不能冒充询盘链。旧说明中的默认启动别名属于旧检查点，不作为本轮可执行启动命令。本次不启动服务；由原已获准Host提供当前入口元数据后才可评估。询盘profile与business/其他profile的历史不能擅自迁移，也不能用替身两轮替代真实两轮。
 
-结论：历史真实连接已证实，历史失败也保留为失败；当前安全配置可用性、累计账单/剩额及真实完整两轮仍未核实。下一次真实调用继续阻塞，不自动重跑。本轮仅完成无付费回归准备与文档纠正。
+结论：历史真实连接已证实，历史失败也保留为失败；当前安全配置可用性、累计账单/剩额及真实完整两轮仍未核实。下一次真实调用继续阻塞，不自动重跑。本轮继续完成了无付费工程修复与回归，尚未进入产品/Brain或外部业务阶段。
