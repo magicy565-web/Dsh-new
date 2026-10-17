@@ -8,7 +8,9 @@
 
 旧 context 的最终历史来源复核竞态已准确复现并最小修复，见 [本轮安全修复报告](OMP-CONTEXT-FINAL-SOURCE-CHECK-20261017.md)，包含真实 Store/Host、实际 SDK 发送前注入和零发送证据。
 
-最近 Marketplace 的原 Host/WorkerDesk 与同一原生 business Session 最小闭环见 [本轮报告](OMP-MARKETPLACE-NATIVE-INTEGRATION-20261017.md)。显式审核范围缺失时 unconfigured；下述历史回归计数不冒充本轮新源码全部重跑。
+最近 Marketplace 的原 Host/WorkerDesk 与同一原生 business Session 最小闭环见 [本轮报告](OMP-MARKETPLACE-NATIVE-INTEGRATION-20261017.md)。显式审核范围缺失时 unconfigured。
+
+Marketplace 测试计数判据修正后，完整 20/14/110 和 14 插件 pack/build 已在 `4901f19bca6fc26944149e5e393ba2034a867b3f` 重新通过；局部绕过 guard 的变异命中一次替身 fetch 并使测试失败，随后恢复。下述初轮大回归仍属于原检查点，不冒充最新全仓回归。
 
 ## 源码来源与选择
 
