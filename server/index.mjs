@@ -344,7 +344,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       agentPrivacy.guardHttp(pathname, context);
       res.filterWorkspaceResponse = body => agentPrivacy.filterResponse(musePrivacy.filterResponse(body, context), context);
       try {
-        if (req.method === 'GET' && await handleGoalBrainHttp({ pathname, method: req.method, context, host: goalBrain, res, respond })) return;
+        if (req.method === 'GET' && await handleGoalBrainHttp({ pathname, method: req.method, context, host: goalBrain, resolveReadSession: businessAgent?.brainReadSession, res, respond })) return;
       } catch (error) {
         if (error instanceof BrainError) throw new ApiError(
           /(?:STALE|CHANGED|CONFLICT)/.test(error.code) ? 409 : 403,
@@ -482,7 +482,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const medusaDraft=pathname.match(/^\/api\/medusa\/products\/([a-f0-9-]{36})\/draft$/iu);
       if(method==='POST'&&medusaDraft)return await respond(res,200,await medusaCatalog.saveDraft(medusaDraft[1],body,context));
       try {
-        if (await handleGoalBrainHttp({ pathname, method, context, host: goalBrain, body, res, respond })) return;
+        if (await handleGoalBrainHttp({ pathname, method, context, host: goalBrain, resolveReadSession: businessAgent?.brainReadSession, body, res, respond })) return;
       } catch (error) {
         if (error instanceof BrainError) throw new ApiError(
           /(?:STALE|CHANGED|CONFLICT)/.test(error.code) ? 409 : 403,
@@ -676,48 +676,60 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   };
 }
 
-export async function startWorkspaceServer() {
-  const port = Number(process.env.PORT || 8787);
+export async function startWorkspaceServer({ reviewedBusiness = null, environment = process.env } = {}) {
+  if (reviewedBusiness !== null && environment.WORKSPACE_BUSINESS_REVIEW_FILE) throw Error('Select one original reviewed business configuration source.');
+  if (environment.WORKSPACE_BUSINESS_REVIEW_FILE) reviewedBusiness = await (await import('./workspace-omp-host.mjs')).loadReviewedBusinessOptions(environment.WORKSPACE_BUSINESS_REVIEW_FILE, environment);
+  // Trusted in-process composition only. HTTP selections remain references,
+  // not model/parser/remember authorization; the default startup is unchanged.
+  if (reviewedBusiness !== null && (!reviewedBusiness || typeof reviewedBusiness !== 'object'
+    || Object.keys(reviewedBusiness).some(key => !['libraryModelReadPolicy','goalBrainOptions','agentConfig','resolveBinding','paidAcceptance','pluginConfiguration'].includes(key))
+    || typeof reviewedBusiness.resolveBinding !== 'function' || !reviewedBusiness.libraryModelReadPolicy || !reviewedBusiness.goalBrainOptions))
+    throw Error('Use the original reviewed Library/Goal policy and trusted binding resolver.');
+  const port = Number(environment.PORT || 8787);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer from 1 to 65535.');
   // The key is read only on explicit server startup, never scanned from user files.
-  const mode = process.env.WORKSPACE_RUNTIME || 'omp';
+  const mode = environment.WORKSPACE_RUNTIME || 'omp';
   if (!['omp', 'pi'].includes(mode)) throw new Error('WORKSPACE_RUNTIME must be omp (default frontend) or pi (explicit fallback).');
-  const access = await accessConfigFromEnvironment(process.env);
-  const dataDirectory = path.resolve(process.env.WORKSPACE_DATA_DIR || path.join(root, '.data'));
-  const provider = createPiProvider({ ...loadPiProviderConfig(process.env), researchAdapter: createBraveResearchAdapter({ environment: process.env }) });
+  const access = await accessConfigFromEnvironment(environment);
+  const dataDirectory = path.resolve(environment.WORKSPACE_DATA_DIR || path.join(root, '.data'));
+  const provider = createPiProvider({ ...loadPiProviderConfig(environment), researchAdapter: createBraveResearchAdapter({ environment: environment }) });
+  if (reviewedBusiness && (mode !== 'omp' || environment.WORKSPACE_OMP_PROFILE !== 'business')) throw Error('Reviewed business composition requires the explicit business profile.');
   const businessAgentOptions = mode === 'omp' ? (await import('./workspace-omp-host.mjs')).createWorkspaceOmpBusinessOptions({
-    environment: process.env, baseURL: `http://127.0.0.1:${port}`,
+    environment: environment, baseURL: `http://127.0.0.1:${port}`,
+    ...(reviewedBusiness ? { paidAcceptance: reviewedBusiness.paidAcceptance || null, pluginConfiguration: reviewedBusiness.pluginConfiguration ?? null, resolveReviewedBusinessBinding: args => reviewedBusiness.resolveBinding({ ...args,
+      enterpriseContextSessionBinding: options => app.enterpriseContextSessionBinding(args.actor, options),
+      conversationReferences: id => app.businessLibrary.getConversationReferences(id) }) } : {}),
   }) : null;
   // No SDK, credentials, outbound requests or partner registration without a
   // pinned, privately stored deployment catalog. Web clients cannot edit it.
-  const reviewedWorkers = await loadReviewedA2AWorkers({ environment: process.env });
+  const reviewedWorkers = await loadReviewedA2AWorkers({ environment: environment });
   // The official dot product has no verified inbound task API. Instead,
   // a reviewed ChatGPT plugin can pull scoped public work from this host.
-  if (process.env.WORKSPACE_DOT_ENABLED === '1' && !process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256)
+  if (environment.WORKSPACE_DOT_ENABLED === '1' && !environment.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256)
     throw new Error('WORKSPACE_DOT_ENABLED requires a server-side pinned dot plugin token hash.');
-  if (process.env.WORKSPACE_MUSE_ENABLED === '1' && !process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256)
+  if (environment.WORKSPACE_MUSE_ENABLED === '1' && !environment.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256)
     throw new Error('WORKSPACE_MUSE_ENABLED requires a server-side pinned Muse token hash.');
-  const museWorkerConfig = process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256 ? {
-    workerId: process.env.WORKSPACE_MUSE_WORKER_ID || 'muse-personal-owner',
-    ownerId: process.env.WORKSPACE_MUSE_OWNER_ID || 'personal',
-    tokenDigest: process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256,
-    enabled: process.env.WORKSPACE_MUSE_ENABLED === '1',
-    scopeReviewed: process.env.WORKSPACE_MUSE_SCOPE_REVIEWED === '1',
-    externalBudgetVerified: process.env.WORKSPACE_MUSE_EXTERNAL_BUDGET_VERIFIED === '1',
+  const museWorkerConfig = environment.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256 ? {
+    workerId: environment.WORKSPACE_MUSE_WORKER_ID || 'muse-personal-owner',
+    ownerId: environment.WORKSPACE_MUSE_OWNER_ID || 'personal',
+    tokenDigest: environment.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256,
+    enabled: environment.WORKSPACE_MUSE_ENABLED === '1',
+    scopeReviewed: environment.WORKSPACE_MUSE_SCOPE_REVIEWED === '1',
+    externalBudgetVerified: environment.WORKSPACE_MUSE_EXTERNAL_BUDGET_VERIFIED === '1',
   } : null;
   let museOriginalBinding = null;
-  if (process.env.WORKSPACE_MUSE_ORIGINAL_BINDING_FILE) {
-    const filename = process.env.WORKSPACE_MUSE_ORIGINAL_BINDING_FILE;
+  if (environment.WORKSPACE_MUSE_ORIGINAL_BINDING_FILE) {
+    const filename = environment.WORKSPACE_MUSE_ORIGINAL_BINDING_FILE;
     if (!path.isAbsolute(filename) || !museWorkerConfig) throw new Error('Original Muse binding requires its existing config and an absolute private file.');
     const handle = await openPrivateFile(filename, 'r');
     try { if ((await handle.stat()).size > 16000) throw new Error('Original Muse binding file is too large.'); museOriginalBinding = JSON.parse(await handle.readFile('utf8')); } finally { await handle.close(); }
   }
   const sourcingMcpConfig = {
-    enabled: process.env.WORKSPACE_SOURCING_MCP_ENABLED === '1',
-    tokenDigest: process.env.WORKSPACE_SOURCING_MCP_TOKEN_SHA256 || '',
+    enabled: environment.WORKSPACE_SOURCING_MCP_ENABLED === '1',
+    tokenDigest: environment.WORKSPACE_SOURCING_MCP_TOKEN_SHA256 || '',
   };
-  if (process.env.WORKSPACE_SOURCING_MCP_PRINCIPALS_FILE) {
-    const filename = process.env.WORKSPACE_SOURCING_MCP_PRINCIPALS_FILE;
+  if (environment.WORKSPACE_SOURCING_MCP_PRINCIPALS_FILE) {
+    const filename = environment.WORKSPACE_SOURCING_MCP_PRINCIPALS_FILE;
     if (!path.isAbsolute(filename)) throw new Error('Procurement principal configuration requires an absolute private path.');
     const handle = await openPrivateFile(filename, 'r');
     try {
@@ -725,35 +737,42 @@ export async function startWorkspaceServer() {
       sourcingMcpConfig.principals = JSON.parse(await handle.readFile('utf8'));
     } finally { await handle.close(); }
   }
-  if (sourcingMcpConfig.enabled && sourcingMcpConfig.tokenDigest && [process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256, process.env.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256].filter(Boolean).includes(sourcingMcpConfig.tokenDigest))
+  if (sourcingMcpConfig.enabled && sourcingMcpConfig.tokenDigest && [environment.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256, environment.WORKSPACE_MUSE_BRIDGE_TOKEN_SHA256].filter(Boolean).includes(sourcingMcpConfig.tokenDigest))
     throw new Error('Sourcing MCP must use its own independent credential.');
-  const dotWorkerConfig = process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256 ? {
-    workerId: process.env.WORKSPACE_DOT_WORKER_ID || 'chatgpt-dot-xy',
-    ownerId: process.env.WORKSPACE_DOT_OWNER_ID || 'xy',
-    tokenDigest: process.env.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256,
-    enabled: process.env.WORKSPACE_DOT_ENABLED === '1',
-    scopeReviewed: process.env.WORKSPACE_DOT_SCOPE_REVIEWED === '1',
-    externalBudgetVerified: process.env.WORKSPACE_DOT_EXTERNAL_BUDGET_VERIFIED === '1',
+  const dotWorkerConfig = environment.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256 ? {
+    workerId: environment.WORKSPACE_DOT_WORKER_ID || 'chatgpt-dot-xy',
+    ownerId: environment.WORKSPACE_DOT_OWNER_ID || 'xy',
+    tokenDigest: environment.WORKSPACE_DOT_BRIDGE_TOKEN_SHA256,
+    enabled: environment.WORKSPACE_DOT_ENABLED === '1',
+    scopeReviewed: environment.WORKSPACE_DOT_SCOPE_REVIEWED === '1',
+    externalBudgetVerified: environment.WORKSPACE_DOT_EXTERNAL_BUDGET_VERIFIED === '1',
   } : null;
   let app, nativeIngress;
   try {
-    app = await createApp({ dataDirectory, provider, access, businessAgentOptions,
+    app = await createApp({ dataDirectory, provider, access, businessAgentOptions, capabilityEnvironment: environment,
+      ...(reviewedBusiness ? { libraryModelReadPolicy: reviewedBusiness.libraryModelReadPolicy,
+        goalBrainOptions: reviewedBusiness.goalBrainOptions, agentConfig: reviewedBusiness.agentConfig } : {}),
       workerAdapters: reviewedWorkers.adapters,
       dotWorkerConfig, museWorkerConfig, museOriginalBinding, sourcingMcpConfig,
-      allowedOrigins: process.env.WORKSPACE_DEV_ORIGIN ? [process.env.WORKSPACE_DEV_ORIGIN] : [],
+      allowedOrigins: environment.WORKSPACE_DEV_ORIGIN ? [environment.WORKSPACE_DEV_ORIGIN] : [],
       maxConcurrentRuns: 3 });
     await app.listen(port);
-    nativeIngress = await openWechatIngress({ app, access, configFile: process.env.WORKSPACE_WECHAT_INGRESS_FILE });
+    nativeIngress = await openWechatIngress({ app, access, configFile: environment.WORKSPACE_WECHAT_INGRESS_FILE });
   } catch (error) {
     await nativeIngress?.close();
     await Promise.allSettled([app?.close?.(), reviewedWorkers.close()]);
     throw error;
   }
   console.log(`Workspace server: http://127.0.0.1:${port} (${access.mode} access; ${mode}; ${provider.configured ? 'configured; not connection-tested' : 'setup required'})`);
-  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+  const stop = () => {
     Promise.resolve(nativeIngress?.close()).then(() => Promise.allSettled([app.close(), reviewedWorkers.close()])).then(results => {
       process.exit(results.every(result => result.status === 'fulfilled') ? 0 : 1);
     });
-  });
+  };
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, stop);
+  return { ...app, close: async () => {
+    for (const signal of ['SIGINT', 'SIGTERM']) process.removeListener(signal, stop);
+    await nativeIngress?.close(); await app.close(); await reviewedWorkers.close();
+  } };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) startWorkspaceServer().catch(error => { console.error(error.message); process.exitCode = 1; });

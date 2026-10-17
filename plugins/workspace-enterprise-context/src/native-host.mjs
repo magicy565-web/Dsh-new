@@ -6,6 +6,9 @@ function pairs(messages){const out=[],pending=new Map();for(const message of mes
  if(message.role==='assistant'){pending.clear();const ambiguous=new Set();for(const call of message.content||[])if(call.type==='toolCall'&&call.id){if(pending.has(call.id)||ambiguous.has(call.id)){pending.delete(call.id);ambiguous.add(call.id);}else pending.set(call.id,call);}}
  if(message.role==='toolResult'){const call=pending.get(message.toolCallId);pending.delete(message.toolCallId);if(call?.name===message.toolName)out.push({call,result:message});}
 }return out;}
+// The new ordinary business composition reuses only this pure pairing rule;
+// it does not call this module's snapshot/history restoration lifecycle.
+export { pairs as enterpriseContextMessagePairs };
 export async function registerNativeContext(pi,host,factory){
  const binding=host?.enterpriseContext,previous=host?.disclosureSnapshot?.(guardId);
  if(!binding){if(previous)fail('OSS_ORIGINAL_HOST_REQUIRED');return factory()(pi);}

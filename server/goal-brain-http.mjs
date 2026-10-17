@@ -11,7 +11,7 @@ const route = /^\/api\/conversations\/([A-Za-z0-9][A-Za-z0-9_.:-]{0,127})\/brain
  * system. The original access layer has already
  * verified the request body before this handler is invoked.
  */
-export async function handleGoalBrainHttp({ pathname, method, context, host, body = {}, res, respond } = {}) {
+async function handleGoalBrainHttpOriginal({ pathname, method, context, host, resolveReadSession = null, body = {}, res, respond } = {}) {
   const match = pathname?.match(route);
   if (!match) return false;
   if (!['GET', 'POST'].includes(method)) throw new BrainError('BRAIN_HTTP_METHOD_NOT_ALLOWED');
@@ -26,7 +26,8 @@ export async function handleGoalBrainHttp({ pathname, method, context, host, bod
   if (!context?.subject || !context.workspaceId || !context.session?.id) throw new BrainError('BRAIN_SESSION_REQUIRED');
   if (isWrite && !['reviews', 'feedback'].includes(resource)) throw new BrainError('BRAIN_EXECUTION_INTENT_REQUIRED');
   const identity = { workspaceId: context.workspaceId, subject: context.subject, role: context.role, sessionId: context.session.id };
-  const session = host.bind({ identity, conversationId: match[1], canSubmit: false, uiWrite: isWrite });
+  const session = !isWrite&&resolveReadSession ? await resolveReadSession(identity,match[1])
+    : host.bind({ identity, conversationId: match[1], canSubmit: false, uiWrite: isWrite });
 
   if (!isWrite) {
     if (resource === 'decisions' || resource.startsWith('decisions/')) {
@@ -59,4 +60,17 @@ export async function handleGoalBrainHttp({ pathname, method, context, host, bod
   session.assertLive();
   await respond(res, 200, data);
   return true;
+}
+
+// Only known read-authority refusals are exposed as fixed Brain errors.
+const readRefusals = new Set(['OSS_SESSION_REVOKED','OSS_MODEL_RECEIVER_CHANGED','OSS_CUSTOMER_SOURCE_NOT_SELECTED',
+ 'OSS_SOURCE_VERSION_CHANGED','OSS_LIBRARY_SCOPE_CHANGED','OSS_ORIGINAL_CONVERSATION_CHANGED','OSS_MEMORY_FACT_CHANGED',
+ 'OSS_MEMORY_SOURCE_REVOKED','OSS_PRIVATE_CREDENTIAL_SCREEN_REQUIRED','OSS_CACHED_CONTEXT_CREDENTIAL',
+ 'OSS_STRUCTURED_MEMORY_NOT_AUTHORIZED','OSS_ORIGINAL_MEMORY_VIEW_REQUIRED']);
+export async function handleGoalBrainHttp(options) {
+ try { return await handleGoalBrainHttpOriginal(options); }
+ catch(error) {
+  if(options?.method==='GET'&&readRefusals.has(error?.code))throw new BrainError(/CHANGED/.test(error.code)?'BRAIN_SOURCE_CHANGED':'BRAIN_SOURCE_UNAVAILABLE');
+  throw error;
+ }
 }

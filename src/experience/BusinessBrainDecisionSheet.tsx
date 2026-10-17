@@ -12,6 +12,7 @@ export function BusinessBrainDecisionSheet({
   onClose,
   onStartGoal,
   onOpenGoal,
+  onContinueConversation,
   onReviewed
 }: {
   card: PulseCard;
@@ -21,6 +22,7 @@ export function BusinessBrainDecisionSheet({
   onClose: () => void;
   onStartGoal: (card: PulseCard) => void;
   onOpenGoal: (goal: Goal) => void;
+  onContinueConversation: (conversationId: string) => void;
   onReviewed: () => void;
 }) {
   const draft = card.decisionDraft;
@@ -146,6 +148,7 @@ export function BusinessBrainDecisionSheet({
             <span>{goal ? '已有经营目标' : brokenGoalLink ? '原经营目标不可用' : '还没有绑定经营目标'}</span>
             <small>{goal ? goal.title : brokenGoalLink ? '该决策不能绑定到新目标，请先修复原目标的审核关系。' : '开始后会创建一个普通 Goal，不会直接执行外部动作。'}</small>
           </div>
+          {conversationId && <button type="button" className="brain-primary-action" onClick={() => { onClose(); onContinueConversation(conversationId); }}>在原会话继续</button>}
           {goal
             ? <button type="button" className="brain-primary-action" onClick={() => { onClose(); onOpenGoal(goal); }}>进入目标<Icon name="chevron" size={15} /></button>
             : brokenGoalLink

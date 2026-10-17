@@ -10,7 +10,7 @@ import { revalidateBusinessJournal,readBusinessContext } from './workspace-omp-b
 import { privateDirectory, openPrivateFile } from './store.mjs';
 import { ProviderError } from './provider.mjs';
 import { snapshotWorkspaceOmpPublicFiles } from './workspace-omp-public-tools.mjs';
-import { createNativeDeepseekAcceptance, validateLocalDeepseekReport, localDeepseekConfigured, NATIVE_FACTS_PAID_ACCEPTANCE } from './workspace-omp-local-deepseek.mjs';
+import { createNativeDeepseekAcceptance, validateLocalDeepseekReport, localDeepseekConfigured, NATIVE_FACTS_PAID_ACCEPTANCE, LOCAL_DEEPSEEK_LIMITS } from './workspace-omp-local-deepseek.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
 export const OMP_ENTERPRISE_CONTEXT_SCOPE='omp:18.10.4:enterprise-context-v1';
@@ -44,6 +44,9 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
     async complete({ input, run, binding, client, authorize, enterpriseContextHost = binding?.enterpriseContextHost, freeTradeHost = binding?.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, medusaClient, brainClient, bindBrainForNativeSession = null, marketplaceClient, isolationDirectory, savedSession, saveSession }) {
       input.signal?.throwIfAborted();
       const brainFactsConfigured = bindBrainForNativeSession !== null;
+      const documentToolsConfigured = binding?.brainDocumentTools === true;
+      if (documentToolsConfigured && !brainFactsConfigured) throw Error('Original document fact binding required.');
+      const modelRequestLimit = documentToolsConfigured ? LOCAL_DEEPSEEK_LIMITS.maxRequests : 4;
       if (paidAdmission && (!brainFactsConfigured || run.businessAgentContext?.resetContext === true)) throw Error('NATIVE_FACTS_PAID_ACCEPTANCE_REQUIRED');
       if (brainFactsConfigured && (!nativeBusiness || typeof bindBrainForNativeSession !== 'function' || brainClient)) throw Error('Original late native Brain binding required.');
       await checkWorkspaceOmpPaths(paths); await authorize();
@@ -85,7 +88,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         const send = value => { if (!channel.destroyed) channel.write(JSON.stringify(value) + '\n'); };
         let terminateTimer, killTimer;
         const operations = new Map();let enterpriseControl,enterpriseNativeId,freeControl,freeNativeId,delivering=false,nativeMapping=savedSession;
-        let factBindingStarted=false,factSaveStarted=false,factSaved=false,factControl=null,factNativeId=null,factReceiver=null,factFinalCalls=null,factActivity=0,factOperations=0;
+        let factBindingStarted=false,factSaveStarted=false,factSaved=false,factControl=null,factNativeId=null,factReceiver=null,factFinalCalls=null,factActivity=0,factOperations=0,factDocumentTools=null;
         const stop = () => { if (childClosed || killTimer) return; send({ type: 'abort' });
           // Let the official root/child AbortSignals settle first. Escalation
           // remains bounded and targets only this owned worker/process group.
@@ -144,7 +147,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 await authorize();
                 assertMedusaEnterpriseDisclosure(messages,{medusaClient,enterpriseControl,model:binding.model,signal:input.signal});
               }
-              else if(nativeBusiness)await revalidateBusinessJournal(messages,{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
+              else if(nativeBusiness)await revalidateBusinessJournal(messages,{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,documentTools:factDocumentTools,model:binding.model,signal:input.signal});
               else{
                 const {revalidateInquiryJournal}=await import('./factory-inquiries.mjs');
                 await revalidateInquiryJournal(messages,{materialsClient,inquiryClient,model:binding.model,signal:input.signal});
@@ -152,7 +155,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               // Inquiry clients finish with original authorization followed by
               // synchronous source/Artifact checks; do not add an async gap
               // after that final check. Preserve the existing business fence.
-              if(nativeBusiness)await authorize();
+              if(nativeBusiness){await authorize();factDocumentTools?.assertDisclosureCurrent({messages,context:messages},factReceiver,input.signal);}
             }
             if (brainFactsConfigured) {
               if (factFinalCalls !== modelCalls || factOperations) throw Error('Original final fact disclosure required.');
@@ -181,7 +184,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             if (!Number.isSafeInteger(message.id) || message.id < 1 || operations.has(message.id)) { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'Invalid original operation identifier.')); return; }
             const operation = new AbortController(); operations.set(message.id, operation);
             const rpcSignal = input.signal ? AbortSignal.any([input.signal, operation.signal]) : operation.signal;
-            const factPendingRequest=brainFactsConfigured&&['businessBrain','modelRequest'].includes(message.method);
+            const factPendingRequest=brainFactsConfigured&&['businessBrain','businessDocuments','modelRequest'].includes(message.method);
             if(factPendingRequest){factActivity++;factOperations++;factFinalCalls=null;}
             try {
               rpcSignal.throwIfAborted(); await authorize(); rpcSignal.throwIfAborted(); let result;
@@ -197,6 +200,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 factBindingStarted=true;
                 const bound=await bindBrainForNativeSession(value.nativeSessionId);
                 factControl=bound.control;brainClient=bound.brain;factNativeId=value.nativeSessionId;
+                if(documentToolsConfigured){if(!bound.documentTools)throw Error('Original document tools required.');factDocumentTools=bound.documentTools;}
                 result=true;
               }
               else if (brainFactsConfigured && message.method === 'businessFactsDisclosure') {
@@ -205,7 +209,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                   providerReport = null;
                   throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
                 }
-                if (!Array.isArray(message.args) || message.args.length!==1 || !value || Object.keys(value).some(k=>!['nativeSessionId','phase','modelCalls','receiver','wireBody'].includes(k))
+                if (!Array.isArray(message.args) || message.args.length!==1 || !value || Object.keys(value).some(k=>!['nativeSessionId','phase','modelCalls','receiver','wireBody',...(documentToolsConfigured?['messages','context']:[])].includes(k))
                   || !factControl || value.nativeSessionId!==factNativeId || !['model:disclose','final:deliver'].includes(value.phase)
                   || !Number.isSafeInteger(value.modelCalls) || value.modelCalls!==modelCalls
                   || !receiver || Object.keys(receiver).sort().join(',')!=='baseUrl,id,provider'
@@ -213,7 +217,9 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                   || value.wireBody!==undefined && typeof value.wireBody!=='string') throw Error('Original fact disclosure boundary required.');
                 const activity=factActivity;
                 if(factOperations)throw Error('Original fact operations must settle before disclosure.');
-                const payload = {messages:[],context:[],...(value.wireBody===undefined?{}:{wireBody:value.wireBody})};
+                if(documentToolsConfigured&&(!Array.isArray(value.messages)||!Array.isArray(value.context)))throw Error('Original document context required.');
+                const payload = {messages:documentToolsConfigured?value.messages:[],context:documentToolsConfigured?value.context:[],...(value.wireBody===undefined?{}:{wireBody:value.wireBody})};
+                if(factDocumentTools){await factDocumentTools.revalidate(payload.messages,rpcSignal,receiver);await factDocumentTools.revalidate(payload.context,rpcSignal,receiver);}
                 await factControl.authorizeDisclosure(payload,rpcSignal,receiver);
                 if (paidAdmission && value.phase === 'model:disclose' && (providerReportReceived || paidDisclosureStopped)) {
                   providerReport = null;
@@ -222,6 +228,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 // Keep the original authority in Node and close the async
                 // callback boundary with its complete synchronous proof check.
                 factControl.assertDisclosureCurrent(payload,receiver,rpcSignal);
+                factDocumentTools?.assertDisclosureCurrent(payload,receiver,rpcSignal);
                 if(factOperations || activity!==factActivity || value.modelCalls!==modelCalls)throw Error('Original fact disclosure changed during authorization.');
                 if (paidAdmission && value.phase === 'model:disclose' && value.wireBody !== undefined) {
                   if (paidWirePermittedCall === modelCalls) throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
@@ -252,7 +259,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                   throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
                 }
                 if(brainFactsConfigured&&(!factControl||!factSaved||nativeMapping?.agentSessionId!==factNativeId||message.args?.[0]?.modelCalls!==modelCalls+1))throw Error('Original native fact binding must precede model requests.');
-                if(enterpriseContext){if(++preparedCalls>4||message.args?.[0]?.modelCalls!==preparedCalls)throw Error('Original model request bound exceeded.');await input.onEvent?.({type:'pi.agent-session.admission',engine:'omp'});}else{if(++modelCalls>4)throw Error('Original model request bound exceeded.');await input.onEvent?.({type:'pi.agent-session.request',engine:'omp'});}result=true;
+                if(enterpriseContext){if(++preparedCalls>4||message.args?.[0]?.modelCalls!==preparedCalls)throw Error('Original model request bound exceeded.');await input.onEvent?.({type:'pi.agent-session.admission',engine:'omp'});}else{if(++modelCalls>modelRequestLimit)throw Error('Original model request bound exceeded.');await input.onEvent?.({type:'pi.agent-session.request',engine:'omp'});}result=true;
               }
               else if(enterpriseContext&&message.method==='enterpriseContext'){
                 const [nativeId,method,args=[]]=message.args||[];
@@ -301,6 +308,12 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 const [method,value,model]=message.args||[];
                 if(!medusaClient||!['status','preview','reconcile','refresh'].includes(method))throw Error('Original Medusa method required.');
                 result=method==='refresh'?await medusaClient.refresh(value,model,rpcSignal):await medusaClient[method](value,rpcSignal,model);
+              }
+              else if(documentToolsConfigured&&message.method==='businessDocuments'){
+                const [method,value,model]=message.args||[];
+                if(!factDocumentTools||!factSaved||!Array.isArray(message.args)||message.args.length!==3
+                  ||!['parseUpload','structuredMemoryLookup','structuredMemoryRemember'].includes(method))throw Error('Original document capability required.');
+                result=await factDocumentTools[method](value,rpcSignal,model);
               }
               else if(nativeBusiness&&message.method==='businessBrain'){
                 const [method,value,model]=message.args||[];
@@ -412,7 +425,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           }).catch(() => { if (paidAdmission) { providerReport = null; paidFailureFinalizing = true; }
             finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.')); }); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, nativeBusiness, medusaEnterprise, ...(paidAdmission?{paidAcceptance:NATIVE_FACTS_PAID_ACCEPTANCE}:{}), resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient||brainFactsConfigured, ...(brainFactsConfigured?{brainFactsConfigured:true}:{}), marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, nativeBusiness, medusaEnterprise, ...(paidAdmission?{paidAcceptance:NATIVE_FACTS_PAID_ACCEPTANCE}:{}), resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient||brainFactsConfigured, ...(brainFactsConfigured?{brainFactsConfigured:true}:{}), ...(documentToolsConfigured?{documentToolsConfigured:true,maxModelCalls:modelRequestLimit}:{}), marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       }).catch(error => { paidAdmission?.stop(); throw error; });
     },

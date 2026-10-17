@@ -116,6 +116,11 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     // to an existing native transcript or silently remove its disclosure fence.
     const factKeys = binding.brainMemoryFactKeys === undefined ? null : structuredClone(binding.brainMemoryFactKeys);
     const factsEnabled = binding.brainMemoryFactKeys !== undefined;
+    const documentToolsEnabled = binding.brainDocumentTools === true;
+    if (binding.brainDocumentTools !== undefined && typeof binding.brainDocumentTools !== 'boolean'
+      || documentToolsEnabled && !factsEnabled
+      || conversation.businessAgentSession && documentToolsEnabled !== (conversation.businessAgentSession.brainDocumentTools === true))
+      fail(403, 'BUSINESS_AGENT_BINDING_CHANGED', 'Document tools require the unchanged explicit initial native Session capability.');
     const savedFactsScope = conversation.businessAgentSession?.brainMemoryFactsScopeHash;
     if (factsEnabled && engineAdapter?.scope !== 'omp:18.10.4:business-v1'
       || conversation.businessAgentSession && factsEnabled !== Boolean(savedFactsScope))
@@ -245,7 +250,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
             fail(403, 'BUSINESS_AGENT_BINDING_CHANGED', 'Changed fact authority cannot inherit this native Session.');
           const bound = goalBrain.bind({ identity, conversationId: conversation.id, runId: run.id, canSubmit: canSave(), signal: input.signal, nativeSessionId, memoryFacts });
           factNativeId = nativeSessionId; factScopeHash = memoryFacts.scopeHash;
-          return { brain: bound.brain, control, scopeHash: factScopeHash };
+          return { brain: bound.brain, control, scopeHash: factScopeHash, ...(documentToolsEnabled ? { documentTools: control.documentTools(factKeys) } : {}) };
         };
       }
       if([MEDUSA_ENTERPRISE_SCOPE,'omp:18.10.4:business-v1'].includes(engineAdapter.scope)){
@@ -277,7 +282,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
             record.businessAgentSession = { agentSessionId: mapping.agentSessionId, sessionFile: mapping.sessionFile,
               bindingFingerprint: binding.client.bindingFingerprint, recipientFingerprint, engineScope: engineAdapter.scope,
               ...(engineAdapter.scope===MEDUSA_ENTERPRISE_SCOPE?{sourceBindingFingerprint:binding.enterpriseContextHost.scopeHash}:{}),
-              ...(factsEnabled?{brainMemoryFactsScopeHash:factScopeHash}:{}) };
+              ...(factsEnabled?{brainMemoryFactsScopeHash:factScopeHash}:{}), ...(documentToolsEnabled?{brainDocumentTools:true}:{}) };
           });
         } });
     }
@@ -375,6 +380,21 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     provider,
     attachMarketplace(host){assertMarketplaceModelHost(host);if(marketplaceModelHost)throw TypeError('Marketplace Host already attached.');marketplaceModelHost=host;},
     attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain } = dependencies); },
+    async brainReadSession(identity,conversationId){
+      if(!goalBrain)fail(409,'BUSINESS_AGENT_UNCONFIGURED','The original Brain Host is required.');
+      const conversation=current(conversationId),saved=conversation.businessAgentSession;
+      // Only an actual persisted fact binding needs the new view authority.
+      // Ordinary GET retains its original createdBy/read-role/model-free gate.
+      if(!saved?.brainMemoryFactsScopeHash)return goalBrain.bind({identity,conversationId,canSubmit:false});
+      identity=actor(identity,true);owned(conversationId,identity);
+      const binding=await bindingFor(identity,conversation);
+      if(saved&&(binding.brainDocumentTools===true)!==(saved.brainDocumentTools===true))
+        fail(403,'BUSINESS_AGENT_BINDING_CHANGED','Original initial document capability required.');
+      if(binding.brainMemoryFactKeys===undefined)fail(403,'BUSINESS_AGENT_BINDING_CHANGED','Original fact selection required.');
+      const {assertEnterpriseContextHost}=await import('./workspace-enterprise-context-host.mjs');assertEnterpriseContextHost(binding.enterpriseContextHost);
+      const memoryFacts=binding.enterpriseContextHost.conversationFacts(saved.agentSessionId,{conversationId,bindingFingerprint:binding.client.bindingFingerprint},binding.brainMemoryFactKeys);
+      return goalBrain.bind({identity,conversationId,canSubmit:false,uiRead:true,memoryFacts,nativeSessionId:saved.agentSessionId});
+    },
     async handle({ req, res, pathname, context, readBody, respond }) {
       if (req.method === 'GET' && pathname === '/api/conversations/runtime') {
         actor(context);

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Bootstrap, Goal } from '../types';
-import { api } from '../api';
+import { api, ApiError } from '../api';
 import { Icon } from '../icons';
 import { BusinessBrainDecisionSheet } from './BusinessBrainDecisionSheet';
 import './business-brain-home.css';
@@ -53,17 +53,21 @@ export function BusinessBrainHome({
   onStartAnalysis,
   onStartGoal,
   onOpenGoal,
+  onContinueConversation,
   onNavigate
 }: {
   data: Bootstrap | null;
   loading: boolean;
   readOnly: boolean;
-  onStartAnalysis: (value: string) => void;
-  onStartGoal: (card: PulseCard) => void;
+  onStartAnalysis: (value: string, conversationId?: string) => void;
+  onStartGoal: (card: PulseCard, conversationId?: string) => void;
   onOpenGoal: (goal: Goal) => void;
+  onContinueConversation: (conversationId: string) => void;
   onNavigate: (page: 'goals' | 'library' | 'activity' | 'chat') => void;
 }) {
-  const conversation = useMemo(() => newestConversation(data), [data?.conversations]);
+  const [conversationId, setConversationId] = useState<string | undefined>(() => newestConversation(data)?.id);
+  useEffect(() => { if (!conversationId) setConversationId(newestConversation(data)?.id); }, [conversationId, data?.conversations]);
+  const conversation = data?.conversations.find(item => item.id === conversationId);
   const [brief, setBrief] = useState<Brief | null>(null);
   const [value, setValue] = useState('');
   const [checking, setChecking] = useState(false);
@@ -72,8 +76,9 @@ export function BusinessBrainHome({
   const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
+    setBrief(null); setSelectedCard(null); setError(null);
     if (!conversation?.id) {
-      setBrief(null);
+      setBrief(null); setChecking(false);
       return;
     }
 
@@ -85,12 +90,12 @@ export function BusinessBrainHome({
           `/conversations/${encodeURIComponent(conversation.id)}/brain/brief`
         );
         if (!cancelled) {
-          if(result.status==='unconfigured'){setBrief(null);setError('经营大脑尚未配置，请先由原 Workspace Host 绑定已审核的资料与模型接收者。');return;}
+          if(result.status==='unconfigured'){setBrief(null);setSelectedCard(null);setError('经营大脑尚未配置，请先由原 Workspace Host 绑定已审核的资料与模型接收者。');return;}
           setBrief(result.data || null);
           setError(null);
         }
       } catch (reason) {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : '经营简报暂时不可用');
+        if (!cancelled) { setBrief(null); setSelectedCard(null); setError(reason instanceof ApiError && /(?:SOURCE|SCOPE|BINDING|SESSION|REVISION|AUTHORIZATION)/.test(reason.code || '') ? '资料版本或会话授权已变更。请让管理员核对原模型、资料版本与事实键授权；重新选择资料后使用明确授权的新会话，不会自动继承旧授权。' : reason instanceof Error ? reason.message : '经营简报暂时不可用'); }
       } finally {
         if (!cancelled) setChecking(false);
       }
@@ -108,7 +113,7 @@ export function BusinessBrainHome({
     const text = valueToSend.trim();
     if (!text || readOnly || checking) return;
     setValue('');
-    onStartAnalysis(text);
+    onStartAnalysis(text, conversationId);
   }
 
   const cards = brief?.cards || [];
@@ -166,7 +171,7 @@ export function BusinessBrainHome({
                         onOpenGoal(goal);
                         return;
                       }
-                      onStartGoal(card);
+                      onStartGoal(card, conversationId);
                     }}>
                       {brokenGoalLink ? '目标不可用' : hasGoal ? '进入目标' : '开始处理'}
                       <Icon name="chevron" size={14} />
@@ -216,8 +221,9 @@ export function BusinessBrainHome({
           conversationId={conversation?.id}
           readOnly={readOnly}
           onClose={() => setSelectedCard(null)}
-          onStartGoal={onStartGoal}
+          onStartGoal={card => onStartGoal(card, conversationId)}
           onOpenGoal={onOpenGoal}
+          onContinueConversation={onContinueConversation}
           onReviewed={() => { setSelectedCard(null); setReloadNonce(value => value + 1); }}
         />
       )}

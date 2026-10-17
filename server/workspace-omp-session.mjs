@@ -40,7 +40,7 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 }
 
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null, localSession = null,
-  configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {}, onNativeSessionReady = null, onBusinessFactsDisclosure = null,
+  configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {}, onNativeSessionReady = null, onBusinessFactsDisclosure = null, nativeDocumentClient = null,
   maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, paidAcceptance = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {}, referenceFence, enterpriseContextHost = null, freeTradeHost = null, publicTenderClient = null,
   nativeBusiness = false, medusaEnterprise = false, resetBusinessContext = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, marketplaceClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = medusaEnterprise ? MEDUSA_ENTERPRISE_SCOPE : nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
@@ -50,6 +50,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   if ((onNativeSessionReady !== null || onBusinessFactsDisclosure !== null)
     && (!nativeBusiness || typeof onNativeSessionReady !== 'function' || typeof onBusinessFactsDisclosure !== 'function'))
     throw Error('Original native fact lifecycle callbacks required.');
+  if(nativeDocumentClient&&(!nativeBusiness||!onNativeSessionReady||!onBusinessFactsDisclosure))throw Error('Original document Session capability required.');
   if(typeof resetBusinessContext!=='boolean'||resetBusinessContext&&(!nativeBusiness||!savedSession))throw Error('NATIVE_BUSINESS_RESET_REFUSED');
   const nativePaid = paidAcceptance === NATIVE_FACTS_PAID_ACCEPTANCE;
   if (paidAcceptance !== null && (!nativePaid || !nativeBusiness || !onNativeSessionReady || !onBusinessFactsDisclosure
@@ -79,6 +80,9 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const {marketValidationMonitorExtension, MARKET_MONITOR_TOOLS=[]} = await module(marketValidation,'workspace-market-validation','monitor.js');
   const {marketValidationExtension, MARKET_VALIDATION_TOOLS=[]} = await module(marketValidation,'workspace-market-validation');
   const {MEDUSA_CATALOG_TOOLS=[]}=await module(nativeBusiness,'workspace-medusa-catalog');
+  const {enterpriseContextExtension}=nativeDocumentClient?await requiredBusinessModule('workspace-enterprise-context'):{};
+  const nativeDocumentMethods=nativeDocumentClient?['parseUpload','structuredMemoryLookup','structuredMemoryRemember']:[];
+  const nativeDocumentNames=nativeDocumentMethods.map(method=>'workspace_enterprise_context_'+method.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()));
   const {isMarketplaceGap,marketplaceMessageReceipt}=await module(nativeBusiness,'workspace-marketplace','contract.js');
   const {factoryIngestionExtension, FACTORY_INGESTION_TOOLS=[]} = await module(factoryIngestion,'workspace-factory-ingestion');
   const {factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS=[]} = await module(factoryInquiries,'workspace-factory-inquiries');
@@ -330,7 +334,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
             }
             await authorize({phase:'model:disclose'});
             if (onBusinessFactsDisclosure) await onBusinessFactsDisclosure({nativeSessionId:manager.getSessionId(),phase:'model:disclose',modelCalls:callNumber,
-              receiver:{provider:model.provider,id:model.id,baseUrl:model.baseUrl},...(wireBody===undefined?{}:{wireBody})},signal);
+              receiver:{provider:model.provider,id:model.id,baseUrl:model.baseUrl},...(nativeDocumentClient?{messages:contextMessages(),context:context.messages||[]}:{}),...(wireBody===undefined?{}:{wireBody})},signal);
           }
           if(enterpriseContextHost){
             const control=enterpriseContextHost.open(manager.getSessionId());
@@ -505,7 +509,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     model: uiOnly ? sdk.finalizeCustomModel(sdk.buildCustomModelOverlay(configuration.providerId, configuration.baseUrl, customApi,
       undefined, undefined, undefined, undefined, undefined, undefined, modelDefinition), { useDefaults: true })
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
-    extensions: [...(!nativeBusiness && shopifyProduct ? [shopifyProductExtension({ client: productClient, authorize })] : []), ...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(!nativeBusiness && marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(!nativeBusiness && factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(localFactory || scopedHost ? [] : readOnlyBusiness ? [pi => registerWorkspaceReadTools(pi, client, { library: false })] : simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
+    extensions: [...(nativeDocumentClient?[enterpriseContextExtension({client:nativeDocumentClient,authorize:async()=>{await authorize();return true;},enabledMethods:nativeDocumentMethods})]:[]), ...(!nativeBusiness && shopifyProduct ? [shopifyProductExtension({ client: productClient, authorize })] : []), ...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(!nativeBusiness && marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(!nativeBusiness && factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(localFactory || scopedHost ? [] : readOnlyBusiness ? [pi => registerWorkspaceReadTools(pi, client, { library: false })] : simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
       pi => [...publicExtension.tools, ...publicTask.tools, ...skillTools].forEach(tool => pi.registerTool(tool)),
       ...ordinaryTools || localFactory || scopedHost || nativeBusiness ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
     disableExtensionDiscovery: true, additionalExtensionPaths: nativePluginFiles, skills: selectedSkills.skills, appendSystemPrompt: privateProfile || factoryCustomers ? undefined : factorySkillContent,
@@ -525,7 +529,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       .flatMap(extension => [...extension.tools.keys()]);
     if(medusaEnterprise&&names.some(name=>!MEDUSA_ENTERPRISE_TOOLS.includes(name)))throw Error('MEDUSA_ENTERPRISE_READONLY_TOOLS_REQUIRED');
     if (new Set(names).size !== names.length) throw Error('PROJECT_PLUGIN_TOOL_COLLISION');
-    admittedTools.push(...names);
+    admittedTools.push(...names,...nativeDocumentNames);
     providerTransport?.configureTools?.(admittedTools);
   }
   if(resetBusinessContext){
@@ -557,7 +561,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{
       await authorize(...args);if(nativeBusiness||medusaEnterprise)await revalidateFactoryContext(contextMessages(),session.model,lifecycleSignal);
       if(onBusinessFactsDisclosure)await onBusinessFactsDisclosure({nativeSessionId:manager.getSessionId(),phase:'final:deliver',modelCalls,
-        receiver:{provider:session.model.provider,id:session.model.id,baseUrl:session.model.baseUrl}},lifecycleSignal);
+        receiver:{provider:session.model.provider,id:session.model.id,baseUrl:session.model.baseUrl},...(nativeDocumentClient?{messages:contextMessages(),context:contextMessages()}: {})},lifecycleSignal);
     },
     async close() { return closePromise ??= (async () => { try { await session.dispose(); } finally { await cleanup(); } })(); } };
   } catch (error) {

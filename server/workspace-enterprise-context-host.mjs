@@ -5,12 +5,14 @@ import {createEnterpriseContextClient,createDoclingSourceReader} from '../plugin
 import {libraryReadHash as hash,normalizeLibraryRecipient,libraryRecipientForModel} from './library-model-read-contract.mjs';
 import {looksLikeCredential} from './security.mjs';
 import {assertNoKnownCredentialEcho} from '../plugins/workspace-enterprise-context/src/credential-echo.mjs';
-const brands=new WeakSet(),factReaderBrands=new WeakSet(),fail=code=>{throw Object.assign(Error(code),{code});};
+import {createNativeDocumentTools} from './workspace-native-document-tools.mjs';
+const brands=new WeakSet(),factReaderBrands=new WeakSet(),factViewBrands=new WeakSet(),fail=code=>{throw Object.assign(Error(code),{code});};
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const fixed={plugin:'workspace-enterprise-context-oss',visibility:'internal',canonicalFacts:'Workspace Library',externalActions:false};
 const assetOf=input=>({artifactId:input.artifactId,version:input.version,sha256:input.sha256});
 export function assertEnterpriseContextHost(value){if(!brands.has(value))fail('OSS_ORIGINAL_HOST_REQUIRED');}
 export function assertEnterpriseMemoryFactReader(value){if(!factReaderBrands.has(value))fail('OSS_ORIGINAL_MEMORY_READER_REQUIRED');}
+export function assertEnterpriseMemoryFactView(value){if(!factViewBrands.has(value))fail('OSS_ORIGINAL_MEMORY_VIEW_REQUIRED');}
 export async function createEnterpriseContextSessionBinding({identity,access,instanceId,sessionClient,libraryModelRead,artifacts,store,
   recipient:rawRecipient,selection,connection={},authorizeParserTransfer,memoryLedger=null,turnContext=null,clock=Date.now}={}){
  if(access?.mode!=='enterprise'||!identity?.sessionId||!sessionClient?.readOnlySession||!instanceId)fail('OSS_ORIGINAL_HOST_REQUIRED');
@@ -45,19 +47,8 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
  const parserRecipient=docling?Object.freeze({kind:'docling',destination:new URL('/v1/convert/file',connection.baseURL).href}):null;
  const scopeHash=hash({instanceId,sessionId:identity.sessionId,workspaceId:identity.workspaceId,subject:identity.subject,selection:selected,recipient,
   libraryScope:authority?.authorization.scopeFingerprint||'unconfigured',doclingOrigin:docling?new URL(connection.baseURL).origin:null,parserRecipient,parserPurpose,parserTransfer});
+ const actor={subject:identity.subject,role:identity.role,workspaceId:identity.workspaceId};
  const memoryMethods=memoryLedger&&docling&&authority?['structuredMemoryLookup','structuredMemoryRemember'].filter(method=>selected[method==='structuredMemoryLookup'?'allowMemoryRead':'allowMemoryWrite']===true):[];
- const binding={scopeHash,memoryMethods,describe:()=>({scopeHash,configured:Boolean(docling&&authority),memoryMethods}),open(nativeSessionId,turn=turnContext){
-  if(typeof nativeSessionId!=='string'||!nativeSessionId)fail('OSS_NATIVE_SESSION_REQUIRED');
-  const observed=new Map();let conversions=0;
-  const key=proof=>hash(proof);
-  const actor={subject:identity.subject,role:identity.role,workspaceId:identity.workspaceId};
-  function turnCurrent(state=store.read()){
-   const run=state.runs.find(row=>row.id===turn?.runId),conversation=state.conversations.find(row=>row.id===turn?.conversationId);
-   if(!turn||run?.status!=='running'||run.conversationId!==conversation?.id||conversation.activeRunId!==run.id
-    ||run.requestId!==turn.requestId||run.businessAgentContext?.sessionId!==identity.sessionId
-    ||run.businessAgentContext?.role!==identity.role||conversation.businessAgentOwner?.subject!==identity.subject||conversation.businessAgentOwner?.workspaceId!==identity.workspaceId
-    ||run.businessAgentContext?.subject!==identity.subject||run.businessAgentContext?.workspaceId!==identity.workspaceId)fail('OSS_ORIGINAL_RUN_CHANGED');
-  }
   function safe(value){assertNoKnownCredentialEcho(value,[connection.apiKey]);if(looksLikeCredential(JSON.stringify(value)))fail('OSS_CACHED_CONTEXT_CREDENTIAL');}
   function memoryMac(value){return createHmac('sha256',connection.apiKey).update('enterprise-private-screen-v1\0'+hash(value)).digest('hex');}
   function sealMemory(value){safe(value);return {policy:'known-docling-credential-v1',mac:memoryMac(value)};}
@@ -76,6 +67,92 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
   function queryOf(input){
    if(!input||['subjectType','subjectId','factKey'].some(k=>typeof input[k]!=='string'||!/^[A-Za-z0-9._@:+|/-]{1,128}$/.test(input[k])))fail('OSS_STRUCTURED_MEMORY_INPUT_INVALID');
    return Object.fromEntries(['subjectType','subjectId','factKey'].map(k=>[k,input[k]]));
+  }
+  function factQueries(queries){
+   if(!Array.isArray(queries)||!queries.length||queries.length>8)fail('OSS_MEMORY_FACT_SELECTION_REQUIRED');
+   const exact=queries.map(input=>{
+    if(!input||Object.keys(input).sort().join(',')!=='factKey,subjectId,subjectType')fail('OSS_MEMORY_FACT_SELECTION_REQUIRED');
+    return queryOf(input);
+   });
+   if(new Set(exact.map(hash)).size!==exact.length)fail('OSS_MEMORY_FACT_SELECTION_REQUIRED');
+   return exact;
+  }
+  function projectMemory(memory){
+   if(!memory)return null;
+   const {credentialScreening,...source}=memory.source;
+   return {id:memory.id,revision:memory.revision,subjectType:memory.subjectType,subjectId:memory.subjectId,factKey:memory.factKey,
+    statement:memory.statement,source:structuredClone(source),updatedAt:memory.updatedAt,expiresAt:memory.expiresAt};
+  }
+  function assertSessionSourcesCurrent(receiver,signal){
+   signal?.throwIfAborted();
+   const live=access.nativeSessionById(identity.sessionId);
+   if(!live||live.subject!==identity.subject||live.role!==identity.role||live.workspaceId!==identity.workspaceId||hash(libraryRecipientForModel(receiver))!==recipientHash)fail('OSS_SESSION_REVOKED');
+   if(authority)for(const pin of selected.sources){const source=sourceFor(pin.asset,signal);if(source.authorization.scopeFingerprint!==authority.authorization.scopeFingerprint)fail('OSS_LIBRARY_SCOPE_CHANGED');}
+  }
+  async function sourceCurrent(asset,signal,receiver,{bytes=false}={}){
+   await current(receiver,signal);const grant=sourceFor(asset,signal);
+   if(grant.authorization.scopeFingerprint!==authority?.authorization.scopeFingerprint)fail('OSS_LIBRARY_SCOPE_CHANGED');
+   if(bytes){const file=await artifacts.download(asset.artifactId,{version:asset.version});
+    if(file.version.sha256!==asset.sha256||digest(file.bytes)!==asset.sha256)fail('OSS_SOURCE_VERSION_CHANGED');
+    await current(receiver,signal);sourceFor(asset,signal);
+   }return grant;
+  }
+ const binding={scopeHash,memoryMethods,describe:()=>({scopeHash,configured:Boolean(docling&&authority),memoryMethods}),
+  // Human GET projection only: no Run fabrication, parser, write method or
+  // model-reader brand. The original execution control below is unchanged.
+  conversationFacts(nativeSessionId,{conversationId,bindingFingerprint},queries){
+   if(!memoryMethods.includes('structuredMemoryLookup'))fail('OSS_STRUCTURED_MEMORY_NOT_AUTHORIZED');
+   const exact=factQueries(queries),readerScope=hash({scopeHash,nativeSessionId,queries:exact}),snapshots=new Map();
+   const mappingHash=hash(store.read().conversations.find(row=>row.id===conversationId)?.businessAgentSession||null);
+   const selectedQuery=input=>{const query=queryOf(input);if(!exact.some(row=>hash(row)===hash(query)))fail('OSS_MEMORY_FACT_NOT_SELECTED');return query;};
+   function viewCurrent(receiver,signal,state=store.read()){
+    assertSessionSourcesCurrent(receiver,signal);
+    const conversation=state.conversations.find(row=>row.id===conversationId),saved=conversation?.businessAgentSession;
+    if(!conversation||conversation.workspaceId!==identity.workspaceId||conversation.businessAgentOwner?.subject!==identity.subject
+     ||conversation.businessAgentOwner?.workspaceId!==identity.workspaceId||saved?.agentSessionId!==nativeSessionId
+     ||saved.engineScope!=='omp:18.10.4:business-v1'||saved.recipientFingerprint!==recipientHash
+     ||!/^[a-f0-9]{64}$/.test(bindingFingerprint||'')||saved.bindingFingerprint!==bindingFingerprint
+     ||saved.brainMemoryFactsScopeHash!==readerScope||hash(saved)!==mappingHash)fail('OSS_ORIGINAL_CONVERSATION_CHANGED');
+   }
+   function observedCurrent(state=store.read()){
+    for(const [key,memory]of snapshots){
+     if(memory){const row=checkMemory(memory,state);if(row.status!=='active'||hash(row)!==hash(memory))fail('OSS_MEMORY_FACT_CHANGED');}
+     else {const query=exact.find(row=>hash(row)===key);if(state.businessLibrary.enterpriseMemories.some(row=>row.workspaceId===identity.workspaceId&&row.status==='active'&&row.audience==='internal'&&Object.entries(query).every(([k,v])=>row[k]===v)))fail('OSS_MEMORY_FACT_CHANGED');}
+    }
+   }
+   const reader={scopeHash:readerScope,queries:()=>structuredClone(exact),
+    assertBinding(value,signal){
+     if(value?.uiRead!==true||value.runId!==null||value.canSubmit!==false||value.uiWrite!==false
+      ||value.nativeSessionId!==nativeSessionId||value.conversationId!==conversationId
+      ||['sessionId','subject','workspaceId','role'].some(key=>value.identity?.[key]!==identity[key]))fail('OSS_ORIGINAL_MEMORY_VIEW_REQUIRED');
+     viewCurrent(value.receiver,signal);observedCurrent();return true;
+    },
+    async lookup(input,signal,receiver){
+     const query=selectedQuery(input);viewCurrent(receiver,signal);await current(receiver,signal);viewCurrent(receiver,signal);
+     const result=await memoryLedger.lookup({audience:'internal',...query},{actor,signal});
+     for(const pin of selected.sources)await sourceCurrent(pin.asset,signal,receiver,{bytes:true});
+     viewCurrent(receiver,signal);
+     snapshots.set(hash(query),result.found?structuredClone(result.memory):null);observedCurrent();
+     if(!result.found)return {found:false};
+     return {found:true,memory:projectMemory(result.memory)};
+    },
+    current(input,expected,{state=store.read(),receiver,signal}={}){
+     const query=selectedQuery(input),memory=snapshots.get(hash(query));viewCurrent(receiver,signal,state);
+     if(!memory||hash(projectMemory(memory))!==hash(expected))fail('OSS_MEMORY_FACT_CHANGED');
+     const row=checkMemory(memory,state);if(row.status!=='active'||hash(row)!==hash(memory))fail('OSS_MEMORY_FACT_CHANGED');
+     return projectMemory(memory);
+    },
+   };viewCurrent(model);factViewBrands.add(reader);return Object.freeze(reader);
+  },open(nativeSessionId,turn=turnContext){
+  if(typeof nativeSessionId!=='string'||!nativeSessionId)fail('OSS_NATIVE_SESSION_REQUIRED');
+  const observed=new Map();let conversions=0;
+  const key=proof=>hash(proof);
+  function turnCurrent(state=store.read()){
+   const run=state.runs.find(row=>row.id===turn?.runId),conversation=state.conversations.find(row=>row.id===turn?.conversationId);
+   if(!turn||run?.status!=='running'||run.conversationId!==conversation?.id||conversation.activeRunId!==run.id
+    ||run.requestId!==turn.requestId||run.businessAgentContext?.sessionId!==identity.sessionId
+    ||run.businessAgentContext?.role!==identity.role||conversation.businessAgentOwner?.subject!==identity.subject||conversation.businessAgentOwner?.workspaceId!==identity.workspaceId
+    ||run.businessAgentContext?.subject!==identity.subject||run.businessAgentContext?.workspaceId!==identity.workspaceId)fail('OSS_ORIGINAL_RUN_CHANGED');
   }
   function memoryProofMac(proof){const {credentialScreening,...payload}=proof;return createHmac('sha256',connection.apiKey).update('workspace-structured-memory-screen-v1\0'+hash(payload)).digest('hex');}
   function checkMemoryProof(proof){
@@ -103,14 +180,6 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
    const sources=selected.sources.map(pin=>{const source=sourceFor(pin.asset);return {documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset:pin.asset};});
    const proof={kind:'memory',operation,query,...(statement===undefined?{}:{statement}),memory:result.memory||null,source:sources[0],sources,bodyHash:hash(body),scopeHash,nativeSessionId};
    proof.credentialScreening={policy:'known-docling-credential-v1',mac:memoryProofMac(proof)};observe(proof);return {...body,authorization:proof};
-  }
-  async function sourceCurrent(asset,signal,receiver,{bytes=false}={}){
-   await current(receiver,signal);const grant=sourceFor(asset,signal);
-   if(grant.authorization.scopeFingerprint!==authority?.authorization.scopeFingerprint)fail('OSS_LIBRARY_SCOPE_CHANGED');
-   if(bytes){const file=await artifacts.download(asset.artifactId,{version:asset.version});
-    if(file.version.sha256!==asset.sha256||digest(file.bytes)!==asset.sha256)fail('OSS_SOURCE_VERSION_CHANGED');
-    await current(receiver,signal);sourceFor(asset,signal);
-   }return grant;
   }
   // Selective reuse of checkParserGrant/verify semantics from PR87
   // b7bd2410a623a9d7ec654a0a826ac3778cae64c3:
@@ -178,30 +247,24 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
   // This does not validate or erase observations; the full final gate below
   // still checks every provided and previously observed memory proof.
   function assertContextCurrent(receiver,signal){
-   signal?.throwIfAborted();
-   const live=access.nativeSessionById(identity.sessionId);
-   if(!live||live.subject!==identity.subject||live.role!==identity.role||live.workspaceId!==identity.workspaceId||hash(libraryRecipientForModel(receiver))!==recipientHash)fail('OSS_SESSION_REVOKED');
-   if(authority)for(const pin of selected.sources){const source=sourceFor(pin.asset,signal);if(source.authorization.scopeFingerprint!==authority.authorization.scopeFingerprint)fail('OSS_LIBRARY_SCOPE_CHANGED');}
+   assertSessionSourcesCurrent(receiver,signal);
    if(memoryMethods.length)turnCurrent();
   }
   const control={async authorizeContext(signal,receiver){await current(receiver,signal);if(authority)for(const pin of selected.sources)await sourceCurrent(pin.asset,signal,receiver);},
+   // Initial trusted business capability only. The RPC client cannot construct
+   // this facade, broaden its keys, reopen the control or select a profile.
+   documentTools(queries){
+    if(!memoryMethods.includes('structuredMemoryRemember'))fail('OSS_STRUCTURED_MEMORY_WRITE_NOT_AUTHORIZED');
+    const reader=control.readOnlyFacts(queries);
+    return createNativeDocumentTools(control,reader.queries());
+   },
    // Trusted in-process capability only. This method is deliberately absent
    // from the enterprise RPC/client and never enables a plugin or new grant.
    readOnlyFacts(queries){
     if(!memoryMethods.includes('structuredMemoryLookup'))fail('OSS_STRUCTURED_MEMORY_NOT_AUTHORIZED');
-    if(!Array.isArray(queries)||!queries.length||queries.length>8)fail('OSS_MEMORY_FACT_SELECTION_REQUIRED');
-    const exact=queries.map(input=>{
-     if(!input||Object.keys(input).sort().join(',')!=='factKey,subjectId,subjectType')fail('OSS_MEMORY_FACT_SELECTION_REQUIRED');
-     return queryOf(input);
-    });
+    const exact=factQueries(queries);
     const selectedQueries=new Map(exact.map(query=>[hash(query),query]));
-    if(selectedQueries.size!==exact.length)fail('OSS_MEMORY_FACT_SELECTION_REQUIRED');
-    const proofs=new Map(),project=memory=>{
-     if(!memory)return null;
-     const {credentialScreening,...source}=memory.source;
-     return {id:memory.id,revision:memory.revision,subjectType:memory.subjectType,subjectId:memory.subjectId,factKey:memory.factKey,
-      statement:memory.statement,source:structuredClone(source),updatedAt:memory.updatedAt,expiresAt:memory.expiresAt};
-    };
+    const proofs=new Map(),project=projectMemory;
     const selectedQuery=input=>{const query=queryOf(input);if(!selectedQueries.has(hash(query)))fail('OSS_MEMORY_FACT_NOT_SELECTED');return query;};
     const reader={scopeHash:hash({scopeHash,nativeSessionId,queries:exact}),queries:()=>structuredClone(exact),
      assertBinding(value,signal){

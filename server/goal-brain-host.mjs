@@ -3,7 +3,7 @@ import { createArtifactBrainRepository } from '../plugins/workspace-goal-intelli
 import { clone, digest, fail, same } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
 import { libraryReadHash, libraryRecipientForModel } from './library-model-read-contract.mjs';
 import { looksLikeCredential } from './security.mjs';
-import { assertEnterpriseMemoryFactReader } from './workspace-enterprise-context-host.mjs';
+import { assertEnterpriseMemoryFactReader, assertEnterpriseMemoryFactView } from './workspace-enterprise-context-host.mjs';
 
 const own = (value, allowed) => value !== null && typeof value === 'object' && !Array.isArray(value)
   && Object.keys(value).every(key => allowed.includes(key));
@@ -67,14 +67,14 @@ export function createGoalBrainHost({ store, artifacts, access, libraryModelRead
       capabilities: clone(policy.capabilities), deadline: null,
     };
   }
-  function bind({ identity, conversationId, runId = null, canSubmit = false, uiWrite = false, memoryFacts = null, nativeSessionId = null, signal } = {}) {
+  function bind({ identity, conversationId, runId = null, canSubmit = false, uiWrite = false, uiRead = false, memoryFacts = null, nativeSessionId = null, signal } = {}) {
     checkIdentity(identity, conversationId, uiWrite === true);
     const selection = libraryModelRead.businessBrainForSession({ identity, recipientHash: exactReceiverHash, signal });
     if (!selection?.assertCurrent || !selection?.scope) fail('BRAIN_ORIGINAL_LIBRARY_POLICY_REQUIRED');
     const scope = selection.scope;
     if (memoryFacts !== null) {
-      assertEnterpriseMemoryFactReader(memoryFacts);
-      memoryFacts.assertBinding({ identity, conversationId, runId, nativeSessionId, receiver: originalReceiver }, signal);
+      if(uiRead)assertEnterpriseMemoryFactView(memoryFacts);else assertEnterpriseMemoryFactReader(memoryFacts);
+      memoryFacts.assertBinding({ identity, conversationId, runId, nativeSessionId, receiver: originalReceiver, uiRead, canSubmit, uiWrite }, signal);
     }
     const factQueries = new Map((memoryFacts?.queries() || []).map(query => [`fact:${libraryReadHash(query)}`, query]));
     const factSnapshots = new Map();
@@ -87,7 +87,7 @@ export function createGoalBrainHost({ store, artifacts, access, libraryModelRead
       signal?.throwIfAborted();
       checkIdentity(identity, conversationId, write);
       selection.assertCurrent();
-      memoryFacts?.assertBinding({ identity, conversationId, runId, nativeSessionId, receiver: originalReceiver }, signal);
+      memoryFacts?.assertBinding({ identity, conversationId, runId, nativeSessionId, receiver: originalReceiver, uiRead, canSubmit, uiWrite }, signal);
       if (write) {
         const memoryWrite = ['context.save', 'decision.save', 'review.save', 'feedback.save', 'brain.repository.write'].includes(operation);
         const uiMemoryWrite = ['review.save', 'feedback.save'].includes(operation);

@@ -191,9 +191,10 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
     } catch (error) { setFailedSubmission(true); if (revision === navigationRevision.current) setDraft(content); notify(errorText(error), true); await refresh(true); if (submission) throw error; }
     finally { sendingRef.current = false; setBusy(false); if (revision === navigationRevision.current) inputRef.current?.focus(); }
   }
-  async function startBrainPrompt(content: string) {
+  async function startBrainPrompt(content: string, conversationId?: string) {
     if (readOnly || !content.trim() || busy || mutationLock.current || sendingRef.current) return;
-    let main: Conversation | undefined = conversations[0];
+    let main: Conversation | undefined = conversationId ? conversations.find(item => item.id === conversationId) : conversations[0];
+    if (conversationId && !main) { notify('原会话当前不可用，请重新选择会话', true); return; }
     if (!main) {
       const created = await mutate<{ conversation: Conversation }>('/conversations', 'POST', { title: '经营大脑', inputContext: emptyInputContext(), requestId: requestId() });
       main = created?.conversation;
@@ -214,12 +215,13 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
     }
   }
 
-  async function startBrainGoal(card: import('./experience/BusinessBrainHome').PulseCard) {
+  async function startBrainGoal(card: import('./experience/BusinessBrainHome').PulseCard, conversationId?: string) {
     if (readOnly || busy || mutationLock.current || sendingRef.current) return;
-    const key = card.id;
+    const key = `${conversationId || 'new'}:${card.id}`;
     const request = pendingBrainGoalRef.current.get(key) || requestId();
     pendingBrainGoalRef.current.set(key, request);
-    let main: Conversation | undefined = conversations[0];
+    let main: Conversation | undefined = conversationId ? conversations.find(item => item.id === conversationId) : conversations[0];
+    if (conversationId && !main) { notify('原会话当前不可用，请重新选择会话', true); return; }
     if (!main) {
       const created = await mutate<{ conversation: Conversation }>('/conversations', 'POST', {
         title: '经营大脑',
@@ -313,7 +315,7 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
       </> : <>
         {!['home', 'workers'].includes(route.page) && <header className="page-mobile-header"><span>{pageLabels[route.page]}</span><span className="workspace-wordmark">WORKSPACE</span></header>}
         <div className={`page-content page-${route.page}`}>
-          {route.page === 'home' && <BusinessBrainHome data={data} loading={loading} readOnly={readOnly} onStartAnalysis={value => void startBrainPrompt(value)} onStartGoal={card => void startBrainGoal(card)} onOpenGoal={goal => navigate('goals', goal.id)} onNavigate={page => navigate(page)} />}
+          {route.page === 'home' && <BusinessBrainHome data={data} loading={loading} readOnly={readOnly} onStartAnalysis={(value, conversationId) => void startBrainPrompt(value, conversationId)} onStartGoal={(card, conversationId) => void startBrainGoal(card, conversationId)} onOpenGoal={goal => navigate('goals', goal.id)} onContinueConversation={conversationId => navigate('chat', conversationId)} onNavigate={page => navigate(page)} />}
 
           {selectedGoal && <><GoalFocus key={selectedGoal.id} goal={selectedGoal} runtime={data?.runtime} runs={(data?.runs || []).filter(run => run.conversationId === selectedGoal.conversationId)} artifacts={data?.artifacts || []} messages={(data?.messages || []).filter(message => message.conversationId === selectedGoal.conversationId)} activity={data?.activity || []} working={busy} readOnly={readOnly} onBack={() => navigate('chat', selectedGoal.conversationId)} onStart={() => void goalAction(selectedGoal, selectedGoal.status === 'draft' ? 'start' : 'resume')} onPause={() => void goalAction(selectedGoal, 'pause')} onReview={() => setDialog({ type: 'goal-details' })} onApproval={() => navigate('chat', selectedGoal.conversationId)} onReferences={() => selectedGoal.conversationId && setDialog({ type: 'references', conversationId: selectedGoal.conversationId })} onInputs={() => setDialog({ type: 'context', conversationId: selectedGoal.conversationId, goalId: selectedGoal.id })} inputLabel={inputSummary(selectedGoal.inputContext || data?.conversations.find(item => item.id === selectedGoal.conversationId)?.inputContext)} onRetry={item => void retryTaskRun(item)} runCards={data && (data.runs || []).filter(run => run.conversationId === selectedGoal.conversationId).map(run => <TaskRunCard key={run.id} run={run} data={data} role={session.user?.role || 'viewer'} busy={busy} onDecision={(item, proposalId, decision) => void runDecision(item, proposalId, decision)} onResume={item => void resumeRun(item)} onRetry={item => void retryTaskRun(item)} onCancel={item => void mutate(`/runs/${item.id}/cancel`, 'POST', {})}/>)} revision={data?.meta?.sequence || 0} onChannels={() => navigate('commerce')} onCommerceProject={id => navigate('commerce', id)} onResearchOrder={id => navigate('services', id)} onRuntime={() => setDialog({ type: 'settings' })} onFollowup={async content => {
             if (!selectedGoal.conversationId) return false;
