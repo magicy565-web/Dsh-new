@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
-import { loopbackOrigin, retainedProductCheck } from '../scripts/medusa-catalog-interactive-smoke.mjs';
+import { loopbackOrigin, retainedProductCheck, productCreatePayload, validationFields } from '../scripts/medusa-catalog-interactive-smoke.mjs';
 const email='operator@example.test', password='synthetic-only-password', token='synthetic-only-native-token';
 async function fixture(t, mode='normal', abort) {
   const calls=[]; let product;
@@ -18,6 +18,7 @@ async function fixture(t, mode='normal', abort) {
     }
     if(req.headers.authorization!=='Bearer '+token)return send(401,{});
     if(req.url==='/admin/products'&&req.method==='POST') {
+      if(mode==='http400')return send(400,{type:'invalid_data',message:'Product options are not provided for: ['+email+password+token+'].'});
       product={...body,id:'prod_acceptance123'};if(mode==='foreign-create')product.metadata={};return send(200,{product});
     }
     if(req.url.startsWith('/admin/products/prod_acceptance123?')&&req.method==='GET') {
@@ -36,10 +37,25 @@ test('retained API subset creates and edits only its own synthetic draft, reread
   assert.equal(r.ok,true);assert.equal(r.retained,true);assert.equal(r.checks.length,5);
   assert.equal(f.calls.length,5);assert.deepEqual(f.calls.map(c=>c.method),['POST','POST','GET','POST','GET']);
   assert.equal(f.calls[1].body.status,'draft');assert.equal(f.calls[1].body.metadata.synthetic,true);
+  assert.deepEqual(f.calls[1].body,productCreatePayload(r.marker));
+  assert.deepEqual(f.calls[1].body.options,[{title:'Acceptance',values:['Synthetic']}]);assert.deepEqual(f.calls[1].body.variants,[]);
+  assert.deepEqual(r.requests.map(q=>q.httpStatus),[200,200,200,200,200]);
   assert.deepEqual(Object.keys(f.calls[3].body).sort(),['subtitle','title']);
   assert.equal(f.product().id,r.productId);assert.equal(f.product().handle,r.marker);assert.equal(f.product().status,'draft');
   assert.equal(r.clientUseWindowSeconds,120);assert.equal(r.serverTokenExpiry,'unchanged');
   for(const value of [email,password,token])assert.ok(!JSON.stringify(r).includes(value));
+});
+test('HTTP failure reports status and only fixed validation fields without retry or assuming no write',async t=>{
+  const f=await fixture(t,'http400'),r=await retainedProductCheck({...f,email,password});
+  assert.equal(r.ok,false);assert.equal(f.calls.length,2);assert.equal(r.creation,'unknown');
+  assert.deepEqual(r.requests,[{stage:'authentication',httpStatus:200},{stage:'create',httpStatus:400}]);
+  assert.deepEqual(r.failure,{stage:'create',httpStatus:400,kind:'http_rejected',validationFields:['options']});
+  for(const value of [email,password,token,encodeURIComponent(password),Buffer.from(password).toString('base64')])assert.ok(!JSON.stringify(r).includes(value));
+});
+test('validation diagnostic allowlists root fields rather than echoing untrusted issue paths or messages',()=>{
+  assert.deepEqual(validationFields({issues:[{path:[password]},{path:['options',0,'title']},{path:['variants',0,'prices']}],message:"Field 'status' is required; Field '"+token+"' is required"}),['options','status','variants']);
+  assert.deepEqual(validationFields({message:"Expected type for field 'options, 0, title', got private value"}),['options']);
+  assert.deepEqual(validationFields({message:password+token}),[]);
 });
 for(const mode of ['auth-fail','mfa','redirect','foreign-create','foreign-read','cancel'])test(mode+' refuses without further writes and never emits a response credential',async t=>{
   const abort=new AbortController(),f=await fixture(t,mode,abort),r=await retainedProductCheck({...f,email,password,signal:abort.signal});
