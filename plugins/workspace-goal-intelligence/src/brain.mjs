@@ -76,9 +76,12 @@ export function createBusinessBrain(options = {}) {
     const e = row.value;
     if (e.schema !== 1 || e.workspaceId !== binding.workspaceId || e.kind !== kind || e.key !== row.key
       || !Number.isSafeInteger(e.revision) || e.revision < 1 || !same(e.flags, flags)
-      || Object.keys(e).some(k => !['schema','workspaceId','kind','key','revision','createdAt','updatedAt','authoredBy','originConversationId','lastRequest','payload','flags',...(kind === 'context' ? ['contextLineage'] : [])].includes(k))) fail('BRAIN_RECORD_INVALID');
+      || Object.keys(e).some(k => !['schema','workspaceId','kind','key','revision','createdAt','updatedAt','authoredBy','originConversationId','lastRequest','payload','flags',...(kind === 'context' ? ['contextLineage'] : kind === 'decision' ? ['decisionLineage'] : [])].includes(k))) fail('BRAIN_RECORD_INVALID');
     if (e.contextLineage !== undefined && (!e.contextLineage || Object.keys(e.contextLineage).sort().join(',') !== 'bindingHash,previousRef'
       || !/^[a-f0-9]{64}$/.test(e.contextLineage.bindingHash))) fail('BRAIN_RECORD_INVALID');
+    if (e.decisionLineage !== undefined && (!e.decisionLineage
+      || Object.keys(e.decisionLineage).sort().join(',') !== 'bindingHash,contextRef,previousRef'
+      || !/^[a-f0-9]{64}$/.test(e.decisionLineage.bindingHash) || !e.decisionLineage.contextRef)) fail('BRAIN_RECORD_INVALID');
     timestamp(e.createdAt); timestamp(e.updatedAt);
     validate(kind === 'feedback' ? FEEDBACK_SCHEMA : INPUTS[`${kind}Save`], e.payload);
     if (typeof e.lastRequest?.id !== 'string' || e.lastRequest.fingerprint !== digest(e.payload)) fail('BRAIN_RECORD_INVALID');
@@ -171,7 +174,8 @@ export function createBusinessBrain(options = {}) {
       revision: input.expectedRevision + 1, createdAt: existing?.value.createdAt ?? time, updatedAt: time,
       authoredBy: binding.subject, originConversationId: binding.conversationId,
       lastRequest: { id: input.requestId, fingerprint }, payload: input, flags,
-      ...(kind === 'context' ? {contextLineage: {bindingHash, previousRef: existing?.ref ?? null}} : {}) };
+      ...(kind === 'context' ? {contextLineage: {bindingHash, previousRef: existing?.ref ?? null}} : {}),
+      ...(kind === 'decision' ? {decisionLineage: {bindingHash, previousRef: existing?.ref ?? null, contextRef: clone(dependencies.find(d => d.key === 'context')?.ref)}} : {}) };
     await gate(`${kind}.save`, receiver, signal);
     const row = await repository.commit({ key, expectedRef: existing?.ref ?? null, value, dependencies,
       check(state) {
@@ -365,6 +369,38 @@ export function createBusinessBrain(options = {}) {
     await gate('context.validate', receiver, signal);
     return true;
   }
+  async function revalidatePriorDecision(received, receiver, signal) {
+    if (!repository.getVersion || !received.recordRef) fail('BRAIN_CACHE_REFUSED');
+    const current = await decisionState(received.id, receiver, signal);
+    const contextRef = clone(current.context.row.ref), latestRef = clone(current.row.ref);
+    let row = current.row, found = false;
+    // A decision successor is authorized only within this exact original
+    // context Artifact version. Context edits never silently repair old decisions.
+    for (let count = 0; count < 32; count++) {
+      validateEnvelope(row, 'decision');
+      if (same(received.recordRef, {key: row.key, ...row.ref, recordRevision: row.value.revision})) { found = true; break; }
+      const lineage = row.value.decisionLineage;
+      if (!lineage || lineage.bindingHash !== bindingHash || !same(lineage.contextRef, contextRef)
+        || row.value.authoredBy !== binding.subject || row.value.originConversationId !== binding.conversationId
+        || !lineage.previousRef) fail('BRAIN_CACHE_REFUSED');
+      const previous = await repository.getVersion(row.key, lineage.previousRef);
+      if (previous.ref.artifactId !== row.ref.artifactId || previous.ref.version + 1 !== row.ref.version
+        || previous.ref.revision + 1 !== row.ref.revision || previous.value.revision + 1 !== row.value.revision
+        || row.value.payload.expectedRevision !== previous.value.revision) fail('BRAIN_CACHE_REFUSED');
+      row = previous;
+    }
+    if (!found) fail('BRAIN_CACHE_REFUSED');
+    const d = row.value.payload, context = current.context.row.value;
+    if (d.id !== received.id || d.contextRevision !== context.revision || !context.payload.goalIds.includes(d.goalId)) fail('BRAIN_CONTEXT_CHANGED');
+    const captured = await capture(mergeSources(context.payload.sourceRefs, d.sourceRefs), [d.goalId], receiver, signal);
+    const historical = receipt('decision', received.id, row, {decision: row.value, ...captured,
+      evaluations: d.options.map(option => evaluateOption(option, captured.goals[0]))});
+    if (!same(received, historical)) fail('BRAIN_CACHE_REFUSED');
+    const final = await decisionState(received.id, receiver, signal);
+    if (!same(final.row.ref, latestRef) || !same(final.context.row.ref, contextRef)) fail('BRAIN_CACHE_REFUSED');
+    await gate('decision.read', receiver, signal, {id: received.id});
+    return true;
+  }
   async function revalidateReceipt(received, signal, receiver) {
     safeJson(received, 112 * 1024);
     if (received.plugin !== PLUGIN || received.bindingHash !== bindingHash) fail('BRAIN_CACHE_REFUSED');
@@ -378,6 +414,7 @@ export function createBusinessBrain(options = {}) {
     else fail('BRAIN_CACHE_REFUSED');
     if (!same(received, actual)) {
       if (received.kind === 'context') return revalidatePriorContext(received, receiver, signal);
+      if (received.kind === 'decision') return revalidatePriorDecision(received, receiver, signal);
       fail('BRAIN_CACHE_REFUSED');
     }
     return true;
