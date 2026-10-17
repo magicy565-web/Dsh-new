@@ -20,7 +20,7 @@ export function multiDraft(f) {
   return { ...common, options, variants: f.product.skus.map((s, i) => ({ sourceSkuId: s.id, skuCode: s.code, consumerPrice: `${10 + i}.25`,
     optionValues: s.specs.map(x => ({ name: x.key, value: x.value })), ...(i % 2 ? {} : { imageId: f.imageId }) })) };
 }
-export async function productFixture(t, { configured = true, policy: policyOption, host = false, nativeBusiness = false, pluginConfiguration = {}, appOptions = {}, onWorkerLifecycle, accessClock, skuCount = 0 } = {}) {
+export async function productFixture(t, { configured = true, policy: policyOption, host = false, nativeBusiness = false, pluginConfiguration = {}, appOptions = {}, onWorkerLifecycle, accessClock, skuCount = 0, brainGoal = false } = {}) {
   let fixtureTime = Date.now(); const clock = accessClock || (() => fixtureTime);
   const directory = await fs.mkdtemp('/tmp/shopify-product-'), remote = await fakeShopify(t), actor = { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' };
   const seed = await taskFixture(t, { directory, enterprise: true });
@@ -29,6 +29,14 @@ export async function productFixture(t, { configured = true, policy: policyOptio
   const product = (await seed.app.businessLibrary.createProduct({ requestId: randomUUID(), name: 'Original synthetic cup', description: 'Original synthetic material description.',
     ...(skuCount ? { skus: Array.from({ length: skuCount }, (_, i) => ({ id: randomUUID(), code: `CUP-${i}`, specs: [{ key: 'Color', value: i % 2 ? 'Blue' : 'Red' }, { key: 'Size', value: `Size-${Math.floor(i / 2)}` }] })) } : {}),
     images: [{ id: imageId, asset, alt: 'Explicit synthetic pixel', order: 0, isPrimary: true }] }, actor)).product;
+  let goal = null;
+  if (brainGoal) {
+    const owner = await seed.workspace('/api/conversations', {subject: actor.subject, body: {title: 'Synthetic reviewed Brain Goal', requestId: randomUUID(), inputContext: empty()}});
+    if (owner.status !== 201) throw Error(owner.text);
+    const created = await seed.workspace('/api/goals', {subject: actor.subject, body: {title: 'Synthetic investigate only', description: 'No external action or spending', conversationId: owner.json.conversation.id, requestId: randomUUID(), inputContext: empty()}});
+    if (created.status !== 201) throw Error(created.text);
+    goal = created.json.goal;
+  }
   await seed.app.close();
   const policy = { enabled: true, reviewed: true, workspaceId: actor.workspaceId, subject: actor.subject, expiresAt: '2099-01-01T00:00:00.000Z', recipient: RECIPIENT,
     company: null, products: [], productFields: ['name'], factoryMaterials: { products: [{ id: product.id, revision: 1 }], productFields: ['name', 'description', 'images', 'provenance', ...(skuCount ? ['skuSpecifications'] : [])], documents: [] } };
@@ -39,7 +47,8 @@ export async function productFixture(t, { configured = true, policy: policyOptio
     return new Response(r.bytes, { status: r.status, headers: { 'content-type': r.headers['content-type'] } });
   } });
   f = await taskFixture(t, { directory, enterprise: true, accessClock: clock, libraryModelReadPolicy: policyOption === null ? null : policyOption ? policyOption(policy) : policy,
-    appOptions: { capabilityEnvironment: environment, shopifyFetch: remote.fetchImpl, ...appOptions }, ...(host ? { businessAgentOptions: {
+    appOptions: { capabilityEnvironment: environment, shopifyFetch: remote.fetchImpl, ...appOptions,
+      ...(goal ? {goalBrainOptions: {originalReceiver: MODEL, reviewedGoals: [{id: goal.id, originalRevision: goal.revision, currency: 'USD', businessStatus: 'active', capabilities: ['analysis','draft','none'], budgetRemainingMinor: null, perTaskCapMinor: null, reviewed: true}]}} : {}) }, ...(host ? { businessAgentOptions: {
       recipient: RECIPIENT, engineAdapter: createWorkspaceOmpEngineAdapter({ paths: workspaceOmpPaths(), shopifyProduct: true, nativeBusiness, pluginConfiguration,
         configuration: { providerId: MODEL.provider, model: MODEL.id, baseUrl: MODEL.baseUrl }, syntheticResponses: steps, onWorkerLifecycle: e => { lifecycle.push(e); onWorkerLifecycle?.(e, f); } }),
       resolveBinding: async () => ({ client: originalClient(), model: MODEL }),
@@ -54,6 +63,6 @@ export async function productFixture(t, { configured = true, policy: policyOptio
     if (r.status !== 200) throw Error(r.text); return r.json;
   };
   const sourceHash = async () => { const m = await materials(); return libraryReadHash({ product: m.products[0], sources: m.sources, authorization: m.authorization }); };
-  return Object.assign(f, { actor, product, asset, imageId, policy, cid, remote, steps, lifecycle, materials, sourceHash,
+  return Object.assign(f, { actor, product, goal, asset, imageId, policy, cid, remote, steps, lifecycle, materials, sourceHash,
     advanceReviewMinute() { fixtureTime += 61000; } });
 }

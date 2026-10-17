@@ -399,6 +399,11 @@ export function createBusinessBrain(options = {}) {
     const final = await decisionState(received.id, receiver, signal);
     if (!same(final.row.ref, latestRef) || !same(final.context.row.ref, contextRef)) fail('BRAIN_CACHE_REFUSED');
     await gate('decision.read', receiver, signal, {id: received.id});
+    // The successor may have removed an old decision-only source. Recheck the
+    // historical dependencies after the final current-record reads as well.
+    if (await assertCurrent({binding: clone(binding), sourceRefs: mergeSources(context.payload.sourceRefs, d.sourceRefs),
+      goalIds: [d.goalId], sources: clone(captured.sources), goals: clone(captured.goals), receiver, signal}) !== true) fail('BRAIN_SOURCE_STALE');
+    cancelled(signal);
     return true;
   }
   async function revalidateReceipt(received, signal, receiver) {
