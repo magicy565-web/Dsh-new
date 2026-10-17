@@ -57,7 +57,7 @@ PR92：原 Library 是资料权威，Medusa 仅为内部 draft 的受限 title/d
 
 PR94：Medusa 原生 Product/Variant/Option/Collection/SalesChannel/Inventory 是独立产品管理权威；Product Context 是它自身的扩展资料。没有自动反写 Library，没有双向同步。它的独立 Agent token 读取面**未映射成原 OMP 权限**，不能用该 token 证明原 Session 的模型披露授权。
 
-`normalizeProduct` 保留 collection_id/sales_channels；`productEditPayload` 仅提交实际改动。读取投影缺少字段时省略写入；显式 null/[] 才代表清空。未修改规格不重写；单规格编辑仅发改动字段，不制造零价格或重置未读取的库存策略。smoke 的缺种子路径已改为 `ok:false` + `unconfigured`，不再将 skipped 计作 pass；本次未运行真实 smoke。
+以下编辑器单元/客户端测试不能替代完整 UI 和浏览器验收。`normalizeProduct` 保留 collection_id/sales_channels；`productEditPayload` 仅提交实际改动。读取投影缺少字段时省略写入；显式 null/[] 才代表清空。未修改规格不重写；单规格编辑仅发改动字段，不制造零价格或重置未读取的库存策略。smoke 的缺种子路径已改为 `ok:false` + `unconfigured`，不再将 skipped 计作 pass；本次未运行真实 smoke。
 
 ## 执行结果与复现
 
@@ -100,12 +100,39 @@ MEDUSA_DISABLE_TELEMETRY=1 npm --prefix packages/medusa-enterprise-product-conte
 
 OMP/Bun 的固定 support 包也须按各自 lockfile `npm ci --ignore-scripts`。没有运行 live smoke；不能把 loader 成功、SDK 替身或 skipped 当作真实连接成功。
 
-源码保存提交：`a996339c79956d14763219b7fd563f0949ee4eed`；[Draft PR #99](https://github.com/magicy565-web/workspace-agent/pull/99) 指向原开发基线分支，无 main 修改。后续收尾提交只补测试和验收说明。无运行正文的测试计数与原日志 SHA256 见 [验证摘要](validation/omp-all-plugins-20261017-summary.json)。
+源码保存提交：`a996339c79956d14763219b7fd563f0949ee4eed`；[Draft PR #99](https://github.com/magicy565-web/workspace-agent/pull/99) 指向原开发基线分支，无 main 修改。后续安全修复提交：`b4a069181554f64887a16fef2e4cb5c4bc8006f0`，包含发送边界、撤权重试、Brain 上下文继承及 Medusa 脱敏/编辑器修复。无运行正文的测试计数与原日志 SHA256 见 [验证摘要](validation/omp-all-plugins-20261017-summary.json)。
+
+## 截止前安全修复与增量验证
+
+本段覆盖 03:41 的历史状态，安全修复提交 `b4a069181554f64887a16fef2e4cb5c4bc8006f0`，最终写入回执修复提交 `0c96721a58518352417b1f3de8293998406fe9f0`。上表原 8 项 Host 测试中的 Brain 阻塞复现是历史证据；当前用例已改成成功连续保存及精确重试，未把旧预期失败冒充完成。
+
+- business profile 在 `onModelRequest` 后及官方 transport 实际 `Request.text()` 后重新验证原 Host 授权、原 journal 与实际将发送的来源投影。Node 原签名 Session + Bun 原 SDK 分进程测试：来源更新/签名 Session 撤权分别发生于两个窗口，四种情况模型 fetch 都为 0；正常控制为 1 次有限 SSE 替身。
+- DisclosurePolicy 的 already-revoked 返回不再跳过原 FGA tuple 删除。原 Store + 原 Policy + 原 OpenFGAClient + loopback FGA：首次删除 500，本地仍 durable revoked；重开 Store 后重复撤权成功删除 tuple，revision/history 不增加，读取始终拒绝。
+- Brain context 继承信息写入原 Artifact 的同一次 admission 事务。旧回执只可沿同 binding 的精确版本/SHA 继承链验证，读取真实历史 Artifact 字节；不修改旧回执、不重新签名、不放宽旧来源/Goal/撤权检查。原 Host 连续两次保存+同 requestId 重试成功，只有同一 Artifact 的两个版本。另验证空 context 后首次保存、来源/Goal 变化、异 binding 写入、撤权和移除旧来源后旧来源变化均保持原有边界。继承链有 32 步安全上限，超限拒绝；不声称无限连续写入。写入错误回执明确 `writeOutcome: unknown` / `retryWithNewRequest: false`；模拟原 Artifact 已保存后应答丢失，精确 requestId 重试返回 persisted=true 且版本不增加。
+- Medusa 模型 reconcile 只接收受控状态枚举，remote.product 为 null；服务也移除远端 title/description。远端 stale/not_draft 正文不会因为 Library 资料授权而获得模型披露权。原客户端与实际 SDK wire 测试明确检查 REMOTE_PRIVATE 标记不存在。
+- Medusa App 保存路径使用新的原编辑器 sanitizer：已有产品不自动重建规格 assignments、不补首选值、不修剪未修改规格。缺少/不匹配 option 的 UI 显示待选择或原值。真实 App 使用的 sanitizer + 原 client 测试只改标题时仅发 title patch，无 variant batch；完整浏览器交互仍未验收。
+
+| 增量执行组 | 结果 | 本地忽略日志 |
+| --- | --- | --- |
+| Brain/Medusa/业务原 Host | 161 passed / 0 failed / 0 skipped | integration-final-business.tap |
+| 上下文继承权限/未知写入回执 + Medusa 私有正文 | 15 passed / 0 failed / 0 skipped | integration-final-lineage-medusa.tap |
+| 原签名 Host + 实际 SDK 发送边界/Medusa wire | 6 passed / 0 failed / 0 skipped | integration-final-business-wire.tap |
+| 最终回执修复后原业务 Host + SDK wire 复验 | 14 passed / 0 failed / 0 skipped | integration-final-host-gap.tap |
+| 原 Policy/Store/FGA 撤权与记忆竞争 | 31 passed / 0 failed / 0 skipped | integration-final-revoke-retry.tap |
+| 原 enterprise SDK egress/压缩/恢复 + 统一入口 | 39 passed / 0 failed / 0 skipped | integration-final-egress-regression.tap |
+| Medusa 编辑 payload + 实际 editor sanitizer/client | 5 passed / 0 failed / 0 skipped | integration-final-medusa-editor.tap |
+| 14 插件 native build/pack；Medusa 编辑器 build | 通过 | integration-build-omp-safety-final.log / integration-final-medusa-editor-build.log |
+
+上述套件有交集。339 项大回归是前一源码检查点的结果，本轮修改后执行上列定向回归，没有谎称重新运行整个大套件。
+
+PR94 最新 HEAD `04325f4ddc9e50d569b3696bc4627fd359263723` 已 fetch 并只读核对实际 diff：新增容器验收配方、独立验收 app、迁移和 smoke 改写。本分支仍明确基于 `e3109b0` 选择性导入并自行修复 SDK；最新新增验收基础设施/迁移未导入、未执行，不声称完整对齐最新 PR94。上游 README 自身也标注 NOT live-accepted。
+
+父任务报告 GitHub Actions 38999750909、38999747216 为 `startup_failure`；本地通过不能替代远程 CI。该状态未在本环境独立重新查询，PR 仍 Draft。
 
 ## 仍未完成
 
 - 14 个插件全部同一个私有业务 Session 的可信 Host/披露组合尚未完成；现有 enterprise/free-trade/local/intake 等隔离边界保留。
 - Marketplace 私有模型披露桥、统一 UI 导航与原企业 Provider 身份配置未接通；只有显式 mount 源码及原 Host 替身验收。
 - Medusa Product Context 后端实际实例、数据库迁移、Agent 读取面与 OMP 授权映射未验收；没有创建或连接实例。
-- 真实模型、Docling、FGA、ERPNext、Shopify、Medusa、Stripe、外部 Muse/Worker 全部未配置或未调用。浏览器端完整交互验收未完成；DOM 回归不能替代真实浏览器和真实服务验收。Brain context 连续写入在新 business OMP profile 中存在已复现阻塞：首次原 Artifact 保存成功；第二次修改可已提交到同一 Artifact v2，但原 journal 的旧 context 回执随后失效，Run 拒绝交付。复现用例通过只证明此拒绝和不重复建记录，不能算连续写入完成；不得用新 requestId 自动重试。decision 连续写入仍未完成端到端验收。
+- 真实模型、Docling、FGA、ERPNext、Shopify、Medusa、Stripe、外部 Muse/Worker 全部未配置或未调用。浏览器端完整交互验收未完成；DOM 回归不能替代真实浏览器和真实服务验收。Brain context 连续写入阻塞已由下述原 Artifact 继承链修复；decision 连续写入仍未完成端到端验收。任何写入后披露失败都不能推断为未落盘，不得用新 requestId 自动重试。
 - 不修改/合并 main，不强推，不部署，不操作服务器，不付费，不读取/创建真实凭据，不扩大权限，不导入运行资料。

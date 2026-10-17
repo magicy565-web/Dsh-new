@@ -1,7 +1,7 @@
 {
   "schema": "workspace.plugin-source-acceptance-summary.v1",
-  "recordedAt": "2026-10-17T03:41:16.185482+00:00",
-  "sourceCommit": "a996339c79956d14763219b7fd563f0949ee4eed",
+  "recordedAt": "2026-10-17T03:53:25.929204+00:00",
+  "sourceCommit": "0c96721a58518352417b1f3de8293998406fe9f0",
   "handoffCommit": "f436123bf199b0308708594cc5660ce98d981f5f",
   "branch": "codex/omp-all-plugins-integration-20261017",
   "draftPR": 99,
@@ -24,7 +24,8 @@
       "pass": 339,
       "fail": 0,
       "cancelled": 0,
-      "skipped": 0
+      "skipped": 0,
+      "checkpoint": "historical-a996339c"
     },
     {
       "localLog": "integration-candidates-source-final.tap",
@@ -33,7 +34,8 @@
       "pass": 286,
       "fail": 0,
       "cancelled": 0,
-      "skipped": 0
+      "skipped": 0,
+      "checkpoint": "historical-a996339c"
     },
     {
       "localLog": "integration-shopify-seven-day.tap",
@@ -42,7 +44,8 @@
       "pass": 142,
       "fail": 0,
       "cancelled": 0,
-      "skipped": 0
+      "skipped": 0,
+      "checkpoint": "historical-a996339c"
     },
     {
       "localLog": "integration-remaining-plugins.tap",
@@ -51,7 +54,8 @@
       "pass": 122,
       "fail": 0,
       "cancelled": 0,
-      "skipped": 0
+      "skipped": 0,
+      "checkpoint": "historical-a996339c"
     },
     {
       "localLog": "integration-business-host-final.tap",
@@ -60,7 +64,8 @@
       "pass": 8,
       "fail": 0,
       "cancelled": 0,
-      "skipped": 0
+      "skipped": 0,
+      "checkpoint": "historical-a996339c"
     },
     {
       "localLog": "integration-marketplace-original-host.tap",
@@ -69,7 +74,8 @@
       "pass": 1,
       "fail": 0,
       "cancelled": 0,
-      "skipped": 0
+      "skipped": 0,
+      "checkpoint": "historical-a996339c"
     },
     {
       "localLog": "integration-conversation-dom-final.tap",
@@ -78,7 +84,8 @@
       "pass": 18,
       "fail": 0,
       "cancelled": 0,
-      "skipped": 0
+      "skipped": 0,
+      "checkpoint": "historical-a996339c"
     },
     {
       "localLog": "integration-medusa-plugin-contracts.tap",
@@ -87,14 +94,100 @@
       "pass": 4,
       "fail": 0,
       "cancelled": 0,
+      "skipped": 0,
+      "checkpoint": "historical-a996339c"
+    },
+    {
+      "localLog": "integration-final-business.tap",
+      "sha256": "0914f852f9fa1f5af67697d1981f5c796973995ff3d880ea2f516dd656249e1d",
+      "checkpoint": "b4a0691",
+      "tests": 161,
+      "pass": 161,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-final-business-wire.tap",
+      "sha256": "b2eeb7b6586e06940d86c38a669b75da3543903b49b499469b07a501fa592d07",
+      "checkpoint": "b4a0691",
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-final-revoke-retry.tap",
+      "sha256": "4b7f25be8ae18ee960597708e931eb7a394ec1ae53727d99d7ecd40b7296f0f5",
+      "checkpoint": "b4a0691",
+      "tests": 31,
+      "pass": 31,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-final-egress-regression.tap",
+      "sha256": "9664ee30a1e23f20d3b22b4f6bc6a697ea198a7c59f468e4727e307490836550",
+      "checkpoint": "b4a0691",
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-final-medusa-editor.tap",
+      "sha256": "a8637b8118b46b8c4df2084260f4c9616a06ca68f7f38341bbdf7aec662bc45c",
+      "checkpoint": "b4a0691",
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-final-lineage-medusa.tap",
+      "sha256": "73e65e54a3260da788132face4f132248eb9dc4f8c5605f6d1a44b2cc190ee64",
+      "checkpoint": "0c96721",
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "integration-final-host-gap.tap",
+      "sha256": "702f5695d626bd6f8548a0293940937f410581854733c940caacc80b2fad97d4",
+      "checkpoint": "0c96721",
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
       "skipped": 0
     }
   ],
   "knownLimitations": [
-    "Business Host group contains one EXPECTED refusal test for a known Brain continuation limitation, not a successful sequential-memory-write acceptance. The second context update can persist before old context receipts block delivery.",
     "Marketplace private model disclosure bridge not connected.",
     "Not all isolated plugin profiles share one private Session.",
-    "No running Medusa DB/migration/real external service or full browser acceptance."
+    "No running Medusa DB/migration/real external service or full browser acceptance.",
+    "Brain context lineage bounded to 32 successors; decision continuation not accepted end to end.",
+    "Latest PR94 04325f4 migration and acceptance infrastructure reviewed read-only but not imported.",
+    "GitHub Actions 38999750909 and 38999747216 startup_failure reported by parent, not independently rechecked."
   ],
-  "evidenceScope": "Sanitized development test metadata only. Logs stay ignored locally; no runtime business records or credentials are included."
+  "evidenceScope": "Sanitized development test metadata only. Logs stay ignored locally; no runtime business records or credentials are included.",
+  "historicalSourceCommit": "a996339c79956d14763219b7fd563f0949ee4eed",
+  "buildChecks": [
+    {
+      "localLog": "integration-build-omp-safety-final.log",
+      "sha256": "2e4240aabf18980ecfd5e14e1bc917d65b21caa9b5d3f68be720a245d5d5e054",
+      "status": "passed"
+    },
+    {
+      "localLog": "integration-final-medusa-editor-build.log",
+      "sha256": "7a7a74722f32fb8c1dcc3b5a2cce49e0cf8116ff9b9d45a7f323e640df873846",
+      "status": "passed"
+    }
+  ]
 }
