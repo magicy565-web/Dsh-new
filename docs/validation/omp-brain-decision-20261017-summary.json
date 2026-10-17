@@ -1,0 +1,93 @@
+{
+  "schema": "workspace.brain-decision-acceptance-summary.v1",
+  "recordedAt": "2026-10-17T04:13:17.577820+00:00",
+  "branch": "codex/omp-all-plugins-integration-20261017",
+  "draftPR": 99,
+  "sourceCommit": "e0d70e431bc126ab42f01e9e86788b0473b1dc6b",
+  "handoffWip": "8b30224802a47f007fa420bd3a958b6bf0214b3e",
+  "previousAcceptedBaseline": "69e4eadacdd0ea7c2389fa80089a789a543789b0",
+  "runtime": {
+    "node": "24.19.0",
+    "bun": "1.3.14",
+    "omp": "18.10.4"
+  },
+  "environmentPrefix": "env -i PATH=\"$PATH\" HOME=/tmp NO_COLOR=1",
+  "groupsOverlap": true,
+  "groups": [
+    {
+      "localLog": "brain-decision-source-regression-round2.tap",
+      "command": "node --test test/goal-brain*.test.mjs test/business-brain*.test.mjs test/business-signals.test.mjs test/decision-planner.test.mjs",
+      "sha256": "0739741392dc9b0f0b6271e9a3104d3fd1770a3bf35942c40a93f4e27769b95e",
+      "tests": 180,
+      "pass": 180,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "brain-decision-sdk-host-round2-final.tap",
+      "command": "node --test test/workspace-omp-brain-decision.test.mjs test/workspace-omp-brain-decision-wire.test.mjs",
+      "sha256": "57f8ba427dc2f05b2fb662c3ba88af0f784eb5775ee3815b7730131c559d6bfd",
+      "tests": 19,
+      "pass": 19,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "brain-decision-original-host-round2-final.tap",
+      "command": "node --test test/workspace-omp-brain-decision.test.mjs",
+      "sha256": "a7d9de1c580c3706d8473db44bf8841476593882e2bad4b20e582861df3380f7",
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "brain-decision-baseline-safety-round2.tap",
+      "command": "node --test test/workspace-omp-business-integration.test.mjs test/workspace-omp-business-wire.test.mjs test/enterprise-disclosure-revoke-race.test.mjs test/enterprise-memory-concurrency-real-store.test.mjs",
+      "sha256": "0dc53632ce4eebedd0998e95bb44b722ea9137348e919136f62e944fe4efcb14",
+      "tests": 33,
+      "pass": 33,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "buildChecks": [
+    {
+      "localLog": "brain-decision-pack-round2.log",
+      "command": "npm run plugins:pack-check",
+      "sha256": "0733dce885174b81fa2c0f72469e44452ecd91c56d3952b2ab2bd5c519bc5e20",
+      "status": "passed",
+      "plugins": 14
+    },
+    {
+      "localLog": "brain-decision-omp-build-round2.log",
+      "command": "npm run build:omp",
+      "sha256": "2e4240aabf18980ecfd5e14e1bc917d65b21caa9b5d3f68be720a245d5d5e054",
+      "status": "passed",
+      "plugins": 14
+    }
+  ],
+  "reproducedBeforeFix": {
+    "localLog": "brain-decision-race-before-fix.tap",
+    "sha256": "48aef27664f87fcef444f5e713d233e2b7c719365b755ebc11aa0833a2702abb",
+    "tests": 11,
+    "pass": 10,
+    "fail": 1,
+    "case": "Removed historical source changes during final current-decision read; missing rejection before final dependency recheck."
+  },
+  "realModelCalls": 0,
+  "realExternalBusinessCalls": 0,
+  "mem0Vector": "disabled",
+  "acceptedScope": "Same original identity binding and exact context Artifact version; bounded immutable decision succession, original authorities still current.",
+  "remaining": [
+    "Marketplace private model disclosure bridge not implemented; not enabled in business profile.",
+    "No cross-context automatic decision migration; max lineage traversal 32 steps.",
+    "No real external services, deployment, DB migration or complete browser acceptance.",
+    "GitHub Actions startup_failure reported for prior runs 38999750909 and 38999747216; not independently rechecked this round."
+  ],
+  "evidenceScope": "Sanitized development-test metadata only; source fixtures synthetic, runtime logs and business bodies remain ignored locally."
+}

@@ -4,6 +4,8 @@
 
 当前范围：14 个 OMP 插件源码统一放在 `plugins/`，均经过固定版本原生 loader 发现、编译、注册和 pack 闭包检查。业务组合 profile 已使资料读取、七天、Shopify、Medusa Library 草稿预览、Brain 在同一原生 OMP Session 中使用原 Host 客户端。**没有宣称 14 个业务插件全部完成同会话真实服务接通**：其余原有隔离 profile 保留；Marketplace 的私有模型披露桥仍未接入。默认本地入口仍仅启用 local-materials。
 
+后续开发：Brain decision 在同一精确 context 版本下的连续保存、精确重试、未知写入状态及原 Host/实际 SDK 权限验证见 [本轮增量报告](OMP-BRAIN-DECISION-INTEGRATION-20261017.md)。这不扩展下述第一轮真实服务与 Marketplace 状态。
+
 ## 源码来源与选择
 
 | 来源 | 当前处理 |
@@ -134,5 +136,5 @@ PR94 最新 HEAD `04325f4ddc9e50d569b3696bc4627fd359263723` 已 fetch 并只读�
 - 14 个插件全部同一个私有业务 Session 的可信 Host/披露组合尚未完成；现有 enterprise/free-trade/local/intake 等隔离边界保留。
 - Marketplace 私有模型披露桥、统一 UI 导航与原企业 Provider 身份配置未接通；只有显式 mount 源码及原 Host 替身验收。
 - Medusa Product Context 后端实际实例、数据库迁移、Agent 读取面与 OMP 授权映射未验收；没有创建或连接实例。
-- 真实模型、Docling、FGA、ERPNext、Shopify、Medusa、Stripe、外部 Muse/Worker 全部未配置或未调用。浏览器端完整交互验收未完成；DOM 回归不能替代真实浏览器和真实服务验收。Brain context 连续写入阻塞已由下述原 Artifact 继承链修复；decision 连续写入仍未完成端到端验收。任何写入后披露失败都不能推断为未落盘，不得用新 requestId 自动重试。
+- 真实模型、Docling、FGA、ERPNext、Shopify、Medusa、Stripe、外部 Muse/Worker 全部未配置或未调用。浏览器端完整交互验收未完成；DOM 回归不能替代真实浏览器和真实服务验收。Brain context 连续写入阻塞已由下述原 Artifact 继承链修复；decision 同 context 连续写入已由后续增量报告补充验收；跨 context 自动迁移仍未实现。任何写入后披露失败都不能推断为未落盘，不得用新 requestId 自动重试。
 - 不修改/合并 main，不强推，不部署，不操作服务器，不付费，不读取/创建真实凭据，不扩大权限，不导入运行资料。
