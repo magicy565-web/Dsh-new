@@ -24,7 +24,12 @@ WORKDIR /app
 COPY --from=build --chown=node:node /source/apps/medusa-acceptance/.medusa/server/ /app/
 COPY --from=build --chown=node:node /source/apps/medusa-acceptance/node_modules/ /app/node_modules/
 COPY --chown=node:node acceptance/medusa/entrypoint.mjs acceptance/medusa/create-user.mjs /opt/medusa/
-RUN mkdir -p /app/static /app/.cache && chown -R node:node /app/static /app/.cache
+RUN mkdir -p /app/static /app/.cache \
+ && for module in auth-emailpass fulfillment-manual notification-local cache-inmemory event-bus-redis locking file caching; do \
+      test -d "/app/node_modules/@medusajs/$module/dist" \
+      && mkdir -p "/app/node_modules/@medusajs/$module/dist/migrations" || exit 1; \
+    done \
+ && chown -R node:node /app/static /app/.cache
 USER node
 EXPOSE 9000
 ENTRYPOINT ["node", "/opt/medusa/entrypoint.mjs"]

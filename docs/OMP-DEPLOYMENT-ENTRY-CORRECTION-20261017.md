@@ -25,4 +25,4 @@
 
 [Moby相同用户报告](https://github.com/moby/moby/discussions/53256)与[精确版本源码](https://github.com/moby/moby/blob/docker-v29.9.1/daemon/libnetwork/drivers/bridge/bridge_linux.go)支持该行为判断；[Docker官方文档](https://docs.docker.com/engine/network/port-publishing/#gateway-modes)确认非isolated internal bridge仍可由宿主访问。Compose静态解析通过不能证明发布端口实际存在，旧验收覆盖不足。
 
-入口方案涉及权限选择，尚未应用：标准受限 nginx 入口需新增代理专用 bridge，只有代理得到该网络默认路由；Docling/API/PG/Redis继续只接 internal，数据库不转发。另一备选是原生 [systemd-socket-proxyd](https://github.com/systemd/systemd/blob/main/man/systemd-socket-proxyd.xml)，不增加容器外网，但需要宿主 socket/service 安装、精确容器身份解析及重建时停止旧目标/失败关闭，不能永久保存旧IP，也不能用 `PrivateNetwork=yes` 隔绝 host bridge。二者均需明确批准对应权限，作者不会自行改服务器或网络策略。
+后续用户在2026-10-17 09:26 UTC明确批准仅本机代理及专用网络方案。已按该范围实现受限nginx入口，细节、验证边界及现有服务器无需重建镜像的命令见 [入口修复交接](OMP-LOOPBACK-INGRESS-20261017.md)。仅代理得到新bridge，Docling/API/PG/Redis继续仅接internal，数据库不转发。原生 [systemd-socket-proxyd](https://github.com/systemd/systemd/blob/main/man/systemd-socket-proxyd.xml)备选未采用，也未安装宿主unit、修改daemon或防火墙。作者不操作服务器。

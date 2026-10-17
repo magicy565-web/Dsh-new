@@ -59,11 +59,12 @@ services:
     environment:
       MEDUSA_BACKEND_URL: http://127.0.0.1:9000
       MEDUSA_WORKER_MODE: shared
+      XDG_CONFIG_HOME: /tmp/medusa-config
+      XDG_CACHE_HOME: /tmp/medusa-cache
     secrets: [postgres_password, redis_password, jwt_secret, cookie_secret, agent_context_read_token]
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
-    ports: [127.0.0.1:9000:9000]
     volumes: [uploads:/app/static]
     tmpfs: [/tmp, "/app/.cache:uid=1000,gid=1000,mode=0700"]
     networks: [private]
@@ -80,14 +81,25 @@ services:
     image: workspace-pr99-medusa-ui:0.1.0
     build: {context: ../.., dockerfile: acceptance/medusa/ui.Dockerfile}
     user: "101:101"
-    ports: [127.0.0.1:4173:8080]
+    entrypoint: [nginx, -g, "daemon off;"]
+    ports: [127.0.0.1:4173:8080, 127.0.0.1:9000:9000]
+    configs:
+      - source: ui_nginx_config
+        target: /etc/nginx/conf.d/default.conf
     tmpfs: [/tmp]
-    networks: [private]
+    networks: [private, ingress]
     depends_on:
       api: {condition: service_healthy}
     mem_limit: 64m
 networks:
   private: {internal: true}
+  ingress:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: 127.0.0.1
+      com.docker.network.bridge.gateway_mode_ipv4: nat
+configs:
+  ui_nginx_config: {file: ./nginx.conf}
 volumes:
   database: {}
   redis_data: {}

@@ -58,20 +58,38 @@ test('actual Compose parser retains loopback bindings, nonroot isolation, per-se
   };
   const medusa = read('acceptance/medusa/compose.yaml'), parser = read('acceptance/docling/compose.yaml');
   assert.equal(medusa.services.postgres.ports, undefined); assert.equal(medusa.services.redis.ports, undefined);
-  for (const name of ['api','ui']) for (const port of medusa.services[name].ports) assert.equal(port.host_ip, '127.0.0.1');
-  for (const service of [...Object.values(medusa.services), parser.services.docling]) {
+  assert.equal(medusa.services.api.ports, undefined); assert.equal(parser.services.docling.ports, undefined);
+  for (const service of [...Object.values(medusa.services), ...Object.values(parser.services)]) {
     assert.notEqual(service.user, 'root'); assert.notEqual(service.user, '0'); assert.equal(service.read_only, true);
     assert.ok(service.cap_drop.includes('ALL')); assert.ok(service.security_opt.includes('no-new-privileges:true'));
     assert.ok(!JSON.stringify(service.environment || {}).includes('api_key'));
     assert.ok(!(service.volumes || []).some(v => v.type === 'bind'));
+    for (const port of service.ports || []) assert.equal(port.host_ip, '127.0.0.1');
   }
-  assert.equal(parser.services.docling.ports[0].host_ip, '127.0.0.1');
-  for (const project of [medusa, parser]) for (const network of Object.values(project.networks)) assert.equal(network.internal, true);
+  assert.deepEqual(medusa.services.ui.ports.map(p => [p.published, p.target]), [['4173',8080],['9000',9000]]);
+  assert.deepEqual(parser.services.ingress.ports.map(p => [p.published, p.target]), [['5001',8080]]);
+  for (const [project, proxy, backendNetwork] of [[medusa,'ui','private'],[parser,'ingress','parser']]) {
+    assert.equal(project.networks[backendNetwork].internal, true);
+    assert.notEqual(project.networks.ingress.internal, true);
+    assert.equal(project.networks.ingress.driver_opts['com.docker.network.bridge.host_binding_ipv4'], '127.0.0.1');
+    assert.equal(project.networks.ingress.driver_opts['com.docker.network.bridge.gateway_mode_ipv4'], 'nat');
+    for (const [name,service] of Object.entries(project.services)) {
+      if (name === proxy) {
+        assert.deepEqual(Object.keys(service.networks).sort(), [backendNetwork,'ingress'].sort());
+        assert.equal(service.secrets, undefined); assert.equal(service.configs.length, 1);
+        assert.equal(service.configs[0].target, '/etc/nginx/conf.d/default.conf');
+      } else assert.deepEqual(Object.keys(service.networks), [backendNetwork]);
+    }
+  }
   assert.equal(parser.services.docling.environment.DOCLING_DEVICE, 'cpu');
   assert.match(parser.services.docling.image, /v1\.37\.0@sha256:6eda9c/);
-  assert.deepEqual(Object.keys(parser.services), ['docling']);
+  assert.deepEqual(Object.keys(parser.services), ['docling','ingress']);
+  assert.match(parser.services.ingress.image, /nginx-unprivileged:1\.28-alpine@sha256:7377697/);
+  assert.equal(Number(parser.services.docling.mem_limit), 3221225472); assert.equal(Number(parser.services.ingress.mem_limit), 67108864);
   assert.ok(Object.values(medusa.services.api.environment).every(v => !String(v).includes('postgres://')));
   assert.equal(medusa.services.api.secrets.length, 5);
+  assert.equal(medusa.services.api.environment.XDG_CONFIG_HOME, '/tmp/medusa-config');
+  assert.equal(medusa.services.api.environment.XDG_CACHE_HOME, '/tmp/medusa-cache');
 });
 test('strict Medusa smoke refuses nonloopback or missing isolated write intent without requests', () => {
   for (const config of [{ MEDUSA_BACKEND_URL: 'https://example.invalid' }, { MEDUSA_BACKEND_URL: 'http://127.0.0.1:9000' }]) {
