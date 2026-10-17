@@ -35,7 +35,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
   if (typeof shopifyProduct !== 'boolean' || shopifyProduct && (factoryIngestion || marketValidation && !nativeBusiness || factoryInquiries || factoryCustomers)) throw TypeError('Use one reviewed Shopify product profile.');
   const engineScope = nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContext ? OMP_ENTERPRISE_CONTEXT_SCOPE : freeTrade ? OMP_FREE_TRADE_SCOPE : shopifyProduct ? OMP_SHOPIFY_ENGINE_SCOPE : factoryIngestion ? OMP_INGESTION_ENGINE_SCOPE : marketValidation ? OMP_MARKET_ENGINE_SCOPE : factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
-    async complete({ input, run, binding, client, authorize, enterpriseContextHost = binding?.enterpriseContextHost, freeTradeHost = binding?.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, medusaClient, brainClient, isolationDirectory, savedSession, saveSession }) {
+    async complete({ input, run, binding, client, authorize, enterpriseContextHost = binding?.enterpriseContextHost, freeTradeHost = binding?.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, medusaClient, brainClient, marketplaceClient, isolationDirectory, savedSession, saveSession }) {
       input.signal?.throwIfAborted();
       await checkWorkspaceOmpPaths(paths); await authorize();
       if(enterpriseContext){const {assertEnterpriseContextHost}=await import('./workspace-enterprise-context-host.mjs');assertEnterpriseContextHost(enterpriseContextHost);}
@@ -90,7 +90,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               const file=await openPrivateFile(nativeMapping.sessionFile);let journal;
               try{if((await file.stat()).size>32000000)throw Error('Original journal bound exceeded.');journal=await file.readFile('utf8');}finally{await file.close();}
               const entries=journal.trim().split('\n').map(line=>JSON.parse(line));
-              await revalidateBusinessJournal(entries.map(e=>e.message),{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,model:binding.model,signal:input.signal});
+              await revalidateBusinessJournal(entries.map(e=>e.message),{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
               await authorize();
             }
             finish(null,{...pendingResult,runtime:{...pendingResult.runtime,workerExitObserved:true}});
@@ -147,6 +147,10 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                   result=await freeControl.tenders.search(args[0],rpcSignal);
                   await freeControl.authorize({tool:'workspace_tender_search',input:args[0]},rpcSignal,binding.model);
                 }else throw Error('Original free-trade read capability required.');
+              }
+              else if(nativeBusiness&&message.method==='marketplace'){
+                const [method,value,model]=message.args||[];if(!marketplaceClient||!['status','find','propose','order','revalidateReceipt'].includes(method))throw Error('Original Marketplace method required.');
+                result=await marketplaceClient[method](value,rpcSignal,model);
               }
               else if(nativeBusiness&&message.method==='medusaCatalog'){
                 const [method,value,model]=message.args||[];
@@ -206,7 +210,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               if (syntheticResponses) onWorkerLifecycle({ phase: 'rpc-refused', method: message.method,
                 ...(['freeTrade','enterpriseContext'].includes(message.method)?{operation:message.args?.[1]}:{}),code: error.code || error.name });
               // Preserve only reviewed business codes, never arbitrary Host error text.
-              const codes = ['SHOPIFY_PRODUCT_SKUS_NOT_SELECTED', 'SHOPIFY_PRODUCT_SKU_SOURCE_MISMATCH', 'SHOPIFY_PRODUCT_VARIANTS_INVALID', 'SHOPIFY_PRODUCT_SOURCE_CHANGED', 'SHOPIFY_PRODUCT_IMAGES_NOT_SELECTED', 'SHOPIFY_PRODUCT_IMAGE_NOT_SELECTED', 'SHOPIFY_PRODUCT_IMAGE_TOO_LARGE', 'SHOPIFY_PRODUCT_CACHE_REFUSED', 'SHOPIFY_PRODUCT_INPUT_INVALID', 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'SUPPLIER_PUBLICATION_STALE', 'SHOPIFY_SETUP_REQUIRED', 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', 'IDEMPOTENCY_CONFLICT', 'FACTORY_INQUIRY_SOURCE_CHANGED', 'FACTORY_INQUIRY_REQUEST_CHANGED', 'FACTORY_INQUIRY_ARTIFACT_CHANGED', 'FACTORY_INQUIRY_SOURCE_REFUSED',
+              const codes = ['MARKETPLACE_SCOPE_REQUIRED','MARKETPLACE_SOURCE_CHANGED','MARKETPLACE_INPUT_INVALID','MARKETPLACE_CANCELLED','MARKETPLACE_UNCONFIGURED','SHOPIFY_PRODUCT_SKUS_NOT_SELECTED', 'SHOPIFY_PRODUCT_SKU_SOURCE_MISMATCH', 'SHOPIFY_PRODUCT_VARIANTS_INVALID', 'SHOPIFY_PRODUCT_SOURCE_CHANGED', 'SHOPIFY_PRODUCT_IMAGES_NOT_SELECTED', 'SHOPIFY_PRODUCT_IMAGE_NOT_SELECTED', 'SHOPIFY_PRODUCT_IMAGE_TOO_LARGE', 'SHOPIFY_PRODUCT_CACHE_REFUSED', 'SHOPIFY_PRODUCT_INPUT_INVALID', 'SUPPLIER_PUBLICATION_NOT_EXECUTABLE', 'SUPPLIER_PUBLICATION_STALE', 'SHOPIFY_SETUP_REQUIRED', 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', 'IDEMPOTENCY_CONFLICT', 'FACTORY_INQUIRY_SOURCE_CHANGED', 'FACTORY_INQUIRY_REQUEST_CHANGED', 'FACTORY_INQUIRY_ARTIFACT_CHANGED', 'FACTORY_INQUIRY_SOURCE_REFUSED',
                 'FACTORY_INGESTION_UPLOAD_NOT_APPROVED', 'FACTORY_INGESTION_SOURCE_CHANGED', 'FACTORY_INGESTION_TARGET_CHANGED', 'FACTORY_INGESTION_REQUEST_CHANGED', 'FACTORY_INGESTION_QUERY_REAUTHORIZE', 'FACTORY_INGESTION_FIELD_NOT_APPROVED', 'FACTORY_INGESTION_SCOPE_REFUSED', 'FACTORY_INGESTION_CACHE_CHANGED',
                 'REAL_LAUNCH_RECEIPT_REQUIRED', 'MARKET_PLAN_RECEIPT_MISMATCH', 'MONITOR_NOT_FOUND', 'MONITOR_SOURCE_OWNER_REQUIRED', 'MONITOR_SCOPE_CHANGED', 'APPROVAL_REQUIRED', 'APPROVAL_MISMATCH', 'APPROVAL_EXPIRED', 'APPROVAL_USED', 'MONITOR_STOPPED', 'MONITOR_WINDOW_ENDED', 'MONITOR_CANCELLED', 'LAUNCH_SCOPE_CHANGED', 'BUSINESS_EXECUTION_INTENT_REQUIRED',
                 'MARKET_PLAN_SOURCE_CHANGED', 'MARKET_PLAN_REQUEST_CHANGED', 'MARKET_PLAN_CACHE_REFUSED', 'MARKET_PLAN_DOCUMENT_NOT_LINKED', 'MARKET_PLAN_SOURCE_REFUSED',
@@ -238,7 +242,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.'));
           }).catch(() => finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.'))); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, nativeBusiness, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, nativeBusiness, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient, marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       });
     },

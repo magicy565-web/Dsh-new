@@ -28,6 +28,7 @@ async function start(config) {
   const freeTradeHost=config.freeTrade?(await import('./workspace-free-trade-host.mjs')).freeTradeHostFromRpc(config.freeTradeDescriptor,request):null;
   const enterpriseContextHost=config.enterpriseContext?(await import('./workspace-enterprise-context-host.mjs')).enterpriseContextHostFromRpc(config.enterpriseContextDescriptor,request):null;
   created = await (initializing = createWorkspaceOmpSession({ ...config, enterpriseContextHost,freeTradeHost,client:config.freeTrade||config.enterpriseContext?undefined:client, factoryTasks: !config.enterpriseContext && !config.freeTrade && !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
+    marketplaceClient:config.nativeBusiness&&config.marketplaceConfigured?Object.fromEntries(['status','find','propose','order','revalidateReceipt'].map(method=>[method,(value,signal,model)=>request('marketplace',[method,value,model],signal)])):null,
     medusaClient: config.nativeBusiness&&config.medusaConfigured?{
       ...Object.fromEntries(['status','preview','reconcile'].map(method=>[method,(value,signal,model)=>request('medusaCatalog',[method,value,model],signal)])),
       refresh:(receipt,model,signal)=>request('medusaCatalog',['refresh',receipt,model],signal),

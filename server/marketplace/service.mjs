@@ -247,7 +247,8 @@ export async function createMarketplace({ store, workerDesk, workspaceId, bindin
         return clone({ id: l.id, revision: l.revision, title: l.title, description: l.description, provider: { id: p.id, name: p.name }, workerId: l.workerId, serviceId: l.serviceId, deliverables: l.deliverables, acceptance: l.acceptance, prices, available: prices.some(p => p.available), dataScope: 'public-only' });
       });
     },
-    async createOrder(actor, input) {
+    async createOrder(actor, input, {assertCurrent} = {}) {
+      if(assertCurrent!==undefined&&typeof assertCurrent!=='function')throw TypeError('Original synchronous Marketplace admission required.');
       authorize(actor, workspaceId, ['buyer']); check(['admin', 'operator'].includes(actor.role), 'ROLE_REQUIRED', 'Viewer cannot propose work.', 403);
       object(input, ['listingId', 'revision', 'priceId', 'budgetMinor', 'product', 'market', 'objective', 'deadlineAt', 'requestId', 'publicDataConfirmed']);
       check(input.publicDataConfirmed === true, 'DATA_SCOPE_REQUIRED', 'Only explicitly shareable public task inputs may leave this workspace.', 403);
@@ -263,6 +264,7 @@ export async function createMarketplace({ store, workerDesk, workspaceId, bindin
       const terms = { version: 1, listingId: l.id, revision: l.revision, providerId: p.id, providerName: p.name, workerId: l.workerId, price: clone(price), depositMinor, feeBps, legacyBudgetCredits: b.legacyBudgetCredits, inputDigest: digest(inputs), deliverables: clone(l.deliverables), acceptance: clone(l.acceptance), dataScope: 'public-only', externalActions: 'none', deliveryCommitment: price.mode === 'fixed' ? 'agreed-deliverables' : 'best-effort-with-budget', meterAuthority: price.mode === 'fixed' ? null : b.meterAuthority, deadlineAt: inputs.deadlineAt };
       const termsHash = digest(terms);
       const result = await originals.create({ serviceId: l.serviceId, ...inputs, workerId: l.workerId, budgetCredits: b.legacyBudgetCredits, requestId, publicDataConfirmed: true }, actor.subject, { attach: (s, o, duplicate) => {
+        if(assertCurrent&&assertCurrent(s)!==true)fail(403,'MARKETPLACE_SCOPE_REQUIRED','Original Marketplace admission was refused.');
         liveListing(s, l.id, l.revision, price.mode);
         const m = registry(s), old = m.contracts.find(c => c.id === o.id);
         if (old) { check(old.termsHash === termsHash && old.buyerSubject === actor.subject, 'IDEMPOTENCY_CONFLICT', 'Order terms do not match the original request.'); return; }

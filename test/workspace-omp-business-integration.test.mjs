@@ -9,7 +9,7 @@ import {SHOPIFY_PRODUCT_TOOLS} from '../plugins/workspace-shopify-product/src/ex
 import {MARKET_VALIDATION_TOOLS} from '../plugins/workspace-market-validation/src/extension.js';
 import {MARKET_MONITOR_TOOLS} from '../plugins/workspace-market-validation/src/monitor.js';
 const materialTools=['workspace_factory_materials_status','workspace_factory_materials','workspace_factory_document'];
-const expected=['workspace_medusa_status','workspace_medusa_preview','workspace_medusa_reconcile','workspace_brain_sources','workspace_brain_context','workspace_brain_context_save','workspace_brain_diagnose','workspace_brain_decision','workspace_brain_decision_save','workspace_brain_review_save','workspace_brain_brief','workspace_skill',...materialTools,...SHOPIFY_PRODUCT_TOOLS,...MARKET_VALIDATION_TOOLS,...MARKET_MONITOR_TOOLS];
+const expected=['workspace_marketplace_status','workspace_marketplace_find','workspace_marketplace_propose','workspace_marketplace_order','workspace_medusa_status','workspace_medusa_preview','workspace_medusa_reconcile','workspace_brain_sources','workspace_brain_context','workspace_brain_context_save','workspace_brain_diagnose','workspace_brain_decision','workspace_brain_decision_save','workspace_brain_review_save','workspace_brain_brief','workspace_skill',...materialTools,...SHOPIFY_PRODUCT_TOOLS,...MARKET_VALIDATION_TOOLS,...MARKET_MONITOR_TOOLS];
 async function send(f,steps){
  f.advanceReviewMinute();f.steps.splice(0,f.steps.length,...steps);
  const r=await f.workspace(`/api/conversations/${f.cid}/messages`,{subject:'member-a',body:{content:'Synthetic combined plugin turn',requestId:randomUUID(),workspaceExecution:false,inputContext:empty()}});

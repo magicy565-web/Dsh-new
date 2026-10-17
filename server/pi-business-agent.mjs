@@ -1,3 +1,4 @@
+import {assertMarketplaceModelHost} from './marketplace/model-host.mjs';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -50,7 +51,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
-  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain;
+  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain, marketplaceModelHost=null;
   function current(idValue) { const record = store.read().conversations.find(row => row.id === idValue); if (!record) fail(404, 'NOT_FOUND', 'Conversation not found.'); return record; }
   function actor(context, write = false) {
     if (!context?.subject || !context.workspaceId) fail(401, 'SESSION_REQUIRED', 'Use the original Workspace Session.');
@@ -209,8 +210,9 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
             if (libraryReadHash(libraryRecipientForModel(model)) !== recipientFingerprint) fail(403, 'LIBRARY_MODEL_RECIPIENT_CHANGED', 'Use the original receiver.');
           }, canSave, assertCurrent }) : Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, async () => ({ plugin: 'workspace-shopify-product', status: 'unconfigured', reason: 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', sources: [] })]));
       }
-      let medusaClient=null,brainClient=null;
+      let medusaClient=null,brainClient=null,marketplaceClient=null;
       if(engineAdapter.scope==='omp:18.10.4:business-v1'){
+        if(marketplaceModelHost)marketplaceClient=marketplaceModelHost.bind({identity,conversationId:conversation.id,runId:run.id,authorize:async()=>assertActive(),recipient});
         if(medusaCatalog){
           let assertCurrent;
           try{assertCurrent=libraryModelRead.factoryMaterialsAuthorityForSession({identity,recipientHash:recipientFingerprint,signal:input.signal});}
@@ -221,7 +223,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         }
         if(goalBrain)brainClient=goalBrain.bind({identity,conversationId:conversation.id,runId:run.id,canSubmit:canSave(),signal:input.signal}).brain;
       }
-      return engineAdapter.complete({ input, run, binding, client, authorize, medusaClient, brainClient,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
+      return engineAdapter.complete({ input, run, binding, client, authorize, medusaClient, brainClient,marketplaceClient,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();
@@ -329,6 +331,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   } });
   return {
     provider,
+    attachMarketplace(host){assertMarketplaceModelHost(host);if(marketplaceModelHost)throw TypeError('Marketplace Host already attached.');marketplaceModelHost=host;},
     attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain } = dependencies); },
     async handle({ req, res, pathname, context, readBody, respond }) {
       if (req.method === 'GET' && pathname === '/api/conversations/runtime') {

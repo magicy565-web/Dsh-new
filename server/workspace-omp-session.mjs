@@ -41,7 +41,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {},
   maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {}, referenceFence, enterpriseContextHost = null, freeTradeHost = null, publicTenderClient = null,
-  nativeBusiness = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
+  nativeBusiness = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, marketplaceClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   if(nativeBusiness&&(!factoryMaterials||!marketValidation||!shopifyProduct||localFactory||readOnlyBusiness||enterpriseContextHost||freeTradeHost||factoryIngestion||factoryCustomers||factoryInquiries||ordinaryTools||uiOnly))throw Error('NATIVE_BUSINESS_PROFILE_REQUIRED');
   if (providerTransport && !localFactory) throw Error('Bounded local provider transport requires the local factory profile.');
@@ -67,6 +67,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const {marketValidationMonitorExtension, MARKET_MONITOR_TOOLS=[]} = await module(marketValidation,'workspace-market-validation','monitor.js');
   const {marketValidationExtension, MARKET_VALIDATION_TOOLS=[]} = await module(marketValidation,'workspace-market-validation');
   const {MEDUSA_CATALOG_TOOLS=[]}=await module(nativeBusiness,'workspace-medusa-catalog');
+  const {isMarketplaceGap,marketplaceMessageReceipt}=await module(nativeBusiness,'workspace-marketplace','contract.js');
   const {factoryIngestionExtension, FACTORY_INGESTION_TOOLS=[]} = await module(factoryIngestion,'workspace-factory-ingestion');
   const {factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS=[]} = await module(factoryInquiries,'workspace-factory-inquiries');
   const {factoryCustomersExtension, FACTORY_CUSTOMER_TOOLS=[]} = await module(factoryCustomers,'workspace-factory-customers');
@@ -410,7 +411,16 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   }
   const pluginDiagnostics = new Map();
   if (plugins) eventBus.on('workspace:plugin-host', request => request.accept({ selection: localFactory, packageRoot, toolSession,
-    authorize, ...(nativeBusiness?{materialsClient,planClient,monitorClient,productClient,medusaClient,brain:brainClient,registerBrainContextGuard:({validateReceipt})=>{
+    authorize, ...(nativeBusiness?{materialsClient,planClient,monitorClient,productClient,medusaClient,marketplaceClient,registerMarketplaceContextGuard:({validateReceipt})=>{
+      if(!marketplaceClient||validateReceipt!==marketplaceClient.revalidateReceipt)return false;
+      disclosureGuards.push({id:'workspace-business-marketplace-v1',check:async()=>{
+        for(const entry of manager.getEntries()){const message=entry.message;if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_marketplace_'))continue;
+          const receipt=marketplaceMessageReceipt(message);
+          if(!receipt.method){if(!isMarketplaceGap(receipt)||message.content.some(b=>b.type!=='text'))throw Error('MARKETPLACE_SOURCE_CHANGED');continue;}
+          await marketplaceClient.revalidateReceipt(receipt,lifecycleSignal,created?.session?.model||modelRegistry.find(configuration.providerId,configuration.model));
+        }
+      }});return true;
+    },brain:brainClient,registerBrainContextGuard:({validateReceipt})=>{
       if(!brainClient||validateReceipt!==brainClient.revalidateReceipt)return false;
       disclosureGuards.push({id:"workspace-business-brain-v1",check:async()=>{
         for(const entry of manager.getEntries()){const message=entry.message;if(message?.role!=="toolResult"||!message.toolName?.startsWith("workspace_brain_"))continue;

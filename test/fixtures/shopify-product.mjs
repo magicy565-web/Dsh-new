@@ -20,7 +20,7 @@ export function multiDraft(f) {
   return { ...common, options, variants: f.product.skus.map((s, i) => ({ sourceSkuId: s.id, skuCode: s.code, consumerPrice: `${10 + i}.25`,
     optionValues: s.specs.map(x => ({ name: x.key, value: x.value })), ...(i % 2 ? {} : { imageId: f.imageId }) })) };
 }
-export async function productFixture(t, { configured = true, policy: policyOption, host = false, nativeBusiness = false, pluginConfiguration = {}, appOptions = {}, onWorkerLifecycle, accessClock, skuCount = 0, brainGoal = false } = {}) {
+export async function productFixture(t, { configured = true, policy: policyOption, host = false, nativeBusiness = false, pluginConfiguration = {}, appOptions = {}, onWorkerLifecycle, accessClock, skuCount = 0, brainGoal = false, beforeListen = null, wrapEngineAdapter = x=>x } = {}) {
   let fixtureTime = Date.now(); const clock = accessClock || (() => fixtureTime);
   const directory = await fs.mkdtemp('/tmp/shopify-product-'), remote = await fakeShopify(t), actor = { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' };
   const seed = await taskFixture(t, { directory, enterprise: true });
@@ -46,11 +46,11 @@ export async function productFixture(t, { configured = true, policy: policyOptio
     const r = await request(f.baseURL, new URL(url).pathname + new URL(url).search, { method: options.method, rawBody: options.body, headers: { ...options.headers, Host: 'workspace.example' } });
     return new Response(r.bytes, { status: r.status, headers: { 'content-type': r.headers['content-type'] } });
   } });
-  f = await taskFixture(t, { directory, enterprise: true, accessClock: clock, libraryModelReadPolicy: policyOption === null ? null : policyOption ? policyOption(policy) : policy,
+  f = await taskFixture(t, { directory, enterprise: true, accessClock: clock, beforeListen, libraryModelReadPolicy: policyOption === null ? null : policyOption ? policyOption(policy) : policy,
     appOptions: { capabilityEnvironment: environment, shopifyFetch: remote.fetchImpl, ...appOptions,
       ...(goal ? {goalBrainOptions: {originalReceiver: MODEL, reviewedGoals: [{id: goal.id, originalRevision: goal.revision, currency: 'USD', businessStatus: 'active', capabilities: ['analysis','draft','none'], budgetRemainingMinor: null, perTaskCapMinor: null, reviewed: true}]}} : {}) }, ...(host ? { businessAgentOptions: {
-      recipient: RECIPIENT, engineAdapter: createWorkspaceOmpEngineAdapter({ paths: workspaceOmpPaths(), shopifyProduct: true, nativeBusiness, pluginConfiguration,
-        configuration: { providerId: MODEL.provider, model: MODEL.id, baseUrl: MODEL.baseUrl }, syntheticResponses: steps, onWorkerLifecycle: e => { lifecycle.push(e); onWorkerLifecycle?.(e, f); } }),
+      recipient: RECIPIENT, engineAdapter: wrapEngineAdapter(createWorkspaceOmpEngineAdapter({ paths: workspaceOmpPaths(), shopifyProduct: true, nativeBusiness, pluginConfiguration,
+        configuration: { providerId: MODEL.provider, model: MODEL.id, baseUrl: MODEL.baseUrl }, syntheticResponses: steps, onWorkerLifecycle: e => { lifecycle.push(e); onWorkerLifecycle?.(e, f); } })),
       resolveBinding: async () => ({ client: originalClient(), model: MODEL }),
     } } : {}) });
   t.after(async () => { await f.app.close(); await fs.rm(directory, { recursive: true, force: true }); });

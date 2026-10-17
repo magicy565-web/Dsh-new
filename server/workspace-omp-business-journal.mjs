@@ -12,12 +12,13 @@ export function isMedusaGapReceipt(receipt){
 }
 // Recheck the original owned native journal at the Node delivery boundary.
 // No receipt registry, permission cache, model-supplied citation list or store.
-export async function revalidateBusinessJournal(messages,{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,model,signal}={}){
+export async function revalidateBusinessJournal(messages,{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model,signal}={}){
  for(const message of messages){
   signal?.throwIfAborted();
   if(message?.role!=='toolResult'||message.toolName==='workspace_skill')continue;
   let receipt;try{receipt=JSON.parse((message.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n'));}catch{throw Error('NATIVE_BUSINESS_RECEIPT_INVALID');}
   if(!receipt||typeof receipt!=='object')throw Error('NATIVE_BUSINESS_RECEIPT_INVALID');
+  if(message.toolName?.startsWith('workspace_marketplace_')){const {isMarketplaceGap,marketplaceMessageReceipt}=await import('../plugins/workspace-marketplace/src/contract.js');receipt=marketplaceMessageReceipt(message);if(!receipt.method){if(!isMarketplaceGap(receipt))throw Error('MARKETPLACE_SOURCE_CHANGED');}else{if(!marketplaceClient)throw Error('MARKETPLACE_SOURCE_CHANGED');await marketplaceClient.revalidateReceipt(receipt,signal,model);}continue;}
   if(receipt.plugin==='workspace-goal-intelligence'&&['blocked','unconfigured'].includes(receipt.status)){if(!isBrainGapReceipt(receipt)||message.content.some(b=>b.type!=='text'))throw Error('BRAIN_CACHE_REFUSED');continue;}
   if(receipt.plugin==='workspace-medusa-catalog'&&!receipt.method){if(!isMedusaGapReceipt(receipt)||message.content.some(b=>b.type!=='text'))throw Error('MEDUSA_SOURCE_CHANGED');continue;}
   if(['blocked','unconfigured','unavailable'].includes(receipt.status)&&!receipt.method&&

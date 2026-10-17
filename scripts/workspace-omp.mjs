@@ -27,7 +27,7 @@ export async function inspectNativeWorkspace(environment={},profile='local') {
     plugins:plugins.installed.map(p=>({id:p.id,package:p.name,discovered:true,enabled:p.enabled,
       loading:'manifest-validated; run npm run build:omp for native-loader verification',
       capability:p.id==='workspace-local-materials'?'public-drafts; exact local file selection required for file access'
-        :p.id==='workspace-plugin-info'?'identity-only':'unconfigured: reviewed external/Host capabilities are not attached'}))};
+        :p.id==='workspace-marketplace'?'unconfigured: original Marketplace Host and reviewed status scope are not attached':p.id==='workspace-plugin-info'?'identity-only':'unconfigured: reviewed external/Host capabilities are not attached'}))};
 }
 export async function main(args=process.argv.slice(2),environment=process.env) {
   if(args[0]==='--profile'){

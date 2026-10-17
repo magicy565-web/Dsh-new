@@ -1,3 +1,4 @@
+import {createMarketplaceModelHost} from './model-host.mjs';
 import { createMarketplace } from './service.mjs';
 import { MarketplaceError, authorize, object, requireThat as check } from './contracts.mjs';
 
@@ -33,7 +34,8 @@ async function respond(res, status, value) {
 export async function mountMarketplace(app, options = {}) {
   if (options.enabled !== true) return null;
   const { workspaceId, bindings, payments = null, verifyMeter = null, feeBps = 0,
-    authenticateProvider = null, reviewers = [], allowLocalPilot = false, clock } = options;
+    authenticateProvider = null, reviewers = [], allowLocalPilot = false, clock, readReviewedScope = null } = options;
+  if(readReviewedScope!==null&&typeof readReviewedScope!=='function')throw TypeError('Use a trusted original Host scope callback.');
   check(app?.server && app?.access?.begin && app?.access?.verifyBody && !app.server.listening && !installed.has(app.server), 'HOST_REQUIRED', 'Mount once on the original Host before listen().');
   const originalListeners = app.server.listeners('request');
   check(originalListeners.length === 1, 'HOST_REQUIRED', 'Expected one original Workspace request listener.');
@@ -131,5 +133,7 @@ export async function mountMarketplace(app, options = {}) {
   };
   app.server.removeListener('request', original); app.server.on('request', listener);
   installed.add(app.server); app.marketplace = api;
+  app.marketplaceModelHost=readReviewedScope?createMarketplaceModelHost({marketplace:api,store:app.store,access:app.access,readReviewedScope,...(clock?{clock}:{})}):null;
+  if(app.marketplaceModelHost)app.businessAgent?.attachMarketplace(app.marketplaceModelHost);
   return api;
 }

@@ -4,7 +4,8 @@
     "./workspace-market-validation",
     "./workspace-shopify-product",
     "./workspace-medusa-catalog",
-    "./workspace-goal-intelligence"
+    "./workspace-goal-intelligence",
+    "./workspace-marketplace"
   ],
   "disabledExtensions": []
 }

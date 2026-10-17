@@ -59,5 +59,5 @@ test('same entry exposes combined business manifest without claiming a configure
  const r=await inspectNativeWorkspace({},'business');
  assert.equal(r.status,'unconfigured');assert.equal(r.modelRequests,0);assert.equal(r.model.credentialsRead,false);assert.equal(r.workspaceHostStarted,false);
  assert.equal(r.hostBinding,'original-signed-Session-and-reviewed-Library-policy-required');
- assert.deepEqual(r.plugins.filter(p=>p.enabled).map(p=>p.id).sort(),['workspace-factory-materials','workspace-goal-intelligence','workspace-market-validation','workspace-medusa-catalog','workspace-shopify-product']);
+ assert.deepEqual(r.plugins.filter(p=>p.enabled).map(p=>p.id).sort(),['workspace-factory-materials','workspace-goal-intelligence','workspace-market-validation','workspace-marketplace','workspace-medusa-catalog','workspace-shopify-product']);
 });
