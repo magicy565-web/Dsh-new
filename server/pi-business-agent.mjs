@@ -112,6 +112,14 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     const identity = actor(run.businessAgentContext, true), conversation = owned(input.conversationId, identity);
     if (conversation.activeRunId !== run.id || run.status !== 'running') throw new ProviderError('CANCELLED', 'The original run is no longer active.');
     const binding = await bindingFor(identity, conversation, input.signal);
+    // Trusted initial selection only; HTTP/tool input cannot add fact authority
+    // to an existing native transcript or silently remove its disclosure fence.
+    const factKeys = binding.brainMemoryFactKeys === undefined ? null : structuredClone(binding.brainMemoryFactKeys);
+    const factsEnabled = binding.brainMemoryFactKeys !== undefined;
+    const savedFactsScope = conversation.businessAgentSession?.brainMemoryFactsScopeHash;
+    if (factsEnabled && engineAdapter?.scope !== 'omp:18.10.4:business-v1'
+      || conversation.businessAgentSession && factsEnabled !== Boolean(savedFactsScope))
+      fail(403, 'BUSINESS_AGENT_BINDING_CHANGED', 'Use the original initial native fact selection; an existing Session cannot gain or lose it.');
     const assertActive = () => {
       input.signal?.throwIfAborted(); actor(identity, true);
       const live = store.read().runs.find(row => row.id === run.id);
@@ -219,7 +227,27 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
             if (libraryReadHash(libraryRecipientForModel(model)) !== recipientFingerprint) fail(403, 'LIBRARY_MODEL_RECIPIENT_CHANGED', 'Use the original receiver.');
           }, canSave, assertCurrent }) : Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, async () => ({ plugin: 'workspace-shopify-product', status: 'unconfigured', reason: 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', sources: [] })]));
       }
-      let medusaClient=null,brainClient=null,marketplaceClient=null;
+      let medusaClient=null,brainClient=null,marketplaceClient=null,bindBrainForNativeSession=null;
+      let factNativeId=null,factScopeHash=null,factBindingStarted=false;
+      if (factsEnabled) {
+        const { assertEnterpriseContextHost } = await import('./workspace-enterprise-context-host.mjs');
+        assertEnterpriseContextHost(binding.enterpriseContextHost);
+        if (!goalBrain) fail(409, 'BUSINESS_AGENT_UNCONFIGURED', 'The original Brain Host is required.');
+        bindBrainForNativeSession = async nativeSessionId => {
+          if (factBindingStarted) fail(403, 'BUSINESS_AGENT_BINDING_CHANGED', 'The native fact control is opened once per turn.');
+          factBindingStarted = true;
+          await authorize();
+          if (!id(nativeSessionId) || conversation.businessAgentSession && conversation.businessAgentSession.agentSessionId !== nativeSessionId)
+            fail(403, 'BUSINESS_AGENT_BINDING_CHANGED', 'Use the original native Session identifier.');
+          const control = binding.enterpriseContextHost.open(nativeSessionId, { conversationId: conversation.id, runId: run.id, requestId: run.requestId });
+          const memoryFacts = control.readOnlyFacts(factKeys);
+          if (savedFactsScope && savedFactsScope !== memoryFacts.scopeHash)
+            fail(403, 'BUSINESS_AGENT_BINDING_CHANGED', 'Changed fact authority cannot inherit this native Session.');
+          const bound = goalBrain.bind({ identity, conversationId: conversation.id, runId: run.id, canSubmit: canSave(), signal: input.signal, nativeSessionId, memoryFacts });
+          factNativeId = nativeSessionId; factScopeHash = memoryFacts.scopeHash;
+          return { brain: bound.brain, control, scopeHash: factScopeHash };
+        };
+      }
       if([MEDUSA_ENTERPRISE_SCOPE,'omp:18.10.4:business-v1'].includes(engineAdapter.scope)){
         if(engineAdapter.scope!==MEDUSA_ENTERPRISE_SCOPE&&marketplaceModelHost)marketplaceClient=marketplaceModelHost.bind({identity,conversationId:conversation.id,runId:run.id,authorize:async()=>assertActive(),recipient});
         if(medusaCatalog){
@@ -230,22 +258,26 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
             signal?.throwIfAborted();await authorize();if(libraryReadHash(libraryRecipientForModel(model))!==recipientFingerprint)fail(403,'LIBRARY_MODEL_RECIPIENT_CHANGED','Use the original receiver.');
           }});
         }
-        if(engineAdapter.scope!==MEDUSA_ENTERPRISE_SCOPE&&goalBrain)brainClient=goalBrain.bind({identity,conversationId:conversation.id,runId:run.id,canSubmit:canSave(),signal:input.signal}).brain;
+        if(engineAdapter.scope!==MEDUSA_ENTERPRISE_SCOPE&&goalBrain&&!factsEnabled)brainClient=goalBrain.bind({identity,conversationId:conversation.id,runId:run.id,canSubmit:canSave(),signal:input.signal}).brain;
       }
-      return engineAdapter.complete({ input, run, binding, client, authorize, medusaClient, brainClient,marketplaceClient,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
+      return engineAdapter.complete({ input, run, binding, client, authorize, medusaClient, brainClient,...(factsEnabled?{bindBrainForNativeSession}:{}),marketplaceClient,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();
           const expected = path.join(isolated, 'sessions', binding.client.bindingFingerprint);
           if (!mapping || !id(mapping.agentSessionId) || path.dirname(mapping.sessionFile || '') !== expected)
             fail(409, 'BUSINESS_AGENT_SESSION_PATH_CHANGED', 'The OMP public transcript mapping is invalid.');
+          if (factsEnabled && (!factScopeHash || mapping.agentSessionId !== factNativeId || mapping.engineScope !== engineAdapter.scope
+            || conversation.businessAgentSession && mapping.sessionFile !== conversation.businessAgentSession.sessionFile))
+            fail(403, 'BUSINESS_AGENT_BINDING_CHANGED', 'Persist only the original fact-bound native Session.');
           const file = await openPrivateFile(mapping.sessionFile); await file.close();
           await store.update(state => {
             const record = state.conversations.find(row => row.id === conversation.id);
             if (!record || record.activeRunId !== run.id) throw new ProviderError('CANCELLED', 'The original run stopped.');
             record.businessAgentSession = { agentSessionId: mapping.agentSessionId, sessionFile: mapping.sessionFile,
               bindingFingerprint: binding.client.bindingFingerprint, recipientFingerprint, engineScope: engineAdapter.scope,
-              ...(engineAdapter.scope===MEDUSA_ENTERPRISE_SCOPE?{sourceBindingFingerprint:binding.enterpriseContextHost.scopeHash}:{}) };
+              ...(engineAdapter.scope===MEDUSA_ENTERPRISE_SCOPE?{sourceBindingFingerprint:binding.enterpriseContextHost.scopeHash}:{}),
+              ...(factsEnabled?{brainMemoryFactsScopeHash:factScopeHash}:{}) };
           });
         } });
     }

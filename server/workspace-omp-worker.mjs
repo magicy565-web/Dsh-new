@@ -34,6 +34,10 @@ async function start(config) {
       refresh:(receipt,model,signal)=>request('medusaCatalog',['refresh',receipt,model],signal),
     }:null,
     brainClient: config.nativeBusiness&&config.brainConfigured?Object.fromEntries(['sourceCatalog','contextRead','contextSave','diagnose','decisionRead','decisionSave','reviewSave','brief','revalidateReceipt'].map(method=>[method,(value,signal,model)=>request('businessBrain',[method,value,model],signal)])):null,
+    ...(config.brainFactsConfigured ? {
+      onNativeSessionReady: value => request('brainNativeSessionReady', [value], lifecycle.signal),
+      onBusinessFactsDisclosure: (value, signal) => request('businessFactsDisclosure', [value], signal),
+    } : {}),
     productClient: config.shopifyProduct ? {
       ...Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, (value, signal, model) => request('shopifyProduct', [method, value, model], signal)])),
       refresh: (receipt, model, signal, images) => request('shopifyProduct', ['refresh', receipt, model, images], signal),

@@ -39,13 +39,16 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 }
 
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null, localSession = null,
-  configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {},
+  configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {}, onNativeSessionReady = null, onBusinessFactsDisclosure = null,
   maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {}, referenceFence, enterpriseContextHost = null, freeTradeHost = null, publicTenderClient = null,
   nativeBusiness = false, medusaEnterprise = false, resetBusinessContext = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, marketplaceClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = medusaEnterprise ? MEDUSA_ENTERPRISE_SCOPE : nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   if(typeof medusaEnterprise!=='boolean'||medusaEnterprise&&(!enterpriseContextHost||nativeBusiness||localFactory||readOnlyBusiness||freeTradeHost||factoryMaterials||factoryCustomers||factoryInquiries||factoryIngestion||marketValidation||shopifyProduct||ordinaryTools||uiOnly||client))throw Error('MEDUSA_ENTERPRISE_READONLY_PROFILE_REQUIRED');
   if(nativeBusiness&&(!factoryMaterials||!marketValidation||!shopifyProduct||localFactory||readOnlyBusiness||enterpriseContextHost||freeTradeHost||factoryIngestion||factoryCustomers||factoryInquiries||ordinaryTools||uiOnly))throw Error('NATIVE_BUSINESS_PROFILE_REQUIRED');
+  if ((onNativeSessionReady !== null || onBusinessFactsDisclosure !== null)
+    && (!nativeBusiness || typeof onNativeSessionReady !== 'function' || typeof onBusinessFactsDisclosure !== 'function'))
+    throw Error('Original native fact lifecycle callbacks required.');
   if(typeof resetBusinessContext!=='boolean'||resetBusinessContext&&(!nativeBusiness||!savedSession))throw Error('NATIVE_BUSINESS_RESET_REFUSED');
   if (providerTransport && !localFactory) throw Error('Bounded local provider transport requires the local factory profile.');
   if (localSession && (!localFactory || savedSession)) throw Error('LOCAL_SESSION_PROFILE_REFUSED');
@@ -321,6 +324,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
               if(fresh&&libraryReadHash(fresh)!==libraryReadHash(receipt))throw Error('NATIVE_BUSINESS_WIRE_SOURCE_CHANGED');
             }
             await authorize({phase:'model:disclose'});
+            if (onBusinessFactsDisclosure) await onBusinessFactsDisclosure({nativeSessionId:manager.getSessionId(),phase:'model:disclose',modelCalls:callNumber,
+              receiver:{provider:model.provider,id:model.id,baseUrl:model.baseUrl},...(wireBody===undefined?{}:{wireBody})},signal);
           }
           if(enterpriseContextHost){
             const control=enterpriseContextHost.open(manager.getSessionId());
@@ -393,6 +398,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   }
   if (savedSession && (savedSession.engineScope !== engineScope || manager.getSessionId() !== savedSession.agentSessionId || path.resolve(manager.getCwd()) !== cwd))
     throw new Error('This is not the selected OMP engine scope; history cannot migrate across profiles.');
+  if (onNativeSessionReady) await onNativeSessionReady({nativeSessionId:manager.getSessionId()});
   const { EventBus } = await import(pathToFileURL(path.join(packageRoot, 'src/utils/event-bus.ts')).href);
   const eventBus = new EventBus(), subagentEventBus = new EventBus();
   const toolSession = { cwd, settings, authStorage, modelRegistry, eventBus, subagentEventBus, skills: selectedSkills.skills, getSessionId: () => manager.getSessionId(),
@@ -521,7 +527,11 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       return { promptTokens: sum('input'), completionTokens: sum('output'), totalTokens: sum('totalTokens') };
     },
     summarizeToolArguments: (...args) => pluginDiagnostics.get('arguments')?.(...args) || { objectArguments: args[1] !== null && typeof args[1] === 'object' && !Array.isArray(args[1]) },
-    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{await authorize(...args);if(nativeBusiness||medusaEnterprise)await revalidateFactoryContext(contextMessages(),session.model,lifecycleSignal);},
+    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{
+      await authorize(...args);if(nativeBusiness||medusaEnterprise)await revalidateFactoryContext(contextMessages(),session.model,lifecycleSignal);
+      if(onBusinessFactsDisclosure)await onBusinessFactsDisclosure({nativeSessionId:manager.getSessionId(),phase:'final:deliver',modelCalls,
+        receiver:{provider:session.model.provider,id:session.model.id,baseUrl:session.model.baseUrl}},lifecycleSignal);
+    },
     async close() { return closePromise ??= (async () => { try { await session.dispose(); } finally { await cleanup(); } })(); } };
   } catch (error) {
     try { await created?.session.dispose(); } finally { await cleanup(); }
