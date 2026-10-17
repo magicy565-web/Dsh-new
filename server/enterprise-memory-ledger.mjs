@@ -197,13 +197,13 @@ export function createEnterpriseMemoryLedger({store,library,disclosure=null,work
 
   // Revalidate an earlier native tool observation without treating superseded
   // facts as current. The Host then supplies the latest authorized projection.
-  function revalidateSnapshot(snapshot,{actor,signal}={}) {
+  function revalidateSnapshot(snapshot,{actor,signal,state=store.read()}={}) {
     signal?.throwIfAborted();actorOk(actor,'internal');
-    const row=rows(store.read()).find(x=>x.id===snapshot?.id&&x.workspaceId===workspaceId&&x.audience==='internal');
+    const row=rows(state).find(x=>x.id===snapshot?.id&&x.workspaceId===workspaceId&&x.audience==='internal');
     if(!row||!['active','superseded'].includes(row.status)||snapshot.status!=='active') fail(403,'MEMORY_SOURCE_REVOKED','The cached memory is no longer available.');
     const immutable=value=>Object.fromEntries(Object.entries(value).filter(([key])=>!['status','updatedAt','updatedBy'].includes(key)));
     if(hash(immutable(row))!==hash(immutable(snapshot))) fail(403,'MEMORY_SOURCE_REVOKED','The cached memory observation changed.');
-    currentSource(store,row.source);return clean(row);
+    currentSource(store,row.source,state);return clean(row);
   }
 
   async function revoke(idValue,body={},actor){

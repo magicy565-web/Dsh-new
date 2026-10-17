@@ -23,7 +23,7 @@ const nullable = schema => ({ anyOf: [schema, { type: 'null' }] });
 const id = { ...text(128), pattern: '^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$' };
 const sha = { ...text(64), pattern: '^[a-f0-9]{64}$' };
 export const SOURCE_SCHEMA = object({
-  kind: enumeration(['company', 'product', 'inquiry', 'metric', 'policy', 'artifact', 'market-observation']),
+  kind: enumeration(['company', 'product', 'inquiry', 'metric', 'policy', 'artifact', 'market-observation', 'memory-fact']),
   id, revision: text(128), sha256: sha, fields: list(text(128), 24, 1),
 });
 export const SOURCE_LIST_SCHEMA = list(SOURCE_SCHEMA, 24);
