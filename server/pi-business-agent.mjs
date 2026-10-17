@@ -337,6 +337,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       if (req.method === 'GET' && pathname === '/api/conversations/runtime') {
         actor(context);
         await respond(res, 200, { engine: engineAdapter ? 'omp' : 'pi', engineScope: engineAdapter?.scope || 'pi:1.1.0',
+          contextReset:engineAdapter?.scope==='omp:18.10.4:business-v1'?'confirmed-original-human-control':'unavailable',
           frontend: 'original-workspace-conversation-run', privateLibrary: ['omp:18.10.4:business-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:shopify-product-v1'].includes(engineAdapter?.scope) ? 'original-reviewed-session-policy-required' : engineAdapter ? 'disabled' : 'original-controlled-policy' });
         return true;
       }
@@ -360,11 +361,20 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         const body = await readBody(req), operation = body.operation;
         const fields = { status: ['runId'], cancel: ['runId', 'confirmed'], resume: ['runId', 'requestId', 'confirmed'],
           decision: ['runId', 'proposalId', 'confirmed'], continue: ['runId', 'proposalId', 'requestId', 'confirmed'],
-          businessStatus: ['taskId'], businessCancel: ['taskId', 'confirmed'] };
+          businessStatus: ['taskId'], businessCancel: ['taskId', 'confirmed'], resetContext: ['requestId','confirmed'] };
         if (!Object.hasOwn(fields, operation) || Object.keys(body).some(key => !['operation', ...fields[operation]].includes(key))
           || fields[operation].some(key => key === 'confirmed' ? body[key] !== true : key === 'requestId' ? !requestId(body[key]) : !id(body[key])))
           fail(400, 'HUMAN_CONTROL_REQUIRED', 'Use an exact original human control, identifiers and stable requestId, with explicit confirmation for mutations.');
         const binding = await bindingFor(identity, conversation, undefined, !['resume', 'continue'].includes(operation));
+        if(operation==='resetContext'){
+          if(engineAdapter?.scope!=='omp:18.10.4:business-v1'||!conversation.businessAgentSession)
+            fail(409,'BUSINESS_CONTEXT_RESET_UNAVAILABLE','Use an existing native business conversation.');
+          if(conversation.activeRunId||store.read().runs.some(r=>r.conversationId===conversationId&&['queued','running'].includes(r.status)))
+            fail(409,'BUSINESS_CONTEXT_RESET_BUSY','Wait for the current turn to finish or cancel it before clearing model context.');
+          const admitted=await runtime.sendMessage(conversationId,{content:'Human confirmed: clear the current model context, preserve audit records and drafts; reread current authorized sources before continuing.',requestId:body.requestId,inputContext:emptyInputContext(),workspaceExecution:true},
+            {businessAgentContext:{...identity,allowBusinessSubmit:false,resetContext:true}});
+          await respond(res,202,admitted);return true;
+        }
         if (binding.client.readOnlySession && !['status', 'businessStatus'].includes(operation))
           fail(403, 'SESSION_READONLY_EXECUTION_REFUSED', 'This existing Session client cannot mutate tasks or runs.');
         let value;

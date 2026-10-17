@@ -78,6 +78,12 @@ async function start(config) {
   // Use its explicit persistence API; never write a fabricated/external header.
   await created.manager.ensureOnDisk(); await created.manager.flush();
   await request('saveSession', [{ engineScope: created.engineScope, agentSessionId: created.manager.getSessionId(), sessionFile: created.manager.getSessionFile() }]);
+  if(config.resetBusinessContext){
+    await created.authorizeDisclosure({phase:'final:deliver'});await created.manager.flush();
+    write({type:'result',result:{content:JSON.stringify({done:true,content:'Model context cleared in the same native Session. Audit records and drafts are retained. Reread currently authorized products, decisions and order status before continuing; permissions were not renewed.'}),usage:{promptTokens:0,completionTokens:0,totalTokens:0},
+      runtime:{kind:'pi-durable',execution:'agent-session',engine:'omp',engineScope:created.engineScope,agentSessionId:created.manager.getSessionId(),modelCalls:0,originalRunId:config.runId}}});
+    await created.close();input.close();process.exit(0);
+  }
   const startIndex = created.session.messages.length;
   await created.session.prompt(config.content, { expandPromptTemplates: false });
   await created.authorizeDisclosure({phase:'final:deliver'}); await created.manager.flush();
@@ -100,6 +106,7 @@ input.on('line', line => {
   } else if (value.type === 'abort') { lifecycle.abort(); void created?.session.abort(); }
   else if (value.type === 'start') void start(value.config).catch(async error => {
     write({ type: 'error', error: 'The official OMP session failed; no task completion or model fallback is implied.',
+      ...(error.code==='MARKETPLACE_SOURCE_CHANGED'||error.message==='MARKETPLACE_SOURCE_CHANGED'?{errorCode:'MARKETPLACE_SOURCE_CHANGED'}:{}),
       ...(value.config.syntheticResponses ? { diagnostic: error.message+(error.pluginReason?':'+error.pluginReason:'') } : {}) });
     await created?.close().catch(() => {}); process.exit(1);
   });

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { isBrainGapReceipt,isMedusaGapReceipt } from './workspace-omp-business-journal.mjs';
+import { isBrainGapReceipt,isMedusaGapReceipt,currentBusinessEntries } from './workspace-omp-business-journal.mjs';
 import { projectPlugins } from './workspace-plugin-config.mjs';
 
 
@@ -41,9 +41,10 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {},
   maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {}, referenceFence, enterpriseContextHost = null, freeTradeHost = null, publicTenderClient = null,
-  nativeBusiness = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, marketplaceClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
+  nativeBusiness = false, resetBusinessContext = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, marketplaceClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
   if(nativeBusiness&&(!factoryMaterials||!marketValidation||!shopifyProduct||localFactory||readOnlyBusiness||enterpriseContextHost||freeTradeHost||factoryIngestion||factoryCustomers||factoryInquiries||ordinaryTools||uiOnly))throw Error('NATIVE_BUSINESS_PROFILE_REQUIRED');
+  if(typeof resetBusinessContext!=='boolean'||resetBusinessContext&&(!nativeBusiness||!savedSession))throw Error('NATIVE_BUSINESS_RESET_REFUSED');
   if (providerTransport && !localFactory) throw Error('Bounded local provider transport requires the local factory profile.');
   if (localSession && (!localFactory || savedSession)) throw Error('LOCAL_SESSION_PROFILE_REFUSED');
   if (localFactory && (savedSession || readOnlyBusiness || factoryMaterials || factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || shopifyProduct || productClient || ordinaryTools || uiOnly || client))
@@ -165,6 +166,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   try {
   const modelRegistry = new sdk.ModelRegistry(authStorage, agentDir + '/no-ambient-models.yml', { settings, ignoreLocalModelConfig: true });
   let manager;
+  const contextEntries=()=>nativeBusiness?currentBusinessEntries(manager.getEntries()):manager.getEntries();
   async function revalidateFactoryContext(messages, model, signal) {
     if (!privateProfile) return;
     const monitorSnapshots = new Map(); // One disclosure boundary only.
@@ -269,7 +271,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       void (async () => {
         if (uiOnly) throw new Error('This official terminal is UI-only. Model execution must use the original Workspace Conversation/Run HTTP authority.');
         await authorize();
-        const monitorSnapshots = await revalidateFactoryContext([...(manager?.getEntries() || []).map(e => e.message), ...(context.messages || [])], model, options?.signal);
+        const monitorSnapshots = await revalidateFactoryContext([...(manager ? contextEntries() : []).map(e => e.message), ...(context.messages || [])], model, options?.signal);
         if (shopifyProduct) for (const message of context.messages || []) {
           if (message?.role !== 'toolResult' || !SHOPIFY_PRODUCT_TOOLS.includes(message.toolName)) continue;
           let receipt; try { receipt = JSON.parse(message.content.filter(b => b.type === 'text').map(b => b.text).join('\n')); } catch { continue; }
@@ -300,7 +302,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         const permit=async wireBody=>{
           if(nativeBusiness){
             await authorize({phase:'model:disclose'});
-            const freshSnapshots=await revalidateFactoryContext([...(manager?.getEntries() || []).map(e=>e.message),...(context.messages||[])],model,signal);
+            const freshSnapshots=await revalidateFactoryContext([...(manager ? contextEntries() : []).map(e=>e.message),...(context.messages||[])],model,signal);
             // Initial refresh is before the async request hook. The exact views
             // about to leave must still equal a fresh original-client projection.
             for(const message of context.messages||[]){
@@ -414,7 +416,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     authorize, ...(nativeBusiness?{materialsClient,planClient,monitorClient,productClient,medusaClient,marketplaceClient,registerMarketplaceContextGuard:({validateReceipt})=>{
       if(!marketplaceClient||validateReceipt!==marketplaceClient.revalidateReceipt)return false;
       disclosureGuards.push({id:'workspace-business-marketplace-v1',check:async()=>{
-        for(const entry of manager.getEntries()){const message=entry.message;if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_marketplace_'))continue;
+        for(const entry of contextEntries()){const message=entry.message;if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_marketplace_'))continue;
           const receipt=marketplaceMessageReceipt(message);
           if(!receipt.method){if(!isMarketplaceGap(receipt)||message.content.some(b=>b.type!=='text'))throw Error('MARKETPLACE_SOURCE_CHANGED');continue;}
           await marketplaceClient.revalidateReceipt(receipt,lifecycleSignal,created?.session?.model||modelRegistry.find(configuration.providerId,configuration.model));
@@ -423,7 +425,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     },brain:brainClient,registerBrainContextGuard:({validateReceipt})=>{
       if(!brainClient||validateReceipt!==brainClient.revalidateReceipt)return false;
       disclosureGuards.push({id:"workspace-business-brain-v1",check:async()=>{
-        for(const entry of manager.getEntries()){const message=entry.message;if(message?.role!=="toolResult"||!message.toolName?.startsWith("workspace_brain_"))continue;
+        for(const entry of contextEntries()){const message=entry.message;if(message?.role!=="toolResult"||!message.toolName?.startsWith("workspace_brain_"))continue;
           let receipt;try{receipt=JSON.parse(message.content.filter(b=>b.type==="text").map(b=>b.text).join("\n"));}catch{throw Error("BRAIN_CACHE_REFUSED");}
           if(["blocked","unconfigured"].includes(receipt.status)){if(!isBrainGapReceipt(receipt)||message.content.some(b=>b.type!=="text"))throw Error("BRAIN_CACHE_REFUSED");continue;}
           await brainClient.revalidateReceipt(receipt,lifecycleSignal,created?.session?.model||modelRegistry.find(configuration.providerId,configuration.model));
@@ -485,7 +487,15 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     admittedTools.push(...names);
     providerTransport?.configureTools?.(admittedTools);
   }
-  if(savedSession&&plugins)for(const entry of manager.getBranch()){
+  if(resetBusinessContext){
+    // Human control only: discard model context through the original SDK. The
+    // signed Session/Run fence remains live; no historical data is disclosed.
+    lifecycleSignal?.throwIfAborted();await originalAuthorize();
+    if(!await session.resetSessionContext())throw Error('NATIVE_BUSINESS_RESET_BUSY');
+    await manager.flush();lifecycleSignal?.throwIfAborted();await originalAuthorize();
+  }
+  if(savedSession&&plugins)for(const entry of nativeBusiness?contextEntries():manager.getBranch()){
+
     const message=entry.message;
     if(message?.role==='toolResult'&&!admittedTools.includes(message.toolName)||message?.role==='assistant'&&message.content?.some(block=>block.type==='toolCall'&&!admittedTools.includes(block.name)))throw Error('PROJECT_PLUGIN_HISTORY_TOOL_REFUSED');
   }
@@ -494,7 +504,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     const { initializeExtensions } = await import(pathToFileURL(path.join(packageRoot, 'src/modes/runtime-init.ts')).href);
     await initializeExtensions(session, { reportSendError: () => {}, reportRuntimeError: () => {},
       filterActiveTools: names => names.filter(name => admittedTools.includes(name)) });
-    await revalidateFactoryContext(manager.getEntries().map(e => e.message), session.model, lifecycleSignal);
+    await revalidateFactoryContext(contextEntries().map(e => e.message), session.model, lifecycleSignal);
   }
   for (const forbidden of ['workspace_company_profile', 'workspace_products', 'workspace_product']) assert.ok(!session.getActiveToolNames().includes(forbidden));
   return { ...created, sdk, authStorage, modelRegistry, manager, engineScope, modelCalls: () => modelCalls,
@@ -505,7 +515,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       return { promptTokens: sum('input'), completionTokens: sum('output'), totalTokens: sum('totalTokens') };
     },
     summarizeToolArguments: (...args) => pluginDiagnostics.get('arguments')?.(...args) || { objectArguments: args[1] !== null && typeof args[1] === 'object' && !Array.isArray(args[1]) },
-    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{await authorize(...args);if(nativeBusiness)await revalidateFactoryContext(manager.getEntries().map(e=>e.message),session.model,lifecycleSignal);},
+    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{await authorize(...args);if(nativeBusiness)await revalidateFactoryContext(contextEntries().map(e=>e.message),session.model,lifecycleSignal);},
     async close() { return closePromise ??= (async () => { try { await session.dispose(); } finally { await cleanup(); } })(); } };
   } catch (error) {
     try { await created?.session.dispose(); } finally { await cleanup(); }

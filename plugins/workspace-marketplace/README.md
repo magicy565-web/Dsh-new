@@ -56,9 +56,35 @@ draft remains committed if its Run is cancelled; cancellation stops model delive
 The original human confirmation view must review the complete task inputs and terms.
 
 Order status is a **strict snapshot**. Source, quote, scope or field changes invalidate
-old receipts; this increment does not silently replace history with new proofs.
-Use a fresh reviewed context for changed snapshots. Status reads do not contact a
-remote Worker and do not include freeform delivery evidence.
+old receipts; history is never silently replaced with new proofs. Status reads do
+not contact a remote Worker and do not include freeform delivery evidence.
+
+## Explicit same-session continuation
+
+When a legal order/status change blocks old history, the original business Run
+reports `OMP_CONTEXT_REFRESH_REQUIRED`. The owner can explicitly clear the model
+context through the existing authenticated human-control endpoint:
+
+`POST /api/conversations/{conversationId}/terminal-controls`
+
+```json
+{"operation":"resetContext","confirmed":true,"requestId":"unique-stable-human-request"}
+```
+
+Use the application's existing Session and CSRF transport. The response is 202
+with an original Run ID; read its original terminal-status until it succeeds.
+An active Run must finish or be cancelled first (409). Retry an uncertain control
+with the same requestId; this is not a model tool or a natural-message flag.
+
+The original OMP `resetSessionContext()` keeps the same native Session ID and
+append-only audit file, drops all old model messages and provider continuation,
+and records its native reset boundary. This control makes zero model calls and
+does not cancel/edit orders, renew authority or rewrite any old proof. Then send
+a normal turn to reread currently authorized products, decisions and order status.
+Current selection/recipient, owner, Run, revocation and final-send checks still
+apply; absent reviewed scope is unconfigured. Required disabled plugins still
+block restoration. This clears the whole model context; it is not an automatic
+snapshot migration or a browser UI button. Other profiles retain their controls.
 
 ## Validation scope
 

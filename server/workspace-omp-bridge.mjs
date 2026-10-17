@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { revalidateBusinessJournal } from './workspace-omp-business-journal.mjs';
+import { revalidateBusinessJournal,currentBusinessEntries } from './workspace-omp-business-journal.mjs';
 import { privateDirectory, openPrivateFile } from './store.mjs';
 import { ProviderError } from './provider.mjs';
 import { snapshotWorkspaceOmpPublicFiles } from './workspace-omp-public-tools.mjs';
@@ -90,7 +90,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               const file=await openPrivateFile(nativeMapping.sessionFile);let journal;
               try{if((await file.stat()).size>32000000)throw Error('Original journal bound exceeded.');journal=await file.readFile('utf8');}finally{await file.close();}
               const entries=journal.trim().split('\n').map(line=>JSON.parse(line));
-              await revalidateBusinessJournal(entries.map(e=>e.message),{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
+              await revalidateBusinessJournal(currentBusinessEntries(entries).map(e=>e.message),{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
               await authorize();
             }
             finish(null,{...pendingResult,runtime:{...pendingResult.runtime,workerExitObserved:true}});
@@ -231,7 +231,9 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             catch { finish(new ProviderError('OMP_RECEIPT_INVALID', 'OMP returned an invalid original-run receipt.')); }
           } else if (message.type === 'nativeModelAbort' && syntheticResponses) onWorkerLifecycle({ phase: 'nativeModelAbort', pid: child.pid });
           else if (message.type === 'nativeModelWaiting' && syntheticResponses) onWorkerLifecycle({ phase: 'nativeModelWaiting', pid: child.pid });
-          else if (message.type === 'error') finish(new ProviderError('OMP_SESSION_FAILED', message.error + (syntheticResponses && message.diagnostic ? ' Explicit synthetic fixture diagnostic: ' + message.diagnostic : '')));
+          else if (message.type === 'error') finish(message.errorCode==='MARKETPLACE_SOURCE_CHANGED'
+            ?new ProviderError('OMP_CONTEXT_REFRESH_REQUIRED','Original business status changed. Confirm resetContext in this conversation human controls, then reread currently authorized data. Audit history and drafts remain; no authority is renewed.')
+            :new ProviderError('OMP_SESSION_FAILED', message.error + (syntheticResponses && message.diagnostic ? ' Explicit synthetic fixture diagnostic: ' + message.diagnostic : '')));
         };
         lines.on('line', line => { void handleLine(line).catch(() => finish(new ProviderError('OMP_SESSION_FAILED', 'The original OMP host operation stopped.'))); });
         child.on('error', () => finish(new ProviderError('OMP_UNAVAILABLE', 'The reviewed OMP runtime could not start.')));
@@ -242,7 +244,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.'));
           }).catch(() => finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.'))); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, nativeBusiness, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient, marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, nativeBusiness, resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient, marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       });
     },
