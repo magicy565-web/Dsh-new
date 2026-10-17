@@ -1,0 +1,371 @@
+{
+  "schema": "workspace.native-business-context-acceptance-summary.v1",
+  "recordedAt": "2026-10-17T05:50:53.708470+00:00",
+  "branch": "codex/omp-all-plugins-integration-20261017",
+  "draftPR": 99,
+  "baseline": "dd3d98ab71e78db0a78d33180a3b91bd6a0e4cb3",
+  "implementationCommit": "87a1cbcc671326c2e6cf09f0d8e342d925c15ffe",
+  "sourceCommit": "980422eb40ae8f28025ea9283e61cbbee1740493",
+  "testedTree": "352a8dce09d593769d233fc72bc230e1603e0a91",
+  "runtime": {
+    "node": "24.19.0",
+    "bun": "1.3.14",
+    "omp": "18.10.4"
+  },
+  "environmentPrefix": "env -i PATH=\"$PATH\" HOME=/tmp NO_COLOR=1",
+  "upstreamSourceSha256": {
+    "session-entries.ts": "3e20dd731ba348ad99340f8e467c176db43c7bdba63228329d79298ee15be2fb",
+    "session-manager.ts": "bfbf1ba13659569e780009400ea58e351f74046bbc84901c956cf50dcb1a2624",
+    "session-context.ts": "0a4a845afd796b41a22211e4ab70095a241224da8f05f3a9e999710517915c8f",
+    "context-notes.ts": "c608072354dbcca2dbb1596fe12e789084596ae40f88a02959c152345bc1ea81"
+  },
+  "beforeFixWitness": {
+    "sourceCommit": "dd3d98ab71e78db0a78d33180a3b91bd6a0e4cb3",
+    "localLog": "business-context-leaf-before.json",
+    "sha256": "52d01ec7a3ddb7f1e6d747e4a2f93f63e0e9f015f952f488b45aab6266365f0e",
+    "scenario": "original-SDK-late-usage",
+    "constructedByOriginalManager": true,
+    "originalSdkSelectsCurrentMessage": true,
+    "previousHelperOmitsCurrentMessage": true,
+    "realExternalRequests": 0,
+    "scope": "Synthetic legal entries generated with pinned original SDK appendModelUsage; natural production occurrence and actual disclosure have not been established."
+  },
+  "parser": {
+    "upstreamFunction": "buildSessionContext",
+    "liveLeaf": "Original SessionManager.getLeafId passed directly to upstream function",
+    "restoredLeaf": "Upstream resolveSessionLeafId invoked internally by buildSessionContext; no copied leaf rules",
+    "nodeBoundary": "Bounded read-only Bun process imports same original function. No Session/auth store/model instance created; no journal write.",
+    "strictAdmission": "Duplicates, invalid parent graph/activeLeafId shape, malformed notes/entries rejected before native projection",
+    "unsupportedEmission": "Native-emitted opaque summary/notes/custom roles fail closed; no unproved private projection is admitted. Pre-reset channels dropped by native SDK remain dropped."
+  },
+  "groupsOverlap": true,
+  "overlapNote": "SDK22 already includes original14 and post-reset8 (the added late-usage source case). Context22 includes fifteen native construction/replay cases and seven malformed admissions. Focused preflight/mutation cases are not extra independent pass totals.",
+  "groups": [
+    {
+      "kind": "native",
+      "command": "node --test test/workspace-omp-marketplace.test.mjs test/marketplace-plugin.test.mjs test/workspace-omp-marketplace-optional.test.mjs",
+      "localLog": "native-context-final-native.tap",
+      "sourceCheckpoint": "980422eb40ae8f28025ea9283e61cbbee1740493",
+      "exitCode": 0,
+      "sha256": "2b40d6a05b0dc7e59594321732399ded4e6e3fc3665c839b7520b53014581ee4",
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "sdk",
+      "command": "node --test test/workspace-omp-marketplace-wire.test.mjs",
+      "localLog": "native-context-final-sdk.tap",
+      "sourceCheckpoint": "980422eb40ae8f28025ea9283e61cbbee1740493",
+      "exitCode": 0,
+      "sha256": "9ffc5b03f7d0a16ff80e6e7178da7b0a1688d2adccf655ad98b346e8c9126fa9",
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "regression",
+      "command": "node --test test/workspace-omp-business-integration.test.mjs test/workspace-omp-business-wire.test.mjs test/workspace-omp-brain-decision.test.mjs test/marketplace.test.mjs test/marketplace-http.test.mjs test/marketplace-stripe.test.mjs acceptance/marketplace-original-host.mjs test/workspace-omp-unified.test.mjs",
+      "localLog": "native-context-final-regression.tap",
+      "sourceCheckpoint": "980422eb40ae8f28025ea9283e61cbbee1740493",
+      "exitCode": 0,
+      "sha256": "fccfaa0d3ede632cb1bd05d975befd94e5a2d617e657f70d2dcc6c73879b173e",
+      "tests": 110,
+      "pass": 110,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "reset",
+      "command": "node --test test/workspace-omp-business-reset.test.mjs",
+      "localLog": "native-context-final-reset.tap",
+      "sourceCheckpoint": "980422eb40ae8f28025ea9283e61cbbee1740493",
+      "exitCode": 0,
+      "sha256": "770a3bdcf44b7f77317f5c779e3dc790b512bedc6a0daf42d439fa367f32e30d",
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "context",
+      "command": "node --test test/workspace-omp-business-context.test.mjs",
+      "localLog": "native-context-final-context.tap",
+      "sourceCheckpoint": "980422eb40ae8f28025ea9283e61cbbee1740493",
+      "exitCode": 0,
+      "sha256": "1b58d8309dd5549d7960fa66d4beca4f4f66032d8899967c7eeff7ce3b5fbe8f",
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "controls",
+      "command": "node --test --test-concurrency=1 test/pi-business-conversation.native.test.mjs test/workspace-omp-terminal-host.test.mjs test/runtime-v2.test.mjs test/conversation-create-idempotency.test.mjs test/workspace-omp-brain-decision-wire.test.mjs test/workspace-omp-context-final-read.test.mjs",
+      "localLog": "native-context-final-controls.tap",
+      "sourceCheckpoint": "980422eb40ae8f28025ea9283e61cbbee1740493",
+      "exitCode": 0,
+      "sha256": "2b98848c812450c3a26af3780254a6138b4f5c14d2ceb15b5bc4b9992513ef15",
+      "tests": 50,
+      "pass": 50,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "buildChecks": [
+    {
+      "command": "npm run plugins:pack-check",
+      "localLog": "native-context-final-pack.log",
+      "sourceCheckpoint": "980422eb40ae8f28025ea9283e61cbbee1740493",
+      "exitCode": 0,
+      "sha256": "0733dce885174b81fa2c0f72469e44452ecd91c56d3952b2ab2bd5c519bc5e20",
+      "status": "passed",
+      "plugins": 14
+    },
+    {
+      "command": "npm run build:omp",
+      "localLog": "native-context-final-build-omp.log",
+      "sourceCheckpoint": "980422eb40ae8f28025ea9283e61cbbee1740493",
+      "exitCode": 0,
+      "sha256": "2e4240aabf18980ecfd5e14e1bc917d65b21caa9b5d3f68be720a245d5d5e054",
+      "status": "passed",
+      "plugins": 14
+    }
+  ],
+  "actualSdkFetchEntryMatrix": [
+    {
+      "mode": "control",
+      "afterReset": false,
+      "fetchEntries": 1,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": []
+    },
+    {
+      "mode": "hook-grant",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "hook-source",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "hook-fields",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "hook-session",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "SESSION_REQUIRED"
+      ]
+    },
+    {
+      "mode": "text-grant",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": true,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "text-source",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": true,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "text-fields",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": true,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "text-session",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": true,
+      "hostRefusalCodes": [
+        "SESSION_REQUIRED"
+      ]
+    },
+    {
+      "mode": "text-cancel",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": true,
+      "hostRefusalCodes": [
+        20
+      ]
+    },
+    {
+      "mode": "disabled",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": []
+    },
+    {
+      "mode": "forged",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "forged-image",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": []
+    },
+    {
+      "mode": "receiver",
+      "afterReset": false,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SCOPE_REQUIRED"
+      ]
+    },
+    {
+      "mode": "control",
+      "afterReset": true,
+      "fetchEntries": 1,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": []
+    },
+    {
+      "mode": "hook-grant",
+      "afterReset": true,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "hook-source",
+      "afterReset": true,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "text-grant",
+      "afterReset": true,
+      "fetchEntries": 0,
+      "actualRequestTextReached": true,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "text-source",
+      "afterReset": true,
+      "fetchEntries": 0,
+      "actualRequestTextReached": true,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    },
+    {
+      "mode": "text-cancel",
+      "afterReset": true,
+      "fetchEntries": 0,
+      "actualRequestTextReached": true,
+      "hostRefusalCodes": [
+        20
+      ]
+    },
+    {
+      "mode": "disabled",
+      "afterReset": true,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": []
+    },
+    {
+      "mode": "late-usage-source",
+      "afterReset": true,
+      "fetchEntries": 0,
+      "actualRequestTextReached": false,
+      "hostRefusalCodes": [
+        "MARKETPLACE_SOURCE_CHANGED"
+      ]
+    }
+  ],
+  "nodeFinalSourceAssertion": "Passed original Node final validation case: SDK-appended late usage retains current B receipt; original Host MARKETPLACE_SOURCE_CHANGED observed explicitly outside expected-failure handling, result withheld with OMP_DISCLOSURE_REFUSED.",
+  "counterSensitivityMutation": {
+    "purpose": "Detect false zero-fetch results when the proof guard is deliberately bypassed in a local test fixture",
+    "mutation": "Only the fixture revalidateReceipt RPC returns true; production files unchanged",
+    "baselineExitCode": 0,
+    "mutantExitCode": 1,
+    "mutantTests": 1,
+    "mutantFail": 1,
+    "providerFetchEntriesObserved": 1,
+    "failurePredicate": "Expected zero provider fetch entries, observed one before body assertions",
+    "fixtureRestored": true,
+    "fixedFixtureSha256": "6c05aa8877737d8758e7c462b6c9f683bcb5d6a611bf80c2a78f4bfbbe281b7e",
+    "parentTestSha256": "a8230d6b362aa577868c8f4da2e1d8870aaed384cb63eae3959f7eca55d88e23",
+    "mutantFixtureSha256": "55c71c3ed59de8b7dd340d349678627fc7a54e5c1c6b7447b6f5ce8031bdf8bd",
+    "baselineLog": "native-context-counter-forged.tap",
+    "mutationLog": "native-context-guard-bypass-mutation.tap",
+    "baselineLogSha256": "9831b81ec55bf9c23a03c4964ce71ed210c9742b2f868374dc99689d3dac409a",
+    "mutationLogSha256": "bb34e2693d17cea71daad38c3abc8be2d1801e1e7ec47d8f6235e7112262bd11",
+    "realExternalRequests": 0,
+    "executionScope": "Pre-commit focused negative; restored fixture/parent hashes match final source. Not an additional acceptance pass or full-matrix run."
+  },
+  "realExternalModelRequests": 0,
+  "realExternalBusinessRequests": 0,
+  "mem0Vector": "disabled",
+  "fixtureBoundaries": {
+    "actual": "Original signed Host, Store/Library/Artifact, WorkerDesk, native OMP Session, original SDK entry generation, fd3 and actual SDK serialization on active original Run.",
+    "synthetic": "Identity/scope/Goal assertions, all business records, provider/Worker/payment/model/SSE. Serialization probe uses read-only loopback to original client.",
+    "projection": "Pure original SDK function; no model or business call in parser subprocess."
+  },
+  "remaining": [
+    "Natural production occurrence of the late-usage shape and actual disclosure have not been established.",
+    "Opaque summaries/notes are unsupported private business histories; fail closed rather than inventing authorization or migration.",
+    "Public TUI waiting for terminal model disabled previously timed out on both tested baseline and then-current source; root cause unknown, not resolved. Not rerun or claimed passed in this round.",
+    "Real services and credentials unconfigured/uncalled; no browser UI completion, private delivery-body projection, all-isolated-profile composition or previous Medusa gaps resolved.",
+    "Prior remote CI startup_failure reports remain unverified here; local passes are not remote CI evidence."
+  ],
+  "afterValidationChangePolicy": "Only documentation and sanitized evidence after this tested source commit; no runtime/plugin/test/build changes.",
+  "evidenceScope": "Sanitized counts/hashes/explicit fixture assertions only; no runtime journal/store body or real credentials committed."
+}

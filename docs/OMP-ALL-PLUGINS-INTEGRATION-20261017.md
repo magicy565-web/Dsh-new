@@ -14,6 +14,8 @@ Marketplace 测试计数判据修正后，完整 20/14/110 和 14 插件 pack/bu
 
 统一入口的受控继续增量见 [本轮报告](OMP-BUSINESS-CONTEXT-RESET-20261017.md)：同一原生 Session 完成产品/经营决策/Worker 草稿与状态查询，合法状态变化先拒绝旧快照，再由原人工控制显式清空模型上下文并重读。原 Session ID、审计 journal、授权与禁止商业执行边界保留；最新相关回归来源为 `64df960e0aa785cfef299cbea4c2e49340eb0194`。
 
+原生活动叶语义的安全修复与最新补验见 [本轮报告](OMP-NATIVE-BUSINESS-CONTEXT-20261017.md)：原 SDK 合法 late usage 反例已复现，移除自写分支选择，直接复用锁定 SDK。尚未确认自然生产触发或泄漏；TUI 超时根因仍未知。
+
 ## 源码来源与选择
 
 | 来源 | 当前处理 |
