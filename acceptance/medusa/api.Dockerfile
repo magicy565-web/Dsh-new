@@ -25,7 +25,7 @@ COPY --from=build --chown=node:node /source/apps/medusa-acceptance/.medusa/serve
 COPY --from=build --chown=node:node /source/apps/medusa-acceptance/node_modules/ /app/node_modules/
 COPY --chown=node:node acceptance/medusa/entrypoint.mjs acceptance/medusa/create-user.mjs /opt/medusa/
 RUN mkdir -p /app/static /app/.cache \
- && for module in auth-emailpass fulfillment-manual notification-local cache-inmemory event-bus-redis locking file caching; do \
+ && for module in auth-emailpass fulfillment-manual notification-local cache-inmemory event-bus-redis locking locking-redis file file-local caching caching-redis; do \
       test -d "/app/node_modules/@medusajs/$module/dist" \
       && mkdir -p "/app/node_modules/@medusajs/$module/dist/migrations" || exit 1; \
     done \

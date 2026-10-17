@@ -4,8 +4,26 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import { bootstrap } from '../acceptance/medusa/write-env.mjs';
 const env = { PATH: process.env.PATH, HOME: '/tmp', NO_COLOR: '1' };
+test('final image preparation covers the audited native module/provider closure and requires a fresh audit after config or lock changes', async () => {
+  const audit = JSON.parse(await fs.readFile('docs/validation/omp-medusa-provider-closure-20261017.json', 'utf8'));
+  assert.equal(audit.sdk, '2.21.2');
+  assert.equal(audit.entries.length, audit.modules + audit.providers + audit.pluginModules);
+  assert.equal(audit.entries.length, 35);
+  for (const [file, hash] of Object.entries(audit.sourceSHA256)) {
+    assert.equal(createHash('sha256').update(await fs.readFile(file)).digest('hex'), hash, file + ' changed; audit actual native resolution again');
+  }
+  const expected = [...new Set(audit.entries.filter(e => !e.exists && !e.customMigrations).map(e => {
+    const match = /^node_modules\/@medusajs\/([^/]+)\/dist\/migrations$/.exec(e.migrationDirectory);
+    assert.ok(match, 'unreviewed migration path'); return match[1];
+  }))].sort();
+  const dockerfile = await fs.readFile('acceptance/medusa/api.Dockerfile', 'utf8');
+  const prepared = /for module in ([^;]+); do/.exec(dockerfile)?.[1].trim().split(/\s+/).sort();
+  assert.deepEqual(prepared, expected);
+  assert.equal(expected.length, 11);
+});
 test('Docker plugin inputs include automatic top-level npm pack files before enforcing the locked archive integrity', async () => {
   const prefix = 'packages/medusa-enterprise-product-context';
   const packed = spawnSync('npm', ['pack', './' + prefix, '--dry-run', '--ignore-scripts', '--json'], { env, encoding: 'utf8' });
