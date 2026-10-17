@@ -31,3 +31,9 @@ env -i PATH="$PATH" HOME=/tmp node scripts/medusa-catalog-interactive-smoke.mjs 
 后续输入修正：f3ce36d省略options虽可通过CreateProduct及完整AdminCreateProduct() schema，却被固定2.21.2原 `createProductsWorkflow` 的纯 `validateProductInputStep` 拒绝为invalid_data。此前只验schema的覆盖不足，不能据此断言创建请求完整可用。当前请求构造器增加非空合成options和显式空variants，不创建价格/库存/商业关联。
 
 独立原SDK验证：`env -i PATH="$PATH" HOME=/tmp MEDUSA_DISABLE_TELEMETRY=true node --test test/medusa-interactive-smoke.test.mjs apps/medusa-acceptance/test/product-input-contract.cjs`。SDK部分实际执行HTTP schema与原工作流纯输入校验step（不是产品写入工作流），旧payload schema通过而step拒绝，修正后的真实请求构造器二者均通过；SDK部分不发HTTP或连接DB。配套HTTP/真实PTY用例只连接有限loopback替身；合计14 passed、0 failed/cancelled/skipped。无需真实账号、Medusa服务、DB或真实写入；这仍不等于真实产品创建已经通过。不修改管理员、归档诊断草案、部署文件或服务。
+
+隐藏输入后续修正：使用标准readline的`crlfDelay: Infinity`处理相邻CR/LF跨批次到达，以持续的同步line消费替代两次await question，避免同批两行粘贴丢失第二行。仍只有两个隐藏提示，不添加密码复输；不记录输入正文、长度、按键轨迹或凭据。原生readline在CR后遇到其他键会重置CR记忆：若邮箱以未配对CR结束、下一行已有字符后才出现LF，无法判断该LF是前行尾随字符还是密码提交。该混合序列在任何HTTP前明确拒绝为`status: input_refused`、`reason: INPUT_REFUSED`、`failure.stage: input`，不会猜测、截断或改写密码。普通CR、LF、完整CRLF及两行粘贴正常消费；含歧义的混合换行需要用户终端自行整理后再决定是否运行。
+
+本地空值/非法输入、EOF残行和输入TTY断开均拒绝，不再误标transport_or_response_unknown；Ctrl+C/SIGTERM区分为INPUT_CANCELLED。输入拒绝退出2、requests为空且creation为not_attempted；有HTTP响应的认证拒绝仍保留authentication_refused及HTTP状态。报告不含输入轨迹或服务器原文，不执行真实认证或自动重试。loopback、redirect:error、原5请求、自有唯一draft保留与不删除规则不变。
+
+Node 24.19.0实跑上述合并测试命令：35 passed、0 failed/cancelled/skipped。合成PTY覆盖正常CR/LF/CRLF、拆分CRLF 30/200/1000ms、逐字符、CR/LF/CRLF两行粘贴、部分密码后迟到LF、额外第三行、本地无效值、两提示取消/EOF及TTY输入断开；成功与合成401都逐字比较实际POST认证载荷中的两项合成凭据，拒绝输入断言HTTP请求数0。精确15cd339旧脚本运行同一新增回归：200ms拆分、两行LF粘贴、部分密码后迟到LF三项均失败，最后一种确实发出一次不应发生的合成认证请求。这里只证明本地输入缺陷及修复，不能据此推断任何真实401的原因或声称真实登录恢复。

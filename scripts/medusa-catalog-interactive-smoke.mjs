@@ -31,6 +31,12 @@ export function validationFields(data) {
   return [...fields].sort();
 }
 
+function inputRefusal(cancelled = false) {
+  return {ok:false,status:cancelled?'cancelled':'input_refused',reason:cancelled?'INPUT_CANCELLED':'INPUT_REFUSED',
+    creation:'not_attempted',retained:false,checks:[],requests:[],
+    failure:{stage:'input',kind:cancelled?'cancelled':'input_refused',validationFields:[]}};
+}
+
 export async function retainedProductCheck({ baseUrl, email, password, signal, fetchImpl = fetch }) {
   const origin = loopbackOrigin(baseUrl);
   const marker = 'workspace-acceptance-' + Date.now() + '-' + randomUUID();
@@ -64,7 +70,7 @@ export async function retainedProductCheck({ baseUrl, email, password, signal, f
     && p.metadata?.workspace_acceptance_marker === marker && p.metadata?.synthetic === true;
   try {
     if (typeof email !== 'string' || !email.includes('@') || email.length > 320 || /[\r\n\0]/.test(email)
-      || typeof password !== 'string' || !password.length || password.length > 1024) throw Error('INPUT_REFUSED');
+      || typeof password !== 'string' || !password.length || password.length > 1024 || /[\r\n\0]/.test(password)) return Object.assign(report,inputRefusal());
     const login = await call('/auth/user/emailpass','POST',{email,password});
     if (!login.ok || login.data.mfa_required || login.data.verification_required || typeof login.data.token !== 'string'
       || !login.data.token.length || login.data.token.length > 16384) { report.status = 'authentication_refused'; return report; }
@@ -111,22 +117,62 @@ async function main() {
   // A single native readline interface keeps raw input/no echo between both prompts.
   // No history, subprocess, cookie jar or file. Both email and password are hidden.
   const muted = new Writable({write(_chunk,_encoding,done){done();}});
-  const input = createInterface({input:process.stdin,output:muted,terminal:true,historySize:0});
-  let pendingReject, email, password;
-  const cancel = () => { abort.abort(); pendingReject?.(Error('INPUT_CANCELLED')); input.close(); };
-  input.on('SIGINT',cancel); input.on('close',() => pendingReject?.(Error('INPUT_CLOSED')));
-  process.once('SIGTERM',cancel);
-  const hidden = label => new Promise((resolve,reject) => {
-    pendingReject = reject; process.stdout.write(label);
-    input.question('',value => { pendingReject = null; process.stdout.write('\n'); resolve(value); });
+  const input = createInterface({input:process.stdin,output:muted,terminal:true,historySize:0,crlfDelay:Infinity});
+  let email, password, phase = 0, inputFailure, resolveInput, rejectInput, finishing = false;
+  const ready = new Promise((resolve,reject) => {resolveInput=resolve;rejectInput=reject;});
+  const closeInput = () => {
+    // A disconnected TTY can refuse raw-mode restoration. Keep that local
+    // input failure from replacing the fixed refusal report with an exception.
+    try {input.close();} catch {process.stdin.pause();}
+  };
+  const refuse = kind => {
+    inputFailure ??= kind; abort.abort(); rejectInput(Error(kind)); closeInput();
+  };
+  const cancel = () => refuse('INPUT_CANCELLED');
+  // Infinity handles a delayed adjacent CRLF. Native terminal readline resets its
+  // CR bookkeeping after other keys: a later LF could submit a partial password.
+  // That mixed sequence is ambiguous, so refuse locally instead of authenticating.
+  // Keep only delimiter flags, never an input trace or credential diagnostics.
+  let unpairedReturn = false, textAfterReturn = false;
+  const guardNewlines = chunk => {
+    if (phase === 2 || inputFailure) return;
+    for (let i=0;i<chunk.length;i++) {
+      const code = typeof chunk === 'string' ? chunk.charCodeAt(i) : chunk[i];
+      if (code === 13) {unpairedReturn=true;textAfterReturn=false;}
+      else if (code === 10) {
+        if (unpairedReturn && textAfterReturn) {refuse('INPUT_REFUSED');return;}
+        unpairedReturn=false;
+      } else if (unpairedReturn) textAfterReturn=true;
+    }
+  };
+  process.stdin.prependListener('data',guardNewlines);
+  // Consume line events continuously. question() loses a second pasted line
+  // before the next awaited question installs its callback.
+  input.on('line',value => {
+    if (inputFailure) return;
+    if (phase === 0) {email=value;phase=1;process.stdout.write('\nAdmin password (hidden): ');}
+    else if (phase === 1) {password=value;phase=2;process.stdout.write('\n');resolveInput();}
+    else refuse('INPUT_REFUSED');
   });
+  input.on('SIGINT',cancel);
+  // EOF may emit an unfinished line before close. Refuse that line too, even
+  // if it just resolved ready; the caller checks inputFailure before any HTTP.
+  input.on('close',() => {if (!finishing && !inputFailure) refuse('INPUT_REFUSED');});
+  input.on('error',() => refuse('INPUT_REFUSED'));
+  process.once('SIGTERM',cancel);
   try {
     process.stdout.write('Manual acceptance: one synthetic draft will remain. No deletion. Use a private terminal.\n');
-    email = await hidden('Admin email (hidden): ');
-    password = await hidden('Admin password (hidden): ');
+    process.stdout.write('Admin email (hidden): ');
+    await ready;
+    if (inputFailure) throw Error(inputFailure);
     const report = await retainedProductCheck({baseUrl,email,password,signal:abort.signal});
-    process.stdout.write(JSON.stringify(report,null,2) + '\n'); process.exitCode = report.ok ? 0 : 1;
-  } finally { pendingReject = null; email = null; password = null; input.close(); process.removeListener('SIGTERM',cancel); }
+    process.stdout.write(JSON.stringify(report,null,2) + '\n'); process.exitCode = report.ok ? 0 : report.status === 'input_refused' ? 2 : 1;
+  } catch (error) {
+    if (!inputFailure) throw error;
+    process.stdout.write(JSON.stringify(inputRefusal(inputFailure === 'INPUT_CANCELLED'),null,2) + '\n');process.exitCode=2;
+  } finally {
+    email=null;password=null;finishing=true;closeInput();process.stdin.removeListener('data',guardNewlines);process.removeListener('SIGTERM',cancel);
+  }
 }
 if (process.argv[1] === import.meta.filename) main().catch(() => {
   console.error('INTERACTIVE_MEDUSA_CHECK_REFUSED. Run manually in a private TTY with --confirm-keep-synthetic-product; credentials are accepted only at hidden prompts.');
