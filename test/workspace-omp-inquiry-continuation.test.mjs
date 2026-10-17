@@ -174,6 +174,9 @@ for (const mode of ['control', 'source-version', 'draft-version', 'session-revok
 
 for (const mode of ['control', 'earlier-draft-version', 'session-revoke', 'cancel']) test(`two-turn inquiry final disclosure rechecks earlier draft after later read: ${mode}`, { timeout: 60000 }, async t => {
   let exits = 0, armed = false, injected = false, mutationCompleted = false;
+  const injectionDone = Promise.withResolvers(), responseReady = Promise.withResolvers(), releaseResponse = Promise.withResolvers();
+  injectionDone.promise.catch(() => {}); // Still propagated by the explicit join below.
+  const order = [], mark = phase => { order.push(phase); };
   const f = await setup(t, { afterWorkerExit() { if (++exits === 2) armed = true; } });
   const first = await send(f, 'Save internal draft A for quantity 100.', firstSpecs(f));
   assert.equal(first.status, 'succeeded');
@@ -182,6 +185,16 @@ for (const mode of ['control', 'earlier-draft-version', 'session-revoke', 'cance
   const originalA = await originalDownload(a.id, { version: 1 });
   const finalReads = [];
   let b, bBytes;
+  const holdCancelResponse = (req, res) => {
+    if (mode !== 'cancel' || req.method !== 'POST' || req.url !== `/api/conversations/${f.cid}/cancel`) return;
+    const end = res.end;
+    res.end = function (...args) {
+      mark('cancel-http-response-held'); responseReady.resolve();
+      void releaseResponse.promise.then(() => { mark('cancel-http-response-released'); end.apply(res, args); }).catch(injectionDone.reject);
+      return res;
+    };
+  };
+  if (mode === 'cancel') f.app.server.prependListener('request', holdCancelResponse);
   f.app.artifacts.download = async (...args) => {
     const result = await originalDownload(...args);
     if (armed && result.artifact.metadata?.factoryInquiry) {
@@ -190,6 +203,7 @@ for (const mode of ['control', 'earlier-draft-version', 'session-revoke', 'cance
         b = result.artifact; bBytes = result.bytes;
         assert.deepEqual(finalReads, [a.id, b.id], 'A must already be checked before the later B download.');
         injected = true;
+        try {
         if (mode === 'earlier-draft-version') {
           const changed = await f.app.artifacts.update(a.id, { content: 'Synthetic A revision committed while B is being read.' });
           assert.equal(changed.artifact.currentVersion, 2);
@@ -200,17 +214,39 @@ for (const mode of ['control', 'earlier-draft-version', 'session-revoke', 'cance
           assert.equal(revoked.status, 200, revoked.text); assert.equal(f.app.access.nativeSessionById(session.id), null);
         }
         if (mode === 'cancel') {
+          mark('cancel-http-start');
           const cancelled = await f.workspace(`/api/conversations/${f.cid}/cancel`, { subject: 'member-a', body: {} });
+          mark('cancel-http-response-received');
           assert.equal(cancelled.status, 200, cancelled.text);
         }
         mutationCompleted = true;
+        mark('injection-completed'); injectionDone.resolve();
+        } catch (error) { injectionDone.reject(error); throw error; }
       }
     }
     return result;
   };
   t.after(() => { f.app.artifacts.download = originalDownload; });
+  try {
   const second = await send(f, 'Revise the saved internal reply to quantity 200 as draft B; preserve A.', revisionSpecs(f));
-  assert.equal(injected, true); assert.equal(mutationCompleted, true);
+  mark('run-terminal-observed');
+  assert.equal(injected, true);
+  if (mode === 'cancel') {
+    await Promise.race([responseReady.promise, injectionDone.promise]);
+    assert.equal(mutationCompleted, false, 'Run cancellation is already observable while the real cancel HTTP response is held.');
+    t.diagnostic(JSON.stringify({ scenario: 'cancel-order-before-response-release', runStatus: second.status, injected, mutationCompleted, order }));
+  }
+  // A terminal Run does not join the pending cancellation HTTP callback.
+  // Release the deterministic response gate, then await that exact operation;
+  // its rejection propagates instead of being swallowed by disclosure refusal.
+  releaseResponse.resolve();
+  await injectionDone.promise;
+  if (mode === 'cancel') {
+    assert.ok(order.indexOf('cancel-http-response-received') > order.indexOf('run-terminal-observed'));
+    assert.ok(order.indexOf('injection-completed') > order.indexOf('cancel-http-response-received'));
+    t.diagnostic(JSON.stringify({ scenario: 'cancel-order-after-injection-join', order }));
+  }
+  assert.equal(mutationCompleted, true);
   assert.equal(modelCalls(first), 4); assert.equal(modelCalls(second), 2);
   assert.equal(second.status, mode === 'control' ? 'succeeded' : mode === 'cancel' ? 'cancelled' : 'failed');
   if (!['control', 'cancel'].includes(mode)) assert.equal(second.error.code, 'OMP_DISCLOSURE_REFUSED');
@@ -224,4 +260,11 @@ for (const mode of ['control', 'earlier-draft-version', 'session-revoke', 'cance
   assert.equal(currentB.artifact.sourceRunId, second.id); assert.equal(a.sourceRunId, first.id);
   assert.equal(currentB.artifact.metadata.factoryInquiry.sent, false); assert.equal(currentB.artifact.metadata.factoryInquiry.humanReviewed, false);
   assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0); assert.equal(f.faux.state.callCount, 0);
+  const finalState = f.app.store.read();
+  assert.equal(finalState.runs.length, 2); assert.equal(modelCalls(finalState.runs.find(run => run.id === second.id)), 2);
+  } finally {
+    releaseResponse.resolve();
+    f.app.server.removeListener('request', holdCancelResponse);
+    if (injected) await injectionDone.promise;
+  }
 });
