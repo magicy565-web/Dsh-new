@@ -14,7 +14,7 @@ const descriptions = {
   sourceCatalog: 'List exact original Host-reviewed company, product and metric references, including approved field masks, source versions and original Goal IDs. No arbitrary catalog search or budget grant.',
   contextRead: 'Read this enterprise\'s saved business context and current, explicitly authorized source projections and original goals. Facts are observations; model notes are not policy or causal truth.',
   diagnose: 'Inspect source-backed inquiry, product-completeness and commerce cohort measurements from this enterprise context. Keep unknown/pending outcomes, incomplete baselines and descriptive differences explicit. Never infer root cause or forecast conversion.',
-  contextSave: 'Save a revised, unreviewed business context to original artifacts. Bind existing goals and exact selected source versions. Model summaries and preference claims never approve goals, budget, prices or permissions. Use expectedRevision and stable requestId.',
+  contextSave: 'Save a revised, unreviewed business context to original artifacts. Bind existing goals and exact selected source versions. Model summaries and preference claims never approve goals, budget, prices or permissions. Use expectedRevision and stable requestId. A blocked save with writeOutcome unknown may already be persisted; never retry with a new requestId.',
   decisionRead: 'Read an existing decision, current evidence and scenario arithmetic. Fails closed on changed enterprise context, revoked evidence or wrong model receiver.',
   decisionSave: 'Save a model-authored business decision with competing hypotheses, supporting/counter evidence, alternatives including investigation/wait, and a verification plan. Estimates are assumptions, not forecasts. No task, approval, payment or external action.',
   reviewSave: 'Save a source-backed outcome review. Read an actual metric observation for the declared metric and window. Missing coverage requires inconclusive. Neither a completed task nor a before/after difference verifies a business goal or causation.',
@@ -60,7 +60,7 @@ export function businessBrainExtension({ brain, registerContextGuard } = {}) {
               reason: signal?.aborted ? 'BRAIN_CANCELLED' : error instanceof BrainError && ['BRAIN_RECEIVER_MISMATCH','BRAIN_INPUT_INVALID','BRAIN_SOURCE_CHANGED','BRAIN_SOURCE_NOT_SELECTED'].includes(error.code) ? error.code : 'BRAIN_OPERATION_UNAVAILABLE',
               // An uncertain upstream commit may have persisted. Do not auto
               // retry a new request; reopen the exact original record first.
-              retryWithNewRequest: false };
+              retryWithNewRequest: false, ...(method.endsWith('Save') ? { writeOutcome: 'unknown' } : {}) };
           }
           const isError = ['blocked','unconfigured'].includes(result.status);
           return { content: [{ type: 'text', text: JSON.stringify(result) }], details: result, ...(isError ? { isError: true } : {}) };

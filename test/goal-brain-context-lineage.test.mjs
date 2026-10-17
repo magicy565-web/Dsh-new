@@ -15,3 +15,14 @@ for(const change of ['none','source','goal','session','other-binding'])test('imm
 });
 test('empty context receipt can precede first same-binding save',async t=>{const f=openFixture();t.after(()=>f.close());f.addGoal('A');const {brain}=f.makeBrain('A');const empty=await brain.contextRead({},undefined,model);await brain.contextSave(contextInput([]),undefined,model);assert.equal(await brain.revalidateReceipt(empty,undefined,model),true);});
 test('historical removed source must remain authorized after context succession',async t=>{const f=openFixture();t.after(()=>f.close());const {brain,ref}=await prepared(f);const old=await brain.contextRead({},undefined,model);await brain.contextSave(contextInput([],{requestId:'remove-source',expectedRevision:1}),undefined,model);f.source('enterprise-A',ref).reference.revision='2';await assert.rejects(brain.revalidateReceipt(old,undefined,model));});
+
+test('lost save acknowledgement reports unknown; exact retry confirms one persisted original version',async t=>{
+ const {businessBrainExtension}=await import('../plugins/workspace-goal-intelligence/src/extension.mjs');
+ const {isBrainGapReceipt}=await import('../server/workspace-omp-business-journal.mjs');
+ const f=openFixture();t.after(()=>f.close());f.addGoal('A');const {brain}=f.makeBrain('A'),input=contextInput([]),tools=[];
+ businessBrainExtension({brain:{...brain,contextSave:async(...args)=>{await brain.contextSave(...args);throw Error('Synthetic lost post-commit acknowledgement');}},registerContextGuard:()=>true})({registerTool:tool=>tools.push(tool)});
+ const response=await tools.find(x=>x.name==='workspace_brain_context_save').execute('save',input,undefined,undefined,{model});
+ assert.equal(response.isError,true);assert.equal(response.details.writeOutcome,'unknown');assert.equal(response.details.retryWithNewRequest,false);assert.equal(isBrainGapReceipt(response.details),true);assert.equal(f.state.commitCount,1);
+ const confirmed=await brain.contextSave(input,undefined,model);assert.equal(confirmed.persisted,true);assert.equal(confirmed.recordRef.recordRevision,1);assert.equal(f.state.commitCount,1);
+ assert.equal(isBrainGapReceipt({...response.details,writeOutcome:'PRIVATE_BODY'}),false);
+});

@@ -1,8 +1,9 @@
 export function isBrainGapReceipt(receipt){
  return receipt?.plugin==='workspace-goal-intelligence'&&['blocked','unconfigured'].includes(receipt.status)
   && ['BRAIN_REVIEWED_HOST_AND_CONTEXT_GUARD_REQUIRED','BRAIN_CANCELLED','BRAIN_RECEIVER_MISMATCH','BRAIN_INPUT_INVALID','BRAIN_SOURCE_CHANGED','BRAIN_SOURCE_NOT_SELECTED','BRAIN_OPERATION_UNAVAILABLE'].includes(receipt.reason)
-  && Object.keys(receipt).every(k=>['plugin','status','reason','retryWithNewRequest'].includes(k))
-  && (!Object.hasOwn(receipt,'retryWithNewRequest')||receipt.retryWithNewRequest===false);
+  && Object.keys(receipt).every(k=>['plugin','status','reason','retryWithNewRequest','writeOutcome'].includes(k))
+  && (!Object.hasOwn(receipt,'retryWithNewRequest')||receipt.retryWithNewRequest===false)
+  && (!Object.hasOwn(receipt,'writeOutcome')||receipt.writeOutcome==='unknown'&&receipt.retryWithNewRequest===false);
 }
 export function isMedusaGapReceipt(receipt){
  return receipt?.plugin==='workspace-medusa-catalog'&&['blocked','unconfigured'].includes(receipt.status)
