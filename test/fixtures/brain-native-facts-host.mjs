@@ -14,7 +14,8 @@ export const empty=()=>({artifacts:[],skills:[],memoryIds:[],connectorActions:[]
 export const tool=(name,args={})=>({tool:name,arguments:args});
 export const mapping=f=>f.app.store.read().conversations.find(c=>c.id===f.cid).businessAgentSession;
 export async function messages(f){return (await fs.readFile(mapping(f).sessionFile,'utf8')).trim().split('\n').map(JSON.parse).map(e=>e.message).filter(Boolean);}
-export async function setup(t,{facts=true,allowMemoryRead=true,onDisclosure=null,onFinalCheck=null,engineComplete=null,onLifecycle=null}={}){
+export async function setup(t,{facts=true,allowMemoryRead=true,onDisclosure=null,onFinalCheck=null,engineComplete=null,onLifecycle=null,model=MODEL,engineFactory=null}={}){
+ const recipient={kind:'pi-coding-agent',provider:model.provider,model:model.id,destination:model.baseUrl};
  const directory=await fs.mkdtemp('/tmp/brain-native-facts-'),actor={subject:'member-a',workspaceId:'pi-enterprise-test',role:'admin'};
  const seed=await taskFixture(t,{directory,enterprise:true});
  const a=(await seed.app.artifacts.create({requestId:randomUUID(),filename:'synthetic-facts.txt',content:'SYNTHETIC document evidence only.',metadata:{businessLibrary:{visibility:'internal'}}})).artifact;
@@ -26,16 +27,17 @@ export async function setup(t,{facts=true,allowMemoryRead=true,onDisclosure=null
  const now=Date.now()+1000,steps=[],trace=[],state={facts,allowMemoryRead,keys:[{...QUERY}],seeded:false,parserCalls:0};let f;
  const selection=(write=false)=>({enabled:true,reviewed:true,customerId:'synthetic-customer',sources:[{documentId:document.id,asset}],allowMemoryRead:write||state.allowMemoryRead,allowMemoryWrite:write});
  const connection={reviewed:true,baseURL:'https://synthetic-docling.invalid',apiKey:'synthetic-only-docling-screen-value',fetchImpl:async()=>{state.parserCalls++;throw Error('No parser request admitted by this fixture');}};
- const hostFor=(identity,write=false)=>f.app.enterpriseContextSessionBinding(identity,{recipient:RECIPIENT,selection:selection(write),connection});
- const engine=createWorkspaceOmpEngineAdapter({paths:workspaceOmpPaths(process.env),nativeBusiness:true,
+ const hostFor=(identity,write=false)=>f.app.enterpriseContextSessionBinding(identity,{recipient,selection:selection(write),connection});
+ const engineOptions={paths:workspaceOmpPaths(process.env),nativeBusiness:true,
   pluginConfiguration:{disabled:['workspace-market-validation','workspace-shopify-product','workspace-medusa-catalog','workspace-marketplace']},
-  configuration:{providerId:MODEL.provider,model:MODEL.id,baseUrl:MODEL.baseUrl},syntheticResponses:steps,
-  onWorkerLifecycle:e=>{trace.push(e);onLifecycle?.(e,f);}});
+  configuration:{providerId:model.provider,model:model.id,baseUrl:model.baseUrl},syntheticResponses:steps,
+  onWorkerLifecycle:e=>{trace.push(e);onLifecycle?.(e,f);}};
+ const engine=engineFactory?await engineFactory(engineOptions):createWorkspaceOmpEngineAdapter(engineOptions);
  const wrapped={scope:engine.scope,async complete(args){
   if(!state.seeded){
    const writer=(await hostFor(args.run.businessAgentContext,true)).open('synthetic-preparation-native',{conversationId:args.input.conversationId,runId:args.run.id,requestId:args.run.requestId});
-   await writer.structuredMemoryRemember({...QUERY,statement:STATEMENT},args.input.signal,MODEL);
-   await writer.structuredMemoryRemember({...QUERY,factKey:'unselected',statement:UNSELECTED},args.input.signal,MODEL);state.seeded=true;
+   await writer.structuredMemoryRemember({...QUERY,statement:STATEMENT},args.input.signal,model);
+   await writer.structuredMemoryRemember({...QUERY,factKey:'unselected',statement:UNSELECTED},args.input.signal,model);state.seeded=true;
   }
   const originalBind=args.bindBrainForNativeSession,originalSave=args.saveSession,originalEvent=args.input.onEvent;
   const wrappedArgs={...args,input:{...args.input,onEvent:async e=>{trace.push({phase:'host-event',event:e.type});return originalEvent?.(e);}},
@@ -49,14 +51,14 @@ export async function setup(t,{facts=true,allowMemoryRead=true,onDisclosure=null
    }}:{})};
   return engineComplete?engineComplete(wrappedArgs,{f,engine,trace,hostFor}):engine.complete(wrappedArgs);
  }};
- const policy={enabled:true,reviewed:true,workspaceId:actor.workspaceId,subject:actor.subject,expiresAt:'2099-01-01T00:00:00.000Z',recipient:RECIPIENT,company:null,products:[],productFields:['name'],factoryMaterials:{products:[],productFields:['name'],documents:[{id:document.id,revision:document.revision,documentVersion:document.currentVersion,asset}]}};
+ const policy={enabled:true,reviewed:true,workspaceId:actor.workspaceId,subject:actor.subject,expiresAt:'2099-01-01T00:00:00.000Z',recipient,company:null,products:[],productFields:['name'],factoryMaterials:{products:[],productFields:['name'],documents:[{id:document.id,revision:document.revision,documentVersion:document.currentVersion,asset}]}};
  f=await taskFixture(t,{directory,enterprise:true,accessClock:()=>now,libraryModelReadPolicy:policy,
-  appOptions:{goalBrainOptions:{originalReceiver:MODEL,reviewedGoals:[{id:goal.id,originalRevision:goal.revision,currency:'USD',businessStatus:'active',capabilities:['analysis','draft','none'],budgetRemainingMinor:null,perTaskCapMinor:null,reviewed:true}]}},
-  businessAgentOptions:{recipient:RECIPIENT,engineAdapter:wrapped,resolveBinding:async({actor,sessionReadonlyClient})=>({client:sessionReadonlyClient(actor),model:MODEL,
+  appOptions:{goalBrainOptions:{originalReceiver:model,reviewedGoals:[{id:goal.id,originalRevision:goal.revision,currency:'USD',businessStatus:'active',capabilities:['analysis','draft','none'],budgetRemainingMinor:null,perTaskCapMinor:null,reviewed:true}]}},
+  businessAgentOptions:{recipient,engineAdapter:wrapped,resolveBinding:async({actor,sessionReadonlyClient})=>({client:sessionReadonlyClient(actor),model,
    ...(state.facts?{enterpriseContextHost:await hostFor(actor),brainMemoryFactKeys:state.keys}:{})})}});
  t.after(async()=>{await f.app.close();await fs.rm(directory,{recursive:true,force:true});});
  const c=await f.workspace('/api/conversations',{subject:actor.subject,body:{title:'Synthetic native fact investigation',requestId:randomUUID(),inputContext:empty()}});assert.equal(c.status,201,c.text);
- return Object.assign(f,{actor,asset,document,goal,cid:c.json.conversation.id,steps,trace,state,hostFor});
+ return Object.assign(f,{model,actor,asset,document,goal,cid:c.json.conversation.id,steps,trace,state,hostFor});
 }
 export async function send(f,steps){
  f.steps.splice(0,f.steps.length,...steps);

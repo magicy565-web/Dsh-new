@@ -10,6 +10,7 @@ import { revalidateBusinessJournal,readBusinessContext } from './workspace-omp-b
 import { privateDirectory, openPrivateFile } from './store.mjs';
 import { ProviderError } from './provider.mjs';
 import { snapshotWorkspaceOmpPublicFiles } from './workspace-omp-public-tools.mjs';
+import { createNativeDeepseekAcceptance, validateLocalDeepseekReport, localDeepseekConfigured, NATIVE_FACTS_PAID_ACCEPTANCE } from './workspace-omp-local-deepseek.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
 export const OMP_ENTERPRISE_CONTEXT_SCOPE='omp:18.10.4:enterprise-context-v1';
@@ -22,7 +23,9 @@ export const OMP_MARKET_ENGINE_SCOPE = 'omp:18.10.4:market-validation-v1';
 export const OMP_INQUIRIES_ENGINE_SCOPE = 'omp:18.10.4:factory-inquiries-v1';
 export { workspaceOmpPaths, checkWorkspaceOmpPaths } from './workspace-omp-runtime.mjs';
 export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, nativeBusiness = false, medusaEnterprise = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, syntheticResponses = null, freeTrade = false, enterpriseContext = false, pluginConfiguration = {},
-  syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
+  syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {}, paidAcceptance = null }) {
+  if (paidAcceptance !== null && (!nativeBusiness || syntheticResponses || !localDeepseekConfigured(configuration))) throw Error('NATIVE_FACTS_PAID_ACCEPTANCE_REQUIRED');
+  const paidAdmission = paidAcceptance === null ? null : createNativeDeepseekAcceptance(paidAcceptance);
   if(typeof medusaEnterprise!=='boolean'||medusaEnterprise&&(nativeBusiness||freeTrade||factoryMaterials||factoryCustomers||factoryInquiries||factoryIngestion||marketValidation||shopifyProduct))throw Error('MEDUSA_ENTERPRISE_READONLY_PROFILE_REQUIRED');
   if(medusaEnterprise)enterpriseContext=true;
   if(nativeBusiness){if(freeTrade||enterpriseContext||factoryIngestion||factoryCustomers||factoryInquiries)throw Error('NATIVE_BUSINESS_PROFILE_REQUIRED');factoryMaterials=true;marketValidation=true;shopifyProduct=true;}
@@ -41,6 +44,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
     async complete({ input, run, binding, client, authorize, enterpriseContextHost = binding?.enterpriseContextHost, freeTradeHost = binding?.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, medusaClient, brainClient, bindBrainForNativeSession = null, marketplaceClient, isolationDirectory, savedSession, saveSession }) {
       input.signal?.throwIfAborted();
       const brainFactsConfigured = bindBrainForNativeSession !== null;
+      if (paidAdmission && (!brainFactsConfigured || run.businessAgentContext?.resetContext === true)) throw Error('NATIVE_FACTS_PAID_ACCEPTANCE_REQUIRED');
       if (brainFactsConfigured && (!nativeBusiness || typeof bindBrainForNativeSession !== 'function' || brainClient)) throw Error('Original late native Brain binding required.');
       await checkWorkspaceOmpPaths(paths); await authorize();
       if(medusaEnterprise&&(!binding.client.readOnlySession||run.businessAgentContext?.allowBusinessSubmit===true))throw Error('MEDUSA_ENTERPRISE_READONLY_BINDING_REQUIRED');
@@ -69,10 +73,14 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
       // No service token/API key appears in argv, logs or env. The selected
       // model configuration crosses the private fd only, and never the model context.
       input.signal?.throwIfAborted();
+      paidAdmission?.begin(run.id);
       return await new Promise((resolve, reject) => {
         const child = spawn(paths.bun, [path.join(root, 'server/workspace-omp-worker.mjs')], { cwd: isolationDirectory, env: childEnv, detached: true, stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
         onWorkerLifecycle({ phase: 'spawn', pid: child.pid });
         const channel = child.stdio[3]; let settled = false, bytes = 0, modelCalls = 0, preparedCalls=0, permittedCall=0, childClosed = false, cleanupComplete = false, pendingResult = null, resultVerified = false;
+        let providerReport = null, providerReportReceived = false;
+        let paidFailurePending = null, paidFailureTimer, paidFailureFinalizing = false;
+        let paidDispatchedCalls = 0, paidWirePermittedCall = 0, paidWireRefusedCall = 0, paidDisclosureStopped = false;
         const lines = createInterface({ input: channel, crlfDelay: Infinity });
         const send = value => { if (!channel.destroyed) channel.write(JSON.stringify(value) + '\n'); };
         let terminateTimer, killTimer;
@@ -84,7 +92,36 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           terminateTimer = setTimeout(() => { if (!childClosed) child.kill('SIGTERM'); }, 250); terminateTimer.unref();
           killTimer = setTimeout(() => { if (!childClosed) { try { process.kill(-child.pid, 'SIGKILL'); } catch {} } }, 1500); killTimer.unref(); };
         const timer = setTimeout(stop, 65000);
-        const finish = (error, result) => { if (settled) return; settled = true; clearTimeout(timer); input.signal?.removeEventListener('abort', stop);
+        const finish = (error, result) => { if (settled) return;
+          if (paidAdmission && error && !(childClosed && cleanupComplete) && !paidFailureFinalizing) {
+            // Keep the original failed worker's fd open until bounded cleanup:
+            // late protocol faults must invalidate a previously complete report.
+            paidFailurePending ||= error; paidDisclosureStopped = true; stop();
+            paidFailureTimer ||= setTimeout(() => {
+              providerReport = null; paidFailureFinalizing = true;
+              finish(paidFailurePending);
+            }, 2000);
+            return;
+          }
+          if (paidAdmission) {
+            // Close pending pre-send callbacks even when a malformed report
+            // failed before it could become the terminal accepted report.
+            if (error) paidDisclosureStopped = true;
+            if (!error) try { validateLocalDeepseekReport(providerReport, { modelCalls, requireConfirmed: true }); }
+            catch { error = new ProviderError('OMP_PROVIDER_ACCOUNTING_REFUSED', 'Complete original provider usage is required; do not retry.'); }
+            try {
+              const accounting = paidAdmission.finish(run.id, { report: providerReport, modelCalls: paidDispatchedCalls, successful: !error });
+              onWorkerLifecycle(accounting);
+              // The trusted observation hook cannot insert a source change
+              // between the last full original fact check and delivery.
+              if (!error) factControl.assertDisclosureCurrent({messages:[],context:[]}, factReceiver, input.signal);
+            } catch {
+              paidAdmission.stop();
+              error ||= new ProviderError('OMP_DISCLOSURE_REFUSED', 'Original final disclosure or accounting no longer permits this result.');
+            }
+          }
+          if (paidAdmission && error) paidDisclosureStopped = true;
+          settled = true; clearTimeout(timer); clearTimeout(paidFailureTimer); input.signal?.removeEventListener('abort', stop);
           if (error) { stop(); reject(error); } else resolve(result); };
         channel.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP transport closed.')); });
         lines.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP line transport closed.')); });
@@ -130,6 +167,15 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         const handleLine = async line => {
           bytes += Buffer.byteLength(line); if (bytes > 8_000_000 || Buffer.byteLength(line) > 2_000_000) { finish(new ProviderError('OMP_PROTOCOL_LIMIT', 'OMP exceeded its admitted transport limit.')); return; }
           let message; try { message = JSON.parse(line); } catch { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'OMP returned an invalid transport receipt.')); return; }
+          if (paidAdmission && paidFailurePending && message.type === 'request') {
+            providerReport = null; finish(paidFailurePending); return;
+          }
+          if (paidAdmission && providerReportReceived && message.type === 'request' && (message.method === 'modelRequest'
+            || message.method === 'businessFactsDisclosure' && message.args?.[0]?.phase === 'model:disclose')) {
+            providerReport = null;
+            finish(new ProviderError('OMP_PROVIDER_ACCOUNTING_REFUSED', 'A terminal provider report cannot admit another model request; do not retry.'));
+            return;
+          }
           if (message.type === 'cancelRequest') { operations.get(message.id)?.abort(); return; }
           if (message.type === 'request') {
             if (!Number.isSafeInteger(message.id) || message.id < 1 || operations.has(message.id)) { finish(new ProviderError('OMP_PROTOCOL_INVALID', 'Invalid original operation identifier.')); return; }
@@ -155,6 +201,10 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               }
               else if (brainFactsConfigured && message.method === 'businessFactsDisclosure') {
                 const value=message.args?.[0],receiver=value?.receiver;
+                if (paidAdmission && value?.phase === 'model:disclose' && (providerReportReceived || paidDisclosureStopped)) {
+                  providerReport = null;
+                  throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
+                }
                 if (!Array.isArray(message.args) || message.args.length!==1 || !value || Object.keys(value).some(k=>!['nativeSessionId','phase','modelCalls','receiver','wireBody'].includes(k))
                   || !factControl || value.nativeSessionId!==factNativeId || !['model:disclose','final:deliver'].includes(value.phase)
                   || !Number.isSafeInteger(value.modelCalls) || value.modelCalls!==modelCalls
@@ -163,8 +213,20 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                   || value.wireBody!==undefined && typeof value.wireBody!=='string') throw Error('Original fact disclosure boundary required.');
                 const activity=factActivity;
                 if(factOperations)throw Error('Original fact operations must settle before disclosure.');
-                await factControl.authorizeDisclosure({messages:[],context:[],...(value.wireBody===undefined?{}:{wireBody:value.wireBody})},rpcSignal,receiver);
+                const payload = {messages:[],context:[],...(value.wireBody===undefined?{}:{wireBody:value.wireBody})};
+                await factControl.authorizeDisclosure(payload,rpcSignal,receiver);
+                if (paidAdmission && value.phase === 'model:disclose' && (providerReportReceived || paidDisclosureStopped)) {
+                  providerReport = null;
+                  throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
+                }
+                // Keep the original authority in Node and close the async
+                // callback boundary with its complete synchronous proof check.
+                factControl.assertDisclosureCurrent(payload,receiver,rpcSignal);
                 if(factOperations || activity!==factActivity || value.modelCalls!==modelCalls)throw Error('Original fact disclosure changed during authorization.');
+                if (paidAdmission && value.phase === 'model:disclose' && value.wireBody !== undefined) {
+                  if (paidWirePermittedCall === modelCalls) throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
+                  paidWirePermittedCall = modelCalls;
+                }
                 factReceiver=Object.freeze({...receiver});
                 factFinalCalls=value.phase==='final:deliver'?value.modelCalls:null;
                 result=true;
@@ -184,6 +246,11 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 if(enterpriseContext&&enterpriseNativeId!==message.args[0].agentSessionId)throw Error('Original native Session required.');
               }
               else if (message.method === 'modelRequest') {
+                if (paidAdmission && (providerReportReceived || paidDisclosureStopped)) {
+                  providerReport = null;
+                  finish(new ProviderError('OMP_PROVIDER_ACCOUNTING_REFUSED', 'A terminal provider report cannot admit another model request; do not retry.'));
+                  throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
+                }
                 if(brainFactsConfigured&&(!factControl||!factSaved||nativeMapping?.agentSessionId!==factNativeId||message.args?.[0]?.modelCalls!==modelCalls+1))throw Error('Original native fact binding must precede model requests.');
                 if(enterpriseContext){if(++preparedCalls>4||message.args?.[0]?.modelCalls!==preparedCalls)throw Error('Original model request bound exceeded.');await input.onEvent?.({type:'pi.agent-session.admission',engine:'omp'});}else{if(++modelCalls>4)throw Error('Original model request bound exceeded.');await input.onEvent?.({type:'pi.agent-session.request',engine:'omp'});}result=true;
               }
@@ -285,6 +352,10 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               } else throw new Error('This public OMP session cannot invoke that capability.');
               rpcSignal.throwIfAborted(); send({ type: 'reply', id: message.id, result });
             } catch (error) {
+              if (paidAdmission && (message.method === 'modelRequest' || message.method === 'businessFactsDisclosure' && message.args?.[0]?.phase === 'model:disclose')) {
+                if (!providerReportReceived && message.args?.[0]?.modelCalls === modelCalls && paidWirePermittedCall !== modelCalls) paidWireRefusedCall = modelCalls;
+                paidDisclosureStopped = true;
+              }
               if (syntheticResponses) onWorkerLifecycle({ phase: 'rpc-refused', method: message.method,
                 ...(['freeTrade','enterpriseContext'].includes(message.method)?{operation:message.args?.[1]}:{}),code: error.code || error.name });
               // Preserve only reviewed business codes, never arbitrary Host error text.
@@ -297,12 +368,26 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 ...(codes.includes(error.code)||enterpriseContext&&/^(?:OSS|DOCLING)_[A-Z0-9_]+$/.test(error.code||'')||freeTrade&&(/^FREE_TRADE_[A-Z0-9_]+$/.test(error.code||'')||['ERP_REVIEWED_CONNECTION_REQUIRED','SAM_API_KEY_REQUIRED','ORIGINAL_AUTHORIZATION_REFUSED','REMOTE_AUTHORIZATION_REFUSED','ERP_RECORD_MISMATCH','ERP_FIELD_SHAPE_INVALID','NETWORK_UNAVAILABLE','REQUEST_TIMEOUT','SECRET_ECHO_REFUSED'].includes(error.code)) ? { errorCode: error.code } : {}),
                 ...([400, 401, 403, 404, 409, 503].includes(error.status)||freeTrade&&['blocked','unavailable','unconfigured'].includes(error.status) ? { status: error.status } : {}) });
             } finally { operations.delete(message.id);if(factPendingRequest){factOperations--;factFinalCalls=null;} }
+          } else if(message.type==='modelDispatched'&&paidAdmission){
+            if(providerReportReceived || paidDisclosureStopped || message.modelCalls!==paidDispatchedCalls+1
+              || message.modelCalls!==modelCalls || message.modelCalls!==paidWirePermittedCall) {
+              providerReport=null;throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
+            }
+            paidDispatchedCalls=message.modelCalls;
           } else if(message.type==='modelDispatched'&&enterpriseContext){if(message.modelCalls!==permittedCall||message.modelCalls!==modelCalls+1)throw Error('OSS_FINAL_DISCLOSURE_REQUIRED');modelCalls++;await input.onEvent?.({type:'pi.agent-session.request',engine:'omp'});
           } else if (message.type === 'event') {
             const event = message.event;
             if (typeof event?.toolName === 'string' && event.toolName.startsWith('workspace_')) await input.onEvent?.({
               type: event.type === 'tool_execution_start' ? 'pi.tool.started' : event.isError ? 'pi.tool.failed' : 'pi.tool.finished',
               toolName: event.toolName, toolCallId: createHash('sha256').update(String(event.toolCallId)).digest('hex'), engine: 'omp' });
+          } else if (message.type === 'providerAccounting') {
+            if (!paidAdmission || providerReportReceived || paidFailurePending || pendingResult || operations.size
+              || modelCalls !== paidDispatchedCalls && !(paidDisclosureStopped && paidWireRefusedCall === modelCalls && modelCalls === paidDispatchedCalls + 1)) {
+              providerReport = null;
+              throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
+            }
+            providerReportReceived = true;
+            providerReport = validateLocalDeepseekReport(message.report, { modelCalls: paidDispatchedCalls });
           } else if (message.type === 'result') {
             if(brainFactsConfigured&&(pendingResult||!factSaved||factOperations))throw Error('One settled original fact result required.');
             pendingResult = message.result;
@@ -321,13 +406,15 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         child.on('close', code => { childClosed = true; for (const operation of operations.values()) operation.abort(); operations.clear(); clearTimeout(terminateTimer); clearTimeout(killTimer); lines.close();
           void cleanupSnapshots().then(() => {
             cleanupComplete = true; onWorkerLifecycle({ phase: 'exit', pid: child.pid, code });
-            if (pendingResult && code === 0) finishSuccess();
+            if (paidFailurePending) finish(paidFailurePending);
+            else if (pendingResult && code === 0) finishSuccess();
             else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.'));
-          }).catch(() => finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.'))); });
+          }).catch(() => { if (paidAdmission) { providerReport = null; paidFailureFinalizing = true; }
+            finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.')); }); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, nativeBusiness, medusaEnterprise, resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient||brainFactsConfigured, ...(brainFactsConfigured?{brainFactsConfigured:true}:{}), marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, nativeBusiness, medusaEnterprise, ...(paidAdmission?{paidAcceptance:NATIVE_FACTS_PAID_ACCEPTANCE}:{}), resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient||brainFactsConfigured, ...(brainFactsConfigured?{brainFactsConfigured:true}:{}), marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
-      });
+      }).catch(error => { paidAdmission?.stop(); throw error; });
     },
   });
 }

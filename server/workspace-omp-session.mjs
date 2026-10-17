@@ -7,6 +7,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isBrainGapReceipt,isMedusaGapReceipt } from './workspace-omp-business-journal.mjs';
 import { projectPlugins } from './workspace-plugin-config.mjs';
+import { NATIVE_FACTS_PAID_ACCEPTANCE, localDeepseekConfigured } from './workspace-omp-local-deepseek.mjs';
 
 
 // Import optional business code only for a selected business profile. Missing
@@ -40,7 +41,7 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
 
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null, localSession = null,
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {}, onNativeSessionReady = null, onBusinessFactsDisclosure = null,
-  maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
+  maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, paidAcceptance = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {}, referenceFence, enterpriseContextHost = null, freeTradeHost = null, publicTenderClient = null,
   nativeBusiness = false, medusaEnterprise = false, resetBusinessContext = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, marketplaceClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = medusaEnterprise ? MEDUSA_ENTERPRISE_SCOPE : nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
@@ -50,7 +51,11 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     && (!nativeBusiness || typeof onNativeSessionReady !== 'function' || typeof onBusinessFactsDisclosure !== 'function'))
     throw Error('Original native fact lifecycle callbacks required.');
   if(typeof resetBusinessContext!=='boolean'||resetBusinessContext&&(!nativeBusiness||!savedSession))throw Error('NATIVE_BUSINESS_RESET_REFUSED');
-  if (providerTransport && !localFactory) throw Error('Bounded local provider transport requires the local factory profile.');
+  const nativePaid = paidAcceptance === NATIVE_FACTS_PAID_ACCEPTANCE;
+  if (paidAcceptance !== null && (!nativePaid || !nativeBusiness || !onNativeSessionReady || !onBusinessFactsDisclosure
+    || syntheticResponses || resetBusinessContext || !localDeepseekConfigured(configuration)
+    || !providerTransport || typeof providerTransport.fetchWithDisclosure !== 'function')) throw Error('NATIVE_FACTS_PAID_ACCEPTANCE_REQUIRED');
+  if (providerTransport && !localFactory && !nativePaid) throw Error('Bounded local provider transport requires the local factory profile.');
   if (localSession && (!localFactory || savedSession)) throw Error('LOCAL_SESSION_PROFILE_REFUSED');
   if (localFactory && (savedSession || readOnlyBusiness || factoryMaterials || factoryCustomers || factoryInquiries || factoryIngestion || marketValidation || shopifyProduct || productClient || ordinaryTools || uiOnly || client))
     throw Error('Local factory files cannot inherit remote profiles, clients or transcripts.');
@@ -337,7 +342,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         };
         await permit();
         let dispatched=false;
-        const dispatch=()=>{if(!dispatched){dispatched=true;if(enterpriseContextHost){modelCalls=callNumber;onModelDispatched({modelCalls:callNumber});}}};
+        const dispatch=()=>{if(!dispatched){dispatched=true;if(enterpriseContextHost)modelCalls=callNumber;if(enterpriseContextHost||nativePaid)onModelDispatched({modelCalls:callNumber});}};
         if (syntheticResponses) {
           const spec = syntheticResponses[callNumber - 1];
           if (!spec) throw new Error('Finite explicit faux responses exhausted; no real provider fallback.');
@@ -366,14 +371,36 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
           const disclosureAbort=new AbortController();
           const upstream = sdk.streamSimple({ ...model, api: 'openai-completions' }, context, { ...options, apiKey: configuration.apiKey,
             maxTokens: Math.min(Math.floor(maxTokens / maxModelCalls), options?.maxTokens || Infinity), maxRetries: 0,
-            ...((enterpriseContextHost||nativeBusiness)?{signal:AbortSignal.any([signal,disclosureAbort.signal].filter(Boolean)),fetch:async(input,init)=>{
+            ...((enterpriseContextHost||nativeBusiness)&&!providerTransport?{signal:AbortSignal.any([signal,disclosureAbort.signal].filter(Boolean)),fetch:async(input,init)=>{
               try{if(dispatched)throw Error('OSS_MODEL_RETRY_NOT_ADMITTED');
                 const request=new Request(input instanceof Request?input.clone():input,init),body=await request.clone().text();
                 await permit(body);dispatch();return await globalThis.fetch(request);
               }catch(error){disclosureAbort.abort(error);throw error;}
             }}:{}),
-            ...(providerTransport ? { fetch: providerTransport.fetch, onSseEvent: providerTransport.onSseEvent, acceptEmptyResponse: true,
-              signal: AbortSignal.any([options?.signal, providerTransport.signal].filter(Boolean)) } : {}) });
+            ...(providerTransport ? { fetch: nativePaid ? async(input,init)=>{
+              try {
+                if(dispatched)throw Error('OSS_MODEL_RETRY_NOT_ADMITTED');
+                const request = new Request(input instanceof Request ? input.clone() : input, init);
+                const wireSignal = AbortSignal.any([request.signal,signal,lifecycleSignal,providerTransport.signal,disclosureAbort.signal].filter(Boolean));
+                let approvedWire = null;
+                return await providerTransport.fetchWithDisclosure(request, { signal: wireSignal }, {
+                  authorize: async wire => {
+                    wireSignal.throwIfAborted();
+                    if(dispatched)throw Error('OSS_MODEL_RETRY_NOT_ADMITTED');
+                    await permit(wire.body);
+                    approvedWire = wire;
+                  },
+                  assertCurrent: wire => {
+                    wireSignal.throwIfAborted();
+                    if(dispatched || approvedWire !== wire)throw Error('OSS_MODEL_RETRY_NOT_ADMITTED');
+                    if(model.provider !== configuration.providerId || model.id !== configuration.model || model.baseUrl !== configuration.baseUrl
+                      || wire.url !== configuration.baseUrl + '/chat/completions' || wire.method !== 'POST') throw Error('PINNED_DEEPSEEK_REQUEST_REQUIRED');
+                    dispatch();
+                  },
+                });
+              } catch(error) { disclosureAbort.abort(error); throw error; }
+            } : providerTransport.fetch, onSseEvent: providerTransport.onSseEvent, acceptEmptyResponse: true,
+              signal: AbortSignal.any([options?.signal, providerTransport.signal,...(nativePaid?[lifecycleSignal,disclosureAbort.signal]:[])].filter(Boolean)) } : {}) });
           for await (const event of upstream) {
             if (event.type === 'done') { providerTransport?.complete(event.message); completedUsage.set(callNumber, event.message?.usage); await authorize(localFactory||scopedHost?{phase:'model:complete'}:undefined); }
             if (event.type === 'error') providerTransport?.stop('LOCAL_PROVIDER_ERROR_STOP_DO_NOT_RETRY');

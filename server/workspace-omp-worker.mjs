@@ -4,10 +4,18 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { createWorkspaceOmpSession, OMP_ENGINE_SCOPE } from './workspace-omp-session.mjs';
+import { createLocalDeepseekTransport, NATIVE_FACTS_PAID_ACCEPTANCE } from './workspace-omp-local-deepseek.mjs';
 const write = value => fs.writeSync(3, JSON.stringify(value) + '\n');
 const input = createInterface({ input: fs.createReadStream(null, { fd: 3 }), crlfDelay: Infinity });
 const pending = new Map(); let nextId = 1, created, running = false, initializing;
 const lifecycle = new AbortController();
+let providerTransport = null, providerAccountingSent = false;
+function reportProviderAccounting() {
+  if (!providerTransport || providerAccountingSent) return;
+  providerAccountingSent = true;
+  providerTransport.seal();
+  write({ type: 'providerAccounting', report: providerTransport.report() });
+}
 const request = (method, args = [], signal) => new Promise((resolve, reject) => {
   signal?.throwIfAborted(); lifecycle.signal.throwIfAborted();
   const id = nextId++;
@@ -22,12 +30,18 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
+  if (config.paidAcceptance !== undefined) {
+    if (config.paidAcceptance !== NATIVE_FACTS_PAID_ACCEPTANCE || !config.nativeBusiness || !config.brainFactsConfigured
+      || config.syntheticResponses || config.resetBusinessContext) throw Error('NATIVE_FACTS_PAID_ACCEPTANCE_REQUIRED');
+    providerTransport = createLocalDeepseekTransport({ configuration: config.configuration,
+      onStop: () => { lifecycle.abort(); void created?.session.abort(); } });
+  }
   // This explicit finite fixture cannot accidentally probe a real tender,
   // model or private service. Its local Docling HTTP stays on the Node Host.
   if(config.enterpriseContext&&config.syntheticResponses)globalThis.fetch=async()=>{throw Error('FINITE_ENTERPRISE_WORKER_NETWORK_FORBIDDEN');};
   const freeTradeHost=config.freeTrade?(await import('./workspace-free-trade-host.mjs')).freeTradeHostFromRpc(config.freeTradeDescriptor,request):null;
   const enterpriseContextHost=config.enterpriseContext?(await import('./workspace-enterprise-context-host.mjs')).enterpriseContextHostFromRpc(config.enterpriseContextDescriptor,request):null;
-  created = await (initializing = createWorkspaceOmpSession({ ...config, enterpriseContextHost,freeTradeHost,client:config.freeTrade||config.enterpriseContext?undefined:client, factoryTasks: !config.enterpriseContext && !config.freeTrade && !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
+  created = await (initializing = createWorkspaceOmpSession({ ...config, ...(providerTransport?{providerTransport}:{}), enterpriseContextHost,freeTradeHost,client:config.freeTrade||config.enterpriseContext?undefined:client, factoryTasks: !config.enterpriseContext && !config.freeTrade && !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
     marketplaceClient:config.nativeBusiness&&config.marketplaceConfigured?Object.fromEntries(['status','find','propose','order','revalidateReceipt'].map(method=>[method,(value,signal,model)=>request('marketplace',[method,value,model],signal)])):null,
     medusaClient: (config.nativeBusiness||config.medusaEnterprise)&&config.medusaConfigured?{
       ...Object.fromEntries(['status','preview','reconcile'].map(method=>[method,(value,signal,model)=>request('medusaCatalog',[method,value,model],signal)])),
@@ -95,6 +109,8 @@ async function start(config) {
   if (last?.role !== 'assistant' || last.stopReason !== 'stop') throw new Error('The official OMP session did not produce a complete new answer.');
   const usage = created.usage();
   if (usage.completionTokens !== null && usage.completionTokens > config.maxTokens) throw new Error('OMP exceeded the original reserved output allowance.');
+  providerTransport?.finish();
+  reportProviderAccounting();
   write({ type: 'result', result: { content: JSON.stringify({ done: true, content: created.session.getLastAssistantText() }),
     usage,
     runtime: { kind: 'pi-durable', execution: 'agent-session', engine: 'omp', engineScope: created.engineScope,
@@ -109,10 +125,11 @@ input.on('line', line => {
     if (value.error) operation.reject(Object.assign(new Error(value.error), { code: value.errorCode, status: value.status })); else operation.resolve(value.result);
   } else if (value.type === 'abort') { lifecycle.abort(); void created?.session.abort(); }
   else if (value.type === 'start') void start(value.config).catch(async error => {
+    reportProviderAccounting();
     write({ type: 'error', error: 'The official OMP session failed; no task completion or model fallback is implied.',
       ...(error.code==='MARKETPLACE_SOURCE_CHANGED'||error.message==='MARKETPLACE_SOURCE_CHANGED'?{errorCode:'MARKETPLACE_SOURCE_CHANGED'}:{}),
       ...(value.config.syntheticResponses ? { diagnostic: error.message+(error.pluginReason?':'+error.pluginReason:'') } : {}) });
     await created?.close().catch(() => {}); process.exit(1);
   });
 });
-process.once('SIGTERM', () => void (async () => { lifecycle.abort(); await initializing?.catch(() => {}); await created?.session.abort(); await created?.close().catch(() => {}); process.exit(1); })());
+process.once('SIGTERM', () => void (async () => { lifecycle.abort(); await initializing?.catch(() => {}); await created?.session.abort(); await created?.close().catch(() => {}); reportProviderAccounting(); process.exit(1); })());

@@ -9,6 +9,8 @@ export const DEEPSEEK_PRICES = Object.freeze({ checkedOn: '2026-10-15',
   source: 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing/',
   inputPeakCnyPerMillion: 2, outputPeakCnyPerMillion: 8,
   ompUsdPerMillion: { input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0.3 } });
+export const deepseekUsageUpperCny = (inputTokens, outputTokens) =>
+  (inputTokens * DEEPSEEK_PRICES.inputPeakCnyPerMillion + outputTokens * DEEPSEEK_PRICES.outputPeakCnyPerMillion) / 1e6;
 export const ACCEPTANCE_ENV_NAMES = Object.freeze(['DEEPSEEK_API_KEY', 'WS_AGENT_URL', 'WS_AGENT_TOKEN']);
 export const presence = (environment = {}) => Object.fromEntries(ACCEPTANCE_ENV_NAMES.map(name =>
   [name, typeof environment[name] === 'string' && environment[name].trim().length > 0]));
@@ -28,7 +30,7 @@ export function measuredUsage(messages) {
       || !['input', 'output', 'cacheRead', 'cacheWrite', 'totalTokens'].every(k => Number.isSafeInteger(u[k]) && u[k] >= 0)
       || u.totalTokens <= 0 || u.input + u.output + u.cacheRead + u.cacheWrite === 0
       || u.output > 512 || u.totalTokens > 32512) fail('UNCERTAIN_USAGE_STOP_DO_NOT_RETRY');
-    upperCny += ((u.input + u.cacheRead + u.cacheWrite) * 2 + u.output * 8) / 1e6;
+    upperCny += deepseekUsageUpperCny(u.input + u.cacheRead + u.cacheWrite, u.output);
   }
   if (upperCny > ACCEPTANCE_LIMITS.remainingCny) fail('REMAINING_BUDGET_EXCEEDED');
   return { responses: responses.length, usageUpperCny: upperCny };
@@ -39,7 +41,9 @@ export function measuredUsage(messages) {
 export function boundedDeepseekFetch(fetchImpl, { maxModelCalls = ACCEPTANCE_LIMITS.maxModelCalls, maxOutputTokens = ACCEPTANCE_LIMITS.maxOutputTokens,
   maxRequestBytes = ACCEPTANCE_LIMITS.maxRequestBytes, allowedToolNames = ['workspace_business_tasks'] } = {}) {
   let requests = 0, uncertain = false;
-  return { requests: () => requests, fetch: async (input, init) => {
+  return { requests: () => requests, fetch: async (input, init, disclosure = null) => {
+    if (disclosure !== null && (!disclosure || Object.keys(disclosure).sort().join(',') !== 'assertCurrent,authorize'
+      || typeof disclosure.authorize !== 'function' || typeof disclosure.assertCurrent !== 'function')) fail('FINAL_DISCLOSURE_HOOK_REQUIRED');
     if (uncertain || requests >= maxModelCalls) fail('UNCERTAIN_OR_EXHAUSTED_STOP_DO_NOT_RETRY');
     const request = new Request(input, init);
     if (request.url !== 'https://api.deepseek.com/chat/completions' || request.method !== 'POST') fail('PINNED_DEEPSEEK_REQUEST_REQUIRED');
@@ -53,9 +57,23 @@ export function boundedDeepseekFetch(fetchImpl, { maxModelCalls = ACCEPTANCE_LIM
     delete body.max_completion_tokens; delete body.reasoning_effort; delete body.store; delete body.prompt_cache_retention;
     for (const m of body.messages || []) if (m.role === 'developer') m.role = 'system';
     for (const t of body.tools || []) delete t.function.strict;
-    if (Buffer.byteLength(JSON.stringify(body)) > maxRequestBytes) fail('SHORT_INPUT_LIMIT');
+    const finalBody = JSON.stringify(body);
+    if (Buffer.byteLength(finalBody) > maxRequestBytes) fail('SHORT_INPUT_LIMIT');
+    const finalRequest = new Request(request, { body: finalBody, redirect: 'error' });
+    if (disclosure) {
+      finalRequest.signal.throwIfAborted();
+      // The hook sees exactly the final text sent below, never request headers.
+      const wire = Object.freeze({ url: finalRequest.url, method: finalRequest.method, body: finalBody });
+      await disclosure.authorize(wire);
+      finalRequest.signal.throwIfAborted();
+      if (uncertain || requests >= maxModelCalls) fail('UNCERTAIN_OR_EXHAUSTED_STOP_DO_NOT_RETRY');
+      // This last assertion must be synchronous. Do not create an async gap
+      // between its cancellation/receiver/one-dispatch check and fetchImpl.
+      if (disclosure.assertCurrent(wire) !== undefined) fail('SYNCHRONOUS_DISCLOSURE_ASSERTION_REQUIRED');
+      finalRequest.signal.throwIfAborted();
+    }
     requests++;
-    try { const response = await fetchImpl(new Request(request, { body: JSON.stringify(body), redirect: 'error' }));
+    try { const response = await fetchImpl(finalRequest);
       if (!response.ok) uncertain = true; return response;
     } catch { uncertain = true; fail('UNCERTAIN_CHARGE_STOP_DO_NOT_RETRY'); }
   } };
