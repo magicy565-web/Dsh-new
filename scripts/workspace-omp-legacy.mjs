@@ -24,10 +24,10 @@ export async function main(args = process.argv.slice(2), environment = process.e
   if (args.includes('--help')) { console.log(help); return; }
   if (args.length > 1 || args.some(arg => !['--check', '--serve', '--terminal'].includes(arg))) throw new Error('使用 --help；不接受凭据、任意会话文件或隐式引擎切换参数。');
   const profile = environment.WORKSPACE_OMP_PROFILE || 'public';
-  const scopes = { public: 'omp:18.10.4:public-v1', 'factory-materials': 'omp:18.10.4:factory-materials-v1',
+  const scopes = { business:'omp:18.10.4:business-v1', public: 'omp:18.10.4:public-v1', 'factory-materials': 'omp:18.10.4:factory-materials-v1',
     'factory-customers': 'omp:18.10.4:factory-customers-v1', 'factory-inquiries': 'omp:18.10.4:factory-inquiries-v1', 'factory-ingestion': 'omp:18.10.4:factory-ingestion-v1', 'market-validation': 'omp:18.10.4:market-validation-v1', 'shopify-product': 'omp:18.10.4:shopify-product-v1' };
   if (!Object.hasOwn(scopes, profile)) throw Error('Use one fixed reviewed OMP profile.');
-  const privateProfile = ['factory-materials', 'factory-inquiries', 'factory-ingestion', 'market-validation', 'shopify-product'].includes(profile);
+  const privateProfile = ['business','factory-materials', 'factory-inquiries', 'factory-ingestion', 'market-validation', 'shopify-product'].includes(profile);
   const paths = workspaceOmpPaths(environment), configuration = workspaceOmpConfiguration(environment);
   let runtime;
   try { runtime = await verifyWorkspaceOmpRuntime(paths); }

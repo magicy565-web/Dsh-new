@@ -20,7 +20,7 @@ export function multiDraft(f) {
   return { ...common, options, variants: f.product.skus.map((s, i) => ({ sourceSkuId: s.id, skuCode: s.code, consumerPrice: `${10 + i}.25`,
     optionValues: s.specs.map(x => ({ name: x.key, value: x.value })), ...(i % 2 ? {} : { imageId: f.imageId }) })) };
 }
-export async function productFixture(t, { configured = true, policy: policyOption, host = false, accessClock, skuCount = 0 } = {}) {
+export async function productFixture(t, { configured = true, policy: policyOption, host = false, nativeBusiness = false, pluginConfiguration = {}, appOptions = {}, onWorkerLifecycle, accessClock, skuCount = 0 } = {}) {
   let fixtureTime = Date.now(); const clock = accessClock || (() => fixtureTime);
   const directory = await fs.mkdtemp('/tmp/shopify-product-'), remote = await fakeShopify(t), actor = { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' };
   const seed = await taskFixture(t, { directory, enterprise: true });
@@ -39,9 +39,9 @@ export async function productFixture(t, { configured = true, policy: policyOptio
     return new Response(r.bytes, { status: r.status, headers: { 'content-type': r.headers['content-type'] } });
   } });
   f = await taskFixture(t, { directory, enterprise: true, accessClock: clock, libraryModelReadPolicy: policyOption === null ? null : policyOption ? policyOption(policy) : policy,
-    appOptions: { capabilityEnvironment: environment, shopifyFetch: remote.fetchImpl }, ...(host ? { businessAgentOptions: {
-      recipient: RECIPIENT, engineAdapter: createWorkspaceOmpEngineAdapter({ paths: workspaceOmpPaths(), shopifyProduct: true,
-        configuration: { providerId: MODEL.provider, model: MODEL.id, baseUrl: MODEL.baseUrl }, syntheticResponses: steps, onWorkerLifecycle: e => lifecycle.push(e) }),
+    appOptions: { capabilityEnvironment: environment, shopifyFetch: remote.fetchImpl, ...appOptions }, ...(host ? { businessAgentOptions: {
+      recipient: RECIPIENT, engineAdapter: createWorkspaceOmpEngineAdapter({ paths: workspaceOmpPaths(), shopifyProduct: true, nativeBusiness, pluginConfiguration,
+        configuration: { providerId: MODEL.provider, model: MODEL.id, baseUrl: MODEL.baseUrl }, syntheticResponses: steps, onWorkerLifecycle: e => { lifecycle.push(e); onWorkerLifecycle?.(e, f); } }),
       resolveBinding: async () => ({ client: originalClient(), model: MODEL }),
     } } : {}) });
   t.after(async () => { await f.app.close(); await fs.rm(directory, { recursive: true, force: true }); });

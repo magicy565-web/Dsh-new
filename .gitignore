@@ -27,3 +27,5 @@ factory-session.jsonl.lock
 .cache/
 .omp-build/
 source-manifest.json
+
+.medusa/

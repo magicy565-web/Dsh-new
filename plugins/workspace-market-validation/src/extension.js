@@ -30,4 +30,4 @@ export function marketValidationExtension({ client, authorize } = {}) {
   };
 }
 // Normal manifest loading grants no ambient Session, credentials or effects.
-export default function extension(pi) { marketValidationExtension()(pi); return marketValidationMonitorExtension()(pi); }
+export default function extension(pi) { let host; pi.events?.emit('workspace:plugin-host',{accept:value=>{host=value;}}); marketValidationExtension({client:host?.planClient,authorize:host?.authorize})(pi); return marketValidationMonitorExtension({client:host?.monitorClient,authorize:host?.authorize})(pi); }

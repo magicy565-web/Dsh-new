@@ -8,7 +8,7 @@ import {inspectNativeWorkspace} from '../scripts/workspace-omp.mjs';
 test('single default entry verifies native runtime and all plugin states without Workspace HTTP',async()=>{
   const r=await inspectNativeWorkspace({});
   assert.equal(r.workspaceHttpRequired,false);assert.equal(r.workspaceHostStarted,false);assert.equal(r.wsBindingUsed,false);
-  assert.equal(r.modelRequests,0);assert.equal(r.model.status,'unconfigured');assert.equal(r.plugins.length,11);
+  assert.equal(r.modelRequests,0);assert.equal(r.model.status,'unconfigured');assert.equal(r.plugins.length,14);
   assert.equal(r.status,'offline-preview-ready');assert.equal(r.readinessScope,'pinned-runtime-and-plugin-manifests-only');
   const local=r.localSessionPrerequisites;
   assert.equal(local.modelStatus,'model-unconfigured');assert.equal(local.preflightReady,false);
@@ -54,4 +54,10 @@ test('native TUI preview gates model input and cannot use ambient auth',async()=
   handlers.get('session_start')({},ctx);
   assert.deepEqual(handlers.get('input')({text:'hello'},ctx),{handled:true});assert.equal(notices.length,1);
   assert.throws(()=>handlers.get('before_agent_start')(),/NATIVE_PREVIEW_MODEL_UNCONFIGURED/);assert.equal(statuses.length,1);
+});
+test('same entry exposes combined business manifest without claiming a configured Host',async()=>{
+ const r=await inspectNativeWorkspace({},'business');
+ assert.equal(r.status,'unconfigured');assert.equal(r.modelRequests,0);assert.equal(r.model.credentialsRead,false);assert.equal(r.workspaceHostStarted,false);
+ assert.equal(r.hostBinding,'original-signed-Session-and-reviewed-Library-policy-required');
+ assert.deepEqual(r.plugins.filter(p=>p.enabled).map(p=>p.id).sort(),['workspace-factory-materials','workspace-goal-intelligence','workspace-market-validation','workspace-medusa-catalog','workspace-shopify-product']);
 });

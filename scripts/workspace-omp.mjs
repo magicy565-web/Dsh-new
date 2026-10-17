@@ -10,16 +10,16 @@ import {workspaceOmpConfiguration} from '../server/workspace-omp-configuration.m
 import {inspectNativeLock,localSessionPreflight} from '../server/workspace-omp-local-environment.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 export {verifyWorkspaceOmpRuntime} from '../server/workspace-omp-runtime.mjs';
-export async function inspectNativeWorkspace(environment={}) {
+export async function inspectNativeWorkspace(environment={},profile='local') {
   const paths=workspaceOmpPaths(environment),runtime=await verifyWorkspaceOmpRuntime(paths);
-  const plugins=await projectPlugins();
+  const plugins=await projectPlugins(profile==='business'?{configuration:'config.business.json'}:{});
   const nativeLock=await inspectNativeLock(paths);
   let localSessionPrerequisites;
   try { localSessionPrerequisites=localSessionPreflight(workspaceOmpConfiguration(environment),nativeLock); }
   catch { localSessionPrerequisites={status:nativeLock.ready?'configuration-invalid':'environment-unavailable',
     modelStatus:'configuration-invalid',preflightReady:false,persistentSessionVerified:false,paidModelVerified:false,
     environment:{nativeLock},blockers:[...(nativeLock.ready?[]:[nativeLock.reason]),'LOCAL_MODEL_CONFIGURATION_INVALID']}; }
-  return {status:'offline-preview-ready',readinessScope:'pinned-runtime-and-plugin-manifests-only',runtime,entry:'official-native-omp',workspaceHttpRequired:false,
+  return {status:profile==='business'?'unconfigured':'offline-preview-ready',profile,hostBinding:profile==='business'?'original-signed-Session-and-reviewed-Library-policy-required':'explicit-local-selection',readinessScope:'pinned-runtime-and-plugin-manifests-only',runtime,entry:'official-native-omp',workspaceHttpRequired:false,
     workspaceHostStarted:false,wsBindingUsed:false,modelRequests:0,
     model:{status:'unconfigured',nativePreview:'offline-no-model',credentialsRead:false},
     localSessionPrerequisites:{...localSessionPrerequisites,configurationScope:'supplied-process-environment-only',
@@ -30,11 +30,19 @@ export async function inspectNativeWorkspace(environment={}) {
         :p.id==='workspace-plugin-info'?'identity-only':'unconfigured: reviewed external/Host capabilities are not attached'}))};
 }
 export async function main(args=process.argv.slice(2),environment=process.env) {
+  if(args[0]==='--profile'){
+    if(args[1]!=='business'||args.length!==3||!['--check','--serve'].includes(args[2]))throw Error('Use --profile business --check or --profile business --serve with the original reviewed Host configuration.');
+    if(args[2]==='--check'){console.log(JSON.stringify(await inspectNativeWorkspace({},'business')));return;}
+    return (await import('./workspace-omp-legacy.mjs')).main(['--serve'],{...environment,WORKSPACE_OMP_PROFILE:'business'});
+  }
+
   if(args.includes('--help')){
     console.log('npm start / npm run workspace: official OMP 18.10.4 native TUI, offline no-model preview.\n'
       +'npm run workspace -- --check: pinned runtime/plugin manifests plus separately scoped native-lock and supplied-process model configuration checks; zero model calls.\n'
       +'npm run workspace -- --input /ABS/material.md --output-dir /ABS/output "一句话目标" [--check]: existing bounded local native Session.\n'
       +'Native TUI has no credentials, HTTP Host, model calls or persistent Session. Local execution retains its original explicit model/cost/budget requirements.\n'
+      +'npm run workspace -- --profile business --check: native combined business manifest; no credentials or network.\n'
+      +'npm run workspace -- --profile business --serve: original signed Host/Run with native business plugins; reviewed configuration required.\n'
       +'Old HTTP frontend: npm run legacy:workspace -- --serve (explicit only).');return;
   }
   if(args.length===1&&args[0]==='--check'){console.log(JSON.stringify(await inspectNativeWorkspace(environment)));return;}

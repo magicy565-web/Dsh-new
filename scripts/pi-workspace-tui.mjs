@@ -11,7 +11,7 @@ const launcher = fileURLToPath(import.meta.url);
 
 // Official Pi owns the editor, terminal rendering, Agent and extension lifecycle.
 // All business work goes through Workspace's existing authenticated task APIs.
-export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sample = false, agent = false, modelRuntime: suppliedModelRuntime, model: suppliedModel, sessionManager: suppliedSessionManager, prepareSession = async () => {}, close = async () => {} }) {
+export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sample = false, agent = false, modelRuntime: suppliedModelRuntime, model: suppliedModel, sessionManager: suppliedSessionManager, prepareSession = async () => {}, additionalExtensionFactories = [], close = async () => {} }) {
   if (!path.isAbsolute(isolationDirectory)) throw new Error('The TUI requires an explicit isolated directory.');
   const agentDir = path.join(isolationDirectory, 'agent');
   await fs.mkdir(agentDir, { recursive: true, mode: 0o700 });
@@ -51,7 +51,7 @@ export async function createWorkspaceTuiRuntime({ client, isolationDirectory, sa
   const settingsManager = SettingsManager.inMemory({ defaultTools: [], compaction: { enabled: false }, retry: { enabled: false }, cacheWarming: 'off', quietStartup: false });
   const resourceLoader = new DefaultResourceLoader({ cwd: isolationDirectory, agentDir, settingsManager,
     noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true,
-    extensionFactories: [workspaceExtension(client, { sample, agent, close })],
+    extensionFactories: [workspaceExtension(client, { sample, agent, close }), ...additionalExtensionFactories],
     systemPrompt: agent
       ? 'You are a Workspace business development Agent. Use only explicitly supplied public text. Discover the original presets and ask for missing required inputs before submitting a task. Use one stable requestId per submission; after an uncertain receipt, read its original task status rather than create a duplicate. Admission is not completion. Read taskId, stage events and authenticated documents with workspace_business_status. Report incomplete evidence, failures and partial documents honestly. The original Workspace service controls tasks, model budgets, native children, exact approvals and durable results. Never infer business achievement, approve an action or claim external Muse/dot delegation. No shell, filesystem, browser or arbitrary HTTP tool is available. ' + WORKSPACE_READ_GUIDANCE
       : 'You are a Workspace task client. Use only explicitly supplied public text. The original Workspace service controls tasks, model budgets, native children, exact approvals and durable results. Never infer success or approve an action. No shell, filesystem, browser or arbitrary HTTP tool is available.' });

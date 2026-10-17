@@ -28,6 +28,19 @@ function cachedLibraryReceipts(messages) {
   });
 }
 
+export function cachedBrainReceipts(messages) {
+  const allowed = new Set(['context', 'diagnosis', 'catalog', 'decision', 'review', 'brief']);
+  return messages.flatMap(message => {
+    if (message?.role !== 'toolResult' || typeof message.toolName !== 'string' || !message.toolName.startsWith('workspace_brain_')) return [];
+    let value;
+    try { value = JSON.parse(message.content.filter(block => block.type === 'text').map(block => block.text).join('\n')); }
+    catch { throw new Error('Business Brain cached receipt cannot be reauthorized. Start a fresh transcript.'); }
+    if (value?.plugin !== 'workspace-goal-intelligence' || !allowed.has(value.kind) || !['available', 'empty'].includes(value.status)) return [];
+    if (typeof value.bindingHash !== 'string' || !/^[a-f0-9]{64}$/.test(value.bindingHash)) throw new Error('Business Brain cached receipt lacks its original binding.');
+    return [value];
+  });
+}
+
 async function privateDirectory(directory) {
   if (!path.isAbsolute(directory)) throw new Error('Use an absolute private Workspace Agent session directory.');
   await fs.mkdir(directory, { recursive: true, mode: 0o700 });
@@ -46,7 +59,7 @@ async function privateDirectory(directory) {
 // Official transcript persistence only. Business records remain in the original
 // Workspace Store and every result read revalidates the original HTTP binding.
 export async function createWorkspaceAgentRuntime({ client, isolationDirectory, modelRuntime, model, sessionManager,
-  continueSession = false, close = async () => {} }) {
+  continueSession = false, prepareSession = async () => {}, additionalContextValidators = [], additionalExtensionFactories = [], close = async () => {} }) {
   if (!modelRuntime || typeof modelRuntime.getModel !== 'function' || !model || !modelRuntime.getModel(model.provider, model.id))
     throw new Error('The development Agent requires an explicit official model runtime and registered model. No sample fallback is available.');
   const backend = await client.check();
@@ -68,19 +81,26 @@ export async function createWorkspaceAgentRuntime({ client, isolationDirectory, 
     if (receipt?.profile === 'business-preset' && Array.isArray(receipt.tasks)) for (const task of receipt.tasks) if (typeof task?.taskId === 'string') previousTasks.add(task.taskId);
   }
   for (const taskId of previousTasks) await client.businessStatus(taskId);
-  const prepareSession = async session => {
+  const installGuards = async session => {
     const receipts = () => cachedLibraryReceipts(session.sessionManager.getEntries().map(entry => entry.message));
+    const validateExtras = async signal => {
+      const messages = session.sessionManager.getEntries().map(entry => entry.message);
+      for (const validator of additionalContextValidators) await validator({ messages, model: session.model, signal });
+    };
     for (const receipt of receipts()) await client.revalidateLibraryReceipt(receipt, session.model);
+    await prepareSession(session);
+    await validateExtras();
     // Official Agent context hook runs BEFORE every model call. Scanning the
     // original transcript also covers compacted branches and cached summaries.
     // The runtime factory reinstalls this guard on switch/import/fork/new.
     const originalTransform = session.agent.transformContext;
     session.agent.transformContext = async (messages, signal) => {
       for (const receipt of receipts()) await client.revalidateLibraryReceipt(receipt, session.model, signal);
+      await validateExtras(signal);
       return originalTransform ? originalTransform(messages, signal) : messages;
     };
   };
-  const created = await createWorkspaceTuiRuntime({ client, isolationDirectory, agent: true, modelRuntime, model, sessionManager: manager, prepareSession, close });
+  const created = await createWorkspaceTuiRuntime({ client, isolationDirectory, agent: true, modelRuntime, model, sessionManager: manager, prepareSession: installGuards, additionalExtensionFactories, close });
   return { ...created, backend };
 }
 

@@ -62,8 +62,8 @@ test('SIGTERM during a finite pending write stops writes, cleans locks and permi
     toolReceipts:['read'],writesAfterCancel:0,sidecarRemoved:true,postExitJournalStable:true,sameSessionRecovered:true,
     recoverySourceRevalidated:true,realProviderRequests:0,crashRecoveryTested:false}));
 });
-test('each of eleven plugins compiles, registers, disables and physically uninstalls with the original native loader',{timeout:30000},async t=>{
+test('each of fourteen plugins compiles, registers, disables and physically uninstalls with the original native loader',{timeout:30000},async t=>{
   const root=await fs.mkdtemp('/tmp/omp-cloud-lifecycle-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
-  const result=await start('plugins',root).done;assert.equal(result.passed,true);assert.equal(result.plugins.length,11);
+  const result=await start('plugins',root).done;assert.equal(result.passed,true);assert.equal(result.plugins.length,14);
   console.log(JSON.stringify(result));
 });

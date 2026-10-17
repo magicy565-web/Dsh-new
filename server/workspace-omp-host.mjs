@@ -19,10 +19,10 @@ export function workspaceOmpPublicToolConfiguration(environment = {}) {
 export function createWorkspaceOmpBusinessOptions({ environment = {}, baseURL } = {}) {
   const configuration = workspaceOmpConfiguration(environment), paths = workspaceOmpPaths(environment);
   const profile = environment.WORKSPACE_OMP_PROFILE || 'public';
-  if (!['public', 'factory-materials', 'factory-customers', 'factory-inquiries', 'factory-ingestion', 'market-validation', 'shopify-product'].includes(profile)) throw Error('Use the fixed public or factory-materials OMP profile.');
+  if (!['business', 'public', 'factory-materials', 'factory-customers', 'factory-inquiries', 'factory-ingestion', 'market-validation', 'shopify-product'].includes(profile)) throw Error('Use the fixed public or factory-materials OMP profile.');
   const model = { provider: configuration.providerId, id: configuration.model, api: 'openai-completions', baseUrl: configuration.baseUrl };
   return { recipient: { kind: 'pi-coding-agent', provider: model.provider, model: model.id, destination: model.baseUrl },
-    engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, factoryMaterials: ['factory-materials', 'factory-inquiries', 'market-validation', 'shopify-product'].includes(profile), factoryInquiries: profile === 'factory-inquiries', factoryIngestion: profile === 'factory-ingestion', marketValidation: profile === 'market-validation', shopifyProduct: profile === 'shopify-product', factoryCustomers: profile === 'factory-customers', publicTools: workspaceOmpPublicToolConfiguration(environment), infrastructure: environment }),
+    engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, nativeBusiness:profile==='business', factoryMaterials: ['factory-materials', 'factory-inquiries', 'market-validation', 'shopify-product'].includes(profile), factoryInquiries: profile === 'factory-inquiries', factoryIngestion: profile === 'factory-ingestion', marketValidation: profile === 'market-validation', shopifyProduct: profile === 'shopify-product', factoryCustomers: profile === 'factory-customers', publicTools: workspaceOmpPublicToolConfiguration(environment), infrastructure: environment }),
     resolveBinding: async ({ actor, sessionReadonlyClient } = {}) => {
       if (!workspaceOmpConfigured(configuration)) return null;
       if (!environment.WS_AGENT_TOKEN) return profile === 'public' && sessionReadonlyClient ? { client: sessionReadonlyClient(actor), model } : null;

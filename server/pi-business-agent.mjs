@@ -3,13 +3,15 @@ import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { lazyStream } from '@earendil-works/pi-ai/api/lazy';
 import { SessionManager } from '@earendil-works/pi-coding-agent';
-import { createWorkspaceAgentRuntime } from '../scripts/pi-workspace-agent.mjs';
+import { createWorkspaceAgentRuntime, cachedBrainReceipts } from '../scripts/pi-workspace-agent.mjs';
+import { businessBrainExtension } from '../plugins/workspace-goal-intelligence/src/extension.mjs';
 import { WORKSPACE_AGENT_TOOLS } from '../pi/extensions/workspace.mjs';
 import { libraryReadHash, normalizeLibraryRecipient, libraryRecipientForModel } from './library-model-read-contract.mjs';
 import { emptyInputContext, normalizeInputContext } from './task-context.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { createFactoryLibraryIngestionClient } from './factory-library-ingestion.mjs';
 import { createMarketValidationMonitorClient } from './market-validation-monitor-client.mjs';
+import { createMedusaProductClient } from './medusa-product-client.mjs';
 import { createShopifyProductClient } from './shopify-product-client.mjs';
 import { createMarketValidationPlanClient } from './market-validation-plan.mjs';
 import { createFactoryInquiryClient } from './factory-inquiries.mjs';
@@ -44,11 +46,11 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     || options.resolveControlBinding !== undefined && typeof options.resolveControlBinding !== 'function')
     throw new TypeError('Use the existing Pi provider and a trusted existing member binding resolver.');
   const engineAdapter = options.engineAdapter;
-  if (engineAdapter && (!['omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:factory-ingestion-v1', 'omp:18.10.4:market-validation-v1', 'omp:18.10.4:shopify-product-v1','omp:18.10.4:free-trade-v1','omp:18.10.4:enterprise-context-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
+  if (engineAdapter && (!['omp:18.10.4:business-v1', 'omp:18.10.4:public-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-customers-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:factory-ingestion-v1', 'omp:18.10.4:market-validation-v1', 'omp:18.10.4:shopify-product-v1','omp:18.10.4:free-trade-v1','omp:18.10.4:enterprise-context-v1'].includes(engineAdapter.scope) || typeof engineAdapter.complete !== 'function'))
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
-  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, sessionReadonlyClient;
+  let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain;
   function current(idValue) { const record = store.read().conversations.find(row => row.id === idValue); if (!record) fail(404, 'NOT_FOUND', 'Conversation not found.'); return record; }
   function actor(context, write = false) {
     if (!context?.subject || !context.workspaceId) fail(401, 'SESSION_REQUIRED', 'Use the original Workspace Session.');
@@ -73,7 +75,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       throw error;
     }
     if (!binding?.client?.bindingIdentity || !engineAdapter && !binding.modelRuntime || !binding?.model) fail(409, 'BUSINESS_AGENT_UNCONFIGURED', 'The existing Host member/model binding is not configured.');
-    if (binding.client.readOnlySession && !['omp:18.10.4:public-v1','omp:18.10.4:free-trade-v1','omp:18.10.4:enterprise-context-v1'].includes(engineAdapter?.scope))
+    if (binding.client.readOnlySession && !['omp:18.10.4:business-v1', 'omp:18.10.4:public-v1','omp:18.10.4:free-trade-v1','omp:18.10.4:enterprise-context-v1'].includes(engineAdapter?.scope))
       fail(403, 'SESSION_READONLY_PROFILE_REQUIRED', 'Session business reads cannot enable Library or other profiles.');
     if (conversation.businessAgentSession && (conversation.businessAgentSession.engineScope || 'pi:1.1.0') !== (engineAdapter?.scope || 'pi:1.1.0'))
       fail(403, 'BUSINESS_AGENT_ENGINE_CHANGED', 'This transcript belongs to another engine scope. Start a fresh public-only conversation; private Pi history cannot migrate.');
@@ -140,7 +142,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       // official OMP SDK transport; it introduces no business queue or ledger.
       const isolated = path.join(store.directory, 'omp-agent-context', hash(conversation.id));
       await privateDirectory(isolated);
-      const materialsClient = ['omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:market-validation-v1', 'omp:18.10.4:shopify-product-v1'].includes(engineAdapter.scope) ? createWorkspaceFactoryMaterialsClient({ recipient,
+      const materialsClient = ['omp:18.10.4:business-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:market-validation-v1', 'omp:18.10.4:shopify-product-v1'].includes(engineAdapter.scope) ? createWorkspaceFactoryMaterialsClient({ recipient,
         request: async (route, init) => {
           // Inner Library reads use their original live Session/scope authority.
           // Outer tool/RPC/model boundaries still prove the Agent binding.
@@ -192,12 +194,12 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         else ingestionClient = Object.freeze({ ...Object.fromEntries(['status', 'read', 'save', 'query'].map(method => [method, async () => ({ plugin: 'workspace-factory-ingestion', status: 'unconfigured', reason: 'FACTORY_INGESTION_SELECTION_REQUIRED', sources: [], visibility: 'internal', humanConfirmed: false, independentVerification: false, externalActions: false })])),
           revalidateReceipt() { fail(403, 'FACTORY_INGESTION_SELECTION_REQUIRED', 'Original selection required.'); } });
       }
-      const planClient = engineAdapter.scope === 'omp:18.10.4:market-validation-v1' ? createMarketValidationPlanClient({ materialsClient, artifacts, store, identity,
+      const planClient = ['omp:18.10.4:business-v1','omp:18.10.4:market-validation-v1'].includes(engineAdapter.scope) ? createMarketValidationPlanClient({ materialsClient, artifacts, store, identity,
         conversationId: conversation.id, runId: run.id, authorize, canSave }) : null;
       const monitorClient = planClient && marketValidationMonitoring ? createMarketValidationMonitorClient({ monitor: marketValidationMonitoring, capabilities, store, artifacts, planClient,
         identity, conversationId: conversation.id, authorize, canSave, clock: accessClock }) : null;
       let productClient = null;
-      if (engineAdapter.scope === 'omp:18.10.4:shopify-product-v1') {
+      if (['omp:18.10.4:business-v1','omp:18.10.4:shopify-product-v1'].includes(engineAdapter.scope)) {
         let assertCurrent;
         try { assertCurrent = libraryModelRead.factoryMaterialsAuthorityForSession({ identity, recipientHash: recipientFingerprint, signal: input.signal }); }
         catch (error) { if (error.code !== 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED') throw error; }
@@ -207,7 +209,19 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
             if (libraryReadHash(libraryRecipientForModel(model)) !== recipientFingerprint) fail(403, 'LIBRARY_MODEL_RECIPIENT_CHANGED', 'Use the original receiver.');
           }, canSave, assertCurrent }) : Object.fromEntries(['status', 'read', 'image', 'readiness', 'propose', 'review', 'execute', 'reconcile', 'result'].map(method => [method, async () => ({ plugin: 'workspace-shopify-product', status: 'unconfigured', reason: 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', sources: [] })]));
       }
-      return engineAdapter.complete({ input, run, binding, client, authorize,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
+      let medusaClient=null,brainClient=null;
+      if(engineAdapter.scope==='omp:18.10.4:business-v1'){
+        if(medusaCatalog){
+          let assertCurrent;
+          try{assertCurrent=libraryModelRead.factoryMaterialsAuthorityForSession({identity,recipientHash:recipientFingerprint,signal:input.signal});}
+          catch(error){if(error.code!=='FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED')throw error;}
+          if(assertCurrent)medusaClient=createMedusaProductClient({materialsClient,medusaCatalog,identity,assertCurrent,authorize:async(signal,model)=>{
+            signal?.throwIfAborted();await authorize();if(libraryReadHash(libraryRecipientForModel(model))!==recipientFingerprint)fail(403,'LIBRARY_MODEL_RECIPIENT_CHANGED','Use the original receiver.');
+          }});
+        }
+        if(goalBrain)brainClient=goalBrain.bind({identity,conversationId:conversation.id,runId:run.id,canSubmit:canSave(),signal:input.signal}).brain;
+      }
+      return engineAdapter.complete({ input, run, binding, client, authorize, medusaClient, brainClient,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();
@@ -227,6 +241,23 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     await privateDirectory(isolated);
     const sessionDirectory = path.join(isolated, 'sessions', binding.client.bindingFingerprint); await privateDirectory(sessionDirectory);
     let manager;
+    let brain = null;
+    let additionalContextValidators = [];
+    let additionalExtensionFactories = [];
+    if (goalBrain) {
+      const bound = goalBrain.bind({ identity, conversationId: conversation.id, runId: run.id, canSubmit: run.businessAgentContext.allowBusinessSubmit === true, signal: input.signal });
+      brain = bound.brain;
+      additionalContextValidators = [async ({ messages, model, signal }) => {
+        for (const receipt of cachedBrainReceipts(messages)) await brain.revalidateReceipt(receipt, signal, model);
+      }];
+      additionalExtensionFactories = [businessBrainExtension({
+        brain,
+        // The actual fail-closed guard is installed by createWorkspaceAgentRuntime
+        // around transformContext. This callback only proves the same validator
+        // is wired into the extension's private tool surface; it never grants access.
+        registerContextGuard({ validateReceipt }) { return validateReceipt === brain.revalidateReceipt; },
+      })];
+    }
     const saved = current(conversation.id).businessAgentSession;
     if (saved) {
       if (path.dirname(saved.sessionFile) !== sessionDirectory) fail(409, 'BUSINESS_AGENT_SESSION_PATH_CHANGED', 'The original transcript mapping changed.');
@@ -249,7 +280,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       if (!record || record.activeRunId !== run.id) throw new ProviderError('CANCELLED', 'The original run stopped.');
       record.businessAgentSession = { agentSessionId: manager.getSessionId(), sessionFile: manager.getSessionFile(), bindingFingerprint: binding.client.bindingFingerprint, recipientFingerprint };
     });
-    const created = await createWorkspaceAgentRuntime({ client, isolationDirectory: isolated, modelRuntime: binding.modelRuntime, model: binding.model, sessionManager: manager });
+    const created = await createWorkspaceAgentRuntime({ client, isolationDirectory: isolated, agent: true, modelRuntime: binding.modelRuntime, model: binding.model, sessionManager: manager, additionalContextValidators, additionalExtensionFactories });
     const pi = created.runtime.session;
     try { await pi.bindExtensions({}); } catch (error) { await created.runtime.dispose(); throw error; }
     const unsubscribe = pi.agent.subscribe(async event => {
@@ -298,12 +329,12 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   } });
   return {
     provider,
-    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, sessionReadonlyClient } = dependencies); },
+    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain } = dependencies); },
     async handle({ req, res, pathname, context, readBody, respond }) {
       if (req.method === 'GET' && pathname === '/api/conversations/runtime') {
         actor(context);
         await respond(res, 200, { engine: engineAdapter ? 'omp' : 'pi', engineScope: engineAdapter?.scope || 'pi:1.1.0',
-          frontend: 'original-workspace-conversation-run', privateLibrary: ['omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:shopify-product-v1'].includes(engineAdapter?.scope) ? 'original-reviewed-session-policy-required' : engineAdapter ? 'disabled' : 'original-controlled-policy' });
+          frontend: 'original-workspace-conversation-run', privateLibrary: ['omp:18.10.4:business-v1', 'omp:18.10.4:factory-materials-v1', 'omp:18.10.4:factory-inquiries-v1', 'omp:18.10.4:shopify-product-v1'].includes(engineAdapter?.scope) ? 'original-reviewed-session-policy-required' : engineAdapter ? 'disabled' : 'original-controlled-policy' });
         return true;
       }
       if (req.method === 'POST' && pathname === '/api/conversations') {

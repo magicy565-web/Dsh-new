@@ -50,3 +50,10 @@ Optional file-first owner references, source versions and separate memory propos
 ## Validation scope
 
 The lifecycle test uses real native OMP file discovery/loading, actual native filesystem tools and native JSONL recovery, with explicitly finite mocked model HTTP. It covers outside-repo package copies, all nine independent entries, disable priority, restart/re-enable, uninstall, coexistence and ambient/undeclared-code exclusion. It is not another real-model acceptance. The prior historical real API conservative cost stays CNY 0.074952; this migration adds zero paid calls. Real enterprise services and Shopify publication are not exercised.
+
+
+## 2026-10-17 combined native business Host
+
+`npm run workspace -- --profile business --check` discovers the five selected business packages without credentials or external calls. `--profile business --serve` explicitly uses the original signed Workspace Host, Run, source policy and native OMP Session. The manifest selects materials, seven-day plan/monitor, Shopify, Medusa read-only projection and Brain. Missing original clients or external services remain unconfigured; installation grants no access. Marketplace is independently installed and tested but is not injected into private business context without a reviewed recipient/disclosure bridge. Local files and the enterprise Docling/ERP protected profiles retain their existing isolation.
+
+See [integration acceptance](../docs/OMP-ALL-PLUGINS-INTEGRATION-20261017.md) for exact source provenance, tests and unconfigured capabilities.

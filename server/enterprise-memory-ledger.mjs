@@ -139,7 +139,10 @@ export function createEnterpriseMemoryLedger({store,library,disclosure=null,work
           if(row?.status!=='pending')fail(409,'MEMORY_WRITE_CHANGED','The pending memory changed before activation.');
           row.disclosureGrantId=grant.grant.id;row.status='active';row.updatedAt=iso(clock());row.updatedBy=actor.subject;return null;
         });
-        if(previous?.disclosureGrantId)await disclosure.revoke(previous.disclosureGrantId,{reason:`Superseded by memory ${next.id}`},actor);
+        if(previous?.disclosureGrantId){
+          const cleanup=await disclosure.revoke(previous.disclosureGrantId,{reason:`Superseded by memory ${next.id}`},actor);
+          if(cleanup?.syncError)fail(503,'MEMORY_AUTHZ_CLEANUP_FAILED','Previous customer authorization could not be removed.');
+        }
       }catch(error){
         await store.update(state=>{const row=rows(state).find(x=>x.id===next.id);if(row&&['pending','active'].includes(row.status)){row.status='sync_error';row.updatedAt=iso(clock());row.updatedBy=actor.subject;}return null;});
         if(grant?.grant?.id){
@@ -205,13 +208,18 @@ export function createEnterpriseMemoryLedger({store,library,disclosure=null,work
 
   async function revoke(idValue,body={},actor){
     if(!UUID.test(idValue)) fail(400,'MEMORY_ID_INVALID','Invalid memory id.');
-    const row=rows(store.read()).find(x=>x.id===idValue);if(!row) fail(404,'MEMORY_NOT_FOUND','Memory not found.');
-    actorOk(actor,row.audience);if(row.status==='revoked') return {memory:clean(row),idempotent:true};
-    const now=iso(clock());
-    await store.update(state=>{const item=rows(state).find(x=>x.id===idValue);item.status='revoked';item.updatedAt=now;item.updatedBy=actor.subject;item.history.push({revision:item.revision,action:'revoked',at:now,actor:actor.subject,reason:body.reason||'revoked_by_admin'});return null;});
+    // Capture the grant from the same serialized transaction that revokes it.
+    // An activation already queued may not yet be visible in store.read().
+    const {row,idempotent}=await store.update(state=>{
+      const item=rows(state).find(x=>x.id===idValue);if(!item)fail(404,'MEMORY_NOT_FOUND','Memory not found.');
+      actorOk(actor,item.audience);
+      const idempotent=item.status==='revoked';
+      if(!idempotent){const now=iso(clock());item.status='revoked';item.updatedAt=now;item.updatedBy=actor.subject;item.history.push({revision:item.revision,action:'revoked',at:now,actor:actor.subject,reason:body.reason||'revoked_by_admin'});}
+      return {row:clean(item),idempotent};
+    });
     let syncError=null;
     if(row.audience==='customer'&&row.disclosureGrantId&&disclosure){const result=await disclosure.revoke(row.disclosureGrantId,{reason:body.reason||'memory_revoked'},actor);syncError=result.syncError||null;}
-    return {memory:clean(rows(store.read()).find(x=>x.id===idValue)),...(syncError?{syncError}: {})};
+    return {memory:clean(rows(store.read()).find(x=>x.id===idValue)),...(idempotent?{idempotent:true}:{}),...(syncError?{syncError}: {})};
   }
   function list({customerId=null,audience}={},actor){
     if(!actor||actor.workspaceId!==workspaceId||actor.role!=='admin') fail(403,'MEMORY_ADMIN_REQUIRED','Only an administrator can enumerate enterprise memory.');

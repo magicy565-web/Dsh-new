@@ -184,3 +184,20 @@ test('Dot lease and heartbeat cannot extend beyond the approved business deadlin
     code:'DOT_TASK_UNAVAILABLE',
   });
 });
+
+test('Muse cancellation stays in inbox and operator quarantine fences only its expired attempt',async t=>{
+ const {store,artifacts,bridge:dot}=await fixture(t);
+ const muse=createDotWorkerBridge({store,artifacts,agentKind:'muse',workerId:'synthetic-muse',ownerId:'synthetic-owner',enabled:true,scopeReviewed:true,externalBudgetVerified:true});
+ await muse.adapter.submit(task('muse-queued'));
+ const claim=await muse.claimTask({taskRef:'muse-queued',requestId:'muse-claim'});
+ await muse.adapter.cancel('muse-queued','muse-queued');
+ assert.equal(muse.inbox().tasks[0].status,'cancel_requested');assert.equal(dot.inbox().tasks.length,0);
+ const input={taskRef:'muse-queued',attemptId:claim.attemptId,fence:claim.fence,stoppedConfirmed:true,reason:'Synthetic operator observed stop',reviewedBy:'synthetic-admin'};
+ await assert.rejects(muse.quarantineExpired(input),{code:'DOT_LEASE_ACTIVE'});
+ await store.update(state=>{state.museTasks[0].leaseUntil='2000-01-01T00:00:00Z';});
+ await assert.rejects(muse.quarantineExpired({...input,stoppedConfirmed:false}),{code:'DOT_STOP_NOT_CONFIRMED'});
+ const receipt=await muse.quarantineExpired(input);assert.equal(receipt.workerStopAcknowledged,false);assert.equal(receipt.status,'quarantined');
+ assert.equal(store.read().museTasks[0].fence,claim.fence+1);assert.equal(muse.inbox().tasks.length,0);
+ await assert.rejects(muse.heartbeat({...input,requestId:'late-heartbeat'}),{code:'STALE_DOT_LEASE'});
+ assert.equal((store.read().dotTasks||[]).length,0);
+});

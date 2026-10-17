@@ -1,0 +1,10 @@
+{
+  "extensions": [
+    "./workspace-factory-materials",
+    "./workspace-market-validation",
+    "./workspace-shopify-product",
+    "./workspace-medusa-catalog",
+    "./workspace-goal-intelligence"
+  ],
+  "disabledExtensions": []
+}

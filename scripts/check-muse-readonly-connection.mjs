@@ -72,16 +72,16 @@ async function requestJson(fetcher, url, token, signal) {
   return parsed;
 }
 
-export async function probeMuseReadOnly({ baseUrl, token, expectedWorkerId,
+export async function probeMuseReadOnly({ baseUrl, token, expectedWorkerId, expectedOwnerId,
   fetcher = globalThis.fetch, allowApproved = false } = {}) {
   const base = validateMuseBaseUrl(baseUrl);
   if (!TOKEN.test(token || '')) fail('MUSE_CREDENTIAL_REQUIRED');
-  if (!ID.test(expectedWorkerId || '')) fail('MUSE_EXPECTED_ID_REQUIRED');
+  if (!ID.test(expectedWorkerId || '') || !ID.test(expectedOwnerId || '')) fail('MUSE_EXPECTED_ID_REQUIRED');
   if (typeof fetcher !== 'function') fail('MUSE_FETCH_UNAVAILABLE');
 
   const identity = await requestJson(fetcher, base + '/identity', token, AbortSignal.timeout(10_000));
   if (identity.workerId !== expectedWorkerId || identity.contract !== 'workspace.muse.pull.v1' ||
-      typeof identity.muse !== 'string' || typeof identity.approved !== 'boolean' ||
+      identity.muse !== expectedOwnerId || typeof identity.approved !== 'boolean' ||
       typeof identity.connected !== 'boolean')
     fail('MUSE_IDENTITY_MISMATCH');
   if (identity.approved && !allowApproved) fail('MUSE_UNEXPECTED_APPROVAL');
@@ -93,6 +93,7 @@ export async function probeMuseReadOnly({ baseUrl, token, expectedWorkerId,
   return Object.freeze({
     connection: 'authenticated-read-only',
     workerId: identity.workerId,
+    ownerId: identity.muse,
     contract: identity.contract,
     approved: identity.approved,
     inboxCount: inbox.tasks.length,
@@ -106,6 +107,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
       baseUrl: process.env.WORKSPACE_MUSE_PROBE_URL,
       token: process.env.WORKSPACE_MUSE_PROBE_TOKEN,
       expectedWorkerId: process.env.WORKSPACE_MUSE_PROBE_WORKER_ID,
+      expectedOwnerId: process.env.WORKSPACE_MUSE_PROBE_OWNER_ID,
     });
     process.stdout.write(JSON.stringify(result) + '\n');
   } catch (error) {

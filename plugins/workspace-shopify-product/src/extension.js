@@ -38,4 +38,4 @@ export function shopifyProductExtension({ client, authorize } = {}) {
         ...(['blocked', 'unconfigured', 'unavailable', 'uncertain', 'partial', 'failed', 'cancelled'].includes(receipt.status) ? { isError: true } : {}) };
     } }));
 }
-export default function extension(pi) { return shopifyProductExtension()(pi); }
+export default function extension(pi) { let host; pi.events?.emit('workspace:plugin-host', {accept:value=>{host=value;}}); return shopifyProductExtension({client:host?.productClient,authorize:host?.authorize})(pi); }

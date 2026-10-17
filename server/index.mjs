@@ -35,6 +35,12 @@ import { loadPiProviderConfig } from './pi-provider-config.mjs';
 import { createPiMuseBinding } from './pi-muse-binding.mjs';
 import { ApiError, createRuntime } from './runtime.mjs';
 import { createArtifactService } from './artifacts.mjs';
+import { createGoalBrainHost } from './goal-brain-host.mjs';
+import { composeBusinessBrainSourceAdapters, createBusinessBrainSourceAdapter } from './business-brain-source-adapter.mjs';
+import { createSupplierCommerceBrainSourceAdapter } from './goal-brain-supplier-source.mjs';
+import { handleGoalBrainHttp } from './goal-brain-http.mjs';
+import { BrainError } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
+import { isBrainArtifact } from './brain-artifact-policy.mjs';
 import { createBusinessLibraryService } from './business-library.mjs';
 import { createShopifyClient } from './shopify.mjs';
 import { createCommerceService } from './commerce.mjs';
@@ -44,6 +50,7 @@ import {createEnterpriseDisclosurePolicy} from './enterprise-disclosure-policy.m
 import {createEnterpriseMemoryLedger} from './enterprise-memory-ledger.mjs';
 import {createOpenFgaClient} from './enterprise-openfga.mjs';
 import { libraryHttp } from './library-http.mjs';
+import { createMedusaCatalogService } from './medusa-catalog.mjs';
 import { createSourcingMcpAuth, handleSourcingMcpHttp } from './sourcing-mcp.mjs';
 import { createRunOutputService } from './run-output.mjs';
 import { createWorkspaceLibraryAdapter, WORKSPACE_LIBRARY_ADAPTER } from './workspace-library.mjs';
@@ -100,7 +107,7 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, enterpriseDisclosureOptions = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, medusaFetch = fetch, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, enterpriseDisclosureOptions = null, goalBrainOptions = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
@@ -108,7 +115,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   if (businessAgent) provider = businessAgent.provider;
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const store = await openStore(dataDirectory);
-  let runtime, artifacts, capabilities, access, recovery, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure, enterpriseMemory, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent;
+  let runtime, artifacts, capabilities, access, recovery, goalBrain, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure, enterpriseMemory, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent, medusaCatalog;
   try {
     if (businessAgent && Object.values(store.read().workspaceThreadHarness || {}).some(value => Array.isArray(value) && value.length))
       throw new Error('Existing alpha ThreadHarness records are retained. Review their archive/migration before enabling this adapter; no second executor or automatic state synchronization will adopt them.');
@@ -122,6 +129,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       fga:enterpriseDisclosureOptions?.openfga?createOpenFgaClient(enterpriseDisclosureOptions.openfga):null,
       workspaceId:accessConfig.workspaceId||'local',resolveResource:({resourceId,forGrant})=>enterpriseMemory?.resolveResource({resourceId,forGrant}),clock:accessClock});
     enterpriseMemory=createEnterpriseMemoryLedger({store,library:businessLibrary,disclosure:enterpriseDisclosure,workspaceId:accessConfig.workspaceId||'local',clock:accessClock});
+    medusaCatalog = createMedusaCatalogService({library:businessLibrary,workspaceId:accessConfig.workspaceId||'local',environment:capabilityEnvironment,fetchImpl:medusaFetch});
     libraryModelRead = createLibraryModelRead({ library: businessLibrary, artifacts, access, policy: libraryModelReadPolicy, clock: accessClock });
     dotAuth = dotWorkerConfig && createDotWorkerAuth({ tokenDigest: dotWorkerConfig.tokenDigest });
     if (dotWorkerConfig?.enabled === true && !dotAuth)
@@ -175,6 +183,17 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         : actor.subject === 'local-operator') });
     supplierService = createSupplierService({ store, runtime, provider, businessLibrary, artifacts, shopify, capabilities, clock: accessClock, monitoring: supplierMonitoring, notifications: supplierNotifications, publicationStatus: () => supplierPublication?.status(), ownerMcpConfigured: accessConfig.mode === 'enterprise' && typeof supplierOwnerMcpBinding?.readReviewedScope === 'function', ownerSessionMcpAvailable: accessConfig.mode === 'enterprise',
       readMuseImage: async (actor, cid, ref) => { if (!piMuse || piMuse.snapshot(actor).conversationId !== cid) throw new SupplierServiceError(404, 'SUPPLIER_IMAGE_UNAVAILABLE', 'Use the original reviewed Muse owner and Session.'); piMuse.forActor(actor); const file = await piMuse.native.bindSession(piMuse.actor).download({ artifactId: ref.artifactId, version: ref.version, sha256: ref.sha256 }); return { ...file, version: { sha256: file.sha256 } }; } });
+    if (goalBrainOptions !== null) {
+      if (!goalBrainOptions || Object.keys(goalBrainOptions).some(k => !['originalReceiver', 'reviewedGoals', 'sourceAdapter'].includes(k)))
+        throw new TypeError('Goal Brain may only use an original trusted model receiver and reviewed, pinned native Goals.');
+      const primarySourceAdapter = goalBrainOptions.sourceAdapter || createBusinessBrainSourceAdapter({ store, workspaceId: accessConfig.workspaceId || 'local', clock: accessClock });
+      const supplierSourceAdapter = createSupplierCommerceBrainSourceAdapter({ supplierService });
+      const sourceAdapter = composeBusinessBrainSourceAdapters({
+        primary: primarySourceAdapter,
+        extras: [{ prefix: 'supplier:', adapter: supplierSourceAdapter }]
+      });
+      goalBrain = createGoalBrainHost({ store, artifacts, access, libraryModelRead, ...goalBrainOptions, sourceAdapter, clock: accessClock });
+    }
     supplierPublication = await createSupplierPublication({ store, capabilities, shopify, adapter: publicationAdapter, clock: accessClock });
     await supplierNotifications.initialize();
     commerce = createCommerceService({ store, runtime, shopify, workerDesk, workerCatalog: () => workerDesk.catalog(), museConnection: () => museBridge?.info(), clock: accessClock });
@@ -201,7 +220,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     }
     if (businessAgent) {
       if (!builtinAgent && !businessAgentOptions.engineAdapter) throw new Error('The business conversation adapter requires the original configured Agent member service.');
-      businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, sessionReadonlyClient: builtinAgent?.sessionReadonlyClient });
+      businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, goalBrain, medusaCatalog, sessionReadonlyClient: builtinAgent?.sessionReadonlyClient });
     }
   } catch (error) { await marketValidationMonitoring?.close(); await supplierMonitoring?.close(); await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
@@ -324,6 +343,14 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       musePrivacy.guardHttp(pathname, context);
       agentPrivacy.guardHttp(pathname, context);
       res.filterWorkspaceResponse = body => agentPrivacy.filterResponse(musePrivacy.filterResponse(body, context), context);
+      try {
+        if (req.method === 'GET' && await handleGoalBrainHttp({ pathname, method: req.method, context, host: goalBrain, res, respond })) return;
+      } catch (error) {
+        if (error instanceof BrainError) throw new ApiError(
+          /(?:STALE|CHANGED|CONFLICT)/.test(error.code) ? 409 : 403,
+          error.code, 'The original reviewed business context or Session is unavailable.');
+        throw error;
+      }
       if (businessAgent && await businessAgent.handle({ req, res, pathname, context, respond, readBody: async request => {
         const body = await readBody(request);
         access.verifyBody(context, request.bodyBytes || Buffer.alloc(0));
@@ -338,6 +365,12 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
+        if(pathname==='/api/medusa/catalog/status'){
+          if(!['admin','operator'].includes(context.role))throw new ApiError(403,'MEDUSA_ROLE_REQUIRED','Enterprise owner access is required.');
+          return await respond(res,200,{medusa:medusaCatalog.status()});
+        }
+        const medusaRead=pathname.match(/^\/api\/medusa\/products\/([a-f0-9-]{36})\/(preview|remote)$/iu);
+        if(medusaRead)return await respond(res,200,medusaRead[2]==='preview'?medusaCatalog.preview(medusaRead[1],context):await medusaCatalog.reconcile(medusaRead[1],context));
         if (await marketValidationMonitorHttp({ service: marketValidationMonitoring, req, res, pathname, context, respond })) return;
         if (!builtinAgent && pathname === '/api/agent-ui/v1/status') return await respond(res, 200, disabledAgentUiStatus());
         if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, respond })) return;
@@ -368,7 +401,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
           if (result) return await respond(res, result.status, result.body);
         }
         if (pathname === '/api/runs') return await respond(res, 200, runtime.listRuns());
-        if (pathname === '/api/artifacts') return await respond(res, 200, { ...artifacts.list(), artifacts: artifacts.list().artifacts.filter(item => !musePrivacy.ownsArtifact(item)) });
+        if (pathname === '/api/artifacts') return await respond(res, 200, { ...artifacts.list(), artifacts: artifacts.list().artifacts.filter(item => !musePrivacy.ownsArtifact(item) && !isBrainArtifact(item)) });
         if (pathname === '/api/cloud-expert-catalog') return await respond(res, 200, cloudExperts.catalog());
         if (pathname === '/api/cloud-experts') return await respond(res, 200, { experts: cloudExperts.experts() });
         if (pathname === '/api/cloud-teams') return await respond(res, 200, { teams: cloudExperts.teams() });
@@ -405,6 +438,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (resource) return await respond(res, 200, runtime.getRun(resource[1]));
         resource = pathname.match(/^\/api\/artifacts\/([^/]+)(?:\/(content|download))?$/);
         if (resource) {
+          if (isBrainArtifact(store.read().artifacts.find(item => item.id === resource[1]))) throw new ApiError(404, 'NOT_FOUND', 'Enterprise brain records are available only through the reviewed business context.');
           if (musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === resource[1]))) throw new ApiError(404, 'NOT_FOUND', 'Use the exact original Muse receipt file reference.');
           const version = url.searchParams.has('version') ? Number(url.searchParams.get('version')) : undefined;
           if (resource[2] === 'download') {
@@ -437,11 +471,30 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       access.verifyBody(context, req.bodyBytes || Buffer.alloc(0));
       musePrivacy.guardHttp(pathname, context, body);
       agentPrivacy.guardHttp(pathname, context, body);
+      const museQuarantine=pathname.match(/^\/api\/muse-worker-connection\/tasks\/([^/]+)\/quarantine$/);
+      if(method==='POST'&&museQuarantine){
+        if(context.role!=='admin')throw new ApiError(403,'ROLE_REQUIRED','Only the original administrator may attest a stopped attempt.');
+        if(!museBridge)throw new ApiError(404,'MW_GATEWAY_UNAVAILABLE','Muse bridge is not configured.');
+        if(!body||Object.keys(body).some(k=>!['attemptId','fence','stoppedConfirmed','reason'].includes(k)))throw new ApiError(400,'INVALID_INPUT','Use the exact stopped attempt and evidence.');
+        return await respond(res,200,await museBridge.quarantineExpired({...body,taskRef:museQuarantine[1],reviewedBy:context.subject}));
+      }
+
+      const medusaDraft=pathname.match(/^\/api\/medusa\/products\/([a-f0-9-]{36})\/draft$/iu);
+      if(method==='POST'&&medusaDraft)return await respond(res,200,await medusaCatalog.saveDraft(medusaDraft[1],body,context));
+      try {
+        if (await handleGoalBrainHttp({ pathname, method, context, host: goalBrain, body, res, respond })) return;
+      } catch (error) {
+        if (error instanceof BrainError) throw new ApiError(
+          /(?:STALE|CHANGED|CONFLICT)/.test(error.code) ? 409 : 403,
+          error.code, 'The original reviewed business context or Session is unavailable.');
+        throw error;
+      }
       if (await draftHttp(req, res, pathname, context, body)) return;
       if (await supplierPublicationHttp({ publication: supplierPublication, service: supplierService, access, req, res, pathname, context, body, respond })) return;
       if (await supplierServiceHttp({ service: supplierService, access, req, res, pathname, context, body, respond })) return;
       if (await marketValidationMonitorHttp({ service: marketValidationMonitoring, req, res, pathname, context, body, respond })) return;
       const ownedFileMutation = pathname.match(/^\/api\/artifacts\/([^/]+)$/);
+      if (ownedFileMutation && isBrainArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Enterprise brain records cannot be changed through generic artifact access.');
       if (ownedFileMutation && musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Original Muse receipt files are immutable and use the original binding.');
       const supplyWrite = await supplyHttp({ supply, method, pathname, body, actor: context });
       if (supplyWrite) return await respond(res, supplyWrite.status, supplyWrite.body);

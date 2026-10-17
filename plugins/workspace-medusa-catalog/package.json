@@ -1,0 +1,29 @@
+{
+  "name": "@workspace-agent/pi-medusa-catalog",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "description": "Original Workspace-scoped Medusa v2 internal product preview",
+  "keywords": [
+    "pi-package"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "files": [
+    "src",
+    "skills",
+    "README.md",
+    "AGENTS.md"
+  ],
+  "main": "./src/extension.js",
+  "pi": {
+    "extensions": [
+      "./src/extension.js"
+    ],
+    "skills": [
+      "./skills/medusa-catalog"
+    ]
+  }
+}

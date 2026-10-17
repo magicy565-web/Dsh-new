@@ -147,3 +147,31 @@ test('late customer grant cleanup refusal is explicit while local memory remains
  const finished=await writing;assert.equal(finished.error?.code,'MEMORY_AUTHZ_CLEANUP_FAILED');
  assert.deepEqual(await reopenedRows(f),[revoked.memory]);assert.deepEqual(d.revoked,[d.grants[0].id]);
 });
+
+test('revoke queued behind activation cleans the grant from the committed row',{timeout:10000},async t=>{
+ const d=delayedDisclosure(),f=await fixture(t,{disclosure:d.service});
+ const originalUpdate=f.store.update.bind(f.store);let revocation,queued=false;
+ // Observe the actual synchronous transaction before its real fsync/rename.
+ // A revoke started here sees the previous pending/null snapshot and queues
+ // behind activation on the original Store, without sleeps or a fake Store.
+ f.store.update=callback=>originalUpdate(state=>{
+  const result=callback(state);
+  const active=state.businessLibrary.enterpriseMemories?.find(row=>row.status==='active'&&row.disclosureGrantId);
+  if(active&&!queued){queued=true;assert.equal(f.store.read().businessLibrary.enterpriseMemories[0].disclosureGrantId,null);revocation=f.ledger.revoke(active.id,{reason:'Synthetic queued revoke'},actor);}
+  return result;
+ });
+ const writing=outcome(f.ledger.remember(customer(input(f,'activation-queued')),actor));
+ await d.reached;d.release();await writing;await revocation;
+ assert.equal(queued,true);
+ const rows=await reopenedRows(f);assert.equal(rows[0].status,'revoked');
+ assert.equal(rows[0].disclosureGrantId,d.grants[0].id);
+ assert.deepEqual(d.revoked,[d.grants[0].id]);
+});
+
+test('superseded customer grant cleanup syncError fails closed and reports failure',async t=>{
+ const d=delayedDisclosure({cleanupRefused:true}),f=await fixture(t,{disclosure:d.service});d.release();
+ await f.ledger.remember(customer(input(f,'old-grant')),actor);
+ await assert.rejects(f.ledger.remember(customer(input(f,'new-grant','SYNTHETIC revised')),actor),e=>e.code==='MEMORY_AUTHZ_CLEANUP_FAILED');
+ const rows=await reopenedRows(f);assert.deepEqual(rows.map(x=>x.status),['superseded','sync_error']);
+ assert.deepEqual(d.revoked,d.grants.map(x=>x.id));
+});

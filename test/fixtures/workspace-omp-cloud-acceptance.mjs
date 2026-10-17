@@ -26,7 +26,7 @@ if (mode === 'cancel' || mode === 'recover') {
 } else if (mode === 'plugins') {
   const sdk = await loadWorkspaceOmpSdk(paths.packageRoot), results = [];
   const installed = (await projectPlugins()).installed;
-  assert.equal(installed.length, 11);
+  assert.equal(installed.length, 14);
   for (const plugin of installed) {
     const folder = path.join(root, plugin.id); await fs.mkdir(folder);
     const target = path.join(folder, plugin.id); await fs.cp(plugin.directory, target, {recursive:true});

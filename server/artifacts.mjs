@@ -5,6 +5,7 @@ import { ApiError } from './runtime.mjs';
 import { acquireWriterLock, openPrivateFile, privateDirectory, syncDirectory, validateJson } from './store.mjs';
 import { isArtifactReferencedByLibrary } from './business-library.mjs';
 import { isBusinessLibraryArtifact } from './business-library-policy.mjs';
+import { isBrainArtifact, mayWriteBrainArtifact } from './brain-artifact-policy.mjs';
 
 export const ARTIFACT_MAX_BYTES = 5 * 1024 * 1024;
 export const ARTIFACT_TYPES = Object.freeze({ '.txt': 'text/plain', '.md': 'text/markdown', '.csv': 'text/csv', '.json': 'application/json', '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' });
@@ -227,6 +228,7 @@ export async function createArtifactService({ store, directory, maxBytes = ARTIF
         const decoded = decodeContent(body, filename, maxBytes);
         const associations = sourceValues(body);
         const info = { filename, title: body.title === undefined ? filename : boundedString(body.title, 'title', 200), description: body.description === undefined ? '' : boundedString(body.description, 'description', 4000, true), metadata: body.metadata === undefined ? {} : metadata(body.metadata), ...associations, ...(owner ? { workerOwner: owner } : {}) };
+        if (!mayWriteBrainArtifact(null, info.metadata, admission)) fail('BRAIN_ARTIFACT_PROTECTED', 'Enterprise brain artifacts require original Host admission.', 403);
         const requestId = body.requestId === undefined ? null : boundedString(body.requestId, 'requestId', 128);
         const requestFingerprint = hash(canonical({ ...info, sha256: decoded.sha256, mimeType: decoded.mimeType }));
         const snapshot = store.read();
@@ -254,6 +256,7 @@ export async function createArtifactService({ store, directory, maxBytes = ARTIF
         bodyObject(body, updateFields);
         if (!Object.keys(body).some(key => key !== 'expectedRevision')) fail('INVALID_INPUT', 'Provide an artifact field to update.');
         const snapshot = store.read(); admission.check?.(snapshot); const original = required(snapshot, id);
+        if (!mayWriteBrainArtifact(original, body.metadata ?? original.metadata, admission)) fail('BRAIN_ARTIFACT_PROTECTED', 'Enterprise brain records cannot be modified through generic artifact access.', 403);
         if (body.metadata !== undefined && isBusinessLibraryArtifact(snapshot, original) && body.metadata?.businessLibrary?.visibility !== 'internal') fail('INVALID_INPUT', 'Internal library visibility cannot be removed from this file.');
         if (body.expectedRevision !== undefined && (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 1)) fail('INVALID_INPUT', 'expectedRevision must be a positive integer.');
         if (body.expectedRevision !== undefined && body.expectedRevision !== original.revision) fail('REVISION_CONFLICT', 'This artifact changed. Reload it before saving.', 409);
@@ -278,6 +281,7 @@ export async function createArtifactService({ store, directory, maxBytes = ARTIF
           return await store.update(state => {
             admission.check?.(state);
             const current = required(state, id);
+            if (!mayWriteBrainArtifact(current, artifact.metadata, admission)) fail('BRAIN_ARTIFACT_PROTECTED', 'The enterprise brain artifact ownership changed.', 403);
             if (body.metadata !== undefined && isBusinessLibraryArtifact(state, current) && body.metadata?.businessLibrary?.visibility !== 'internal') fail('INVALID_INPUT', 'Internal library visibility cannot be removed from this file.');
             if (current.revision !== original.revision) fail('REVISION_CONFLICT', 'This artifact changed. Reload it before saving.', 409);
             checkSources(state, associations, changedSources); if (decoded) checkQuota(state, decoded.size);
@@ -290,7 +294,8 @@ export async function createArtifactService({ store, directory, maxBytes = ARTIF
     delete(id) {
       return enqueue(async () => {
         const artifact = required(store.read(), id);
-        await store.update(state => { required(state, id); if (isArtifactReferencedByLibrary(state, id)) fail('REFERENCED_ASSET', 'This file is used by a product image or a document version. All historical document versions retain their files.', 409); state.artifacts = state.artifacts.filter(item => item.id !== id); activity(state, 'artifact_deleted', artifact); });
+        if (isBrainArtifact(artifact)) fail('BRAIN_ARTIFACT_PROTECTED', 'Enterprise brain memory cannot be deleted using generic artifact access.', 403);
+        await store.update(state => { if (isBrainArtifact(required(state, id))) fail('BRAIN_ARTIFACT_PROTECTED', 'Enterprise brain memory requires its original Host.', 403); if (isArtifactReferencedByLibrary(state, id)) fail('REFERENCED_ASSET', 'This file is used by a product image or a document version. All historical document versions retain their files.', 409); state.artifacts = state.artifacts.filter(item => item.id !== id); activity(state, 'artifact_deleted', artifact); });
         let pendingCleanup = false;
         for (const version of artifact.versions) { try { await removeBlob(path.join(directory, blobName(artifact, version))); } catch { pendingCleanup = true; } }
         try { await syncDirectory(directory); } catch { pendingCleanup = true; }

@@ -57,7 +57,7 @@ test('stub success must acquire, release, reacquire and release; configuration r
   assert.deepEqual(calls, ['acquire', 'release', 'acquire', 'release']);
   assert.equal(result.status, 'configured-unverified'); assert.equal(result.preflightReady, true);
   assert.equal(result.persistentSessionVerified, false); assert.equal(result.paidModelVerified, false);
-  assert.deepEqual(result.blockers, []); assert.equal(result.plugins.discovered.length, 11);
+  assert.deepEqual(result.blockers, []); assert.equal(result.plugins.discovered.length, 14);
   assert.deepEqual(result.plugins.enabled, ['workspace-local-materials']);
 });
 test('native EPERM stops configured execution before Session import, fetch or output', async t => {
@@ -121,7 +121,7 @@ test('actual fixed native probe preserves an existing saved Session byte-for-byt
 });
 test('default check retains plugin discovery when model configuration is invalid', { timeout: 15000 }, async () => {
   const result = await inspectNativeWorkspace({ PI_PROVIDER: 'unsupported', DEEPSEEK_API_KEY: configuration.apiKey });
-  assert.equal(result.status, 'offline-preview-ready'); assert.equal(result.plugins.length, 11);
+  assert.equal(result.status, 'offline-preview-ready'); assert.equal(result.plugins.length, 14);
   assert.equal(result.localSessionPrerequisites.modelStatus, 'configuration-invalid');
   assert.equal(result.localSessionPrerequisites.preflightReady, false); assert.equal(result.modelRequests, 0);
   assert.ok(!JSON.stringify(result).includes(configuration.apiKey));
@@ -136,7 +136,7 @@ test('default check sanitizes probe-directory cleanup errors and retains plugin 
     return original(directory, options);
   });
   const result = await inspectNativeWorkspace({});
-  assert.equal(result.status, 'offline-preview-ready'); assert.equal(result.plugins.length, 11);
+  assert.equal(result.status, 'offline-preview-ready'); assert.equal(result.plugins.length, 14);
   assert.equal(result.localSessionPrerequisites.environment.nativeLock.phase, 'cleanup-directory');
   assert.equal(result.localSessionPrerequisites.status, 'environment-unavailable');
   assert.equal(result.localSessionPrerequisites.preflightReady, false);

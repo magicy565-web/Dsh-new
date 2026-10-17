@@ -217,3 +217,12 @@ test('original native task DTO and checked receipt stay in their conversation wi
   const unrelated = await f.render(`/chat/${other.id}`, 1366, view); await wait(() => unrelated.document.querySelector('.conversation-task-controls .conversation-task-list'), 'unrelated original task list mounted'); assert.equal(unrelated.document.querySelector('.message-row .cloud-file'), null); assert.ok(!unrelated.document.querySelector('.conversation-task-controls .conversation-task-list').textContent.includes('Fixture task objective'));
   assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []); assert.deepEqual(unrelated.errors, []);
 });
+
+
+test('explicit Brain page remains read only and reports missing original Host without creating a conversation',async t=>{
+ const f=await fixture(t);await conversation(f,'Original Brain UI fixture');const ui=await f.render('/home');
+ await wait(()=>ui.document.body.textContent.includes('经营大脑尚未配置'),'unconfigured original Brain Host');
+ assert.equal(ui.window.location.pathname,'/home');assert.ok(aria(ui,'经营'));
+ assert.equal(f.requests.filter(x=>x.method!=='GET').length,0);assert.equal(f.modelCalls,0);assert.deepEqual(ui.errors,[]);
+ await click(ui,aria(ui,'对话'));await wait(()=>ui.document.querySelector('.composer'),'original conversation remains reachable');
+});

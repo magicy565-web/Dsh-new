@@ -17,7 +17,7 @@ npm start
 
 这条原生路径只安装 support 中两份锁文件的 Bun/OMP 依赖，无需先装旧网页的 React/Vite/Pi 依赖。安装禁用生命周期脚本并排除可选模型组件。npm run build 与 build:omp 相同，验证插件打包闭包、Bun 编译和官方 OMP 独立发现/注册。
 
-默认 TUI 是明确的离线 no-model 预览：空的隔离 HOME、不读账号密钥、不调用模型、不保存会话、不执行 shell，加载 plugins/config.json 中显式启用的项目扩展。当前默认只启用 workspace-local-materials 的三个公开草稿工具；没有授予本地文件或企业资料访问。所有 11 个包可发现，不代表企业服务已经配置。模型与原生持久会话需另外验收。
+默认 TUI 是明确的离线 no-model 预览：空的隔离 HOME、不读账号密钥、不调用模型、不保存会话、不执行 shell，加载 plugins/config.json 中显式启用的项目扩展。当前默认只启用 workspace-local-materials 的三个公开草稿工具；没有授予本地文件或企业资料访问。所有 14 个包可发现，不代表企业服务已经配置。模型与原生持久会话需另外验收。
 
 ## 已有本地会话
 

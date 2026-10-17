@@ -61,4 +61,4 @@ export function factoryMaterialsExtension({ client, authorize } = {}) {
 
 // Ordinary package loading grants no enterprise Library access and performs no
 // ambient environment, credential, filesystem, Session or account discovery.
-export default function extension(pi) { return factoryMaterialsExtension()(pi); }
+export default function extension(pi) { let host; pi.events?.emit('workspace:plugin-host', {accept:value=>{host=value;}}); return factoryMaterialsExtension({client:host?.materialsClient,authorize:host?.authorize})(pi); }

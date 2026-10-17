@@ -71,6 +71,24 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
       };
       const source=check();return {...source,authorization:structuredClone(authorization),assertCurrent:check};
     },
+    // Original enterprise policy selection for Goal Brain. This exposes ONLY
+    // reviewed IDs, versions and field masks to the trusted in-process Host;
+    // no Library contents or new grant become available to ordinary tools.
+    businessBrainForSession({ identity, recipientHash, signal }) {
+      if (!scope) fail(403, 'BRAIN_ORIGINAL_LIBRARY_POLICY_REQUIRED', 'Enable the original reviewed enterprise library policy.');
+      const assertCurrent = () => {
+        signal?.throwIfAborted();
+        const live = access.nativeSessionById(identity?.sessionId);
+        if (!live || live.subject !== identity.subject || live.workspaceId !== identity.workspaceId || live.role !== identity.role)
+          fail(403, 'LIBRARY_SESSION_SCOPE_REQUIRED', 'Original live enterprise member Session required.');
+        authorize({ ...live, session: live }, recipientHash, true);
+      };
+      assertCurrent();
+      return { scope: structuredClone({
+        workspaceId: scope.workspaceId, subject: scope.subject, expiresAt: scope.expiresAt,
+        company: scope.company, products: scope.products, productFields: scope.productFields
+      }), assertCurrent };
+    },
     // Synchronous original-policy fence for an in-process source-backed commit.
     factoryMaterialsAuthorityForSession({ identity, recipientHash, signal }) {
       if (!scope?.factoryMaterials) fail(403, 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', 'Original materials selection required.');

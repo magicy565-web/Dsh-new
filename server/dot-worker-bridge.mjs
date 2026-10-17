@@ -198,9 +198,9 @@ export function createDotWorkerBridge({
     note: 'Identity and a stored task receipt do not verify that the dot is currently working.',
     allowedServices: [...services] });
 
-  const inbox = () => ({ workerId, tasks: (approved ? read() : []).filter(item=>item.workerId===workerId && item.status==='pending')
-    .filter(item => Date.parse(item.deadlineAt) > Date.now())
-    .map(item=>({ taskRef:item.id,serviceId:item.serviceId,deadlineAt:item.deadlineAt,status:'pending' })) });
+  const inbox = () => ({ workerId, tasks: (approved ? read() : []).filter(item=>
+    item.status==='pending'&&futureDate(item.deadlineAt)||item.status==='cancel_requested'&&Boolean(item.attemptId))
+    .map(item=>({taskRef:item.id,serviceId:item.serviceId,deadlineAt:item.deadlineAt,status:item.status})) });
 
   const readTask = taskRef => {
     if (!approved) fail(403,'DOT_NOT_APPROVED','The dot Worker scope or budget authorization has been revoked.');
@@ -351,6 +351,32 @@ export function createDotWorkerBridge({
       return taskSnapshot(item);
     });
   }
+  // Explicit operator quarantine after an independently reviewed stop.
+  // No automatic re-claim, no assertion that the native Worker acknowledged stop.
+  // The old attempt fence is revoked permanently; a NEW approved order is required.
+  async function quarantineExpired({taskRef,attemptId,fence,stoppedConfirmed,reason,reviewedBy}) {
+    if (stoppedConfirmed !== true)
+      fail(409,'DOT_STOP_NOT_CONFIRMED','Review original Worker shutdown before releasing the occupied slot.');
+    if (!id(attemptId) || !Number.isSafeInteger(fence) || fence < 1 ||
+        typeof reviewedBy !== 'string' || !/^[A-Za-z0-9._@:+|/-]{1,128}$/.test(reviewedBy))
+      fail(400,'INVALID_INPUT','Exact original attempt, fence and authorized reviewer are required.');
+    const note=bounded(reason,'operator stop evidence',2000);
+    return mutate(state=>{
+      const item=lookup(state,taskRef);
+      if (!['claimed','blocked','cancel_requested'].includes(item.status) ||
+          item.attemptId !== attemptId || item.fence !== fence)
+        fail(409,'STALE_DOT_LEASE','Only the matching unfinished attempt can be quarantined.');
+      if (futureDate(item.leaseUntil)&&futureDate(item.deadlineAt))
+        fail(409,'DOT_LEASE_ACTIVE','An unexpired attempt cannot be quarantined.');
+      item.status='quarantined';
+      item.quarantineReason=note;item.quarantinedBy=reviewedBy;item.quarantinedAt=now();
+      item.fence += 1;item.updatedAt=now();
+      event(state,item,'operator_quarantined');
+      return {taskRef:item.id,status:'quarantined',quarantinedAt:item.quarantinedAt,
+        workerStopAcknowledged:false,operatorAttestedStopped:true};
+    });
+  }
+
   async function ackEvent({taskRef,eventId}) {
     if(!id(eventId))fail(400,'INVALID_EVENT','Stable event ID required.');
     return mutate(state=>{
@@ -365,7 +391,7 @@ export function createDotWorkerBridge({
 
   return {
     adapter, identity, inbox, readTask, claimTask, status, heartbeat,
-    uploadFile, submitResult, reportBlocked, confirmStop, ackEvent,
+    uploadFile, submitResult, reportBlocked, confirmStop, quarantineExpired, ackEvent,
     info:()=>({installed:true,approved,workerId,ownerId,onlineVerified:false,kind:agentKind,
       pending:read().filter(x=>x.status==='pending').length,
       claimed:read().filter(x=>x.status==='claimed').length,
@@ -376,6 +402,8 @@ export function createDotWorkerBridge({
       taskRef:item.id,serviceId:item.serviceId,status:item.status,
       createdAt:item.createdAt,updatedAt:item.updatedAt,deadlineAt:item.deadlineAt,
       leaseUntil:item.leaseUntil,attemptId:item.attemptId,fence:item.fence,
+      deadlineExpired:!futureDate(item.deadlineAt),leaseExpired:!futureDate(item.leaseUntil)||!futureDate(item.deadlineAt),
+      quarantinedAt:item.quarantinedAt||null,quarantinedBy:item.quarantinedBy||null,workerStopAcknowledged:Boolean(item.stopRequestId),
       fileCount:item.files.length,evidenceCount:item.toolEvidence.length,
       events:copy(item.events||[]),independentlyVerified:false,
     })),

@@ -1,0 +1,9 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import defaultExtension, { createMarketplaceExtension } from '../plugins/workspace-marketplace/src/extension.js';
+import { fixture, buyer, seller } from './fixtures/marketplace.mjs';
+function register(extension){const tools=[];extension({registerTool:t=>tools.push(t)});return tools;}
+test('ordinary plugin installation has no Host or private identity',async()=>{const tools=register(defaultExtension);assert.equal(tools.length,4);for(const t of tools)assert.equal((await t.execute('x',{})).details.code,'MARKETPLACE_UNCONFIGURED');});
+test('plugin exposes no payment, approval, run, accept or provider write tool',()=>{const names=register(defaultExtension).map(t=>t.name);assert.deepEqual(names,['workspace_marketplace_status','workspace_marketplace_find','workspace_marketplace_propose','workspace_marketplace_order']);});
+test('bound plugin proposal calls actual original WorkerDesk with model-only authority',async()=>{const f=await fixture(),l=await f.listing();const tools=register(createMarketplaceExtension({marketplace:f.api,readActor:()=>buyer}));const result=await tools.find(t=>t.name.endsWith('_propose')).execute('call',f.orderInput(l));assert.equal(result.details.status,'draft');assert.equal(f.store.read().workerOrders.length,1);assert.equal(f.stats.submits,0);assert.equal(f.stats.checkouts,0);});
+test('provider cannot substitute for a buyer session and cancellation stops before dispatch',async()=>{const f=await fixture();const tools=register(createMarketplaceExtension({marketplace:f.api,readActor:()=>seller}));assert.equal((await tools[0].execute('x',{})).details.code,'BUYER_BINDING_REQUIRED');const c=new AbortController();c.abort();assert.equal((await tools[0].execute('x',{},c.signal)).details.code,'CANCELLED');});

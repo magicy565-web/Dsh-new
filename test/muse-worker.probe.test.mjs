@@ -19,7 +19,7 @@ const mock = (identityOverride={},inboxOverride={}) => {
 
 test('the Muse host probe performs only two scoped GET calls, never a claim or upload', async()=>{
   const m=mock();
-  const result=await probeMuseReadOnly({baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',fetcher:m.fetcher});
+  const result=await probeMuseReadOnly({baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',expectedOwnerId:'alpha',fetcher:m.fetcher});
   assert.equal(result.connection,'authenticated-read-only');
   assert.equal(result.approved,false);
   assert.equal(result.inboxCount,0);
@@ -42,7 +42,7 @@ test('read-only probe refuses placeholder, local, or mismatched API host before 
   for(const host of blocked)assert.throws(()=>validateMuseBaseUrl(host));
   const m=mock();
   await assert.rejects(probeMuseReadOnly({
-    baseUrl:BASE,token:'short',expectedWorkerId:'muse-personal-alpha',fetcher:m.fetcher,
+    baseUrl:BASE,token:'short',expectedWorkerId:'muse-personal-alpha',expectedOwnerId:'alpha',fetcher:m.fetcher,
   }),{code:'MUSE_CREDENTIAL_REQUIRED'});
   assert.deepEqual(m.calls,[]);
 });
@@ -51,16 +51,17 @@ test('identity mismatch and unexpectedly enabled Muse are not treated as handsha
   for(const [override,code] of [
     [{workerId:'chatgpt-dot-xy'},'MUSE_IDENTITY_MISMATCH'],
     [{contract:'workspace.dot.pull.v1'},'MUSE_IDENTITY_MISMATCH'],
+    [{muse:'other-owner'},'MUSE_IDENTITY_MISMATCH'],
     [{approved:true},'MUSE_UNEXPECTED_APPROVAL'],
   ]){
     const m=mock(override);
     await assert.rejects(probeMuseReadOnly({
-      baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',fetcher:m.fetcher,
+      baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',expectedOwnerId:'alpha',fetcher:m.fetcher,
     }),{code});
   }
   const withTask=mock({}, {tasks:[{taskRef:'unexpected-task'}]});
   await assert.rejects(probeMuseReadOnly({
-    baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',fetcher:withTask.fetcher,
+    baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',expectedOwnerId:'alpha',fetcher:withTask.fetcher,
   }),{code:'MUSE_UNEXPECTED_TASKS'});
 });
 
@@ -72,7 +73,7 @@ test('401 credentials, redirects and oversized responses fail closed',async()=>{
   ];
   for(const [fetcher,code] of cases)
     await assert.rejects(probeMuseReadOnly({
-      baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',fetcher,
+      baseUrl:BASE,token,expectedWorkerId:'muse-personal-alpha',expectedOwnerId:'alpha',fetcher,
     }),{code});
 });
 
@@ -87,7 +88,7 @@ test('chunked oversized responses stop downloading and cancel before the inbox c
     cancel(){cancelled=true;},
   },{highWaterMark:0});
   await assert.rejects(probeMuseReadOnly({
-    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,expectedOwnerId:identity.muse,
     fetcher:async()=>{calls++;return new Response(body);},
   }),{code:'MUSE_RESPONSE_TOO_LARGE'});
   assert.equal(reads,5);
@@ -97,23 +98,23 @@ test('chunked oversized responses stop downloading and cancel before the inbox c
 });
 
 test('the response cap counts UTF-8 bytes and accepts the exact boundary',async()=>{
-  const prefix=JSON.stringify({...identity,muse:''});
+  const prefix=JSON.stringify({...identity,note:''});
   const fixedBytes=Buffer.byteLength(prefix);
-  const makeBody=size=>JSON.stringify({...identity,muse:'a'.repeat(size-fixedBytes)});
+  const makeBody=size=>JSON.stringify({...identity,note:'a'.repeat(size-fixedBytes)});
   for(const size of [65_536,65_537]){
     const body=makeBody(size);
     assert.equal(Buffer.byteLength(body),size);
     const m=mock();
-    const options={baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    const options={baseUrl:BASE,token,expectedWorkerId:identity.workerId,expectedOwnerId:identity.muse,
       fetcher:(url,opts)=>url.endsWith('/identity')?Promise.resolve(new Response(body)):m.fetcher(url,opts)};
     if(size===65_536)assert.equal((await probeMuseReadOnly(options)).inboxCount,0);
     else await assert.rejects(probeMuseReadOnly(options),{code:'MUSE_RESPONSE_TOO_LARGE'});
   }
-  const unicodeBody=JSON.stringify({...identity,muse:'汉'.repeat(22_000)});
+  const unicodeBody=JSON.stringify({...identity,note:'汉'.repeat(22_000)});
   assert.ok(unicodeBody.length<65_536);
   assert.ok(Buffer.byteLength(unicodeBody)>65_536);
   await assert.rejects(probeMuseReadOnly({
-    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,expectedOwnerId:identity.muse,
     fetcher:async()=>new Response(unicodeBody),
   }),{code:'MUSE_RESPONSE_TOO_LARGE'});
 });
@@ -124,7 +125,7 @@ test('an oversized declared body is cancelled without consuming any bytes',async
     pull(){reads++;},cancel(){cancelled=true;},
   },{highWaterMark:0});
   await assert.rejects(probeMuseReadOnly({
-    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,expectedOwnerId:identity.muse,
     fetcher:async()=>new Response(body,{headers:{'content-length':'65537'}}),
   }),{code:'MUSE_RESPONSE_TOO_LARGE'});
   assert.equal(reads,0);
@@ -132,11 +133,11 @@ test('an oversized declared body is cancelled without consuming any bytes',async
 });
 
 test('split UTF-8 chunks decode correctly and malformed UTF-8 is rejected',async()=>{
-  const bytes=new TextEncoder().encode(JSON.stringify({...identity,muse:'个人 Muse'}));
+  const bytes=new TextEncoder().encode(JSON.stringify({...identity,note:'个人 Muse'}));
   const split=bytes.indexOf(228)+1;
   const m=mock();
   const result=await probeMuseReadOnly({
-    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,expectedOwnerId:identity.muse,
     fetcher:(url,opts)=>{
       if(!url.endsWith('/identity'))return m.fetcher(url,opts);
       return Promise.resolve(new Response(new ReadableStream({start(controller){
@@ -150,7 +151,7 @@ test('split UTF-8 chunks decode correctly and malformed UTF-8 is rejected',async
   const malformed=new Uint8Array([...new TextEncoder().encode('{"muse":"'),255,
     ...new TextEncoder().encode('"}')]);
   await assert.rejects(probeMuseReadOnly({
-    baseUrl:BASE,token,expectedWorkerId:identity.workerId,
+    baseUrl:BASE,token,expectedWorkerId:identity.workerId,expectedOwnerId:identity.muse,
     fetcher:async()=>new Response(malformed),
   }),{code:'MUSE_RESPONSE_INVALID'});
 });
