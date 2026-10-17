@@ -1,5 +1,7 @@
 # Medusa / Docling 部署源码准备
 
+后续现场发现的 internal-only 端口发布失效与 tarball 完整性阻断，见 [部署修正窗口](OMP-DEPLOYMENT-ENTRY-CORRECTION-20261017.md)。下文是初始e1efd3f准备结果；旧源码包不能据此声称完整Docker构建或宿主loopback已通过。
+
 本轮按用户调整后的顺序暂停 DeepSeek，继续同一开发分支 `codex/omp-all-plugins-integration-20261017` / Draft PR99。基线 `bc2d453cff163ac51d0376ed16dae469e20ca004`，不从 main 重建，不覆盖此前产品无损编辑、原生 Host、Session、来源 proof、授权和撤权修复。仅提交源码、测试、锁和说明；没有本写入者的真实服务器操作、真实凭据生成、管理员创建、模型调用或实际 Library 文件解析。
 
 ## 本轮变更

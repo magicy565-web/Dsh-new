@@ -6,6 +6,25 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { bootstrap } from '../acceptance/medusa/write-env.mjs';
 const env = { PATH: process.env.PATH, HOME: '/tmp', NO_COLOR: '1' };
+test('Docker plugin inputs include automatic top-level npm pack files before enforcing the locked archive integrity', async () => {
+  const prefix = 'packages/medusa-enterprise-product-context';
+  const packed = spawnSync('npm', ['pack', './' + prefix, '--dry-run', '--ignore-scripts', '--json'], { env, encoding: 'utf8' });
+  assert.equal(packed.status, 0, packed.stderr);
+  const files = JSON.parse(packed.stdout)[0].files.map(f => f.path).filter(p => !p.includes('/'));
+  assert.ok(files.includes('README.md')); // npm includes this even with a restrictive package files list.
+  const dockerfile = await fs.readFile('acceptance/medusa/api.Dockerfile', 'utf8');
+  const allowlist = (await fs.readFile('acceptance/medusa/api.Dockerfile.dockerignore', 'utf8')).split('\n').filter(s => s.startsWith('!')).map(s => s.slice(1));
+  const inputs = dockerfile.split('\n').filter(s => s.startsWith('COPY ') && !s.includes('--from=')).flatMap(s => s.trim().split(/\s+/).slice(1, -1).filter(p => !p.startsWith('--')));
+  const matches = (pattern, file) => new RegExp('^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '[^/]*') + '$').test(file);
+  for (const file of files) {
+    const source = prefix + '/' + file;
+    assert.ok(inputs.some(p => matches(p, source)), file + ' absent from Docker COPY');
+    assert.ok(allowlist.some(p => matches(p, source)), file + ' absent from Docker build context');
+  }
+  assert.match(dockerfile, /COPY --chmod=0600 packages\/medusa-enterprise-product-context\/package\*\.json/);
+  assert.match(dockerfile, /COPY --chmod=0600 packages\/medusa-enterprise-product-context\/README\.md/);
+  assert.match(dockerfile, /RUN umask 077 && npm run build --prefix packages\/medusa-enterprise-product-context/);
+});
 test('bootstrap requires explicit approval, preserves existing synthetic files and refuses temporary/partial state', async t => {
   const directory = await fs.mkdtemp('/workspace/deployment-contract-'); await fs.chmod(directory, 0o700);
   t.after(() => fs.rm(directory, { recursive: true, force: true }));

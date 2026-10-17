@@ -12,5 +12,6 @@
 !packages/medusa-enterprise-product-context/
 !packages/medusa-enterprise-product-context/package*.json
 !packages/medusa-enterprise-product-context/tsconfig.json
+!packages/medusa-enterprise-product-context/README.md
 !packages/medusa-enterprise-product-context/src/
 !packages/medusa-enterprise-product-context/src/**
