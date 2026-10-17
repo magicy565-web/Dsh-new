@@ -1,5 +1,7 @@
 # 2026-10-17 插件源码整合验收
 
+当前唯一推进顺序及阶段进入条件见 [固定开发计划](DEVELOPMENT-PLAN-HANDOFF.md)。阶段1历史解析与TUI当前验收见 [最新报告](OMP-STAGE1-TUI-20261017.md)，其余为各自旧检查点证据。
+
 本次为私有开发分支源码验收，不是上线或真实服务验收。目标分支为 `codex/omp-all-plugins-integration-20261017`；明确交接基线为 `f436123bf199b0308708594cc5660ce98d981f5f`，继承 `codex/omp-structured-memory-integration-20261016`，没有从 main 重做。开始阶段只读；收到旧 writer 已退出、无未提交改动的交接确认后才切分支写入。截止为 2026-10-17 04:00 UTC / 北京时间 12:00。
 
 当前范围：14 个 OMP 插件源码统一放在 `plugins/`，均经过固定版本原生 loader 发现、编译、注册和 pack 闭包检查。业务组合 profile 已使资料读取、七天、Shopify、Medusa Library 草稿预览、Brain 在同一原生 OMP Session 中使用原 Host 客户端。**没有宣称 14 个业务插件全部完成同会话真实服务接通**：其余原有隔离 profile 保留；Marketplace 后续已接入受审核的发现/内部草稿/owner 状态最小桥，私有交付正文仍不开放。默认本地入口仍仅启用 local-materials。

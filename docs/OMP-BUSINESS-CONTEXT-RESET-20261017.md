@@ -1,5 +1,7 @@
 # 原生 business Session 的受控上下文继续
 
+当前固定路线以 [开发计划交接](DEVELOPMENT-PLAN-HANDOFF.md) 为准。后续TUI根因已定位并完成限定验收，见 [阶段1报告](OMP-STAGE1-TUI-20261017.md)；本文保留原检查点的历史事实。
+
 本轮从 `9aed6a7331da12f468f9bea4b54e6f2c44722592` 接续同一开发分支与 Draft PR99。完整相关补验源码 HEAD：`64df960e0aa785cfef299cbea4c2e49340eb0194`。后续仅保存说明和脱敏证据；没有从 main 重做，没有第二 Session、业务队列、AgentLoop、权限/预算框架或新数据库。
 
 后续独立审查发现旧活动叶 helper 对原生 model_usage 的处理不一致，先前矩阵未覆盖该合法形状。已改用原 SDK 上下文解析；最新源码与完整相关补验见 [安全解析修复](OMP-NATIVE-BUSINESS-CONTEXT-20261017.md)。旧检查点计数不冒充该场景已被覆盖。TUI 同症复现的根因仍未知，未解决。

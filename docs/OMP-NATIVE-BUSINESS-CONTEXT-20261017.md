@@ -1,5 +1,7 @@
 # 原生 SDK 活动叶与业务披露解析修复
 
+当前固定路线以 [开发计划交接](DEVELOPMENT-PLAN-HANDOFF.md) 为准。后续TUI根因已定位并完成限定验收，见 [阶段1报告](OMP-STAGE1-TUI-20261017.md)；本文保留原检查点的历史事实。
+
 同一分支与 Draft PR99，从 `dd3d98ab71e78db0a78d33180a3b91bd6a0e4cb3` 继续。实现提交 `87a1cbc`；完整相关验证源码 HEAD `980422eb40ae8f28025ea9283e61cbbee1740493`。其后仅追加说明和脱敏证据。本轮没有扩展业务或修改旧 journal/proof。
 
 ## 确认的反例与界限

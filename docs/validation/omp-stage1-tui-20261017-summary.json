@@ -1,0 +1,180 @@
+{
+  "schema": "workspace.stage-one-acceptance-summary.v1",
+  "recordedAt": "2026-10-17T06:02:00.335522+00:00",
+  "branch": "codex/omp-all-plugins-integration-20261017",
+  "draftPR": 99,
+  "baseline": "e3a8451873ad6d1d67760b6996c0d4402522a5c6",
+  "sourceCommit": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+  "testedTree": "adb56b88ee5fe3a26879633f348350d38e3fc811",
+  "runtime": {
+    "node": "24.19.0",
+    "bun": "1.3.14",
+    "omp": "18.10.4"
+  },
+  "environmentPrefix": "env -i PATH=\"$PATH\" HOME=/tmp NO_COLOR=1",
+  "groupsOverlap": true,
+  "groups": [
+    {
+      "kind": "native",
+      "command": "node --test test/workspace-omp-marketplace.test.mjs test/marketplace-plugin.test.mjs test/workspace-omp-marketplace-optional.test.mjs",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-native.tap",
+      "sha256": "0ee23e9063cb3fe1b4280a54ad5e42549201a96ff85d26b8867158e6697e7661",
+      "exitCode": 0,
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "sdk",
+      "command": "node --test test/workspace-omp-marketplace-wire.test.mjs",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-sdk.tap",
+      "sha256": "4405ed87bd9cb38236b2bc3c5dd7b66db06fe280e54b4f3ac8636a8216dd8a90",
+      "exitCode": 0,
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "regression",
+      "command": "node --test test/workspace-omp-business-integration.test.mjs test/workspace-omp-business-wire.test.mjs test/workspace-omp-brain-decision.test.mjs test/marketplace.test.mjs test/marketplace-http.test.mjs test/marketplace-stripe.test.mjs acceptance/marketplace-original-host.mjs test/workspace-omp-unified.test.mjs",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-regression.tap",
+      "sha256": "469cf4e41a45f9b44a4c5f0bd59f1180bd2cbc27a55e8de88754b126ced5aaea",
+      "exitCode": 0,
+      "tests": 110,
+      "pass": 110,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "context",
+      "command": "node --test test/workspace-omp-business-context.test.mjs",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-context.tap",
+      "sha256": "933ba8bcd33a9067638d60b100897f4a23f95c7af652e63e027837d6cdca6395",
+      "exitCode": 0,
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "reset",
+      "command": "node --test test/workspace-omp-business-reset.test.mjs",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-reset.tap",
+      "sha256": "c75c7a29760d2dc176c1576e8c186556db62abed41f595ff16964b12fd39c9b6",
+      "exitCode": 0,
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "controls",
+      "command": "node --test --test-concurrency=1 test/pi-business-conversation.native.test.mjs test/workspace-omp-terminal-host.test.mjs test/runtime-v2.test.mjs test/conversation-create-idempotency.test.mjs test/workspace-omp-brain-decision-wire.test.mjs test/workspace-omp-context-final-read.test.mjs",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-controls.tap",
+      "sha256": "02bbdce7d3c9ed42c03dff8fbb10c8820ef15bff5460eefbb73df091f1d84217",
+      "exitCode": 0,
+      "tests": 50,
+      "pass": 50,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "tui",
+      "command": "node --test --test-concurrency=1 test/workspace-omp-native-preview.test.mjs test/workspace-omp-terminal.test.mjs test/workspace-omp-terminal-intent.test.mjs test/workspace-omp-terminal-recovery.test.mjs test/workspace-omp-launch.test.mjs",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-tui.tap",
+      "sha256": "2cc49061febe17f54fb24c1ef082f3a215c6b2287d7f83514261809b96490a63",
+      "exitCode": 0,
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "buildChecks": [
+    {
+      "command": "npm run plugins:pack-check",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-pack.log",
+      "sha256": "0733dce885174b81fa2c0f72469e44452ecd91c56d3952b2ab2bd5c519bc5e20",
+      "exitCode": 0,
+      "plugins": 14,
+      "status": "passed"
+    },
+    {
+      "command": "npm run build:omp",
+      "sourceCheckpoint": "d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1",
+      "localLog": "stage1-d0aba8c-build-omp.log",
+      "sha256": "2e4240aabf18980ecfd5e14e1bc917d65b21caa9b5d3f68be720a245d5d5e054",
+      "exitCode": 0,
+      "plugins": 14,
+      "status": "passed"
+    }
+  ],
+  "tuiRootCause": {
+    "baseline": "e3a8451873ad6d1d67760b6996c0d4402522a5c6",
+    "rootCause": "Historical HTTP terminal tests selected the default offline native preview entry and awaited a status belonging to a different entry; preview input guard also swallowed /quit.",
+    "oldGateBlocksQuit": true,
+    "currentGateAllowsNativeQuit": true,
+    "currentGateStillBlocksModelInput": true,
+    "oldTestCalledDefault": true,
+    "correctedTestCallsExplicitLegacy": true,
+    "oldGateSha256": "710c0d4f142a84fc94d51f8e8e1337eca40ae388e591028644b9fc9902c09229",
+    "currentGateSha256": "b2f8e01616ff981d1d0901ecd823956c0d1b470ef49931ee463811dbef198a48",
+    "realModelCalls": 0,
+    "localLog": "tui-root-cause-e3a8451.json",
+    "sha256": "f8e0bfb444eb952622f592bc8aec44c412aa9f5c21a1a3340fe960b7b1a3bd6e"
+  },
+  "defaultPreviewPtyAssertions": {
+    "entry": "default-native-preview",
+    "starts": 2,
+    "cleanExits": 2,
+    "httpRequests": 0,
+    "modelRequests": 0,
+    "persistentPreviewSession": false
+  },
+  "tuiAcceptance": {
+    "default": "Original pinned CLI starts offline, refuses model input, exits0 via /quit, reopens cleanly; ambient WS_AGENT_URL does not select HTTP",
+    "http": "Explicit legacy --terminal reaches original HTTP/Run with finite model fixtures; unconfigured, read-only input, human execution/stop and natural UI receipts verified",
+    "recovery": "Existing authenticated owner-RPC human approval, original Pi checkpoint and original business-task recovery preserve original IDs, budgets and documents; not a claim that an OMP transcript is a Pi checkpoint",
+    "failures": [
+      "NATIVE_OMP_TTY_REQUIRED",
+      "OMP_TERMINAL_TTY_REQUIRED",
+      "OMP_BUSINESS_TUI_UNAVAILABLE"
+    ],
+    "businessTui": "Unsupported, explicit refusal before starting terminal/server; original business Web/API remains authoritative"
+  },
+  "realModelBudgetVerified": false,
+  "realModelCallsPermitted": false,
+  "realExternalModelRequests": 0,
+  "realExternalBusinessRequests": 0,
+  "syntheticLocalHostHttpUsed": true,
+  "mem0Vector": "disabled",
+  "fixedPlan": "docs/DEVELOPMENT-PLAN-HANDOFF.md",
+  "currentStage": 1,
+  "laterStagesExecuted": false,
+  "remaining": [
+    "Real model configuration/cost/remaining budget not verified; stage2 not started.",
+    "Business profile TUI is explicitly unsupported; no browser completion or new UI integration claimed.",
+    "Real enterprise review/Provider/Worker/payment, private delivery-body projection, all-isolated-profile composition and previous Medusa gaps remain.",
+    "Opaque native summary/notes histories fail closed without proved private source projection.",
+    "Remote CI was not rechecked/retriggered; local tests do not imply remote CI passes."
+  ],
+  "afterValidationChangePolicy": "Only documentation and sanitized evidence after tested source; runtime/plugin/test/build files unchanged.",
+  "evidenceScope": "Sanitized test counts and source/log hashes; no runtime business data or credentials committed."
+}
