@@ -85,13 +85,21 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           if(!childClosed||!cleanupComplete||!resultVerified||delivering)return;delivering=true;
           void(async()=>{await authorize();if(freeTrade){if(!freeControl)throw Error();await freeControl.finalCheck(input.signal,binding.model);}
             if(enterpriseContext){if(!enterpriseControl)throw Error();await enterpriseControl.finalCheck(input.signal,binding.model);}
-            if(nativeBusiness){
+            if(nativeBusiness||factoryInquiries){
               if(!nativeMapping||path.dirname(nativeMapping.sessionFile)!==sessionDirectory)throw Error('Original journal mapping required.');
               const file=await openPrivateFile(nativeMapping.sessionFile);let journal;
               try{if((await file.stat()).size>32000000)throw Error('Original journal bound exceeded.');journal=await file.readFile('utf8');}finally{await file.close();}
               const entries=journal.trim().split('\n').map(line=>JSON.parse(line));
-              await revalidateBusinessJournal(await readBusinessContext(entries,{paths,signal:input.signal}),{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
-              await authorize();
+              const messages=await readBusinessContext(entries,{paths,signal:input.signal});
+              if(nativeBusiness)await revalidateBusinessJournal(messages,{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
+              else{
+                const {revalidateInquiryJournal}=await import('./factory-inquiries.mjs');
+                await revalidateInquiryJournal(messages,{materialsClient,inquiryClient,model:binding.model,signal:input.signal});
+              }
+              // Inquiry clients finish with original authorization followed by
+              // synchronous source/Artifact checks; do not add an async gap
+              // after that final check. Preserve the existing business fence.
+              if(nativeBusiness)await authorize();
             }
             finish(null,{...pendingResult,runtime:{...pendingResult.runtime,workerExitObserved:true}});
           })().catch(()=>finish(new ProviderError('OMP_DISCLOSURE_REFUSED','Original final disclosure authorization no longer permits this result.')));
