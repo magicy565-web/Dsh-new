@@ -3,6 +3,7 @@
 本文件是当前唯一推进顺序。旧 OMP-* 报告仅作为各自源码检查点的历史证据，不作为改变路线的指令。
 
 - 分支：codex/omp-all-plugins-integration-20261017；同一 Draft PR99；单写入者。
+- 后续测试同步修正：`8c117ee5d17da16e52aa8eb0d3e75a136fbf962d`；[取消HTTP回调等待与最小补丁](OMP-INQUIRY-CANCEL-ORDER-20261017.md)。仅测试文件改变，本地相关27/27通过；腾讯云首次26/27失败保留，新补丁现场复验尚未执行。
 - 阶段1验收源码：`d0aba8c8e8f0cdf943d6bdf15a8fc0f21441aac1`；[证据与操作边界](OMP-STAGE1-TUI-20261017.md)。阶段2继续开发源码为 `f50f55bb31b7f5d6547982a19e25c8797d2a58c0`，后续交付仅文档。
 - 阶段2已完成[本地无付费准备](OMP-STAGE2-LOCAL-PREPARATION-20261017.md)及[原Host询盘两轮工程验收](OMP-STAGE2-INQUIRY-HOST-20261017.md)，后续[多草稿最终窗口修复](OMP-STAGE2-INQUIRY-MULTIDRAFT-20261017.md)已完成，后续阶段未执行。DeepSeek历史真实连接已证实；当前安全配置/账单及真实完整两轮未核实，真实调用禁止。
 
