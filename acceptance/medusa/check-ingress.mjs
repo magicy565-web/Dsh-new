@@ -37,8 +37,8 @@ try {
     return s;
   };
   const backend = (role, network) => ({ image:nodeImage, user:'1000:1000', read_only:true, cap_drop:['ALL'], security_opt:['no-new-privileges:true'], networks:[network], entrypoint:['node'], command:['-e',mock,role] });
-  const fixture = { services:{ api:backend('api','private'), docling:backend('docling','parser'), ui:proxy(medusa.services.ui,'medusa_entry'), ingress:proxy(parser.services.ingress,'docling_entry') },
-    configs:{ ...medusa.configs, ...parser.configs }, networks:{ private:medusa.networks.private, parser:parser.networks.parser, medusa_entry:medusa.networks.ingress, docling_entry:parser.networks.ingress } };
+  const fixture = { services:{ api:backend('api','frontend'), docling:backend('docling','parser'), ui:proxy(medusa.services.ui,'medusa_entry'), ingress:proxy(parser.services.ingress,'docling_entry') },
+    configs:{ ...medusa.configs, ...parser.configs }, networks:{ frontend:medusa.networks.frontend, private:medusa.networks.private, parser:parser.networks.parser, medusa_entry:medusa.networks.ingress, docling_entry:parser.networks.ingress } };
   compose = path.join(directory,'compose.json'); await fs.writeFile(compose,JSON.stringify(fixture));
   const dc = (...args) => docker(['compose','-p',project,'-f',compose,...args]);
   started = true; dc('up','-d','--no-build','--pull','never');

@@ -68,7 +68,7 @@ test('actual Compose parser retains loopback bindings, nonroot isolation, per-se
   }
   assert.deepEqual(medusa.services.ui.ports.map(p => [p.published, p.target]), [['4173',8080],['9000',9000]]);
   assert.deepEqual(parser.services.ingress.ports.map(p => [p.published, p.target]), [['5001',8080]]);
-  for (const [project, proxy, backendNetwork] of [[medusa,'ui','private'],[parser,'ingress','parser']]) {
+  for (const [project, proxy, backendNetwork] of [[medusa,'ui','frontend'],[parser,'ingress','parser']]) {
     assert.equal(project.networks[backendNetwork].internal, true);
     assert.notEqual(project.networks.ingress.internal, true);
     assert.equal(project.networks.ingress.driver_opts['com.docker.network.bridge.host_binding_ipv4'], '127.0.0.1');
@@ -78,6 +78,8 @@ test('actual Compose parser retains loopback bindings, nonroot isolation, per-se
         assert.deepEqual(Object.keys(service.networks).sort(), [backendNetwork,'ingress'].sort());
         assert.equal(service.secrets, undefined); assert.equal(service.configs.length, 1);
         assert.equal(service.configs[0].target, '/etc/nginx/conf.d/default.conf');
+      } else if (project === medusa) {
+        assert.deepEqual(Object.keys(service.networks).sort(), name === 'api' ? ['frontend','private'] : ['private']);
       } else assert.deepEqual(Object.keys(service.networks), [backendNetwork]);
     }
   }

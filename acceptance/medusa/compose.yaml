@@ -67,7 +67,7 @@ services:
       redis: {condition: service_healthy}
     volumes: [uploads:/app/static]
     tmpfs: [/tmp, "/app/.cache:uid=1000,gid=1000,mode=0700"]
-    networks: [private]
+    networks: [private, frontend]
     cpus: 1.0
     mem_limit: 2g
     healthcheck:
@@ -87,12 +87,13 @@ services:
       - source: ui_nginx_config
         target: /etc/nginx/conf.d/default.conf
     tmpfs: [/tmp]
-    networks: [private, ingress]
+    networks: [frontend, ingress]
     depends_on:
       api: {condition: service_healthy}
     mem_limit: 64m
 networks:
   private: {internal: true}
+  frontend: {internal: true}
   ingress:
     driver: bridge
     driver_opts:
