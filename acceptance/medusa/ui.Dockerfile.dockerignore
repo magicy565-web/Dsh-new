@@ -1,7 +1,7 @@
 **
 !acceptance/
 !acceptance/medusa/
-!acceptance/medusa/admin-static-config.ts
+!acceptance/medusa/prepare-admin-static-config.mjs
 !acceptance/medusa/nginx.conf
 !apps/
 !apps/medusa-acceptance/

@@ -14,10 +14,11 @@ COPY apps/medusa-acceptance/package*.json apps/medusa-acceptance/
 RUN npm pack ./packages/medusa-enterprise-product-context --pack-destination apps/medusa-acceptance \
  && npm ci --prefix apps/medusa-acceptance --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000
 # Keep the backend configuration and its audited provider closure unchanged.
-# Only this static build wraps its admin options; no API startup runs here.
-COPY apps/medusa-acceptance/medusa-config.ts apps/medusa-acceptance/medusa-backend-config.ts
+# Only the build-stage copy receives the exact checked Admin options.
+COPY apps/medusa-acceptance/medusa-config.ts apps/medusa-acceptance/
 COPY apps/medusa-acceptance/tsconfig.json apps/medusa-acceptance/
-COPY acceptance/medusa/admin-static-config.ts apps/medusa-acceptance/medusa-config.ts
+COPY acceptance/medusa/prepare-admin-static-config.mjs acceptance/medusa/
+RUN node acceptance/medusa/prepare-admin-static-config.mjs apps/medusa-acceptance/medusa-config.ts
 RUN JWT_SECRET=build-only-not-a-service-secret COOKIE_SECRET=build-only-not-a-service-secret \
  DATABASE_URL=postgres://build:build@127.0.0.1/build REDIS_URL=redis://127.0.0.1:6379 \
  npm run build --prefix apps/medusa-acceptance -- --admin-only \
