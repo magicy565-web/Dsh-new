@@ -90,13 +90,13 @@ test('reset cannot race an active original Run',{timeout:45000},async t=>{
 });
 
 test('original Node final validation retains current receipt after SDK late usage selects an earlier parent',{timeout:60000},async t=>{
- let armed=false,exited=false,injected=false,f;
- f=await nativeMarketplace(t,{onWorkerLifecycle:e=>{if(armed&&e.phase==='exit'&&e.code===0)exited=true;},wrapEngineAdapter:engine=>({scope:engine.scope,complete:args=>engine.complete({...args,authorize:async()=>{
+ let armed=false,exited=false,injected=false,hostSourceRefusal=false,f;
+ f=await nativeMarketplace(t,{onWorkerLifecycle:e=>{if(armed&&e.phase==='exit'&&e.code===0)exited=true;},wrapEngineAdapter:engine=>({scope:engine.scope,complete:args=>engine.complete({...args,marketplaceClient:{...args.marketplaceClient,revalidateReceipt:async(...values)=>{try{return await args.marketplaceClient.revalidateReceipt(...values);}catch(error){if(injected&&error.code==='MARKETPLACE_SOURCE_CHANGED')hostSourceRefusal=true;throw error;}}},authorize:async()=>{
   if(exited&&!injected){injected=true;await appendLateUsage(f);await f.app.store.update(state=>{state.workerOrders.find(o=>o.id===order(f).id).objective='Source changed at Node boundary after native late usage';});}
   await args.authorize();
  }})})});
  assert.equal((await sendMarketplace(f,[tool('propose',f.proposal),{text:'Original draft.'}])).status,'succeeded');
  assert.equal((await resetBusiness(f)).status,'succeeded');
  assert.equal((await sendMarketplace(f,[tool('order',{orderId:order(f).id}),{text:'Current original status.'}])).status,'succeeded');
- armed=true;const run=await sendMarketplace(f,[{text:'Must be withheld at final Node boundary.'}]);assert.equal(injected,true);assert.equal(run.status,'failed');assert.equal(run.error.code,'OMP_DISCLOSURE_REFUSED');assert.deepEqual(f.remoteMarketplace.stats,{submits:0,checkouts:0,transfers:0,refunds:0});
+ armed=true;const run=await sendMarketplace(f,[{text:'Must be withheld at final Node boundary.'}]);assert.equal(injected,true);assert.equal(run.status,'failed');assert.equal(run.error.code,'OMP_DISCLOSURE_REFUSED');assert.equal(hostSourceRefusal,true,'The original Host must revalidate and reject the current B source');assert.deepEqual(f.remoteMarketplace.stats,{submits:0,checkouts:0,transfers:0,refunds:0});
 });
