@@ -2,9 +2,11 @@
 
 测试修复提交 `8c117ee5d17da16e52aa8eb0d3e75a136fbf962d`，基线 `95b0a2f8ecbd23231c4a7cee9872e18fe23394f2`。只修改 `test/workspace-omp-inquiry-continuation.test.mjs`，生产代码、原授权/取消、预算和锁文件完全不变。
 
+后续父任务已协调腾讯云现场应用该单测试补丁，完整询盘27/27、exit0、72.91秒。有效版本为95b源码选集＋8c补丁；首次26/27失败保留，不能声称5602ee全量部署。[现场脱敏验收记录](OMP-TENCENT-ACCEPTANCE-20261017.md)明确执行归属和证据SHA；本文作者未亲自操作服务器。
+
 ## 根因与确定性证据
 
-父任务转述腾讯云固定95b现场：源码1256文件逐SHA匹配、测试后0改动；入口/typecheck/14插件构建通过，Session21/21、context43/43；询盘首次26/27，仅多草稿cancel用例在 `injected===true` 后发现 `mutationCompleted===false`。随后独立单项1/1不是修复证明，原失败保留。现场没有记录原HTTP响应与Run终态的完整顺序，本文不补造历史轨迹，也没有访问服务器。
+父任务转述腾讯云固定95b现场：源码1256文件逐SHA匹配、测试后0改动；入口/typecheck/14插件构建通过，Session21/21、context43/43；询盘首次26/27，仅多草稿cancel用例在 `injected===true` 后发现 `mutationCompleted===false`。随后独立单项1/1不是修复证明，原失败保留。首轮现场没有记录原HTTP响应与Run终态的完整顺序，本文不补造该轮历史轨迹，也没有访问服务器。
 
 实际原Runtime先提交Run取消状态并触发原AbortSignal，再完成cancel HTTP响应；测试的 `send()` 只轮询Run终态。因而它可能先返回，而注入函数仍在 `await` HTTP请求。`Run已cancelled` 不等于该测试回调已经完成。
 
@@ -37,7 +39,7 @@ env -i PATH="$PATH" HOME=/tmp NO_COLOR=1 node --test --test-concurrency=1 \
   test/factory-inquiries.test.mjs test/workspace-omp-factory-inquiries.test.mjs
 ```
 
-本轮只改测试，未重复typecheck/build或共享45项；腾讯云此前95b的构建结果保留为该固定版本证据。新补丁的服务器验收仍待父任务执行，不能写成现场已全绿。[精确记录与哈希](validation/omp-inquiry-cancel-order-20261017-summary.json)保留失败/成功日志SHA256及本地事件顺序；原始日志、Session和草稿不提交。
+本地修复轮只改测试，未重复typecheck/build或共享45项；腾讯云95b的构建结果保留为该固定版本证据。当时补丁尚待现场复验，后续父协调的27/27结果另见上述现场记录，仍不代表全仓/生产验收。[精确记录与哈希](validation/omp-inquiry-cancel-order-20261017-summary.json)保留该本地检查点的失败/成功日志SHA256及事件顺序；原始日志、Session和草稿不提交。
 
 ## 最小补丁交接
 
@@ -47,6 +49,6 @@ env -i PATH="$PATH" HOME=/tmp NO_COLOR=1 node --test --test-concurrency=1 \
 - 基线文件SHA256：`be60d4e3dbeb4dd937aa4ca4b0c98f2b8e637f1215ae33059107962feaac21e7`
 - 应用后文件SHA256：`d5111dbe4962e30f1cc18c330b023ee097c8fa98d8954ccf3e8d6a6ab4c5d8ae`
 
-已在Git仓库外的临时基线文件上验证 `git apply --check`、应用后逐字节匹配目标提交及反向检查，适用于父任务上传的无.git源码目录。服务器端应先核对补丁及基线文件SHA，再由原终端应用与复验；本任务没有执行服务器操作。
+已在Git仓库外的临时基线文件上验证 `git apply --check`、应用后逐字节匹配目标提交及反向检查，适用于父任务上传的无.git源码目录。后续父已在原终端核hash、check/apply并核对目标文件SHA，1256项中仅此测试改变；本文作者没有执行服务器操作。
 
 没有新增功能或推进阶段，没有真实模型/付费/外部业务调用，没有读取密钥、配置或服务器资料，没有main修改、合并、强推、部署或扩权。当前真实模型配置/账单与真实完整两轮口径不变。
