@@ -1,0 +1,12 @@
+**
+!apps/
+!apps/medusa-product-catalog/
+!apps/medusa-product-catalog/package*.json
+!apps/medusa-product-catalog/index.html
+!apps/medusa-product-catalog/tsconfig.json
+!apps/medusa-product-catalog/vite.config.ts
+!apps/medusa-product-catalog/src/
+!apps/medusa-product-catalog/src/**
+!acceptance/
+!acceptance/medusa/
+!acceptance/medusa/nginx.conf

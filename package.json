@@ -60,7 +60,8 @@
     "build:web": "tsc --noEmit && vite build",
     "build:omp": "node scripts/build-omp.mjs",
     "test:omp": "node --test test/workspace-omp-unified.test.mjs",
-    "legacy:workspace": "node --env-file-if-exists=.env scripts/workspace-omp-legacy.mjs"
+    "legacy:workspace": "node --env-file-if-exists=.env scripts/workspace-omp-legacy.mjs",
+    "test:medusa-live": "node scripts/medusa-catalog-live-smoke.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.28",

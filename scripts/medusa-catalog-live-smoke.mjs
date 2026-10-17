@@ -1,154 +1,76 @@
-const baseUrl=(process.env.MEDUSA_BACKEND_URL||"").replace(/\/$/,"")
-const email=process.env.MEDUSA_ADMIN_EMAIL
-const password=process.env.MEDUSA_ADMIN_PASSWORD
-const agentToken=process.env.AGENT_CONTEXT_READ_TOKEN
-
-if(!baseUrl||!email||!password||!agentToken){
-  console.error("Required: MEDUSA_BACKEND_URL, MEDUSA_ADMIN_EMAIL, MEDUSA_ADMIN_PASSWORD, AGENT_CONTEXT_READ_TOKEN")
-  process.exit(2)
+import {createHash} from 'node:crypto'
+const baseUrl=(process.env.MEDUSA_BACKEND_URL||'').replace(/\/$/,'')
+let destination
+try { destination=new URL(baseUrl) } catch {}
+if(!destination||destination.protocol!=='http:'||!['127.0.0.1','localhost','[::1]'].includes(destination.hostname)||destination.username||destination.password||destination.pathname!=='/'||destination.search||destination.hash){console.error('ISOLATED_LOOPBACK_MEDUSA_REQUIRED');process.exit(2)}
+const {MEDUSA_ADMIN_EMAIL:email,MEDUSA_ADMIN_PASSWORD:password,AGENT_CONTEXT_READ_TOKEN:agentToken}=process.env
+const report={ok:false,status:'blocked',backend:baseUrl,started_at:new Date().toISOString(),checks:[],fixtures:{},cleanup:[]}
+if(!baseUrl||!email||!password||!agentToken||process.env.MEDUSA_LIVE_ALLOW_WRITES!=='isolated'){
+ console.log(JSON.stringify({...report,reason:'Required: MEDUSA_BACKEND_URL, MEDUSA_ADMIN_EMAIL, MEDUSA_ADMIN_PASSWORD, AGENT_CONTEXT_READ_TOKEN and MEDUSA_LIVE_ALLOW_WRITES=isolated. Use a disposable test database only.'},null,2));process.exit(2)
 }
-
-const report={ok:true,checks:[],createdProductId:null}
-
-async function call(path,options={}){
-  const response=await fetch(baseUrl+path,{
-    ...options,
-    headers:{
-      ...(options.body?{"content-type":"application/json"}:{}),
-      ...(options.headers||{})
-    }
-  })
-  const text=await response.text()
-  let body=null
-  try{body=text?JSON.parse(text):null}catch{body=text}
-  return{response,body}
-}
-function check(name,ok,detail){
-  report.checks.push({name,ok,detail})
-  if(!ok)report.ok=false
-}
-async function adminCall(path,options={},token){
-  return call(path,{...options,headers:{...(token?{Authorization:"Bearer "+token}:{}),...(options.headers||{})}})
-}
-
+const prefix='acceptance-'+Date.now(),cleanup=[]
 let adminToken
-try{
-  const login=await call("/auth/user/emailpass",{method:"POST",body:JSON.stringify({email,password})})
-  adminToken=login.body?.token
-  check("admin-login",login.response.ok&&typeof adminToken==="string","Medusa admin authentication")
-  if(!adminToken)throw Error("admin login failed")
-}catch(error){
-  check("admin-login",false,error instanceof Error?error.message:String(error))
+async function call(path,{body,headers={},...options}={}){
+ const response=await fetch(baseUrl+path,{...options,redirect:'error',body:body instanceof FormData?body:body===undefined?undefined:JSON.stringify(body),headers:{...(body!==undefined&&!(body instanceof FormData)?{'content-type':'application/json'}:{}),...headers},signal:AbortSignal.timeout(15000)})
+ const raw=await response.text();let data;try{data=JSON.parse(raw)}catch{data={message:raw.slice(0,500)}}return{status:response.status,ok:response.ok,data,cache:response.headers.get('cache-control')}
 }
-
-let productId
+const admin=(path,options={})=>call(path,{...options,headers:{Authorization:'Bearer '+adminToken,...options.headers}})
+const agent=(path,token=agentToken)=>call(path,{headers:{Authorization:'Bearer '+token}})
+function check(name,ok,detail){report.checks.push({name,ok:Boolean(ok),detail});if(!ok)throw Error(name+': '+JSON.stringify(detail))}
+async function create(path,body,key){const r=await admin(path,{method:'POST',body});check(key+'-create',r.ok&&r.data[key]?.id,{status:r.status,message:r.data.message});const item=r.data[key];report.fixtures[key]=item.id;cleanup.push({path:path+'/'+encodeURIComponent(item.id),id:item.id});return item}
+const contextPath=id=>'/admin/products/'+id+'/context'
 try{
-  const handle="acceptance-"+Date.now()
-  const created=await adminCall("/admin/products",{method:"POST",body:JSON.stringify({
-    title:"Live Acceptance Product",
-    handle,
-    description:"Temporary product used by the Medusa catalog live acceptance smoke test.",
-    status:"draft"
-  })},adminToken)
-  productId=created.body?.product?.id
-  report.createdProductId=productId||null
-  check("product-create",created.response.ok&&typeof productId==="string","create temporary Product")
-}catch(error){check("product-create",false,error instanceof Error?error.message:String(error))}
-
-if(productId){
-  try{
-    const updated=await adminCall("/admin/products/"+encodeURIComponent(productId),{
-      method:"POST",
-      body:JSON.stringify({subtitle:"Acceptance subtitle",material:"Rayon / Viscose",origin_country:"China"})
-    },adminToken)
-    check("product-update",updated.response.ok,"update native Product fields")
-  }catch(error){check("product-update",false,error instanceof Error?error.message:String(error))}
-
-  try{
-    const collections=await adminCall("/admin/collections?limit=1&offset=0&fields=id,title,handle",{},adminToken)
-    const categories=await adminCall("/admin/product-categories?limit=1&offset=0&fields=id,name,handle",{},adminToken)
-    const channels=await adminCall("/admin/sales-channels?limit=1&offset=0&fields=id,name,is_disabled",{},adminToken)
-    const c=collections.body?.collections?.[0]
-    const cat=categories.body?.product_categories?.[0]
-    const sc=channels.body?.sales_channels?.find(x=>!x.is_disabled)
-    const payload={}
-    if(c)payload.collection_id=c.id
-    if(cat)payload.categories=[{id:cat.id}]
-    if(sc)payload.sales_channels=[{id:sc.id}]
-    if(Object.keys(payload).length){
-      const r=await adminCall("/admin/products/"+encodeURIComponent(productId),{method:"POST",body:JSON.stringify(payload)},adminToken)
-      check("product-organization",r.response.ok,"collection/category/sales-channel native relations")
-    }else{
-      check("product-organization",false,"unconfigured: preview has no collection/category/active sales channel")
-    }
-  }catch(error){check("product-organization",false,error instanceof Error?error.message:String(error))}
-
-  try{
-    const context=await adminCall("/admin/products/"+encodeURIComponent(productId)+"/context",{
-      method:"POST",
-      body:JSON.stringify({
-        status:"approved",
-        readiness_score:92,
-        buyer_profile:"US apparel distributors",
-        target_markets:["United States"],
-        use_cases:["Resortwear"],
-        selling_points:["Live acceptance"],
-        evidence:[{id:"acceptance-spec",label:"Acceptance specification",type:"spec_sheet",status:"verified"}],
-        commercial_policy:{moq:1000,trial_quantity:500,currency:"USD",price_min:1.8,price_max:2.3,lead_time_days:25},
-        missing_evidence:[],
-        agent_summary:"Approved only for this live acceptance test."
-      })
-    },adminToken)
-    check("context-approve",context.response.ok&&context.body?.product_context?.status==="approved","approved Product Context gate")
-  }catch(error){check("context-approve",false,error instanceof Error?error.message:String(error))}
-
-  try{
-    const unauthorized=await call("/agent/product-contexts?product_id="+encodeURIComponent(productId))
-    check("agent-deny-without-token",unauthorized.response.status===401,"agent surface rejects missing credential")
-  }catch(error){check("agent-deny-without-token",false,error instanceof Error?error.message:String(error))}
-
-  try{
-    const agent=await call("/agent/product-contexts?product_id="+encodeURIComponent(productId),{headers:{Authorization:"Bearer "+agentToken}})
-    const found=agent.body?.items?.some(x=>x.context?.product_id===productId&&x.context?.status==="approved")
-    check("agent-approved-read",agent.response.ok&&found,"agent receives approved context and narrow product projection")
-  }catch(error){check("agent-approved-read",false,error instanceof Error?error.message:String(error))}
-
-  try{
-    const blocked=await adminCall("/admin/products/"+encodeURIComponent(productId)+"/context",{
-      method:"POST",
-      body:JSON.stringify({status:"blocked",readiness_score:92,missing_evidence:[]})
-    },adminToken)
-    check("context-block",blocked.response.ok&&blocked.body?.product_context?.status==="blocked","context status can leave approved")
-    const agent=await call("/agent/product-contexts/"+encodeURIComponent(productId),{headers:{Authorization:"Bearer "+agentToken}})
-    check("agent-fail-closed-status",agent.response.status===404,"agent no longer exposes non-approved context")
-  }catch(error){check("agent-fail-closed-status",false,error instanceof Error?error.message:String(error))}
-
-  try{
-    const inventory=await adminCall("/admin/inventory-items?limit=5&offset=0&fields=id,sku,title,stocked_quantity,reserved_quantity,*location_levels",{},adminToken)
-    const locations=await adminCall("/admin/stock-locations?limit=5&offset=0&fields=id,name",{},adminToken)
-    const item=inventory.body?.inventory_items?.[0]
-    const level=item?.location_levels?.[0]
-    if(item&&level){
-      const original=Number(level.stocked_quantity||0)
-      const changed=await adminCall("/admin/inventory-items/"+encodeURIComponent(item.id)+"/location-levels/"+encodeURIComponent(level.location_id),{
-        method:"POST",
-        body:JSON.stringify({stocked_quantity:original+1})
-      },adminToken)
-      const restored=await adminCall("/admin/inventory-items/"+encodeURIComponent(item.id)+"/location-levels/"+encodeURIComponent(level.location_id),{
-        method:"POST",
-        body:JSON.stringify({stocked_quantity:original})
-      },adminToken)
-      check("inventory-roundtrip",changed.response.ok&&restored.response.ok,"native Inventory Level update + restore")
-    }else{
-      check("inventory-roundtrip",false,"unconfigured: environment has no Inventory Item with a Location Level")
-    }
-  }catch(error){check("inventory-roundtrip",false,error instanceof Error?error.message:String(error))}
-
-  try{
-    const deleted=await adminCall("/admin/products/"+encodeURIComponent(productId),{method:"DELETE"},adminToken)
-    check("product-cleanup",deleted.response.ok,"delete temporary acceptance Product")
-  }catch(error){check("product-cleanup",false,error instanceof Error?error.message:String(error))}
+ const login=await call('/auth/user/emailpass',{method:'POST',body:{email,password}});adminToken=login.data.token
+ check('admin-login',login.ok&&typeof adminToken==='string',{status:login.status})
+ const unauthAdmin=await call('/admin/products?limit=1');check('admin-deny-anonymous',unauthAdmin.status===401,{status:unauthAdmin.status})
+ const collection=await create('/admin/collections',{title:prefix,handle:prefix},'collection')
+ const category=await create('/admin/product-categories',{name:prefix,handle:prefix,is_active:true},'product_category')
+ const channel=await create('/admin/sales-channels',{name:prefix},'sales_channel')
+ const location=await create('/admin/stock-locations',{name:prefix},'stock_location')
+ const inventory=await create('/admin/inventory-items',{sku:prefix,title:prefix},'inventory_item')
+ let r=await admin('/admin/inventory-items/'+inventory.id+'/location-levels',{method:'POST',body:{location_id:location.id,stocked_quantity:10}})
+ check('inventory-level-create',r.ok,{status:r.status,message:r.data.message})
+ const product=await create('/admin/products',{title:'Isolated Acceptance Fabric',handle:prefix,status:'draft',description:'Isolated test data, not a commercial product.',options:[{title:'Color',values:['Ivory','Blue']}],variants:[{title:'Ivory',sku:prefix+'-ivory',manage_inventory:false,options:{Color:'Ivory'},prices:[{currency_code:'usd',amount:2.15}]}]},'product')
+ r=await admin('/admin/products/'+product.id,{method:'POST',body:{subtitle:'API acceptance',material:'Rayon / Viscose',origin_country:'cn',collection_id:collection.id,categories:[{id:category.id}],sales_channels:[{id:channel.id}]}})
+ check('product-update',r.ok,{status:r.status,message:r.data.message})
+ let read=await admin('/admin/products/'+product.id+'?fields=id,title,subtitle,material,origin_country,collection_id,*categories,*sales_channels,*variants.prices,*variants.options.option,*images')
+ const p=read.data.product;check('product-persisted-reread',read.ok&&p.subtitle==='API acceptance'&&p.material==='Rayon / Viscose',{status:read.status,id:product.id})
+ check('product-organization-reread',p.collection_id===collection.id&&p.categories?.some(x=>x.id===category.id)&&p.sales_channels?.some(x=>x.id===channel.id),{collection:p.collection_id,categories:p.categories?.map(x=>x.id),sales_channels:p.sales_channels?.map(x=>x.id)})
+ const variant=p.variants?.[0];check('variant-create-reread',variant?.prices?.some(x=>x.currency_code==='usd'&&Number(x.amount)===2.15),{variant_id:variant?.id})
+ r=await admin('/admin/products/'+product.id+'/variants/'+variant.id,{method:'POST',body:{title:'Ivory updated',prices:[{currency_code:'usd',amount:2.3}]}})
+ check('variant-update',r.ok,{status:r.status,message:r.data.message})
+ read=await admin('/admin/products/'+product.id+'?fields=id,*variants.prices');check('variant-update-reread',read.data.product?.variants?.some(x=>x.id===variant.id&&x.title==='Ivory updated'&&x.prices?.some(y=>Number(y.amount)===2.3)),{status:read.status})
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0P8AAAAASUVORK5CYII=','base64')
+ const form=new FormData();form.append('files',new Blob([png],{type:'image/png'}),prefix+'.png');r=await admin('/admin/uploads',{method:'POST',body:form})
+ const uploaded=r.data.files?.[0];check('image-upload',r.ok&&uploaded?.id&&uploaded?.url,{status:r.status,message:r.data.message});report.fixtures.file=uploaded.id;cleanup.push({path:'/admin/uploads/'+uploaded.id,id:uploaded.id})
+ r=await admin('/admin/products/'+product.id,{method:'POST',body:{images:[{url:uploaded.url}],thumbnail:uploaded.url}});check('image-assignment',r.ok,{status:r.status})
+ read=await admin('/admin/products/'+product.id+'?fields=id,thumbnail,*images');check('image-persisted-reread',read.data.product?.images?.some(x=>x.url===uploaded.url)&&read.data.product.thumbnail===uploaded.url,{status:read.status})
+ check('image-origin',new URL(uploaded.url).origin===destination.origin,{same_origin:new URL(uploaded.url).origin===destination.origin})
+ const image=await fetch(uploaded.url,{redirect:'error',signal:AbortSignal.timeout(10000)});const bytes=Buffer.from(await image.arrayBuffer());check('image-bytes-roundtrip',image.ok&&createHash('sha256').update(bytes).digest('hex')===createHash('sha256').update(png).digest('hex'),{status:image.status,bytes:bytes.length})
+ r=await admin(contextPath(product.id),{method:'POST',body:{status:'approved',readiness_score:79,missing_evidence:[]}});check('approval-reject-low-score',r.status===422,{status:r.status})
+ r=await admin(contextPath(product.id),{method:'POST',body:{status:'approved',readiness_score:92,missing_evidence:['Test report']}});check('approval-reject-missing-evidence',r.status===422,{status:r.status})
+ r=await admin(contextPath(product.id),{method:'POST',body:{status:'approved',readiness_score:92,buyer_profile:'Isolated test buyer',target_markets:['United States'],use_cases:['Test'],selling_points:['Test'],evidence:[{id:'spec',label:'Test specification',type:'spec_sheet',status:'verified',source:'private-source-sentinel'}],commercial_policy:{currency:'USD',moq:1000},missing_evidence:[],agent_summary:'Isolated acceptance only',notes:'private-note-sentinel'}})
+ check('context-approve',r.ok&&r.data.product_context?.status==='approved',{status:r.status,message:r.data.message})
+ read=await admin(contextPath(product.id));check('context-persisted-reread',read.ok&&read.data.product_context?.status==='approved',{status:read.status})
+ for(const [name,token] of [['missing',null],['invalid','invalid-token'],['admin-jwt',adminToken]]){const denied=token===null?await call('/agent/product-contexts/'+product.id):await agent('/agent/product-contexts/'+product.id,token);check('agent-deny-'+name,denied.status===401,{status:denied.status})}
+ const list=await agent('/agent/product-contexts?product_id='+product.id);check('agent-approved-list',list.ok&&list.data.items?.some(x=>x.context?.product_id===product.id&&x.product?.id===product.id),{status:list.status,message:list.data.message})
+ const detail=await agent('/agent/product-contexts/'+product.id);check('agent-approved-detail',detail.ok&&detail.data.product?.id===product.id&&detail.data.context?.status==='approved',{status:detail.status,message:detail.data.message})
+ const exposed=JSON.stringify([list.data,detail.data]);check('agent-narrow-projection',!['reviewed_by','private-note-sentinel','private-source-sentinel','metadata'].some(x=>exposed.includes(x))&&detail.cache==='no-store',{cache_control:detail.cache})
+ const writeDenied=await call(contextPath(product.id),{method:'POST',body:{status:'approved'},headers:{Authorization:'Bearer '+agentToken}});check('agent-cannot-admin-write',writeDenied.status===401,{status:writeDenied.status})
+ r=await admin(contextPath(product.id),{method:'POST',body:{status:'blocked'}});check('context-revoke',r.ok&&r.data.product_context?.status==='blocked',{status:r.status})
+ const revokedDetail=await agent('/agent/product-contexts/'+product.id),revokedList=await agent('/agent/product-contexts?product_id='+product.id)
+ check('agent-revocation-detail',revokedDetail.status===404,{status:revokedDetail.status});check('agent-revocation-list',revokedList.ok&&revokedList.data.items?.length===0,{status:revokedList.status})
+ for(const quantity of [11,10]){
+  r=await admin('/admin/inventory-items/'+inventory.id+'/location-levels/'+location.id,{method:'POST',body:{stocked_quantity:quantity}});check('inventory-write-'+quantity,r.ok,{status:r.status})
+  read=await admin('/admin/inventory-items/'+inventory.id+'?fields=id,*location_levels');const level=read.data.inventory_item?.location_levels?.find(x=>x.location_id===location.id)
+  check('inventory-reread-'+quantity,read.ok&&Number(level?.stocked_quantity)===quantity,{status:read.status,stocked_quantity:level?.stocked_quantity})
+ }
+ report.status='passed'
+}catch(error){report.status=report.checks.length?'failed':'blocked';report.error=error.message}
+finally{
+ for(const item of cleanup.reverse()){try{const r=await admin(item.path,{method:'DELETE'});report.cleanup.push({id:item.id,status:r.status,ok:r.ok})}catch(e){report.cleanup.push({id:item.id,ok:false,error:e.message})}}
+ report.ok=report.status==='passed'&&report.checks.every(x=>x.ok)&&report.cleanup.every(x=>x.ok)
+ if(!report.ok&&report.status==='passed')report.status='cleanup_failed'
+ report.completed_at=new Date().toISOString();let output=JSON.stringify(report,null,2);for(const value of [password,agentToken,adminToken].filter(x=>typeof x==='string'&&x.length))output=output.replaceAll(value,'[redacted]');console.log(output)
 }
-
-console.log(JSON.stringify(report,null,2))
 process.exit(report.ok?0:1)

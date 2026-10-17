@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-17",
+  "baseline": "bc2d453cff163ac51d0376ed16dae469e20ca004",
+  "scope": "Local source, fixed SDK, finite synthetic HTTP and Compose parser; no live service acceptance",
+  "realModelRequests": 0,
+  "realExternalBusinessCalls": 0,
+  "realSecretsOrAdministratorsCreated": false,
+  "serverOperatedByThisWriter": false,
+  "checks": [
+    {
+      "name": "new-host-install",
+      "command": "npm ci --no-audit --no-fund --fetch-retries=0 --fetch-timeout=30000 (cwd apps/medusa-acceptance)",
+      "result": "passed",
+      "localLogSHA256": "a96f9b01659504defd6a502ad85af79db4e2575577be7afe6abee36d16e2a2be",
+      "localLogBytes": 448
+    },
+    {
+      "name": "new-host-build",
+      "command": "npm run build --prefix apps/medusa-acceptance (build-only synthetic config)",
+      "result": "passed",
+      "localLogSHA256": "1e86986d41c70c769731654276c8dd06bad734e8486b1e1da9c93e684631adbc",
+      "localLogBytes": 718
+    },
+    {
+      "name": "medusa-sdk-plugin",
+      "command": "npm test --prefix packages/medusa-enterprise-product-context",
+      "result": "4 passed",
+      "localLogSHA256": "d8bdd2b6abca1792b4fea5f00b120678ab7204ddb55577e96a556e1b5a5e386a",
+      "localLogBytes": 1045
+    },
+    {
+      "name": "related-tests",
+      "command": "node --test test/deployment-source.test.mjs test/medusa-catalog.test.mjs test/medusa-catalog-edit.test.mjs test/medusa-catalog-http.test.mjs test/enterprise-context-oss.test.mjs",
+      "result": "28 passed; 0 failed/cancelled/skipped",
+      "localLogSHA256": "9a463c08bd2a6257d49eb5c0efa4c67c4d5f85dc8f1409a931675ac19b182746",
+      "localLogBytes": 3142
+    },
+    {
+      "name": "catalog-ui-build",
+      "command": "npm run build --prefix apps/medusa-product-catalog",
+      "result": "passed",
+      "localLogSHA256": "06c92b389bc97adfeca180b16fdf3fa463082e7fc577a3261a6a47ecd791f72a",
+      "localLogBytes": 369
+    },
+    {
+      "name": "root-typecheck",
+      "command": "npm run typecheck",
+      "result": "passed",
+      "localLogSHA256": "2fb03f0ed3b9d91f3c91365f5cf398c8fd176549d9cf08c51cd70230c8e99dfa",
+      "localLogBytes": 56
+    },
+    {
+      "name": "plugins-pack",
+      "command": "npm run plugins:pack-check",
+      "result": "14 passed; static pack closure",
+      "localLogSHA256": "0733dce885174b81fa2c0f72469e44452ecd91c56d3952b2ab2bd5c519bc5e20",
+      "localLogBytes": 2637
+    },
+    {
+      "name": "native-omp-build",
+      "command": "npm run build:omp",
+      "result": "14 passed; native discovery/load/disable/uninstall",
+      "localLogSHA256": "2e4240aabf18980ecfd5e14e1bc917d65b21caa9b5d3f68be720a245d5d5e054",
+      "localLogBytes": 6881
+    },
+    {
+      "name": "docker-ui-build",
+      "command": "docker build --file acceptance/medusa/ui.Dockerfile",
+      "result": "failed; build container npm EAI_AGAIN",
+      "localLogSHA256": "9e33986d96ffc2055784b6b8816456350311f645c2f879d1916d15235bc346e4",
+      "localLogBytes": 5772
+    },
+    {
+      "name": "docling-pull",
+      "command": "docker pull official pinned Docling image",
+      "result": "failed; Docker storage no space left on device",
+      "localLogSHA256": "07c5d9c9d82a6075dd63961ea67924bb7499b1311ca0c695534e9477c6af450e",
+      "localLogBytes": 1950
+    }
+  ],
+  "livePending": [
+    "API image",
+    "native DB migration",
+    "manual admin",
+    "strict isolated smoke",
+    "nonroot volume writes",
+    "loopback access on internal Docker network",
+    "persistent restart",
+    "Docling health/cold parse",
+    "reviewed Host binding and exact parser transfer"
+  ]
+}

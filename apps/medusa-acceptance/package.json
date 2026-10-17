@@ -1,0 +1,21 @@
+{
+  "name": "medusa-catalog-acceptance-host",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "medusa develop",
+    "start": "medusa start",
+    "migrate": "medusa db:migrate",
+    "build": "medusa build"
+  },
+  "dependencies": {
+    "@medusajs/admin-sdk": "2.21.2",
+    "@medusajs/cli": "2.21.2",
+    "@medusajs/framework": "2.21.2",
+    "@medusajs/medusa": "2.21.2",
+    "@swc/core": "1.16.18",
+    "ts-node": "10.9.2",
+    "typescript": "6.0.3",
+    "@magicy565/medusa-enterprise-product-context": "file:./magicy565-medusa-enterprise-product-context-0.1.0.tgz"
+  }
+}

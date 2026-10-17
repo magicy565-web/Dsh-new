@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2021","module":"Node16","moduleResolution":"Node16","esModuleInterop":true,"skipLibCheck":true,"resolveJsonModule":true,"outDir":".medusa/server","strict":false,"ignoreDeprecations":"6.0"},"include":["src/**/*.ts","medusa-config.ts"]}

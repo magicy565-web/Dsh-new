@@ -1,0 +1,38 @@
+{
+  "verifiedAt": "2026-10-17",
+  "method": "Read-only official registry manifest inspection; not evidence of image pull/build/run success.",
+  "targetPlatform": "linux/amd64",
+  "selectedPR94Commit": "04325f4ddc9e50d569b3696bc4627fd359263723",
+  "images": [
+    {
+      "name": "node",
+      "reference": "node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df",
+      "indexDigest": "sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df",
+      "amd64ManifestDigest": "sha256:e5a8dee7bc1e6a215d224a7ef8206f7e77271bc3cabd5febf2beafac0674f174"
+    },
+    {
+      "name": "postgres",
+      "reference": "postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24",
+      "indexDigest": "sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24",
+      "amd64ManifestDigest": "sha256:aa90e97ee862e558111d34cfb8b2c4bec768c2b039fb791341686928560263b3"
+    },
+    {
+      "name": "redis",
+      "reference": "redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499",
+      "indexDigest": "sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499",
+      "amd64ManifestDigest": "sha256:ca0acbb137c1dc3339c8b147a58fd6f42775d4599327b50e7b116c23de501af2"
+    },
+    {
+      "name": "nginx",
+      "reference": "nginxinc/nginx-unprivileged:1.28-alpine@sha256:7377697a821c131a924a7105fafbe7414db4e9fcc77a6f08f776f33f141ec3f8",
+      "indexDigest": "sha256:7377697a821c131a924a7105fafbe7414db4e9fcc77a6f08f776f33f141ec3f8",
+      "amd64ManifestDigest": "sha256:209331cfcaec00da781f5b8a38e0d1c0abd00cb2b51e6ad385a30abbbdb04e15"
+    },
+    {
+      "name": "docling",
+      "reference": "ghcr.io/docling-project/docling-serve-cpu:v1.37.0@sha256:6eda9c524992147c1b0b06a1a9be4894bd68b1f43c86d92c32f996c4c60d18a3",
+      "indexDigest": "sha256:6eda9c524992147c1b0b06a1a9be4894bd68b1f43c86d92c32f996c4c60d18a3",
+      "amd64ManifestDigest": "sha256:07accda3be8d1ca4c9968be0fb90356a4f5aa390beb1dfd1471459eaaf588bc5"
+    }
+  ]
+}

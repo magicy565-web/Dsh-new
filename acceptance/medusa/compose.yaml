@@ -1,0 +1,100 @@
+name: workspace-pr99-medusa
+x-isolation: &isolation
+  restart: unless-stopped
+  read_only: true
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "2"}
+services:
+  postgres:
+    <<: *isolation
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    user: postgres
+    environment:
+      POSTGRES_USER: medusa
+      POSTGRES_DB: medusa_catalog
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    secrets: [postgres_password]
+    volumes: [database:/var/lib/postgresql/data]
+    tmpfs: [/tmp, "/var/run/postgresql:uid=70,gid=70,mode=0770"]
+    networks: [private]
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, pg_isready, -U, medusa, -d, medusa_catalog]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  redis:
+    <<: *isolation
+    image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    user: redis
+    secrets: [redis_password]
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        umask 077
+        printf 'bind 0.0.0.0\nprotected-mode yes\nappendonly yes\ndir /data\nrequirepass ' > /tmp/redis.conf
+        cat /run/secrets/redis_password >> /tmp/redis.conf
+        printf '\n' >> /tmp/redis.conf
+        exec redis-server /tmp/redis.conf
+    volumes: [redis_data:/data]
+    tmpfs: ["/tmp:uid=999,gid=999,mode=0700"]
+    networks: [private]
+    mem_limit: 128m
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  api:
+    <<: *isolation
+    image: workspace-pr99-medusa-api:2.21.2
+    build: {context: ../.., dockerfile: acceptance/medusa/api.Dockerfile}
+    user: "1000:1000"
+    init: true
+    environment:
+      MEDUSA_BACKEND_URL: http://127.0.0.1:9000
+      MEDUSA_WORKER_MODE: shared
+    secrets: [postgres_password, redis_password, jwt_secret, cookie_secret, agent_context_read_token]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    ports: [127.0.0.1:9000:9000]
+    volumes: [uploads:/app/static]
+    tmpfs: [/tmp, "/app/.cache:uid=1000,gid=1000,mode=0700"]
+    networks: [private]
+    cpus: 1.0
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD, node, -e, 'fetch("http://127.0.0.1:9000/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))']
+      start_period: 90s
+      interval: 10s
+      timeout: 3s
+      retries: 12
+  ui:
+    <<: *isolation
+    image: workspace-pr99-medusa-ui:0.1.0
+    build: {context: ../.., dockerfile: acceptance/medusa/ui.Dockerfile}
+    user: "101:101"
+    ports: [127.0.0.1:4173:8080]
+    tmpfs: [/tmp]
+    networks: [private]
+    depends_on:
+      api: {condition: service_healthy}
+    mem_limit: 64m
+networks:
+  private: {internal: true}
+volumes:
+  database: {}
+  redis_data: {}
+  uploads: {}
+secrets:
+  postgres_password: {file: '${WORKSPACE_SERVICES_STATE_DIR:?explicit persistent state directory required}/secrets/postgres_password'}
+  redis_password: {file: '${WORKSPACE_SERVICES_STATE_DIR:?explicit persistent state directory required}/secrets/redis_password'}
+  jwt_secret: {file: '${WORKSPACE_SERVICES_STATE_DIR:?explicit persistent state directory required}/secrets/jwt_secret'}
+  cookie_secret: {file: '${WORKSPACE_SERVICES_STATE_DIR:?explicit persistent state directory required}/secrets/cookie_secret'}
+  agent_context_read_token: {file: '${WORKSPACE_SERVICES_STATE_DIR:?explicit persistent state directory required}/secrets/agent_context_read_token'}
