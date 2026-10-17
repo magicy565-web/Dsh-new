@@ -2,11 +2,13 @@
 
 本次为私有开发分支源码验收，不是上线或真实服务验收。目标分支为 `codex/omp-all-plugins-integration-20261017`；明确交接基线为 `f436123bf199b0308708594cc5660ce98d981f5f`，继承 `codex/omp-structured-memory-integration-20261016`，没有从 main 重做。开始阶段只读；收到旧 writer 已退出、无未提交改动的交接确认后才切分支写入。截止为 2026-10-17 04:00 UTC / 北京时间 12:00。
 
-当前范围：14 个 OMP 插件源码统一放在 `plugins/`，均经过固定版本原生 loader 发现、编译、注册和 pack 闭包检查。业务组合 profile 已使资料读取、七天、Shopify、Medusa Library 草稿预览、Brain 在同一原生 OMP Session 中使用原 Host 客户端。**没有宣称 14 个业务插件全部完成同会话真实服务接通**：其余原有隔离 profile 保留；Marketplace 的私有模型披露桥仍未接入。默认本地入口仍仅启用 local-materials。
+当前范围：14 个 OMP 插件源码统一放在 `plugins/`，均经过固定版本原生 loader 发现、编译、注册和 pack 闭包检查。业务组合 profile 已使资料读取、七天、Shopify、Medusa Library 草稿预览、Brain 在同一原生 OMP Session 中使用原 Host 客户端。**没有宣称 14 个业务插件全部完成同会话真实服务接通**：其余原有隔离 profile 保留；Marketplace 后续已接入受审核的发现/内部草稿/owner 状态最小桥，私有交付正文仍不开放。默认本地入口仍仅启用 local-materials。
 
-后续开发：Brain decision 在同一精确 context 版本下的连续保存、精确重试、未知写入状态及原 Host/实际 SDK 权限验证见 [本轮增量报告](OMP-BRAIN-DECISION-INTEGRATION-20261017.md)。这不扩展下述第一轮真实服务与 Marketplace 状态。
+后续开发：Brain decision 在同一精确 context 版本下的连续保存、精确重试、未知写入状态及原 Host/实际 SDK 权限验证见 [本轮增量报告](OMP-BRAIN-DECISION-INTEGRATION-20261017.md)。这不扩展下述第一轮真实服务状态。
 
 旧 context 的最终历史来源复核竞态已准确复现并最小修复，见 [本轮安全修复报告](OMP-CONTEXT-FINAL-SOURCE-CHECK-20261017.md)，包含真实 Store/Host、实际 SDK 发送前注入和零发送证据。
+
+最近 Marketplace 的原 Host/WorkerDesk 与同一原生 business Session 最小闭环见 [本轮报告](OMP-MARKETPLACE-NATIVE-INTEGRATION-20261017.md)。显式审核范围缺失时 unconfigured；下述历史回归计数不冒充本轮新源码全部重跑。
 
 ## 源码来源与选择
 
@@ -43,7 +45,7 @@
 | workspace-shopify-product | 禁用 | business profile 使用原来源、人工审批、Connector 和执行服务 | 原 SDK 1/4/100 规格、源变更、恢复、禁用；本地 Shopify 替身 | 真实 Shopify unconfigured |
 | workspace-medusa-catalog | 禁用 | business profile 使用原材料选择+Medusa 客户端；模型工具只读 | 原 SDK preview；HTTP/投影替身；篡改回执阻断 | Medusa unconfigured；未运行 live smoke |
 | workspace-goal-intelligence | 禁用 | business profile 原签名 Session/接收者/Library/Artifact，显式 goalBrainOptions 才绑定 | 原 SDK source catalog；来源变更/禁用/伪造 gap 阻断；Brain 来源与人审测试 | 业务模型/真实指标未连接；没有自动授权 Goal |
-| workspace-marketplace | 禁用 | 原服务器 mount 源码与原 Store/WorkerDesk 接口；**尚无可信私有模型披露桥，不加入 business profile** | 原 Host、磁盘 Store、Artifact 字节、冷启动；支付/Worker 替身 | Stripe/外部 Worker/Provider 身份 unconfigured |
+| workspace-marketplace | 禁用 | 原 mount/Store/WorkerDesk；business 中显式审核的发现/草稿/owner 状态桥，私有正文不开放 | 原签名 Host 两轮原生 Session；当前权限/版本/发送复核；Model/Provider/审核替身 | Stripe/外部 Worker/Provider 身份 unconfigured |
 
 组合入口：`npm run workspace -- --profile business --check` 只检查固定运行时与清单，返回 unconfigured，零模型请求、零凭据读取、不开服务器。`--profile business --serve` 是显式进入原 Workspace Host 的启动路径，需要已有审核配置与签名 Session；本次没有执行此命令。测试中的 createApp 使用合成配置和临时目录，未创建实际业务配置。
 
@@ -136,7 +138,7 @@ PR94 最新 HEAD `04325f4ddc9e50d569b3696bc4627fd359263723` 已 fetch 并只读�
 ## 仍未完成
 
 - 14 个插件全部同一个私有业务 Session 的可信 Host/披露组合尚未完成；现有 enterprise/free-trade/local/intake 等隔离边界保留。
-- Marketplace 私有模型披露桥、统一 UI 导航与原企业 Provider 身份配置未接通；只有显式 mount 源码及原 Host 替身验收。
+- Marketplace 私有交付正文披露、统一 UI 导航与真实企业 Provider/审核来源未接通；已验收的状态字段桥见本轮报告，严格快照变化后的自动刷新/迁移未实现。
 - Medusa Product Context 后端实际实例、数据库迁移、Agent 读取面与 OMP 授权映射未验收；没有创建或连接实例。
 - 真实模型、Docling、FGA、ERPNext、Shopify、Medusa、Stripe、外部 Muse/Worker 全部未配置或未调用。浏览器端完整交互验收未完成；DOM 回归不能替代真实浏览器和真实服务验收。Brain context 连续写入阻塞已由下述原 Artifact 继承链修复；decision 同 context 连续写入已由后续增量报告补充验收；跨 context 自动迁移仍未实现。任何写入后披露失败都不能推断为未落盘，不得用新 requestId 自动重试。
 - 不修改/合并 main，不强推，不部署，不操作服务器，不付费，不读取/创建真实凭据，不扩大权限，不导入运行资料。
