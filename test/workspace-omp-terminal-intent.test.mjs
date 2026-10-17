@@ -28,7 +28,7 @@ test('real official OMP TUI keeps natural input read-only even when the model su
       syntheticResponses: [{ tool: 'workspace_factory_task', arguments: draft }, { text: 'PUBLIC_INTENT_BOUNDARY_REPLY' }] }),
     resolveBinding: async () => ({ client: createWorkspaceClient({ baseURL: f.baseURL, token: TOKEN_A }), model }),
   } });
-  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp.mjs'], {
+  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp-legacy.mjs', '--terminal'], {
     cwd: directory, env: { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory,
       LANG: 'C.UTF-8', TERM: 'xterm-256color', PI_NO_TITLE: '1', WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WS_AGENT_URL: f.baseURL },
     stdio: ['pipe', 'pipe', 'pipe'] });

@@ -58,7 +58,7 @@ export async function main(args=process.argv.slice(2),environment=process.env) {
   try{
     for(const name of ['home','agent'])await fs.mkdir(path.join(directory,name),{mode:0o700});
     const config=path.join(directory,'config.json');
-    await fs.writeFile(config,JSON.stringify({startup:{checkUpdate:false,setupWizard:false},telemetry:{otlpExportEnabled:false},compaction:{enabled:false}}),{mode:0o600});
+    await fs.writeFile(config,JSON.stringify({startup:{checkUpdate:false,setupWizard:false,showSplash:false},telemetry:{otlpExportEnabled:false},compaction:{enabled:false}}),{mode:0o600});
     const env={PATH:path.dirname(paths.bun)+':/usr/bin:/bin',HOME:path.join(directory,'home'),TMPDIR:directory,
       PI_CODING_AGENT_DIR:path.join(directory,'agent'),PI_NO_TITLE:'1',TERM:environment.TERM||'xterm-256color',
       WORKSPACE_OMP_PACKAGE_ROOT:paths.packageRoot};

@@ -14,12 +14,12 @@ const repository = new URL('..', import.meta.url).pathname, paths = workspaceOmp
 const model = { provider: 'workspace-omp-terminal-fixture', id: 'finite', api: 'openai-completions', baseUrl: 'https://synthetic.invalid' };
 const configuration = { providerId: model.provider, model: model.id, baseUrl: model.baseUrl };
 async function until(check, label) { for (let i = 0; i < 700; i++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 25)); } throw new Error(typeof label === 'function' ? label() : label); }
-test('actual official OMP TUI consumes natural input through original local HTTP Run, with no UI model or second ledger', { timeout: 70000 }, async t => {
+test('explicit original HTTP OMP TUI consumes natural input through original local HTTP Run, with no UI model or second ledger', { timeout: 70000 }, async t => {
   const directory = await fs.mkdtemp('/tmp/workspace-omp-terminal-'); let f;
   f = await taskFixture(t, { businessAgentOptions: { recipient: { kind: 'pi-coding-agent', provider: model.provider, model: model.id, destination: model.baseUrl },
     engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, syntheticResponses: [{ tool: 'workspace_factory_capabilities', arguments: {} }, { text: 'OMP_ORIGINAL_HTTP_TERMINAL_REPLY; public synthetic materials only.' }] }),
     resolveBinding: async () => ({ client: createWorkspaceClient({ baseURL: f.baseURL, token: TOKEN_A }), model }) } });
-  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp.mjs'], {
+  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp-legacy.mjs', '--terminal'], {
     cwd: directory, env: { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory,
       LANG: 'C.UTF-8', TERM: 'xterm-256color', PI_CODING_AGENT_DIR: directory + '/agent', PI_NO_TITLE: '1',
       WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WS_AGENT_URL: f.baseURL, WS_AGENT_TOKEN: TOKEN_A, WS_AGENT_SESSION_DIR: directory,
@@ -52,7 +52,7 @@ test('actual official OMP TUI consumes natural input through original local HTTP
   assert.equal(f.app.store.read().runs.length, 1); assert.ok(!raw.includes(TOKEN_A));
   write('\x15');
   phase = 'quit'; command('/quit'); await until(() => terminalExit !== undefined, 'Official OMP UI did not exit: ' + raw.slice(-1000)); assert.equal(terminalExit, 0); assert.equal((await exit)[0], 0, error); passed = true;
-  t.diagnostic('Actual default Node launcher in real POSIX PTY -> official InteractiveMode; input handled:true -> original HTTP Conversation/Run -> isolated official OMP worker -> sendMessage receipt. UI provider disabled; finite keyless server fixture only.');
+  t.diagnostic('Explicit original HTTP Node launcher in real POSIX PTY -> official InteractiveMode; input handled:true -> original HTTP Conversation/Run -> isolated official OMP worker -> sendMessage receipt. UI provider disabled; finite keyless server fixture only.');
 });
 
 test('UI-only original execution/recovery commands return unconfigured without dispatch, while human status/cancel/approval remain separate', async () => {
@@ -106,11 +106,11 @@ test('original public terminal receipt enforces enterprise Session, conversation
   assert.equal(f.app.store.read().runs.find(row => row.id === runId).events.filter(event => event.type === 'pi.agent-session.request').length, 1);
 });
 
-test('default official terminal stays interactive without credentials and displays original unconfigured refusal with zero Runs', { timeout: 45000 }, async t => {
+test('explicit original HTTP terminal stays interactive without credentials and displays original unconfigured refusal with zero Runs', { timeout: 45000 }, async t => {
   const directory = await fs.mkdtemp('/tmp/workspace-omp-unconfigured-ui-');
   const f = await taskFixture(t, { businessAgentOptions: { recipient: { kind: 'pi-coding-agent', provider: model.provider, model: model.id, destination: model.baseUrl },
     engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration }), resolveBinding: async () => null } });
-  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp.mjs'], {
+  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp-legacy.mjs', '--terminal'], {
     cwd: directory, env: { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory, LANG: 'C.UTF-8', TERM: 'xterm-256color',
       PI_NO_TITLE: '1', WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WS_AGENT_URL: f.baseURL }, stdio: ['pipe', 'pipe', 'pipe'] });
   const exit = once(driver, 'close'); let raw = '', buffer = '', terminalExit, error = '', phase = 'initialize', passed = false;
@@ -140,7 +140,7 @@ test('official terminal human stop confirmation preserves the original Run on Es
   f = await taskFixture(t, { businessAgentOptions: { recipient: { kind: 'pi-coding-agent', provider: model.provider, model: model.id, destination: model.baseUrl },
     engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, syntheticResponses: [{ wait: 60000, text: 'Must not complete before cancellation.' }], onWorkerLifecycle: event => lifecycle.push(event) }),
     resolveBinding: async () => ({ client: createWorkspaceClient({ baseURL: f.baseURL, token: TOKEN_A }), model }) } });
-  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp.mjs'], {
+  const driver = spawn('python3', [repository + '/test/fixtures/pi-tui-pty-driver.py', process.execPath, repository + '/scripts/workspace-omp-legacy.mjs', '--terminal'], {
     cwd: directory, env: { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory, LANG: 'C.UTF-8', TERM: 'xterm-256color',
       PI_NO_TITLE: '1', WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot, WS_AGENT_URL: f.baseURL }, stdio: ['pipe', 'pipe', 'pipe'] });
   const exit = once(driver, 'close'); let raw = '', buffer = '', terminalExit;

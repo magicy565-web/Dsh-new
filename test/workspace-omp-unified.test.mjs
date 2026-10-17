@@ -52,7 +52,7 @@ test('native TUI preview gates model input and cannot use ambient auth',async()=
   (await import('../scripts/workspace-omp-preview-gate.mjs')).default({on:(event,fn)=>handlers.set(event,fn),getAllTools:()=>['workspace_factory_capabilities','workspace_factory_rfq_requirements','workspace_factory_match_prepare'].map(name=>({name}))});
   const ctx={ui:{setStatus:(...a)=>statuses.push(a),notify:(...a)=>notices.push(a)}};
   handlers.get('session_start')({},ctx);
-  assert.deepEqual(handlers.get('input')({text:'hello'},ctx),{handled:true});assert.equal(notices.length,1);
+  assert.deepEqual(handlers.get('input')({text:'hello'},ctx),{handled:true});assert.equal(notices.length,1);assert.equal(handlers.get('input')({text:'/quit'},ctx),undefined);assert.equal(notices.length,1);
   assert.throws(()=>handlers.get('before_agent_start')(),/NATIVE_PREVIEW_MODEL_UNCONFIGURED/);assert.equal(statuses.length,1);
 });
 test('same entry exposes combined business manifest without claiming a configured Host',async()=>{

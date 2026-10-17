@@ -10,10 +10,10 @@ import { workspaceOmpPaths, checkWorkspaceOmpPaths } from '../server/workspace-o
 import { workspaceOmpConfiguration, workspaceOmpConfigured, workspaceOmpPublicToolConfiguration } from '../server/workspace-omp-host.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const help = 'Workspace · 官方 OMP 18.10.4 前端，原 Workspace HTTP/任务/审批/Store 为唯一业务执行权威\n'
-  + 'npm run workspace             一次启动原服务；交互终端使用官方 OMP UI，输入沿原 Run\n'
-  + 'npm run workspace -- --serve   启动原服务，网页新公开会话默认 OMP\n'
-  + 'npm run workspace -- --terminal 明确使用官方 OMP 终端（当前仅原local Session）\n'
-  + 'npm run workspace -- --check   只查固定运行器、原绑定、配置；不调用模型\n'
+  + 'npm run legacy:workspace      显式启动原服务；交互终端使用官方 OMP UI，输入沿原 Run\n'
+  + 'npm run legacy:workspace -- --serve   启动原服务，网页新公开会话默认 OMP\n'
+  + 'npm run legacy:workspace -- --terminal 明确使用官方 OMP 终端（当前仅原local Session）\n'
+  + 'npm run legacy:workspace -- --check   只查固定运行器、原绑定、配置；不调用模型\n'
   + 'npm run agent:pi               显式原 Pi 1.1.0 终端回退，不默认双跑\n'
   + '缺依赖：node scripts/setup-omp-runtime.mjs；node scripts/workspace-omp-install.mjs\n'
   + '使用现有 WS_AGENT_URL/WS_AGENT_TOKEN 和选定模型配置。价格与剩余预算未证明时 OMP 未配置。\n'
@@ -27,6 +27,9 @@ export async function main(args = process.argv.slice(2), environment = process.e
   const scopes = { business:'omp:18.10.4:business-v1', public: 'omp:18.10.4:public-v1', 'factory-materials': 'omp:18.10.4:factory-materials-v1',
     'factory-customers': 'omp:18.10.4:factory-customers-v1', 'factory-inquiries': 'omp:18.10.4:factory-inquiries-v1', 'factory-ingestion': 'omp:18.10.4:factory-ingestion-v1', 'market-validation': 'omp:18.10.4:market-validation-v1', 'shopify-product': 'omp:18.10.4:shopify-product-v1' };
   if (!Object.hasOwn(scopes, profile)) throw Error('Use one fixed reviewed OMP profile.');
+  const terminalRequested = args.includes('--terminal') || !args.includes('--check') && !args.includes('--serve') && process.stdin.isTTY && process.stdout.isTTY;
+  if(terminalRequested&&profile==='business')throw Error('OMP_BUSINESS_TUI_UNAVAILABLE: use the existing authenticated business Web/API entry; no terminal or server was started.');
+  if(terminalRequested&&(!process.stdin.isTTY||!process.stdout.isTTY))throw Error('OMP_TERMINAL_TTY_REQUIRED: use --check or the original Web/API entry; no terminal or server was started.');
   const privateProfile = ['business','factory-materials', 'factory-inquiries', 'factory-ingestion', 'market-validation', 'shopify-product'].includes(profile);
   const paths = workspaceOmpPaths(environment), configuration = workspaceOmpConfiguration(environment);
   let runtime;
@@ -70,9 +73,7 @@ export async function main(args = process.argv.slice(2), environment = process.e
   }
   if (environment.WS_AGENT_URL && !args.includes('--serve')) console.log('使用现有原 Workspace 服务：' + baseURL);
   if (!await fs.stat(path.join(root, 'dist/index.html')).then(() => true).catch(() => false)) console.log('网页构建产物缺失；原 API 已启动。请运行 npm run build 后刷新网页。');
-  const terminalRequested = args.includes('--terminal') || !args.includes('--serve') && process.stdin.isTTY && process.stdout.isTTY;
   if (!terminalRequested) return;
-  if (!process.stdin.isTTY || !process.stdout.isTTY) { await close(); throw new Error('官方 OMP 终端需要交互 TTY；无 TTY 时使用原网页服务。'); }
   const home = await fs.mkdtemp('/tmp/workspace-omp-terminal-home-');
   const terminalEnvironment = { PATH: path.dirname(paths.bun) + ':/usr/bin:/bin', HOME: home, TMPDIR: home,
     PI_CODING_AGENT_DIR: home + '/agent', PI_NO_TITLE: '1', WORKSPACE_OMP_PACKAGE_ROOT: paths.packageRoot,

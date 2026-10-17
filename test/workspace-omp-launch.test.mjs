@@ -12,9 +12,9 @@ async function port() {
   const server = net.createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const value = server.address().port; await new Promise(resolve => server.close(resolve)); return value;
 }
-test('default one-entry launcher starts the original server without model credentials and rejects model admission', { timeout: 45000 }, async t => {
+test('explicit legacy launcher starts the original local test server without model credentials and rejects model admission', { timeout: 45000 }, async t => {
   const directory = await fs.mkdtemp('/tmp/workspace-omp-default-launch-'), selectedPort = await port();
-  const child = spawn(process.execPath, [repository + '/scripts/workspace-omp.mjs'], { cwd: repository,
+  const child = spawn(process.execPath, [repository + '/scripts/workspace-omp-legacy.mjs'], { cwd: repository,
     env: { PATH: path.dirname(process.execPath) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory,
       WORKSPACE_DATA_DIR: directory + '/original', PORT: String(selectedPort), NO_COLOR: '1' },
     detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -51,7 +51,7 @@ test('reviewed prices and trusted remaining-budget assertion are mandatory confi
 for (const profile of ['factory-materials', 'factory-inquiries']) test(`ordinary startup check reports ${profile} policy required and public tools disabled without reading credentials`, { timeout: 30000 }, async t => {
   const directory = await fs.mkdtemp('/tmp/workspace-omp-profile-check-');
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
-  const child = spawn(process.execPath, [repository + '/scripts/workspace-omp.mjs', '--check'], { cwd: directory,
+  const child = spawn(process.execPath, [repository + '/scripts/workspace-omp-legacy.mjs', '--check'], { cwd: directory,
     env: { PATH: path.dirname(process.execPath) + ':/usr/bin:/bin', HOME: directory, TMPDIR: directory, NO_COLOR: '1', WORKSPACE_OMP_PROFILE: profile },
     stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '', errors = ''; child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { errors += chunk; });
