@@ -171,3 +171,57 @@ for (const mode of ['control', 'source-version', 'draft-version', 'session-revok
   assert.equal(drafts(f).length, 1);
   assert.equal(drafts(f)[0].currentVersion, mode === 'draft-version' ? 2 : 1);
 });
+
+for (const mode of ['control', 'earlier-draft-version', 'session-revoke', 'cancel']) test(`two-turn inquiry final disclosure rechecks earlier draft after later read: ${mode}`, { timeout: 60000 }, async t => {
+  let exits = 0, armed = false, injected = false, mutationCompleted = false;
+  const f = await setup(t, { afterWorkerExit() { if (++exits === 2) armed = true; } });
+  const first = await send(f, 'Save internal draft A for quantity 100.', firstSpecs(f));
+  assert.equal(first.status, 'succeeded');
+  const native = mapping(f), prefix = await fs.readFile(native.sessionFile), a = drafts(f)[0];
+  const originalDownload = f.app.artifacts.download;
+  const originalA = await originalDownload(a.id, { version: 1 });
+  const finalReads = [];
+  let b, bBytes;
+  f.app.artifacts.download = async (...args) => {
+    const result = await originalDownload(...args);
+    if (armed && result.artifact.metadata?.factoryInquiry) {
+      finalReads.push(result.artifact.id);
+      if (result.artifact.id !== a.id && !injected) {
+        b = result.artifact; bBytes = result.bytes;
+        assert.deepEqual(finalReads, [a.id, b.id], 'A must already be checked before the later B download.');
+        injected = true;
+        if (mode === 'earlier-draft-version') {
+          const changed = await f.app.artifacts.update(a.id, { content: 'Synthetic A revision committed while B is being read.' });
+          assert.equal(changed.artifact.currentVersion, 2);
+        }
+        if (mode === 'session-revoke') {
+          const session = f.app.access.listSessions().sessions.find(s => s.subject === 'member-a'); assert.ok(session);
+          const revoked = await f.workspace(`/api/access/sessions/${session.id}/revoke`, { subject: 'member-a', body: {} });
+          assert.equal(revoked.status, 200, revoked.text); assert.equal(f.app.access.nativeSessionById(session.id), null);
+        }
+        if (mode === 'cancel') {
+          const cancelled = await f.workspace(`/api/conversations/${f.cid}/cancel`, { subject: 'member-a', body: {} });
+          assert.equal(cancelled.status, 200, cancelled.text);
+        }
+        mutationCompleted = true;
+      }
+    }
+    return result;
+  };
+  t.after(() => { f.app.artifacts.download = originalDownload; });
+  const second = await send(f, 'Revise the saved internal reply to quantity 200 as draft B; preserve A.', revisionSpecs(f));
+  assert.equal(injected, true); assert.equal(mutationCompleted, true);
+  assert.equal(modelCalls(first), 4); assert.equal(modelCalls(second), 2);
+  assert.equal(second.status, mode === 'control' ? 'succeeded' : mode === 'cancel' ? 'cancelled' : 'failed');
+  if (!['control', 'cancel'].includes(mode)) assert.equal(second.error.code, 'OMP_DISCLOSURE_REFUSED');
+  assert.deepEqual(mapping(f), native);
+  assert.ok((await fs.readFile(native.sessionFile)).subarray(0, prefix.length).equals(prefix));
+  assert.equal(drafts(f).length, 2, 'Both committed drafts remain; no invented rollback.');
+  assert.equal(f.app.artifacts.get(a.id).artifact.currentVersion, mode === 'earlier-draft-version' ? 2 : 1);
+  assert.ok((await originalDownload(a.id, { version: 1 })).bytes.equals(originalA.bytes), 'Original A version remains immutable.');
+  const currentB = await originalDownload(b.id, { version: 1 });
+  assert.ok(currentB.bytes.equals(bBytes)); assert.equal(currentB.artifact.currentVersion, 1);
+  assert.equal(currentB.artifact.sourceRunId, second.id); assert.equal(a.sourceRunId, first.id);
+  assert.equal(currentB.artifact.metadata.factoryInquiry.sent, false); assert.equal(currentB.artifact.metadata.factoryInquiry.humanReviewed, false);
+  assert.equal(f.app.store.read().workspaceAgentTasks.tasks.length, 0); assert.equal(f.faux.state.callCount, 0);
+});

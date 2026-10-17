@@ -163,6 +163,10 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         } }) : null;
       const inquiryClient = engineAdapter.scope === 'omp:18.10.4:factory-inquiries-v1' ? createFactoryInquiryClient({ materialsClient,
         artifacts, store, identity, conversationId: conversation.id, runId: run.id, authorize,
+        assertDisclosureCurrent() {
+          assertActive();
+          libraryModelRead.factoryMaterialsAuthorityForSession({ identity, recipientHash: recipientFingerprint, signal: input.signal })();
+        },
         canSave() { actor(identity, true); const live = store.read().runs.find(r => r.id === run.id);
           return live?.status === 'running' && current(conversation.id).activeRunId === run.id && live.businessAgentContext.allowBusinessSubmit === true; },
       }) : null;

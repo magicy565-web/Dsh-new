@@ -9,6 +9,7 @@ const selectors = input => ({ inquiryDocumentId: input.inquiryDocumentId, docume
 // Node delivery reuses the original Host clients after worker exit. This reads
 // native SDK context only; it creates no Session, authority, model or artifact.
 export async function revalidateInquiryJournal(messages, { materialsClient, inquiryClient, model, signal }) {
+  const snapshots = []; // This delivery only; never a cross-request proof cache.
   const materialTools = ['workspace_factory_materials_status', 'workspace_factory_materials', 'workspace_factory_document'];
   const reasons = ['ORIGINAL_REVIEWED_SESSION_CLIENT_REQUIRED', 'REVIEWED_LIBRARY_SESSION_AND_HOST_GUARD_REQUIRED',
     'EXACT_MODEL_RECEIVER_REQUIRED', 'ORIGINAL_OPERATION_CANCELLED', 'FACTORY_INQUIRY_INPUT_INVALID', 'FACTORY_MATERIAL_INPUT_INVALID',
@@ -43,9 +44,16 @@ export async function revalidateInquiryJournal(messages, { materialsClient, inqu
     if (typeof client?.revalidateReceipt !== 'function') throw Error('FACTORY_INQUIRY_JOURNAL_REFUSED');
     await client.revalidateReceipt(receipt, model, signal);
     signal?.throwIfAborted();
+    snapshots.push(structuredClone(receipt));
+  }
+  // Later receipt downloads may change a source or Artifact checked earlier.
+  // No await is allowed between this whole-footprint check and returning.
+  if (snapshots.length) {
+    if (typeof inquiryClient?.assertCurrentSnapshots !== 'function') throw Error('FACTORY_INQUIRY_JOURNAL_REFUSED');
+    inquiryClient.assertCurrentSnapshots(snapshots, signal);
   }
 }
-export function createFactoryInquiryClient({ materialsClient, artifacts, store, identity, conversationId, runId = null, authorize, canSave }) {
+export function createFactoryInquiryClient({ materialsClient, artifacts, store, identity, conversationId, runId = null, authorize, canSave, assertDisclosureCurrent }) {
   async function readSources(input, signal, model) {
     signal?.throwIfAborted(); await authorize();
     const inquiry = await materialsClient.document({ documentId: input.inquiryDocumentId, documentVersion: input.documentVersion }, signal, model);
@@ -75,6 +83,27 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
     assertSourcesCurrent(state, context);
     if (state.artifacts.some(a => a.metadata?.factoryInquiry?.requestGroup === group && a.metadata.factoryInquiry.batchHash !== batchHash))
       fail(409, 'FACTORY_INQUIRY_REQUEST_CHANGED');
+  }
+  function assertArtifactCurrent(receipt, ref) {
+    if (Object.keys(ref).some(k => !['name', 'artifactId', 'version', 'sha256', 'duplicate'].includes(k)) || typeof ref.duplicate !== 'boolean')
+      throw Error('Cached inquiry artifact reference contains unvalidated content.');
+    const record = artifacts.get(ref.artifactId).artifact, meta = record.metadata?.factoryInquiry;
+    if (record.sourceConversationId !== conversationId || record.currentVersion !== ref.version || record.sha256 !== ref.sha256 || record.filename !== ref.name
+      || !meta || Object.entries(flags).some(([key, value]) => meta[key] !== value) || meta.sourceHash !== receipt.sourceHash
+      || meta.batchHash !== receipt.batchHash || libraryReadHash(meta.sources) !== libraryReadHash(receipt.sources)) throw Error('Cached inquiry artifact scope changed.');
+  }
+  // Host-only synchronous tail for snapshots already revalidated through the
+  // original clients. Not exposed by the worker RPC or any model tool.
+  function assertCurrentSnapshots(snapshots, signal) {
+    signal?.throwIfAborted();
+    if (typeof assertDisclosureCurrent !== 'function') throw Error('Original synchronous disclosure authority required.');
+    assertDisclosureCurrent();
+    const state = store.read();
+    for (const receipt of snapshots) {
+      assertSourcesCurrent(state, receipt);
+      if (receipt.plugin === 'workspace-factory-inquiries') for (const ref of receipt.artifacts) assertArtifactCurrent(receipt, ref);
+    }
+    signal?.throwIfAborted();
   }
   async function save(input, signal, model) {
     signal?.throwIfAborted(); const selected = validateInquiryDrafts(input); await authorize(); signal?.throwIfAborted();
@@ -123,16 +152,8 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
     if (libraryReadHash(context) !== receipt.sourceHash || libraryReadHash(context.sources) !== libraryReadHash(receipt.sources)
       || libraryReadHash(context.authorization) !== libraryReadHash(receipt.authorization)
       || libraryReadHash(context.extraction) !== libraryReadHash(receipt.extraction)) throw Error('Cached inquiry source, extraction or receiver changed.');
-    const assertArtifactCurrent = ref => {
-      if (Object.keys(ref).some(k => !['name', 'artifactId', 'version', 'sha256', 'duplicate'].includes(k)) || typeof ref.duplicate !== 'boolean')
-        throw Error('Cached inquiry artifact reference contains unvalidated content.');
-      const record = artifacts.get(ref.artifactId).artifact, meta = record.metadata?.factoryInquiry;
-      if (record.sourceConversationId !== conversationId || record.currentVersion !== ref.version || record.sha256 !== ref.sha256 || record.filename !== ref.name
-        || !meta || Object.entries(flags).some(([key, value]) => meta[key] !== value) || meta.sourceHash !== receipt.sourceHash
-        || meta.batchHash !== receipt.batchHash || libraryReadHash(meta.sources) !== libraryReadHash(context.sources)) throw Error('Cached inquiry artifact scope changed.');
-    };
     for (const ref of receipt.artifacts) {
-      assertArtifactCurrent(ref);
+      assertArtifactCurrent(receipt, ref);
       const file = await artifacts.download(ref.artifactId, { version: ref.version }); if (file.version.sha256 !== ref.sha256) throw Error('Cached inquiry artifact bytes changed.');
     }
     // Download and authorization await original services. Re-read the exact
@@ -142,7 +163,7 @@ export function createFactoryInquiryClient({ materialsClient, artifacts, store, 
     if (libraryReadHash(finalContext) !== receipt.sourceHash) throw Error('Cached inquiry source changed during artifact read.');
     signal?.throwIfAborted(); await authorize(); signal?.throwIfAborted();
     assertSourcesCurrent(store.read(), finalContext);
-    for (const ref of receipt.artifacts) assertArtifactCurrent(ref);
+    for (const ref of receipt.artifacts) assertArtifactCurrent(receipt, ref);
   }
-  return Object.freeze({ save, revalidateReceipt });
+  return Object.freeze({ save, revalidateReceipt, assertCurrentSnapshots });
 }
