@@ -1,0 +1,118 @@
+{
+  "schema": "workspace.context-final-source-acceptance-summary.v1",
+  "recordedAt": "2026-10-17T04:23:05.369992+00:00",
+  "sourceCommit": "374b0c1e61e61c3076759702ccb1169a830b58da",
+  "reproducedBaseline": "75cc3af6656ffdc81f11385eb609c92cc21f4b68",
+  "branch": "codex/omp-all-plugins-integration-20261017",
+  "draftPR": 99,
+  "runtime": {
+    "node": "24.19.0",
+    "bun": "1.3.14",
+    "omp": "18.10.4"
+  },
+  "environmentPrefix": "env -i PATH=\"$PATH\" HOME=/tmp NO_COLOR=1",
+  "productionChange": "Five added lines in revalidatePriorContext: existing assertCurrent on historical dependencies after final Artifact read/gate, then cancellation check.",
+  "exactContextArtifactVersions": [
+    2,
+    2,
+    1,
+    2
+  ],
+  "beforeFix": [
+    {
+      "localLog": "brain-context-real-store-before-fix.tap",
+      "command": "node --test test/goal-brain-context-real-store-race.test.mjs",
+      "sha256": "d265de053494f762704bcb065c962fd5b4e3eeb377f96b433eb014c0163324ee",
+      "tests": 4,
+      "pass": 1,
+      "fail": 3,
+      "cancelled": 0,
+      "skipped": 0,
+      "scope": "Four race scenarios registered at reproduction time; normal context/decision continuation positive added afterwards."
+    },
+    {
+      "localLog": "brain-context-sdk-before-fix.tap",
+      "command": "node --test test/workspace-omp-context-final-read.test.mjs",
+      "sha256": "5fc8830fe7e228ba0ef1d4ba89a8412014bd5c1699e0481992cc13fa690a0a7d",
+      "tests": 4,
+      "pass": 1,
+      "fail": 3,
+      "cancelled": 0,
+      "skipped": 0,
+      "scope": "Four race scenarios registered at reproduction time; normal context/decision continuation positive added afterwards."
+    }
+  ],
+  "finiteSseFetchesBefore": {
+    "control": 1,
+    "version": 1,
+    "revoke": 1,
+    "delete": 1
+  },
+  "finiteSseFetchesAfter": {
+    "control": 1,
+    "version": 0,
+    "revoke": 0,
+    "delete": 0
+  },
+  "groupsOverlap": true,
+  "finalGroups": [
+    {
+      "localLog": "brain-context-source-final.tap",
+      "command": "node --test test/goal-brain*.test.mjs test/business-brain*.test.mjs test/business-signals.test.mjs test/decision-planner.test.mjs",
+      "sha256": "839eee7dd87c8672386ff6aa93fedd5a1c064ac0b53f734293a745e503295ad8",
+      "tests": 185,
+      "pass": 185,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "brain-context-sdk-final.tap",
+      "command": "node --test test/workspace-omp-context-final-read.test.mjs",
+      "sha256": "e73aa9f56e47386d8a61a7cf804fbdb7a976bf5d9feb119f1442374667b4b944",
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "localLog": "brain-context-host-regression-final.tap",
+      "command": "node --test test/workspace-omp-business-integration.test.mjs test/workspace-omp-brain-decision.test.mjs",
+      "sha256": "73be8fc21125e6cecd15cd77247b00b9735cde596cc84d37bdb43d97f591a626",
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "buildChecks": [
+    {
+      "localLog": "brain-context-pack-final.log",
+      "command": "npm run plugins:pack-check",
+      "sha256": "0733dce885174b81fa2c0f72469e44452ecd91c56d3952b2ab2bd5c519bc5e20",
+      "status": "passed",
+      "plugins": 14
+    },
+    {
+      "localLog": "brain-context-build-omp-final.log",
+      "command": "npm run build:omp",
+      "sha256": "2e4240aabf18980ecfd5e14e1bc917d65b21caa9b5d3f68be720a245d5d5e054",
+      "status": "passed",
+      "plugins": 14
+    }
+  ],
+  "fixtureBoundaries": {
+    "actual": "Original signed Host, Store, Library, Artifact, Access and official SDK in relevant integration tests.",
+    "sourceWithdrawal": "Explicit synthetic withdrawal from trusted Library projection selection; original Session remains live. No external FGA or real grant mutation.",
+    "sourceDeletion": "Original Store.update fault injection with durable disk verification; no production product-delete API is claimed.",
+    "model": "Finite SSE stand-in; no real external model requests.",
+    "journal": "Original prefix/receipts retained; SDK may append its own records, validator does not rewrite history."
+  },
+  "realExternalModelRequests": 0,
+  "realExternalBusinessRequests": 0,
+  "mem0Vector": "disabled",
+  "remaining": "Marketplace, cross-context decision migration and previous real-service/browser/deployment acceptance gaps unchanged. Prior reported Actions startup_failure not independently rechecked.",
+  "evidenceScope": "Sanitized development-test metadata only; runtime logs/temporary stores and bodies remain ignored locally."
+}

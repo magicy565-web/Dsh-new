@@ -6,6 +6,8 @@
 
 后续开发：Brain decision 在同一精确 context 版本下的连续保存、精确重试、未知写入状态及原 Host/实际 SDK 权限验证见 [本轮增量报告](OMP-BRAIN-DECISION-INTEGRATION-20261017.md)。这不扩展下述第一轮真实服务与 Marketplace 状态。
 
+旧 context 的最终历史来源复核竞态已准确复现并最小修复，见 [本轮安全修复报告](OMP-CONTEXT-FINAL-SOURCE-CHECK-20261017.md)，包含真实 Store/Host、实际 SDK 发送前注入和零发送证据。
+
 ## 源码来源与选择
 
 | 来源 | 当前处理 |
