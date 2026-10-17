@@ -2,7 +2,7 @@
 // Native emailpass API, no credential env/argv/file, no cleanup/delete/retries.
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
-import { Writable } from 'node:stream';
+import { PassThrough, Writable } from 'node:stream';
 
 export function loopbackOrigin(value) {
   let url; try { url = new URL(value); } catch { throw Error('LOOPBACK_ORIGIN_REQUIRED'); }
@@ -114,28 +114,34 @@ async function main() {
     || !process.stdin.isTTY || !process.stdout.isTTY) throw Error('PRIVATE_INTERACTIVE_TERMINAL_REQUIRED');
   const baseUrl = loopbackOrigin(args[2] || 'http://127.0.0.1:9000');
   const abort = new AbortController();
-  // A single native readline interface keeps raw input/no echo between both prompts.
-  // No history, subprocess, cookie jar or file. Both email and password are hidden.
+  // Own the real TTY raw mode until explicit completion. Readline receives a
+  // standard stream, so its Ctrl+D/close cannot restore ECHO behind our back.
+  const wasRaw = process.stdin.isRaw;
+  process.stdin.setRawMode(true);
+  const lines = new PassThrough();
   const muted = new Writable({write(_chunk,_encoding,done){done();}});
-  const input = createInterface({input:process.stdin,output:muted,terminal:true,historySize:0,crlfDelay:Infinity});
-  let email, password, phase = 0, inputFailure, resolveInput, rejectInput, finishing = false;
+  const input = createInterface({input:lines,output:muted,terminal:true,historySize:0,crlfDelay:Infinity});
+  let email, password, phase = 0, inputFailure, resolveInput, rejectInput;
+  let discarding = false, finishInput;
   const ready = new Promise((resolve,reject) => {resolveInput=resolve;rejectInput=reject;});
-  const closeInput = () => {
-    // A disconnected TTY can refuse raw-mode restoration. Keep that local
-    // input failure from replacing the fixed refusal report with an exception.
-    try {input.close();} catch {process.stdin.pause();}
-  };
+  const finished = new Promise(resolve => {finishInput=resolve;});
   const refuse = kind => {
-    inputFailure ??= kind; abort.abort(); rejectInput(Error(kind)); closeInput();
+    inputFailure ??= kind; abort.abort(); rejectInput(Error(kind)); input.close();
   };
   const cancel = () => refuse('INPUT_CANCELLED');
-  // Infinity handles a delayed adjacent CRLF. Native terminal readline resets its
-  // CR bookkeeping after other keys: a later LF could submit a partial password.
-  // That mixed sequence is ambiguous, so refuse locally instead of authenticating.
-  // Keep only delimiter flags, never an input trace or credential diagnostics.
+  const terminate = () => {if (discarding) finishInput(); else cancel();};
+  // Infinity handles delayed adjacent CRLF. Intervening keys make a later LF
+  // ambiguous in terminal readline; refuse rather than submit a partial secret.
+  // Only delimiter flags are kept, never input content, lengths or traces.
   let unpairedReturn = false, textAfterReturn = false;
-  const guardNewlines = chunk => {
-    if (phase === 2 || inputFailure) return;
+  const receive = chunk => {
+    if (discarding || phase === 2) {
+      // Every byte in this chunk is consumed, including any bytes after Ctrl+C.
+      // This is an explicit boundary, not a claim that future input cannot arrive.
+      if (chunk.includes(typeof chunk === 'string' ? '\x03' : 3)) terminate();
+      return;
+    }
+    if (inputFailure) return;
     for (let i=0;i<chunk.length;i++) {
       const code = typeof chunk === 'string' ? chunk.charCodeAt(i) : chunk[i];
       if (code === 13) {unpairedReturn=true;textAfterReturn=false;}
@@ -144,10 +150,9 @@ async function main() {
         unpairedReturn=false;
       } else if (unpairedReturn) textAfterReturn=true;
     }
+    lines.write(chunk);
   };
-  process.stdin.prependListener('data',guardNewlines);
-  // Consume line events continuously. question() loses a second pasted line
-  // before the next awaited question installs its callback.
+  // Consume lines synchronously so two pasted lines cannot fall between awaits.
   input.on('line',value => {
     if (inputFailure) return;
     if (phase === 0) {email=value;phase=1;process.stdout.write('\nAdmin password (hidden): ');}
@@ -155,23 +160,46 @@ async function main() {
     else refuse('INPUT_REFUSED');
   });
   input.on('SIGINT',cancel);
-  // EOF may emit an unfinished line before close. Refuse that line too, even
-  // if it just resolved ready; the caller checks inputFailure before any HTTP.
-  input.on('close',() => {if (!finishing && !inputFailure) refuse('INPUT_REFUSED');});
+  input.on('close',() => {if (!discarding && !inputFailure) refuse('INPUT_REFUSED');});
   input.on('error',() => refuse('INPUT_REFUSED'));
-  process.once('SIGTERM',cancel);
+  const eof = () => {if (!discarding) refuse('INPUT_REFUSED');};
+  process.stdin.on('data',receive);
+  process.stdin.on('end',eof);
+  process.stdin.on('error',eof);
+  process.on('SIGINT',terminate);
+  process.on('SIGTERM',terminate);
+  process.stdin.resume();
+  let report;
   try {
     process.stdout.write('Manual acceptance: one synthetic draft will remain. No deletion. Use a private terminal.\n');
     process.stdout.write('Admin email (hidden): ');
     await ready;
     if (inputFailure) throw Error(inputFailure);
-    const report = await retainedProductCheck({baseUrl,email,password,signal:abort.signal});
-    process.stdout.write(JSON.stringify(report,null,2) + '\n'); process.exitCode = report.ok ? 0 : report.status === 'input_refused' ? 2 : 1;
-  } catch (error) {
-    if (!inputFailure) throw error;
-    process.stdout.write(JSON.stringify(inputRefusal(inputFailure === 'INPUT_CANCELLED'),null,2) + '\n');process.exitCode=2;
+    report = await retainedProductCheck({baseUrl,email,password,signal:abort.signal});
+  } catch {
+    report = inputRefusal(inputFailure === 'INPUT_CANCELLED');
   } finally {
-    email=null;password=null;finishing=true;closeInput();process.stdin.removeListener('data',guardNewlines);process.removeListener('SIGTERM',cancel);
+    email=null;password=null;discarding=true;input.close();lines.destroy();
+  }
+  process.exitCode = report.ok ? 0 : report.status === 'input_refused' || report.failure?.stage === 'input' ? 2 : 1;
+  process.stdout.write(JSON.stringify(report,null,2) + '\n');
+  if (!report.ok) process.stdout.write('INPUT_DISCARD_ACTIVE. Input remains hidden and is discarded. Stop all queued/pasted input, then press Ctrl+C to finish. If input is disconnected, send SIGINT or SIGTERM. Anything arriving after explicit termination belongs to your terminal.\n');
+  // A ref keeps even a disconnected input alive until an explicit signal. This
+  // never decides that a queue is empty and never ends discard after a timeout.
+  // Success is the separate, natural completion boundary; no extra prompt.
+  const keepAlive = report.ok ? undefined : setInterval(() => {}, 60000);
+  try {if (!report.ok) await finished;} finally {
+    clearInterval(keepAlive);
+    process.stdin.removeListener('data',receive);
+    process.stdin.removeListener('end',eof);
+    process.stdin.removeListener('error',eof);
+    process.removeListener('SIGINT',terminate);
+    process.removeListener('SIGTERM',terminate);
+    // Drop currently available bytes as well; there is no promise about bytes
+    // generated after the user's explicit termination boundary.
+    while (process.stdin.read() !== null) {}
+    process.stdin.pause();
+    try {process.stdin.setRawMode(wasRaw);} catch {}
   }
 }
 if (process.argv[1] === import.meta.filename) main().catch(() => {
