@@ -1,5 +1,7 @@
 # 一句话发起本地 OMP Agent 会话
 
+2026-10-17 新增现场结果：固定 `95b0a2f` 源码的官方 DeepSeek-flash 无工具两轮，以及显式两份合成资料的原 factory CLI 读取、保存、同 Session 续稿已通过；见[原生真实模型与本地资料两轮验收](OMP-NATIVE-LOCAL-LIVE-ACCEPTANCE-20261017.md)。这是指定版本的本地文件链，不代表 PR99 最新 HEAD、Web 或 enterprise-context/Brain 的真实模型链已部署验收。下文早期费用和失败记录保留其历史口径。
+
 将一句目标放在命令末尾即可。默认使用所选输出目录的 `factory-session.jsonl`，通过原生 OMP `SessionManager.open` 创建／继续会话；`--session FILE.jsonl` 可选其他私有路径，`--task "目标"` 写法仍兼容。模型可按需选 `read`、工厂字段工具和 `write`，可以先追问，不预设步骤或每轮文件。每条命令只提交一个目标然后退出；下一条命令保持同一资料、目录和模型，换一句目标即可继续。没有新增循环、会话数据库或旧 Host 依赖。
 
 本集成分支应在仓库根目录使用 npm 入口；输入文件和输出目录必须已经存在，Session 放在用户选定的私有路径。下面的预检不调用模型，也不创建 Session 文件：
