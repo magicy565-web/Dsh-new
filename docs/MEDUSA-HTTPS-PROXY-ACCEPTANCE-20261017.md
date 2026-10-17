@@ -1,8 +1,9 @@
 # Medusa HTTPS proxy header verification
 
 Source baseline: `ab3302ed25c2363418aad0a808b6dd6b5140ff42`.
-Date: 2026-10-17. This records offline and isolated nginx verification only.
-Live Caddy TLS, certificate, browser and authenticated login acceptance are separate and were pending when this note was written.
+Date: 2026-10-17. Offline/isolated verification was followed by the separately
+authorized UI-only HTTPS acceptance below. Authenticated interaction was reported
+by the user on their own device and was not independently verified here.
 
 ## Scope and trust boundary
 
@@ -25,7 +26,7 @@ The peer was observed, not inferred: a held host TCP connection to
 `127.0.0.1:4173` appeared in the UI container's `/proc/net/tcp` as remote
 `172.21.0.1`, with the container at `172.21.0.2:8080`. This is a host-loopback
 trust boundary, **not a Caddy-process identity**. Other host processes can use
-the same tuple. Verify the actual Caddy connection peer after enabling it, and
+the same tuple. The actual Caddy connection peer was subsequently verified below;
 revalidate after Docker network recreation. No broad private-network trust is added.
 
 ## Source hashes
@@ -94,6 +95,45 @@ assertions passed. The 521-byte log SHA256 is
 `dd47242be2446beb1da3754e9d3a15137cda0429af5ad10e0b0735308f751a03`.
 Raw logs and runtime files are retained outside this source repository.
 
+## Authorized live HTTPS acceptance
+
+Completed on 2026-10-17 at 21:01 UTC. Only the exact nginx patch from source commit
+`21f8446a27c8b2410d92db232e77f9366d524b13` was applied, followed by the existing
+UI-only image rebuild/replacement. This does not represent deployment of the
+whole development branch or its native fact/transport work.
+
+- Official Medusa Admin 2.21.2: normally validated public HTTPS rendered the styled
+  blank login page at `https://medusa.cnsubscribe.xyz/dashboard/login`.
+- Official Caddy 2.11.7 used one Let's Encrypt issuer for that single hostname.
+  The certificate's sole DNS SAN was `medusa.cnsubscribe.xyz`; issuer intermediate
+  YE2. Validity was 2026-10-17 19:58:58 GMT through 2027-01-15 19:58:57 GMT.
+  Normal certificate validation and TLS 1.3 succeeded without bypassing a warning.
+- HTTPS login returned 200; HTTP returned 308 to the exact HTTPS URL. Official
+  main JS/CSS each returned 200. Unauthenticated `/admin/users/me` returned 401.
+  A separate cloud-browser visit verified public reachability, in addition to
+  the hostname-validating server probe. No credential or session token was used.
+- Actual Caddy host-loopback connection and corresponding UI-container established
+  connection were correlated; the observed UI-side peer was `172.21.0.1`, matching
+  the exact reviewed map. This confirms the route, not exclusive Caddy identity.
+- API, PostgreSQL, Redis, Docling and Docling ingress container identity/image/start
+  time were unchanged. API configuration, dependency locks, compose and Dockerfiles
+  retained their pre-change hashes. No API restart or database migration occurred.
+  Existing API/CORS/secure-cookie settings were retained.
+- Caddy's persistent service was active. Only TCP 80/443 listeners were introduced;
+  existing security-group rules already admitted them. There was no firewall,
+  security-group, DNS, root-domain or other-port change. HTTP/3 was not enabled.
+
+At 21:01 UTC the user reported successful login on their own device. At 21:02 UTC,
+the separate cloud browser still showed the login page. That feedback is recorded
+as user confirmation only; this acceptance did not inspect an authenticated Admin
+session, input value or cookie. A future certificate renewal and reboot were not
+exercised. This does not establish deployment of the unified Workspace frontend.
+
+The complete local handover report was 9,454 bytes, SHA256
+`27cb2868b912a97cbe07e23fd0f7e37ffa4e565ebaa12f8c61dec481bb5d5fe2`.
+It is retained separately. No runtime paths, recovery identifiers, raw logs,
+private configuration, certificates/keys or screenshots are included here.
+
 ## References and remaining checks
 
 - [nginx map semantics](https://nginx.org/en/docs/http/ngx_http_map_module.html)
@@ -101,6 +141,6 @@ Raw logs and runtime files are retained outside this source repository.
 - [Medusa v2.21.2 original Express/session settings](https://github.com/medusajs/medusa/blob/v2.21.2/packages/core/framework/src/http/express-loader.ts)
 - [Express CORS behavior](https://expressjs.com/en/resources/middleware/cors/)
 
-Live deployment requires the separately approved UI-only operation. The running API
-must not be rebuilt or restarted by this patch. Actual Caddy peer, certificate and
-HTTPS rendering remain live acceptance work; this note does not claim login passed.
+The completed operation was UI-only. Authenticated Admin workflows, future renewal
+and reboot behavior remain separate checks; the running API was not rebuilt or
+restarted by this patch.
