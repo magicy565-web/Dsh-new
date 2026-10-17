@@ -2,6 +2,8 @@
 
 从 `cba32b2458e60dc7b75d9a4ea8b03a3803b1651e` 继续，同一开发分支及 Draft PR99。整合源码提交 `628fed31763d51d38ea5272a3267b0029efd8dcd`；原 requestId 规范化回执跟进提交 `99e64bb1004f94131cdfb140d582c1e7a18544f9`。复用 PR83 原 Marketplace 插件、原 mount/服务、原 WorkerDesk 和原 Store。本轮范围是 **同一当前快照下的公开发现、内部未确认草稿、原买方拥有订单/任务的状态字段**；不扩展私有交付正文或商业执行。
 
+后续受控继续已复用原 SDK 同 Session 清空操作，见 [新增量报告](OMP-BUSINESS-CONTEXT-RESET-20261017.md)。下述是此前最小桥及其检查点证据；未变成自动 proof/快照迁移。
+
 ## 接入与权威
 
 `mountMarketplace(app, options)` 仍在原 enterprise Host listen 前挂载。新增可选的同步 `readReviewedScope(context)` 将已有 Host 的审核结论接入模型投影；缺失/撤回返回 null，工具明确 unconfigured。其返回值契约见 [插件说明](../plugins/workspace-marketplace/README.md)。没有创建权限数据库、grant API、新角色、预算系统、队列或 AgentLoop；没有生产配置文件或真实凭据创建。
