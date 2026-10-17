@@ -1,4 +1,4 @@
-// Actual npm start, original enterprise login/CSRF, disk Host and OMP SDK.
+// Explicit legacy HTTP entry, original enterprise login/CSRF, disk Host and OMP SDK.
 // All identity configuration, task records and model replies are synthetic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,7 +18,7 @@ async function freePort() {
   const port=server.address().port;await new Promise(resolve=>server.close(resolve));return port;
 }
 
-test('actual npm start loads Session reads: signed login -> OMP tools -> saved result; absent binding/logout/rotation refuse', { timeout:60000 }, async t => {
+test('explicit legacy HTTP entry loads Session reads: signed login -> OMP tools -> saved result; absent binding/logout/rotation refuse', { timeout:60000 }, async t => {
   assert.equal(await fs.stat(repository+'/.env').then(()=>true).catch(()=>false),false,'Do not read a user dotenv file in the synthetic startup fixture.');
   const directory=await fs.mkdtemp('/tmp/omp-session-npm-start-'),port=await freePort(),data=directory+'/original';
   const keys=generateKeyPairSync('ed25519');
@@ -34,7 +34,9 @@ test('actual npm start loads Session reads: signed login -> OMP tools -> saved r
     result:{state:'completed',completion:'documents_ready',businessGoalAchieved:false},
     deliverables:[{name:'synthetic.md',content,bytes:Buffer.byteLength(content),sha256:sha(content),url:'/api/agent/v1/tasks/'+id+'/artifacts/synthetic.md'}]}))};}); }
   finally {await store.close();}
-  const child=spawn('npm',['start'],{cwd:repository,detached:true,stdio:['ignore','pipe','pipe'],env:{
+  // npm start belongs to the native TTY. HTTP Host regression must opt in to
+  // the existing legacy entry; do not change the default entry to satisfy it.
+  const child=spawn('npm',['run','legacy:workspace'],{cwd:repository,detached:true,stdio:['ignore','pipe','pipe'],env:{
     PATH:process.env.PATH,HOME:directory,TMPDIR:directory,NO_COLOR:'1',NPM_CONFIG_UPDATE_NOTIFIER:'false',PORT:String(port),WORKSPACE_DATA_DIR:data,
     NODE_OPTIONS:'--import '+repository+'/test/fixtures/omp-session-startup-model-preload.mjs',
     WORKSPACE_ACCESS_MODE:'enterprise',WORKSPACE_PUBLIC_ORIGIN:access.publicOrigin,WORKSPACE_ID:access.workspaceId,
@@ -51,7 +53,7 @@ test('actual npm start loads Session reads: signed login -> OMP tools -> saved r
     await exited;await fs.rm(directory,{recursive:true,force:true});
   });
   for(let i=0;i<250&&!output.includes('Workspace server:');i++){if(child.exitCode!==null)throw Error(output);await new Promise(resolve=>setTimeout(resolve,40));}
-  assert.match(output,/Workspace server:/);assert.match(output,/workspace-omp\.mjs --serve/);
+  assert.match(output,/Workspace server:/);assert.match(output,/scripts\/workspace-omp-legacy\.mjs/);
   const base='http://127.0.0.1:'+port,sessions=new Map();
   async function signed(subject,target,body,login=false){
     const method=body===undefined?'GET':'POST';
