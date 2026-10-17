@@ -1,4 +1,5 @@
 import { digest, fail, safeJson } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
+import { productSupplyMissing } from './brain-product-completeness.mjs';
 
 const DAY = 24 * 60 * 60 * 1000;
 const INQUIRY_WINDOW_DAYS = 30;
@@ -68,18 +69,17 @@ function snapshot(state, workspaceId, clock) {
   const activeProducts = products.filter(product => product?.status !== 'archived');
   const archivedProducts = products.length - activeProducts.length;
   const incomplete = activeProducts.filter(product => {
-    const supply = product?.supply || {};
     return !String(product?.description || '').trim()
       || !String(product?.category || '').trim()
       || !Array.isArray(product?.skus) || product.skus.length === 0
       || !Array.isArray(product?.images) || product.images.length === 0
       || !Array.isArray(product?.documents) || product.documents.length === 0
-      || Object.values(supply).some(value => !String(value || '').trim());
+      || productSupplyMissing(product);
   });
   const missingImages = activeProducts.filter(product => !Array.isArray(product?.images) || product.images.length === 0).length;
   const missingSkus = activeProducts.filter(product => !Array.isArray(product?.skus) || product.skus.length === 0).length;
   const missingDocuments = activeProducts.filter(product => !Array.isArray(product?.documents) || product.documents.length === 0).length;
-  const missingSupply = activeProducts.filter(product => Object.values(product?.supply || {}).some(value => !String(value || '').trim())).length;
+  const missingSupply = activeProducts.filter(productSupplyMissing).length;
 
   const pipeline = {
     metricType: 'inquiry-pipeline-v1',

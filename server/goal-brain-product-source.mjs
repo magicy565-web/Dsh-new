@@ -1,16 +1,10 @@
 import { clone, digest, fail } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
+import { productSupplyMissing as supplyMissing } from './brain-product-completeness.mjs';
 
 const PREFIX = 'product-completeness:';
 const FIELDS = ['metricType','asOf','total','active','complete','incomplete','archived','missingImages','missingSkus','missingDocuments','missingSupply'];
-const SUPPLY_FIELDS = ['packaging','samplePolicy','paymentTerms','shippingTerms','capacityNote'];
 
 function text(value) { return typeof value === 'string' && value.trim().length > 0; }
-function publicReference(product) { return product?.source?.kind === 'public_reference'; }
-function supplyMissing(product) {
-  if (publicReference(product)) return false;
-  const supply = product?.supply || {};
-  return SUPPLY_FIELDS.some(key => !text(supply[key]));
-}
 function productIncomplete(product) {
   return !text(product?.name) || !text(product?.description) || !text(product?.category)
     || !Array.isArray(product?.skus) || product.skus.length === 0
