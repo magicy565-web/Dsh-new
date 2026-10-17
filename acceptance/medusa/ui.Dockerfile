@@ -25,7 +25,7 @@ RUN JWT_SECRET=build-only-not-a-service-secret COOKIE_SECRET=build-only-not-a-se
  && test -s apps/medusa-acceptance/.medusa/admin/index.html
 
 FROM nginxinc/nginx-unprivileged:1.28-alpine@sha256:7377697a821c131a924a7105fafbe7414db4e9fcc77a6f08f776f33f141ec3f8
-COPY acceptance/medusa/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=0644 acceptance/medusa/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /source/apps/medusa-acceptance/.medusa/admin/ /usr/share/nginx/html/dashboard/
 USER 101
 EXPOSE 8080
