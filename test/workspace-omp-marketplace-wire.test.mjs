@@ -32,10 +32,10 @@ for(const mode of modes)test('Marketplace original active Run/SDK egress '+mode,
   try{
    await new Promise(resolve=>proxy.listen(0,'127.0.0.1',resolve));const input=f.directory+'/marketplace-wire-input.json';await fs.writeFile(input,JSON.stringify({savedSession:args.savedSession,cwd:args.isolationDirectory,model:args.binding.model,runId:args.run.id,orderId:f.privateOrder.id}));
    const child=spawn(workspaceOmpPaths({}).bun,['test/fixtures/marketplace-native-wire.mjs',mode,'http://127.0.0.1:'+proxy.address().port,input],{env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'}});let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);const timer=setTimeout(()=>child.kill(),28000);const status=await new Promise(resolve=>child.on('exit',resolve));clearTimeout(timer);assert.equal(status,0,output+'\nHost errors: '+JSON.stringify(errors));
-   receipt=JSON.parse(output.trim().split('\n').at(-1));assert.equal(mutations,mode.startsWith('hook-')||mode.startsWith('text-')?1:0);
+   receipt=JSON.parse(output.trim().split('\n').at(-1));receipt.hostRefusalCodes=[...new Set(errors)];if(mode==='forged')assert.deepEqual(receipt.hostRefusalCodes,['MARKETPLACE_SOURCE_CHANGED'],'The original Host must reject the forged receipt');assert.equal(mutations,mode.startsWith('hook-')||mode.startsWith('text-')?1:0);
    if(receipt.result){await args.authorize();await revalidateBusinessJournal((await journal(f)).map(e=>e.message),{marketplaceClient:args.marketplaceClient,model:args.binding.model,signal:args.input.signal});return receipt.result;}
-   throw Error('EXPECTED_SYNTHETIC_MODEL_DISCLOSURE_REFUSED');
-  }catch(error){if(!receipt)wireFailure=error;throw error;}
+   throw Object.assign(Error('EXPECTED_SYNTHETIC_MODEL_DISCLOSURE_REFUSED'),{code:'MARKETPLACE_PROBE_EXPECTED_REFUSAL'});
+  }catch(error){if(error.code!=='MARKETPLACE_PROBE_EXPECTED_REFUSAL')wireFailure=error;throw error;}
   finally{proxy.closeAllConnections();await new Promise(resolve=>proxy.close(resolve));done.resolve();}
  }});
  f=await nativeMarketplace(t,{wrapEngineAdapter});f.privateOrder=await f.marketplace.createOrder({kind:'buyer',...f.actor,human:true},{...f.proposal,objective:'UNSELECTED_PRIVATE_ORDER_BODY',requestId:'private-status-fixture'});
