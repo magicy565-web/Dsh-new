@@ -1,6 +1,6 @@
 # Enterprise context through the original Workspace Host
 
-Private `@workspace-agent/pi-enterprise-context` 0.2.3. Selectively received PR87 repair `13cccff0df703e6471329cd0e1815aee3f6179a9` onto PR89 `cbbad133049747e3d28720ba885b3613eb7f5a34`. Canonical package: `plugins/workspace-enterprise-context`, with its adapter code inside the same package for standalone loading/packing. No older Host files or PR79 baseline were copied.
+Private `@workspace-agent/pi-enterprise-context` 0.2.4. Selectively received PR87 repair `13cccff0df703e6471329cd0e1815aee3f6179a9` onto PR89 `cbbad133049747e3d28720ba885b3613eb7f5a34`. Canonical package: `plugins/workspace-enterprise-context`, with its adapter code inside the same package for standalone loading/packing. No older Host files or PR79 baseline were copied.
 
 Workspace Library remains the authority for company/product/documents, current versions, SHA and human reviews. ERPNext exact-record reads stay in `workspace-free-trade`; this package adds no ERP client. Mem0 is disabled in this Host for search, add and history. No vector stack, account, database, permission store, approval service, scheduler or Agent Loop is added.
 
@@ -75,3 +75,5 @@ Still unverified: real Docling deployment/version/format compatibility and produ
 Structured memory is integrated from PR87 `81339dff` into this existing native Host, not its old Host or package layout. New `memory` proofs bind query, input statement, complete returned record/revision/source footprint, scope and native Session under a separate Node HMAC domain. Existing parse proof domain and format are preserved. Legacy unsigned memory history cannot be upgraded; current model projections refresh without rewriting original journal observations. Final SDK fetch authorization checks the complete raw history, projected context and actual serialized body after asynchronous body reading. Only actual dispatch increments the model counter; local refusal aborts SDK retries.
 
 Use `test/workspace-omp-structured-memory.test.mjs` for real signed Host/Store/Library/native-worker four-Run receipts and `test/enterprise-context-unified-egress.test.mjs` for actual SDK transport with an in-process mock fetch. The latter uses real openStore and original Host but explicitly synthetic identity/Library authority and bytes. Neither calls a real model or enterprise service.
+
+The trusted `medusa-enterprise-readonly-v1` Host composition exposes only status and exact parse tools from this package. Its profile selects discovery only; original signed Session, Library source pins and explicit complete-file parser-transfer authorization remain required. It exposes no Mem0 or structured-memory write tools and cannot migrate earlier profile history.

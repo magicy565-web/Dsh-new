@@ -46,6 +46,6 @@ export async function registerNativeContext(pi,host,factory){
   const proof=result.details?.authorization;if(proof&&!result.isError){await control.check(proof,host.signal,host.getModel());addProof(proof);record();}
   await host.authorize();return result;
  }});
- factory({client:control,enabledMethods:['status','memorySearch','memoryAdd','memoryHistory','parseUpload',...(binding.memoryMethods||[])],authorize:async(signal,model)=>{await control.authorizeContext(signal,model);return true;}})({registerTool:register});
+ factory({client:control,enabledMethods:host.medusaEnterprise?['status','parseUpload']:['status','memorySearch','memoryAdd','memoryHistory','parseUpload',...(binding.memoryMethods||[])],authorize:async(signal,model)=>{await control.authorizeContext(signal,model);return true;}})({registerTool:register});
  pi.on('context',async event=>{await history(event.messages,true);await guard();});
 }

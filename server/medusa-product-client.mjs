@@ -70,5 +70,15 @@ export function createMedusaProductClient({ materialsClient, medusaCatalog, iden
       fail('MEDUSA_SOURCE_CHANGED', 409);
     return fresh;
   }
-  return Object.freeze({ status, preview, reconcile, refresh });
+  // Final synchronous fence after the original asynchronous Host checks.
+  function assertDisclosureCurrent(receipt, signal) {
+    live(signal);
+    if(receipt===null)return;
+    if(receipt?.plugin!==PLUGIN||!['status','preview','reconcile'].includes(receipt.method))fail('MEDUSA_SOURCE_CHANGED');
+    if(receipt.method!=='status'){
+      const {preview:current}=medusaCatalog.preview(receipt.input.productId,identity);
+      if(current.sourceHash!==receipt.sourceHash||current.revision!==receipt.view?.preview?.revision)fail('MEDUSA_SOURCE_CHANGED');
+    }
+  }
+  return Object.freeze({ status, preview, reconcile, refresh, assertDisclosureCurrent });
 }

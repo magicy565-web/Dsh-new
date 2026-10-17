@@ -90,13 +90,17 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
       }), assertCurrent };
     },
     // Synchronous original-policy fence for an in-process source-backed commit.
-    factoryMaterialsAuthorityForSession({ identity, recipientHash, signal }) {
+    factoryMaterialsAuthorityForSession({ identity, recipientHash, signal, revalidateProducts = false }) {
       if (!scope?.factoryMaterials) fail(403, 'FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED', 'Original materials selection required.');
       return () => {
         signal?.throwIfAborted(); const live = access.nativeSessionById(identity?.sessionId);
         if (!live || live.subject !== identity.subject || live.workspaceId !== identity.workspaceId || live.role !== identity.role)
           fail(403, 'LIBRARY_SESSION_SCOPE_REQUIRED', 'Original live Session required.');
         authorize({ ...live, session: live }, recipientHash, true);
+        if(revalidateProducts)for(const pin of scope.factoryMaterials.products){
+          const product=library.getProduct(pin.id).product;
+          if(product.revision!==pin.revision||product.status==='archived')fail(403,'FACTORY_MATERIAL_SOURCE_CHANGED','The original pinned product source changed.');
+        }
       };
     },
     // Server-private projection of the SAME reviewed Library policy. No HTTP

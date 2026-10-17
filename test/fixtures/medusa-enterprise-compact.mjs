@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import {loadWorkspaceOmpSdk} from '../../server/workspace-omp-session.mjs';
+import {workspaceOmpPaths} from '../../server/workspace-omp-runtime.mjs';
+globalThis.fetch=async()=>{throw Error('SYNTHETIC_COMPACTION_NETWORK_FORBIDDEN');};
+const file=process.argv[2];assert.ok(file?.startsWith('/tmp/medusa-enterprise-')&&file.endsWith('.jsonl'));
+const sdk=await loadWorkspaceOmpSdk(workspaceOmpPaths({}).packageRoot),manager=await sdk.SessionManager.open(file,path.dirname(file),undefined,{throwIfMissing:true});
+const rows=manager.getBranch(),last=rows.filter(e=>e.type==='message').at(-1),id=manager.getSessionId();
+const medusa=rows.find(e=>e.message?.toolName==='workspace_medusa_preview').message.details;
+const enterprise=rows.find(e=>e.message?.toolName==='workspace_enterprise_context_parse_upload').message.details;
+manager.appendCompaction('SYNTHETIC_BOTH_SOURCE_SUMMARY '+medusa.view.preview.title+' '+enterprise.text,undefined,last.id,100,{fromExtension:true});await manager.flush();
+assert.equal(manager.buildSessionContext().messages.some(m=>m.role==='toolResult'),false);assert.equal(manager.getSessionId(),id);
+console.log(JSON.stringify({sameNativeSessionId:true,compacted:true,modelRequests:0}));

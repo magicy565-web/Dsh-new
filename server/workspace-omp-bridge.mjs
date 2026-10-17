@@ -1,3 +1,4 @@
+import {MEDUSA_ENTERPRISE_SCOPE,revalidateMedusaEnterpriseJournal,assertMedusaEnterpriseDisclosure} from './workspace-omp-medusa-enterprise.mjs';
 import { workspaceOmpPaths, checkWorkspaceOmpPaths } from './workspace-omp-runtime.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -20,8 +21,10 @@ export const OMP_SHOPIFY_ENGINE_SCOPE = 'omp:18.10.4:shopify-product-v1';
 export const OMP_MARKET_ENGINE_SCOPE = 'omp:18.10.4:market-validation-v1';
 export const OMP_INQUIRIES_ENGINE_SCOPE = 'omp:18.10.4:factory-inquiries-v1';
 export { workspaceOmpPaths, checkWorkspaceOmpPaths } from './workspace-omp-runtime.mjs';
-export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, nativeBusiness = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, syntheticResponses = null, freeTrade = false, enterpriseContext = false, pluginConfiguration = {},
+export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, nativeBusiness = false, medusaEnterprise = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, syntheticResponses = null, freeTrade = false, enterpriseContext = false, pluginConfiguration = {},
   syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {} }) {
+  if(typeof medusaEnterprise!=='boolean'||medusaEnterprise&&(nativeBusiness||freeTrade||factoryMaterials||factoryCustomers||factoryInquiries||factoryIngestion||marketValidation||shopifyProduct))throw Error('MEDUSA_ENTERPRISE_READONLY_PROFILE_REQUIRED');
+  if(medusaEnterprise)enterpriseContext=true;
   if(nativeBusiness){if(freeTrade||enterpriseContext||factoryIngestion||factoryCustomers||factoryInquiries)throw Error('NATIVE_BUSINESS_PROFILE_REQUIRED');factoryMaterials=true;marketValidation=true;shopifyProduct=true;}
   if (syntheticPublicSearchResponses && !syntheticResponses) throw new Error('Public HTTP fixtures require the explicit finite keyless model fixture; production cannot select them.');
   if (typeof factoryInquiries !== 'boolean') throw TypeError('Use one fixed reviewed OMP profile.');
@@ -33,11 +36,12 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
   const privateProfile = factoryMaterials || factoryIngestion || scopedPlugin;
   if (typeof factoryMaterials !== 'boolean' || typeof factoryCustomers !== 'boolean' || factoryMaterials && factoryCustomers) throw TypeError('Use one fixed reviewed OMP profile.');
   if (typeof shopifyProduct !== 'boolean' || shopifyProduct && (factoryIngestion || marketValidation && !nativeBusiness || factoryInquiries || factoryCustomers)) throw TypeError('Use one reviewed Shopify product profile.');
-  const engineScope = nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContext ? OMP_ENTERPRISE_CONTEXT_SCOPE : freeTrade ? OMP_FREE_TRADE_SCOPE : shopifyProduct ? OMP_SHOPIFY_ENGINE_SCOPE : factoryIngestion ? OMP_INGESTION_ENGINE_SCOPE : marketValidation ? OMP_MARKET_ENGINE_SCOPE : factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
+  const engineScope = medusaEnterprise ? MEDUSA_ENTERPRISE_SCOPE : nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContext ? OMP_ENTERPRISE_CONTEXT_SCOPE : freeTrade ? OMP_FREE_TRADE_SCOPE : shopifyProduct ? OMP_SHOPIFY_ENGINE_SCOPE : factoryIngestion ? OMP_INGESTION_ENGINE_SCOPE : marketValidation ? OMP_MARKET_ENGINE_SCOPE : factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
     async complete({ input, run, binding, client, authorize, enterpriseContextHost = binding?.enterpriseContextHost, freeTradeHost = binding?.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, medusaClient, brainClient, marketplaceClient, isolationDirectory, savedSession, saveSession }) {
       input.signal?.throwIfAborted();
       await checkWorkspaceOmpPaths(paths); await authorize();
+      if(medusaEnterprise&&(!binding.client.readOnlySession||run.businessAgentContext?.allowBusinessSubmit===true))throw Error('MEDUSA_ENTERPRISE_READONLY_BINDING_REQUIRED');
       if(enterpriseContext){const {assertEnterpriseContextHost}=await import('./workspace-enterprise-context-host.mjs');assertEnterpriseContextHost(enterpriseContextHost);}
       if(freeTrade){const {assertFreeTradeHost}=await import('./workspace-free-trade-host.mjs');assertFreeTradeHost(freeTradeHost);}
       const user = input.messages.filter(row => row.role === 'user').at(-1);
@@ -85,13 +89,18 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           if(!childClosed||!cleanupComplete||!resultVerified||delivering)return;delivering=true;
           void(async()=>{await authorize();if(freeTrade){if(!freeControl)throw Error();await freeControl.finalCheck(input.signal,binding.model);}
             if(enterpriseContext){if(!enterpriseControl)throw Error();await enterpriseControl.finalCheck(input.signal,binding.model);}
-            if(nativeBusiness||factoryInquiries){
+            if(nativeBusiness||factoryInquiries||medusaEnterprise){
               if(!nativeMapping||path.dirname(nativeMapping.sessionFile)!==sessionDirectory)throw Error('Original journal mapping required.');
               const file=await openPrivateFile(nativeMapping.sessionFile);let journal;
               try{if((await file.stat()).size>32000000)throw Error('Original journal bound exceeded.');journal=await file.readFile('utf8');}finally{await file.close();}
               const entries=journal.trim().split('\n').map(line=>JSON.parse(line));
-              const messages=await readBusinessContext(entries,{paths,signal:input.signal});
-              if(nativeBusiness)await revalidateBusinessJournal(messages,{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
+              const messages=await readBusinessContext(entries,{paths,signal:input.signal,fullReadonlyHistory:medusaEnterprise});
+              if(medusaEnterprise){
+                await revalidateMedusaEnterpriseJournal(messages,{medusaClient,enterpriseControl,model:binding.model,signal:input.signal});
+                await authorize();
+                assertMedusaEnterpriseDisclosure(messages,{medusaClient,enterpriseControl,model:binding.model,signal:input.signal});
+              }
+              else if(nativeBusiness)await revalidateBusinessJournal(messages,{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
               else{
                 const {revalidateInquiryJournal}=await import('./factory-inquiries.mjs');
                 await revalidateInquiryJournal(messages,{materialsClient,inquiryClient,model:binding.model,signal:input.signal});
@@ -129,11 +138,18 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 if(typeof nativeId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(nativeId)||!Array.isArray(args)||args.length>2
                   ||enterpriseNativeId&&nativeId!==enterpriseNativeId||savedSession&&savedSession.agentSessionId!==nativeId)throw Error('Original native Session required.');
                 if(!enterpriseControl){enterpriseNativeId=nativeId;enterpriseControl=enterpriseContextHost.open(nativeId,{conversationId:input.conversationId,runId:run.id,requestId:run.requestId});}
-                if(method==='authorizeDisclosure'){if(args[0]?.modelCalls!==preparedCalls)throw Error('OSS_FINAL_DISCLOSURE_REQUIRED');result=enterpriseControl.assertDisclosureCurrent(args[0],args[1],rpcSignal);permittedCall=preparedCalls;}
+                if(method==='authorizeDisclosure'){
+                  if(args[0]?.modelCalls!==preparedCalls)throw Error('OSS_FINAL_DISCLOSURE_REQUIRED');
+                  if(medusaEnterprise&&typeof args[0]?.wireBody==='string')onWorkerLifecycle({phase:'medusaEnterpriseWireCheck'});
+                  result=enterpriseControl.assertDisclosureCurrent(args[0],args[1],rpcSignal);
+                  if(medusaEnterprise)assertMedusaEnterpriseDisclosure(args[0].messages,{medusaClient,enterpriseControl,model:args[1],signal:rpcSignal,wireBody:args[0].wireBody});
+                  permittedCall=preparedCalls;
+                }
                 else if(method==='refresh')result=await enterpriseControl.refresh(args[0],rpcSignal,args[1]);
                 else if(method==='authorizeContext')result=await enterpriseControl.authorizeContext(rpcSignal,args[0]);
                 else if(method==='check'){if(syntheticResponses)onWorkerLifecycle({phase:'enterpriseSourceCheck'});result=await enterpriseControl.check(args[0],rpcSignal,args[1]);}
                 else if(method==='verifyBody')result=await enterpriseControl.verifyBody(args[0],args[1]);
+                else if(medusaEnterprise&&['memorySearch','memoryAdd','memoryHistory','structuredMemoryLookup','structuredMemoryRemember'].includes(method))throw Error('MEDUSA_ENTERPRISE_READONLY_REQUIRED');
                 else if(['status','memorySearch','memoryAdd','memoryHistory','parseUpload','structuredMemoryLookup','structuredMemoryRemember'].includes(method))result=await enterpriseControl[method](args[0],rpcSignal,args[1]);
                 else throw Error('Original enterprise-context capability required.');
               }
@@ -160,7 +176,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 const [method,value,model]=message.args||[];if(!marketplaceClient||!['status','find','propose','order','revalidateReceipt'].includes(method))throw Error('Original Marketplace method required.');
                 result=await marketplaceClient[method](value,rpcSignal,model);
               }
-              else if(nativeBusiness&&message.method==='medusaCatalog'){
+              else if((nativeBusiness||medusaEnterprise)&&message.method==='medusaCatalog'){
                 const [method,value,model]=message.args||[];
                 if(!medusaClient||!['status','preview','reconcile','refresh'].includes(method))throw Error('Original Medusa method required.');
                 result=method==='refresh'?await medusaClient.refresh(value,model,rpcSignal):await medusaClient[method](value,rpcSignal,model);
@@ -252,7 +268,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             else if (!settled) finish(new ProviderError(input.signal?.aborted ? 'CANCELLED' : 'OMP_SESSION_FAILED', 'The official OMP session stopped without completion.'));
           }).catch(() => finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.'))); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, nativeBusiness, resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient, marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, nativeBusiness, medusaEnterprise, resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient, marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       });
     },

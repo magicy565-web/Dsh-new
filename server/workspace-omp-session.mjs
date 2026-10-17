@@ -1,3 +1,4 @@
+import {MEDUSA_ENTERPRISE_SCOPE,MEDUSA_ENTERPRISE_TOOLS,revalidateMedusaEnterpriseJournal} from './workspace-omp-medusa-enterprise.mjs';
 // Bun-only integration with the reviewed official OMP SDK. This file supplies
 // configuration and a provider transport; OMP owns the agent/tool/session loop.
 import assert from 'node:assert/strict';
@@ -41,8 +42,9 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   configuration, syntheticResponses = null, authorize = async () => {}, onModelRequest = async () => {}, onModelDispatched = () => {},
   maxModelCalls = 4, maxTokens = 1600, localFactory = null, providerTransport = null, readOnlyBusiness = false, humanControls = false, factoryTasks = false, hasUI = false, ordinaryTools = false, onModelAbort = () => {}, onModelWaiting = () => {},
   uiOnly = false, uiExtension = null, publicTools = {}, syntheticPublicSearchResponses = null, lifecycleSignal, pluginConfiguration = {}, referenceFence, enterpriseContextHost = null, freeTradeHost = null, publicTenderClient = null,
-  nativeBusiness = false, resetBusinessContext = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, marketplaceClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
+  nativeBusiness = false, medusaEnterprise = false, resetBusinessContext = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, medusaClient = null, brainClient = null, marketplaceClient = null, productClient = null, ingestionClient = null, planClient = null, monitorClient = null, materialsClient = null, inquiryClient = null, customerClient = null, engineScope = medusaEnterprise ? MEDUSA_ENTERPRISE_SCOPE : nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE,
   bindingConfiguration = client ? 'configured_unverified' : 'unconfigured' }) {
+  if(typeof medusaEnterprise!=='boolean'||medusaEnterprise&&(!enterpriseContextHost||nativeBusiness||localFactory||readOnlyBusiness||freeTradeHost||factoryMaterials||factoryCustomers||factoryInquiries||factoryIngestion||marketValidation||shopifyProduct||ordinaryTools||uiOnly||client))throw Error('MEDUSA_ENTERPRISE_READONLY_PROFILE_REQUIRED');
   if(nativeBusiness&&(!factoryMaterials||!marketValidation||!shopifyProduct||localFactory||readOnlyBusiness||enterpriseContextHost||freeTradeHost||factoryIngestion||factoryCustomers||factoryInquiries||ordinaryTools||uiOnly))throw Error('NATIVE_BUSINESS_PROFILE_REQUIRED');
   if(typeof resetBusinessContext!=='boolean'||resetBusinessContext&&(!nativeBusiness||!savedSession))throw Error('NATIVE_BUSINESS_RESET_REFUSED');
   if (providerTransport && !localFactory) throw Error('Bounded local provider transport requires the local factory profile.');
@@ -62,7 +64,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   // A physically removed package must report its own useful missing-package
   // error even when the optional historical Pi frontend is not installed.
   const simplifiedProfile = scopedHost || factoryInquiries || factoryCustomers || factoryIngestion || marketValidation || shopifyProduct;
-  const nativeSelection=nativeBusiness?await projectPlugins({configuration:'config.business.json',...pluginConfiguration}):null;
+  const nativeSelection=nativeBusiness||medusaEnterprise?await projectPlugins({configuration:medusaEnterprise?'config.medusa-enterprise-readonly.json':'config.business.json',...pluginConfiguration}):null;
+  if(medusaEnterprise&&nativeSelection.enabled.some(p=>!['workspace-medusa-catalog','workspace-enterprise-context'].includes(p.id)))throw Error('MEDUSA_ENTERPRISE_READONLY_PLUGINS_REQUIRED');
   const module = (enabled, name, entry='extension.js') => enabled && (!nativeBusiness || name==='workspace-procurement' || nativeSelection.enabled.some(p=>p.id===name)) ? requiredBusinessModule(name, entry) : {};
   const {shopifyProductExtension, SHOPIFY_PRODUCT_TOOLS=[], SHOPIFY_PRODUCT_SAFE_REASONS=[]} = await module(shopifyProduct,'workspace-shopify-product');
   const {marketValidationMonitorExtension, MARKET_MONITOR_TOOLS=[]} = await module(marketValidation,'workspace-market-validation','monitor.js');
@@ -91,8 +94,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const declaredFiles = new Set(plugins?.enabled.flatMap(plugin => plugin.extensions));
   const nativePluginFiles = plugins ? (await sdk.discoverExtensionPaths(plugins.paths, cwd, undefined, { ambient: false }))
     .filter(file => declaredFiles.has(file)) : [];
-  const privateProfile = factoryMaterials || factoryIngestion;
-  const expectedScope = nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE;
+  const privateProfile = factoryMaterials || factoryIngestion || medusaEnterprise;
+  const expectedScope = medusaEnterprise ? MEDUSA_ENTERPRISE_SCOPE : nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContextHost ? 'omp:18.10.4:enterprise-context-v1' : freeTradeHost ? 'omp:18.10.4:free-trade-v1' : localFactory ? 'omp:18.10.4:local-factory-v1' : shopifyProduct ? 'omp:18.10.4:shopify-product-v1' : factoryIngestion ? 'omp:18.10.4:factory-ingestion-v1' : marketValidation ? 'omp:18.10.4:market-validation-v1' : factoryInquiries ? 'omp:18.10.4:factory-inquiries-v1' : factoryMaterials ? 'omp:18.10.4:factory-materials-v1' : factoryCustomers ? 'omp:18.10.4:factory-customers-v1' : OMP_ENGINE_SCOPE;
   if (shopifyProduct && (!factoryMaterials || !productClient || factoryIngestion || marketValidation && !nativeBusiness || factoryInquiries || factoryCustomers)) throw Error('Use the reviewed Shopify product Session.');
   if (engineScope !== expectedScope || factoryIngestion && (factoryMaterials || factoryCustomers || factoryInquiries || marketValidation || !ingestionClient)
     || marketValidation && (!factoryMaterials || !planClient || factoryCustomers || factoryInquiries) || factoryInquiries && (!factoryMaterials || !inquiryClient)
@@ -130,7 +133,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const selectedSkillRoot = path.join(agentDir, 'workspace-selected-skills');
   await fs.rm(selectedSkillRoot, { recursive: true, force: true });
   await fs.mkdir(selectedSkillRoot, { recursive: true, mode: 0o700 });
-  if (!localFactory && !factoryCustomers && !factoryInquiries && !factoryIngestion && !marketValidation && !shopifyProduct) {
+  if (!medusaEnterprise && !localFactory && !factoryCustomers && !factoryInquiries && !factoryIngestion && !marketValidation && !shopifyProduct) {
     await fs.mkdir(path.join(selectedSkillRoot, 'factory'));
     await fs.copyFile(path.join(factorySkillDirectory, 'SKILL.md'), path.join(selectedSkillRoot, 'factory/SKILL.md'));
   }
@@ -166,10 +169,11 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   try {
   const modelRegistry = new sdk.ModelRegistry(authStorage, agentDir + '/no-ambient-models.yml', { settings, ignoreLocalModelConfig: true });
   let manager;
-  const nativeContext=nativeBusiness?await import('./workspace-omp-business-context.mjs'):null;
-  const nativeParser=nativeBusiness?await nativeContext.loadNativeBusinessParser(packageRoot):null;
-  const contextMessages=()=>nativeBusiness?nativeContext.nativeBusinessMessages(manager.getEntries(),nativeParser,{leafId:manager.getLeafId()}):manager.getEntries().map(e=>e.message);
+  const nativeContext=nativeBusiness||medusaEnterprise?await import('./workspace-omp-business-context.mjs'):null;
+  const nativeParser=nativeBusiness||medusaEnterprise?await nativeContext.loadNativeBusinessParser(packageRoot):null;
+  const contextMessages=()=>nativeBusiness||medusaEnterprise?nativeContext.nativeBusinessMessages(manager.getEntries(),nativeParser,{leafId:manager.getLeafId(),fullReadonlyHistory:medusaEnterprise}):manager.getEntries().map(e=>e.message);
   async function revalidateFactoryContext(messages, model, signal) {
+    if(medusaEnterprise){await revalidateMedusaEnterpriseJournal(messages,{medusaClient,model,signal});return new Map();}
     if (!privateProfile) return;
     const monitorSnapshots = new Map(); // One disclosure boundary only.
     const checkedReceipts = new Set(); // Only this validation boundary, never a permission cache.
@@ -302,6 +306,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         if (signal?.aborted) throw new Error('Workspace OMP turn cancelled.');
         if(localFactory||scopedHost||nativeBusiness)await authorize({phase:'model:disclose'});
         const permit=async wireBody=>{
+          if(medusaEnterprise)await revalidateMedusaEnterpriseJournal([...(manager?contextMessages():[]),...(context.messages||[])],{medusaClient,model,signal});
           if(nativeBusiness){
             await authorize({phase:'model:disclose'});
             const freshSnapshots=await revalidateFactoryContext([...(manager ? contextMessages() : []),...(context.messages||[])],model,signal);
@@ -415,7 +420,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   }
   const pluginDiagnostics = new Map();
   if (plugins) eventBus.on('workspace:plugin-host', request => request.accept({ selection: localFactory, packageRoot, toolSession,
-    authorize, ...(nativeBusiness?{materialsClient,planClient,monitorClient,productClient,medusaClient,marketplaceClient,registerMarketplaceContextGuard:({validateReceipt})=>{
+    authorize, medusaEnterprise, ...(medusaEnterprise?{medusaClient}:{}), ...(nativeBusiness?{materialsClient,planClient,monitorClient,productClient,medusaClient,marketplaceClient,registerMarketplaceContextGuard:({validateReceipt})=>{
       if(!marketplaceClient||validateReceipt!==marketplaceClient.revalidateReceipt)return false;
       disclosureGuards.push({id:'workspace-business-marketplace-v1',check:async()=>{
         for(const message of contextMessages()){if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_marketplace_'))continue;
@@ -485,6 +490,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     const explicitFiles = new Set(plugins.enabled.flatMap(plugin => plugin.extensions));
     const names = created.extensionsResult.extensions.filter(extension => explicitFiles.has(extension.path))
       .flatMap(extension => [...extension.tools.keys()]);
+    if(medusaEnterprise&&names.some(name=>!MEDUSA_ENTERPRISE_TOOLS.includes(name)))throw Error('MEDUSA_ENTERPRISE_READONLY_TOOLS_REQUIRED');
     if (new Set(names).size !== names.length) throw Error('PROJECT_PLUGIN_TOOL_COLLISION');
     admittedTools.push(...names);
     providerTransport?.configureTools?.(admittedTools);
@@ -496,7 +502,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     if(!await session.resetSessionContext())throw Error('NATIVE_BUSINESS_RESET_BUSY');
     await manager.flush();lifecycleSignal?.throwIfAborted();await originalAuthorize();
   }
-  if(savedSession&&plugins)for(const message of nativeBusiness?contextMessages():manager.getBranch().map(e=>e.message)){
+  if(savedSession&&plugins)for(const message of nativeBusiness||medusaEnterprise?contextMessages():manager.getBranch().map(e=>e.message)){
     if(message?.role==='toolResult'&&!admittedTools.includes(message.toolName)||message?.role==='assistant'&&message.content?.some(block=>block.type==='toolCall'&&!admittedTools.includes(block.name)))throw Error('PROJECT_PLUGIN_HISTORY_TOOL_REFUSED');
   }
   if (localFactory || scopedHost || nativeBusiness || readOnlyBusiness) await session.setActiveToolsByName(admittedTools);
@@ -515,7 +521,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       return { promptTokens: sum('input'), completionTokens: sum('output'), totalTokens: sum('totalTokens') };
     },
     summarizeToolArguments: (...args) => pluginDiagnostics.get('arguments')?.(...args) || { objectArguments: args[1] !== null && typeof args[1] === 'object' && !Array.isArray(args[1]) },
-    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{await authorize(...args);if(nativeBusiness)await revalidateFactoryContext(contextMessages(),session.model,lifecycleSignal);},
+    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{await authorize(...args);if(nativeBusiness||medusaEnterprise)await revalidateFactoryContext(contextMessages(),session.model,lifecycleSignal);},
     async close() { return closePromise ??= (async () => { try { await session.dispose(); } finally { await cleanup(); } })(); } };
   } catch (error) {
     try { await created?.session.dispose(); } finally { await cleanup(); }

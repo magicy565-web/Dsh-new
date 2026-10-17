@@ -39,7 +39,7 @@ function validate(entries){
  }for(const id of visiting)done.add(id);}
  return rows;
 }
-export function nativeBusinessMessages(entries,parser,{leafId}={}){
+export function nativeBusinessMessages(entries,parser,{leafId,fullReadonlyHistory=false}={}){
  if(!parsers.has(parser))throw refused();
  if(leafId!==undefined&&leafId!==null&&typeof leafId!=='string')throw refused();
  const rows=validate(entries);let messages;
@@ -47,15 +47,18 @@ export function nativeBusinessMessages(entries,parser,{leafId}={}){
  // Native opaque summaries/notes lack the original private source receipts.
  // Compaction is disabled for this profile. Never silently admit or discard a
  // native-emitted data channel that the original business guards cannot prove.
+ // The versioned readonly composition walks original audit messages only for
+ // source obligations. OMP still builds the model/compaction context itself.
+ if(fullReadonlyHistory){const audit=rows.filter(row=>row.type==='message').map(row=>row.message);if(audit.some(m=>!['user','assistant','toolResult'].includes(m?.role)))throw refused();return audit;}
  if(!Array.isArray(messages)||messages.some(m=>!['user','assistant','toolResult'].includes(m?.role)))throw Object.assign(Error('NATIVE_BUSINESS_CONTEXT_UNSUPPORTED'),{code:'NATIVE_BUSINESS_CONTEXT_UNSUPPORTED'});
  return messages;
 }
-export async function readBusinessContext(entries,{paths,signal,leafId}={}){
+export async function readBusinessContext(entries,{paths,signal,leafId,fullReadonlyHistory=false}={}){
  if(!paths){const {workspaceOmpPaths}=await import('./workspace-omp-runtime.mjs');paths=workspaceOmpPaths({});}
  signal?.throwIfAborted();
- if(globalThis.Bun)return nativeBusinessMessages(entries,await loadNativeBusinessParser(paths.packageRoot),{leafId});
+ if(globalThis.Bun)return nativeBusinessMessages(entries,await loadNativeBusinessParser(paths.packageRoot),{leafId,fullReadonlyHistory});
  const {checkWorkspaceOmpPaths}=await import('./workspace-omp-runtime.mjs');await checkWorkspaceOmpPaths(paths);
- const input=JSON.stringify({packageRoot:paths.packageRoot,entries,leafId});if(Buffer.byteLength(input)>limit)throw refused();
+ const input=JSON.stringify({packageRoot:paths.packageRoot,entries,leafId,fullReadonlyHistory});if(Buffer.byteLength(input)>limit)throw refused();
  return new Promise((resolve,reject)=>{
   const child=spawn(paths.bun,[fileURLToPath(import.meta.url),'--parse'],{env:{PATH:path.dirname(paths.bun)+':/usr/bin:/bin',HOME:'/tmp',NO_COLOR:'1'},stdio:['pipe','pipe','ignore'],signal});
   const chunks=[];let bytes=0;const timer=setTimeout(()=>child.kill(),10000);timer.unref();
@@ -68,6 +71,6 @@ export async function readBusinessContext(entries,{paths,signal,leafId}={}){
 }
 if(globalThis.Bun&&process.argv[1]===fileURLToPath(import.meta.url)&&process.argv[2]==='--parse'){
  globalThis.fetch=async()=>{throw Error('READ_ONLY_NATIVE_CONTEXT_NETWORK_FORBIDDEN');};
- try{const text=await Bun.stdin.text();if(Buffer.byteLength(text)>limit)throw refused();const {packageRoot,entries,leafId}=JSON.parse(text);console.log(JSON.stringify({messages:nativeBusinessMessages(entries,await loadNativeBusinessParser(packageRoot),{leafId})}));}
+ try{const text=await Bun.stdin.text();if(Buffer.byteLength(text)>limit)throw refused();const {packageRoot,entries,leafId,fullReadonlyHistory}=JSON.parse(text);console.log(JSON.stringify({messages:nativeBusinessMessages(entries,await loadNativeBusinessParser(packageRoot),{leafId,fullReadonlyHistory})}));}
  catch(error){console.log(JSON.stringify({error:error.code==='NATIVE_BUSINESS_CONTEXT_UNSUPPORTED'?error.code:'NATIVE_BUSINESS_JOURNAL_INVALID'}));}
 }
