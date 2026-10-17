@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { revalidateBusinessJournal,currentBusinessEntries } from './workspace-omp-business-journal.mjs';
+import { revalidateBusinessJournal,readBusinessContext } from './workspace-omp-business-journal.mjs';
 import { privateDirectory, openPrivateFile } from './store.mjs';
 import { ProviderError } from './provider.mjs';
 import { snapshotWorkspaceOmpPublicFiles } from './workspace-omp-public-tools.mjs';
@@ -90,7 +90,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               const file=await openPrivateFile(nativeMapping.sessionFile);let journal;
               try{if((await file.stat()).size>32000000)throw Error('Original journal bound exceeded.');journal=await file.readFile('utf8');}finally{await file.close();}
               const entries=journal.trim().split('\n').map(line=>JSON.parse(line));
-              await revalidateBusinessJournal(currentBusinessEntries(entries).map(e=>e.message),{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
+              await revalidateBusinessJournal(await readBusinessContext(entries,{paths,signal:input.signal}),{materialsClient,planClient,monitorClient,productClient,medusaClient,brainClient,marketplaceClient,model:binding.model,signal:input.signal});
               await authorize();
             }
             finish(null,{...pendingResult,runtime:{...pendingResult.runtime,workerExitObserved:true}});

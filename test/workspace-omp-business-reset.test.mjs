@@ -4,9 +4,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
-import {nativeMarketplace,sendMarketplace,resetBusiness,tool,mapping,journal,buyerActor,RECIPIENT} from './fixtures/marketplace-native.mjs';
+import {nativeMarketplace,sendMarketplace,resetBusiness,tool,mapping,journal,buyerActor,RECIPIENT,appendLateUsage} from './fixtures/marketplace-native.mjs';
 import {decisionSetup} from './fixtures/brain-decision-input.mjs';
-import {currentBusinessEntries} from '../server/workspace-omp-business-journal.mjs';
+import {readBusinessContext} from '../server/workspace-omp-business-journal.mjs';
 const call=(name,arguments_={})=>({tool:name,arguments:arguments_});
 const order=f=>f.app.store.read().workerOrders.find(x=>x.requestId.startsWith('mp-'));
 const requests=run=>run.events.filter(e=>e.type==='pi.agent-session.request').length;
@@ -36,7 +36,7 @@ test('one original business Session reads product, saves decision, discovers Wor
  assert.equal(mapping(f).agentSessionId,original.agentSessionId);assert.equal(mapping(f).sessionFile,original.sessionFile);
  const after=await fs.readFile(original.sessionFile);assert.deepEqual(after.subarray(0,before.length),before,'Original journal/proofs are never rewritten');
  assert.equal((await journal(f)).filter(e=>e.type==='reset_boundary').length,1);
- assert.equal(currentBusinessEntries(await journal(f)).filter(e=>e.message).length,0,'The SDK context boundary contains no old model message');
+ assert.equal((await readBusinessContext(await journal(f))).length,0,'The SDK context boundary contains no old model message');
  foreignProbe=true;
  const continued=await sendMarketplace(f,[{...call('workspace_shopify_product_read',{productId:f.product.id}),forbiddenContextText:'PRE_RESET_PRIVATE_SYNTHETIC_NOTE'},call('workspace_brain_decision',{id:'synthetic-case'}),tool('order',{orderId:id}),{text:'Current cancelled state reread with unchanged authority.',expectedContextText:'cancelled',forbiddenContextText:'PRE_RESET_PRIVATE_SYNTHETIC_NOTE'}]);assert.equal(continued.status,'succeeded',JSON.stringify(continued));assert.equal(foreignRejected,true);
  assert.equal(mapping(f).agentSessionId,original.agentSessionId);assert.equal(f.app.store.read().artifacts.filter(a=>a.metadata?.businessBrain?.key==='decision:synthetic-case').length,1);
@@ -63,7 +63,7 @@ test('clearing context cannot restore withdrawn Marketplace authority or disclos
  const blocked=await sendMarketplace(f,[{text:'Forbidden old context.'}]);assert.equal(blocked.status,'failed');assert.equal(requests(blocked),0);
  assert.equal((await resetBusiness(f)).status,'succeeded');
  const next=await sendMarketplace(f,[{...tool('order',{orderId:id}),forbiddenContextText:'PRIVATE_BEFORE_SCOPE_WITHDRAWAL'},{text:'Original authority is unconfigured.',expectedContextText:'MARKETPLACE_UNCONFIGURED',forbiddenContextText:'PRIVATE_BEFORE_SCOPE_WITHDRAWAL'}]);assert.equal(next.status,'succeeded',JSON.stringify(next));
- const result=currentBusinessEntries(await journal(f)).findLast(e=>e.message?.toolName==='workspace_marketplace_order').message;
+ const result=(await readBusinessContext(await journal(f))).findLast(m=>m.toolName==='workspace_marketplace_order');
  assert.equal(result.isError,true);assert.equal(result.details.status,'unconfigured');assert.equal(result.details.view,undefined);
  assert.deepEqual(f.remoteMarketplace.stats,{submits:0,checkouts:0,transfers:0,refunds:0});
 });
@@ -89,9 +89,14 @@ test('reset cannot race an active original Run',{timeout:45000},async t=>{
  assert.equal((await f.workspace(`/api/conversations/${f.cid}/cancel`,{subject:f.actor.subject,body:{}})).status,200);assert.equal((await pending).status,'cancelled');
 });
 
-for(const mode of ['on-branch','off-branch','broken-parent','cycle'])test('original reset boundary projection '+mode,()=>{
- const rows=[{type:'title',title:'Original SDK fixed title slot'},{type:'session',id:'original-session'},{type:'message',id:'a',parentId:null,message:{private:'old'}},{type:'reset_boundary',id:'r',parentId:'a'},{type:'message',id:'b',parentId:mode==='off-branch'?'a':'r',message:{private:'new'}}];
- if(mode==='broken-parent')rows[4].parentId='missing';if(mode==='cycle')rows[4].parentId='b';
- if(['broken-parent','cycle'].includes(mode))assert.throws(()=>currentBusinessEntries(rows),/NATIVE_BUSINESS_JOURNAL_INVALID/);
- else assert.deepEqual(currentBusinessEntries(rows),mode==='off-branch'?rows:[rows[4]]);
+test('original Node final validation retains current receipt after SDK late usage selects an earlier parent',{timeout:60000},async t=>{
+ let armed=false,exited=false,injected=false,f;
+ f=await nativeMarketplace(t,{onWorkerLifecycle:e=>{if(armed&&e.phase==='exit'&&e.code===0)exited=true;},wrapEngineAdapter:engine=>({scope:engine.scope,complete:args=>engine.complete({...args,authorize:async()=>{
+  if(exited&&!injected){injected=true;await appendLateUsage(f);await f.app.store.update(state=>{state.workerOrders.find(o=>o.id===order(f).id).objective='Source changed at Node boundary after native late usage';});}
+  await args.authorize();
+ }})})});
+ assert.equal((await sendMarketplace(f,[tool('propose',f.proposal),{text:'Original draft.'}])).status,'succeeded');
+ assert.equal((await resetBusiness(f)).status,'succeeded');
+ assert.equal((await sendMarketplace(f,[tool('order',{orderId:order(f).id}),{text:'Current original status.'}])).status,'succeeded');
+ armed=true;const run=await sendMarketplace(f,[{text:'Must be withheld at final Node boundary.'}]);assert.equal(injected,true);assert.equal(run.status,'failed');assert.equal(run.error.code,'OMP_DISCLOSURE_REFUSED');assert.deepEqual(f.remoteMarketplace.stats,{submits:0,checkouts:0,transfers:0,refunds:0});
 });

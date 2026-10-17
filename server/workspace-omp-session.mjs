@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { isBrainGapReceipt,isMedusaGapReceipt,currentBusinessEntries } from './workspace-omp-business-journal.mjs';
+import { isBrainGapReceipt,isMedusaGapReceipt } from './workspace-omp-business-journal.mjs';
 import { projectPlugins } from './workspace-plugin-config.mjs';
 
 
@@ -166,7 +166,9 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   try {
   const modelRegistry = new sdk.ModelRegistry(authStorage, agentDir + '/no-ambient-models.yml', { settings, ignoreLocalModelConfig: true });
   let manager;
-  const contextEntries=()=>nativeBusiness?currentBusinessEntries(manager.getEntries()):manager.getEntries();
+  const nativeContext=nativeBusiness?await import('./workspace-omp-business-context.mjs'):null;
+  const nativeParser=nativeBusiness?await nativeContext.loadNativeBusinessParser(packageRoot):null;
+  const contextMessages=()=>nativeBusiness?nativeContext.nativeBusinessMessages(manager.getEntries(),nativeParser,{leafId:manager.getLeafId()}):manager.getEntries().map(e=>e.message);
   async function revalidateFactoryContext(messages, model, signal) {
     if (!privateProfile) return;
     const monitorSnapshots = new Map(); // One disclosure boundary only.
@@ -271,7 +273,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       void (async () => {
         if (uiOnly) throw new Error('This official terminal is UI-only. Model execution must use the original Workspace Conversation/Run HTTP authority.');
         await authorize();
-        const monitorSnapshots = await revalidateFactoryContext([...(manager ? contextEntries() : []).map(e => e.message), ...(context.messages || [])], model, options?.signal);
+        const monitorSnapshots = await revalidateFactoryContext([...(manager ? contextMessages() : []), ...(context.messages || [])], model, options?.signal);
         if (shopifyProduct) for (const message of context.messages || []) {
           if (message?.role !== 'toolResult' || !SHOPIFY_PRODUCT_TOOLS.includes(message.toolName)) continue;
           let receipt; try { receipt = JSON.parse(message.content.filter(b => b.type === 'text').map(b => b.text).join('\n')); } catch { continue; }
@@ -302,7 +304,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         const permit=async wireBody=>{
           if(nativeBusiness){
             await authorize({phase:'model:disclose'});
-            const freshSnapshots=await revalidateFactoryContext([...(manager ? contextEntries() : []).map(e=>e.message),...(context.messages||[])],model,signal);
+            const freshSnapshots=await revalidateFactoryContext([...(manager ? contextMessages() : []),...(context.messages||[])],model,signal);
             // Initial refresh is before the async request hook. The exact views
             // about to leave must still equal a fresh original-client projection.
             for(const message of context.messages||[]){
@@ -416,7 +418,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     authorize, ...(nativeBusiness?{materialsClient,planClient,monitorClient,productClient,medusaClient,marketplaceClient,registerMarketplaceContextGuard:({validateReceipt})=>{
       if(!marketplaceClient||validateReceipt!==marketplaceClient.revalidateReceipt)return false;
       disclosureGuards.push({id:'workspace-business-marketplace-v1',check:async()=>{
-        for(const entry of contextEntries()){const message=entry.message;if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_marketplace_'))continue;
+        for(const message of contextMessages()){if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_marketplace_'))continue;
           const receipt=marketplaceMessageReceipt(message);
           if(!receipt.method){if(!isMarketplaceGap(receipt)||message.content.some(b=>b.type!=='text'))throw Error('MARKETPLACE_SOURCE_CHANGED');continue;}
           await marketplaceClient.revalidateReceipt(receipt,lifecycleSignal,created?.session?.model||modelRegistry.find(configuration.providerId,configuration.model));
@@ -425,7 +427,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     },brain:brainClient,registerBrainContextGuard:({validateReceipt})=>{
       if(!brainClient||validateReceipt!==brainClient.revalidateReceipt)return false;
       disclosureGuards.push({id:"workspace-business-brain-v1",check:async()=>{
-        for(const entry of contextEntries()){const message=entry.message;if(message?.role!=="toolResult"||!message.toolName?.startsWith("workspace_brain_"))continue;
+        for(const message of contextMessages()){if(message?.role!=="toolResult"||!message.toolName?.startsWith("workspace_brain_"))continue;
           let receipt;try{receipt=JSON.parse(message.content.filter(b=>b.type==="text").map(b=>b.text).join("\n"));}catch{throw Error("BRAIN_CACHE_REFUSED");}
           if(["blocked","unconfigured"].includes(receipt.status)){if(!isBrainGapReceipt(receipt)||message.content.some(b=>b.type!=="text"))throw Error("BRAIN_CACHE_REFUSED");continue;}
           await brainClient.revalidateReceipt(receipt,lifecycleSignal,created?.session?.model||modelRegistry.find(configuration.providerId,configuration.model));
@@ -494,9 +496,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     if(!await session.resetSessionContext())throw Error('NATIVE_BUSINESS_RESET_BUSY');
     await manager.flush();lifecycleSignal?.throwIfAborted();await originalAuthorize();
   }
-  if(savedSession&&plugins)for(const entry of nativeBusiness?contextEntries():manager.getBranch()){
-
-    const message=entry.message;
+  if(savedSession&&plugins)for(const message of nativeBusiness?contextMessages():manager.getBranch().map(e=>e.message)){
     if(message?.role==='toolResult'&&!admittedTools.includes(message.toolName)||message?.role==='assistant'&&message.content?.some(block=>block.type==='toolCall'&&!admittedTools.includes(block.name)))throw Error('PROJECT_PLUGIN_HISTORY_TOOL_REFUSED');
   }
   if (localFactory || scopedHost || nativeBusiness || readOnlyBusiness) await session.setActiveToolsByName(admittedTools);
@@ -504,7 +504,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     const { initializeExtensions } = await import(pathToFileURL(path.join(packageRoot, 'src/modes/runtime-init.ts')).href);
     await initializeExtensions(session, { reportSendError: () => {}, reportRuntimeError: () => {},
       filterActiveTools: names => names.filter(name => admittedTools.includes(name)) });
-    await revalidateFactoryContext(contextEntries().map(e => e.message), session.model, lifecycleSignal);
+    await revalidateFactoryContext(contextMessages(), session.model, lifecycleSignal);
   }
   for (const forbidden of ['workspace_company_profile', 'workspace_products', 'workspace_product']) assert.ok(!session.getActiveToolNames().includes(forbidden));
   return { ...created, sdk, authStorage, modelRegistry, manager, engineScope, modelCalls: () => modelCalls,
@@ -515,7 +515,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       return { promptTokens: sum('input'), completionTokens: sum('output'), totalTokens: sum('totalTokens') };
     },
     summarizeToolArguments: (...args) => pluginDiagnostics.get('arguments')?.(...args) || { objectArguments: args[1] !== null && typeof args[1] === 'object' && !Array.isArray(args[1]) },
-    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{await authorize(...args);if(nativeBusiness)await revalidateFactoryContext(contextEntries().map(e=>e.message),session.model,lifecycleSignal);},
+    selectedSkillNames: selectedSkills.skills.map(skill => skill.name),authorizeDisclosure:async (...args)=>{await authorize(...args);if(nativeBusiness)await revalidateFactoryContext(contextMessages(),session.model,lifecycleSignal);},
     async close() { return closePromise ??= (async () => { try { await session.dispose(); } finally { await cleanup(); } })(); } };
   } catch (error) {
     try { await created?.session.dispose(); } finally { await cleanup(); }

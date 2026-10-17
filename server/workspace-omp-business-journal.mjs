@@ -10,20 +10,10 @@ export function isMedusaGapReceipt(receipt){
   && ['ORIGINAL_REVIEWED_HOST_REQUIRED','MEDUSA_UNCONFIGURED','MEDUSA_PRODUCT_ID_INVALID','MEDUSA_ROLE_REQUIRED','MEDUSA_ORIGINAL_SELECTION_REQUIRED','MEDUSA_SOURCE_CHANGED','MEDUSA_TRANSPORT_UNCERTAIN','MEDUSA_REMOTE_REFUSED','MEDUSA_INVALID_RESPONSE','MEDUSA_RESPONSE_LIMIT','MEDUSA_HANDLE_AMBIGUOUS','MEDUSA_REMOTE_CONFLICT','MEDUSA_NOT_ELIGIBLE','ORIGINAL_MEDUSA_OPERATION_REFUSED'].includes(receipt.reason)
   && Object.keys(receipt).every(k=>['plugin','status','reason','sources'].includes(k))&&Array.isArray(receipt.sources)&&receipt.sources.length===0;
 }
-// Follow the original OMP parent chain and its native reset_boundary. Audit
-// entries remain immutable; only the model context after an explicit SDK reset
-// is disclosed. An off-branch boundary must never hide current dependencies.
-export function currentBusinessEntries(entries){
- if(!entries.some(e=>e.type==='reset_boundary'))return entries;
- const rows=entries.filter(e=>!['session','title'].includes(e.type)),byId=new Map();
- for(const row of rows){if(typeof row.id!=='string'||byId.has(row.id))throw Error('NATIVE_BUSINESS_JOURNAL_INVALID');byId.set(row.id,row);}
- const branch=[],seen=new Set();let row=rows.at(-1);
- while(row){if(seen.has(row.id))throw Error('NATIVE_BUSINESS_JOURNAL_INVALID');seen.add(row.id);branch.push(row);
-  if(row.parentId===null)break;
-  row=byId.get(row.parentId);if(!row)throw Error('NATIVE_BUSINESS_JOURNAL_INVALID');
- }
- branch.reverse();const reset=branch.findLastIndex(e=>e.type==='reset_boundary');
- return reset<0?entries:branch.slice(reset+1);
+// Import only on actual business use, preserving optional-package core loading.
+export async function readBusinessContext(entries,options){
+ const native=await import('./workspace-omp-business-context.mjs');
+ return native.readBusinessContext(entries,options);
 }
 // Recheck the original owned native journal at the Node delivery boundary.
 // No receipt registry, permission cache, model-supplied citation list or store.

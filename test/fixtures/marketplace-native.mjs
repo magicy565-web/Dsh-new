@@ -34,3 +34,10 @@ export const mapping=f=>f.app.store.read().conversations.find(c=>c.id===f.cid).b
 export const journal=async f=>(await fs.readFile(mapping(f).sessionFile,'utf8')).trim().split('\n').map(JSON.parse);
 export const tool=(name,args={})=>({tool:'workspace_marketplace_'+name,arguments:args});
 export const buyerActor=f=>({kind:'buyer',...f.actor,human:false});
+export async function appendLateUsage(f){
+ const {spawn}=await import('node:child_process');const {workspaceOmpPaths}=await import('../../server/workspace-omp-runtime.mjs');const path=await import('node:path');
+ const before=await fs.readFile(mapping(f).sessionFile),saved=mapping(f),paths=workspaceOmpPaths({});
+ const child=spawn(paths.bun,['test/fixtures/business-context-append-usage.mjs',saved.sessionFile,path.dirname(saved.sessionFile)],{env:{PATH:process.env.PATH,HOME:'/tmp',NO_COLOR:'1'},stdio:['ignore','pipe','pipe']});let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);const timer=setTimeout(()=>child.kill(),10000);
+ const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',resolve);});clearTimeout(timer);assert.equal(code,0,output);const receipt=JSON.parse(output.trim().split('\n').at(-1));assert.equal(receipt.originalSdkAppend,true);assert.equal(receipt.sameSessionId,saved.agentSessionId);assert.equal(receipt.currentToolResultRetained,true);
+ const after=await fs.readFile(saved.sessionFile);assert.deepEqual(after.subarray(0,before.length),before,'Late usage only appends original SDK metadata');return receipt;
+}
