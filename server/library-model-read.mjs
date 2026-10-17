@@ -86,7 +86,8 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
       assertCurrent();
       return { scope: structuredClone({
         workspaceId: scope.workspaceId, subject: scope.subject, expiresAt: scope.expiresAt,
-        company: scope.company, products: scope.products, productFields: scope.productFields
+        company: scope.company, products: scope.products, productFields: scope.productFields,
+        ...(scope.factoryMaterials?.documents.length ? { documentReferences: scope.factoryMaterials.documents } : {})
       }), assertCurrent };
     },
     // Synchronous original-policy fence for an in-process source-backed commit.

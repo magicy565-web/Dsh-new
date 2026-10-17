@@ -9,6 +9,7 @@ const own = (value, allowed) => value !== null && typeof value === 'object' && !
 const writable = role => ['admin', 'operator'].includes(role);
 const originalGoalStatuses = new Set(['draft', 'running', 'paused', 'completed', 'failed', 'cancelled']);
 const businessCapabilities = new Set(['analysis', 'draft', 'none']);
+const documentReferenceFields = ['documentId', 'documentRevision', 'documentVersion', 'artifactId', 'artifactVersion', 'artifactSha256'];
 
 /**
  * Original Host ONLY: bind the existing enterprise Session, reviewed Library
@@ -114,10 +115,31 @@ export function createGoalBrainHost({ store, artifacts, access, libraryModelRead
       return { workspaceId: identity.workspaceId, reference: clone(reference), observedAt: record.updatedAt,
         validUntil: scope.expiresAt, values };
     };
+    const readDocumentReference = (state, pin, reference = null) => {
+      assertLive(state);
+      if (!pin || reference && (reference.id !== pin.id || reference.revision !== String(pin.revision)
+        || !same(reference.fields, documentReferenceFields))) fail('BRAIN_SOURCE_NOT_SELECTED');
+      // Reuse the original live Session/receiver/exact-document authority. This
+      // projects reference metadata only; it never downloads or extracts bytes.
+      const source = libraryModelRead.factoryDocumentForSession({ identity, recipientHash: exactReceiverHash, asset: pin.asset, signal });
+      if (source.documentId !== pin.id || source.revision !== pin.revision || source.documentVersion !== pin.documentVersion
+        || !same(source.asset, pin.asset)) fail('BRAIN_SOURCE_CHANGED');
+      const record = state.businessLibrary.documents?.find(row => row.id === source.documentId);
+      if (!record?.updatedAt || record.revision !== source.revision || record.currentVersion !== source.documentVersion
+        || record.status !== 'active' || !same(record.versions?.find(row => row.version === source.documentVersion)?.asset, source.asset))
+        fail('BRAIN_SOURCE_CHANGED');
+      const values = { documentId: source.documentId, documentRevision: source.revision, documentVersion: source.documentVersion,
+        artifactId: source.asset.artifactId, artifactVersion: source.asset.version, artifactSha256: source.asset.sha256 };
+      const selected = { kind: 'artifact', id: pin.id, revision: String(pin.revision), sha256: digest(values), fields: clone(documentReferenceFields) };
+      if (reference && !same(reference, selected)) fail('BRAIN_SOURCE_CHANGED');
+      return { workspaceId: identity.workspaceId, reference: selected, observedAt: record.updatedAt, validUntil: scope.expiresAt, values };
+    };
+    const documentPin = reference => scope.documentReferences?.find(row => row.id === reference.id);
     const readSource = async (reference, receiver, signal) => {
       assertLive(store.read());
       signal?.throwIfAborted();
       if (reference.kind === 'company' || reference.kind === 'product') return readSelected(store.read(), reference);
+      if (reference.kind === 'artifact' && documentPin(reference)) return readDocumentReference(store.read(), documentPin(reference), reference);
       if (!sourceAdapter) fail('BRAIN_SOURCE_NOT_SELECTED');
       const row = clone(await sourceAdapter.read({ identity: clone(identity), binding: clone(binding), reference: clone(reference), receiver, signal }));
       if (!row || row.workspaceId !== identity.workspaceId || !same(row.reference, reference)
@@ -146,6 +168,7 @@ export function createGoalBrainHost({ store, artifacts, access, libraryModelRead
         if (!Array.isArray(extra)) fail('BRAIN_SOURCE_CATALOG_INVALID');
         entries.push(...extra);
       }
+      for (const pin of scope.documentReferences || []) entries.push(readDocumentReference(store.read(), pin).reference);
       assertLive();
       return entries;
     };
@@ -160,6 +183,7 @@ export function createGoalBrainHost({ store, artifacts, access, libraryModelRead
     const currentSource = (state, ref, expected) => {
       const next = (ref.kind === 'company' || ref.kind === 'product')
         ? readSelected(state, ref)
+        : ref.kind === 'artifact' && documentPin(ref) ? readDocumentReference(state, documentPin(ref), ref)
         : sourceAdapter?.current({ identity: clone(identity), binding: clone(binding), reference: clone(ref), expected: clone(expected), receiver: binding.receiver });
       if (!next || !same(next, { workspaceId: expected.workspaceId, reference: expected.reference,
         observedAt: expected.observedAt, validUntil: expected.validUntil, values: expected.values })) fail('BRAIN_SOURCE_CHANGED');
