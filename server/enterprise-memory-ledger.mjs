@@ -43,10 +43,9 @@ function sourceExists(store,source){
   const run=state.runs?.find(x=>x.id===source.runId&&x.conversationId===source.ref);
   if(!message||!run||source.version!==1||source.revision!==1||hash(message.content)!==source.sha256) fail(409,'MEMORY_SOURCE_HISTORY_MISSING','The historical conversation source cannot be verified.');
 }
-function currentSource(store,source){
-  const state=store.read();
+function currentSource(store,source,state=store.read()){
   for(const dependency of source.dependencies||[]){
-    currentSource(store,dependency);
+    currentSource(store,dependency,state);
     const artifact=state.artifacts?.find(x=>x.id===dependency.artifactId),version=artifact?.versions?.find(x=>x.version===dependency.artifactVersion);
     const doc=state.businessLibrary?.documents?.find(x=>x.id===dependency.ref),docVersion=doc?.versions?.find(x=>x.version===dependency.version);
     if(!version||version.sha256!==dependency.sha256||docVersion?.asset?.artifactId!==dependency.artifactId||docVersion.asset.version!==dependency.artifactVersion) fail(409,'MEMORY_SOURCE_REVOKED','The original artifact dependency changed.');
@@ -95,7 +94,6 @@ export function createEnterpriseMemoryLedger({store,library,disclosure=null,work
     if(audience==='customer'&&actor.role!=='admin') fail(403,'MEMORY_CUSTOMER_AUTHORIZATION_REQUIRED','Only an administrator may authorize customer-visible memory.');
     if(audience==='internal'&&!['admin','operator'].includes(actor.role)) fail(403,'MEMORY_ROLE_REQUIRED','The existing workspace role cannot write enterprise memory.');
   }
-  function sourceFingerprint(source){return hash(source);}
   async function remember(body,actor,{assertCurrent}={}){
     if(!body||typeof body!=='object'||!ID.test(body.requestId)||!AUDIENCES.includes(body.audience)||!ID.test(body.subjectType)||!ID.test(body.subjectId)||!ID.test(body.factKey)||typeof body.statement!=='string'||!body.statement.trim()||body.statement.length>4000)
       fail(400,'MEMORY_INPUT_INVALID','Memory writes require bounded identity, fact key and statement fields.');
@@ -107,33 +105,47 @@ export function createEnterpriseMemoryLedger({store,library,disclosure=null,work
       if(!body.expiresAt||!Number.isFinite(Date.parse(body.expiresAt))||Date.parse(body.expiresAt)<=clock()) fail(400,'MEMORY_EXPIRY_INVALID','Customer memory requires a future expiry.');
     } else if(body.customerId!==undefined&&body.customerId!==null) fail(400,'MEMORY_CUSTOMER_INVALID','Internal memory cannot be assigned to a customer.');
     const fp=hash({workspaceId,audience:body.audience,customerId:body.customerId??null,subjectType:body.subjectType,subjectId:body.subjectId,factKey:body.factKey,statement:body.statement.trim(),visibilityLevel:body.visibilityLevel??'internal',source:body.source,expiresAt:body.expiresAt??null,purpose:body.purpose??null});
-    const all=rows(store.read()), priorRequest=all.find(x=>x.requestId===body.requestId);
-    if(priorRequest){
-      if(priorRequest.fingerprint!==fp||priorRequest.createdBy!==actor.subject) fail(409,'MEMORY_IDEMPOTENCY_CONFLICT','requestId already belongs to another memory write.');
-      return {memory:clean(priorRequest),idempotent:true};
-    }
-    const previous=all.filter(x=>x.status==='active'&&x.workspaceId===workspaceId&&x.audience===body.audience&&(x.customerId??null)===(body.customerId??null)&&x.subjectType===body.subjectType&&x.subjectId===body.subjectId&&x.factKey===body.factKey).sort((a,b)=>b.revision-a.revision)[0];
-    if(previous&&previous.statement===body.statement.trim()&&sourceFingerprint(previous.source)===sourceFingerprint(body.source)&&previous.visibilityLevel===(body.visibilityLevel??'internal')) return {memory:clean(previous),idempotent:true};
-    const now=iso(clock()), next={
-      id:randomUUID(),requestId:body.requestId,fingerprint:fp,workspaceId,audience:body.audience,customerId:body.customerId??null,
-      subjectType:body.subjectType,subjectId:body.subjectId,factKey:body.factKey,statement:body.statement.trim(),visibilityLevel:body.visibilityLevel??'internal',
-      source:clean(body.source),createdAt:now,createdBy:actor.subject,updatedAt:now,updatedBy:actor.subject,revision:previous?previous.revision+1:1,
-      status:body.audience==='customer'?'pending':'active',expiresAt:body.audience==='customer'?body.expiresAt:null,disclosureGrantId:null,
-      previousMemoryId:previous?.id??null,history:[{revision:previous?previous.revision+1:1,action:previous?'updated':'created',at:now,actor:actor.subject,source:clean(body.source),statement:body.statement.trim(),previousMemoryId:previous?.id??null}],
-    };
-    await store.update(state=>{
-      assertCurrent?.();
-      const list=rows(state);
-      if(previous){const old=list.find(x=>x.id===previous.id);old.status='superseded';old.updatedAt=now;old.updatedBy=actor.subject;}
-      list.push(next);return null;
+    // The original Store already serializes transactions. Read the receipt and
+    // fact head in that same transaction, never from an earlier read snapshot.
+    const {next,previous,idempotent}=await store.update(state=>{
+      assertCurrent?.();actorOk(actor,body.audience);currentSource(store,body.source,state);
+      const list=rows(state),priorRequest=list.find(x=>x.requestId===body.requestId);
+      if(priorRequest){
+        if(priorRequest.fingerprint!==fp||priorRequest.createdBy!==actor.subject) fail(409,'MEMORY_IDEMPOTENCY_CONFLICT','requestId already belongs to another memory write.');
+        return {next:clean(priorRequest),previous:null,idempotent:true};
+      }
+      const previous=list.filter(x=>x.workspaceId===workspaceId&&x.audience===body.audience&&(x.customerId??null)===(body.customerId??null)&&x.subjectType===body.subjectType&&x.subjectId===body.subjectId&&x.factKey===body.factKey).sort((a,b)=>b.revision-a.revision)[0];
+      if(previous?.status==='pending') fail(409,'MEMORY_WRITE_PENDING','The previous fact write is still awaiting authorization; retry after it completes.');
+      // Each distinct requestId owns a durable receipt, even for equal text.
+      // Revocation or failed synchronization must not reset the revision chain.
+      const now=iso(clock()),next={
+        id:randomUUID(),requestId:body.requestId,fingerprint:fp,workspaceId,audience:body.audience,customerId:body.customerId??null,
+        subjectType:body.subjectType,subjectId:body.subjectId,factKey:body.factKey,statement:body.statement.trim(),visibilityLevel:body.visibilityLevel??'internal',
+        source:clean(body.source),createdAt:now,createdBy:actor.subject,updatedAt:now,updatedBy:actor.subject,revision:previous?previous.revision+1:1,
+        status:body.audience==='customer'?'pending':'active',expiresAt:body.audience==='customer'?body.expiresAt:null,disclosureGrantId:null,
+        previousMemoryId:previous?.id??null,history:[{revision:previous?previous.revision+1:1,action:previous?'updated':'created',at:now,actor:actor.subject,source:clean(body.source),statement:body.statement.trim(),previousMemoryId:previous?.id??null}],
+      };
+      if(previous?.status==='active'){previous.status='superseded';previous.updatedAt=now;previous.updatedBy=actor.subject;}
+      list.push(next);return {next:clean(next),previous:previous?clean(previous):null,idempotent:false};
     });
+    if(idempotent)return {memory:next,idempotent:true};
     if(body.audience==='customer'){
+      let grant;
       try{
-        const grant=await disclosure.grant({requestId:`memory-${hash(next.id + next.requestId).slice(0,48)}`,customerId:body.customerId,resourceType:'memory',resourceId:next.id,resourceRevision:next.revision,maxLevel:body.visibilityLevel,expiresAt:body.expiresAt,purpose:body.purpose},actor);
-        await store.update(state=>{const row=rows(state).find(x=>x.id===next.id);row.disclosureGrantId=grant.grant.id;row.status='active';row.updatedAt=iso(clock());row.updatedBy=actor.subject;return null;});
+        grant=await disclosure.grant({requestId:`memory-${hash(next.id + next.requestId).slice(0,48)}`,customerId:body.customerId,resourceType:'memory',resourceId:next.id,resourceRevision:next.revision,maxLevel:body.visibilityLevel,expiresAt:body.expiresAt,purpose:body.purpose},actor);
+        await store.update(state=>{
+          assertCurrent?.();currentSource(store,body.source,state);
+          const row=rows(state).find(x=>x.id===next.id);
+          if(row?.status!=='pending')fail(409,'MEMORY_WRITE_CHANGED','The pending memory changed before activation.');
+          row.disclosureGrantId=grant.grant.id;row.status='active';row.updatedAt=iso(clock());row.updatedBy=actor.subject;return null;
+        });
         if(previous?.disclosureGrantId)await disclosure.revoke(previous.disclosureGrantId,{reason:`Superseded by memory ${next.id}`},actor);
       }catch(error){
-        await store.update(state=>{const row=rows(state).find(x=>x.id===next.id);row.status='sync_error';row.updatedAt=iso(clock());row.updatedBy=actor.subject;return null;});
+        await store.update(state=>{const row=rows(state).find(x=>x.id===next.id);if(row&&['pending','active'].includes(row.status)){row.status='sync_error';row.updatedAt=iso(clock());row.updatedBy=actor.subject;}return null;});
+        if(grant?.grant?.id){
+          const cleanup=await disclosure.revoke(grant.grant.id,{reason:`Memory ${next.id} activation failed`},actor);
+          if(cleanup.syncError)fail(503,'MEMORY_AUTHZ_CLEANUP_FAILED','Memory authorization was refused, but disclosure cleanup failed; reconciliation is required.');
+        }
         throw error;
       }
     }

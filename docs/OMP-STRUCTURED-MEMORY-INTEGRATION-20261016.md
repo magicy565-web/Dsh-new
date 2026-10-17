@@ -2,6 +2,8 @@
 
 后续独立复核发现本报告的 `9e60b481` 未覆盖过期 memory summary 和旧空查询摘要。两个真实 SDK 反例及模型前修复见[compaction 修复报告](OMP-MEMORY-COMPACTION-FIX-20261016.md)；下文 306/19 是该轮历史结果，不能作为新反例已通过的证明。
 
+后续真实 Store 并发复核还发现版本重复、重复 requestId 回执及事务外撤源检查问题；复现、事务内修复和本轮结果见[并发修复报告](OMP-MEMORY-CONCURRENCY-FIX-20261017.md)。本报告历史通过项不覆盖这些并发风险。
+
 ## 固定来源与隔离
 
 - 基线：`977b1ad3bcd969784d51bb77ddd4c163c3911e39`，`codex/omp-unified-cloud-build-20261016`。
