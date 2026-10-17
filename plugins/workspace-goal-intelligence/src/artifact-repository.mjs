@@ -36,6 +36,26 @@ export function createArtifactBrainRepository({ store, artifacts, workspaceId, a
     await authorize('read', key, find(store.read(), key));
     return { key, ref: ref(row), value };
   }
+  // Read exact immutable original Artifact bytes, never synthesize or re-sign
+  // an older receipt. The current private ownership and read authority still apply.
+  async function getVersion(key, expected) {
+    if (!expected || Object.keys(expected).sort().join(',') !== 'artifactId,revision,sha256,version'
+      || !Number.isSafeInteger(expected.revision) || expected.revision < 1
+      || !Number.isSafeInteger(expected.version) || expected.version < 1
+      || !/^[a-f0-9]{64}$/.test(expected.sha256)) fail('BRAIN_ARTIFACT_INTEGRITY');
+    await authorize('read', key, null);
+    const current = find(store.read(), key);
+    if (!current || current.id !== expected.artifactId || current.currentVersion < expected.version) fail('BRAIN_ARTIFACT_INTEGRITY');
+    await authorize('read', key, current);
+    const result = await artifacts.read(current.id, { version: expected.version, encoding: 'utf8' });
+    if (result.encoding !== 'utf8' || result.artifact.id !== current.id || result.version.version !== expected.version
+      || bytesHash(Buffer.from(result.content)) !== expected.sha256) fail('BRAIN_ARTIFACT_INTEGRITY');
+    const value = safeJson(JSON.parse(result.content), 64 * 1024);
+    if (value.workspaceId !== workspaceId || value.key !== key || value.schema !== 1) fail('BRAIN_ARTIFACT_INTEGRITY');
+    assertRecord(store.read(), key, ref(current));
+    await authorize('read', key, find(store.read(), key));
+    return { key, ref: clone(expected), value };
+  }
   async function commit({ key, expectedRef, value, dependencies = [], check }) {
     safeJson(value, 64 * 1024);
     if (value.workspaceId !== workspaceId || value.key !== key || typeof check !== 'function') fail('BRAIN_SCOPE_MISMATCH');
@@ -66,5 +86,5 @@ export function createArtifactBrainRepository({ store, artifacts, workspaceId, a
     await authorize('list', prefix, null);
     return { keys: keys.slice(0, limit), truncated: keys.length > limit };
   }
-  return Object.freeze({ get, commit, listKeys, assertRecord });
+  return Object.freeze({ get, getVersion, commit, listKeys, assertRecord });
 }

@@ -27,3 +27,16 @@ test('editing a partial variant never clears unknown price, options or inventory
  assert.deepEqual(variantEditPayload(full,{...full,title:'Edited'}),{id:'v1',title:'Edited'});
  assert.deepEqual(variantEditPayload(full,{...full,prices:[]}),{id:'v1',prices:[]});
 });
+
+test('actual editor sanitizer plus client title-only save preserves partial and unmatched variant assignments',async()=>{
+ const {sanitizeProductDraft}=await import('../apps/medusa-product-catalog/src/product-editor.ts');
+ for(const assignment of [undefined,{Color:'Not in current partial options'}]){
+  const original=normalizeProduct({...raw,options:[{id:'opt',title:'Color',values:[{value:'Red'}]}],variants:[{id:'v1',title:' Existing spacing ',...(assignment?{options:assignment}:{})}]});
+  const client=new MedusaClient(),calls=[];client.request=async(path,init={})=>{calls.push({path,...init});return{product:raw}};
+  const draft=sanitizeProductDraft({...structuredClone(original),title:'Only title changed'});
+  await client.saveProductStructure(raw.id,original,draft);
+  assert.deepEqual(JSON.parse(calls[0].body),{title:'Only title changed'});
+  assert.equal(calls.length,2,'No variant batch write may be created by editor normalization');
+  assert.deepEqual(draft.variants,original.variants);
+ }
+});

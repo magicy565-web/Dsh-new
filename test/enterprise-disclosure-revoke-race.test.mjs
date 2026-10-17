@@ -12,7 +12,7 @@ import {createEnterpriseDisclosurePolicy} from '../server/enterprise-disclosure-
 
 const admin={workspaceId:'synthetic-revoke-race',subject:'owner',role:'admin'};
 const outcome=promise=>promise.then(value=>({value}),error=>({error}));
-async function fixture(t,{writeRefused=false,cleanupRefused=false}={}){
+async function fixture(t,{writeRefused=false,cleanupRefused=false,firstDeleteRefused=false}={}){
  const directory=await fs.mkdtemp('/tmp/disclosure-revoke-race-');
  let store=await openStore(directory),policy;
  const reached=Promise.withResolvers(),release=Promise.withResolvers(),tuples=new Set(),calls=[];
@@ -31,6 +31,7 @@ async function fixture(t,{writeRefused=false,cleanupRefused=false}={}){
      if(writeRefused){res.writeHead(500);res.end('{}');return;}
     }
     if(body.deletes){
+     if(firstDeleteRefused&&calls.filter(row=>row.deletes).length===1){res.writeHead(500);res.end('{}');return;}
      if(cleanupRefused&&calls.filter(row=>row.deletes).length>1){res.writeHead(500);res.end('{}');return;}
      for(const tuple of body.deletes.tuple_keys)tuples.delete(key(tuple));
     }
@@ -92,4 +93,15 @@ test('failed late-tuple cleanup is explicit while local revocation still denies 
  const revoked=await f.policy.revoke(f.policy.list().grants[0].id,{},admin);f.release();const completed=await grant;
  assert.equal(completed.error?.code,'DISCLOSURE_CLEANUP_FAILED');assert.deepEqual((await f.persisted()).businessLibrary.disclosureGrants[0],revoked.grant);assert.equal(f.tuples.size,1);
  await assert.rejects(f.policy.check(f.query),e=>e.code==='DISCLOSURE_SCOPE_DENIED');await assert.rejects(f.policy.read(f.query),e=>e.code==='DISCLOSURE_SCOPE_DENIED');
+});
+
+
+test('real policy retries failed FGA delete after durable revoked state and reopen',{timeout:10000},async t=>{
+ const f=await fixture(t,{firstDeleteRefused:true});const pending=f.policy.grant(f.input,admin);await f.reached;f.release();const saved=await pending;
+ assert.equal(f.tuples.size,1);const first=await f.policy.revoke(saved.grant.id,{},admin);
+ assert.ok(first.syncError);assert.equal(first.grant.status,'revoked');assert.equal(f.tuples.size,1);
+ await assert.rejects(f.policy.check(f.query),e=>e.code==='DISCLOSURE_SCOPE_DENIED');await f.reopen();
+ const second=await f.policy.revoke(saved.grant.id,{},admin);assert.equal(second.idempotent,true);assert.equal(second.syncError,undefined);assert.equal(f.tuples.size,0);
+ assert.equal(f.calls.filter(x=>x.deletes).length,2);assert.deepEqual(second.grant,first.grant);
+ await assert.rejects(f.policy.read(f.query),e=>e.code==='DISCLOSURE_SCOPE_DENIED');
 });

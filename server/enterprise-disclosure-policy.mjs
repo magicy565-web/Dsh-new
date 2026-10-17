@@ -143,12 +143,12 @@ export function createEnterpriseDisclosurePolicy({ store, library, artifacts=nul
   async function revoke(grantId,body={},actor,signal) {
     assertActor(actor); if(!UUID.test(grantId)) fail(400,'DISCLOSURE_GRANT_INVALID','Invalid disclosure grant id.');
     const current=grants(store.read()).find(g=>g.id===grantId); if(!current) fail(404,'DISCLOSURE_GRANT_NOT_FOUND','Disclosure grant not found.');
-    if(current.status==='revoked') return {grant:clean(current),idempotent:true};
     if(body.reason!==undefined&&(typeof body.reason!=='string'||!body.reason.trim()||body.reason.length>500)) fail(400,'DISCLOSURE_REVOKE_REASON_INVALID','A non-empty bounded revoke reason is required.');
-    const now=iso(clock());
-    await store.update(state=>{const row=grants(state).find(g=>g.id===grantId);row.status='revoked';row.revokedAt=now;row.revokedBy=actor.subject;row.revokeReason=body.reason?.trim()||'revoked_by_admin';row.updatedAt=now;row.revision++;row.history.push(historyEntry(row,'revoked',actor,{reason:row.revokeReason}));return null;});
-    if(fga){try{await fga.write({deletes:[tupleFor(current)]},signal);}catch(error){return {grant:clean(grants(store.read()).find(g=>g.id===grantId)),syncError:error?.code||'FGA_DELETE_FAILED'};}}
-    return {grant:clean(grants(store.read()).find(g=>g.id===grantId)),idempotent:false};
+    const {revoked,idempotent}=await store.update(state=>{const row=grants(state).find(g=>g.id===grantId);if(!row)fail(404,'DISCLOSURE_GRANT_NOT_FOUND','Disclosure grant not found.');const idempotent=row.status==='revoked';if(!idempotent){const now=iso(clock());row.status='revoked';row.revokedAt=now;row.revokedBy=actor.subject;row.revokeReason=body.reason?.trim()||'revoked_by_admin';row.updatedAt=now;row.revision++;row.history.push(historyEntry(row,'revoked',actor,{reason:row.revokeReason}));}return {revoked:clean(row),idempotent};});
+    // Local revocation is durable even on a failed delete. Every explicit retry
+    // retries the original idempotent FGA delete; revoked is not cleanup proof.
+    if(fga){try{await fga.write({deletes:[tupleFor(revoked)]},signal);}catch(error){return {grant:clean(grants(store.read()).find(g=>g.id===grantId)),syncError:error?.code||'FGA_DELETE_FAILED',idempotent};}}
+    return {grant:clean(grants(store.read()).find(g=>g.id===grantId)),idempotent};
   }
   function projectProduct(record, fields) {
     const allowed = new Set(fields), out = { id: record.id, revision: record.revision };

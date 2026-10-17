@@ -101,3 +101,23 @@ test('Revisions and published remote status fail closed; transport loss remains 
   { code: 'MEDUSA_TRANSPORT_UNCERTAIN' });
   assert.equal(failed.seen.filter(row => row.method === 'POST').length, 1);
 });
+
+test('stale and published remote private text never enters service or model receipts', async () => {
+  const {createMedusaProductClient}=await import('../server/medusa-product-client.mjs');
+  const f=setup(),preview=f.service.preview(f.owner.id,admin).preview;
+  await f.service.saveDraft(f.owner.id,{requestId:randomUUID(),expectedRevision:1,sourceHash:preview.sourceHash,confirmed:true},admin);
+  f.remote.title='REMOTE_PRIVATE_TITLE';f.remote.description='REMOTE_PRIVATE_DESCRIPTION';
+  const client=createMedusaProductClient({identity:admin,authorize:async()=>true,assertCurrent:()=>true,
+    materialsClient:{materials:async()=>({status:'available',products:[{id:f.owner.id,revision:1,name:f.owner.name,description:f.owner.description,category:f.owner.category,status:f.owner.status,provenance:{kind:'user_provided'}}],sources:[{id:f.owner.id}],authorization:{workspaceId,subject:admin.subject}})},
+    medusaCatalog:f.service});
+  for(const [remoteStatus,expected]of [['draft','stale'],['published','not_draft']]){
+    f.remote.status=remoteStatus;
+    const service=await f.service.reconcile(f.owner.id,admin),receipt=await client.reconcile({productId:f.owner.id});
+    assert.equal(receipt.view.remote.status,expected);assert.equal(receipt.view.remote.product,null);
+    assert.ok(!JSON.stringify(service).includes('REMOTE_PRIVATE'));assert.ok(!JSON.stringify(receipt).includes('REMOTE_PRIVATE'));
+  }
+  // Independent model boundary remains safe even if an upstream adapter returns text.
+  const unsafe={...f.service,reconcile:async()=>({preview,medusa:{configured:true},remote:{status:'stale',product:{title:'REMOTE_PRIVATE_TITLE',description:'REMOTE_PRIVATE_DESCRIPTION'}}})};
+  const guarded=createMedusaProductClient({identity:admin,authorize:async()=>true,assertCurrent:()=>true,materialsClient:{materials:async()=>({status:'available',products:[{id:f.owner.id,revision:1,name:f.owner.name,description:f.owner.description,category:f.owner.category,status:f.owner.status,provenance:{kind:'user_provided'}}],sources:[{id:f.owner.id}],authorization:{workspaceId,subject:admin.subject}})},medusaCatalog:unsafe});
+  assert.ok(!JSON.stringify(await guarded.reconcile({productId:f.owner.id})).includes('REMOTE_PRIVATE'));
+});

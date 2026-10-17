@@ -49,8 +49,9 @@ export function createMedusaCatalogConfiguration(environment = {}, workspaceId =
   return { configured: true, baseURL: url.origin, secret, workspaceId };
 }
 function safeRemote(product) {
-  return { id: product.id, handle: product.handle, title: product.title, description: product.description,
-    status: product.status, sourceRevision: product.metadata?.workspace_source_revision ?? null };
+  return { id: /^prod_[a-zA-Z0-9]+$/.test(product.id || '') ? product.id : null,
+    status: ['draft', 'published', 'proposed', 'rejected'].includes(product.status) ? product.status : 'unknown',
+    sourceRevision: Number.isSafeInteger(product.metadata?.workspace_source_revision) ? product.metadata.workspace_source_revision : null };
 }
 function remoteState(remote, expected, workspaceId, handle) {
   if (!remote) return { status: 'missing', product: null };

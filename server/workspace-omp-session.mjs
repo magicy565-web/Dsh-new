@@ -295,8 +295,23 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
         await onModelRequest({ modelCalls: callNumber });
         const signal = options?.signal;
         if (signal?.aborted) throw new Error('Workspace OMP turn cancelled.');
-        if(localFactory||scopedHost)await authorize({phase:'model:disclose'});
+        if(localFactory||scopedHost||nativeBusiness)await authorize({phase:'model:disclose'});
         const permit=async wireBody=>{
+          if(nativeBusiness){
+            await authorize({phase:'model:disclose'});
+            const freshSnapshots=await revalidateFactoryContext([...(manager?.getEntries() || []).map(e=>e.message),...(context.messages||[])],model,signal);
+            // Initial refresh is before the async request hook. The exact views
+            // about to leave must still equal a fresh original-client projection.
+            for(const message of context.messages||[]){
+              if(message?.role!=='toolResult')continue;
+              let receipt;try{receipt=JSON.parse((message.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n'));}catch{continue;}
+              let fresh;
+              if(receipt.plugin==='workspace-shopify-product'&&receipt.method){const value=freshSnapshots.get(shopifySnapshotKey(receipt));if(value){const {nativeContent,...data}=value;fresh=data;}}
+              if(receipt.plugin==='workspace-market-monitor'&&receipt.input)fresh=freshSnapshots.get(libraryReadHash([receipt.input,receipt.requestedAction]));
+              if(fresh&&libraryReadHash(fresh)!==libraryReadHash(receipt))throw Error('NATIVE_BUSINESS_WIRE_SOURCE_CHANGED');
+            }
+            await authorize({phase:'model:disclose'});
+          }
           if(enterpriseContextHost){
             const control=enterpriseContextHost.open(manager.getSessionId());
             const snapshot=manager.getBranch().findLast(e=>e.type==='custom'&&e.customType==='workspace-plugin-disclosure-snapshot'&&e.data?.id==='workspace-enterprise-context-private-v1')?.data.snapshot;
@@ -336,7 +351,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
           const disclosureAbort=new AbortController();
           const upstream = sdk.streamSimple({ ...model, api: 'openai-completions' }, context, { ...options, apiKey: configuration.apiKey,
             maxTokens: Math.min(Math.floor(maxTokens / maxModelCalls), options?.maxTokens || Infinity), maxRetries: 0,
-            ...(enterpriseContextHost?{signal:AbortSignal.any([signal,disclosureAbort.signal].filter(Boolean)),fetch:async(input,init)=>{
+            ...((enterpriseContextHost||nativeBusiness)?{signal:AbortSignal.any([signal,disclosureAbort.signal].filter(Boolean)),fetch:async(input,init)=>{
               try{if(dispatched)throw Error('OSS_MODEL_RETRY_NOT_ADMITTED');
                 const request=new Request(input instanceof Request?input.clone():input,init),body=await request.clone().text();
                 await permit(body);dispatch();return await globalThis.fetch(request);

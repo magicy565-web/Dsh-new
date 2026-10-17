@@ -59,7 +59,7 @@ export function createMedusaProductClient({ materialsClient, medusaCatalog, iden
     const outcome = await medusaCatalog.reconcile(input.productId, identity, signal);
     await selected(input.productId, signal, model);
     if (outcome.preview.sourceHash !== record.preview.sourceHash) fail('MEDUSA_SOURCE_CHANGED', 409);
-    return response('reconcile', input, record, { preview: record.preview, remote: outcome.remote, medusa: outcome.medusa },
+    return response('reconcile', input, record, { preview: record.preview, remote: { status: ['unconfigured','missing','foreign','not_draft','stale','linked'].includes(outcome.remote?.status) ? outcome.remote.status : 'unknown', product: null }, medusa: outcome.medusa },
       outcome.medusa.configured ? 'available' : 'unconfigured');
   }
   async function refresh(receipt, model, signal) {
