@@ -367,6 +367,11 @@ export function createBusinessBrain(options = {}) {
       unknowns: row?.value.payload.unknowns ?? ['No business context has been saved. Ask for the business goal and approved sources.']});
     if (!same(received, historical) || !same((await repository.get('context'))?.ref, latestRef)) fail('BRAIN_CACHE_REFUSED');
     await gate('context.validate', receiver, signal);
+    // Historical-only sources still need authority after the final Artifact
+    // read and gate, even when the current context no longer selects them.
+    if (await assertCurrent({binding: clone(binding), sourceRefs: clone(row?.value.payload.sourceRefs ?? []),
+      goalIds: clone(row?.value.payload.goalIds ?? []), sources: clone(captured.sources), goals: clone(captured.goals), receiver, signal}) !== true) fail('BRAIN_SOURCE_STALE');
+    cancelled(signal);
     return true;
   }
   async function revalidatePriorDecision(received, receiver, signal) {
