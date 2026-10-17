@@ -1,0 +1,45 @@
+{
+  "status": "archived-unapplied-optional-draft",
+  "baseline": "f3ce36de6a064e9b6dc46d33b762ab6a1eb4b156",
+  "serverReport": {
+    "source": "Parent relay, not independently verified by this writer",
+    "at": "2026-10-17 11:40 UTC",
+    "originalManualCommandExit": 0,
+    "userRows": 1,
+    "authIdentityRows": 1,
+    "providerIdentityRows": 1,
+    "earlierFailureCause": "unproven",
+    "originalFlowDeterministicallyBroken": false
+  },
+  "verification": {
+    "unitAndSourceContracts": {
+      "passed": 15,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "scope": "Synthetic input/code classification/private fd tests and existing deployment contracts"
+    },
+    "actualSDKReadOnlyPreflight": {
+      "exit": 0,
+      "codes": [
+        "ADMIN_DIRECTORY_OK",
+        "ADMIN_XDG_OK",
+        "ADMIN_CLI_LOAD_OK",
+        "ADMIN_PROVIDER_LOAD_OK",
+        "ADMIN_DIAGNOSTIC_OK"
+      ],
+      "scope": "Pinned Node image, actual native CLI Configstore/imports plus provider layout, network=none/user1000/read_only; no nativeUser execution or DB"
+    },
+    "completeSyntheticPTY": {
+      "passed": false,
+      "stage": "After ADMIN_SERVICE_INITIALIZATION_OK, then ADMIN_SERVICE_INITIALIZATION_FAILED",
+      "scope": "Actual native user command with fake persistence/services; fixture did not implement all native utility constants; no further debugging after stop instruction",
+      "realAccountOrDatabaseWrite": false
+    }
+  },
+  "productionPatchApplied": false,
+  "serverActionByThisWriter": false,
+  "additionalDeploymentRequired": false,
+  "draftSHA256": "a8cbb93136f20a9e8aa628dead1769c0c416b665a3c39344d9c8ef6aef6baaf3",
+  "unitLogSHA256": "202f11b220a36d4376e447fe0f2b63356d05e08695d91ee3ae176e54ab64be76"
+}
