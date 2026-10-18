@@ -30,8 +30,8 @@ const clientMethods = ['businessPresets', 'businessSubmit', 'businessTasks', 'bu
 const client = Object.fromEntries(clientMethods.map(method => [method, (...args) => request(method, args.map(arg => arg instanceof AbortSignal ? null : arg))]));
 async function start(config) {
   if (running) throw new Error('A worker hosts one official OMP turn only.'); running = true;
-  if (config.paidAcceptance !== undefined) {
-    if (config.paidAcceptance !== NATIVE_FACTS_PAID_ACCEPTANCE || !config.nativeBusiness || !config.brainFactsConfigured
+  if (config.paidAcceptance !== undefined || config.boundedBusiness === true) {
+    if ((config.boundedBusiness === true ? config.paidAcceptance !== undefined : config.paidAcceptance !== NATIVE_FACTS_PAID_ACCEPTANCE) || !config.nativeBusiness || !config.brainFactsConfigured
       || config.syntheticResponses || config.resetBusinessContext) throw Error('NATIVE_FACTS_PAID_ACCEPTANCE_REQUIRED');
     providerTransport = createLocalDeepseekTransport({ configuration: config.configuration,
       onStop: () => { lifecycle.abort(); void created?.session.abort(); } });

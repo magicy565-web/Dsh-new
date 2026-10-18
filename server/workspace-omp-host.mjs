@@ -16,7 +16,7 @@ export function workspaceOmpPublicToolConfiguration(environment = {}) {
     : environment.WORKSPACE_OMP_BROWSER_BIN || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : null);
   return { searchProvider, browserExecutable, publicDocumentRoot: environment.WORKSPACE_OMP_PUBLIC_DOCUMENT_ROOT, files };
 }
-export function createWorkspaceOmpBusinessOptions({ environment = {}, baseURL, resolveReviewedBusinessBinding = null, paidAcceptance = null, pluginConfiguration = null } = {}) {
+export function createWorkspaceOmpBusinessOptions({ environment = {}, baseURL, resolveReviewedBusinessBinding = null, paidAcceptance = null, modelBudget = null, pluginConfiguration = null } = {}) {
   const configuration = workspaceOmpConfiguration(environment), paths = workspaceOmpPaths(environment);
   const profile = environment.WORKSPACE_OMP_PROFILE || 'public';
   if (!['business', 'public', 'factory-materials', 'factory-customers', 'factory-inquiries', 'factory-ingestion', 'market-validation', 'shopify-product'].includes(profile)) throw Error('Use the fixed public or factory-materials OMP profile.');
@@ -31,7 +31,7 @@ export function createWorkspaceOmpBusinessOptions({ environment = {}, baseURL, r
   const selectedPlugins = pluginConfiguration === null ? {} : {disabled:[...pluginConfiguration.disabled]};
   const model = { provider: configuration.providerId, id: configuration.model, api: 'openai-completions', baseUrl: configuration.baseUrl };
   return { recipient: { kind: 'pi-coding-agent', provider: model.provider, model: model.id, destination: model.baseUrl },
-    engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, nativeBusiness:profile==='business', paidAcceptance, pluginConfiguration:selectedPlugins, factoryMaterials: ['factory-materials', 'factory-inquiries', 'market-validation', 'shopify-product'].includes(profile), factoryInquiries: profile === 'factory-inquiries', factoryIngestion: profile === 'factory-ingestion', marketValidation: profile === 'market-validation', shopifyProduct: profile === 'shopify-product', factoryCustomers: profile === 'factory-customers', publicTools: workspaceOmpPublicToolConfiguration(environment), infrastructure: environment }),
+    engineAdapter: createWorkspaceOmpEngineAdapter({ paths, configuration, nativeBusiness:profile==='business', paidAcceptance, modelBudget, pluginConfiguration:selectedPlugins, factoryMaterials: ['factory-materials', 'factory-inquiries', 'market-validation', 'shopify-product'].includes(profile), factoryInquiries: profile === 'factory-inquiries', factoryIngestion: profile === 'factory-ingestion', marketValidation: profile === 'market-validation', shopifyProduct: profile === 'shopify-product', factoryCustomers: profile === 'factory-customers', publicTools: workspaceOmpPublicToolConfiguration(environment), infrastructure: environment }),
     resolveBinding: async ({ actor, conversation, sessionReadonlyClient } = {}) => {
       if (!workspaceOmpConfigured(configuration)) return null;
       const client = environment.WS_AGENT_TOKEN ? createWorkspaceClient({ baseURL: environment.WS_AGENT_URL || baseURL, token: environment.WS_AGENT_TOKEN })
@@ -58,7 +58,7 @@ export async function loadReviewedBusinessOptions(filename, environment = {}) {
   const file = await openPrivateFile(filename); let value;
   try { if ((await file.stat()).size > 128000) invalid('a bounded configuration'); value = JSON.parse(await file.readFile('utf8')); }
   catch { invalid('valid private JSON'); } finally { await file.close(); }
-  if (!value || Object.keys(value).some(key => !['libraryModelReadPolicy','goalBrainOptions','selection','connection','parserTransfer','brainMemoryFactKeys','brainDocumentTools','paidAcceptance','pluginConfiguration'].includes(key))) invalid('only original Host input fields');
+  if (!value || Object.keys(value).some(key => !['libraryModelReadPolicy','goalBrainOptions','selection','connection','parserTransfer','brainMemoryFactKeys','brainDocumentTools','paidAcceptance','modelBudget','pluginConfiguration'].includes(key))) invalid('only original Host input fields');
   const { libraryModelReadPolicy: policy, goalBrainOptions, selection, connection, parserTransfer } = value;
   if (!policy?.enabled || policy.reviewed !== true || !goalBrainOptions || !Array.isArray(goalBrainOptions.reviewedGoals)
     || selection?.enabled !== true || selection.reviewed !== true || !Array.isArray(selection.sources) || !selection.sources.length
@@ -75,7 +75,7 @@ export async function loadReviewedBusinessOptions(filename, environment = {}) {
   const pins = policy.factoryMaterials?.documents || [];
   for (const pin of selection.sources) if (!pins.some(row => row.id === pin.documentId && hash(row.asset) === hash(pin.asset))) invalid('exact reviewed document/version/SHA pins');
   return {
-    libraryModelReadPolicy: policy, goalBrainOptions, ...(value.pluginConfiguration ? {pluginConfiguration:value.pluginConfiguration} : {}), ...(value.paidAcceptance ? { paidAcceptance:value.paidAcceptance } : {}),
+    libraryModelReadPolicy: policy, goalBrainOptions, ...(value.pluginConfiguration ? {pluginConfiguration:value.pluginConfiguration} : {}), ...(value.paidAcceptance ? { paidAcceptance:value.paidAcceptance } : {}), ...(value.modelBudget ? {modelBudget:value.modelBudget} : {}),
     resolveBinding: async ({ actor, conversation, model: receiver, enterpriseContextSessionBinding, conversationReferences }) => {
       if (actor.subject !== policy.subject || actor.workspaceId !== policy.workspaceId || hash(libraryRecipientForModel(receiver)) !== hash(policy.recipient)) throw new ApiError(403,'BUSINESS_AGENT_RECIPIENT_CHANGED','The existing member/model authorization does not cover this conversation.');
       const references = (await conversationReferences(conversation.id)).libraryReferences;

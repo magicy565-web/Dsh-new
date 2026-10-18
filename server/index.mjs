@@ -581,7 +581,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       extension = pathname.match(/^\/api\/conversations\/([^/]+)\/reset-session$/);
       if (extension && method === 'POST') return await respond(res, 200, await runtime.resetSession(decodeApiId(extension[1])));
       if (method === 'POST' && pathname === '/api/conversations') return await respond(res, 201, await runtime.createConversation(body, context));
-      if (method === 'POST' && pathname === '/api/goals') return await respond(res, 201, await runtime.createGoal(body));
+      if (method === 'POST' && pathname === '/api/goals') return await respond(res, 201, await runtime.createGoal(body, {actor:context}));
       if (method === 'PATCH' && pathname === '/api/settings') return await respond(res, 200, await runtime.updateSettings(body));
       if (method === 'POST' && pathname === '/api/memories') return await respond(res, 201, await runtime.createMemory(body));
       let match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/(messages|cancel))?$/);
@@ -682,7 +682,7 @@ export async function startWorkspaceServer({ reviewedBusiness = null, environmen
   // Trusted in-process composition only. HTTP selections remain references,
   // not model/parser/remember authorization; the default startup is unchanged.
   if (reviewedBusiness !== null && (!reviewedBusiness || typeof reviewedBusiness !== 'object'
-    || Object.keys(reviewedBusiness).some(key => !['libraryModelReadPolicy','goalBrainOptions','agentConfig','resolveBinding','paidAcceptance','pluginConfiguration'].includes(key))
+    || Object.keys(reviewedBusiness).some(key => !['libraryModelReadPolicy','goalBrainOptions','agentConfig','resolveBinding','paidAcceptance','modelBudget','pluginConfiguration'].includes(key))
     || typeof reviewedBusiness.resolveBinding !== 'function' || !reviewedBusiness.libraryModelReadPolicy || !reviewedBusiness.goalBrainOptions))
     throw Error('Use the original reviewed Library/Goal policy and trusted binding resolver.');
   const port = Number(environment.PORT || 8787);
@@ -696,7 +696,7 @@ export async function startWorkspaceServer({ reviewedBusiness = null, environmen
   if (reviewedBusiness && (mode !== 'omp' || environment.WORKSPACE_OMP_PROFILE !== 'business')) throw Error('Reviewed business composition requires the explicit business profile.');
   const businessAgentOptions = mode === 'omp' ? (await import('./workspace-omp-host.mjs')).createWorkspaceOmpBusinessOptions({
     environment: environment, baseURL: `http://127.0.0.1:${port}`,
-    ...(reviewedBusiness ? { paidAcceptance: reviewedBusiness.paidAcceptance || null, pluginConfiguration: reviewedBusiness.pluginConfiguration ?? null, resolveReviewedBusinessBinding: args => reviewedBusiness.resolveBinding({ ...args,
+    ...(reviewedBusiness ? { paidAcceptance: reviewedBusiness.paidAcceptance || null, modelBudget: reviewedBusiness.modelBudget || null, pluginConfiguration: reviewedBusiness.pluginConfiguration ?? null, resolveReviewedBusinessBinding: args => reviewedBusiness.resolveBinding({ ...args,
       enterpriseContextSessionBinding: options => app.enterpriseContextSessionBinding(args.actor, options),
       conversationReferences: id => app.businessLibrary.getConversationReferences(id) }) } : {}),
   }) : null;

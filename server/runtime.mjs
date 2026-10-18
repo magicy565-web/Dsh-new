@@ -790,7 +790,7 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       jobs.get(runId)?.controller.abort();
       return result;
     },
-    async createGoal(body, { serviceTaskContext, authorizeServiceTask } = {}) {
+    async createGoal(body, { serviceTaskContext, authorizeServiceTask, actor = null } = {}) {
       ensureOpen();
       const title = text(body.title, 'title', 160);
       const description = body.description === '' ? '' : text(body.description, 'description', 20_000, '');
@@ -798,16 +798,21 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       const maxOutputTokens = int(body.maxOutputTokens, 'maxOutputTokens', 1600, 128000, maxSteps * 1600);
       const key = body.requestId === undefined ? null : requestKey(body.requestId);
       const selected = normalizeInputContext(body.inputContext);
+      const owner=actor?{subject:text(actor.subject,'subject',128),workspaceId:text(actor.workspaceId,'workspaceId',128)}:null;
       return store.update(state => {
         if (serviceTaskContext && (typeof authorizeServiceTask !== 'function' || authorizeServiceTask(state) !== true)) throw new ApiError(403, 'SERVICE_TASK_OWNER_REQUIRED', 'The original Host must revalidate current task authorization at commit.');
         const existing = key && state.goals.find(goal => goal.requestId === key);
         if (existing) {
-          const priorContext = required(state, 'conversations', existing.conversationId).serviceTaskContext;
+          const ownerConversation=required(state,'conversations',existing.conversationId);
+          if(owner&&(ownerConversation.createdBy!==owner.subject||ownerConversation.workspaceId!==owner.workspaceId))throw new ApiError(404,'NOT_FOUND','Goal not found.');
+          const priorContext = ownerConversation.serviceTaskContext;
           if ((priorContext || serviceTaskContext) && capabilityPayloadHash(priorContext || null) !== capabilityPayloadHash(serviceTaskContext || null)) throw new ApiError(403, 'SERVICE_TASK_CONTEXT_REQUIRED', 'Use the original Host task context.');
           if (existing.title !== title || existing.description !== description || existing.maxSteps !== maxSteps || existing.maxOutputTokens !== maxOutputTokens || selected !== undefined && capabilityPayloadHash(existing.inputContext ?? null) !== capabilityPayloadHash(selected) || (body.conversationId && existing.conversationId !== body.conversationId)) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'This requestId was already used for a different goal.');
           return { goal: existing, duplicate: true };
         }
         const item = body.conversationId ? required(state, 'conversations', body.conversationId) : conversation(state, title);
+        if(owner){if(body.conversationId&&(item.createdBy!==owner.subject||item.workspaceId!==owner.workspaceId))throw new ApiError(404,'NOT_FOUND','Conversation not found.');
+          if(!body.conversationId){item.createdBy=owner.subject;item.workspaceId=owner.workspaceId;item.inputContext=selected??emptyInputContext();}}
         if (item.businessAgentOwner) throw new ApiError(409, 'BUSINESS_AGENT_CONVERSATION_ONLY', 'This public-business conversation uses original messages and task references; it cannot be adopted by a separate Goal loop.');
         if ((item.serviceTaskContext || serviceTaskContext) && (!item.serviceTaskContext || !serviceTaskContext || capabilityPayloadHash(item.serviceTaskContext) !== capabilityPayloadHash(serviceTaskContext))) throw new ApiError(403, 'SERVICE_TASK_CONTEXT_REQUIRED', 'Generic Goal creation cannot adopt a service-only task.');
         if (agentConversation(state, item.id)) throw agentConversationRouteError();

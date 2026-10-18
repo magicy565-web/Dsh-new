@@ -6,6 +6,8 @@ import { assertPrivateWindowsPath } from './windows-private-acl.mjs';
 import { validateMuseJointSlots } from './muse-worker-slot.mjs';
 import { validateMuseDraftRegistry } from './muse-draft.mjs';
 
+import {validateWorkspaceModelBudgetState} from './workspace-model-budget.mjs';
+
 export const STORE_VERSION = 3;
 export const SUPPORTED_STORE_VERSIONS = Object.freeze([1, 2, STORE_VERSION]);
 export const defaultSettings = { name: 'Workspace', language: 'zh', model: 'deepseek-flash', maxGoalSteps: 3 };
@@ -56,6 +58,7 @@ export function validateState(state, version = STORE_VERSION) {
   for (const key of baseCollections) validateCollection(state[key]);
   if (version === 1) return;
   for (const key of ['runs', 'artifacts']) validateCollection(state[key]);
+  validateWorkspaceModelBudgetState(state);
   if (!isObject(state.meta) || !Number.isSafeInteger(state.meta.sequence) || state.meta.sequence < 0 || !iso(state.meta.createdAt) || !iso(state.meta.updatedAt)) throw invalid();
   if (!isObject(state.capabilities) || state.capabilities.version !== 1) throw invalid();
   for (const key of capabilityCollections) validateCollection(state.capabilities[key]);

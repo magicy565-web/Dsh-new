@@ -11,6 +11,7 @@ import { privateDirectory, openPrivateFile } from './store.mjs';
 import { ProviderError } from './provider.mjs';
 import { snapshotWorkspaceOmpPublicFiles } from './workspace-omp-public-tools.mjs';
 import { createNativeDeepseekAcceptance, validateLocalDeepseekReport, localDeepseekConfigured, NATIVE_FACTS_PAID_ACCEPTANCE, LOCAL_DEEPSEEK_LIMITS } from './workspace-omp-local-deepseek.mjs';
+import {createWorkspaceModelBudget,normalizeWorkspaceModelBudget} from './workspace-model-budget.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const OMP_ENGINE_SCOPE = 'omp:18.10.4:public-v1';
 export const OMP_ENTERPRISE_CONTEXT_SCOPE='omp:18.10.4:enterprise-context-v1';
@@ -23,9 +24,10 @@ export const OMP_MARKET_ENGINE_SCOPE = 'omp:18.10.4:market-validation-v1';
 export const OMP_INQUIRIES_ENGINE_SCOPE = 'omp:18.10.4:factory-inquiries-v1';
 export { workspaceOmpPaths, checkWorkspaceOmpPaths } from './workspace-omp-runtime.mjs';
 export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTools = {}, nativeBusiness = false, medusaEnterprise = false, factoryMaterials = false, factoryCustomers = false, factoryInquiries = false, factoryIngestion = false, marketValidation = false, shopifyProduct = false, syntheticResponses = null, freeTrade = false, enterpriseContext = false, pluginConfiguration = {},
-  syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {}, paidAcceptance = null }) {
+  syntheticPublicSearchResponses = null, infrastructure = {}, onWorkerLifecycle = () => {}, paidAcceptance = null, modelBudget = null }) {
   if (paidAcceptance !== null && (!nativeBusiness || syntheticResponses || !localDeepseekConfigured(configuration))) throw Error('NATIVE_FACTS_PAID_ACCEPTANCE_REQUIRED');
-  const paidAdmission = paidAcceptance === null ? null : createNativeDeepseekAcceptance(paidAcceptance);
+  const acceptanceAdmission = paidAcceptance === null ? null : createNativeDeepseekAcceptance(paidAcceptance);
+  if(modelBudget!==null){modelBudget=normalizeWorkspaceModelBudget(modelBudget);if(paidAcceptance!==null||!nativeBusiness||syntheticResponses||!localDeepseekConfigured(configuration))throw Error('WORKSPACE_MODEL_BUDGET_REQUIRED');}
   if(typeof medusaEnterprise!=='boolean'||medusaEnterprise&&(nativeBusiness||freeTrade||factoryMaterials||factoryCustomers||factoryInquiries||factoryIngestion||marketValidation||shopifyProduct))throw Error('MEDUSA_ENTERPRISE_READONLY_PROFILE_REQUIRED');
   if(medusaEnterprise)enterpriseContext=true;
   if(nativeBusiness){if(freeTrade||enterpriseContext||factoryIngestion||factoryCustomers||factoryInquiries)throw Error('NATIVE_BUSINESS_PROFILE_REQUIRED');factoryMaterials=true;marketValidation=true;shopifyProduct=true;}
@@ -41,8 +43,10 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
   if (typeof shopifyProduct !== 'boolean' || shopifyProduct && (factoryIngestion || marketValidation && !nativeBusiness || factoryInquiries || factoryCustomers)) throw TypeError('Use one reviewed Shopify product profile.');
   const engineScope = medusaEnterprise ? MEDUSA_ENTERPRISE_SCOPE : nativeBusiness ? 'omp:18.10.4:business-v1' : enterpriseContext ? OMP_ENTERPRISE_CONTEXT_SCOPE : freeTrade ? OMP_FREE_TRADE_SCOPE : shopifyProduct ? OMP_SHOPIFY_ENGINE_SCOPE : factoryIngestion ? OMP_INGESTION_ENGINE_SCOPE : marketValidation ? OMP_MARKET_ENGINE_SCOPE : factoryInquiries ? OMP_INQUIRIES_ENGINE_SCOPE : factoryMaterials ? OMP_FACTORY_ENGINE_SCOPE : factoryCustomers ? OMP_CUSTOMERS_ENGINE_SCOPE : OMP_ENGINE_SCOPE;
   return Object.freeze({ scope: engineScope,
-    async complete({ input, run, binding, client, authorize, enterpriseContextHost = binding?.enterpriseContextHost, freeTradeHost = binding?.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, medusaClient, brainClient, bindBrainForNativeSession = null, marketplaceClient, isolationDirectory, savedSession, saveSession }) {
+    async complete({ input, run, binding, client, authorize, budgetStore = null, assertBudgetCurrent = null, enterpriseContextHost = binding?.enterpriseContextHost, freeTradeHost = binding?.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, medusaClient, brainClient, bindBrainForNativeSession = null, marketplaceClient, isolationDirectory, savedSession, saveSession }) {
       input.signal?.throwIfAborted();
+      const paidAdmission=modelBudget?createWorkspaceModelBudget({store:budgetStore,selection:modelBudget,configuration}):acceptanceAdmission;
+      if(modelBudget&&typeof assertBudgetCurrent!=='function')throw Error('WORKSPACE_MODEL_BUDGET_REQUIRED');
       const brainFactsConfigured = bindBrainForNativeSession !== null;
       const documentToolsConfigured = binding?.brainDocumentTools === true;
       if (documentToolsConfigured && !brainFactsConfigured) throw Error('Original document fact binding required.');
@@ -76,12 +80,14 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
       // No service token/API key appears in argv, logs or env. The selected
       // model configuration crosses the private fd only, and never the model context.
       input.signal?.throwIfAborted();
-      paidAdmission?.begin(run.id);
+      if(modelBudget){await paidAdmission.begin(run.id,assertBudgetCurrent);try{await authorize();paidAdmission.assertCurrent(run.id);}catch(error){await paidAdmission.finish(run.id,{report:null,modelCalls:0,successful:false});throw error;}}
+      else paidAdmission?.begin(run.id);
       return await new Promise((resolve, reject) => {
         const child = spawn(paths.bun, [path.join(root, 'server/workspace-omp-worker.mjs')], { cwd: isolationDirectory, env: childEnv, detached: true, stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
         onWorkerLifecycle({ phase: 'spawn', pid: child.pid });
         const channel = child.stdio[3]; let settled = false, bytes = 0, modelCalls = 0, preparedCalls=0, permittedCall=0, childClosed = false, cleanupComplete = false, pendingResult = null, resultVerified = false;
         let providerReport = null, providerReportReceived = false;
+        let activeHandlers=0,durableFinishing=false,durableAccounted=false;
         let paidFailurePending = null, paidFailureTimer, paidFailureFinalizing = false;
         let paidDispatchedCalls = 0, paidWirePermittedCall = 0, paidWireRefusedCall = 0, paidDisclosureStopped = false;
         const lines = createInterface({ input: channel, crlfDelay: Infinity });
@@ -95,8 +101,8 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           terminateTimer = setTimeout(() => { if (!childClosed) child.kill('SIGTERM'); }, 250); terminateTimer.unref();
           killTimer = setTimeout(() => { if (!childClosed) { try { process.kill(-child.pid, 'SIGKILL'); } catch {} } }, 1500); killTimer.unref(); };
         const timer = setTimeout(stop, 65000);
-        const finish = (error, result) => { if (settled) return;
-          if (paidAdmission && error && !(childClosed && cleanupComplete) && !paidFailureFinalizing) {
+        const finish = (error, result) => { if (settled||durableFinishing) return;
+          if (paidAdmission && error && !(childClosed && cleanupComplete && (!modelBudget||activeHandlers===0)) && !paidFailureFinalizing) {
             // Keep the original failed worker's fd open until bounded cleanup:
             // late protocol faults must invalidate a previously complete report.
             paidFailurePending ||= error; paidDisclosureStopped = true; stop();
@@ -112,6 +118,23 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             if (error) paidDisclosureStopped = true;
             if (!error) try { validateLocalDeepseekReport(providerReport, { modelCalls, requireConfirmed: true }); }
             catch { error = new ProviderError('OMP_PROVIDER_ACCOUNTING_REFUSED', 'Complete original provider usage is required; do not retry.'); }
+            if(modelBudget){
+              durableFinishing=true;
+              void (async()=>{
+                try{
+                  // Success was durably accounted BEFORE the original final
+                  // full journal/source checks, so no write-await splits them.
+                  if(!durableAccounted){
+                    if(!error)throw Error('Original final accounting required.');
+                    const accounting=await paidAdmission.finish(run.id,{report:providerReport,modelCalls:paidDispatchedCalls,successful:false});
+                    durableAccounted=true;onWorkerLifecycle(accounting);
+                  }
+                }catch{paidAdmission.stop();error ||= new ProviderError('OMP_PROVIDER_ACCOUNTING_REFUSED','Original provider accounting could not be durably confirmed.');}
+                settled=true;clearTimeout(timer);clearTimeout(paidFailureTimer);input.signal?.removeEventListener('abort',stop);
+                if(error){paidDisclosureStopped=true;stop();reject(error);}else resolve(result);
+              })();
+              return;
+            }
             try {
               const accounting = paidAdmission.finish(run.id, { report: providerReport, modelCalls: paidDispatchedCalls, successful: !error });
               onWorkerLifecycle(accounting);
@@ -129,8 +152,14 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
         channel.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP transport closed.')); });
         lines.on('error', () => { if (!pendingResult) finish(new ProviderError('OMP_SESSION_FAILED', 'The official OMP line transport closed.')); });
         const finishSuccess = () => {
-          if(!childClosed||!cleanupComplete||!resultVerified||delivering)return;delivering=true;
-          void(async()=>{await authorize();if(freeTrade){if(!freeControl)throw Error();await freeControl.finalCheck(input.signal,binding.model);}
+          if(!childClosed||!cleanupComplete||!resultVerified||delivering||modelBudget&&activeHandlers)return;delivering=true;
+          void(async()=>{
+            if(modelBudget){
+              validateLocalDeepseekReport(providerReport,{modelCalls,requireConfirmed:true});
+              const accounting=await paidAdmission.finish(run.id,{report:providerReport,modelCalls:paidDispatchedCalls,successful:true});
+              durableAccounted=true;onWorkerLifecycle(accounting);
+            }
+            await authorize();if(freeTrade){if(!freeControl)throw Error();await freeControl.finalCheck(input.signal,binding.model);}
             if(enterpriseContext){if(!enterpriseControl)throw Error();await enterpriseControl.finalCheck(input.signal,binding.model);}
             if (brainFactsConfigured) {
               if (!factControl || factFinalCalls !== modelCalls || !factReceiver || factOperations) throw Error('Original final fact disclosure required.');
@@ -231,6 +260,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 factDocumentTools?.assertDisclosureCurrent(payload,receiver,rpcSignal);
                 if(factOperations || activity!==factActivity || value.modelCalls!==modelCalls)throw Error('Original fact disclosure changed during authorization.');
                 if (paidAdmission && value.phase === 'model:disclose' && value.wireBody !== undefined) {
+                  if(modelBudget){assertBudgetCurrent();paidAdmission.assertCurrent(run.id);}
                   if (paidWirePermittedCall === modelCalls) throw Error('LOCAL_ACCEPTANCE_ACCOUNTING_REFUSED');
                   paidWirePermittedCall = modelCalls;
                 }
@@ -253,6 +283,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 if(enterpriseContext&&enterpriseNativeId!==message.args[0].agentSessionId)throw Error('Original native Session required.');
               }
               else if (message.method === 'modelRequest') {
+                if(modelBudget){assertBudgetCurrent();paidAdmission.assertCurrent(run.id);}
                 if (paidAdmission && (providerReportReceived || paidDisclosureStopped)) {
                   providerReport = null;
                   finish(new ProviderError('OMP_PROVIDER_ACCOUNTING_REFUSED', 'A terminal provider report cannot admit another model request; do not retry.'));
@@ -414,7 +445,9 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
             ?new ProviderError('OMP_CONTEXT_REFRESH_REQUIRED','Original business status changed. Confirm resetContext in this conversation human controls, then reread currently authorized data. Audit history and drafts remain; no authority is renewed.')
             :new ProviderError('OMP_SESSION_FAILED', message.error + (syntheticResponses && message.diagnostic ? ' Explicit synthetic fixture diagnostic: ' + message.diagnostic : '')));
         };
-        lines.on('line', line => { void handleLine(line).catch(() => finish(new ProviderError('OMP_SESSION_FAILED', 'The original OMP host operation stopped.'))); });
+        lines.on('line', line => { activeHandlers++;void handleLine(line).catch(() => finish(new ProviderError('OMP_SESSION_FAILED','The original OMP host operation stopped.'))).finally(()=>{
+          activeHandlers--;if(modelBudget&&activeHandlers===0&&childClosed&&cleanupComplete){if(paidFailurePending)finish(paidFailurePending);else finishSuccess();}
+        }); });
         child.on('error', () => finish(new ProviderError('OMP_UNAVAILABLE', 'The reviewed OMP runtime could not start.')));
         child.on('close', code => { childClosed = true; for (const operation of operations.values()) operation.abort(); operations.clear(); clearTimeout(terminateTimer); clearTimeout(killTimer); lines.close();
           void cleanupSnapshots().then(() => {
@@ -425,7 +458,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           }).catch(() => { if (paidAdmission) { providerReport = null; paidFailureFinalizing = true; }
             finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.')); }); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, nativeBusiness, medusaEnterprise, ...(paidAdmission?{paidAcceptance:NATIVE_FACTS_PAID_ACCEPTANCE}:{}), resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient||brainFactsConfigured, ...(brainFactsConfigured?{brainFactsConfigured:true}:{}), ...(documentToolsConfigured?{documentToolsConfigured:true,maxModelCalls:modelRequestLimit}:{}), marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, nativeBusiness, medusaEnterprise, ...(modelBudget?{boundedBusiness:true}:paidAdmission?{paidAcceptance:NATIVE_FACTS_PAID_ACCEPTANCE}:{}), resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient||brainFactsConfigured, ...(brainFactsConfigured?{brainFactsConfigured:true}:{}), ...(documentToolsConfigured?{documentToolsConfigured:true,maxModelCalls:modelRequestLimit}:{}), marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       }).catch(error => { paidAdmission?.stop(); throw error; });
     },

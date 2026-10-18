@@ -24,6 +24,7 @@ globalThis.fetch=async(input,init)=>{
  const documentSchemas=body.tools.filter(t=>t.function.name.startsWith('workspace_enterprise_context_')).map(({function:t})=>({name:t.name,strict:t.strict===true,branches:(t.parameters.oneOf||[]).map(branch=>({additionalProperties:branch.additionalProperties,required:branch.required,fields:Object.fromEntries(Object.entries(branch.properties||{}).map(([key,rule])=>[key,{hasConst:Object.hasOwn(rule,'const'),enumLength:Array.isArray(rule.enum)?rule.enum.length:null}]))}))}));
  summary.requests.push({withSource:text.includes(info.statement),toolNames:body.tools.map(t=>t.function.name),documentSchemas});
  fs.writeFileSync(info.reportFile,JSON.stringify(summary),{mode:0o600});const n=summary.requests.length;
+ if(info.mode==='unknown')return new Response('data: '+JSON.stringify({id:'finite-no-usage',model:'deepseek-flash',choices:[{index:0,delta:{role:'assistant',content:'Unconfirmed synthetic response'},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
  if(info.mode==='clarify')return sse({role:'assistant',content:'What business outcome should I investigate? I can wait for your clarification without parsing or saving.'},'stop');
  if(info.mode==='lookup'){if(n===1)return call('workspace_enterprise_context_structured_memory_lookup',discover('workspace_enterprise_context_structured_memory_lookup'),'lookup-only');assert.equal(n,2);assert.equal(receipts.findLast(r=>r?.operation==='structuredMemoryLookup').found,false);return sse({role:'assistant',content:'The selected fact is not yet saved. No parser or write was needed to check it.'},'stop');}
  if(info.mode==='limit'||info.mode==='repeat'){
@@ -32,6 +33,7 @@ globalThis.fetch=async(input,init)=>{
   return call(name,info.documents?discover(name,info.mode==='limit'?n-1:0):{},'limit-'+n);
  }
  const turn=info.turn||1;
+ if(turn===3){if(n===1)return call('workspace_brain_context',{},'third-context');assert.equal(n,2);const context=receipts.findLast(r=>r?.kind==='context');assert.ok(context?.data.context);assert.ok(text.includes(info.statement));return sse({role:'assistant',content:'The third turn retains the original saved Context and source-backed fact; no new execution was started.'},'stop');}
  if(turn===2){
   if(n===1)return call('workspace_brain_context',{},'second-context');
   const context=receipts.findLast(r=>r?.kind==='context');assert.ok(context);assert.ok(text.includes(info.statement));

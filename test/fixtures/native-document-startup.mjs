@@ -11,13 +11,14 @@ import {signWorkspaceRequest} from '../../server/auth-ingress.mjs';
 import {workspaceOmpPaths,verifyWorkspaceOmpRuntime} from '../../server/workspace-omp-runtime.mjs';
 import {DEEPSEEK_PRICES} from '../../server/deepseek-acceptance-policy.mjs';
 import {NATIVE_FACTS_PAID_ACCEPTANCE} from '../../server/workspace-omp-local-deepseek.mjs';
+import {WORKSPACE_MODEL_BUDGET} from '../../server/workspace-model-budget.mjs';
 import {decisionSetup} from './brain-decision-input.mjs';
 import {request} from '../agent-service.helpers.mjs';
 export const QUERY={subjectType:'product',subjectId:'synthetic-bottle',factKey:'moq'};
 export const STATEMENT='SYNTHETIC bottle MOQ is 120 units; confirm the supplier before any commercial promise.';
 const empty=()=>({artifacts:[],skills:[],memoryIds:[],connectorActions:[]});
 const quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
-export async function startupFixture(t,{documents=true,mode='control'}={}){
+export async function startupFixture(t,{documents=true,mode='control',durableBudget=false}={}){
  const original=workspaceOmpPaths(process.env);await verifyWorkspaceOmpRuntime(original);
  const directory=await fs.mkdtemp('/tmp/native-document-startup-'),dataDirectory=path.join(directory,'data'),configFile=path.join(directory,'finite.json'),reportFile=path.join(directory,'provider-summary.json'),wrapper=path.join(directory,'finite-bun');
  const keys=generateKeyPairSync('ed25519'),workspaceId='document-startup-test',subject='member-a',parserSecret='synthetic-parser-only-no-network';
@@ -46,11 +47,10 @@ export async function startupFixture(t,{documents=true,mode='control'}={}){
  const uploaded=await workspace('/api/artifacts',{body:{requestId:randomUUID(),filename:'synthetic-bottle.txt',base64:Buffer.from(STATEMENT).toString('base64'),metadata:{businessLibrary:{visibility:'internal'}}}});assert.equal(uploaded.status,201,uploaded.text);
  const asset={artifactId:uploaded.json.artifact.id,version:uploaded.json.artifact.currentVersion,sha256:uploaded.json.artifact.sha256};
  const linked=await workspace('/api/library/documents',{body:{requestId:randomUUID(),title:'Synthetic bottle evidence',slotKey:'specification',asset}});assert.equal(linked.status,201,linked.text);const document=linked.json.document;
- // Existing reviewed Goal is an explicit fixture prerequisite. Use the
- // original ordinary owner conversation service, never a business-owned chat
- // or a direct Store seed; the Goal itself still goes through original HTTP.
- const owner=await app.runtime.createConversation({requestId:randomUUID(),title:'Original Goal owner',inputContext:empty()},{subject,workspaceId});
- const g=await workspace('/api/goals',{body:{requestId:randomUUID(),title:'Investigate synthetic MOQ',description:'No external action or spending',conversationId:owner.conversation.id,inputContext:empty()}});assert.equal(g.status,201,g.text);const goal=g.json.goal;
+ // Create the ordinary owned Goal through the real signed HTTP route.
+ // No direct runtime owner preparation or Store seed is necessary.
+ const g=await workspace('/api/goals',{body:{requestId:randomUUID(),title:'Investigate synthetic MOQ',description:'No external action or spending',inputContext:empty()}});assert.equal(g.status,201,g.text);const goal=g.json.goal;
+ const owner=app.store.read().conversations.find(c=>c.id===goal.conversationId);assert.equal(owner.createdBy,subject);assert.equal(owner.workspaceId,workspaceId);assert.equal(owner.businessAgentOwner,undefined);assert.equal(app.store.read().runs.length,0);
  assert.equal(app.store.read().businessLibrary.enterpriseMemories.length,0);
  await app.close();sessions.clear();
  const model={provider:'workspace-deepseek',id:'deepseek-flash',api:'openai-completions',baseUrl:'https://api.deepseek.com'},recipient={kind:'pi-coding-agent',provider:model.provider,model:model.id,destination:model.baseUrl};
@@ -60,7 +60,7 @@ export async function startupFixture(t,{documents=true,mode='control'}={}){
  // Budget-only trajectory: eight explicitly reviewed distinct keys, all
  // discovered by the finite provider from the real wire schema, never info.
  const factKeys=documents&&mode==='limit'?Array.from({length:8},(_,index)=>({...QUERY,factKey:'synthetic-budget-'+index})):[QUERY];
- const reviewed={pluginConfiguration,libraryModelReadPolicy,goalBrainOptions,selection:{enabled:true,reviewed:true,customerId:'synthetic-customer',sources:[{documentId:document.id,asset}],allowMemoryRead:true,allowMemoryWrite:true},connection:{reviewed:true,baseURL:'http://127.0.0.1:'+parser.address().port},parserTransfer:{approved:true,purpose:'document-extraction',transfer:'complete-file',recipient:{kind:'docling',destination:'http://127.0.0.1:'+parser.address().port+'/v1/convert/file'}},brainMemoryFactKeys:factKeys,brainDocumentTools:true,paidAcceptance:{kind:NATIVE_FACTS_PAID_ACCEPTANCE,historicalUpperCny:0.139804}};
+ const reviewed={pluginConfiguration,libraryModelReadPolicy,goalBrainOptions,selection:{enabled:true,reviewed:true,customerId:'synthetic-customer',sources:[{documentId:document.id,asset}],allowMemoryRead:true,allowMemoryWrite:true},connection:{reviewed:true,baseURL:'http://127.0.0.1:'+parser.address().port},parserTransfer:{approved:true,purpose:'document-extraction',transfer:'complete-file',recipient:{kind:'docling',destination:'http://127.0.0.1:'+parser.address().port+'/v1/convert/file'}},brainMemoryFactKeys:factKeys,brainDocumentTools:true,...(durableBudget?{modelBudget:{kind:WORKSPACE_MODEL_BUDGET,reviewed:true,budgetId:'synthetic-continuous',workspaceId,subject,expiresAt:'2099-01-01T00:00:00.000Z',limitCny:5,historicalUpperCny:0.139804,receiver:{provider:model.provider,id:model.id,baseUrl:model.baseUrl}}}:{paidAcceptance:{kind:NATIVE_FACTS_PAID_ACCEPTANCE,historicalUpperCny:0.139804}})};
  const reviewFile=path.join(directory,'reviewed-business.json');await fs.writeFile(reviewFile,JSON.stringify(reviewed),{mode:0o600});
  if(documents)app=await startWorkspaceServer({environment:{...environment,WORKSPACE_BUSINESS_REVIEW_FILE:reviewFile}});
  else app=await startWorkspaceServer({environment,reviewedBusiness:{libraryModelReadPolicy,goalBrainOptions,resolveBinding:async()=>({})}});

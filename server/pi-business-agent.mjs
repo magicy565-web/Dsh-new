@@ -265,7 +265,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         }
         if(engineAdapter.scope!==MEDUSA_ENTERPRISE_SCOPE&&goalBrain&&!factsEnabled)brainClient=goalBrain.bind({identity,conversationId:conversation.id,runId:run.id,canSubmit:canSave(),signal:input.signal}).brain;
       }
-      return engineAdapter.complete({ input, run, binding, client, authorize, medusaClient, brainClient,...(factsEnabled?{bindBrainForNativeSession}:{}),marketplaceClient,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
+      return engineAdapter.complete({ input, run, binding, client, authorize, budgetStore:store, assertBudgetCurrent:assertActive, medusaClient, brainClient,...(factsEnabled?{bindBrainForNativeSession}:{}),marketplaceClient,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
           await authorize();
