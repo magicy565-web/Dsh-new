@@ -99,6 +99,27 @@ test('native disclosure provenance permits matching history/context overlap and 
   await f.client.authorizeDisclosure({messages:statusMessages},model);
   await f.client.authorizeDisclosure({messages:statusMessages,wireBody:JSON.stringify(statusWire)},model);
 });
+test('native disclosure provenance permits same-Session product rereads with distinct call IDs, interleaved status and overlapping views',async()=>{
+  const {f,receipt,messages,wire}=await disclosureProof();
+  const status=await f.client.status({},undefined,model);
+  const secondReceipt=await f.client.context({productId:'prod_synthetic'},undefined,model);
+  assert.deepEqual(secondReceipt,receipt);
+  messages.push(
+    {role:'assistant',content:[{type:'toolCall',id:'status-between-reads',name:'workspace_medusa_status',arguments:{}}]},
+    {role:'toolResult',toolCallId:'status-between-reads',toolName:'workspace_medusa_status',content:[{type:'text',text:JSON.stringify(status)}],details:status},
+    {role:'assistant',content:[{type:'toolCall',id:'native-second-read',name:'workspace_medusa_context',arguments:{productId:'prod_synthetic'}}]},
+    {role:'toolResult',toolCallId:'native-second-read',toolName:'workspace_medusa_context',content:[{type:'text',text:JSON.stringify(secondReceipt)}],details:secondReceipt});
+  wire.messages.push(
+    {role:'assistant',tool_calls:[{id:'status-between-reads',function:{name:'workspace_medusa_status',arguments:'{}'}}]},
+    {role:'tool',tool_call_id:'status-between-reads',content:JSON.stringify(status)},
+    {role:'assistant',tool_calls:[{id:'native-second-read',function:{name:'workspace_medusa_context',arguments:JSON.stringify(secondReceipt.input)}}]},
+    {role:'tool',tool_call_id:'native-second-read',content:JSON.stringify(secondReceipt)});
+  const payload={messages,context:structuredClone(messages),wireBody:JSON.stringify(wire)};
+  assert.equal(f.state.calls,2);
+  await assert.doesNotReject(f.client.authorizeDisclosure(payload,model));
+  assert.equal(f.state.calls,4,'refresh both original invocations once despite their overlap across views');
+  assert.doesNotThrow(()=>f.client.assertPayloadCurrent(payload));
+});
 test('native transport has explicit private startup opt-in and cannot silently inherit Space/admin credentials',async t=>{
   const f=await fixture(),root=await fs.mkdtemp('/tmp/native-medusa-private-fixture-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
   assert.equal(await loadNativeMedusaModelConnection({},{}),null);
