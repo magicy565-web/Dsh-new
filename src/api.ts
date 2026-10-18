@@ -10,7 +10,7 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
   if (path === '/session/login') headers['X-Workspace-Login'] = '1';
   // Bound only read-only status requests. A mutation's result must never be
   // described as cancelled merely because the browser stopped waiting for it.
-  const bounded = method === 'GET' && ['/bootstrap', '/diagnostics', '/personal-worker'].includes(path);
+  const bounded = method === 'GET' && ['/bootstrap', '/diagnostics', '/personal-worker', '/conversations/runtime', '/medusa/catalog/status'].includes(path);
   const controller = bounded ? new AbortController() : undefined;
   async function read(): Promise<T> {
     let response: Response;

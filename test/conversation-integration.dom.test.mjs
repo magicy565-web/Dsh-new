@@ -182,6 +182,7 @@ test('original Goals and grouped activity open the corresponding conversation wi
   assert.equal(ui.document.querySelector('.goal-categories'), null); await click(ui, ui.document.querySelector('.goal-list-item'));
   await wait(() => ui.window.location.pathname === `/goals/${goal.id}` && button(ui, '完整会话'), 'goal opens its actual task session'); await click(ui, button(ui, '完整会话')); await wait(() => ui.window.location.pathname === `/chat/${current.id}`, 'full conversation preserves the goal binding');
   assert.equal((await f.request('/bootstrap')).goals.find(item => item.id === goal.id).status, 'draft');
+  await click(ui, aria(ui, '显示助手面板')); // Activity is now opened on demand.
   await wait(() => [...ui.document.querySelectorAll('.assistant-panel .activity-date')].some(item => item.textContent === '昨天'), 'stored yesterday event grouped');
   assert.ok([...ui.document.querySelectorAll('.assistant-panel .activity-date')].some(item => item.textContent === '今天'));
   assert.equal(f.modelCalls, 0); assert.deepEqual(ui.errors, []);

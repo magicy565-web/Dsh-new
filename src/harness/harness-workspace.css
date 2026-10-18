@@ -1,0 +1,51 @@
+/* Presentation only; original Session, conversation and Library remain authoritative. */
+.harness-workspace{--harness-ink:#20252c;--harness-muted:#6b7280;--harness-line:#e6e8eb;--harness-accent:#315dd5;color:var(--harness-ink);min-height:0}
+.harness-workspace .nav-rail{background:#f7f8fa;border-color:var(--harness-line)}
+.harness-workspace .conversation-sidebar{background:#f7f8fa;border-color:var(--harness-line);box-shadow:none}
+.harness-workspace .conversation-list{padding:8px 10px}
+.harness-workspace .conversation-item{border-radius:10px;margin:3px 0}
+.harness-workspace .conversation-item.selected{background:#e9edf5}
+.harness-workspace .conversation-select{min-width:0}
+.harness-workspace .conversation-select span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.harness-workspace .chat-header{align-items:center;flex-shrink:0;border-bottom:1px solid var(--harness-line);padding:12px 22px;background:#fff;gap:12px}
+.harness-workspace.chat-route.with-sidebar .chat-title-pill{visibility:visible}
+.harness-workspace .chat-title-pill{box-shadow:none;background:transparent;border-radius:8px;max-width:min(55%,480px);min-width:0;font-size:14px}
+.harness-workspace .chat-title-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.harness-workspace .harness-header-button{font-size:12px;padding:8px 12px;border:1px solid var(--harness-line);border-radius:8px;white-space:nowrap}
+.harness-workspace .header-actions>.icon-button[aria-label="显示助手面板"]{display:flex}
+.harness-workspace .workspace-assistant{background:#fff;color:var(--harness-ink)}
+.harness-workspace .workspace-assistant-heading{padding:22px max(24px,calc((100% - 800px)/2));background:#fff;border:0;gap:16px}
+.harness-workspace .workspace-assistant-heading h1{font-size:24px;letter-spacing:-.5px}
+.harness-workspace .workspace-assistant-heading p,.harness-workspace .workspace-assistant-eyebrow{color:var(--harness-muted)}
+.harness-workspace .workspace-assistant-heading>button{font-size:11px;background:#f7f8fa;box-shadow:none;white-space:normal;line-height:1.6}
+.harness-workspace .workspace-thread-empty{border:0;background:transparent;padding:24px 0;max-width:760px}
+.harness-workspace .workspace-thread-viewport{padding:20px 28px}
+.harness-workspace .workspace-message-body{border-color:var(--harness-line);background:#fff;border-radius:12px}
+.harness-workspace .workspace-message-user .workspace-message-body{background:#f4f6fa;border-color:#edf0f5}
+.harness-workspace .workspace-message-label,.harness-workspace .workspace-message-actions button{color:var(--harness-muted)}
+.harness-workspace .workspace-assistant-dock{padding:12px max(24px,calc((100% - 800px)/2)) 20px;border:0;background:#fff}
+.harness-workspace .workspace-input-toolbar{gap:12px}
+.harness-workspace .workspace-input-toolbar>button{font-size:12px;color:#4b5563;min-height:34px}
+.harness-workspace .workspace-upload{border:1px solid var(--harness-line);padding:5px 10px;border-radius:8px}
+.harness-workspace .workspace-composer{border-color:#d9dfe7;border-radius:14px;padding:12px;background:#fff;box-shadow:0 4px 24px #17264206}
+.harness-workspace .workspace-composer-send{background:var(--harness-accent);min-height:42px;min-width:54px}
+.harness-workspace .workspace-composer-send:disabled{background:#e9edf4;color:#929aa8}
+.harness-workspace .workspace-input-boundary{color:var(--harness-muted);font-size:11px}
+.harness-workspace .workspace-mode button[aria-pressed=true]{background:var(--harness-accent)}
+.harness-workspace .harness-runtime-error{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 22px;background:#fff5e8;color:#835423;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.harness-workspace .harness-runtime-error button{flex-shrink:0;text-decoration:underline}
+.harness-workspace .harness-return-chat{display:flex;align-items:center;gap:8px;margin:0 0 18px;padding:8px 0;color:var(--harness-accent);font-size:13px}
+.harness-plugins{max-width:650px}
+.harness-plugins h2{font-size:23px;margin-bottom:10px}
+.harness-plugins .harness-muted{font-size:12px;color:#6b7280;line-height:1.8}
+.harness-connection{padding:18px 0;border-bottom:1px solid #e6e8eb}
+.harness-connection>div,.harness-connector>div{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.harness-connection h3{font-size:15px;margin:0}
+.harness-connection p{font-size:12px;line-height:1.8;color:#6b7280;margin:8px 0;overflow-wrap:anywhere}
+.harness-state{font-size:11px;color:#596577;background:#f1f3f6;border-radius:6px;padding:4px 7px;white-space:nowrap}
+.harness-connection small{display:block;margin-top:8px;color:#6b7280;font-size:11px;line-height:1.7}
+.harness-admin-link{display:inline-block;margin-top:8px;font-size:13px;color:#315dd5;text-decoration:none}
+.harness-connector{padding-top:14px}.harness-connector strong{font-size:13px}
+@media(max-width:1099px) and (min-width:601px){.harness-workspace .conversation-sidebar{position:fixed;top:0;bottom:0;left:72px;width:270px;z-index:60;box-shadow:12px 0 40px #00000015}.harness-workspace .drawer-shade{display:block;position:fixed;inset:0;background:#22222235;z-index:50}}
+@media(max-width:760px){.harness-workspace .chat-header{padding:10px 12px;gap:6px}.harness-workspace .header-actions{gap:2px}.harness-workspace .harness-header-button{padding:7px;font-size:11px}.harness-workspace .workspace-assistant-heading{padding:16px 16px 4px}.harness-workspace .workspace-assistant-heading h1{font-size:21px}.harness-workspace .workspace-assistant-heading p{font-size:12px}.harness-workspace .workspace-assistant:has(.workspace-message) .workspace-assistant-heading p{display:none}.harness-workspace .workspace-assistant-heading>button{max-width:92px}.harness-workspace .workspace-thread-viewport{padding:14px 16px}.harness-workspace .workspace-thread-empty{padding:18px 0}.harness-workspace .workspace-assistant-dock{padding:8px 12px 12px}.harness-workspace .workspace-input-toolbar{gap:8px;margin:4px 0}.harness-workspace .workspace-input-toolbar>button{font-size:11px;min-height:32px}.harness-workspace .workspace-input-boundary{font-size:10px;line-height:1.6}.harness-workspace .workspace-composer textarea{font-size:16px}.harness-workspace .harness-runtime-error{padding:10px 14px}.harness-connection>div,.harness-connector>div{align-items:flex-start;flex-wrap:wrap;gap:8px}.harness-workspace .chat-title-pill{padding-left:0;font-size:13px;max-width:48%}}
+@media(max-width:600px){.harness-workspace .nav-rail{background:#f8f9fc}.harness-workspace .rail-middle .rail-button[aria-label="对话"],.harness-workspace .rail-middle .rail-button[aria-label="插件与连接"]{display:flex}.harness-workspace .conversation-sidebar{bottom:calc(64px + env(safe-area-inset-bottom));width:min(290px,calc(100vw - 30px))}.harness-workspace .workspace-assistant-dock{padding-bottom:max(10px,env(safe-area-inset-bottom))}.harness-workspace .main-content{margin-bottom:calc(64px + env(safe-area-inset-bottom))}}
