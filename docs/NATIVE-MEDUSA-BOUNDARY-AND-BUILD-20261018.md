@@ -1,133 +1,140 @@
-# Native Medusa model boundary and selected-plugin build
+# Native Medusa model read and selected-plugin build
 
-Base: `42d5273ef53bcfe247e4a5dc88c83b766c4037f0`, retained on the
-`codex/medusa-isolated-acceptance-prep-20261018` development line. No main
-integration, server access, deployment, paid call or real-service acceptance.
+Development base: `42d5273ef53bcfe247e4a5dc88c83b766c4037f0` on
+`codex/medusa-isolated-acceptance-prep-20261018`. Delivered on the existing PR120
+branch. No main integration, server access, deployment or real-service sign-off.
 
-## Reproduced build defect and fix
+## Implemented behavior
 
-After installing only the original root/support lockfiles without lifecycle
-scripts, `npm run build:omp` failed with `NATIVE_PLUGIN_LOAD_FAILED` for
-`workspace-erpnext-enterprise`: its optional `@workspace-agent/pi-free-trade`
-peer was not installed under that package. The default configuration does not
-select this plugin. The native build nevertheless discovered and evaluated
-every installed plugin, unlike the original runtime selection contract.
+An independently reviewed native `prod_*` product and selected Library document
+can now reach the default `WORKSPACE_OMP_PROFILE=business` OMP model path. The
+original Artifact API saves the completed result; the original native Session
+continues the next message. No Library UUID product copy, second product
+registry, grant store, Agent loop, ledger or automatic save is introduced.
 
-`scripts/build-omp-native.mjs` now retains Bun static compilation for **all**
-installed packages, then runs official discovery/loading only for packages
-enabled by the existing `projectPlugins` result. Disabled rows explicitly report
-`nativeDiscovered:false`, `nativeLoaded:false`, and no registered tools. No peer
-is installed automatically, no relative-import substitute is introduced, and
-an enabled plugin with a missing peer still fails. A disabled plugin with invalid
-syntax still fails compilation. The exported helper allows the same production
-build path to be exercised using the original compiler and loader.
+The optional `libraryModelReadPolicy.nativeMedusa` contract is absent/disabled by
+default. It reuses the original policy's exact workspace/member, normalized
+provider/model/destination and expiry, plus the original live native Session.
+It additionally requires `enabled:true`, `reviewed:true`, one exact `sourceId`
+and fixed Medusa `baseURL`, at most eight `(productId, reviewVersion, sourceHash)`
+pins and a nonempty field mask from `title`, `description`, `agent_summary`.
+Unknown fields, UUIDs in the native selection, malformed pins and missing
+selected values are refused. Optional loopback HTTP must be explicit; redirects,
+credential-bearing URLs, response sizes/timeouts and known credential echoes
+remain constrained by the original approved-source transport.
 
-Before the selection fence was added, the new unselected/disabled/none cases all
-failed by trying to resolve the synthetic absent peer: 0 passed, 3 failed.
-Final focused run: 8 passed, 0 failed, 0 skipped. The first expanded run was
-7 passed/1 failed because Bun reports malformed-source compilation as an
-`AggregateError`; the test expectation was corrected to accept that observed
-compiler failure as well as the script's existing compile-error wrapper.
+Only this independent contract exposes the additional `workspace_medusa_context`
+tool. Its product ID comes from the locally authorized status metadata; callers
+cannot select fields, a receiver, URL, revision, permission or credential.
+Original UUID preview/reconcile inputs and defaults are unchanged. An optional
+native status response preserves the legacy connection view and adds separate
+native selection metadata. Space's existing source remains title/reference-only
+with `modelAccess:false`; its source object cannot perform a model projection.
 
-The reviewed integration, plugin-service, enterprise-memory-isolation and
-continuation branch tips were compared for this build script before editing.
-None supplied this fix; the old continuation branch does not contain the script.
+The Host binds the complete normalized contract fingerprint to the original
+`businessAgentSession`. Adding/removing/changing a contract cannot silently
+inherit an existing transcript. Original current Session, recipient, expiry and
+trusted contract withdrawal are checked before reads and after asynchronous
+checks. Original native business receipt refresh re-reads the remote approval;
+call arguments, text/details and actual wire tool results must agree. The
+existing Node business-facts wire boundary and the final boundary after worker
+exit recheck native disclosures, then close the last awaited authorization with
+synchronous original document and native-policy fences. Remote HTTP consistency
+is explicitly `remote-point-in-time`: no atomic remote lock or elimination of
+all subsequent remote races is claimed. The old receipt migration/restore work
+and PR112 are untouched.
 
-## Native product gap: reproduced, not repaired by weakening authorization
+A loaded private file is a startup snapshot, like the original Library policy.
+Changing/withdrawing deployment files requires the original restart and Session
+revocation process; this patch adds no hot grant-edit API. The trusted in-process
+policy object also fails closed if changed or withdrawn. A changed source or
+contract requires fresh explicit review and a fresh conversation, not automatic
+transcript adoption.
 
-`test/medusa-native-model-boundary.test.mjs` exercises the original signed
-HTTP/Session, Store, Library and Space with a finite native `prod_*` source:
+## Configuration difference for the separate deployment executor
 
-1. The reviewed source can be listed, pinned and saved in a Space page. Its
-   original revision/fingerprint resolves as current. `modelAccess` remains false;
-   remote description and Agent summary are not exposed through that projection.
-2. Selecting the same native ID through the original conversation Library
-   reference API returns 400 `INVALID_INPUT`; references stay empty. No Library
-   product, Run, generated Artifact or product-authority copy is created.
-3. Both original Medusa model preview/reconcile operations refuse the native ID
-   before invoking the Library-only client or its authorization callback.
+- No optional native contract: existing startup and UUID behavior remain unchanged.
+  The explicit disabled shape is `"nativeMedusa": {"enabled": false}`.
+- Future approved enablement uses the fields above inside the existing private
+  `WORKSPACE_BUSINESS_REVIEW_FILE` Library policy. The original reviewed document,
+  exact complete-file parser-transfer consent, model receiver and budget remain
+  required; native disclosure alone grants none of them.
+- A new explicit `WORKSPACE_MEDUSA_MODEL_READ_TOKEN_FILE` supplies transport for
+  that reviewed source only. It must be a bounded private canonical regular file,
+  mode 0600, owned by the operator/root. A Space file/path/inode or an Admin token
+  cannot be silently reused; there is no environment/token/Space fallback. Token
+  bytes alone never authorize model disclosure. This work creates no real token
+  or real grant. Programmatic trusted composition has the corresponding
+  `nativeMedusaModelConnection` option. The original Medusa backend/plugin must
+  remain enabled. No database migration or dependency/lockfile changes.
 
-These passing refusal tests demonstrate an **unimplemented user flow**, not a
-successful native Medusa generation/save/continuation flow. The existing combined
-Medusa/enterprise SDK tests use Library UUID products; the configured Medusa
-responder returns an empty `/admin/products` list. They do not establish native
-Medusa model reads.
+## Build and inventory repair
 
-Fixed-base production evidence:
+`build:omp` previously evaluated every installed plugin, including unselected
+ERPNext with its absent optional peer. It now statically compiles all installed
+packages but only discovers/loads the original explicitly enabled selection.
+Unselected output reports `nativeDiscovered:false` and `nativeLoaded:false`.
+Enabled missing peers and even disabled syntax defects still fail. Original
+Bun/OMP loader regression cases went from 0/3 before the fence to all 6 passing.
 
-- `server/pi-business-agent.mjs:255` constructs the model Medusa client only from
-  original `factoryMaterialsAuthorityForSession` and Library materials.
-- `plugins/workspace-medusa-catalog/src/service.mjs` admits UUID product IDs only.
-- `plugins/workspace-medusa-catalog/src/product-client.mjs` reads Library preview
-  and deliberately returns `remote.product:null` from reconciliation.
-- `plugins/workspace-medusa-catalog/src/approved-source.mjs` returns a native
-  title/reference for Space and marks catalog output `modelAccess:false`.
-- `server/index.mjs` assembles that source only into Space; business Agent
-  attachment receives no native source. `loadReviewedBusinessOptions` has no
-  native-product model-disclosure policy field.
+The two initial `15 !== 14` failures were different files from those repaired
+in `a819897d9212212afab8f12683d212971c982e8b`. That commit fixed
+`workspace-omp-cloud-acceptance.test.mjs` and its fixture; both the unified test
+and the older plugin test/fixture still contained 14 in that commit and in the
+fixed 42d5273e tree. The affected tests now assert the same complete explicit
+15-ID set, rather than only a number. The older all-packages loader test provides
+ERPNext's declared original Free Trade peer by offline npm packing and per-file
+byte comparison in its disposable environment. No registry dependency, hook,
+replacement client or production plugin installation is added.
 
-The native source's read credential, Medusa review status, Space reference, and
-Library model-read policy are distinct authorities. Reusing any of them as
-native-model consent would invent a grant. No such reuse is implemented here.
+## Actual validation
 
-Minimum contract decision for a subsequent implementation: approve a separate,
-default-off native-product model selection bound to the original workspace/member,
-exact model recipient, expiry, and `(sourceId, productId, reviewVersion,
-sourceHash)` tuple. Decide its field mask; the smallest proposed first slice is
-`title`, `description`, and `agent_summary`, excluding commercial policy, evidence,
-variants and credentials. Reuse the original Session/Run cancellation, current
-authorization, source-change and final-disclosure gates, plus the original
-Artifact save and native Session. Do not convert native IDs into Library UUIDs,
-introduce a second authority, or migrate old private receipts. Every model-send,
-delivery/save and continuation gate must retain the same complete native source
-obligation. The existing read token would remain transport-only, with no new
-credential generated. That contract and its production wiring remain pending;
-this patch changes no disclosure option or enablement default.
+Node 24.19.0, official pinned Bun 1.3.14 and OMP 18.10.4; original root/support
+lockfiles with lifecycle scripts disabled. Counts below overlap across commands;
+do not add repeated tests together.
 
-## Actual checks in this task
-
-Environment: Node 24.19.0, pinned official Bun 1.3.14 / OMP 18.10.4; original
-lockfiles installed with `npm ci --ignore-scripts --no-audit --no-fund` in root
-and the two support packages. No dependency/lockfile changes or package stubs.
-
-| Check | Observed result |
+| Check | Final observed result |
 | --- | --- |
-| `npm run build:web` | Passed typecheck and production build; existing large-chunk warning |
-| `npm run build:omp` before/after | Failed missing optional peer before; passed after, including pack closure, static compilation and selected original SDK loading |
-| `node --test --test-concurrency=1 test/workspace-omp-build-lifecycle.test.mjs test/medusa-native-model-boundary.test.mjs` | 8 passed, 0 failed/skipped |
-| `node --test --test-concurrency=1 test/space-medusa-startup.http.test.mjs test/space-medusa-source.test.mjs test/medusa-catalog.test.mjs test/workspace-library-result-sdk.dom.test.mjs` | 17 passed, 0 failed/skipped; actual signed startup, Library/Artifact/Store, production DOM bundle, official SDK and same native Session; finite model/Docling/Medusa |
-| `node --test --test-concurrency=1 test/workspace-omp-medusa-enterprise.test.mjs` | 33 passed, 0 failed/skipped; Library product composition, not native Medusa product acceptance |
-| `npm run test:omp` | 4 passed, 1 failed: pre-existing `15 !== 14` inventory assertion in `workspace-omp-unified.test.mjs`; retained |
-| `node --test --test-concurrency=1 test/workspace-omp-plugins.test.mjs test/plugin-backend-lifecycle.test.mjs test/medusa-catalog-http.test.mjs` | 6 passed, 1 failed: pre-existing `15 !== 14` assertion in `fixtures/workspace-omp-plugins.mjs` before its subsequent loader/Session checks; retained and not counted as executed |
-| `node --check scripts/build-omp-native.mjs`, `git diff --check` | Passed |
+| `medusa-native-mainchain-sdk` + `medusa-native-model-read` | 21 passed, 0 failed/skipped: eight default-startup cases plus thirteen contract/transport/receipt cases |
+| `workspace-omp-medusa-enterprise` + `workspace-native-document-mainchain-sdk` | 39 passed, 0 failed/skipped: old UUID/enterprise composition and original document choices remain compatible |
+| `workspace-omp-build-lifecycle`, `workspace-omp-unified`, `workspace-omp-plugins`, `medusa-catalog-http` | 13 passed, 0 failed/skipped, including the full explicit 15-package inventory and original Session lifecycle |
+| Contract, Space source/startup, native/UUID boundary, catalog, backend lifecycle, existing Library result DOM/SDK group | 37 passed, 0 failed/skipped; includes original explicit result-save button and UUID continuation |
+| Cloud fixed-inventory/native-loader cases selected by name | 2 passed, 0 failed/skipped; the SIGTERM/recovery case was not selected or claimed |
+| `npm run build:web` | Passed typecheck/production build before the server-only changes; existing large-chunk warning; no frontend source changed |
+| `npm run build:omp`, Node syntax checks, `git diff --check` | Passed; pack closure and native selected-loader checks included |
 
-No full repository suite, real browser, real Medusa/PostgreSQL, temporary Medusa
-image/container/test identity, real parser/model, paid request or deployment was
-run. Synthetic fixture identities are temporary test data. No secrets, journals,
-runtime files or raw logs are committed. Repeated checks are not added together.
+The default native test uses `startWorkspaceServer` with its private reviewed
+file and real default business assembly. It asserts four finite provider
+requests in turn one, exact allowed native fields and document text, one
+original Artifact save/download with matching SHA256, then one request using
+the same persisted native Session. No UUID product is invented. Revision/hash
+changes and withdrawal prevent the next model request; an altered/legacy
+contract binding cannot inherit the transcript. Missing native authorization
+advertises no native tool and performs no source read. Expiry is rejected before
+Run admission. Cross-member conversation access is refused. Original Run cancellation aborts an in-flight native source request and withholds completion. Contract tests also
+cover receiver changes, policy/Session revocation, missing fields, credential
+file isolation, forged call/wire proof and mutable response-copy isolation.
 
-## GitHub Actions startup failure
+Initial failures remain part of the record: the first build failed on the absent
+optional peer; old inventory assertions failed on 15/14; the initial expanded
+build test expected a wrapper but Bun emitted `AggregateError`; and the first
+private-file test made a hard link before its positive check, which the original
+file guard correctly refused. The fixture now performs the valid-file check
+before the alias rejection. The cloud loader fixture also exposed its missing declared peer; offline packing was moved to the Node test setup because the intentionally restricted Bun PATH excludes npm. The restricted child PATH was preserved. No security guard or failing assertion was removed.
 
-Read-only GitHub connector inspection of [run 39135431986](https://github.com/magicy565-web/workspace-agent/actions/runs/39135431986)
-confirmed head `42d5273e…`, event `push`, `path:BuildFailed`,
-`conclusion:startup_failure`, empty name, and zero jobs; the commit's check-runs
-collection is also empty. The only tracked workflow is
-`.github/workflows/ai-worker-preview.yml`; its push branch filter does not include
-this development branch. No job or step log establishes an application build
-failure. The connector does not expose the suite's failure annotation through its
-allowed endpoint surface, and shell `gh api` requests were forbidden.
+Real: original signed HTTP/Session/CSRF, Library/Store/Artifact bytes, production
+chat bundle in JSDOM for the old save path, original Run and pinned native SDK.
+Finite: model SSE/choices, local Medusa/Docling HTTP, synthetic short-lived test
+identities, reviewed policy and token values. No real Medusa/PostgreSQL, container,
+image, production identity, parser/model request, paid call or deployment was run.
+No full repository suite or real browser acceptance is claimed. No runtime data,
+private configuration, real credential values or raw logs are committed.
 
-The root cause therefore remains **unconfirmed**. There is no evidence here to
-label it an account/permission/quota problem or a workflow-code defect. The local
-OMP build bug above must not be represented as the cause or repair of this
-pre-job failure. No workflow, account setting, permission, billing, rerun or
-deployment action was changed.
+## Actions run 39135431986
 
-## Version/configuration note for the separately arranged deployment
-
-This development delta only fixes selected-plugin build loading and adds tests
-and this record. No application configuration, environment variable, API schema,
-runtime dependency, database, credential or default enablement changes. Continue
-using the original reviewed release/configuration process. This patch does not
-make native Medusa products available to a model; that path remains blocked by
-the missing explicit disclosure contract described above.
+Read-only inspection confirmed fixed head 42d5273e, `startup_failure`,
+`path:BuildFailed`, zero jobs and zero commit check-runs. The available connector
+has no accessible failure annotation, and shell `gh api` was forbidden. Root
+cause remains unconfirmed; neither an account/quota issue nor a workflow-code
+defect is established. The local build repair is not claimed to repair this
+pre-job failure. No workflow/settings/permission/billing/rerun changes.

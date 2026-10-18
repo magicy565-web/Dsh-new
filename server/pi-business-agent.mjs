@@ -51,6 +51,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
     throw new TypeError('Use the reviewed fixed OMP public session adapter.');
   const recipient = normalizeLibraryRecipient(options.recipient), recipientFingerprint = libraryReadHash(recipient);
   const executionFingerprint = engineAdapter ? hash(recipientFingerprint + '\0' + engineAdapter.scope) : recipientFingerprint;
+  let nativeMedusaModelConnection=null;
   let store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain, marketplaceModelHost=null;
   function current(idValue) { const record = store.read().conversations.find(row => row.id === idValue); if (!record) fail(404, 'NOT_FOUND', 'Conversation not found.'); return record; }
   function actor(context, write = false) {
@@ -265,6 +266,17 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
         }
         if(engineAdapter.scope!==MEDUSA_ENTERPRISE_SCOPE&&goalBrain&&!factsEnabled)brainClient=goalBrain.bind({identity,conversationId:conversation.id,runId:run.id,canSubmit:canSave(),signal:input.signal}).brain;
       }
+      const nativeGrant=libraryModelRead.nativeMedusaForSession({identity,recipientHash:recipientFingerprint,signal:input.signal});
+      const nativeScopeHash=nativeGrant?.scopeHash??null;
+      if(conversation.businessAgentSession&&(conversation.businessAgentSession.nativeMedusaScopeHash??null)!==nativeScopeHash)
+        fail(403,'BUSINESS_AGENT_BINDING_CHANGED','A changed native product disclosure contract cannot inherit this Session.');
+      if(nativeGrant){
+        if(engineAdapter.scope!=='omp:18.10.4:business-v1'||!documentToolsEnabled||!factsEnabled||!nativeMedusaModelConnection)
+          fail(403,'MEDUSA_ORIGINAL_SELECTION_REQUIRED','Native products require the explicit reviewed business document/model binding.');
+        const {createNativeMedusaModelClient}=await import('./medusa-native-model-read.mjs');
+        medusaClient=await createNativeMedusaModelClient({legacy:medusaClient,grant:nativeGrant,connection:nativeMedusaModelConnection,identity,
+          authorize:async(signal,model)=>{signal?.throwIfAborted();await authorize();if(libraryReadHash(libraryRecipientForModel(model))!==recipientFingerprint)fail(403,'LIBRARY_MODEL_RECIPIENT_CHANGED','Use the original receiver.');}});
+      }
       return engineAdapter.complete({ input, run, binding, client, authorize, budgetStore:store, assertBudgetCurrent:assertActive, medusaClient, brainClient,...(factsEnabled?{bindBrainForNativeSession}:{}),marketplaceClient,enterpriseContextHost:binding.enterpriseContextHost, freeTradeHost:binding.freeTradeHost, materialsClient, inquiryClient, customerClient, ingestionClient, planClient, monitorClient, productClient, isolationDirectory: isolated,
         savedSession: current(conversation.id).businessAgentSession || null,
         async saveSession(mapping) {
@@ -282,6 +294,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
             record.businessAgentSession = { agentSessionId: mapping.agentSessionId, sessionFile: mapping.sessionFile,
               bindingFingerprint: binding.client.bindingFingerprint, recipientFingerprint, engineScope: engineAdapter.scope,
               ...(engineAdapter.scope===MEDUSA_ENTERPRISE_SCOPE?{sourceBindingFingerprint:binding.enterpriseContextHost.scopeHash}:{}),
+              ...(nativeScopeHash?{nativeMedusaScopeHash:nativeScopeHash}:{}),
               ...(factsEnabled?{brainMemoryFactsScopeHash:factScopeHash}:{}), ...(documentToolsEnabled?{brainDocumentTools:true}:{}) };
           });
         } });
@@ -379,7 +392,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
   return {
     provider,
     attachMarketplace(host){assertMarketplaceModelHost(host);if(marketplaceModelHost)throw TypeError('Marketplace Host already attached.');marketplaceModelHost=host;},
-    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain } = dependencies); },
+    attach(dependencies) { ({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, medusaCatalog, sessionReadonlyClient, goalBrain, nativeMedusaModelConnection } = dependencies); },
     async brainReadSession(identity,conversationId){
       if(!goalBrain)fail(409,'BUSINESS_AGENT_UNCONFIGURED','The original Brain Host is required.');
       const conversation=current(conversationId),saved=conversation.businessAgentSession;

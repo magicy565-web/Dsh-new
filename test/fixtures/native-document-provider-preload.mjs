@@ -24,6 +24,21 @@ globalThis.fetch=async(input,init)=>{
  const documentSchemas=body.tools.filter(t=>t.function.name.startsWith('workspace_enterprise_context_')).map(({function:t})=>({name:t.name,strict:t.strict===true,branches:(t.parameters.oneOf||[]).map(branch=>({additionalProperties:branch.additionalProperties,required:branch.required,fields:Object.fromEntries(Object.entries(branch.properties||{}).map(([key,rule])=>[key,{hasConst:Object.hasOwn(rule,'const'),enumLength:Array.isArray(rule.enum)?rule.enum.length:null}]))}))}));
  summary.requests.push({withSource:text.includes(info.statement),...(info.product?{withProduct:text.includes(info.product.name)}:{}),toolNames:body.tools.map(t=>t.function.name),documentSchemas});
  fs.writeFileSync(info.reportFile,JSON.stringify(summary),{mode:0o600});const n=summary.requests.length;
+ if(info.mode==='native-no-grant'){
+  assert.ok(!body.tools.some(t=>t.function.name==='workspace_medusa_context'));assert.ok(!text.includes(info.nativeProduct.title));assert.ok(!text.includes(info.nativeProduct.description));
+  assert.equal(n,1);return sse({role:'assistant',content:'Native Medusa access requires independent model permission.'},'stop');
+ }
+ if(info.mode==='native-medusa'){
+  assert.ok(!text.includes('SYNTHETIC_UNAPPROVED_POLICY'));assert.ok(!text.includes('SYNTHETIC_UNAPPROVED_METADATA'));
+  schema('workspace_medusa_context');
+  if((info.turn||1)===1&&n===1){assert.ok(!text.includes(info.nativeProduct.title));assert.ok(!text.includes(info.statement));return call('workspace_medusa_status',{},'native-status');}
+  if((info.turn||1)===1&&n===2){const status=receipts.findLast(r=>r?.view?.nativeProducts);assert.ok(status);return call('workspace_medusa_context',{productId:status.view.nativeProducts.products[0].productId},'native-context');}
+  const product=receipts.findLast(r=>r?.method==='context'&&r.plugin==='workspace-medusa-catalog');assert.ok(product,'Native approved product must arrive through the real guarded tool');
+  assert.equal(product.view.product.id,info.nativeProduct.id);assert.equal(product.view.product.title,info.nativeProduct.title);assert.equal(product.view.product.description,info.nativeProduct.description);assert.equal(product.view.product.agent_summary,info.nativeProduct.summary);
+  if((info.turn||1)===1&&n===3)return call('workspace_enterprise_context_parse_upload',discover('workspace_enterprise_context_parse_upload'),'native-document');
+  const document=receipts.findLast(r=>r?.authorization?.kind==='parse');assert.equal(document?.text,info.statement);assert.equal(n,(info.turn||1)===1?4:1);
+  return sse({role:'assistant',content:((info.turn||1)===1?'Native product result: ':'Native same-session continuation: ')+product.view.product.title+' '+product.view.product.description+' '+product.view.product.agent_summary+' '+document.text},'stop');
+ }
  if(info.mode==='library-flow'){
   assert.ok(!text.includes(info.product.category),'Unapproved product fields must not reach the wire');
   assert.ok(body.tools.every(t=>!/^workspace_(medusa|shopify|marketplace)_/.test(t.function.name)));

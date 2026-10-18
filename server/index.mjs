@@ -116,7 +116,7 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, medusaFetch = fetch, aiWorkSourceFetch = fetch, aiWorkOutreachFetch = fetch, backendPlugins = { disabled: [] }, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, enterpriseDisclosureOptions = null, goalBrainOptions = null, spaceOptions = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, medusaFetch = fetch, aiWorkSourceFetch = fetch, aiWorkOutreachFetch = fetch, backendPlugins = { disabled: [] }, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, enterpriseDisclosureOptions = null, goalBrainOptions = null, spaceOptions = null, nativeMedusaModelConnection = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
@@ -151,6 +151,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     enterpriseMemory=createEnterpriseMemoryLedger({store,library:businessLibrary,disclosure:enterpriseDisclosure,workspaceId:accessConfig.workspaceId||'local',clock:accessClock});
     medusaModule = await mountMedusaBackend(backendSelection, {ApiError,library:businessLibrary,workspaceId:accessConfig.workspaceId||'local',environment:capabilityEnvironment,fetchImpl:medusaFetch});
     medusaCatalog = medusaModule?.service;
+    if(nativeMedusaModelConnection!==null&&!backendSelection.enabled('workspace-medusa-catalog'))throw Error('Native Medusa model source requires its original backend plugin.');
     pluginLibraryModule = await createPluginLibraryModule({ ApiError, access, workspaceId: accessConfig.workspaceId || 'local', environment: capabilityEnvironment, backendSelection, clock: accessClock });
     libraryModelRead = createLibraryModelRead({ library: businessLibrary, artifacts, access, policy: libraryModelReadPolicy, clock: accessClock });
     dotAuth = dotWorkerConfig && createDotWorkerAuth({ tokenDigest: dotWorkerConfig.tokenDigest });
@@ -246,7 +247,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     }
     if (businessAgent) {
       if (!builtinAgent && !businessAgentOptions.engineAdapter) throw new Error('The business conversation adapter requires the original configured Agent member service.');
-      businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, goalBrain, medusaCatalog, sessionReadonlyClient: builtinAgent?.sessionReadonlyClient });
+      businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, goalBrain, medusaCatalog, nativeMedusaModelConnection, sessionReadonlyClient: builtinAgent?.sessionReadonlyClient });
     }
   } catch (error) { await pluginLibraryModule?.close(); await medusaModule?.close(); await marketValidationMonitoring?.close(); await supplierMonitoring?.close(); await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
@@ -714,7 +715,7 @@ export async function startWorkspaceServer({ reviewedBusiness = null, environmen
   // Trusted in-process composition only. HTTP selections remain references,
   // not model/parser/remember authorization; the default startup is unchanged.
   if (reviewedBusiness !== null && (!reviewedBusiness || typeof reviewedBusiness !== 'object'
-    || Object.keys(reviewedBusiness).some(key => !['libraryModelReadPolicy','goalBrainOptions','agentConfig','resolveBinding','paidAcceptance','modelBudget','pluginConfiguration'].includes(key))
+    || Object.keys(reviewedBusiness).some(key => !['libraryModelReadPolicy','goalBrainOptions','agentConfig','resolveBinding','paidAcceptance','modelBudget','pluginConfiguration','nativeMedusaModelConnection'].includes(key))
     || typeof reviewedBusiness.resolveBinding !== 'function' || !reviewedBusiness.libraryModelReadPolicy || !reviewedBusiness.goalBrainOptions))
     throw Error('Use the original reviewed Library/Goal policy and trusted binding resolver.');
   const port = Number(environment.PORT || 8787);
@@ -785,7 +786,7 @@ export async function startWorkspaceServer({ reviewedBusiness = null, environmen
     app = await createApp({ dataDirectory, provider, access, businessAgentOptions, spaceOptions, capabilityEnvironment: environment,
       backendPlugins: backendPluginsFromEnvironment(environment),
       ...(reviewedBusiness ? { libraryModelReadPolicy: reviewedBusiness.libraryModelReadPolicy,
-        goalBrainOptions: reviewedBusiness.goalBrainOptions, agentConfig: reviewedBusiness.agentConfig } : {}),
+        goalBrainOptions: reviewedBusiness.goalBrainOptions, agentConfig: reviewedBusiness.agentConfig, nativeMedusaModelConnection: reviewedBusiness.nativeMedusaModelConnection ?? null } : {}),
       workerAdapters: reviewedWorkers.adapters,
       dotWorkerConfig, museWorkerConfig, museOriginalBinding, sourcingMcpConfig,
       allowedOrigins: environment.WORKSPACE_DEV_ORIGIN ? [environment.WORKSPACE_DEV_ORIGIN] : [],

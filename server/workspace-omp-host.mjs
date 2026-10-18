@@ -74,8 +74,10 @@ export async function loadReviewedBusinessOptions(filename, environment = {}) {
   if (hash(libraryRecipientForModel(model)) !== hash(policy.recipient)) invalid('the same original model receiver');
   const pins = policy.factoryMaterials?.documents || [];
   for (const pin of selection.sources) if (!pins.some(row => row.id === pin.documentId && hash(row.asset) === hash(pin.asset))) invalid('exact reviewed document/version/SHA pins');
+  const nativeMedusaModelConnection=await (await import('./medusa-native-model-read.mjs')).loadNativeMedusaModelConnection(policy,environment);
+  if(nativeMedusaModelConnection&&value.pluginConfiguration?.disabled?.includes('workspace-medusa-catalog'))invalid('the explicitly selected native Medusa plugin');
   return {
-    libraryModelReadPolicy: policy, goalBrainOptions, ...(value.pluginConfiguration ? {pluginConfiguration:value.pluginConfiguration} : {}), ...(value.paidAcceptance ? { paidAcceptance:value.paidAcceptance } : {}), ...(value.modelBudget ? {modelBudget:value.modelBudget} : {}),
+    libraryModelReadPolicy: policy, goalBrainOptions,nativeMedusaModelConnection, ...(value.pluginConfiguration ? {pluginConfiguration:value.pluginConfiguration} : {}), ...(value.paidAcceptance ? { paidAcceptance:value.paidAcceptance } : {}), ...(value.modelBudget ? {modelBudget:value.modelBudget} : {}),
     resolveBinding: async ({ actor, conversation, model: receiver, enterpriseContextSessionBinding, conversationReferences }) => {
       if (actor.subject !== policy.subject || actor.workspaceId !== policy.workspaceId || hash(libraryRecipientForModel(receiver)) !== hash(policy.recipient)) throw new ApiError(403,'BUSINESS_AGENT_RECIPIENT_CHANGED','The existing member/model authorization does not cover this conversation.');
       const references = (await conversationReferences(conversation.id)).libraryReferences;

@@ -5,10 +5,11 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {projectPlugins} from '../server/workspace-plugin-config.mjs';
 import {inspectNativeWorkspace} from '../scripts/workspace-omp.mjs';
+import {expectedPluginIds} from './fixtures/workspace-plugin-inventory.mjs';
 test('single default entry verifies native runtime and all plugin states without Workspace HTTP',async()=>{
   const r=await inspectNativeWorkspace({});
   assert.equal(r.workspaceHttpRequired,false);assert.equal(r.workspaceHostStarted,false);assert.equal(r.wsBindingUsed,false);
-  assert.equal(r.modelRequests,0);assert.equal(r.model.status,'unconfigured');assert.equal(r.plugins.length,14);
+  assert.equal(r.modelRequests,0);assert.equal(r.model.status,'unconfigured');assert.deepEqual(r.plugins.map(p=>p.id).sort(),expectedPluginIds);
   assert.equal(r.status,'offline-preview-ready');assert.equal(r.readinessScope,'pinned-runtime-and-plugin-manifests-only');
   const local=r.localSessionPrerequisites;
   assert.equal(local.modelStatus,'model-unconfigured');assert.equal(local.preflightReady,false);

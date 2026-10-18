@@ -44,7 +44,7 @@ async function start(config) {
   created = await (initializing = createWorkspaceOmpSession({ ...config, ...(providerTransport?{providerTransport}:{}), enterpriseContextHost,freeTradeHost,client:config.freeTrade||config.enterpriseContext?undefined:client, factoryTasks: !config.enterpriseContext && !config.freeTrade && !config.factoryMaterials && !config.factoryCustomers && !config.factoryIngestion && !config.marketValidation && !config.shopifyProduct,
     marketplaceClient:config.nativeBusiness&&config.marketplaceConfigured?Object.fromEntries(['status','find','propose','order','revalidateReceipt'].map(method=>[method,(value,signal,model)=>request('marketplace',[method,value,model],signal)])):null,
     medusaClient: (config.nativeBusiness||config.medusaEnterprise)&&config.medusaConfigured?{
-      ...Object.fromEntries(['status','preview','reconcile'].map(method=>[method,(value,signal,model)=>request('medusaCatalog',[method,value,model],signal)])),
+      ...Object.fromEntries(['status','preview','reconcile',...(config.nativeMedusaConfigured?['context']:[])].map(method=>[method,(value,signal,model)=>request('medusaCatalog',[method,value,model],signal)])),
       refresh:(receipt,model,signal)=>request('medusaCatalog',['refresh',receipt,model],signal),
     }:null,
     brainClient: config.nativeBusiness&&config.brainConfigured?Object.fromEntries(['sourceCatalog','contextRead','contextSave','diagnose','decisionRead','decisionSave','reviewSave','brief','revalidateReceipt'].map(method=>[method,(value,signal,model)=>request('businessBrain',[method,value,model],signal)])):null,
