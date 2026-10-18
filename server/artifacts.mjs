@@ -75,7 +75,8 @@ function decodeContent(body, filename, maxBytes) {
   } else {
     if (typeof body.base64 !== 'string') fail('INVALID_INPUT', 'base64 must be a string.');
     if (body.base64.length > Math.ceil(maxBytes / 3) * 4) fail('ARTIFACT_TOO_LARGE', `Artifact content must be at most ${maxBytes} bytes.`, 413);
-    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(body.base64)) fail('INVALID_INPUT', 'base64 must be canonical padded base64 without a data URL prefix.');
+    // The exact canonical round-trip below also checks alphabet and padding.
+    // Avoid a repeated-group regexp whose stack grows with valid large input.
     bytes = Buffer.from(body.base64, 'base64');
     if (bytes.toString('base64') !== body.base64) fail('INVALID_INPUT', 'base64 must use canonical padding and characters.');
     if (bytes.length > maxBytes) fail('ARTIFACT_TOO_LARGE', `Artifact content must be at most ${maxBytes} bytes.`, 413);
