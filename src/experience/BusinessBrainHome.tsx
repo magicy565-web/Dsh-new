@@ -83,21 +83,23 @@ export function BusinessBrainHome({
     }
 
     let cancelled = false;
+    let requestSequence = 0;
     const load = async () => {
+      const request = ++requestSequence;
       setChecking(true);
       try {
         const result = await api<{ data?: Brief; status?: string }>(
           `/conversations/${encodeURIComponent(conversation.id)}/brain/brief`
         );
-        if (!cancelled) {
+        if (!cancelled && request === requestSequence) {
           if(result.status==='unconfigured'){setBrief(null);setSelectedCard(null);setError('经营大脑尚未配置，请先由原 Workspace Host 绑定已审核的资料与模型接收者。');return;}
           setBrief(result.data || null);
           setError(null);
         }
       } catch (reason) {
-        if (!cancelled) { setBrief(null); setSelectedCard(null); setError(reason instanceof ApiError && /(?:SOURCE|SCOPE|BINDING|SESSION|REVISION|AUTHORIZATION)/.test(reason.code || '') ? '资料版本或会话授权已变更。请让管理员核对原模型、资料版本与事实键授权；重新选择资料后使用明确授权的新会话，不会自动继承旧授权。' : reason instanceof Error ? reason.message : '经营简报暂时不可用'); }
+        if (!cancelled && request === requestSequence) { setBrief(null); setSelectedCard(null); setError(reason instanceof ApiError && /(?:SOURCE|SCOPE|BINDING|SESSION|REVISION|AUTHORIZATION)/.test(reason.code || '') ? '资料版本或会话授权已变更。请让管理员核对原模型、资料版本与事实键授权；重新选择资料后使用明确授权的新会话，不会自动继承旧授权。' : reason instanceof Error ? reason.message : '经营简报暂时不可用'); }
       } finally {
-        if (!cancelled) setChecking(false);
+        if (!cancelled && request === requestSequence) setChecking(false);
       }
     };
 
