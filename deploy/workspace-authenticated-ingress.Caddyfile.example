@@ -1,0 +1,22 @@
+# Reviewed site fragment only. Do not apply to an existing Caddy deployment
+# without the parent's approval. Keep real password hashes OUT of this file.
+https://workbench.cnsubscribe.xyz {
+	route {
+		# Literal private include: missing file fails configuration loading.
+		import /etc/caddy/workspace-authenticated-ingress.credentials.caddy
+		reverse_proxy unix//run/workspace-authenticated-ingress/ingress.sock {
+			# SET overwrites every browser-supplied value; never use "+" here.
+			header_up X-Workspace-Authenticated-User {http.auth.user.id}
+			header_up -Authorization
+			header_up -X-Workspace-Assertion
+			header_up -X-Workspace-Subject
+			header_up -X-Workspace-Role
+			# Keep default cancellation. SSE already flushes immediately.
+			# Do not set flush_interval -1, retries, rewrites or method overrides.
+			transport http {
+				versions 1.1
+				compression off
+			}
+		}
+	}
+}

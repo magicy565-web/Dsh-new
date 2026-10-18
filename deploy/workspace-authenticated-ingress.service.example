@@ -1,0 +1,27 @@
+# TEMPLATE ONLY. Installation/user/group/key provisioning requires parent review.
+[Unit]
+Description=Workspace authenticated request signing ingress
+After=network.target
+
+[Service]
+Type=simple
+User=REPLACE_WITH_APPROVED_SIGNER_OS_USER
+# Existing Caddy service group reported as caddy. Review its actual membership.
+Group=caddy
+WorkingDirectory=/opt/workspace-agent
+ExecStart=/usr/bin/node /opt/workspace-agent/server/workspace-authenticated-ingress.mjs /etc/workspace-authenticated-ingress/config.json
+RuntimeDirectory=workspace-authenticated-ingress
+RuntimeDirectoryMode=0750
+UMask=0007
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/run/workspace-authenticated-ingress
+
+[Install]
+WantedBy=multi-user.target
