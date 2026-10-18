@@ -22,8 +22,26 @@ globalThis.fetch=async(input,init)=>{
  // Shape-only failure evidence survives fixture teardown through test messages;
  // no headers, parameter values, uploaded text, credentials or full contexts.
  const documentSchemas=body.tools.filter(t=>t.function.name.startsWith('workspace_enterprise_context_')).map(({function:t})=>({name:t.name,strict:t.strict===true,branches:(t.parameters.oneOf||[]).map(branch=>({additionalProperties:branch.additionalProperties,required:branch.required,fields:Object.fromEntries(Object.entries(branch.properties||{}).map(([key,rule])=>[key,{hasConst:Object.hasOwn(rule,'const'),enumLength:Array.isArray(rule.enum)?rule.enum.length:null}]))}))}));
- summary.requests.push({withSource:text.includes(info.statement),toolNames:body.tools.map(t=>t.function.name),documentSchemas});
+ summary.requests.push({withSource:text.includes(info.statement),...(info.product?{withProduct:text.includes(info.product.name)}:{}),toolNames:body.tools.map(t=>t.function.name),documentSchemas});
  fs.writeFileSync(info.reportFile,JSON.stringify(summary),{mode:0o600});const n=summary.requests.length;
+ if(info.mode==='library-flow'){
+  assert.ok(!text.includes(info.product.category),'Unapproved product fields must not reach the wire');
+  assert.ok(body.tools.every(t=>!/^workspace_(medusa|shopify|marketplace)_/.test(t.function.name)));
+  if((info.turn||1)===1&&n===1){
+   assert.ok(!text.includes(info.product.name));assert.ok(!text.includes(info.statement));
+   const name=schema('workspace_skill').properties.name.enum.find(name=>name==='enterprise-context');assert.ok(name);
+   return call('workspace_skill',{name},'library-handbook');
+  }
+  if((info.turn||1)===1&&n===2)return call('workspace_factory_materials',{limit:1},'selected-product');
+  const material=receipts.findLast(r=>r?.plugin==='workspace-factory-materials'&&Array.isArray(r.products));
+  assert.equal(material?.status,'available');assert.equal(material.products.length,1);
+  assert.deepEqual(Object.keys(material.products[0]).sort(),['description','id','name','revision']);
+  assert.equal(material.products[0].name,info.product.name);assert.equal(material.products[0].description,info.product.description);
+  if((info.turn||1)===1&&n===3)return call('workspace_enterprise_context_parse_upload',discover('workspace_enterprise_context_parse_upload'),'selected-document');
+  const document=receipts.findLast(r=>r?.authorization?.kind==='parse');assert.equal(document?.text,info.statement);
+  assert.equal(n,(info.turn||1)===1?4:1);
+  return sse({role:'assistant',content:((info.turn||1)===1?'Internal summary: ':'Same-session continuation: ')+material.products[0].name+' — '+material.products[0].description+' '+document.text+' Unreviewed; no external action.'},'stop');
+ }
  if(info.mode==='unknown')return new Response('data: '+JSON.stringify({id:'finite-no-usage',model:'deepseek-flash',choices:[{index:0,delta:{role:'assistant',content:'Unconfirmed synthetic response'},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
  if(info.mode==='clarify')return sse({role:'assistant',content:'What business outcome should I investigate? I can wait for your clarification without parsing or saving.'},'stop');
  if(info.mode==='lookup'){if(n===1)return call('workspace_enterprise_context_structured_memory_lookup',discover('workspace_enterprise_context_structured_memory_lookup'),'lookup-only');assert.equal(n,2);assert.equal(receipts.findLast(r=>r?.operation==='structuredMemoryLookup').found,false);return sse({role:'assistant',content:'The selected fact is not yet saved. No parser or write was needed to check it.'},'stop');}

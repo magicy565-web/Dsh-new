@@ -16,6 +16,7 @@ import {decisionSetup} from './brain-decision-input.mjs';
 import {request} from '../agent-service.helpers.mjs';
 export const QUERY={subjectType:'product',subjectId:'synthetic-bottle',factKey:'moq'};
 export const STATEMENT='SYNTHETIC bottle MOQ is 120 units; confirm the supplier before any commercial promise.';
+export const LIBRARY_PRODUCT={name:'SYNTHETIC selected bottle',description:'SYNTHETIC reusable bottle for an unreviewed internal summary.',category:'SYNTHETIC_CATEGORY_NOT_APPROVED_FOR_MODEL'};
 const empty=()=>({artifacts:[],skills:[],memoryIds:[],connectorActions:[]});
 const quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
 export async function startupFixture(t,{documents=true,mode='control',durableBudget=false}={}){
@@ -47,6 +48,10 @@ export async function startupFixture(t,{documents=true,mode='control',durableBud
  const uploaded=await workspace('/api/artifacts',{body:{requestId:randomUUID(),filename:'synthetic-bottle.txt',base64:Buffer.from(STATEMENT).toString('base64'),metadata:{businessLibrary:{visibility:'internal'}}}});assert.equal(uploaded.status,201,uploaded.text);
  const asset={artifactId:uploaded.json.artifact.id,version:uploaded.json.artifact.currentVersion,sha256:uploaded.json.artifact.sha256};
  const linked=await workspace('/api/library/documents',{body:{requestId:randomUUID(),title:'Synthetic bottle evidence',slotKey:'specification',asset}});assert.equal(linked.status,201,linked.text);const document=linked.json.document;
+ let product=null;
+ if(mode==='library-flow'){
+  const imported=await workspace('/api/library/products',{body:{requestId:randomUUID(),...LIBRARY_PRODUCT}});assert.equal(imported.status,201,imported.text);product=imported.json.product;
+ }
  // Create the ordinary owned Goal through the real signed HTTP route.
  // No direct runtime owner preparation or Store seed is necessary.
  const g=await workspace('/api/goals',{body:{requestId:randomUUID(),title:'Investigate synthetic MOQ',description:'No external action or spending',inputContext:empty()}});assert.equal(g.status,201,g.text);const goal=g.json.goal;
@@ -54,9 +59,10 @@ export async function startupFixture(t,{documents=true,mode='control',durableBud
  assert.equal(app.store.read().businessLibrary.enterpriseMemories.length,0);
  await app.close();sessions.clear();
  const model={provider:'workspace-deepseek',id:'deepseek-flash',api:'openai-completions',baseUrl:'https://api.deepseek.com'},recipient={kind:'pi-coding-agent',provider:model.provider,model:model.id,destination:model.baseUrl};
- const libraryModelReadPolicy={enabled:true,reviewed:true,workspaceId,subject,expiresAt:'2099-01-01T00:00:00.000Z',recipient,company:null,products:[],productFields:['name'],factoryMaterials:{products:[],productFields:['name'],documents:[{id:document.id,revision:document.revision,documentVersion:document.currentVersion,asset}]}};
+ const products=product?[{id:product.id,revision:product.revision}]:[],productFields=product?['name','description']:['name'];
+ const libraryModelReadPolicy={enabled:true,reviewed:true,workspaceId,subject,expiresAt:'2099-01-01T00:00:00.000Z',recipient,company:null,products,productFields,factoryMaterials:{products,productFields,documents:[{id:document.id,revision:document.revision,documentVersion:document.currentVersion,asset}]}};
  const goalBrainOptions={originalReceiver:model,reviewedGoals:[{id:goal.id,originalRevision:goal.revision,currency:'USD',businessStatus:'active',capabilities:['analysis','draft','none'],budgetRemainingMinor:null,perTaskCapMinor:null,reviewed:true}]};
- const pluginConfiguration={disabled:['workspace-factory-materials','workspace-market-validation','workspace-shopify-product','workspace-medusa-catalog','workspace-marketplace']};
+ const pluginConfiguration={disabled:[...(product?[]:['workspace-factory-materials']),'workspace-market-validation','workspace-shopify-product','workspace-medusa-catalog','workspace-marketplace']};
  // Budget-only trajectory: eight explicitly reviewed distinct keys, all
  // discovered by the finite provider from the real wire schema, never info.
  const factKeys=documents&&mode==='limit'?Array.from({length:8},(_,index)=>({...QUERY,factKey:'synthetic-budget-'+index})):[QUERY];
@@ -66,9 +72,9 @@ export async function startupFixture(t,{documents=true,mode='control',durableBud
  else app=await startWorkspaceServer({environment,reviewedBusiness:{libraryModelReadPolicy,goalBrainOptions,resolveBinding:async()=>({})}});
  const c=await workspace('/api/conversations',{body:{requestId:randomUUID(),title:'Document to Brain first slice',inputContext:empty()}});assert.equal(c.status,201,c.text);const cid=c.json.conversation.id;
  if(documents){const missing=await workspace('/api/conversations/'+cid+'/messages',{body:{requestId:randomUUID(),content:'Read only explicitly reviewed selected documents.',workspaceExecution:false,inputContext:empty()}});assert.equal(missing.status,409,missing.text);assert.equal(missing.json.error.code,'BUSINESS_AGENT_DOCUMENT_SELECTION_REQUIRED');assert.equal(app.store.read().runs.length,0);}
- const refs=await workspace('/api/conversations/'+cid+'/library-references',{body:{requestId:randomUUID(),expectedRevision:0,references:{products:[],documents:[{documentId:document.id,documentVersion:document.currentVersion}]}}});assert.equal(refs.status,200,refs.text);
- const writeFixture=turn=>fs.writeFile(configFile,JSON.stringify({mode,documents,bounded:documents,turn,statement:STATEMENT,parserSecret,inputs:decisionSetup('not-a-discovered-goal',[]),reportFile}),{mode:0o600});await writeFixture(1);
- return {app,workspace,cid,asset,document,goal,writeFixture,parserCalls:()=>parserCalls,readProvider:async()=>JSON.parse(await fs.readFile(reportFile,'utf8')),
+ const refs=await workspace('/api/conversations/'+cid+'/library-references',{body:{requestId:randomUUID(),expectedRevision:0,references:{products:product?[{productId:product.id,productRevision:product.revision}]:[],documents:[{documentId:document.id,documentVersion:document.currentVersion}]}}});assert.equal(refs.status,200,refs.text);
+ const writeFixture=turn=>fs.writeFile(configFile,JSON.stringify({mode,documents,bounded:documents,turn,statement:STATEMENT,...(product?{product:LIBRARY_PRODUCT}:{}),parserSecret,inputs:decisionSetup('not-a-discovered-goal',[]),reportFile}),{mode:0o600});await writeFixture(1);
+ return {app,workspace,cid,asset,document,product,goal,writeFixture,parserCalls:()=>parserCalls,readProvider:async()=>JSON.parse(await fs.readFile(reportFile,'utf8')),
   sessionDiagnostics:async()=>{const map=app.store.read().conversations.find(c=>c.id===cid).businessAgentSession;if(!map)return {mapped:false};const entries=(await fs.readFile(map.sessionFile,'utf8')).trim().split('\n').map(JSON.parse);return {mapped:true,loopRedirects:entries.filter(e=>e.customType==='tool-call-loop-redirect').map(e=>({customType:e.customType,count:Number.isSafeInteger(e.details?.count)?e.details.count:null})),failedTools:entries.map(e=>e.message).filter(m=>m?.role==='toolResult'&&m.isError).map(m=>({toolName:m.toolName,reason:/^[A-Z][A-Z0-9_]{0,95}$/.test(m.details?.reason||'')?m.details.reason:null}))};},
   mapping:()=>app.store.read().conversations.find(c=>c.id===cid).businessAgentSession,
   messages:async()=>{const map=app.store.read().conversations.find(c=>c.id===cid).businessAgentSession;return(await fs.readFile(map.sessionFile,'utf8')).trim().split('\n').map(JSON.parse).map(e=>e.message).filter(Boolean);}};
