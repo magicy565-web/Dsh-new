@@ -1,6 +1,8 @@
 import {createHash,randomBytes} from "node:crypto"
 import {ContextContentSchema,MAX_REVIEW_VERSION,ProductSourceSchema} from "./product-context-validation"
 
+export const AGENT_CONTEXT_REVIEW_POLICY="medusa-product-context-current-source-v1"
+
 // This is the exact native Medusa projection reviewed and released to an Agent.
 export const PRODUCT_FIELDS=["id","title","subtitle","handle","description","status","thumbnail",
   "variants.id","variants.title","variants.sku"]

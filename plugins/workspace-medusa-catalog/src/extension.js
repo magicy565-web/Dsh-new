@@ -16,3 +16,5 @@ export function medusaCatalogExtension(options = {}) {
 }
 
 export default function extension(pi){let host;pi.events?.emit('workspace:plugin-host',{accept:value=>{host=value;}});return medusaCatalogExtension({client:host?.medusaClient,authorize:host?.authorize})(pi);}
+
+export { createMedusaApprovedSource, MedusaApprovedSourceError } from './approved-source.mjs';

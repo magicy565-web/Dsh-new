@@ -148,7 +148,7 @@ export class MedusaClient{
     if(removed.length)await this.linkOptions(id,{remove:removed})
     return this.retrieveProduct(id)
   }
-  getContext(id:string){return this.request<{product_context:ProductContext|null}>("/admin/products/"+encodeURIComponent(id)+"/context")}
+  getContext(id:string){return this.request<{product_context:ProductContext|null;review_source_hash:string}>("/admin/products/"+encodeURIComponent(id)+"/context")}
   saveContext(id:string,input:Record<string,unknown>){return this.request<{product_context:ProductContext}>("/admin/products/"+encodeURIComponent(id)+"/context",{method:"POST",body:JSON.stringify(input)})}
   listCollections(){return this.request<{collections:{id:string;title:string;handle:string;products?:{id:string}[]}[]}>("/admin/collections?limit=50&offset=0&order=-updated_at&fields=id,title,handle,products.id")}
   listCategories(){return this.request<{product_categories:{id:string;name:string;handle:string;parent_category_id?:string|null;is_active?:boolean}[]}>("/admin/product-categories?limit=50&offset=0&order=rank")}
@@ -217,4 +217,19 @@ export function variantEditPayload(original:ProductVariant,draft:ProductVariant)
   if(Object.hasOwn(draft,key)&&draft[key]!==undefined&&JSON.stringify(draft[key])!==JSON.stringify(original[key]))patch[key]=draft[key]
  }
  return patch
+}
+
+// The approval fingerprint belongs to the GET snapshot shown to the reviewer.
+// Never fetch a new fingerprint silently while saving an old draft.
+export function productContextPayload(c:ProductContext,reviewSourceHash?:string|null){
+  const version=c.review_version??0
+  if(!Number.isInteger(version)||version<0||version>2147483647)throw Error("请重新读取 Product Context 版本")
+  if((c.status==="approved"||version===2147483647)&&!reviewSourceHash)throw Error("请重新打开资料并核对当前产品后审核")
+  return {status:c.status,readiness_score:c.readiness_score,buyer_profile:c.buyer_profile??null,
+    target_markets:c.target_markets??[],use_cases:c.use_cases??[],selling_points:c.selling_points??[],
+    evidence:c.evidence??[],commercial_policy:c.commercial_policy??null,missing_evidence:c.missing_evidence??[],
+    agent_summary:c.agent_summary??null,review_version:version,...(reviewSourceHash?{source_hash:reviewSourceHash}:{}),notes:c.notes??null}
+}
+export function importedContextPayload(c:ProductContext,snapshot:{product_context:ProductContext|null;review_source_hash:string}){
+  return productContextPayload({...c,status:c.status==="approved"?"ready_for_review":c.status,review_version:snapshot.product_context?.review_version??0},snapshot.review_source_hash)
 }

@@ -1,7 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeProduct,productEditPayload,variantEditPayload,MedusaClient} from '../apps/medusa-product-catalog/src/catalog.ts';
+import {productContextPayload,importedContextPayload} from '../apps/medusa-product-catalog/src/catalog.ts';
 const raw={id:'prod-fixture',title:'Synthetic',handle:'synthetic',status:'draft',collection_id:'pcol-original',sales_channels:[{id:'sc-original',name:'Synthetic channel'}],images:[{id:'img',url:'https://synthetic.invalid/image.png'}],variants:[]};
+
+test('context client preserves initial version zero and binds approval to the reviewer snapshot',()=>{
+ const context={id:'ctx-fixture',product_id:raw.id,status:'ready_for_review',readiness_score:90};
+ assert.equal(productContextPayload(context).review_version,0);
+ assert.equal(productContextPayload({...context,review_version:0}).review_version,0);
+ assert.throws(()=>productContextPayload({...context,status:'approved'}),/重新打开/);
+ const snapshot='a'.repeat(64);
+ const approved=productContextPayload({...context,status:'approved',review_version:7},snapshot);
+ assert.equal(approved.review_version,7);assert.equal(approved.source_hash,snapshot);
+ assert.equal(approved.reviewed_by,undefined);
+});
+test('context import never promotes CSV approval and keeps the actual current version and fingerprint',()=>{
+ const imported={id:'ctx-fixture',product_id:raw.id,status:'approved',readiness_score:100};
+ const body=importedContextPayload(imported,{product_context:{...imported,review_version:23},review_source_hash:'b'.repeat(64)});
+ assert.equal(body.status,'ready_for_review');assert.equal(body.review_version,23);assert.equal(body.source_hash,'b'.repeat(64));
+ const first=importedContextPayload(imported,{product_context:null,review_source_hash:'c'.repeat(64)});
+ assert.equal(first.review_version,0);assert.equal(first.status,'ready_for_review');
+});
+test('context integer ceiling requires the GET fingerprint even for withdrawal; no wrap or synthetic version 1',()=>{
+ const context={id:'ctx-fixture',product_id:raw.id,status:'blocked',readiness_score:0,review_version:2147483647};
+ assert.throws(()=>productContextPayload(context),/重新打开/);
+ assert.equal(productContextPayload(context,'d'.repeat(64)).review_version,2147483647);
+ assert.throws(()=>productContextPayload({...context,review_version:2147483648},'d'.repeat(64)));
+});
 test('normalize keeps Medusa collection and sales channels; title-only edit cannot clear relations',()=>{
  const original=normalizeProduct(raw);assert.equal(original.collection_id,raw.collection_id);assert.deepEqual(original.sales_channels.map(x=>x.id),['sc-original']);
  assert.deepEqual(productEditPayload(original,{...original,title:'Edited'}),{title:'Edited'});

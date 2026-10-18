@@ -2,7 +2,7 @@ import type {MedusaRequest,MedusaResponse} from "@medusajs/framework/http"
 import {ContainerRegistrationKeys} from "@medusajs/framework/utils"
 import {isAgentContextReadAuthorized} from "../../../../agent-auth"
 
-import {CONTEXT_FIELDS,isCurrentApprovedContext,projectAgentContext} from "../../../../product-context-review"
+import {AGENT_CONTEXT_REVIEW_POLICY,CONTEXT_FIELDS,isCurrentApprovedContext,projectAgentContext} from "../../../../product-context-review"
 
 export const CORS=false
 
@@ -26,6 +26,7 @@ export const GET=async(req:MedusaRequest,res:MedusaResponse)=>{
   res.setHeader("Cache-Control","no-store")
   res.json({
     schema_version:"1.0",
+    review_policy:AGENT_CONTEXT_REVIEW_POLICY,
     generated_at:new Date().toISOString(),
     ...projectAgentContext(item)
   })

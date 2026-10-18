@@ -308,6 +308,15 @@ export async function createAccessControl({ config, dataDirectory, now = Date.no
     async recordDenial(error) {
       if (audit?.healthy && now() - lastDeniedAudit >= 10_000) { lastDeniedAudit = now(); await audit.append({ type: 'request.denied', code: error instanceof AccessError ? error.code : 'INTERNAL_ERROR', detail: 'Pre-admission denials are sampled at most once per 10 seconds.' }); }
     },
+    // Append-only correction when a final current-authority gate refuses bytes
+    // after the original asynchronous completion record. No content is logged.
+    async recordDeliveryRefusal(context, error) {
+      if (!enterprise) return;
+      if (!context?.finished || typeof context.requestId !== 'string' || typeof context.subject !== 'string') throw new TypeError('Use the admitted original request context.');
+      const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
+      const code = typeof error?.code === 'string' && /^[A-Z0-9_]{1,80}$/u.test(error.code) ? error.code : 'DELIVERY_REFUSED';
+      await audit.append({ type: 'request.delivery_refused', requestId: context.requestId, actor: context.subject, status, code });
+    },
     async close() { closing = true; await loginQueue; for (const session of sessions.values()) revoke(session); await audit?.close(); },
   };
 }

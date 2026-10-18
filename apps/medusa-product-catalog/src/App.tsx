@@ -2,7 +2,7 @@ import {sanitizeProductDraft as sanitizeDraft} from './product-editor'
 import {useEffect,useMemo,useRef,useState} from "react"
 import type {ChangeEvent,Dispatch,FormEvent,ReactNode,RefObject,SetStateAction} from "react"
 import {
-  demoContexts,demoProducts,MedusaClient,saveDemoContexts,saveDemoProducts,
+  demoContexts,demoProducts,MedusaClient,saveDemoContexts,saveDemoProducts,productContextPayload,importedContextPayload,
   type CommercialPolicy,type Product,type ProductContext,type ProductImage,
   type ProductOption,type ProductPrice,type ProductStatus,type ProductVariant,type EvidenceItem,type SalesChannel,type InventoryItem,type StockLocation
 } from "./catalog"
@@ -37,6 +37,8 @@ export default function App(){
   const [busy,setBusy]=useState(false)
   const [editor,setEditor]=useState<{product:DraftProduct;section:EditorSection}|null>(null)
   const [contextEditor,setContextEditor]=useState<ProductContext|null>(null)
+  const [contextReviewHash,setContextReviewHash]=useState<string|null>(null)
+  const activeContextTarget=useRef<string|null>(null);activeContextTarget.current=mode+":"+(selected?.id??"")
   const [collections,setCollections]=useState<{id:string;title:string;handle:string;products?:{id:string}[]}[]>([])
   const [categories,setCategories]=useState<{id:string;name:string;handle:string;parent_category_id?:string|null;is_active?:boolean}[]>([])
   const [salesChannels,setSalesChannels]=useState<SalesChannel[]>([])
@@ -218,7 +220,7 @@ export default function App(){
       createdCount=result.created.length
       for(const op of optionOps)if(op.add.length)await client.linkOptions(op.id,{add:op.add})
       for(const op of variantOps)if(op.create.length||op.update.length)await client.batchVariants(op.id,{create:op.create,update:op.update})
-      for(const op of contextOps){const target=op.id?op.id:result.created.find(p=>p.handle===op.handle||p.title===op.title)?.id;if(target)await client.saveContext(target,contextPayload({...op.context,id:"ctx-"+target,product_id:target}))}
+      for(const op of contextOps){const target=op.id?op.id:result.created.find(p=>p.handle===op.handle||p.title===op.title)?.id;if(target){const snapshot=await client.getContext(target);await client.saveContext(target,importedContextPayload({...op.context,id:"ctx-"+target,product_id:target},snapshot))}}
       const fresh=await client.listAllProducts(query,status==="all"?undefined:status)
       setItems(fresh)
       const contextList=await client.listContexts().catch(()=>({product_contexts:[] as ProductContext[]}));setContexts(Object.fromEntries(contextList.product_contexts.map(c=>[c.product_id,c])))
@@ -255,8 +257,23 @@ export default function App(){
     finally{setBusy(false)}
   }
 
+  async function openContextEditor(){
+    if(!selected||busy)return
+    const target=selected.id,scope=mode+":"+target
+    setContextReviewHash(null);setBusy(true);setError("")
+    try{
+      if(mode==="demo"){setContextEditor(contexts[target]||emptyContext(target));return}
+      const snapshot=await client.getContext(target)
+      if(activeContextTarget.current!==scope)return
+      if(!snapshot.review_source_hash)throw Error("当前服务尚未提供审核指纹，请更新后重新读取")
+      setContextReviewHash(snapshot.review_source_hash)
+      setContextEditor(snapshot.product_context||emptyContext(target))
+    }catch(e){if(activeContextTarget.current===scope)setError(e instanceof Error?e.message:"读取审核版本失败")}
+    finally{setBusy(false)}
+  }
+
   async function saveContext(next:ProductContext){
-    if(!selected)return
+    if(!selected||next.product_id!==selected.id)return
     setBusy(true);setError("")
     try{
       if(next.status==="approved"&&(next.readiness_score<80||next.missing_evidence?.length||(next.evidence||[]).some(x=>x.status==="missing"))){
@@ -265,7 +282,7 @@ export default function App(){
       if(mode==="demo"){
         const nextMap={...contexts,[selected.id]:next};setContexts(nextMap);saveDemoContexts(nextMap);setContextEditor(null);setToast("Agent 资料已保存")
       }else{
-        const r=await client.saveContext(selected.id,contextPayload(next))
+        const r=await client.saveContext(selected.id,productContextPayload(next,contextReviewHash))
         setContexts(x=>({...x,[selected.id]:r.product_context}));setContextEditor(null);setToast("Agent 资料已保存")
       }
     }catch(e){setError(e instanceof Error?e.message:"保存 Agent 资料失败")}
@@ -303,7 +320,7 @@ export default function App(){
       {locked&&<Login client={client} done={()=>setAuth(x=>x+1)}/>}
       {!locked&&tab==="products"&&!selected&&<ProductList items={filtered} contexts={contexts} query={query} setQuery={setQuery} status={status} setStatus={setStatus} open={open} create={create} selectedIds={selectedIds} toggleSelected={toggleSelected} clearSelection={clearSelection} openBulk={()=>setBulkOpen(true)} openImport={openImport} exportCurrent={exportCurrent} exportAll={exportAll}/>}
 
-      {!locked&&tab==="products"&&selected&&<Detail p={selected} context={contexts[selected.id]} back={()=>setSelected(null)} edit={()=>startEdit("details")} editVariants={()=>startEdit("variants")} editContext={()=>setContextEditor(contexts[selected.id]||emptyContext(selected.id))} publish={publish} busy={busy}/>}
+      {!locked&&tab==="products"&&selected&&<Detail p={selected} context={contexts[selected.id]} back={()=>setSelected(null)} edit={()=>startEdit("details")} editVariants={()=>startEdit("variants")} editContext={()=>void openContextEditor()} publish={publish} busy={busy}/>}
       {!locked&&tab==="agent"&&<AgentPage items={items} contexts={contexts} open={open}/>}
       {!locked&&tab==="collections"&&<CollectionPage items={collections} mode={mode}/>}
       {!locked&&tab==="categories"&&<CategoryPage items={categories} mode={mode}/>}
@@ -522,7 +539,7 @@ function splitValues(v:string){return[...new Set(v.split(",").map(x=>x.trim()).f
 function defaultVariantOptions(options:ProductOption[]){return Object.fromEntries(options.filter(o=>o.title&&o.values.length).map(o=>[o.title,o.values[0]]))}
 async function prepareImages(d:DraftProduct,client:MedusaClient,mode:"demo"|"live"):Promise<DraftProduct>{const queued=d.images.filter(x=>x.file);if(!queued.length)return d;if(mode==="demo")return{...d,thumbnail:d.images[0]?.url||""};const uploads=await client.uploadFiles(queued.map(x=>x.file!));let cursor=0;const images=d.images.map(x=>x.file?{id:undefined,url:uploads.files[cursor++].url}:x);return{...d,images,thumbnail:images[0]?.url||""}}
 async function fileDataUrl(file:File){return await new Promise<string>((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=()=>reject(Error("图片读取失败"));r.readAsDataURL(file)})}
-function contextPayload(c:ProductContext){return{status:c.status,readiness_score:c.readiness_score,buyer_profile:c.buyer_profile||undefined,target_markets:c.target_markets||[],use_cases:c.use_cases||[],selling_points:c.selling_points||[],evidence:c.evidence||[],commercial_policy:c.commercial_policy||undefined,missing_evidence:c.missing_evidence||[],agent_summary:c.agent_summary||undefined,review_version:c.review_version||1,notes:c.notes||undefined}}
+
 function variantCreatePayload(v:ProductVariant){return{title:v.title.trim(),sku:v.sku||undefined,options:v.options||{},prices:(v.prices||[]).map(p=>({currency_code:p.currency_code,amount:Number(p.amount)})).length?(v.prices||[]).map(p=>({currency_code:p.currency_code,amount:Number(p.amount)})):[{currency_code:"usd",amount:0}]}}
 function commerceReadiness(p:Product){let s=35;if(p.description)s+=15;if(p.material)s+=10;if(p.images?.length)s+=10;if(p.options?.length)s+=10;if(p.variants?.length)s+=20;return Math.min(100,s)}
 function price(p?:ProductPrice){return p?new Intl.NumberFormat("en-US",{style:"currency",currency:p.currency_code.toUpperCase()}).format(p.amount):"—"}

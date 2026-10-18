@@ -63,3 +63,5 @@ export function medusaCatalogToolDefinitions() {
     description: descriptions[method], parameters: structuredClone(MEDUSA_CATALOG_INPUTS[method]), approval: 'read',
   }));
 }
+
+export { createMedusaApprovedSource, MedusaApprovedSourceError } from './approved-source.mjs';
