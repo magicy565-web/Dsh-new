@@ -36,7 +36,7 @@ for image in "$PG_IMAGE" "$REDIS_IMAGE" "$NODE_IMAGE"; do d image inspect "$imag
 for name in api redis pg network; do test ! -e "$PLAN/$name.id"; done
 d network create --internal --label "acceptance.run=$RUN_ID" "$RUN_ID-net" > "$PLAN/network.id"
 NET_ID=$(cat "$PLAN/network.id"); [[ "$NET_ID" =~ ^[a-f0-9]{64}$ ]]
-common=(--pull=never --restart=no --read-only --cap-drop=ALL --security-opt=no-new-privileges --label "acceptance.run=$RUN_ID")
+common=(--pull=never --restart=no --read-only --log-driver=none --cap-drop=ALL --security-opt=no-new-privileges --label "acceptance.run=$RUN_ID")
 d run -d "${common[@]}" --name "$RUN_ID-pg" --cidfile "$PLAN/pg.id" --network "$NET_ID" --user 70:70 \
  --memory=768m --memory-swap=768m --cpus=.75 --pids-limit=128 \
  --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,nodev,uid=70,gid=70,mode=0700,size=384m \
@@ -44,7 +44,7 @@ d run -d "${common[@]}" --name "$RUN_ID-pg" --cidfile "$PLAN/pg.id" --network "$
  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
  --mount "type=bind,src=$SECRETS/postgres_password,dst=/run/secrets/postgres_password,readonly" \
  -e POSTGRES_USER=medusa -e "POSTGRES_DB=$DATABASE" -e POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password \
- "$PG_IMAGE" -c max_connections=30 -c shared_buffers=32MB -c max_wal_size=128MB >/dev/null
+ "$PG_IMAGE" -c listen_addresses=127.0.0.1 -c max_connections=30 -c shared_buffers=32MB -c max_wal_size=128MB >/dev/null
 PG_ID=$(cat "$PLAN/pg.id"); [[ "$PG_ID" =~ ^[a-f0-9]{64}$ ]]
 for attempt in {1..60}; do
  if d exec "$PG_ID" pg_isready -h 127.0.0.1 -U medusa -d "$DATABASE" >/dev/null; then break; fi

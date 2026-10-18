@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import {spawn} from 'node:child_process'
 
 export const MIGRATION_MODULES=['auth-emailpass','fulfillment-manual','notification-local','cache-inmemory','event-bus-redis','locking','locking-redis','file','file-local','caching','caching-redis']
+export const COPY_OPTIONS=Object.freeze({recursive:true,dereference:false,verbatimSymlinks:true})
 export function databaseName(value){
  if(!/^medusa_live_[a-z0-9_]{8,80}$/.test(value??''))throw Error('ISOLATED_DATABASE_NAME_REQUIRED')
  return value
@@ -16,8 +17,8 @@ export function secretValue(value){
 export async function boot(){
  const database=databaseName(process.env.MEDUSA_TEST_DATABASE)
  if(process.env.MEDUSA_TEMP_SERVICE_APPROVAL!=='ISOLATED_TEMP_ONLY')throw Error('OPERATOR_APPROVAL_REQUIRED')
- fs.cpSync('/fixture/server','/app',{recursive:true,dereference:false})
- fs.cpSync('/fixture/node_modules','/app/node_modules',{recursive:true,dereference:false})
+ fs.cpSync('/fixture/server','/app',COPY_OPTIONS)
+ fs.cpSync('/fixture/node_modules','/app/node_modules',COPY_OPTIONS)
  for(const module of MIGRATION_MODULES){
   const directory='/app/node_modules/@medusajs/'+module+'/dist'
   if(!fs.statSync(directory).isDirectory())throw Error('EXPECTED_OFFICIAL_MODULE_REQUIRED')

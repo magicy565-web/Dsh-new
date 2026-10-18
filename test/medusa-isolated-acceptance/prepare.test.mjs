@@ -2,11 +2,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
+import {cpSync} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {spawnSync} from 'node:child_process'
 import {config,prepare,INTEGRATION,IMAGES} from '../../scripts/medusa-isolated-acceptance-prepare.mjs'
-import {databaseName,secretValue,MIGRATION_MODULES,boot} from '../../acceptance/medusa/isolated-api-boot.mjs'
+import {databaseName,secretValue,MIGRATION_MODULES,COPY_OPTIONS,boot} from '../../acceptance/medusa/isolated-api-boot.mjs'
 const value=()=>({integrationSha:INTEGRATION,runId:'medusa-live-synthetic-20261018',artifactHost:'/synthetic/artifact',pluginSource:'/synthetic/plugin',secretDirectory:'/synthetic/operator-files'})
 
 test('only the pinned integration and explicit non-secret config are accepted',()=>{
@@ -35,6 +36,25 @@ test('temporary database and service-file value contracts have no ambient fallba
  assert.equal(secretValue('a'.repeat(64)+'\n'),'a'.repeat(64))
  for(const text of ['','A'.repeat(64),'a'.repeat(63),'x'.repeat(64)])assert.throws(()=>secretValue(text))
 })
+test('copied npm bin link executes the copied CLI and copied migration directory after fixture removal',async t=>{
+ const directory=await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()),'medusa-bin-link-contract-'))
+ t.after(()=>fs.rm(directory,{recursive:true,force:true}))
+ const source=path.join(directory,'fixture/node_modules'),target=path.join(directory,'app/node_modules')
+ await fs.mkdir(path.join(source,'.bin'),{recursive:true});await fs.mkdir(path.join(source,'@medusajs/cli'),{recursive:true})
+ await fs.mkdir(path.join(source,'@medusajs/locking/dist'),{recursive:true})
+ await fs.writeFile(path.join(source,'@medusajs/cli/cli.js'),'const fs=require("node:fs"),path=require("node:path");console.log(JSON.stringify({cli:__dirname,migrations:fs.existsSync(path.resolve(__dirname,"../locking/dist/migrations"))}))')
+ await fs.symlink('../@medusajs/cli/cli.js',path.join(source,'.bin/medusa'))
+ cpSync(source,target,COPY_OPTIONS)
+ assert.equal(await fs.readlink(path.join(target,'.bin/medusa')),'../@medusajs/cli/cli.js')
+ await fs.mkdir(path.join(target,'@medusajs/locking/dist/migrations'))
+ await fs.rm(path.join(directory,'fixture'),{recursive:true,force:true})
+ assert.equal(await fs.realpath(path.join(target,'.bin/medusa')),path.join(target,'@medusajs/cli/cli.js'))
+ const executed=spawnSync(process.execPath,[path.join(target,'.bin/medusa')],{encoding:'utf8',timeout:3000})
+ assert.equal(executed.status,0,executed.stderr)
+ assert.deepEqual(JSON.parse(executed.stdout),{cli:path.join(target,'@medusajs/cli'),migrations:true})
+ const sourceText=await fs.readFile('acceptance/medusa/isolated-api-boot.mjs','utf8')
+ assert.equal((sourceText.match(/fs\.cpSync\([^\n]+,COPY_OPTIONS\)/g)??[]).length,2)
+})
 test('existing native migration preparation is reused exactly, without service patches',async()=>{
  const audit=JSON.parse(await fs.readFile('docs/validation/omp-medusa-provider-closure-20261017.json'))
  const names=audit.entries.filter(e=>!e.exists&&!e.customMigrations).map(e=>/^node_modules\/@medusajs\/([^/]+)\/dist\/migrations$/.exec(e.migrationDirectory)?.[1]).sort()
@@ -51,6 +71,8 @@ test('review plan contains complete bounded commands, exact-ID cleanup and no au
  assert.match(source,/--internal/);assert.match(source,/--network "container:\$PG_ID"/)
  for(const limit of ['--memory=768m','--memory=128m','--memory=3g','--cpus=.75','--cpus=.25','--cpus=1.5','--pids-limit=128','--pids-limit=64','--pids-limit=256'])assert.ok(source.includes(limit),limit)
  assert.match(source,/POSTGRES_PASSWORD_FILE/);assert.match(source,/--pull=never/)
+ assert.match(source,/common=\([^\n]*--log-driver=none/)
+ assert.match(source,/"\$PG_IMAGE" -c listen_addresses=127\.0\.0\.1/)
  assert.match(source,/container_match "\$id"; d container rm -f "\$id"/)
  assert.match(source,/label_match network "\$id"; d network rm "\$id"/)
  assert.match(source,/wait-for-http\.mjs http:\/\/127\.0\.0\.1:9000\/health/)

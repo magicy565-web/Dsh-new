@@ -7,19 +7,19 @@ The original A build was made from `a819897d…`. Git comparison through the pin
 ## Exact preparation entry (no Docker calls)
 
 ```sh
-node scripts/medusa-isolated-acceptance-prepare.mjs prepare /workspace/medusa-isolated-plan-20261018-r02 <<'JSON'
+node scripts/medusa-isolated-acceptance-prepare.mjs prepare /workspace/medusa-isolated-plan-20261018-r03 <<'JSON'
 {
   "integrationSha": "1b788561a6f8e63da9ffecf6f81d0c311d20c721",
-  "runId": "medusa-live-prep-20261018-r02",
+  "runId": "medusa-live-prep-20261018-r03",
   "artifactHost": "/workspace/medusa-package-evidence-20261018/host-A/apps/medusa-acceptance",
   "pluginSource": "/workspace/medusa-package-evidence-20261018/A/packages/medusa-enterprise-product-context",
-  "secretDirectory": "/workspace/medusa-live-prep-20261018-r02-secrets"
+  "secretDirectory": "/workspace/medusa-live-prep-20261018-r03-secrets"
 }
 JSON
-bash /workspace/medusa-isolated-plan-20261018-r02/run.sh review
+bash /workspace/medusa-isolated-plan-20261018-r03/run.sh review
 ```
 
-The input is strictly non-secret JSON; unknown fields, other integration SHA, invalid run IDs/database names, aliases/symlinks and unsafe Docker mount paths are rejected. The generator reuses the reviewed package-acceptance path guard and creates only a new owner-private plan directory outside the repository. It never creates the secret directory or reads a secret value. Generated run/API wrapper/config/env files are hashed; future execution rechecks the preparer hash, these files, pinned source and artifacts before Docker. Changes require fresh preparation. Cleanup can still run if build inputs/secrets disappear.
+The input is strictly non-secret JSON; unknown fields, other integration SHA, invalid run IDs/database names, aliases/symlinks and unsafe Docker mount paths are rejected. The generator reuses the reviewed package-acceptance path guard and creates only a new owner-private plan directory outside the repository. It never creates the secret directory or reads a secret value. Generated run/API wrapper/config/env files are hashed; future execution rechecks the preparer hash, these files and only the explicitly listed pinned inputs/config/plugin members before Docker. Changes to those checked items require fresh preparation. This is not a freeze of the entire runtime tree. Cleanup can still run if build inputs/secrets disappear.
 
 Archive: 21,012 bytes, SHA256 `bc6d3584e3902914273f969517112ae89e2d2210a13b853679057110ada81b24`; SRI `sha512-wwmo0aJ+uU6UAnlJAQDPnVzRInVcYYzDmTyy+9IL8CCnlHzwddmrPnKJ3FNx2pT+17+bxwcoV0FIKCuyZhP8Aw==`. These are existing build identities, not a new build result.
 
@@ -34,7 +34,7 @@ No temporary-environment authorization has been received. The following commands
 After those gates, the complete reviewed start entry is:
 
 ```sh
-MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash /workspace/medusa-isolated-plan-20261018-r02/run.sh start
+MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash /workspace/medusa-isolated-plan-20261018-r03/run.sh start
 ```
 
 The marker records an operator decision; it is not itself authorization from this task. Without it the shell stops before Docker. Missing secret metadata, images or changed artifacts stop rather than discover alternate credentials/targets. Runtime credentials are read only inside the future approved containers; no secret enters Docker environment/argv.
@@ -49,7 +49,7 @@ The generated `run.sh` contains full `docker run` arguments, no ellipses. Only t
 | Redis, UID 999 | 128 MiB | .25 | 64 | /data and /tmp 16 MiB each; persistence off, maxmemory96mb |
 | API, UID 1000 | 3 GiB | 1.5 | 256 | /app1536 MiB tmpfs, /tmp128 MiB, Node heap1280 MiB |
 
-All are read-only rootfs, cap-drop ALL, no-new-privileges, no automatic restart. PG/Redis image-declared data volumes are explicitly overridden with tmpfs: no persistent or anonymous volume is intended. The API copies the existing read-only compiled server/node_modules into its bounded tmpfs; no package installation/compilation occurs. Only the original 11 audited empty migration directories are created in that private copy, matching the pinned API Dockerfile and native closure exactly. Business service/nativeUpdate, SDK and dependencies remain unchanged.
+All are read-only rootfs, cap-drop ALL, no-new-privileges, no automatic restart, and explicit `--log-driver=none`. API inherited stdio is therefore not retained in daemon container logs; `docker logs` is not a diagnostic channel. Only the existing live driver’s sanitized exec output is an acceptance result, kept operator-private. PostgreSQL explicitly uses `-c listen_addresses=127.0.0.1`. PG/Redis image-declared data volumes are explicitly overridden with tmpfs: no persistent or anonymous volume is intended. The API copies the existing read-only compiled server/node_modules into its bounded tmpfs; no package installation/compilation occurs. Only the original 11 audited empty migration directories are created in that private copy, matching the pinned API Dockerfile and native closure exactly. Business service/nativeUpdate, SDK and dependencies remain unchanged.
 
 The old production entrypoint hardcodes `medusa_catalog`, so a minimal acceptance-only API boot wrapper reuses its secret validation and signal forwarding but sets the explicitly validated temporary DB and 127.0.0.1 endpoints. Native `db:migrate` runs before `start --host 127.0.0.1`. PG/Redis readiness has a bounded polling window; existing `wait-for-http.mjs` supplies API readiness (120 seconds). This readiness polling is not the PG concurrency witness. Any failed partial start leaves exact recorded IDs available for explicit cleanup; it does not broaden cleanup or run account setup.
 
@@ -58,21 +58,25 @@ The old production entrypoint hardcodes `medusa_catalog`, so a minimal acceptanc
 Only after separately approved temporary Admin authentication is available, supply the existing PR116 driver's reviewed config via stdin:
 
 ```sh
-MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash /workspace/medusa-isolated-plan-20261018-r02/run.sh accept < /operator-private/reviewed-live-config.json
+MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash /workspace/medusa-isolated-plan-20261018-r03/run.sh accept < /operator-private/reviewed-live-config.json
 ```
 
-Config must name `backendUrl=http://127.0.0.1:9000`, PG `host=127.0.0.1, port=5432, user/serverRole=medusa, database=medusa_live_prep_20261018_r02`, exact matching isolation declaration/instance `medusa-live-prep-20261018-r02`, `cleanup=operator-destroys-instance`, and `pgRequireFrom=/app/package.json`; distinct temporary Admin/Agent tokens and matching password come only from the operator. Do not put these values into this repository or plan output. The original driver validates the config, bounds HTTP/PG operations, verifies marker/private projection/source invalidation and eight real CAS races using actual pg_stat_activity/pg_blocking_pids. This preparation does not replace or weaken those assertions.
+Config must name `backendUrl=http://127.0.0.1:9000`, PG `host=127.0.0.1, port=5432, user/serverRole=medusa, database=medusa_live_prep_20261018_r02`, exact matching isolation declaration/instance `medusa-live-prep-20261018-r03`, `cleanup=operator-destroys-instance`, and `pgRequireFrom=/app/package.json`; distinct temporary Admin/Agent tokens and matching password come only from the operator. Do not put these values into this repository or plan output. The original driver validates the config, bounds HTTP/PG operations, verifies marker/private projection/source invalidation and eight real CAS races using actual pg_stat_activity/pg_blocking_pids. This preparation does not replace or weaken those assertions.
 
 Cleanup, including a partially failed start, is explicit:
 
 ```sh
-MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash /workspace/medusa-isolated-plan-20261018-r02/run.sh cleanup
+MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash /workspace/medusa-isolated-plan-20261018-r03/run.sh cleanup
 ```
 
 Only the three 64-hex CIDs and network ID recorded by this round are considered, and their `acceptance.run` labels must match. API/Redis are removed before PG, then that exact network. No resource listing/prune, existing container deletion, image removal or volume deletion is performed. This plan creates no named volume. Any unexpected mounts/volume require stopping for review; no global cleanup is authorized. Secret files remain the operator's responsibility.
 
 ## This task's evidence and limits
 
-Only preparation/identity reads and static/parameter tests were run: `node --test test/medusa-isolated-acceptance/prepare.test.mjs` (6/6), JS syntax checks, `bash -n`, and `git diff --check`. The actual preparation checked 29 pinned inputs plus archive/30 installed members and generated review files outside Git. It did not execute `run.sh start/accept/cleanup`, Docker commands, pulls, services, migrations, account/token/secret creation, builds, models, Tencent or deployment. No PR is created; only the development branch is saved.
+Only preparation/identity reads and static/parameter tests were run: `node --test test/medusa-isolated-acceptance/prepare.test.mjs` (7/7), JS syntax checks, `bash -n`, and `git diff --check`. The actual preparation checked 29 pinned inputs plus archive/30 installed members and generated review files outside Git. It did not execute `run.sh start/accept/cleanup`, Docker commands, pulls, services, migrations, account/token/secret creation, builds, models, Tencent or deployment. No PR is created; only the development branch is saved.
 
 Still unverified: container runtime compatibility/resource sufficiency, exact image npm11.17 behavior, real startup/migrations/link/authentication, Admin provisioning, real HTTP/PG acceptance, and Library/Host final delivery through the latest product. Existing A dependency/build evidence is reused with a checked Medusa compatibility boundary; no fresh heavy build or old acceptance is rerun.
+
+The d2897c4 preparation had a confirmed Node24.19 copy defect: dereference:false alone rewrote relative npm .bin links to absolute fixture paths. Both copies now use verbatimSymlinks:true. A synthetic local regression removes the original fixture and executes the copied CLI, proving it sees only the copied migration directory. Copy options are included in preparation proof; the changed preparer hash invalidates old r01/r02 plans before Docker. Only the newly generated r03 plan is current. No container/build/old acceptance was executed for this correction.
+
+Additional independent-review boundary: there is no existing complete manifest for all third-party dependency files, other copied .medusa/server files and every runtime symlink target. Their content changes are NOT all detected by the targeted proof. Before approving real startup, the operator still needs an independent full-tree/links review (or a separately reviewed complete manifest); this task does not fabricate one or claim full runtime immutability. The synthetic copied-CLI regression establishes that specific .bin relocation behavior only. These residual gates, loopback and no-daemon-log changes were prepared without a Docker/service/build run.

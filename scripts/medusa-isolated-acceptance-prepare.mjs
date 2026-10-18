@@ -5,7 +5,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url'
 import {execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {validateWorkDirectory} from './medusa-package-acceptance.mjs'
-import {MIGRATION_MODULES,databaseName} from '../acceptance/medusa/isolated-api-boot.mjs'
+import {MIGRATION_MODULES,COPY_OPTIONS,databaseName} from '../acceptance/medusa/isolated-api-boot.mjs'
 export const INTEGRATION='1b788561a6f8e63da9ffecf6f81d0c311d20c721'
 const ROOT=fileURLToPath(new URL('../',import.meta.url)),SELF=fileURLToPath(import.meta.url)
 export const IMAGES={PG_IMAGE:'docker.io/library/postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24',REDIS_IMAGE:'docker.io/library/redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499',NODE_IMAGE:'docker.io/library/node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df'}
@@ -25,7 +25,7 @@ export async function inspect(input){
  const c=config(input)
  await outside(c.artifactHost,true);await outside(c.pluginSource,true)
  try{await fs.lstat(c.secretDirectory);await outside(c.secretDirectory,true)}catch(error){if(error.code!=='ENOENT')throw error;await outside(c.secretDirectory,false)}
- const proof={integrationSha:INTEGRATION,checkedFiles:{},scope:'Medusa subset compatible with integration; not Library/Host end-to-end acceptance'}
+ const proof={integrationSha:INTEGRATION,checkedFiles:{},scope:'Only listed pinned inputs, compiled config and plugin members; not a full runtime-tree freeze or Library/Host acceptance',unverifiedRuntimeTrees:['other .medusa/server files','third-party node_modules contents','all runtime symlink targets']}
  const pluginFiles=git('ls-tree','-r','--name-only',INTEGRATION,'--',PLUGIN+'/src',PLUGIN+'/package.json',PLUGIN+'/package-lock.json',PLUGIN+'/tsconfig.json',PLUGIN+'/README.md').toString().trim().split('\n')
  for(const name of pluginFiles){
   const relative=name.slice(PLUGIN.length+1),bytes=await regular(path.join(c.pluginSource,relative))
@@ -52,7 +52,7 @@ export async function inspect(input){
  for(const member of audit.reproduciblePackage.members){const name=member.path.replace(/^package\//,'');if(digest(await regular(path.join(c.artifactHost,LOCAL,name)))!==member.sha256)throw Error('INSTALLED_PLUGIN_MEMBER_DIFFERS')}
  const compiled=await regular(path.join(c.artifactHost,'.medusa/server/medusa-config.js'))
  proof.archive={bytes:archive.length,sha256:digest(archive),integrity:sri,members:audit.reproduciblePackage.members.length}
- proof.compiledConfigSHA256=digest(compiled);proof.migrationModules=MIGRATION_MODULES
+ proof.compiledConfigSHA256=digest(compiled);proof.migrationModules=MIGRATION_MODULES;proof.copyOptions=COPY_OPTIONS
  return proof
 }
 const quote=value=>"'"+value.replaceAll("'","'\\''")+"'"
@@ -68,7 +68,7 @@ export async function prepare(input,directory){
  await fs.writeFile(path.join(directory,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{mode:0o400})
  const verifier=`import fs from 'node:fs/promises';import{createHash}from'node:crypto';const file=${JSON.stringify(SELF)};if(createHash('sha256').update(await fs.readFile(file)).digest('hex')!==${JSON.stringify(manifest.preparerSHA256)})throw Error('PREPARER_CHANGED');const{verify}=await import(${JSON.stringify(pathToFileURL(SELF).href)});await verify(process.argv[2],process.argv[3]);\n`
  await fs.writeFile(path.join(directory,'verify.mjs'),verifier,{mode:0o400})
- await fs.writeFile(path.join(directory,'README.txt'),'PREPARED ONLY. Approval, all three fixed images and operator-provided secrets are missing gates.\nNo Docker operation has been performed.\nFuture: MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash '+directory+'/run.sh start|accept|cleanup\nAccept requires separately authorized temporary Medusa Admin authentication and reviewed stdin live config.\n',{mode:0o400})
+ await fs.writeFile(path.join(directory,'README.txt'),'PREPARED ONLY. Approval, three fixed images, operator secrets and independent full runtime-tree/symlink review are missing gates.\nTargeted identities only; no full-tree freeze. No Docker operation performed.\nFuture after all gates: MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash '+directory+'/run.sh start|accept|cleanup\nAccept additionally requires separately authorized temporary Admin authentication and reviewed stdin live config.\n',{mode:0o400})
  return manifest
 }
 export async function verify(directory,mode){
@@ -88,7 +88,7 @@ export async function verify(directory,mode){
  }
  if(mode==='cleanup')return // Cleanup must remain possible if build inputs disappear.
  const proof=await inspect(input)
- if(JSON.stringify(proof)!==JSON.stringify(manifest.proof))throw Error('ARTIFACT_CHANGED_AFTER_PREPARATION')
+ if(JSON.stringify(proof)!==JSON.stringify(manifest.proof))throw Error('CHECKED_INPUT_OR_MEMBER_CHANGED')
  const parent=await fs.lstat(c.secretDirectory)
  if(!parent.isDirectory()||parent.isSymbolicLink()||parent.uid!==process.getuid()||(parent.mode&0o077))throw Error('PRIVATE_OPERATOR_SECRET_DIRECTORY_REQUIRED')
  for(const name of secretNames){
