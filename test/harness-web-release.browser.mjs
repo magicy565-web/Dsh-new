@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { test, before, after } from 'node:test';
 import { createServer } from 'node:http';
 import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
+import { harnessSourceIdentity } from './fixtures/harness-source-identity.mjs';
 import { resolve, extname, join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { chromium } from 'playwright';
@@ -18,7 +18,8 @@ const evidence = { actualBrowser: false, api: 'synthetic Playwright responses', 
 let server, browser, origin;
 before(async () => {
   await mkdir(output, { recursive: true });
-  evidence.sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  Object.assign(evidence, await harnessSourceIdentity({ manifestPath: process.env.HARNESS_SOURCE_MANIFEST,
+    manifestSha256: process.env.HARNESS_SOURCE_MANIFEST_SHA256 }));
   const sources = ['src/App.tsx', 'src/api.ts', 'src/assistant/WorkspaceAssistant.tsx',
     'src/harness/useConversationRuntime.ts', 'src/harness/PluginStatusDialog.tsx', 'src/harness/harness-workspace.css',
     'test/harness-web-release.browser.mjs', 'package.json', 'package-lock.json', 'dist/index.html',
