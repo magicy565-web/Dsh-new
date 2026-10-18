@@ -6,7 +6,7 @@ const calls=run=>run.events.filter(e=>e.type==='pi.agent-session.request').lengt
 const successful=f=>f.app.store.read().messages.filter(m=>m.role==='assistant'&&m.status==='complete');
 // Preserve only the finite fixture's whitelisted shape summary on assertion
 // failure; original production errors remain sanitized and unchanged.
-const diagnostic=async(f,run)=>JSON.stringify({run,provider:await f.readProvider().catch(error=>{if(error.code==='ENOENT')return {observed:false};throw error;})});
+const diagnostic=async(f,run)=>JSON.stringify({run:{id:run.id,status:run.status,error:run.error?{code:run.error.code,message:run.error.message}:null,events:run.events.map(e=>e.type)},session:await f.sessionDiagnostics(),provider:await f.readProvider().catch(error=>{if(error.code==='ENOENT')return {observed:false};throw error;})});
 
 test('original startup upload -> SDK document read/remember -> Brain -> same-session continuation and page GET',options,async t=>{
  const f=await startupFixture(t),goals=structuredClone(f.app.store.read().goals);
@@ -30,9 +30,17 @@ test('original startup upload -> SDK document read/remember -> Brain -> same-ses
  const refused=await f.workspace('/api/conversations/'+f.cid+'/brain/context');assert.ok([403,409].includes(refused.status),refused.text);assert.ok(!refused.text.includes(STATEMENT));assert.equal(f.app.store.read().runs.length,beforeRuns);
 });
 
+test('diagnostic only: repeated identical document lookups preserve original SDK stopping evidence',options,async t=>{
+ const f=await startupFixture(t,{mode:'repeat'}),run=await sendStartup(f);
+ // Observability only: no claim that any repeat count or stop reason is a
+ // required product policy. Preserve the old trajectory instead of hiding it.
+ t.diagnostic(await diagnostic(f,run));
+});
+
 test('initial reviewed document capability retains original eight-call limit and refuses ninth provider send',options,async t=>{
  const f=await startupFixture(t,{mode:'limit'}),run=await sendStartup(f);assert.equal(run.status,'failed',JSON.stringify(run));
- const report=await f.readProvider();assert.equal(report.requests.length,8,JSON.stringify(report));assert.equal(report.externalModelRequests,0);assert.equal(calls(run),8);assert.equal(f.parserCalls(),0);assert.equal(f.app.store.read().businessLibrary.enterpriseMemories.length,0);assert.equal(successful(f).length,0);
+ const report=await f.readProvider();assert.equal(report.requests.length,8,await diagnostic(f,run));assert.equal(report.externalModelRequests,0);assert.equal(calls(run),8);assert.equal(f.parserCalls(),0);assert.equal(f.app.store.read().businessLibrary.enterpriseMemories.length,0);assert.equal(successful(f).length,0);
+ const lookups=(await f.messages()).filter(m=>m.toolName==='workspace_enterprise_context_structured_memory_lookup');assert.equal(lookups.length,8);assert.equal(lookups.some(m=>m.isError),false);assert.equal(new Set(lookups.map(m=>JSON.stringify(m.details.authorization.query))).size,8);assert.equal((await f.sessionDiagnostics()).loopRedirects.length,0);
 });
 
 test('ordinary startup without document capability keeps four-call default and no document tools',options,async t=>{

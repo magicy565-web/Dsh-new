@@ -11,8 +11,9 @@ globalThis.fetch=async(input,init)=>{
  const text=await request.text(),body=JSON.parse(text);assert.equal(body.model,'deepseek-flash');assert.ok(!text.includes(info.parserSecret));
  if(info.bounded){assert.deepEqual(body.thinking,{type:'disabled'});assert.ok(body.max_tokens<=512);}
  const schema=name=>{const tool=body.tools.find(t=>t.function.name===name);assert.ok(tool,'Needed capability must be advertised');return tool.function.parameters;};
- const discover=name=>{const value=schema(name);assert.ok(Array.isArray(value.oneOf)&&value.oneOf.length);
-  const branch=value.oneOf[0],keys=name==='workspace_enterprise_context_parse_upload'?['artifactId','version','sha256']:['subjectType','subjectId','factKey'];
+ const discover=(name,index=0)=>{const value=schema(name);assert.ok(Array.isArray(value.oneOf)&&value.oneOf.length);
+  const branch=value.oneOf[index];assert.ok(branch,'The whole selected tuple must be advertised at this index');
+  const keys=name==='workspace_enterprise_context_parse_upload'?['artifactId','version','sha256']:['subjectType','subjectId','factKey'];
   return Object.fromEntries(keys.map(key=>{const rule=branch.properties[key];assert.ok(branch.required.includes(key));
    if(Object.hasOwn(rule,'const')){if(rule.enum!==undefined)assert.deepEqual(rule.enum,[rule.const]);return [key,rule.const];}
    assert.ok(Array.isArray(rule.enum)&&rule.enum.length===1,'A discovered tuple field must have exactly one authorized value');return [key,rule.enum[0]];
@@ -25,7 +26,11 @@ globalThis.fetch=async(input,init)=>{
  fs.writeFileSync(info.reportFile,JSON.stringify(summary),{mode:0o600});const n=summary.requests.length;
  if(info.mode==='clarify')return sse({role:'assistant',content:'What business outcome should I investigate? I can wait for your clarification without parsing or saving.'},'stop');
  if(info.mode==='lookup'){if(n===1)return call('workspace_enterprise_context_structured_memory_lookup',discover('workspace_enterprise_context_structured_memory_lookup'),'lookup-only');assert.equal(n,2);assert.equal(receipts.findLast(r=>r?.operation==='structuredMemoryLookup').found,false);return sse({role:'assistant',content:'The selected fact is not yet saved. No parser or write was needed to check it.'},'stop');}
- if(info.mode==='limit')return call(info.documents?'workspace_enterprise_context_structured_memory_lookup':'workspace_brain_sources',info.documents?discover('workspace_enterprise_context_structured_memory_lookup'):{},'limit-'+n);
+ if(info.mode==='limit'||info.mode==='repeat'){
+  const name=info.documents?'workspace_enterprise_context_structured_memory_lookup':'workspace_brain_sources';
+  if(info.documents&&info.mode==='limit')assert.equal(schema(name).oneOf.length,8);
+  return call(name,info.documents?discover(name,info.mode==='limit'?n-1:0):{},'limit-'+n);
+ }
  const turn=info.turn||1;
  if(turn===2){
   if(n===1)return call('workspace_brain_context',{},'second-context');
