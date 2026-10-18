@@ -123,7 +123,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const {marketValidationMonitorExtension, MARKET_MONITOR_TOOLS=[]} = await module(marketValidation,'workspace-market-validation','monitor.js');
   const {marketValidationExtension, MARKET_VALIDATION_TOOLS=[]} = await module(marketValidation,'workspace-market-validation');
   const {MEDUSA_CATALOG_TOOLS=[]}=await module(nativeBusiness,'workspace-medusa-catalog');
-  const {enterpriseContextExtension}=nativeDocumentClient?await requiredBusinessModule('workspace-enterprise-context'):{};
+  const {enterpriseContextExtension}=nativeDocumentClient?await requiredBusinessModule('workspace-enterprise-context','extension.js'):{};
   let nativeDocumentMethods=nativeDocumentClient?['parseUpload','structuredMemoryLookup','structuredMemoryRemember']:[];
   let nativeDocumentNames=nativeDocumentMethods.map(method=>'workspace_enterprise_context_'+method.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()));
   const {isMarketplaceGap,marketplaceMessageReceipt}=await module(nativeBusiness,'workspace-marketplace','contract.js');
@@ -482,7 +482,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     if(nativeDocumentClient){
       // No model request is possible before the actual SDK ID is bound in Node.
       nativeCapabilities=ready;
-      const {nativeDocumentParameterSchemas}=await requiredBusinessModule('workspace-enterprise-context');
+      const {nativeDocumentParameterSchemas}=await requiredBusinessModule('workspace-enterprise-context','extension.js');
       nativeDocumentParameterSchemas(nativeCapabilities);
       nativeDocumentMethods=[...nativeCapabilities.methods];
       nativeDocumentNames=nativeDocumentMethods.map(method=>'workspace_enterprise_context_'+method.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()));

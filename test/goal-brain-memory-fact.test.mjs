@@ -254,7 +254,9 @@ test('document capability discovery exposes only current selected tuples without
 });
 test('document capability discovery retains original receiver, source revision and revoked Session gates',async t=>{
  const f=await setup(t),facade=f.writer.documentTools([query]);
- await assert.rejects(facade.describe(undefined,{...model,id:'different-model'}),code('OSS_MODEL_RECEIVER_CHANGED'));
+ const otherModel={provider:'synthetic-other-provider',id:'different-model',api:'openai-completions',baseUrl:'https://synthetic-receiver.invalid'};
+ assert.equal(libraryRecipientForModel(otherModel).destination,otherModel.baseUrl,'The negative receiver is a valid pinned HTTPS tuple');
+ await assert.rejects(facade.describe(undefined,otherModel),code('OSS_MODEL_RECEIVER_CHANGED'));
  f.docs[1].revision=2;
  await assert.rejects(facade.describe(undefined,model),code('FACTORY_DOCUMENT_REVISION_CHANGED'));
  f.docs[1].revision=1;f.sessions.delete(sessionId);

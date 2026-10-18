@@ -78,3 +78,10 @@ test('Brain guidance permits clarification and selective tools rather than a man
  assert.ok(result.systemPrompt.includes('workspace_skill'));assert.ok(result.systemPrompt.includes('You may answer, clarify or stop without a tool'));
  assert.ok(!result.systemPrompt.includes('first inspect'));assert.equal(await handler({messageType:'system',systemPrompt:'Original policy'}),undefined);
 });
+
+test('document constructor and capability handshake name the actual enterprise extension entry',async()=>{
+ const code=await fs.readFile(new URL('../server/workspace-omp-session.mjs',import.meta.url),'utf8');
+ const directCalls=[...code.matchAll(/requiredBusinessModule\('workspace-enterprise-context'[^)]*\)/g)].map(m=>m[0]);
+ assert.deepEqual(directCalls,Array(2).fill("requiredBusinessModule('workspace-enterprise-context','extension.js')"),'Both initial extension and later schema imports must name their actual entry');
+ assert.equal(typeof enterpriseContextExtension,'function');assert.equal(typeof nativeDocumentParameterSchemas,'function');
+});
