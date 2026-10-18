@@ -9,6 +9,21 @@ import { bootstrap } from '../acceptance/medusa/write-env.mjs';
 const env = { PATH: process.env.PATH, HOME: '/tmp', NO_COLOR: '1' };
 test('final image preparation covers the audited native module/provider closure and requires a fresh audit after config or lock changes', async () => {
   const audit = JSON.parse(await fs.readFile('docs/validation/omp-medusa-provider-closure-20261017.json', 'utf8'));
+  assert.equal(audit.validationStage, 'official-repackage-and-native-reaudit-20261018');
+  assert.equal(audit.reproduciblePackage.archiveA.sha256, audit.reproduciblePackage.archiveB.sha256);
+  assert.equal(audit.reproduciblePackage.archiveA.integrity, audit.reproduciblePackage.archiveB.integrity);
+  assert.equal(audit.reproduciblePackage.completeBytesEqual, true);
+  assert.equal(audit.reproduciblePackage.fullMemberManifestsEqual, true);
+  assert.equal(audit.hostVerification.tamperedIntegrityRejected, true);
+  assert.deepEqual(audit.hostVerification.freshCi, { A: 0, B: 0 });
+  assert.equal(audit.hostVerification.apiBuild, 0); assert.equal(audit.hostVerification.adminOnlyBuild, 0);
+  assert.equal(audit.hostVerification.dockerExecuted, false);
+  assert.equal(audit.historical[0].sourceSHA256['apps/medusa-acceptance/package-lock.json'], 'c954cde35008b32d4c38b4022fccd2e8b0f5db1a69a17512a721bfffb96b150c');
+  const hostLock = JSON.parse(await fs.readFile('apps/medusa-acceptance/package-lock.json', 'utf8'));
+  assert.equal(hostLock.packages['node_modules/@magicy565/medusa-enterprise-product-context'].integrity, audit.reproduciblePackage.archiveA.integrity);
+  for (const [file, hash] of Object.entries(audit.auditSourceSHA256)) {
+    assert.equal(createHash('sha256').update(await fs.readFile(file)).digest('hex'), hash, file + ' changed; rerun the native audit');
+  }
   assert.equal(audit.sdk, '2.21.2');
   assert.equal(audit.entries.length, audit.modules + audit.providers + audit.pluginModules);
   assert.equal(audit.entries.length, 35);
@@ -129,7 +144,7 @@ test('strict smoke fails on a refused created fixture, never changes arbitrary i
   await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
   t.after(() => { server.closeAllConnections(); return new Promise(resolve => server.close(resolve)); });
   const child = spawn(process.execPath, ['scripts/medusa-catalog-live-smoke.mjs'], { env: { ...env, MEDUSA_BACKEND_URL: 'http://127.0.0.1:' + server.address().port,
-    MEDUSA_ADMIN_EMAIL: 'fixture@example.test', MEDUSA_ADMIN_PASSWORD: password, AGENT_CONTEXT_READ_TOKEN: token, MEDUSA_LIVE_ALLOW_WRITES: 'isolated' } });
+    MEDUSA_ADMIN_EMAIL: 'fixture@example.test', MEDUSA_ADMIN_PASSWORD: password, AGENT_CONTEXT_READ_TOKEN: token, MEDUSA_LIVE_ALLOW_WRITES: 'isolated', MEDUSA_LIVE_ISOLATED_INSTANCE: 'medusa-live-synthetic-http-contract' } });
   let out = ''; child.stdout.on('data', b => { out += b; });
   assert.equal(await new Promise(resolve => child.once('exit',resolve)), 1);
   const report = JSON.parse(out); assert.equal(report.ok, false); assert.equal(report.status, 'failed');

@@ -317,7 +317,7 @@
     {
       "kind": "plugin-module",
       "key": "product-context",
-      "resolve": "apps/medusa-acceptance/node_modules/@magicy565/medusa-enterprise-product-context/.medusa/server/src/modules/product-context/index.js",
+      "resolve": "@magicy565/medusa-enterprise-product-context/.medusa/server/src/modules/product-context",
       "discoveryPath": "node_modules/@magicy565/medusa-enterprise-product-context/.medusa/server/src/modules/product-context/index.js",
       "migrationDirectory": "node_modules/@magicy565/medusa-enterprise-product-context/.medusa/server/src/modules/product-context/migrations",
       "exists": true,
@@ -337,12 +337,6 @@
     "node_modules/@medusajs/caching/dist/migrations",
     "node_modules/@medusajs/caching-redis/dist/migrations"
   ],
-  "baseline": "6789079fe8578b205f2cbad10d21cf0f1d18d33b",
-  "scope": "Native defineConfig defaults plus configured modules/providers plus installed plugin modules; native resolveModuleExports discoveryPath; no SDK bootstrap, DB connection, environment file or real credential",
-  "sourceSHA256": {
-    "apps/medusa-acceptance/medusa-config.ts": "da8cf186c8335ada5b7332cfbe1528ad8b3b10ed5ce9d445bebcc4218f960791",
-    "apps/medusa-acceptance/package-lock.json": "c954cde35008b32d4c38b4022fccd2e8b0f5db1a69a17512a721bfffb96b150c"
-  },
   "disabledModules": [
     "translation",
     "rbac"
@@ -351,44 +345,822 @@
     "event_bus",
     "cache"
   ],
-  "linkModuleNote": "Native Medusa removes link from the ordinary module migration list; native link synchronization uses its DB execution planner. No speculative link-modules directory is created.",
-  "verification": {
-    "baseline": {
-      "missing": [
+  "sourceSHA256": {
+    "apps/medusa-acceptance/medusa-config.ts": "da8cf186c8335ada5b7332cfbe1528ad8b3b10ed5ce9d445bebcc4218f960791",
+    "apps/medusa-acceptance/package-lock.json": "1f03d6819c6aa0b052c8f92bafb77573ea065b3b922055634c3215c33d7cedd1"
+  },
+  "admin": {
+    "backendUrl": "/",
+    "path": "/app",
+    "maxUploadFileSize": 1048576,
+    "disable": true
+  },
+  "scope": "Actual installed official defineConfig/getResolvedPlugins/resolveModuleExports; no bootstrap, DB connection or environment file",
+  "baseline": "a819897d9212212afab8f12683d212971c982e8b",
+  "validationStage": "official-repackage-and-native-reaudit-20261018",
+  "auditSourceSHA256": {
+    "test/medusa-package-acceptance/audit-closure.cjs": "c02d7c29a96170176c786a019eebdb63f695d52ad42757624d9b937c6628044c",
+    "acceptance/medusa/prepare-admin-static-config.mjs": "be4106aa77dcd51b6eb761dbbf7c43343083be82def9ecbcd11fbf93ef9fafb6",
+    "acceptance/medusa/api.Dockerfile": "bbdd1d700efd35c6b0f463ccf12e204a9afbefb3b0aafa7da8d0e061b680d90e",
+    "acceptance/medusa/ui.Dockerfile": "2e464ac90fc27eb682aa85f020b9f3a28dd708151d21681f443535c9ecd619dd"
+  },
+  "reproduciblePackage": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "officialDependencies": {
+      "@medusajs/cli": "2.21.2",
+      "@medusajs/framework": "2.21.2",
+      "@medusajs/medusa": "2.21.2",
+      "@swc/core": "1.16.18",
+      "typescript": "6.0.3"
+    },
+    "archiveA": {
+      "label": "A",
+      "bytes": 21012,
+      "sha256": "bc6d3584e3902914273f969517112ae89e2d2210a13b853679057110ada81b24",
+      "integrity": "sha512-wwmo0aJ+uU6UAnlJAQDPnVzRInVcYYzDmTyy+9IL8CCnlHzwddmrPnKJ3FNx2pT+17+bxwcoV0FIKCuyZhP8Aw=="
+    },
+    "archiveB": {
+      "label": "B",
+      "bytes": 21012,
+      "sha256": "bc6d3584e3902914273f969517112ae89e2d2210a13b853679057110ada81b24",
+      "integrity": "sha512-wwmo0aJ+uU6UAnlJAQDPnVzRInVcYYzDmTyy+9IL8CCnlHzwddmrPnKJ3FNx2pT+17+bxwcoV0FIKCuyZhP8Aw=="
+    },
+    "completeBytesEqual": true,
+    "fullMemberManifestsEqual": true,
+    "members": [
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/agent-auth.js",
+        "sha256": "3aebc8dfd7be1e3c23c14a36fc1d0713a22f3b5bf46cffba0f035f2fe8ecd785",
+        "size": 2026,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/admin/index.js",
+        "sha256": "c3985ae345bae19687017a33440f122b5d72ee347d025480838f5961be809a7a",
+        "size": 553,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/modules/product-context/index.js",
+        "sha256": "bdec6b2a0f1b093260f08336bddd749451bc07625d89e6e9261ef08e113ea18d",
+        "size": 945,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/middlewares.js",
+        "sha256": "d437f510d9b4709413d553c70dced300344ffc991474c086de7afd15335e1bf0",
+        "size": 3189,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/modules/product-context/migrations/Migration20261017031756.js",
+        "sha256": "225711c1cf5486dbdc8aecaec1299217ba58f05b6b924d2d1b21db89672150a5",
+        "size": 2535,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/links/product-context-product.js",
+        "sha256": "fef35c2ece3288a846f1375667dd8fc6206d6d3a6320f8da1a599a1a2edf84a5",
+        "size": 1864,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/product-context-review.js",
+        "sha256": "5db34b86c115b65a6bdac3615fa370656116795ce7b1867dd1d75e8dcb2ec105",
+        "size": 13648,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/product-context-validation.js",
+        "sha256": "8b8c8110a6bc8a0c9d924650be26329945675f2e5f1401c408fc576bf69261cf",
+        "size": 7881,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/modules/product-context/models/product-context.js",
+        "sha256": "9964d0e685a1cb709dbe0c7ecd5c7ade19000f24d49f8529c0c5b11c49a36460",
+        "size": 3377,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/admin/product-contexts/route.js",
+        "sha256": "b13f9fb682aaf6e8b0fcd01f61e4418454a088ea65df0613f8666d06d9dac246",
+        "size": 1049,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/admin/products/[id]/context/route.js",
+        "sha256": "1897f5badc53235fc2d3f64b67d32c91dc11c9ddf879639ba0ab52b183c4f975",
+        "size": 11169,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/agent/product-contexts/[id]/route.js",
+        "sha256": "6aa9a7a9752b6136217ea17f4ced754b41b28a0c3fd9345dbdfb16ae095ca79e",
+        "size": 3310,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/agent/product-contexts/route.js",
+        "sha256": "86c85643f17ece18be7b5e5ffa9362d3b49b9dbd4d4c92b89cf661a0c8d46311",
+        "size": 4445,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/modules/product-context/service.js",
+        "sha256": "db44a55ae48db9871d83721eb8669c94d9539cbbfe5eff829b4d8b2fa74e04d7",
+        "size": 2993,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/package.json",
+        "sha256": "3af594f52f018ede1c3f3f189c112ca2582a1c96f09f5f65d256db2bc8d93151",
+        "size": 1335,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/README.md",
+        "sha256": "a500b6c8a6c471f7b3540144529e93a9bb9c108fbd8f4c268558708005f80055",
+        "size": 8461,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/admin/index.mjs",
+        "sha256": "eb21f361fbff35e0d838a51adb89f86eb3127889dbdc0ea619d6ce75792da821",
+        "size": 546,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/agent-auth.d.ts",
+        "sha256": "8f8045234cb2cca24310dd5a1805ef0b680b75ab9e4e70e5ef214269de625642",
+        "size": 232,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/modules/product-context/index.d.ts",
+        "sha256": "5ee1da4db1e70612a39103caa0d6669be66ab98346ba9cac247ff0f51f2fc470",
+        "size": 737,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/middlewares.d.ts",
+        "sha256": "ea8a378d05efecc2bb9119d0350eda732a49eb2847b422c79f9de4efb0b474a6",
+        "size": 103,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/modules/product-context/migrations/Migration20261017031756.d.ts",
+        "sha256": "37aa29971f700db9ce99ec46230238cc1d951cbd9cdd5a84ed7a14b7197a8a99",
+        "size": 189,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/links/product-context-product.d.ts",
+        "sha256": "29117c576735216e4937ea7f996e05a7a1e8886c4f5e2b75a636b42ff356d64a",
+        "size": 103,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/product-context-review.d.ts",
+        "sha256": "09e61bd37863bc33efe4fc0ce9ff8dead26a146a506d5658c50dea82f4da1012",
+        "size": 1688,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/product-context-validation.d.ts",
+        "sha256": "a7ab8ab408bff0ee188f53a12ba634f1f3089d951a5caeb45890fb58a3745cc2",
+        "size": 5024,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/modules/product-context/models/product-context.d.ts",
+        "sha256": "7c577a8c0d6acce81bd347acce593556c92324e534fc087ed7ceba7b437fc0a1",
+        "size": 2376,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/admin/product-contexts/route.d.ts",
+        "sha256": "e816f5c81214154392f27514525a8c871fc2798e379a8b4a07588f915f6f96b6",
+        "size": 191,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/admin/products/[id]/context/route.d.ts",
+        "sha256": "724d06510b29020bd44cbdcedd268c5f455f2a14892a2358e1a2e0757c45c3e9",
+        "size": 408,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/agent/product-contexts/[id]/route.d.ts",
+        "sha256": "3d9724b848955ef6de839767f90cded59cfff9b27bdcc17b182ac2d4c667b207",
+        "size": 222,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/api/agent/product-contexts/route.d.ts",
+        "sha256": "3d9724b848955ef6de839767f90cded59cfff9b27bdcc17b182ac2d4c667b207",
+        "size": 222,
+        "type": "0",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o600",
+        "mtime": 499162500,
+        "path": "package/.medusa/server/src/modules/product-context/service.d.ts",
+        "sha256": "d7ff6e938f2d3dd150e0c23ac1949477ce324da3dea7d70c7c5e2c4224505b20",
+        "size": 3480,
+        "type": "0",
+        "uid": 0
+      }
+    ],
+    "compiledProtocol": {
+      "modules/product-context/service.js": {
+        "sha256": "db44a55ae48db9871d83721eb8669c94d9539cbbfe5eff829b4d8b2fa74e04d7",
+        "checks": 4
+      },
+      "product-context-validation.js": {
+        "sha256": "8b8c8110a6bc8a0c9d924650be26329945675f2e5f1401c408fc576bf69261cf",
+        "checks": 3
+      },
+      "product-context-review.js": {
+        "sha256": "5db34b86c115b65a6bdac3615fa370656116795ce7b1867dd1d75e8dcb2ec105",
+        "checks": 3
+      },
+      "api/admin/products/[id]/context/route.js": {
+        "sha256": "1897f5badc53235fc2d3f64b67d32c91dc11c9ddf879639ba0ab52b183c4f975",
+        "checks": 3
+      },
+      "api/agent/product-contexts/route.js": {
+        "sha256": "86c85643f17ece18be7b5e5ffa9362d3b49b9dbd4d4c92b89cf661a0c8d46311",
+        "checks": 2
+      },
+      "api/agent/product-contexts/[id]/route.js": {
+        "sha256": "6aa9a7a9752b6136217ea17f4ced754b41b28a0c3fd9345dbdfb16ae095ca79e",
+        "checks": 2
+      }
+    },
+    "originalPluginManifestAndLockUnchanged": true,
+    "hostLockDelta": {
+      "externalEntriesUnchanged": 1147,
+      "changedPaths": [
+        "packages.node_modules/@magicy565/medusa-enterprise-product-context.integrity",
+        "packages..dependencies.@magicy565/medusa-enterprise-product-context"
+      ],
+      "oldIntegrity": "sha512-KOwnDpzIOGylIIdw7rJPIvfzG/h+PlXEe7FXLyIgj9or4dej4q2PIGA8eL0S+r9SzwEBBpMoW1u6fphe3WPRvg==",
+      "newIntegrity": "sha512-wwmo0aJ+uU6UAnlJAQDPnVzRInVcYYzDmTyy+9IL8CCnlHzwddmrPnKJ3FNx2pT+17+bxwcoV0FIKCuyZhP8Aw==",
+      "beforeSHA256": "c954cde35008b32d4c38b4022fccd2e8b0f5db1a69a17512a721bfffb96b150c",
+      "afterSHA256": "1f03d6819c6aa0b052c8f92bafb77573ea065b3b922055634c3215c33d7cedd1",
+      "externalEntriesSHA256": "3dff10201588747c41204bbc628e77f9e6801c513ade99cbed3194b3e0013f21"
+    }
+  },
+  "hostVerification": {
+    "freshCi": {
+      "A": 0,
+      "B": 0
+    },
+    "oldLockRejectedWith": "EINTEGRITY",
+    "tamperedIntegrityRejected": true,
+    "tamper": "one gzip header byte; independent empty npm cache",
+    "apiBuild": 0,
+    "adminOnlyBuild": 0,
+    "officialDependencies": {
+      "@medusajs/cli": "2.21.2",
+      "@medusajs/framework": "2.21.2",
+      "@medusajs/medusa": "2.21.2",
+      "@swc/core": "1.16.18",
+      "typescript": "6.0.3"
+    },
+    "dockerExecuted": false,
+    "dockerToolchainVerified": false,
+    "mirrorToolchainBoundary": "Local Node 24.19.0/npm 11.9.0; historical image npm 11.17 not executed",
+    "databaseOrServiceExecuted": false,
+    "migrationPreparationRerun": false,
+    "contracts": "Only separately named non-Docker deployment tests and pure packaging contracts are executed; historical full-file result remains below"
+  },
+  "uiNativeReaudit": {
+    "entriesEqualToAPI": true,
+    "sourceSHA256": {
+      "apps/medusa-acceptance/medusa-config.ts": "aa101ae1f1d7e867fa5a4bb5e4b2041d4540418997b3c1c450d08e431f1f4a16",
+      "apps/medusa-acceptance/package-lock.json": "1f03d6819c6aa0b052c8f92bafb77573ea065b3b922055634c3215c33d7cedd1"
+    },
+    "admin": {
+      "backendUrl": "",
+      "path": "/dashboard",
+      "maxUploadFileSize": 1048576,
+      "disable": true
+    }
+  },
+  "historical": [
+    {
+      "sdk": "2.21.2",
+      "modules": 27,
+      "providers": 7,
+      "pluginModules": 1,
+      "plugins": [
+        "@medusajs/draft-order",
+        "@magicy565/medusa-enterprise-product-context"
+      ],
+      "entries": [
         {
-          "directory": "node_modules/@medusajs/locking-redis/dist/migrations",
-          "code": "ENOENT"
+          "kind": "module",
+          "key": "stock_location",
+          "resolve": "@medusajs/medusa/stock-location",
+          "discoveryPath": "node_modules/@medusajs/stock-location/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/stock-location/dist/migrations",
+          "exists": true,
+          "customMigrations": false
         },
         {
-          "directory": "node_modules/@medusajs/file-local/dist/migrations",
-          "code": "ENOENT"
+          "kind": "module",
+          "key": "inventory",
+          "resolve": "@medusajs/medusa/inventory",
+          "discoveryPath": "node_modules/@medusajs/inventory/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/inventory/dist/migrations",
+          "exists": true,
+          "customMigrations": false
         },
         {
-          "directory": "node_modules/@medusajs/caching-redis/dist/migrations",
-          "code": "ENOENT"
+          "kind": "module",
+          "key": "product",
+          "resolve": "@medusajs/medusa/product",
+          "discoveryPath": "node_modules/@medusajs/product/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/product/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "pricing",
+          "resolve": "@medusajs/medusa/pricing",
+          "discoveryPath": "node_modules/@medusajs/pricing/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/pricing/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "promotion",
+          "resolve": "@medusajs/medusa/promotion",
+          "discoveryPath": "node_modules/@medusajs/promotion/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/promotion/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "customer",
+          "resolve": "@medusajs/medusa/customer",
+          "discoveryPath": "node_modules/@medusajs/customer/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/customer/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "sales_channel",
+          "resolve": "@medusajs/medusa/sales-channel",
+          "discoveryPath": "node_modules/@medusajs/sales-channel/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/sales-channel/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "cart",
+          "resolve": "@medusajs/medusa/cart",
+          "discoveryPath": "node_modules/@medusajs/cart/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/cart/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "region",
+          "resolve": "@medusajs/medusa/region",
+          "discoveryPath": "node_modules/@medusajs/region/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/region/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "api_key",
+          "resolve": "@medusajs/medusa/api-key",
+          "discoveryPath": "node_modules/@medusajs/api-key/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/api-key/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "store",
+          "resolve": "@medusajs/medusa/store",
+          "discoveryPath": "node_modules/@medusajs/store/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/store/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "tax",
+          "resolve": "@medusajs/medusa/tax",
+          "discoveryPath": "node_modules/@medusajs/tax/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/tax/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "currency",
+          "resolve": "@medusajs/medusa/currency",
+          "discoveryPath": "node_modules/@medusajs/currency/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/currency/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "payment",
+          "resolve": "@medusajs/medusa/payment",
+          "discoveryPath": "node_modules/@medusajs/payment/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/payment/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "order",
+          "resolve": "@medusajs/medusa/order",
+          "discoveryPath": "node_modules/@medusajs/order/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/order/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "settings",
+          "resolve": "@medusajs/medusa/settings",
+          "discoveryPath": "node_modules/@medusajs/settings/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/settings/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "auth",
+          "resolve": "@medusajs/medusa/auth",
+          "discoveryPath": "node_modules/@medusajs/auth/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/auth/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "provider",
+          "key": "auth/emailpass",
+          "resolve": "@medusajs/medusa/auth-emailpass",
+          "discoveryPath": "node_modules/@medusajs/auth-emailpass/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/auth-emailpass/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "user",
+          "resolve": "@medusajs/medusa/user",
+          "discoveryPath": "node_modules/@medusajs/user/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/user/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "fulfillment",
+          "resolve": "@medusajs/medusa/fulfillment",
+          "discoveryPath": "node_modules/@medusajs/fulfillment/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/fulfillment/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "provider",
+          "key": "fulfillment/manual",
+          "resolve": "@medusajs/medusa/fulfillment-manual",
+          "discoveryPath": "node_modules/@medusajs/fulfillment-manual/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/fulfillment-manual/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "notification",
+          "resolve": "@medusajs/medusa/notification",
+          "discoveryPath": "node_modules/@medusajs/notification/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/notification/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "provider",
+          "key": "notification/local",
+          "resolve": "@medusajs/medusa/notification-local",
+          "discoveryPath": "node_modules/@medusajs/notification-local/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/notification-local/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "search",
+          "resolve": "@medusajs/medusa/search",
+          "discoveryPath": "node_modules/@medusajs/search/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/search/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "provider",
+          "key": "search/postgres",
+          "resolve": "@medusajs/medusa/search-postgres",
+          "discoveryPath": "node_modules/@medusajs/search-postgres/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/search-postgres/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "cache",
+          "resolve": "@medusajs/medusa/cache-inmemory",
+          "discoveryPath": "node_modules/@medusajs/cache-inmemory/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/cache-inmemory/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "event_bus",
+          "resolve": "@medusajs/medusa/event-bus-redis",
+          "discoveryPath": "node_modules/@medusajs/event-bus-redis/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/event-bus-redis/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "workflows",
+          "resolve": "@medusajs/medusa/workflow-engine-redis",
+          "discoveryPath": "node_modules/@medusajs/workflow-engine-redis/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/workflow-engine-redis/dist/migrations",
+          "exists": true,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "locking",
+          "resolve": "@medusajs/medusa/locking",
+          "discoveryPath": "node_modules/@medusajs/locking/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/locking/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "provider",
+          "key": "locking/redis",
+          "resolve": "@medusajs/medusa/locking-redis",
+          "discoveryPath": "node_modules/@medusajs/locking-redis/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/locking-redis/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "file",
+          "resolve": "@medusajs/medusa/file",
+          "discoveryPath": "node_modules/@medusajs/file/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/file/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "provider",
+          "key": "file/local",
+          "resolve": "@medusajs/medusa/file-local",
+          "discoveryPath": "node_modules/@medusajs/file-local/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/file-local/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "module",
+          "key": "caching",
+          "resolve": "@medusajs/medusa/caching",
+          "discoveryPath": "node_modules/@medusajs/caching/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/caching/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "provider",
+          "key": "caching/redis",
+          "resolve": "@medusajs/caching-redis",
+          "discoveryPath": "node_modules/@medusajs/caching-redis/dist/index.js",
+          "migrationDirectory": "node_modules/@medusajs/caching-redis/dist/migrations",
+          "exists": false,
+          "customMigrations": false
+        },
+        {
+          "kind": "plugin-module",
+          "key": "product-context",
+          "resolve": "apps/medusa-acceptance/node_modules/@magicy565/medusa-enterprise-product-context/.medusa/server/src/modules/product-context/index.js",
+          "discoveryPath": "node_modules/@magicy565/medusa-enterprise-product-context/.medusa/server/src/modules/product-context/index.js",
+          "migrationDirectory": "node_modules/@magicy565/medusa-enterprise-product-context/.medusa/server/src/modules/product-context/migrations",
+          "exists": true,
+          "customMigrations": false
         }
       ],
-      "checked": 35,
-      "originalFilesVerified": 734
-    },
-    "fixed": {
-      "missing": [],
-      "checked": 35,
-      "originalFilesVerified": 734
-    },
-    "scope": "Exact final preparation RUN, 35 actual module/provider/plugin migration paths and native MikroORM ensureMigrationsDirExists, nonroot/read_only/network=none; no DB migration",
-    "runtimeUID": 1000,
-    "dataOrSecretsRead": false
-  },
-  "contracts": {
-    "passed": 7,
-    "failed": 0,
-    "cancelled": 0,
-    "skipped": 0,
-    "command": "env -i PATH=\"$PATH\" HOME=/tmp MEDUSA_DISABLE_TELEMETRY=true node --test test/deployment-source.test.mjs"
-  },
-  "evidenceSHA256": {
-    "nativeLayout": "91e41f7d20a9d9c61eabfaa0e587a28510782e251642fc53011cb15807e0733a",
-    "contracts": "72b1aade3a96ed80670b44d37f267722531fffab8c1e3c22155fc028f9bb854e"
-  }
+      "missing": [
+        "node_modules/@medusajs/auth-emailpass/dist/migrations",
+        "node_modules/@medusajs/fulfillment-manual/dist/migrations",
+        "node_modules/@medusajs/notification-local/dist/migrations",
+        "node_modules/@medusajs/cache-inmemory/dist/migrations",
+        "node_modules/@medusajs/event-bus-redis/dist/migrations",
+        "node_modules/@medusajs/locking/dist/migrations",
+        "node_modules/@medusajs/locking-redis/dist/migrations",
+        "node_modules/@medusajs/file/dist/migrations",
+        "node_modules/@medusajs/file-local/dist/migrations",
+        "node_modules/@medusajs/caching/dist/migrations",
+        "node_modules/@medusajs/caching-redis/dist/migrations"
+      ],
+      "baseline": "6789079fe8578b205f2cbad10d21cf0f1d18d33b",
+      "scope": "Native defineConfig defaults plus configured modules/providers plus installed plugin modules; native resolveModuleExports discoveryPath; no SDK bootstrap, DB connection, environment file or real credential",
+      "sourceSHA256": {
+        "apps/medusa-acceptance/medusa-config.ts": "da8cf186c8335ada5b7332cfbe1528ad8b3b10ed5ce9d445bebcc4218f960791",
+        "apps/medusa-acceptance/package-lock.json": "c954cde35008b32d4c38b4022fccd2e8b0f5db1a69a17512a721bfffb96b150c"
+      },
+      "disabledModules": [
+        "translation",
+        "rbac"
+      ],
+      "defaultRequiredModulesChecked": [
+        "event_bus",
+        "cache"
+      ],
+      "linkModuleNote": "Native Medusa removes link from the ordinary module migration list; native link synchronization uses its DB execution planner. No speculative link-modules directory is created.",
+      "verification": {
+        "baseline": {
+          "missing": [
+            {
+              "directory": "node_modules/@medusajs/locking-redis/dist/migrations",
+              "code": "ENOENT"
+            },
+            {
+              "directory": "node_modules/@medusajs/file-local/dist/migrations",
+              "code": "ENOENT"
+            },
+            {
+              "directory": "node_modules/@medusajs/caching-redis/dist/migrations",
+              "code": "ENOENT"
+            }
+          ],
+          "checked": 35,
+          "originalFilesVerified": 734
+        },
+        "fixed": {
+          "missing": [],
+          "checked": 35,
+          "originalFilesVerified": 734
+        },
+        "scope": "Exact final preparation RUN, 35 actual module/provider/plugin migration paths and native MikroORM ensureMigrationsDirExists, nonroot/read_only/network=none; no DB migration",
+        "runtimeUID": 1000,
+        "dataOrSecretsRead": false
+      },
+      "contracts": {
+        "passed": 7,
+        "failed": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "command": "env -i PATH=\"$PATH\" HOME=/tmp MEDUSA_DISABLE_TELEMETRY=true node --test test/deployment-source.test.mjs"
+      },
+      "evidenceSHA256": {
+        "nativeLayout": "91e41f7d20a9d9c61eabfaa0e587a28510782e251642fc53011cb15807e0733a",
+        "contracts": "72b1aade3a96ed80670b44d37f267722531fffab8c1e3c22155fc028f9bb854e"
+      }
+    }
+  ]
 }
