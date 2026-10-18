@@ -7,7 +7,7 @@ import { createMedusaApprovedSource } from '../plugins/workspace-medusa-catalog/
 import { taskFixture } from './fixtures/pi-task-helpers.mjs';
 import { bundleRenderer, wait, button, click, field, input, json } from './fixtures/conversation-ui.mjs';
 const command = value => ({ requestId: randomUUID(), ...value });
-async function fixture(t, { medusa = false } = {}) {
+async function fixture(t, { medusa = false, subject = 'member-a' } = {}) {
   let currentApp;
   const sourceId = randomUUID();
   const remoteRow = { context: { product_id: 'prod_ui_native', status: 'approved', review_version: 4, source_hash: 'd'.repeat(64) }, product: { id: 'prod_ui_native', title: 'UI原生Medusa产品' } };
@@ -26,7 +26,7 @@ async function fixture(t, { medusa = false } = {}) {
   let lost = false;
   const renderer = await bundleRenderer(t, async (path, options = {}) => {
     const body = options.body === undefined ? undefined : JSON.parse(options.body);
-    const response = await f.workspace(path, { subject: actor.subject, body });
+    const response = await f.workspace(path, { subject, body });
     if (lost && path.endsWith('/save')) { lost = false; throw Error('Synthetic response loss AFTER original disk commit'); }
     return json(response.json, response.status);
   });
@@ -108,4 +108,58 @@ test('production DOM selects a native Medusa approval reference and shows point-
   assert.equal(saved.kind,'medusa-product');assert.equal(saved.id,'prod_ui_native');assert.equal(saved.revision,4);
   assert.equal(f.app.store.read().businessLibrary.products.length,1,'No native product copied into original Library');
   assert.equal(JSON.stringify(f.requests).includes('synthetic-ui-only-read-token'),false);assert.deepEqual(ui.errors,[]);
+});
+
+test('production DOM rechecks an editor downgrade on focus, preserves the readable draft and clears it after revocation', async t => {
+  const f = await fixture(t, { subject: 'member-b' }), path = '/api/library/spaces/' + f.sid;
+  async function ownerUpdate(action, values) {
+    const current = await f.workspace(path, { subject: 'member-a' });
+    assert.equal(current.status, 200);
+    const result = await f.workspace(path + '/' + action, { subject: 'member-a', body: command({ expectedRevision: current.json.space.revision, subject: 'member-b', ...values }) });
+    assert.equal(result.status, 200, JSON.stringify(result.json));
+  }
+  await ownerUpdate('share', { role: 'editor', expiresAt: null });
+  const ui = await openPage(f, 390), draftTitle = 'UNSAVED_EDITOR_TITLE', draftBody = 'UNSAVED_EDITOR_BODY';
+  assert.equal(field(ui, '正文').disabled, false);
+  await input(ui, ui.document.querySelector('.space-editor input'), draftTitle);
+  await input(ui, field(ui, '正文'), draftBody);
+  [...ui.document.querySelectorAll('summary')].find(row => row.textContent === '选择来源').click();
+  await click(ui, button(ui, '查找来源'));
+  await wait(() => button(ui, '引用'), 'editor source choices');
+  await click(ui, button(ui, '引用'));
+  assert.equal(button(ui, '保存修改').disabled, false);
+  assert.ok(ui.document.querySelector('.space-sources li').textContent.includes('DOM合成产品'));
+
+  await ownerUpdate('share', { role: 'viewer', expiresAt: null });
+  const current = await f.workspace(path, { subject: 'member-b' });
+  assert.equal(current.status, 200);
+  assert.equal(current.json.space.canEdit, false);
+  assert.equal(current.json.space.canShare, false);
+  const pageCheck = path + '/nodes/' + f.pid + '?version=1';
+  const checksBeforeFocus = f.requests.filter(row => row.path === pageCheck).length;
+  ui.window.dispatchEvent(new ui.window.Event('focus'));
+  await wait(() => f.requests.filter(row => row.path === pageCheck).length > checksBeforeFocus, 'focus rechecks the readable page after the original Space GET');
+  await wait(() => field(ui, '正文')?.disabled, 'focus applies the current viewer permission');
+  assert.equal(ui.document.querySelector('.space-editor input').disabled, true);
+  assert.equal(ui.document.querySelector('.space-editor input').value, draftTitle);
+  assert.equal(field(ui, '正文').value, draftBody);
+  assert.ok(ui.document.querySelector('.space-sources li').textContent.includes('DOM合成产品'));
+  assert.equal(button(ui, '保存修改'), undefined);
+  assert.equal(button(ui, '查找来源'), undefined);
+  assert.equal(button(ui, '移除'), undefined);
+  assert.equal(ui.document.querySelector('.space-sharing'), null);
+  assert.equal(f.requests.filter(row => row.method === 'POST' && row.path.endsWith('/save')).length, 0);
+  assert.equal(f.app.store.read().workspaceSpaces.spaces[0].nodes[0].versions.length, 1);
+
+  await ownerUpdate('revoke', {});
+  ui.window.dispatchEvent(new ui.window.Event('focus'));
+  await wait(() => !ui.document.querySelector('.space-editor'), 'revocation clears the private draft');
+  assert.equal(ui.document.body.textContent.includes(draftTitle), false);
+  assert.equal(ui.document.body.textContent.includes(draftBody), false);
+  assert.equal(ui.document.querySelector('.space-sources'), null);
+  const storage = JSON.stringify(ui.storage()) + JSON.stringify(Object.entries(ui.window.localStorage));
+  assert.equal(storage.includes(draftTitle), false);
+  assert.equal(storage.includes(draftBody), false);
+  assert.equal(f.requests.filter(row => row.method === 'POST' && row.path.endsWith('/save')).length, 0);
+  assert.deepEqual(ui.errors, []);
 });

@@ -132,7 +132,9 @@ function SpaceContent({ session, onDirty }: PanelProps) {
       const id = activeSpaceId.current, ticket = ++serial;
       if (!id) return;
       try {
-        await api(`${endpoint}/${id}`);
+        const value = await api<{ space: Detail }>(`${endpoint}/${id}`);
+        if (closed || ticket !== serial || id !== activeSpaceId.current) return;
+        setSpace(prior => prior?.id === id ? { ...prior, canEdit: value.space.canEdit, canShare: value.space.canShare } : prior);
         const selected = activePage.current;
         if (selected && !closed && ticket === serial && id === activeSpaceId.current) {
           const result = await api<{ page: Page }>(`${endpoint}/${id}/nodes/${selected.id}?version=${selected.version}`);
