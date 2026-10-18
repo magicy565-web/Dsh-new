@@ -5,6 +5,24 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {workspaceOmpPaths} from '../server/workspace-omp-runtime.mjs';
+import {projectPlugins} from '../server/workspace-plugin-config.mjs';
+const expectedPluginIds = Object.freeze([
+  "workspace-enterprise-context",
+  "workspace-erpnext-enterprise",
+  "workspace-factory-customers",
+  "workspace-factory-ingestion",
+  "workspace-factory-inquiries",
+  "workspace-factory-materials",
+  "workspace-free-trade",
+  "workspace-goal-intelligence",
+  "workspace-local-materials",
+  "workspace-market-validation",
+  "workspace-marketplace",
+  "workspace-medusa-catalog",
+  "workspace-plugin-info",
+  "workspace-procurement",
+  "workspace-shopify-product"
+]);
 const paths=workspaceOmpPaths({}), fixture=path.resolve('test/fixtures/workspace-omp-cloud-acceptance.mjs');
 const hash=b=>createHash('sha256').update(b).digest('hex');
 function start(mode,root) {
@@ -62,8 +80,20 @@ test('SIGTERM during a finite pending write stops writes, cleans locks and permi
     toolReceipts:['read'],writesAfterCancel:0,sidecarRemoved:true,postExitJournalStable:true,sameSessionRecovered:true,
     recoverySourceRevalidated:true,realProviderRequests:0,crashRecoveryTested:false}));
 });
-test('each of fourteen plugins compiles, registers, disables and physically uninstalls with the original native loader',{timeout:30000},async t=>{
+test('fixed plugin inventory includes ERPNext and retains local-only defaults',async()=>{
+  const selection=await projectPlugins();
+  assert.deepEqual(selection.installed.map(plugin=>plugin.id).sort(),expectedPluginIds);
+  assert.deepEqual(selection.enabled.map(plugin=>plugin.id),['workspace-local-materials']);
+  assert.equal(selection.installed.find(plugin=>plugin.id==='workspace-erpnext-enterprise').enabled,false);
+  // Compare only the fixture's data declaration; never execute its SDK or receipt modes here.
+  const fixtureSource=await fs.readFile(fixture,'utf8');
+  const inventory=fixtureSource.match(/const expectedPluginIds = Object\.freeze\((\[[\s\S]*?\])\);/);
+  assert.ok(inventory,'The native fixture must declare its exact package inventory.');
+  assert.deepEqual(JSON.parse(inventory[1]),expectedPluginIds);
+});
+test('each fixed plugin compiles, registers, disables and physically uninstalls with the original native loader',{timeout:30000},async t=>{
   const root=await fs.mkdtemp('/tmp/omp-cloud-lifecycle-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
-  const result=await start('plugins',root).done;assert.equal(result.passed,true);assert.equal(result.plugins.length,14);
+  const result=await start('plugins',root).done;assert.equal(result.passed,true);
+  assert.deepEqual(result.plugins.map(plugin=>plugin.id).sort(),expectedPluginIds);
   console.log(JSON.stringify(result));
 });

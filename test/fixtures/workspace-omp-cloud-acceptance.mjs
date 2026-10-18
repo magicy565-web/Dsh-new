@@ -6,6 +6,23 @@ import {runLocalFactorySession} from '../../scripts/workspace-omp-local.mjs';
 import {workspaceOmpPaths} from '../../server/workspace-omp-runtime.mjs';
 import {loadWorkspaceOmpSdk} from '../../server/workspace-omp-session.mjs';
 import {projectPlugins} from '../../server/workspace-plugin-config.mjs';
+const expectedPluginIds = Object.freeze([
+  "workspace-enterprise-context",
+  "workspace-erpnext-enterprise",
+  "workspace-factory-customers",
+  "workspace-factory-ingestion",
+  "workspace-factory-inquiries",
+  "workspace-factory-materials",
+  "workspace-free-trade",
+  "workspace-goal-intelligence",
+  "workspace-local-materials",
+  "workspace-market-validation",
+  "workspace-marketplace",
+  "workspace-medusa-catalog",
+  "workspace-plugin-info",
+  "workspace-procurement",
+  "workspace-shopify-product"
+]);
 globalThis.fetch = async () => { throw Error('CLOUD_ACCEPTANCE_NETWORK_FORBIDDEN'); };
 const [mode, root] = process.argv.slice(2), paths = workspaceOmpPaths({});
 if (mode === 'cancel' || mode === 'recover') {
@@ -25,8 +42,10 @@ if (mode === 'cancel' || mode === 'recover') {
   console.log(JSON.stringify(result));
 } else if (mode === 'plugins') {
   const sdk = await loadWorkspaceOmpSdk(paths.packageRoot), results = [];
-  const installed = (await projectPlugins()).installed;
-  assert.equal(installed.length, 14);
+  const selection = await projectPlugins(), installed = selection.installed;
+  assert.deepEqual(installed.map(plugin=>plugin.id).sort(), expectedPluginIds);
+  assert.deepEqual(selection.enabled.map(plugin=>plugin.id), ['workspace-local-materials']);
+  assert.equal(installed.find(plugin=>plugin.id==='workspace-erpnext-enterprise').enabled, false);
   for (const plugin of installed) {
     const folder = path.join(root, plugin.id); await fs.mkdir(folder);
     const target = path.join(folder, plugin.id); await fs.cp(plugin.directory, target, {recursive:true});
