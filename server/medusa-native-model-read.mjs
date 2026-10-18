@@ -76,20 +76,38 @@ export async function createNativeMedusaModelClient({legacy=null,grant,connectio
     if(!legacy)fail();return legacy.refresh(receipt,model,signal);
   }
   function nativeReceipts(messages){
-    const result=[],calls=new Map();
+    const result=[],calls=new Map(),seen=new Set(),nativeIds=new Set();
     for(const message of messages){
       if(message?.role==='user'||message?.role==='assistant')calls.clear();
-      if(message?.role==='assistant')for(const call of message.content||[])if(call.type==='toolCall'){if(calls.has(call.id))fail();calls.set(call.id,call);}
+      if(message?.role==='assistant')for(const call of message.content||[])if(call.type==='toolCall'){
+        if(typeof call.id!=='string'||!call.id||calls.has(call.id)||nativeIds.has(call.id)||call.name==='workspace_medusa_context'&&seen.has(call.id))fail();
+        seen.add(call.id);if(call.name==='workspace_medusa_context')nativeIds.add(call.id);calls.set(call.id,call);
+      }
       if(message?.role!=='toolResult'||message.toolName!=='workspace_medusa_context'&&!(message.details?.plugin==='workspace-medusa-catalog'&&message.details.method==='context'))continue;
       const call=calls.get(message.toolCallId);calls.delete(message.toolCallId);
-      if(!call||call.name!==message.toolName||message.content?.length!==1||message.content[0].type!=='text')fail();
+      if(!call||call.name!=='workspace_medusa_context'||message.toolName!=='workspace_medusa_context'||message.content?.length!==1||message.content[0].type!=='text')fail();
       let receipt;try{receipt=JSON.parse(message.content[0].text);}catch{fail();}
       if(!isDeepStrictEqual(receipt,message.details))fail();const args={...call.arguments};delete args.i;
       if(receipt.plugin!=='workspace-medusa-catalog')fail();
-      if(receipt.method==='context'){if(!isDeepStrictEqual(args,receipt.input)||receipt.authorization?.scopeFingerprint!==grant.scopeHash)fail();result.push(receipt);}
+      if(receipt.method==='context'){if(message.isError||!isDeepStrictEqual(args,receipt.input)||receipt.authorization?.scopeFingerprint!==grant.scopeHash)fail();}
       else if(!message.isError||!isMedusaGapReceipt(receipt))fail();
+      result.push({id:call.id,name:call.name,args,receipt,isError:message.isError===true});
     }
     return result;
+  }
+  function nativePayloadRows(payload){
+    const rows=new Map();
+    // The SDK may expose the same original entries in both views. Admit exact
+    // overlap across views, never duplicate calls within one view or conflicting
+    // observations under the same original ID.
+    for(const messages of [payload.messages??[],payload.context??[]]){
+      if(!Array.isArray(messages))fail();
+      for(const row of nativeReceipts(messages)){
+        if(rows.has(row.id)&&!isDeepStrictEqual(rows.get(row.id),row))fail();
+        rows.set(row.id,row);
+      }
+    }
+    return rows;
   }
   function assertDisclosureCurrent(receipt,signal){
     live(signal);
@@ -107,7 +125,7 @@ export async function createNativeMedusaModelClient({legacy=null,grant,connectio
   }
   function assertPayloadCurrent(payload,signal){
     const messages=[...(payload.messages||[]),...(payload.context||[])];
-    nativeReceipts(messages);live(signal);
+    nativePayloadRows(payload);live(signal);
     for(const message of messages){
       if(message?.role!=='toolResult'||!message.toolName?.startsWith('workspace_medusa_'))continue;
       let receipt;try{receipt=JSON.parse(message.content?.[0]?.text);}catch{if(message.isError&&message.details===undefined)continue;fail();}
@@ -116,21 +134,30 @@ export async function createNativeMedusaModelClient({legacy=null,grant,connectio
   }
   async function authorizeDisclosure(payload,model,signal){
     await gate(signal,model);
-    const messages=[...(payload.messages||[]),...(payload.context||[])],receipts=nativeReceipts(messages);
-    for(const receipt of receipts)if(!isDeepStrictEqual(await context(receipt.input,signal,model),receipt))fail();
+    const rows=nativePayloadRows(payload);
+    for(const {receipt} of rows.values())if(receipt.method==='context'&&!isDeepStrictEqual(await context(receipt.input,signal,model),receipt))fail();
     if(payload.wireBody!==undefined){
       let wire;try{wire=JSON.parse(payload.wireBody);}catch{fail();}if(!Array.isArray(wire.messages))fail();
-      const calls=new Map();
+      const calls=new Map(),seen=new Set(),nativeIds=new Set();
       for(const message of wire.messages){
-        if(message.role==='assistant')for(const call of message.tool_calls||[]){if(calls.has(call.id))fail();let args;try{args=JSON.parse(call.function.arguments);}catch{fail();}delete args.i;calls.set(call.id,{name:call.function.name,args});}
+        if(message.role==='assistant')for(const call of message.tool_calls||[]){
+          if(typeof call.id!=='string'||!call.id||calls.has(call.id)||nativeIds.has(call.id))fail();
+          let args;try{args=JSON.parse(call.function.arguments);}catch{fail();}delete args.i;
+          if(call.function.name==='workspace_medusa_context'){
+            const original=rows.get(call.id);
+            if(seen.has(call.id)||!original||original.name!==call.function.name||!isDeepStrictEqual(original.args,args))fail();
+            nativeIds.add(call.id);
+          }
+          seen.add(call.id);calls.set(call.id,{name:call.function.name,args});
+        }
         if(message.role!=='tool')continue;
         const call=calls.get(message.tool_call_id);calls.delete(message.tool_call_id);let receipt;try{receipt=JSON.parse(message.content);}catch{if(call?.name==='workspace_medusa_context')fail();continue;}
-        if(call?.name==='workspace_medusa_context'||receipt?.plugin==='workspace-medusa-catalog'&&receipt.method==='context'){
-          if(call?.name!=='workspace_medusa_context')fail();
-          if(receipt.method==='context'){if(!receipts.some(row=>isDeepStrictEqual(row,receipt)&&isDeepStrictEqual(row.input,call.args)))fail();}
-          else if(!messages.some(row=>row?.role==='toolResult'&&row.toolName==='workspace_medusa_context'&&row.isError&&isDeepStrictEqual(row.details,receipt)))fail();
+        if(call?.name==='workspace_medusa_context'||rows.has(message.tool_call_id)||receipt?.plugin==='workspace-medusa-catalog'&&receipt.method==='context'){
+          const original=rows.get(message.tool_call_id);
+          if(call?.name!=='workspace_medusa_context'||!original||original.name!==call.name||!isDeepStrictEqual(original.args,call.args)||!isDeepStrictEqual(original.receipt,receipt))fail();
         }
       }
+      if([...calls.values()].some(call=>call.name==='workspace_medusa_context'))fail();
     }
     assertPayloadCurrent(payload,signal);
   }

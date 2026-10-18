@@ -64,6 +64,41 @@ test('native receipt is tied to original tool call/content/details and exact wir
   await assert.rejects(f.client.authorizeDisclosure({messages,wireBody:JSON.stringify(body)},model));
   f.state.hook=()=>{f.policy.nativeMedusa.enabled=false;};await assert.rejects(f.client.authorizeDisclosure({messages},model));
 });
+async function disclosureProof(){
+  const f=await fixture(),receipt=await f.client.context({productId:'prod_synthetic'},undefined,model);
+  const messages=[{role:'assistant',content:[{type:'toolCall',id:'native-call',name:'workspace_medusa_context',arguments:{productId:'prod_synthetic'}}]},
+    {role:'toolResult',toolCallId:'native-call',toolName:'workspace_medusa_context',content:[{type:'text',text:JSON.stringify(receipt)}],details:receipt}];
+  const wire={messages:[{role:'assistant',tool_calls:[{id:'native-call',function:{name:'workspace_medusa_context',arguments:JSON.stringify(receipt.input)}}]},
+    {role:'tool',tool_call_id:'native-call',content:JSON.stringify(receipt)}]};
+  return {f,receipt,messages,wire};
+}
+for(const kind of ['renamed-status','wire-new-id','wire-stolen-status-id','duplicate-history-pair','duplicate-wire-pair','duplicate-wire-result','wrong-result-id'])test('native disclosure provenance rejects '+kind,async()=>{
+  const {f,messages,wire}=await disclosureProof();let withWire=false;
+  if(kind==='renamed-status'){messages[0].content[0].name='workspace_medusa_status';messages[1].toolName='workspace_medusa_status';}
+  if(kind==='wire-new-id'){wire.messages[0].tool_calls[0].id='unobserved-call';wire.messages[1].tool_call_id='unobserved-call';withWire=true;}
+  if(kind==='wire-stolen-status-id'){
+    const status=await f.client.status({},undefined,model);
+    messages.unshift({role:'assistant',content:[{type:'toolCall',id:'status-call',name:'workspace_medusa_status',arguments:{}}]},
+      {role:'toolResult',toolCallId:'status-call',toolName:'workspace_medusa_status',content:[{type:'text',text:JSON.stringify(status)}],details:status});
+    wire.messages[0].tool_calls[0].id='status-call';wire.messages[1].tool_call_id='status-call';withWire=true;
+  }
+  if(kind==='duplicate-history-pair')messages.push(...structuredClone(messages));
+  if(kind==='duplicate-wire-pair'){wire.messages.push(...structuredClone(wire.messages));withWire=true;}
+  if(kind==='duplicate-wire-result'){wire.messages.push(structuredClone(wire.messages[1]));withWire=true;}
+  if(kind==='wrong-result-id')messages[1].toolCallId='unobserved-call';
+  await assert.rejects(f.client.authorizeDisclosure({messages,...(withWire?{wireBody:JSON.stringify(wire)}:{})},model));
+});
+test('native disclosure provenance permits matching history/context overlap and legitimate status calls',async()=>{
+  const {f,messages,wire}=await disclosureProof();
+  await f.client.authorizeDisclosure({messages,context:structuredClone(messages),wireBody:JSON.stringify(wire)},model);
+  const status=await f.client.status({},undefined,model);
+  const statusMessages=[{role:'assistant',content:[{type:'toolCall',id:'status-call',name:'workspace_medusa_status',arguments:{}}]},
+    {role:'toolResult',toolCallId:'status-call',toolName:'workspace_medusa_status',content:[{type:'text',text:JSON.stringify(status)}],details:status}];
+  const statusWire={messages:[{role:'assistant',tool_calls:[{id:'status-call',function:{name:'workspace_medusa_status',arguments:'{}'}}]},
+    {role:'tool',tool_call_id:'status-call',content:JSON.stringify(status)}]};
+  await f.client.authorizeDisclosure({messages:statusMessages},model);
+  await f.client.authorizeDisclosure({messages:statusMessages,wireBody:JSON.stringify(statusWire)},model);
+});
 test('native transport has explicit private startup opt-in and cannot silently inherit Space/admin credentials',async t=>{
   const f=await fixture(),root=await fs.mkdtemp('/tmp/native-medusa-private-fixture-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
   assert.equal(await loadNativeMedusaModelConnection({},{}),null);

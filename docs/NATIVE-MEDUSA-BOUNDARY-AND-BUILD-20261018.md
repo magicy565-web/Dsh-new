@@ -95,11 +95,13 @@ do not add repeated tests together.
 
 | Check | Final observed result |
 | --- | --- |
-| `medusa-native-mainchain-sdk` + `medusa-native-model-read` | 21 passed, 0 failed/skipped: eight default-startup cases plus thirteen contract/transport/receipt cases |
-| `workspace-omp-medusa-enterprise` + `workspace-native-document-mainchain-sdk` | 39 passed, 0 failed/skipped: old UUID/enterprise composition and original document choices remain compatible |
-| `workspace-omp-build-lifecycle`, `workspace-omp-unified`, `workspace-omp-plugins`, `medusa-catalog-http` | 13 passed, 0 failed/skipped, including the full explicit 15-package inventory and original Session lifecycle |
-| Contract, Space source/startup, native/UUID boundary, catalog, backend lifecycle, existing Library result DOM/SDK group | 37 passed, 0 failed/skipped; includes original explicit result-save button and UUID continuation |
-| Cloud fixed-inventory/native-loader cases selected by name | 2 passed, 0 failed/skipped; the SIGTERM/recovery case was not selected or claimed |
+| `medusa-native-mainchain-sdk` + `medusa-native-model-read` | 29 passed, 0 failed/skipped: eight default-startup cases plus twenty-one contract/transport/receipt cases |
+| Native wire/final lifecycle + native production save-button DOM/SDK | 9 passed, 0 failed/skipped; includes unchanged-restart control and contract add/remove/change refusals |
+| Latest Library save-button/UUID catalog + build lifecycle/unified compatibility | 17 passed, 0 failed/skipped |
+| Earlier implementation: `workspace-omp-medusa-enterprise` + `workspace-native-document-mainchain-sdk` | 39 passed, 0 failed/skipped: old UUID/enterprise composition and original document choices remain compatible |
+| Earlier implementation: `workspace-omp-build-lifecycle`, `workspace-omp-unified`, `workspace-omp-plugins`, `medusa-catalog-http` | 13 passed, 0 failed/skipped, including the full explicit 15-package inventory and original Session lifecycle |
+| Earlier implementation: contract, Space source/startup, native/UUID boundary, catalog, backend lifecycle, existing Library result DOM/SDK group | 37 passed, 0 failed/skipped; includes original explicit result-save button and UUID continuation |
+| Earlier implementation: cloud fixed-inventory/native-loader cases selected by name | 2 passed, 0 failed/skipped; the SIGTERM/recovery case was not selected or claimed |
 | `npm run build:web` | Passed typecheck/production build before the server-only changes; existing large-chunk warning; no frontend source changed |
 | `npm run build:omp`, Node syntax checks, `git diff --check` | Passed; pack closure and native selected-loader checks included |
 
@@ -123,12 +125,50 @@ file guard correctly refused. The fixture now performs the valid-file check
 before the alias rejection. The cloud loader fixture also exposed its missing declared peer; offline packing was moved to the Node test setup because the intentionally restricted Bun PATH excludes npm. The restricted child PATH was preserved. No security guard or failing assertion was removed.
 
 Real: original signed HTTP/Session/CSRF, Library/Store/Artifact bytes, production
-chat bundle in JSDOM for the old save path, original Run and pinned native SDK.
+chat bundle in JSDOM for both the original UUID and native save paths, original Run and pinned native SDK.
 Finite: model SSE/choices, local Medusa/Docling HTTP, synthetic short-lived test
 identities, reviewed policy and token values. No real Medusa/PostgreSQL, container,
 image, production identity, parser/model request, paid call or deployment was run.
 No full repository suite or real browser acceptance is claimed. No runtime data,
 private configuration, real credential values or raw logs are committed.
+
+## Independent receipt-integrity review and supplemental boundaries
+
+Review at `51430db4136da136998f5555da959ef1872ceda9` identified missing
+invocation pairing. Eight focused cases were written first: five failed because
+renaming a context call/result to status, replacing its wire ID, borrowing a
+status ID, repeating a history pair, or repeating a wire pair was accepted. Three
+controls already passed. This demonstrated an integrity gap; unauthorized source
+reads were not established. After the fix all eight passed.
+
+Native observations now require the exact `workspace_medusa_context` tool name
+and retain their original call ID, arguments, receipt and result association.
+Each wire call/result must match that observation under the same ID. Native ID
+reuse, duplicate/mismatched results and orphaned wire calls fail. The SDK may
+expose the same exact observation in its original-history and model-context
+views; that overlap is allowed, while conflicting observations under the same
+ID fail. These are ephemeral validation maps, never a permission cache or new
+store. Legitimate status calls are explicitly tested and remain valid.
+
+The latest four-file native run passed **38 tests, 0 failures/skips**: 29 mainchain
+and contract cases plus nine lifecycle/production-button cases. The latter use
+the original factory/Host/SDK and its existing trusted lifecycle seam. Contract
+and product-approval withdrawal after actual SDK serialization stop the third
+wire request (only the first two finite requests reached the provider). Revoking
+or cancelling during final asynchronous checks after worker exit withholds a
+completed reply and saved Run Artifact. The ordinary default-startup DOM test
+clicks the production save button for native product/document output, verifies
+exact saved/downloaded bytes and SHA256, and sends the next message in the same
+original Session. This is finite-service/JSDOM evidence, not a live browser.
+
+Restart tests cover native contract addition/removal/change **and an unchanged
+control**. All retain the original service-instance/login-Session fingerprint
+and refuse silent old-transcript inheritance before a new model request. The
+unchanged control verifies the existing rotated-binding refusal; these restart
+cases therefore do not independently attribute refusal to the native hash alone,
+and do not establish private Session recovery across service restarts. That
+stronger existing identity boundary is preserved. Same-process native contract
+binding changes have their separate mainchain regression. No migration is added.
 
 ## Actions run 39135431986
 

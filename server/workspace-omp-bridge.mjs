@@ -261,7 +261,10 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 }
                 // Keep the original authority in Node and close the async
                 // callback boundary with its complete synchronous proof check.
-                if(medusaClient?.nativeScopeHash)await medusaClient.authorizeDisclosure(payload,receiver,rpcSignal);
+                if(medusaClient?.nativeScopeHash){
+                  if(typeof value.wireBody==='string')onWorkerLifecycle({phase:'nativeMedusaWireCheck'});
+                  await medusaClient.authorizeDisclosure(payload,receiver,rpcSignal);
+                }
                 factControl.assertDisclosureCurrent(payload,receiver,rpcSignal);
                 factDocumentTools?.assertDisclosureCurrent(payload,receiver,rpcSignal);
                 medusaClient?.nativeScopeHash&&medusaClient.assertPayloadCurrent(payload,rpcSignal);
