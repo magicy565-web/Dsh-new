@@ -1,58 +1,74 @@
 import type ProductContextModuleService from "../../../../../modules/product-context/service"
 import type {AuthenticatedMedusaRequest,MedusaResponse} from "@medusajs/framework/http"
 import {ContainerRegistrationKeys,MedusaError} from "@medusajs/framework/utils"
+import {EDITABLE_FIELDS,PRODUCT_FIELDS,passesReleaseGate,reviewSourceHash,sealReviewSource} from "../../../../../product-context-review"
 import {PRODUCT_CONTEXT_MODULE} from "../../../../../modules/product-context"
 
 import {ProductContextStatus} from "../../../../../modules/product-context/models/product-context"
 
-export type ProductContextInput={
-  status?:ProductContextStatus
-  readiness_score?:number
-  buyer_profile?:string
-  target_markets?:string[]
-  use_cases?:string[]
-  selling_points?:string[]
-  evidence?:Array<{id:string;label:string;type:string;status:string;source?:string;sha256?:string;reviewed_at?:string}>
-  commercial_policy?:Record<string,unknown>
-  missing_evidence?:string[]
-  agent_summary?:string
-  source_hash?:string
-  review_version?:number
-  notes?:string
+import {MAX_REVIEW_VERSION,ProductSourceSchema} from "../../../../../product-context-validation"
+import type {ProductContextInput} from "../../../../../product-context-validation"
+
+async function readProduct(req:AuthenticatedMedusaRequest){
+  const query=req.scope.resolve(ContainerRegistrationKeys.QUERY)
+  const {data}=await query.graph({entity:"product",fields:PRODUCT_FIELDS,filters:{id:req.params.id}})
+  if(!data?.[0])throw new MedusaError(MedusaError.Types.NOT_FOUND,"Product not found")
+  if(!ProductSourceSchema.safeParse(data[0]).success)throw new MedusaError(MedusaError.Types.INVALID_DATA,"Product source contains invalid field values.")
+  return data[0]
 }
 
 export const GET=async(req:AuthenticatedMedusaRequest,res:MedusaResponse)=>{
   const service=req.scope.resolve<ProductContextModuleService>(PRODUCT_CONTEXT_MODULE)
-  const contexts=await service.listProductContexts({product_id:req.params.id})
-  res.json({product_context:contexts[0]??null})
+  const product=await readProduct(req)
+  const context=(await service.listProductContexts({product_id:req.params.id}))[0]??null
+  res.setHeader("Cache-Control","no-store")
+  res.json({product_context:context,review_source_hash:reviewSourceHash(context,product)})
 }
 
 export const POST=async(req:AuthenticatedMedusaRequest<ProductContextInput>,res:MedusaResponse)=>{
-  const query=req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const service=req.scope.resolve<ProductContextModuleService>(PRODUCT_CONTEXT_MODULE)
-  const {data:products}=await query.graph({entity:"product",fields:["id"],filters:{id:req.params.id}})
-  if(!products.length)throw new MedusaError(MedusaError.Types.NOT_FOUND,"Product not found")
+  const product=await readProduct(req)
   const current=(await service.listProductContexts({product_id:req.params.id}))[0]
   const body=req.validatedBody
-  const score=body.readiness_score==null?Number(current?.readiness_score||0):Math.max(0,Math.min(100,body.readiness_score))
-  const missing=body.missing_evidence??current?.missing_evidence??[]
-  const evidence=body.evidence??current?.evidence??[]
-  const nextStatus=body.status??current?.status??"incomplete"
-  const hasMissingEvidence=missing.length>0||!Array.isArray(evidence)||evidence.some((item:any)=>item.status==="missing")
-  if(nextStatus==="approved"&&(score<80||hasMissingEvidence)){
-    return res.status(422).json({message:"Approved Product Context requires readiness_score >= 80 and no missing evidence."})
+  const version=current?.review_version??0
+  if(!Number.isSafeInteger(version)||version<0||version>MAX_REVIEW_VERSION||body.review_version!==version){
+    return res.status(409).json({message:"Product Context version changed; reload before editing."})
   }
-  const reviewed=nextStatus==="ready_for_review"||nextStatus==="approved"
-  const input={
-    ...body,
-    product_id:req.params.id,
-    readiness_score:score,
-    missing_evidence:missing,
-    reviewed_at:reviewed?new Date():current?.reviewed_at??null,
-    reviewed_by:reviewed?req.auth_context.actor_id:current?.reviewed_by??null,
+  const explicitApproval=body.status==="approved"
+  if(explicitApproval&&!req.auth_context.actor_id){
+    return res.status(401).json({message:"Authenticated reviewer required."})
   }
-  const context=current
-    ?await service.updateProductContexts({id:current.id,...input})
-    :await service.createProductContexts(input)
-  res.json({product_context:context})
+  if((explicitApproval||version===MAX_REVIEW_VERSION)&&body.source_hash!==reviewSourceHash(current,product)){
+    return res.status(409).json({message:"Product Context or product source changed; reload before reviewing."})
+  }
+  const defaults={target_markets:[],use_cases:[],selling_points:[],missing_evidence:[]}
+  const fields=Object.fromEntries(EDITABLE_FIELDS.map(field=>[field,body[field]!==undefined?body[field]:current?.[field]??defaults[field as keyof typeof defaults]??null]))
+  const nextStatus:ProductContextStatus=(body.status??(current?.status==="approved"?ProductContextStatus.READY_FOR_REVIEW:current?.status??ProductContextStatus.INCOMPLETE)) as ProductContextStatus
+  const input={...fields,product_id:req.params.id,status:nextStatus,
+    readiness_score:body.readiness_score??current?.readiness_score??0,
+    review_version:Math.min(version+1,MAX_REVIEW_VERSION),source_hash:null as string|null,
+    reviewed_at:explicitApproval?new Date():null,
+    reviewed_by:explicitApproval?req.auth_context.actor_id:null}
+  if(explicitApproval&&!passesReleaseGate(input)){
+    return res.status(422).json({message:"Approval requires valid Product Context field values, readiness_score >= 80 and no missing evidence. Correct invalid fields explicitly."})
+  }
+  input.source_hash=sealReviewSource(input,product,explicitApproval)
+  try{
+    const context=current
+      ?await service.updateReviewedProductContext(current.id,version,input,current.source_hash??null)
+      :await service.createProductContexts(input)
+    res.setHeader("Cache-Control","no-store")
+    return res.json({product_context:context})
+  }catch(error:any){
+    // A duplicate first create is also a conflict, never an overwrite/retry.
+    if(error.type===MedusaError.Types.CONFLICT||error.code==="23505"){
+      return res.status(409).json({message:"Product Context changed; reload before editing."})
+    }
+    // The pinned SDK can map a unique violation to INVALID_DATA.
+    if(!current&&error.type===MedusaError.Types.INVALID_DATA&&
+      (await service.listProductContexts({product_id:req.params.id})).length){
+      return res.status(409).json({message:"Product Context changed; reload before editing."})
+    }
+    throw error
+  }
 }

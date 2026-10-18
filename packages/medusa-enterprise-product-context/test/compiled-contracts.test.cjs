@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const {isAgentContextReadAuthorized}=require('../.medusa/server/src/agent-auth.js');
 const {POST}=require('../.medusa/server/src/api/admin/products/[id]/context/route.js');
 const {ContainerRegistrationKeys}=require('@medusajs/framework/utils');
+const {reviewSourceHash}=require('../.medusa/server/src/product-context-review.js');
 // The installed Medusa SDK and compiled routes are real. Persistence below is
 // an explicit unit stand-in; this is not a running Medusa/DB acceptance.
 test('Agent read token is explicit and exact; no ambient credential required',()=>{
@@ -13,9 +14,10 @@ test('Agent read token is explicit and exact; no ambient credential required',()
  assert.equal(isAgentContextReadAuthorized(undefined,token),false);
 });
 function request(body,current=null){
+ body={...body,review_version:current?.review_version??0,source_hash:reviewSourceHash(current,{id:'prod-synthetic',title:'Synthetic product'})};
  const saved=[];const service={listProductContexts:async()=>current?[current]:[],createProductContexts:async input=>{saved.push(input);return {id:'ctx-synthetic',...input}},updateProductContexts:async input=>{saved.push(input);return input}};
- const req={params:{id:'prod-synthetic'},validatedBody:body,auth_context:{actor_id:'original-medusa-user'},scope:{resolve:key=>key===ContainerRegistrationKeys.QUERY?{graph:async()=>({data:[{id:'prod-synthetic'}]})}:service}};
- const res={statusCode:200,status(code){this.statusCode=code;return this},json(body){this.body=body;return this}};
+ const req={params:{id:'prod-synthetic'},validatedBody:body,auth_context:{actor_id:'original-medusa-user'},scope:{resolve:key=>key===ContainerRegistrationKeys.QUERY?{graph:async()=>({data:[{id:'prod-synthetic',title:'Synthetic product'}]})}:service}};
+ const res={statusCode:200,status(code){this.statusCode=code;return this},setHeader(){},json(body){this.body=body;return this}};
  return {req,res,saved};
 }
 test('compiled original admin route rejects approval with missing or malformed evidence',async()=>{
