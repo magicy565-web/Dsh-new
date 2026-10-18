@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import {enterpriseContextExtension,nativeDocumentParameterSchemas} from '../plugins/workspace-enterprise-context/src/extension.js';
 import {businessBrainExtension} from '../plugins/workspace-goal-intelligence/src/extension.mjs';
 import {createNativeDocumentTools} from '../server/workspace-native-document-tools.mjs';
@@ -11,8 +12,8 @@ import {projectPlugins} from '../server/workspace-plugin-config.mjs';
 import {prepareNativeDocumentHandbooks,bindNativeDocumentHandbooks} from '../server/workspace-omp-session.mjs';
 const queries=[{subjectType:'product',subjectId:'bottle',factKey:'moq'},{subjectType:'customer',subjectId:'buyer',factKey:'packaging'}];
 const capabilities=()=>({schema:'workspace.native-document-capabilities.v1',methods:['parseUpload','structuredMemoryLookup','structuredMemoryRemember'],queries:structuredClone(queries),sources:[0,1].map(i=>({documentId:'synthetic-document-'+i,revision:1,documentVersion:1,asset:{artifactId:'synthetic-upload-'+i,version:i+1,sha256:String(i).repeat(64)}}))});
-const tuple=(schema,index=0)=>Object.fromEntries(Object.entries(schema.oneOf[index].properties).map(([key,value])=>[key,value.const]));
-const matches=(schema,input)=>schema.oneOf.filter(branch=>Object.entries(branch.properties).every(([key,value])=>input[key]===value.const)).length===1;
+const tuple=(schema,index=0)=>Object.fromEntries(Object.entries(schema.oneOf[index].properties).filter(([,value])=>Object.hasOwn(value,'const')).map(([key,value])=>[key,value.const]));
+const matches=(schema,input)=>schema.oneOf.filter(branch=>Object.entries(branch.properties).filter(([,value])=>Object.hasOwn(value,'const')).every(([key,value])=>input[key]===value.const)).length===1;
 
 test('model-visible schemas discover whole selected tuples without a Cartesian grant',()=>{
  const metadata=capabilities(),tools=[];enterpriseContextExtension({enabledMethods:metadata.methods,nativeCapabilities:metadata})({registerTool:tool=>tools.push(tool)});
@@ -21,7 +22,32 @@ test('model-visible schemas discover whole selected tuples without a Cartesian g
  assert.equal(matches(parse,{...tuple(parse),version:tuple(parse,1).version}),false);
  assert.equal(matches(remember,{...tuple(remember),factKey:tuple(remember,1).factKey}),false);
  assert.equal(remember.properties.statement.maxLength,4000);assert.equal(remember.additionalProperties,false);
+ for(const tool of tools)for(const branch of tool.parameters.oneOf){
+  assert.equal(branch.type,'object');assert.equal(branch.additionalProperties,false);
+  assert.deepEqual(branch.required,tool.parameters.required);assert.deepEqual(Object.keys(branch.properties),Object.keys(tool.parameters.properties));
+ }
+ for(const branch of remember.oneOf){assert.deepEqual(branch.properties.statement,remember.properties.statement);assert.equal(Object.hasOwn(branch.properties.statement,'const'),false);}
  assert.ok(!JSON.stringify(tools).includes('memory_search'));assert.ok(!JSON.stringify(tools).includes('statement content'));
+});
+
+test('finite provider discovers a whole wire tuple from const or singleton enum and refuses ambiguity',async t=>{
+ const directory=await fs.mkdtemp('/tmp/native-schema-fixture-');t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+ const fixture=path.join(directory,'fixture.json'),reportFile=path.join(directory,'report.json');
+ await fs.writeFile(fixture,JSON.stringify({mode:'lookup',parserSecret:'not-in-schema',statement:'not-in-schema',reportFile}));
+ const preload=new URL('./fixtures/native-document-provider-preload.mjs',import.meta.url).href;
+ const script=`import fs from 'node:fs'; await import(${JSON.stringify(preload)}); const body=fs.readFileSync(0,'utf8'); const response=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',body}); console.log(await response.text());`;
+ for(const form of ['const','singleton','ambiguous']){
+  const schema=nativeDocumentParameterSchemas(capabilities()).structuredMemoryLookup;
+  if(form!=='const')for(const branch of schema.oneOf)for(const rule of Object.values(branch.properties)){rule.enum=[rule.const];delete rule.const;}
+  if(form==='ambiguous')schema.oneOf[0].properties.factKey.enum.push('not-a-single-selected-value');
+  const input=JSON.stringify({model:'deepseek-flash',messages:[],tools:[{type:'function',function:{name:'workspace_enterprise_context_structured_memory_lookup',parameters:schema}}]});
+  const child=spawnSync(process.execPath,['--input-type=module','-e',script],{input,encoding:'utf8',env:{PATH:process.env.PATH,WORKSPACE_NATIVE_DOCUMENT_FIXTURE:fixture},timeout:10000});
+  assert.ifError(child.error);
+  if(form==='ambiguous'){assert.notEqual(child.status,0);assert.match(child.stderr,/exactly one authorized value/);continue;}
+  assert.equal(child.status,0,child.stderr);const frame=JSON.parse(child.stdout.split('\n').find(line=>line.startsWith('data: ')).slice(6));
+  assert.deepEqual(JSON.parse(frame.choices[0].delta.tool_calls[0].function.arguments),queries[0]);
+  const summary=JSON.parse(await fs.readFile(reportFile,'utf8'));assert.equal(summary.externalModelRequests,0);assert.equal(summary.requests.length,1);
+ }
 });
 test('projection refuses extra fields, unselected methods and malformed tuple metadata',()=>{
  for(const change of [c=>c.methods.push('memorySearch'),c=>c.credential='private',c=>c.sources[0].asset.version=0,c=>c.sources[0].extra='text',c=>c.queries[0].statement='private',c=>c.queries=[]]){

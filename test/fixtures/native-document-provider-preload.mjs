@@ -11,9 +11,17 @@ globalThis.fetch=async(input,init)=>{
  const text=await request.text(),body=JSON.parse(text);assert.equal(body.model,'deepseek-flash');assert.ok(!text.includes(info.parserSecret));
  if(info.bounded){assert.deepEqual(body.thinking,{type:'disabled'});assert.ok(body.max_tokens<=512);}
  const schema=name=>{const tool=body.tools.find(t=>t.function.name===name);assert.ok(tool,'Needed capability must be advertised');return tool.function.parameters;};
- const discover=name=>{const value=schema(name);assert.ok(Array.isArray(value.oneOf)&&value.oneOf.length);return Object.fromEntries(Object.entries(value.oneOf[0].properties).map(([key,rule])=>{assert.ok(Object.hasOwn(rule,'const'));return [key,rule.const];}));};
+ const discover=name=>{const value=schema(name);assert.ok(Array.isArray(value.oneOf)&&value.oneOf.length);
+  const branch=value.oneOf[0],keys=name==='workspace_enterprise_context_parse_upload'?['artifactId','version','sha256']:['subjectType','subjectId','factKey'];
+  return Object.fromEntries(keys.map(key=>{const rule=branch.properties[key];assert.ok(branch.required.includes(key));
+   if(Object.hasOwn(rule,'const')){if(rule.enum!==undefined)assert.deepEqual(rule.enum,[rule.const]);return [key,rule.const];}
+   assert.ok(Array.isArray(rule.enum)&&rule.enum.length===1,'A discovered tuple field must have exactly one authorized value');return [key,rule.enum[0]];
+  }));};
  const receipts=body.messages.filter(m=>m.role==='tool').map(m=>{try{return JSON.parse(m.content);}catch{return null;}});
- summary.requests.push({withSource:text.includes(info.statement),toolNames:body.tools.map(t=>t.function.name)});
+ // Shape-only failure evidence survives fixture teardown through test messages;
+ // no headers, parameter values, uploaded text, credentials or full contexts.
+ const documentSchemas=body.tools.filter(t=>t.function.name.startsWith('workspace_enterprise_context_')).map(({function:t})=>({name:t.name,strict:t.strict===true,branches:(t.parameters.oneOf||[]).map(branch=>({additionalProperties:branch.additionalProperties,required:branch.required,fields:Object.fromEntries(Object.entries(branch.properties||{}).map(([key,rule])=>[key,{hasConst:Object.hasOwn(rule,'const'),enumLength:Array.isArray(rule.enum)?rule.enum.length:null}]))}))}));
+ summary.requests.push({withSource:text.includes(info.statement),toolNames:body.tools.map(t=>t.function.name),documentSchemas});
  fs.writeFileSync(info.reportFile,JSON.stringify(summary),{mode:0o600});const n=summary.requests.length;
  if(info.mode==='clarify')return sse({role:'assistant',content:'What business outcome should I investigate? I can wait for your clarification without parsing or saving.'},'stop');
  if(info.mode==='lookup'){if(n===1)return call('workspace_enterprise_context_structured_memory_lookup',discover('workspace_enterprise_context_structured_memory_lookup'),'lookup-only');assert.equal(n,2);assert.equal(receipts.findLast(r=>r?.operation==='structuredMemoryLookup').found,false);return sse({role:'assistant',content:'The selected fact is not yet saved. No parser or write was needed to check it.'},'stop');}

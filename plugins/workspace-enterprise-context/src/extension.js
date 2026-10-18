@@ -43,7 +43,10 @@ export function nativeDocumentParameterSchemas(capabilities) {
   return Object.fromEntries(capabilities.methods.map(method=>{
     const base=toolSpecs.find(([name])=>name===method)[1],keys=method==='parseUpload'?['artifactId','version','sha256']:['subjectType','subjectId','factKey'];
     const tuples=unique(method==='parseUpload'?sources.map(source=>source.asset):queries);
-    return [method,{...structuredClone(base),oneOf:tuples.map(tuple=>({properties:Object.fromEntries(keys.map(key=>[key,{const:tuple[key]}])),required:keys}))}];
+    // Provider strict normalization closes each object branch separately. Keep
+    // the complete contract (including a free statement) inside every branch,
+    // then narrow only the selected tuple keys without mixing alternatives.
+    return [method,{...structuredClone(base),oneOf:tuples.map(tuple=>({...structuredClone(base),properties:{...structuredClone(base.properties),...Object.fromEntries(keys.map(key=>[key,{...base.properties[key],const:tuple[key]}]))}}))}];
   }));
 }
 export function enterpriseContextExtension({ client, authorize, enabledMethods=null, nativeCapabilities=null } = {}) {
