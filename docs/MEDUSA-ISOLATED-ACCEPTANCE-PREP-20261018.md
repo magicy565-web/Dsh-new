@@ -29,7 +29,7 @@ No temporary-environment authorization has been received. The following commands
 
 1. Separately authorize downloading the three exact images already pinned by the original sources: `docker.io/library/postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24`, `docker.io/library/redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499`, and `docker.io/library/node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df`. Prior read-only inspection found all three missing. There is no pull/build fallback in the plan; runtime uses `--pull=never`.
 2. Operator supplies five temporary 64-lowercase-hex service files (`postgres_password`, `redis_password`, `jwt_secret`, `cookie_secret`, `agent_context_read_token`) under the specified owner-private 0700 directory; files must be owner-owned, regular/non-symlink, immutable 0444 (as in the existing bootstrap contract), 64 bytes plus optional newline. Host directory privacy protects these files; each nonroot container receives only its required read-only file mounts. No entropy/bootstrap/token generation is implemented here. Do not run the existing persistent bootstrap: it also provisions unrelated Docling material.
-3. Explicitly approve initialization of a **new empty** PG role `medusa` and database `medusa_live_prep_20261018_r02`, temporary Redis/API startup and native migrations. No existing volume/database is mounted. Separate temporary Medusa Admin provisioning and obtaining its short-lived bearer still require operator authorization; startup does not create a Medusa account or mint a JWT. The existing manual `create-user.mjs` is a reference for that later review, not called here, and its old wrapper's hardcoded database must not be reused blindly.
+3. Explicitly approve initialization of a **new empty** PG role `medusa` and database `medusa_live_prep_20261018_r03`, temporary Redis/API startup and native migrations. No existing volume/database is mounted. Separate temporary Medusa Admin provisioning and obtaining its short-lived bearer still require operator authorization; startup does not create a Medusa account or mint a JWT. The existing manual `create-user.mjs` is a reference for that later review, not called here, and its old wrapper's hardcoded database must not be reused blindly.
 
 After those gates, the complete reviewed start entry is:
 
@@ -37,7 +37,7 @@ After those gates, the complete reviewed start entry is:
 MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash /workspace/medusa-isolated-plan-20261018-r03/run.sh start
 ```
 
-The marker records an operator decision; it is not itself authorization from this task. Without it the shell stops before Docker. Missing secret metadata, images or changed artifacts stop rather than discover alternate credentials/targets. Runtime credentials are read only inside the future approved containers; no secret enters Docker environment/argv.
+The marker records an operator decision; it is not itself authorization from this task. Without it the shell stops before Docker. Missing required secret metadata/images or changes detected in the explicitly checked inputs stop rather than discover alternate credentials/targets; unlisted runtime files are not covered. Runtime credentials are read only inside the future approved containers; no secret enters Docker environment/argv.
 
 ## Complete bounded assembly
 
@@ -61,7 +61,7 @@ Only after separately approved temporary Admin authentication is available, supp
 MEDUSA_TEMP_SERVICE_APPROVAL=ISOLATED_TEMP_ONLY bash /workspace/medusa-isolated-plan-20261018-r03/run.sh accept < /operator-private/reviewed-live-config.json
 ```
 
-Config must name `backendUrl=http://127.0.0.1:9000`, PG `host=127.0.0.1, port=5432, user/serverRole=medusa, database=medusa_live_prep_20261018_r02`, exact matching isolation declaration/instance `medusa-live-prep-20261018-r03`, `cleanup=operator-destroys-instance`, and `pgRequireFrom=/app/package.json`; distinct temporary Admin/Agent tokens and matching password come only from the operator. Do not put these values into this repository or plan output. The original driver validates the config, bounds HTTP/PG operations, verifies marker/private projection/source invalidation and eight real CAS races using actual pg_stat_activity/pg_blocking_pids. This preparation does not replace or weaken those assertions.
+Config must name `backendUrl=http://127.0.0.1:9000`, PG `host=127.0.0.1, port=5432, user/serverRole=medusa, database=medusa_live_prep_20261018_r03`, exact matching isolation declaration/instance `medusa-live-prep-20261018-r03`, `cleanup=operator-destroys-instance`, and `pgRequireFrom=/app/package.json`; distinct temporary Admin/Agent tokens and matching password come only from the operator. Do not put these values into this repository or plan output. The original driver validates the config, bounds HTTP/PG operations, verifies marker/private projection/source invalidation and eight real CAS races using actual pg_stat_activity/pg_blocking_pids. This preparation does not replace or weaken those assertions.
 
 Cleanup, including a partially failed start, is explicit:
 
