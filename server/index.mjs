@@ -1,7 +1,7 @@
 import { createSpaceService, SpaceError } from './space-core.mjs';
 import { handleSpaceHttp } from './space-http.mjs';
 import { bindSpaceSafeBootstrap } from './space-bootstrap.mjs';
-import { spaceStartupOptions } from './space-startup-config.mjs';
+import { loadSpaceStartupOptions } from './space-startup-config.mjs';
 import { createMuseOwnerPolicy } from './muse-owner-policy.mjs';
 import { createAgentService } from './agent/service.mjs';
 import { createLibraryModelRead } from './library-model-read.mjs';
@@ -130,9 +130,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
     businessLibrary = createBusinessLibraryService({ store, artifacts, clock: accessClock });
-    if (spaceOptions !== null && (!spaceOptions || Object.getPrototypeOf(spaceOptions) !== Object.prototype || Object.keys(spaceOptions).some(key => !['enabled', 'medusaSource'].includes(key)) || typeof spaceOptions.enabled !== 'boolean')) throw new TypeError('Use an explicit reviewed Space enablement option.');
+    if (spaceOptions !== null && (!spaceOptions || Object.getPrototypeOf(spaceOptions) !== Object.prototype || Object.keys(spaceOptions).some(key => !['enabled', 'medusaSource', 'medusaSourceFactory'].includes(key)) || typeof spaceOptions.enabled !== 'boolean')) throw new TypeError('Use an explicit reviewed Space enablement option.');
     if (spaceOptions?.enabled && accessConfig.mode !== 'enterprise') throw new Error('Space requires the original enterprise Host.');
-    spaceService = createSpaceService({ store, access, workspaceId: accessConfig.workspaceId ?? null, members: accessConfig.members ?? null, enabled: spaceOptions?.enabled === true, clock: accessClock, medusaSource: spaceOptions?.medusaSource ?? null });
+    if (spaceOptions?.medusaSourceFactory && !backendSelection.enabled('workspace-medusa-catalog')) throw new Error('The reviewed Space Medusa source requires its original backend plugin to remain enabled.');
+    spaceService = createSpaceService({ store, access, workspaceId: accessConfig.workspaceId ?? null, members: accessConfig.members ?? null, enabled: spaceOptions?.enabled === true, clock: accessClock, medusaSource: spaceOptions?.medusaSource ?? null, medusaSourceFactory: spaceOptions?.medusaSourceFactory ?? null });
     if (enterpriseDisclosureOptions?.openfga && accessConfig.mode !== 'enterprise') throw Error('OpenFGA disclosure requires enterprise access mode.');
     enterpriseDisclosure=createEnterpriseDisclosurePolicy({store,library:businessLibrary,artifacts,
       fga:enterpriseDisclosureOptions?.openfga?createOpenFgaClient(enterpriseDisclosureOptions.openfga):null,
@@ -698,7 +699,7 @@ export async function startWorkspaceServer({ reviewedBusiness = null, environmen
   const mode = environment.WORKSPACE_RUNTIME || 'omp';
   if (!['omp', 'pi'].includes(mode)) throw new Error('WORKSPACE_RUNTIME must be omp (default frontend) or pi (explicit fallback).');
   const access = await accessConfigFromEnvironment(environment);
-  const spaceOptions = spaceStartupOptions(environment, access);
+  const spaceOptions = await loadSpaceStartupOptions(environment, access);
   const dataDirectory = path.resolve(environment.WORKSPACE_DATA_DIR || path.join(root, '.data'));
   const provider = createPiProvider({ ...loadPiProviderConfig(environment), researchAdapter: createBraveResearchAdapter({ environment: environment }) });
   if (reviewedBusiness && (mode !== 'omp' || environment.WORKSPACE_OMP_PROFILE !== 'business')) throw Error('Reviewed business composition requires the explicit business profile.');

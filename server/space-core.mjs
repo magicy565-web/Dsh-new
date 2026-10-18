@@ -131,12 +131,10 @@ export function validateSpaceLibrary(state) {
  * reviewed Map. No role/tenant/Session can be supplied in a browser command.
  * This package stays unmounted and disabled until its original Host is reviewed.
  */
-export function createSpaceService({ store, access = null, workspaceId = null, members = null, enabled = false, clock = Date.now, medusaSource = null } = {}) {
+export function createSpaceService({ store, access = null, workspaceId = null, members = null, enabled = false, clock = Date.now, medusaSource = null, medusaSourceFactory = null } = {}) {
   if (!store || typeof store.read !== 'function' || typeof store.update !== 'function') throw new TypeError('The original Store is required.');
   if (typeof enabled !== 'boolean') throw new TypeError('Space enablement must be explicit.');
   if (enabled && (!access || typeof access.nativeSessionById !== 'function' || !(members instanceof Map) || typeof workspaceId !== 'string' || !workspaceId)) throw new TypeError('Use the original enterprise AccessControl, members and workspace binding.');
-  if (medusaSource?.binding === null) medusaSource = null; // An ordinary unconfigured plugin cannot prevent Space startup.
-  if (medusaSource !== null && (!medusaSource || medusaSource.binding?.workspaceId !== workspaceId || typeof medusaSource.list !== 'function' || typeof medusaSource.read !== 'function' || typeof medusaSource.assertCurrent !== 'function')) throw new TypeError('Use an original Host Medusa source bound to this enterprise.');
   validateSpaceLibrary(store.read());
   const time = () => new Date(clock()).toISOString();
   function who(context) {
@@ -145,6 +143,14 @@ export function createSpaceService({ store, access = null, workspaceId = null, m
     if (!current || current.workspaceId !== workspaceId || current.subject !== context.subject || current.role !== context.role || members.get(current.subject) !== current.role || clock() >= current.expiresAt) fail(401, 'SPACE_SESSION_REQUIRED', 'The original enterprise Session expired, changed or was revoked.');
     return current;
   }
+  if (medusaSourceFactory !== null) {
+    if (!enabled || typeof medusaSourceFactory !== 'function' || medusaSource !== null) throw new TypeError('Select one explicitly enabled original Medusa source binding.');
+    // Only a current-member check crosses this trusted factory boundary. The
+    // original Store, AccessControl object and membership Map stay private.
+    medusaSource = medusaSourceFactory(context => { who(context); return true; });
+  }
+  if (medusaSource?.binding === null) medusaSource = null; // An ordinary unconfigured plugin cannot prevent Space startup.
+  if (medusaSource !== null && (!medusaSource || medusaSource.binding?.workspaceId !== workspaceId || typeof medusaSource.list !== 'function' || typeof medusaSource.read !== 'function' || typeof medusaSource.assertCurrent !== 'function')) throw new TypeError('Use an original Host Medusa source bound to this enterprise.');
   const externalActor = context => { const actor = who(context); return { subject: actor.subject, role: actor.role, workspaceId, session: { id: actor.id } }; };
   function checkExternalAuthority(context, sources) {
     if (!medusaSource || !sources.some(row => row.kind === 'medusa-product' && row.sourceId === medusaSource.binding.sourceId)) return;
