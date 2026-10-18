@@ -12,8 +12,11 @@ second planner, queue, scheduler, model endpoint or identity.
 
 ## Start with the actual decision, not three generic tips
 
-Use `workspace_brain_context` to recover the enterprise's current context. On a cold start,
-use the original authorized Library/product/inquiry tools and the owner's existing Goal.
+When the question needs persisted enterprise context, use `workspace_brain_context`
+or `workspace_brain_brief`. Consult the relevant loaded handbook with `workspace_skill`
+when needed. On a cold start, select only the relevant authorized Library/product/inquiry
+tools and the owner's existing Goal. A clarification or answer may need no tool at all;
+there is no mandatory first tool, parse/remember sequence or requirement to save.
 Discover what the owner is trying to improve and what information is missing. An empty
 enterprise may have **zero** recommendations. Do not create fictitious facts or goals to
 fill a homepage. When appropriate, save an unreviewed context using exact original sources

@@ -8,13 +8,13 @@ const successful=f=>f.app.store.read().messages.filter(m=>m.role==='assistant'&&
 test('original startup upload -> SDK document read/remember -> Brain -> same-session continuation and page GET',options,async t=>{
  const f=await startupFixture(t),goals=structuredClone(f.app.store.read().goals);
  assert.equal(f.app.store.read().businessLibrary.enterpriseMemories.length,0,'No preseeded facts');
- const first=await sendStartup(f);assert.equal(first.status,'succeeded',JSON.stringify(first));assert.equal(calls(first),6);assert.equal(f.parserCalls(),1);
+ const first=await sendStartup(f);assert.equal(first.status,'succeeded',JSON.stringify(first));assert.equal(calls(first),7);assert.equal(f.parserCalls(),1);
  const provider=await f.readProvider();assert.ok(provider.requests.length>0);
  for(const request of provider.requests){assert.equal(request.toolNames.length,12);assert.ok(request.toolNames.every(name=>name==='workspace_skill'||name.startsWith('workspace_brain_')||name.startsWith('workspace_enterprise_context_')));}
  const memory=f.app.store.read().businessLibrary.enterpriseMemories.find(m=>m.status==='active');assert.ok(memory);
  assert.equal(memory.statement,STATEMENT);assert.equal(memory.factKey,QUERY.factKey);assert.equal(memory.source.kind,'conversation');assert.equal(memory.source.ref,f.cid);assert.equal(memory.source.runId,first.id);
  assert.equal(memory.source.dependencies.length,1);assert.equal(memory.source.dependencies[0].ref,f.document.id);assert.equal(memory.source.dependencies[0].sha256,f.asset.sha256);
- const journal=await f.messages(),remembered=journal.find(m=>m.toolName==='workspace_enterprise_context_structured_memory_remember');assert.ok(remembered&&!remembered.isError);assert.equal(remembered.details.memory.id,memory.id);
+ const journal=await f.messages();assert.ok(journal.some(m=>m.toolName==='workspace_skill'&&!m.isError));const remembered=journal.find(m=>m.toolName==='workspace_enterprise_context_structured_memory_remember');assert.ok(remembered&&!remembered.isError);assert.equal(remembered.details.memory.id,memory.id);
  const saved=structuredClone(f.mapping());assert.equal(saved.brainDocumentTools,true);assert.ok(saved.brainMemoryFactsScopeHash);
  const brief=await f.workspace('/api/conversations/'+f.cid+'/brain/brief');assert.equal(brief.status,200,brief.text);assert.ok(brief.json.data.cards.some(c=>c.action.goalId===f.goal.id&&c.decisionDraft?.status==='persisted'));
  const context=await f.workspace('/api/conversations/'+f.cid+'/brain/context');assert.equal(context.status,200,context.text);assert.equal(context.json.data.sources[0].values.statement,STATEMENT);
@@ -35,4 +35,13 @@ test('initial reviewed document capability retains original eight-call limit and
 test('ordinary startup without document capability keeps four-call default and no document tools',options,async t=>{
  const f=await startupFixture(t,{documents:false,mode:'limit'}),run=await sendStartup(f);assert.equal(run.status,'failed',JSON.stringify(run));
  const report=await f.readProvider();assert.equal(report.requests.length,4);assert.equal(report.externalModelRequests,0);assert.equal(calls(run),4);assert.ok(report.requests.every(r=>r.toolNames.every(n=>!n.startsWith('workspace_enterprise_context_'))));assert.equal(f.parserCalls(),0);assert.equal(successful(f).length,0);
+});
+
+for(const mode of ['clarify','lookup'])test('model may choose '+mode+' without parsing, writing or a mandatory Brain sequence',options,async t=>{
+ const f=await startupFixture(t,{mode}),goals=structuredClone(f.app.store.read().goals),run=await sendStartup(f,'Help me decide what information is needed. Ask if unclear; do not assume a mandatory tool sequence.');
+ assert.equal(run.status,'succeeded',JSON.stringify(run));assert.equal(calls(run),mode==='clarify'?1:2);
+ assert.equal(f.parserCalls(),0);assert.equal(f.app.store.read().businessLibrary.enterpriseMemories.length,0);
+ assert.deepEqual(f.app.store.read().goals,goals);assert.equal((await f.readProvider()).externalModelRequests,0);
+ const journal=await f.messages();assert.equal(journal.some(m=>m.toolName?.endsWith('memory_remember')||m.toolName?.endsWith('parse_upload')||m.toolName?.endsWith('_save')),false);
+ if(mode==='clarify')assert.equal(journal.some(m=>m.role==='toolResult'),false);
 });

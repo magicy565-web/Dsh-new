@@ -241,3 +241,22 @@ test('original Artifact commit snapshot revalidates memory, all dependencies and
     assert.equal(f.persisted.runs[0].requestId, requestId); assert.equal(f.docs[1].revision, 1);
   });
 });
+
+test('document capability discovery exposes only current selected tuples without reading fact bodies',async t=>{
+ const f=await setup(t),facade=f.writer.documentTools([query]),downloads=f.state.downloads;
+ const visible=await facade.describe(undefined,model);
+ assert.deepEqual(visible.methods,['structuredMemoryLookup','structuredMemoryRemember']);
+ assert.deepEqual(visible.queries,[query]);assert.equal(visible.sources.length,2);
+ assert.deepEqual(visible.sources.map(s=>s.asset),f.docs.map(d=>d.asset));
+ assert.equal(visible.schema,'workspace.native-document-capabilities.v1');
+ assert.ok(!JSON.stringify(visible).includes(statement));assert.ok(!JSON.stringify(visible).includes('SYNTHETIC_UNSELECTED_FACT'));
+ assert.equal(f.state.downloads,downloads);assert.equal(f.state.parserCalls,0);
+});
+test('document capability discovery retains original receiver, source revision and revoked Session gates',async t=>{
+ const f=await setup(t),facade=f.writer.documentTools([query]);
+ await assert.rejects(facade.describe(undefined,{...model,id:'different-model'}),code('OSS_MODEL_RECEIVER_CHANGED'));
+ f.docs[1].revision=2;
+ await assert.rejects(facade.describe(undefined,model),code('FACTORY_DOCUMENT_REVISION_CHANGED'));
+ f.docs[1].revision=1;f.sessions.delete(sessionId);
+ await assert.rejects(facade.describe(undefined,model),code('OSS_SESSION_REVOKED'));
+});

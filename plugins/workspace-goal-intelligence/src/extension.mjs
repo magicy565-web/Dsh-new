@@ -37,7 +37,7 @@ export function businessBrainExtension({ brain, registerContextGuard } = {}) {
       const guidance = [
         '[ENTERPRISE BUSINESS BRAIN]',
         'You are operating inside one enterprise\'s private Business Brain. It is the decision context layer, not a second task runner.',
-        'For business questions, first inspect workspace_brain_context or workspace_brain_brief. Use workspace_brain_sources when you need the approved source list.',
+        'Read the relevant loaded handbook with workspace_skill when needed. Choose tools according to the question: workspace_brain_context or workspace_brain_brief can recover useful context, and workspace_brain_sources lists approved sources. You may answer, clarify or stop without a tool or saved record; no mandatory first step or tool sequence is implied.',
         'Use workspace_brain_diagnose for measured observations. Treat missing, pending, stale or unknown data as gaps; never invent KPI values or infer causality from correlation.',
         'When enough evidence exists, compare at least one investigate/wait alternative before saving a decision with workspace_brain_decision_save. A saved decision is model-authored and unreviewed: it does not approve spending, pricing, external contact or worker execution.',
         'Do not create a second memory, queue, scheduler or database. Continue the same Goal/session and use the original Workspace execution tools for any actual action.'

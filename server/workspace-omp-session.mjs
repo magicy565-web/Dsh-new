@@ -3,6 +3,8 @@ import {MEDUSA_ENTERPRISE_SCOPE,MEDUSA_ENTERPRISE_TOOLS,revalidateMedusaEnterpri
 // configuration and a provider transport; OMP owns the agent/tool/session loop.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import { readFileSync, realpathSync, lstatSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isBrainGapReceipt,isMedusaGapReceipt } from './workspace-omp-business-journal.mjs';
@@ -37,6 +39,47 @@ export async function loadWorkspaceOmpSdk(packageRoot) {
     load('extensibility/skills.ts'), load('config/custom-models.ts'), load('extensibility/extensions/loader.ts'),
   ]);
   return { ...sdk, ...settings, ...registry, ...sessions, ...auth, ...streams, ...skills, ...customModels, ...extensions, streamSimple: transport.streamSimple };
+}
+
+// Pin only project-selected handbooks. This adds no extension, tool, authority
+// or uploaded-document context. The original SDK remains the skill loader.
+const handbookHash=value=>createHash('sha256').update(value).digest('hex');
+const handbookRefuse=()=>{throw Error('NATIVE_DOCUMENT_HANDBOOK_CHANGED');};
+export async function prepareNativeDocumentHandbooks(plugins, selectedSkillRoot) {
+  const enterprise=plugins?.installed.find(plugin=>plugin.id==='workspace-enterprise-context');
+  if(!enterprise)throw Error('NATIVE_DOCUMENT_HANDBOOK_REQUIRED');
+  const sources=[...new Set([...plugins.skills,...enterprise.skills])],pins=[];
+  for(const [index,directory]of sources.entries()){
+    const plugin=plugins.installed.find(plugin=>plugin.skills.includes(directory));
+    if(!plugin)handbookRefuse();
+    const source=path.join(directory,'SKILL.md'),target=path.join(selectedSkillRoot,'plugin-'+index,'SKILL.md');
+    const manifestFile=path.join(plugin.directory,'package.json');
+    const content=await fs.readFile(source),packageBytes=await fs.readFile(manifestFile);
+    const manifest=JSON.parse(packageBytes);
+    if(manifest.name!==plugin.manifest.name||manifest.version!==plugin.manifest.version)handbookRefuse();
+    const metadata={pluginId:plugin.id,packageName:plugin.manifest.name,packageVersion:plugin.manifest.version,
+      path:path.relative(plugins.root,source).split(path.sep).join('/'),sha256:handbookHash(content)};
+    await fs.cp(directory,path.dirname(target),{recursive:true});
+    pins.push({source,target,manifestFile,packageSha256:handbookHash(packageBytes),metadata});
+  }
+  const assertCurrent=()=>{
+    try{for(const pin of pins){
+      for(const file of [pin.source,pin.target,pin.manifestFile])if(realpathSync(file)!==file||!lstatSync(file).isFile())handbookRefuse();
+      if(handbookHash(readFileSync(pin.source))!==pin.metadata.sha256||handbookHash(readFileSync(pin.target))!==pin.metadata.sha256
+        ||handbookHash(readFileSync(pin.manifestFile))!==pin.packageSha256)handbookRefuse();
+    }}catch{handbookRefuse();}
+  };
+  assertCurrent();return {files:pins.map(pin=>({...pin.metadata})),assertCurrent};
+}
+export async function bindNativeDocumentHandbooks(manager, pins, names, capabilities, resume) {
+  pins.assertCurrent();
+  const data={schema:'workspace.native-document-handbooks.v1',names:[...names].sort(),files:pins.files,
+    capabilitiesSha256:handbookHash(JSON.stringify(capabilities))};
+  const entries=manager.getEntries().filter(entry=>entry.type==='custom'&&entry.customType==='workspace-native-document-handbooks');
+  if(resume||entries.length){
+    if(entries.length!==1||JSON.stringify(entries[0].data)!==JSON.stringify(data))handbookRefuse();
+  }else{manager.appendCustomEntry('workspace-native-document-handbooks',data);await manager.flush();}
+  pins.assertCurrent();return data;
 }
 
 export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agentDir, sessionDirectory, savedSession = null, localSession = null,
@@ -81,8 +124,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const {marketValidationExtension, MARKET_VALIDATION_TOOLS=[]} = await module(marketValidation,'workspace-market-validation');
   const {MEDUSA_CATALOG_TOOLS=[]}=await module(nativeBusiness,'workspace-medusa-catalog');
   const {enterpriseContextExtension}=nativeDocumentClient?await requiredBusinessModule('workspace-enterprise-context'):{};
-  const nativeDocumentMethods=nativeDocumentClient?['parseUpload','structuredMemoryLookup','structuredMemoryRemember']:[];
-  const nativeDocumentNames=nativeDocumentMethods.map(method=>'workspace_enterprise_context_'+method.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()));
+  let nativeDocumentMethods=nativeDocumentClient?['parseUpload','structuredMemoryLookup','structuredMemoryRemember']:[];
+  let nativeDocumentNames=nativeDocumentMethods.map(method=>'workspace_enterprise_context_'+method.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()));
   const {isMarketplaceGap,marketplaceMessageReceipt}=await module(nativeBusiness,'workspace-marketplace','contract.js');
   const {factoryIngestionExtension, FACTORY_INGESTION_TOOLS=[]} = await module(factoryIngestion,'workspace-factory-ingestion');
   const {factoryInquiriesExtension, FACTORY_INQUIRY_TOOLS=[]} = await module(factoryInquiries,'workspace-factory-inquiries');
@@ -100,8 +143,9 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   const { createWorkspaceOmpPublicTask } = !localFactory && !scopedHost
     ? await import('./workspace-omp-public-task.mjs') : {};
   const sdk = await loadWorkspaceOmpSdk(packageRoot);
+  let nativeHandbooks=null,nativeCapabilities=null;
   const disclosureGuards=[],originalAuthorize=authorize;
-  authorize=async(...args)=>{await originalAuthorize(...args);for(const guard of disclosureGuards)await guard.check(...args);};
+  authorize=async(...args)=>{await originalAuthorize(...args);for(const guard of disclosureGuards)await guard.check(...args);nativeHandbooks?.assertCurrent();};
   const plugins = nativeSelection || (localFactory || scopedHost ? await projectPlugins(pluginConfiguration) : null);
   const declaredFiles = new Set(plugins?.enabled.flatMap(plugin => plugin.extensions));
   const nativePluginFiles = plugins ? (await sdk.discoverExtensionPaths(plugins.paths, cwd, undefined, { ambient: false }))
@@ -165,7 +209,8 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     await fs.mkdir(path.join(selectedSkillRoot, kind), { recursive: true, mode: 0o700 });
     await fs.copyFile(new URL('../plugins/workspace-' + kind + '/skills/' + kind + '/SKILL.md', import.meta.url), path.join(selectedSkillRoot, kind + '/SKILL.md'));
   }
-  if (plugins) for (const [index, skill] of plugins.skills.entries()) {
+  if(nativeDocumentClient)nativeHandbooks=await prepareNativeDocumentHandbooks(plugins,selectedSkillRoot);
+  else if (plugins) for (const [index, skill] of plugins.skills.entries()) {
     await fs.cp(skill, path.join(selectedSkillRoot, 'plugin-' + index), { recursive: true });
   }
   const selectedSkills = await sdk.loadSkillsFromDir({ dir: selectedSkillRoot, source: 'custom:project' });
@@ -342,11 +387,12 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
             const memoryProofs=(snapshot?.proofs||[]).filter(proof=>proof.kind==='memory');
             await control.authorizeDisclosure({messages:manager.getEntries().flatMap(e=>e.message?[e.message]:[]),context:context.messages,memoryProofs,modelCalls:callNumber,...(wireBody===undefined?{}:{wireBody})},signal,model);
           }
+          nativeHandbooks?.assertCurrent();
           signal?.throwIfAborted();
         };
         await permit();
         let dispatched=false;
-        const dispatch=()=>{if(!dispatched){dispatched=true;if(enterpriseContextHost)modelCalls=callNumber;if(enterpriseContextHost||nativePaid)onModelDispatched({modelCalls:callNumber});}};
+        const dispatch=()=>{nativeHandbooks?.assertCurrent();if(!dispatched){dispatched=true;if(enterpriseContextHost)modelCalls=callNumber;if(enterpriseContextHost||nativePaid)onModelDispatched({modelCalls:callNumber});}};
         if (syntheticResponses) {
           const spec = syntheticResponses[callNumber - 1];
           if (!spec) throw new Error('Finite explicit faux responses exhausted; no real provider fallback.');
@@ -429,7 +475,20 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   }
   if (savedSession && (savedSession.engineScope !== engineScope || manager.getSessionId() !== savedSession.agentSessionId || path.resolve(manager.getCwd()) !== cwd))
     throw new Error('This is not the selected OMP engine scope; history cannot migrate across profiles.');
-  if (onNativeSessionReady) await onNativeSessionReady({nativeSessionId:manager.getSessionId()});
+  if(nativeDocumentClient&&savedSession&&!manager.getEntries().some(entry=>entry.type==='custom'&&entry.customType==='workspace-native-document-handbooks'))
+    throw Error('NATIVE_DOCUMENT_HANDBOOK_CHANGED');
+  if (onNativeSessionReady) {
+    const ready=await onNativeSessionReady({nativeSessionId:manager.getSessionId()});
+    if(nativeDocumentClient){
+      // No model request is possible before the actual SDK ID is bound in Node.
+      nativeCapabilities=ready;
+      const {nativeDocumentParameterSchemas}=await requiredBusinessModule('workspace-enterprise-context');
+      nativeDocumentParameterSchemas(nativeCapabilities);
+      nativeDocumentMethods=[...nativeCapabilities.methods];
+      nativeDocumentNames=nativeDocumentMethods.map(method=>'workspace_enterprise_context_'+method.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()));
+      await bindNativeDocumentHandbooks(manager,nativeHandbooks,selectedSkills.skills.map(skill=>skill.name),nativeCapabilities,Boolean(savedSession));
+    }
+  }
   const { EventBus } = await import(pathToFileURL(path.join(packageRoot, 'src/utils/event-bus.ts')).href);
   const eventBus = new EventBus(), subagentEventBus = new EventBus();
   const toolSession = { cwd, settings, authStorage, modelRegistry, eventBus, subagentEventBus, skills: selectedSkills.skills, getSessionId: () => manager.getSessionId(),
@@ -509,7 +568,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     model: uiOnly ? sdk.finalizeCustomModel(sdk.buildCustomModelOverlay(configuration.providerId, configuration.baseUrl, customApi,
       undefined, undefined, undefined, undefined, undefined, undefined, modelDefinition), { useDefaults: true })
       : modelRegistry.find(configuration.providerId, configuration.model), sessionManager: manager,
-    extensions: [...(nativeDocumentClient?[enterpriseContextExtension({client:nativeDocumentClient,authorize:async()=>{await authorize();return true;},enabledMethods:nativeDocumentMethods})]:[]), ...(!nativeBusiness && shopifyProduct ? [shopifyProductExtension({ client: productClient, authorize })] : []), ...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(!nativeBusiness && marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(!nativeBusiness && factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(localFactory || scopedHost ? [] : readOnlyBusiness ? [pi => registerWorkspaceReadTools(pi, client, { library: false })] : simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
+    extensions: [...(nativeDocumentClient?[enterpriseContextExtension({client:nativeDocumentClient,authorize:async()=>{await authorize();return true;},enabledMethods:nativeDocumentMethods,nativeCapabilities})]:[]), ...(!nativeBusiness && shopifyProduct ? [shopifyProductExtension({ client: productClient, authorize })] : []), ...(factoryIngestion ? [factoryIngestionExtension({ client: ingestionClient, authorize })] : []), ...(!nativeBusiness && marketValidation ? [marketValidationExtension({ client: planClient, authorize }), marketValidationMonitorExtension({ client: monitorClient, authorize })] : []), ...(factoryInquiries ? [factoryInquiriesExtension({ client: inquiryClient, authorize })] : []), ...(factoryCustomers ? [factoryCustomersExtension({ authorize, client: customerClient })] : []), ...(!nativeBusiness && factoryMaterials ? [factoryMaterialsExtension({ client: materialsClient, authorize })] : []), ...(localFactory || scopedHost ? [] : readOnlyBusiness ? [pi => registerWorkspaceReadTools(pi, client, { library: false })] : simplified ? [] : [factoryExtension({ client, humanControls, factoryTasks, configuration: bindingConfiguration })]),
       pi => [...publicExtension.tools, ...publicTask.tools, ...skillTools].forEach(tool => pi.registerTool(tool)),
       ...ordinaryTools || localFactory || scopedHost || nativeBusiness ? [] : [workspaceOmpPublicProfile(admittedTools)], ...(uiExtension ? [uiExtension] : [])],
     disableExtensionDiscovery: true, additionalExtensionPaths: nativePluginFiles, skills: selectedSkills.skills, appendSystemPrompt: privateProfile || factoryCustomers ? undefined : factorySkillContent,
@@ -562,6 +621,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
       await authorize(...args);if(nativeBusiness||medusaEnterprise)await revalidateFactoryContext(contextMessages(),session.model,lifecycleSignal);
       if(onBusinessFactsDisclosure)await onBusinessFactsDisclosure({nativeSessionId:manager.getSessionId(),phase:'final:deliver',modelCalls,
         receiver:{provider:session.model.provider,id:session.model.id,baseUrl:session.model.baseUrl},...(nativeDocumentClient?{messages:contextMessages(),context:contextMessages()}: {})},lifecycleSignal);
+      if(nativeHandbooks){nativeHandbooks.assertCurrent();lifecycleSignal?.throwIfAborted();}
     },
     async close() { return closePromise ??= (async () => { try { await session.dispose(); } finally { await cleanup(); } })(); } };
   } catch (error) {

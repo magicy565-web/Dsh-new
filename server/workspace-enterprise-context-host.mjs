@@ -256,7 +256,16 @@ export async function createEnterpriseContextSessionBinding({identity,access,ins
    documentTools(queries){
     if(!memoryMethods.includes('structuredMemoryRemember'))fail('OSS_STRUCTURED_MEMORY_WRITE_NOT_AUTHORIZED');
     const reader=control.readOnlyFacts(queries);
-    return createNativeDocumentTools(control,reader.queries());
+    return createNativeDocumentTools(control,reader.queries(),async(signal,receiver)=>{
+     await control.authorizeContext(signal,receiver);
+     const sources=selected.sources.map(pin=>{const source=sourceFor(pin.asset,signal);return {
+      documentId:source.documentId,revision:source.revision,documentVersion:source.documentVersion,asset:structuredClone(pin.asset)};});
+     assertContextCurrent(receiver,signal);
+     // Metadata discovery does not grant complete-file transfer or a write.
+     // Execution still uses the same original method and live consent checks.
+     const methods=[...(docling&&authority&&typeof authorizeParserTransfer==='function'?['parseUpload']:[]),...memoryMethods];
+     const metadata={schema:'workspace.native-document-capabilities.v1',methods,sources};safe({...metadata,queries:reader.queries()});return metadata;
+    });
    },
    // Trusted in-process capability only. This method is deliberately absent
    // from the enterprise RPC/client and never enables a plugin or new grant.

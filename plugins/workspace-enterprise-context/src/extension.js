@@ -20,11 +20,39 @@ export const ENTERPRISE_CONTEXT_TOOLS = Object.freeze([
   'workspace_enterprise_context_memory_search', 'workspace_enterprise_context_memory_add',
   'workspace_enterprise_context_memory_history', 'workspace_enterprise_context_parse_upload',
 ]);
-export function enterpriseContextExtension({ client, authorize, enabledMethods=null } = {}) {
+// This projection is supplied only by the trusted original native handshake.
+// Whole tuple alternatives preserve correlations; independent enums would
+// accidentally advertise combinations that were never selected.
+export function nativeDocumentParameterSchemas(capabilities) {
+  const refuse=()=>{throw Error('OSS_NATIVE_DOCUMENT_CAPABILITIES_REFUSED');};
+  const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).sort().join(',')===[...keys].sort().join(',');
+  const text=value=>typeof value==='string'&&value.length>0&&value.length<=128;
+  const integer=value=>Number.isSafeInteger(value)&&value>0;
+  const methods=['parseUpload','structuredMemoryLookup','structuredMemoryRemember'];
+  if(!exact(capabilities,['schema','methods','sources','queries'])||capabilities.schema!=='workspace.native-document-capabilities.v1'
+    ||!Array.isArray(capabilities.methods)||!capabilities.methods.length||new Set(capabilities.methods).size!==capabilities.methods.length
+    ||capabilities.methods.some(method=>!methods.includes(method)))refuse();
+  const {sources,queries}=capabilities;
+  if(!Array.isArray(sources)||!sources.length||sources.length>8||!Array.isArray(queries)||!queries.length||queries.length>8)refuse();
+  for(const source of sources)if(!exact(source,['documentId','revision','documentVersion','asset'])||!text(source.documentId)
+    ||!integer(source.revision)||!integer(source.documentVersion)||!exact(source.asset,['artifactId','version','sha256'])
+    ||!text(source.asset.artifactId)||!integer(source.asset.version)||!/^[a-f0-9]{64}$/.test(source.asset.sha256))refuse();
+  for(const query of queries)if(!exact(query,['subjectType','subjectId','factKey'])
+    ||Object.values(query).some(value=>typeof value!=='string'||!/^[A-Za-z0-9._@:+|/-]{1,128}$/.test(value)))refuse();
+  const unique=rows=>[...new Map(rows.map(row=>[JSON.stringify(row),row])).values()];
+  return Object.fromEntries(capabilities.methods.map(method=>{
+    const base=toolSpecs.find(([name])=>name===method)[1],keys=method==='parseUpload'?['artifactId','version','sha256']:['subjectType','subjectId','factKey'];
+    const tuples=unique(method==='parseUpload'?sources.map(source=>source.asset):queries);
+    return [method,{...structuredClone(base),oneOf:tuples.map(tuple=>({properties:Object.fromEntries(keys.map(key=>[key,{const:tuple[key]}])),required:keys}))}];
+  }));
+}
+export function enterpriseContextExtension({ client, authorize, enabledMethods=null, nativeCapabilities=null } = {}) {
+  const schemas=nativeCapabilities?nativeDocumentParameterSchemas(nativeCapabilities):null;
+  if(schemas&&(!enabledMethods||JSON.stringify(enabledMethods)!==JSON.stringify(nativeCapabilities.methods)))throw Error('OSS_NATIVE_DOCUMENT_CAPABILITIES_REFUSED');
   return pi => {
     toolSpecs.forEach(([method, parameters, description], index) => {
       if(enabledMethods&&!enabledMethods.includes(method))return;pi.registerTool({
-      name: ENTERPRISE_CONTEXT_TOOLS[index], label: 'Enterprise Context · ' + method, description, parameters,
+      name: ENTERPRISE_CONTEXT_TOOLS[index], label: 'Enterprise Context · ' + method, description, parameters: schemas?.[method]||parameters,
       async execute(_toolId, input, signal, _onUpdate, ctx) {
         let result;
         try {

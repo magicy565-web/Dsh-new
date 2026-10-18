@@ -201,7 +201,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 const bound=await bindBrainForNativeSession(value.nativeSessionId);
                 factControl=bound.control;brainClient=bound.brain;factNativeId=value.nativeSessionId;
                 if(documentToolsConfigured){if(!bound.documentTools)throw Error('Original document tools required.');factDocumentTools=bound.documentTools;}
-                result=true;
+                result=factDocumentTools?await factDocumentTools.describe(rpcSignal,binding.model):true;
               }
               else if (brainFactsConfigured && message.method === 'businessFactsDisclosure') {
                 const value=message.args?.[0],receiver=value?.receiver;

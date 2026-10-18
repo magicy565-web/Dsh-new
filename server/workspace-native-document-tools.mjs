@@ -66,10 +66,16 @@ function assertWire(rows, wireBody) {
   }
 }
 
-export function createNativeDocumentTools(control, exactQueries) {
+export function createNativeDocumentTools(control, exactQueries, describe = null) {
   const queries = structuredClone(exactQueries);
   const selected = input => { if (!queries.some(row => equal(row, query(input)))) refuse(); };
   const result = {
+    async describe(signal, model) {
+      if (typeof describe !== 'function') refuse();
+      const metadata = await describe(signal, model);
+      control.assertDisclosureCurrent({ messages: [], context: [] }, model, signal);
+      return { ...metadata, queries: structuredClone(queries) };
+    },
     ...Object.fromEntries(NATIVE_DOCUMENT_METHODS.map(method => [method, async (input, signal, model) => {
       const keys = method === 'parseUpload' ? ['artifactId', 'version', 'sha256']
         : ['subjectType', 'subjectId', 'factKey', ...(method === 'structuredMemoryRemember' ? ['statement'] : [])];
