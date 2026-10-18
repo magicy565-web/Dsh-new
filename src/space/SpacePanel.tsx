@@ -131,18 +131,21 @@ function SpaceContent({ session, onDirty }: PanelProps) {
     async function verifyVisibleSpace() {
       const id = activeSpaceId.current, ticket = ++serial;
       if (!id) return;
+      const currentEpoch = epoch.current, currentLoad = loadId.current;
+      const isCurrent = () => !closed && ticket === serial && id === activeSpaceId.current
+        && currentEpoch === epoch.current && currentLoad === loadId.current;
       try {
         const value = await api<{ space: Detail }>(`${endpoint}/${id}`);
-        if (closed || ticket !== serial || id !== activeSpaceId.current) return;
-        setSpace(prior => prior?.id === id ? { ...prior, canEdit: value.space.canEdit, canShare: value.space.canShare } : prior);
+        if (!isCurrent()) return;
+        setSpace(prior => isCurrent() && prior?.id === id ? { ...prior, canEdit: value.space.canEdit, canShare: value.space.canShare } : prior);
         const selected = activePage.current;
-        if (selected && !closed && ticket === serial && id === activeSpaceId.current) {
+        if (selected && isCurrent()) {
           const result = await api<{ page: Page }>(`${endpoint}/${id}/nodes/${selected.id}?version=${selected.version}`);
-          if (!closed && ticket === serial && id === activeSpaceId.current) setPage(prior => prior?.id === selected.id && prior.selected.version === selected.version ? { ...prior, sourceResolution: result.page.sourceResolution } : prior);
+          if (isCurrent()) setPage(prior => isCurrent() && prior?.id === selected.id && prior.selected.version === selected.version ? { ...prior, sourceResolution: result.page.sourceResolution } : prior);
         }
       }
       catch (reason) {
-        if (closed || ticket !== serial || id !== activeSpaceId.current) return;
+        if (!isCurrent()) return;
         if (reason instanceof ApiError && [401, 403, 404].includes(reason.status)) {
           clearDenied(reason);
           setError('Space 访问权限已变化，已清除当前私有内容。请重新核对企业会话。');

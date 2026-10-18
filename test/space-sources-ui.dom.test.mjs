@@ -23,14 +23,24 @@ async function fixture(t, { medusa = false, subject = 'member-a' } = {}) {
   const added = await f.workspace('/api/library/spaces', { subject: actor.subject, body: command({ name: 'DOM验收Space' }) });
   const sid = added.json.operation.receipt.spaceId;
   const made = await f.workspace('/api/library/spaces/' + sid + '/nodes', { subject: actor.subject, body: command({ kind: 'page', parentId: null, title: 'DOM验收计划', content: 'PRIVATE_DOM_PLAN' }) });
-  let lost = false;
+  let lost = false, delayedSpaceRead = null;
   const renderer = await bundleRenderer(t, async (path, options = {}) => {
     const body = options.body === undefined ? undefined : JSON.parse(options.body);
     const response = await f.workspace(path, { subject, body });
+    if (path === '/api/library/spaces/' + sid && body === undefined && delayedSpaceRead) {
+      const pending = delayedSpaceRead; delayedSpaceRead = null;
+      pending.captured(response);
+      await pending.released;
+    }
     if (lost && path.endsWith('/save')) { lost = false; throw Error('Synthetic response loss AFTER original disk commit'); }
     return json(response.json, response.status);
   });
-  return { ...f, ...renderer, product, sid, pid: made.json.operation.receipt.entityId, loseNextSave() { lost = true; } };
+  return { ...f, ...renderer, product, sid, pid: made.json.operation.receipt.entityId, loseNextSave() { lost = true; }, delayNextSpaceRead() {
+    let captured, release;
+    const received = new Promise(resolve => { captured = resolve; }), released = new Promise(resolve => { release = resolve; });
+    delayedSpaceRead = { captured, released }; t.after(release);
+    return { received, release };
+  } };
 }
 async function openPanel(f, width, storage = []) {
   const ui = await f.render('/chat', { width, storage });
@@ -160,6 +170,34 @@ test('production DOM rechecks an editor downgrade on focus, preserves the readab
   const storage = JSON.stringify(ui.storage()) + JSON.stringify(Object.entries(ui.window.localStorage));
   assert.equal(storage.includes(draftTitle), false);
   assert.equal(storage.includes(draftBody), false);
+  assert.equal(f.requests.filter(row => row.method === 'POST' && row.path.endsWith('/save')).length, 0);
+  assert.deepEqual(ui.errors, []);
+});
+
+test('production DOM ignores an old permission response after a newer refresh of the same Space', async t => {
+  const f = await fixture(t, { subject: 'member-b' }), path = '/api/library/spaces/' + f.sid;
+  async function share(role) {
+    const current = await f.workspace(path, { subject: 'member-a' });
+    const response = await f.workspace(path + '/share', { subject: 'member-a', body: command({ expectedRevision: current.json.space.revision, subject: 'member-b', role, expiresAt: null }) });
+    assert.equal(response.status, 200, JSON.stringify(response.json));
+  }
+  await share('editor');
+  const ui = await openPage(f, 390), delayed = f.delayNextSpaceRead();
+  ui.window.dispatchEvent(new ui.window.Event('focus'));
+  const old = await delayed.received;
+  assert.equal(old.status, 200);
+  assert.equal(old.json.space.canEdit, true);
+  await share('viewer');
+  await click(ui, button(ui, '刷新目录'));
+  await wait(() => !ui.document.querySelector('.space-editor'), 'newer same-Space refresh completed');
+  await click(ui, [...ui.document.querySelectorAll('.space-node-row button')].find(row => row.textContent.includes('DOM验收计划')));
+  await wait(() => field(ui, '正文')?.value === 'PRIVATE_DOM_PLAN' && field(ui, '正文').disabled, 'newer viewer response is applied');
+
+  delayed.release();
+  await new Promise(resolve => ui.window.requestAnimationFrame(() => ui.window.requestAnimationFrame(resolve)));
+  assert.equal(field(ui, '正文').disabled, true, 'the delayed editor response cannot replace newer viewer permissions');
+  assert.equal(button(ui, '保存修改'), undefined);
+  assert.equal(button(ui, '查找来源'), undefined);
   assert.equal(f.requests.filter(row => row.method === 'POST' && row.path.endsWith('/save')).length, 0);
   assert.deepEqual(ui.errors, []);
 });
