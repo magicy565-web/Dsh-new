@@ -23,24 +23,27 @@ async function fixture(t, { medusa = false, subject = 'member-a' } = {}) {
   const added = await f.workspace('/api/library/spaces', { subject: actor.subject, body: command({ name: 'DOM验收Space' }) });
   const sid = added.json.operation.receipt.spaceId;
   const made = await f.workspace('/api/library/spaces/' + sid + '/nodes', { subject: actor.subject, body: command({ kind: 'page', parentId: null, title: 'DOM验收计划', content: 'PRIVATE_DOM_PLAN' }) });
-  let lost = false, delayedSpaceRead = null;
+  let lost = false;
+  const delayedResponses = new Map();
+  function delayNextResponse(path) {
+    let captured, release;
+    const received = new Promise(resolve => { captured = resolve; }), released = new Promise(resolve => { release = resolve; });
+    delayedResponses.set(path, { captured, released }); t.after(release);
+    return { received, release };
+  }
   const renderer = await bundleRenderer(t, async (path, options = {}) => {
     const body = options.body === undefined ? undefined : JSON.parse(options.body);
     const response = await f.workspace(path, { subject, body });
-    if (path === '/api/library/spaces/' + sid && body === undefined && delayedSpaceRead) {
-      const pending = delayedSpaceRead; delayedSpaceRead = null;
+    if (delayedResponses.has(path)) {
+      const pending = delayedResponses.get(path); delayedResponses.delete(path);
       pending.captured(response);
       await pending.released;
     }
     if (lost && path.endsWith('/save')) { lost = false; throw Error('Synthetic response loss AFTER original disk commit'); }
     return json(response.json, response.status);
   });
-  return { ...f, ...renderer, product, sid, pid: made.json.operation.receipt.entityId, loseNextSave() { lost = true; }, delayNextSpaceRead() {
-    let captured, release;
-    const received = new Promise(resolve => { captured = resolve; }), released = new Promise(resolve => { release = resolve; });
-    delayedSpaceRead = { captured, released }; t.after(release);
-    return { received, release };
-  } };
+  return { ...f, ...renderer, product, sid, pid: made.json.operation.receipt.entityId, loseNextSave() { lost = true; }, delayNextResponse,
+    delayNextSpaceRead() { return delayNextResponse('/api/library/spaces/' + sid); } };
 }
 async function openPanel(f, width, storage = []) {
   const ui = await f.render('/chat', { width, storage });
@@ -196,6 +199,48 @@ test('production DOM ignores an old permission response after a newer refresh of
   delayed.release();
   await new Promise(resolve => ui.window.requestAnimationFrame(() => ui.window.requestAnimationFrame(resolve)));
   assert.equal(field(ui, '正文').disabled, true, 'the delayed editor response cannot replace newer viewer permissions');
+  assert.equal(button(ui, '保存修改'), undefined);
+  assert.equal(button(ui, '查找来源'), undefined);
+  assert.equal(f.requests.filter(row => row.method === 'POST' && row.path.endsWith('/save')).length, 0);
+  assert.deepEqual(ui.errors, []);
+});
+
+for (const delayedReader of ['background', 'mutation']) test(`production DOM keeps current permissions when the ${delayedReader} read crosses a mutation refresh`, async t => {
+  const f = await fixture(t, { subject: 'member-b' }), path = '/api/library/spaces/' + f.sid;
+  async function share(role) {
+    const current = await f.workspace(path, { subject: 'member-a' });
+    const response = await f.workspace(path + '/share', { subject: 'member-a', body: command({ expectedRevision: current.json.space.revision, subject: 'member-b', role, expiresAt: null }) });
+    assert.equal(response.status, 200, JSON.stringify(response.json));
+  }
+  const other = await f.workspace(path + '/nodes', { subject: 'member-a', body: command({ kind: 'page', parentId: null, title: 'DOM其他计划', content: 'OTHER_PAGE' }) });
+  assert.equal(other.status, 201);
+  await share('editor');
+  const ui = await openPage(f, 390), draft = 'UNSAVED_DURING_OTHER_PAGE_ARCHIVE';
+  await input(ui, field(ui, '正文'), draft);
+  let old;
+  if (delayedReader === 'background') {
+    old = f.delayNextSpaceRead(); ui.window.dispatchEvent(new ui.window.Event('focus'));
+    assert.equal((await old.received).json.space.canEdit, true);
+  }
+  const archivePath = path + '/nodes/' + other.json.operation.receipt.entityId + '/archive';
+  const archive = f.delayNextResponse(archivePath);
+  await click(ui, ui.document.querySelector('[aria-label="归档 DOM其他计划"]'));
+  assert.equal((await archive.received).status, 200);
+  if (delayedReader === 'background') {
+    await share('viewer'); archive.release();
+  } else {
+    old = f.delayNextSpaceRead(); archive.release();
+    assert.equal((await old.received).json.space.canEdit, true);
+    await share('viewer'); ui.window.dispatchEvent(new ui.window.Event('focus'));
+  }
+  await wait(() => field(ui, '正文')?.disabled, 'newer viewer permissions are applied');
+  old.release();
+  await wait(() => !ui.document.querySelector('.space-workspace').disabled, 'mutation callback completed');
+  await new Promise(resolve => ui.window.requestAnimationFrame(() => ui.window.requestAnimationFrame(resolve)));
+  assert.equal(field(ui, '正文').disabled, true, 'neither stale reader may restore editor permission');
+  assert.equal(field(ui, '正文').value, draft, 'refreshing another page preserves the current draft');
+  assert.equal([...ui.document.querySelectorAll('.space-node-row')].some(row => row.textContent.includes('DOM其他计划')), false, 'the mutation still refreshes the directory');
+  assert.equal(ui.document.querySelector('[aria-label="归档 DOM其他计划"]'), null);
   assert.equal(button(ui, '保存修改'), undefined);
   assert.equal(button(ui, '查找来源'), undefined);
   assert.equal(f.requests.filter(row => row.method === 'POST' && row.path.endsWith('/save')).length, 0);
