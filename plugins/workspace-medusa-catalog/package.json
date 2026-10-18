@@ -25,5 +25,12 @@
     "skills": [
       "./skills/medusa-catalog"
     ]
+  },
+  "exports": {
+    ".": "./src/extension.js",
+    "./service": "./src/service.mjs",
+    "./backend": "./src/backend.mjs",
+    "./product-client": "./src/product-client.mjs",
+    "./module": "./src/module.mjs"
   }
 }

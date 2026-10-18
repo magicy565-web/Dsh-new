@@ -18,7 +18,10 @@
   ],
   "exports": {
     ".": "./src/extension.js",
-    "./adapters": "./src/oss.mjs"
+    "./adapters": "./src/oss.mjs",
+    "./service": "./src/service.mjs",
+    "./backend": "./src/backend.mjs",
+    "./document-tools": "./src/document-tools.mjs"
   },
   "pi": {
     "extensions": [

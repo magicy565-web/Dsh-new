@@ -13,7 +13,6 @@ import { emptyInputContext, normalizeInputContext } from './task-context.mjs';
 import { looksLikeCredential } from './security.mjs';
 import { createFactoryLibraryIngestionClient } from './factory-library-ingestion.mjs';
 import { createMarketValidationMonitorClient } from './market-validation-monitor-client.mjs';
-import { createMedusaProductClient } from './medusa-product-client.mjs';
 import { createShopifyProductClient } from './shopify-product-client.mjs';
 import { createMarketValidationPlanClient } from './market-validation-plan.mjs';
 import { createFactoryInquiryClient } from './factory-inquiries.mjs';
@@ -256,6 +255,7 @@ export function createPiBusinessAgentAdapter({ provider: original, options }) {
       if([MEDUSA_ENTERPRISE_SCOPE,'omp:18.10.4:business-v1'].includes(engineAdapter.scope)){
         if(engineAdapter.scope!==MEDUSA_ENTERPRISE_SCOPE&&marketplaceModelHost)marketplaceClient=marketplaceModelHost.bind({identity,conversationId:conversation.id,runId:run.id,authorize:async()=>assertActive(),recipient});
         if(medusaCatalog){
+          const {createMedusaProductClient}=await import('./medusa-product-client.mjs');
           let assertCurrent;
           try{assertCurrent=libraryModelRead.factoryMaterialsAuthorityForSession({identity,recipientHash:recipientFingerprint,signal:input.signal,revalidateProducts:engineAdapter.scope===MEDUSA_ENTERPRISE_SCOPE});}
           catch(error){if(error.code!=='FACTORY_MATERIAL_DISCLOSURE_NOT_CONFIGURED')throw error;}
