@@ -3,11 +3,18 @@ import path from 'node:path';
 import { constants } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { readPluginInventory, packageSnapshot } from './inventory.mjs';
+import { controlDigest } from './control-store.mjs';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 export const PLUGIN_SELECTION_BARRIER = '.plugin-selection-transaction.json';
-const error = (code, message) => Object.assign(new Error(message), { code });
-const fail = (code, message) => { throw error(code, message); };
+const fail = (code, message) => { throw Object.assign(new Error(message), { code }); };
+const configurationName = value => typeof value === 'string' && /^config(?:\.[a-z0-9-]+)?\.json$/u.test(value);
+function validateIntent(intent) {
+  if (!intent || !configurationName(intent.configuration) || typeof intent.pluginId !== 'string'
+    || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u.test(intent.pluginId)
+    || typeof intent.packageSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(intent.packageSha256))
+    fail('PLUGIN_APPLY_IDENTITY_REFUSED', 'The stored plugin and configuration identity requires review.');
+}
 async function safeRoot(root) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || root !== path.resolve(root)
     || await fs.realpath(root) !== root || !(await fs.lstat(root)).isDirectory())
@@ -19,24 +26,27 @@ async function fileBytes(file, maximum = 65536) {
     const before = await handle.stat();
     if (!before.isFile() || before.nlink !== 1 || before.size > maximum || (before.mode & 0o022) !== 0)
       fail('PLUGIN_APPLY_FILE_REFUSED', 'The reviewed file must be a bounded, non-writable-by-others regular file.');
-    const bytes = await handle.readFile();
+    const buffer = Buffer.alloc(maximum + 1);
+    let length = 0;
+    while (length < buffer.length) { const read = await handle.read(buffer, length, buffer.length - length, length); if (!read.bytesRead) break; length += read.bytesRead; }
     const after = await handle.stat();
-    if (bytes.length !== before.size || before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs)
+    if (length > maximum || length !== before.size || before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs)
       fail('PLUGIN_APPLY_SOURCE_CHANGED', 'The source changed while it was being read.');
-    return bytes;
+    return buffer.subarray(0, length);
   } finally { await handle.close(); }
 }
 async function syncDirectory(directory) { const handle = await fs.open(directory, constants.O_RDONLY); try { await handle.sync(); } finally { await handle.close(); } }
 
 export function planToolSelection({ intent, inventory, configurationBytes }) {
+  validateIntent(intent);
   if (!['enable-tools', 'disable-tools'].includes(intent.action))
     fail('PLUGIN_FULL_MODULE_EXECUTOR_REQUIRED', 'Physical installation, upgrade and removal require the module-specific accepted executor. No source or data was changed.');
-  if (!/^config(?:\.[a-z0-9-]+)?\.json$/u.test(intent.configuration)) fail('PLUGIN_APPLY_CONFIGURATION_REFUSED', 'Use an original configuration filename.');
   const item = inventory.packages.find(item => item.id === intent.pluginId);
-  if (!item || inventory.snapshotSha256 !== intent.inventorySha256 || item.packageSha256 !== intent.packageSha256)
-    fail('PLUGIN_APPLY_SOURCE_CHANGED', 'The package or profile inventory changed since the administrator reviewed it.');
+  const profile = inventory.profiles.find(item => item.configuration === intent.configuration);
+  if (!item || !profile || inventory.snapshotSha256 !== intent.inventorySha256 || item.packageSha256 !== intent.packageSha256 || profile.sha256 !== sha(configurationBytes))
+    fail('PLUGIN_APPLY_SOURCE_CHANGED', 'The package or exact profile bytes changed since the administrator reviewed them.');
   if (intent.action === 'disable-tools' && intent.configuration === 'config.business.json' && intent.pluginId === 'workspace-goal-intelligence')
-    fail('PLUGIN_CORE_DEPENDENCY_REQUIRED', 'The current business profile requires its original Brain module. This dependency has not been migrated to an optional backend.');
+    fail('PLUGIN_CORE_DEPENDENCY_REQUIRED', 'The current business profile requires its original Brain module. It is not an accepted optional backend.');
   const current = JSON.parse(configurationBytes.toString('utf8'));
   if (!current || Object.getPrototypeOf(current) !== Object.prototype || Object.keys(current).some(key => !['extensions', 'disabledExtensions'].includes(key))
     || !Array.isArray(current.extensions) || !Array.isArray(current.disabledExtensions)
@@ -52,21 +62,17 @@ export function planToolSelection({ intent, inventory, configurationBytes }) {
   return { pluginId: item.id, configuration: intent.configuration, beforeSha256: sha(configurationBytes), afterSha256: sha(after), after };
 }
 
-/**
- * Run only through the offline CLI, which opens the SAME exclusive control
- * store as the configured Host. A live managed Host therefore prevents this
- * operation. This changes OMP tool selection only, not backend routing, data
- * authority, existing Session history, package files or business permissions.
- */
+/** Offline only: the CLI holds the same exclusive control-store lock as the managed Host. */
 export async function applyToolSelection({ control, root, requestId, expectedRevision, confirmPackageSha256, subject }) {
   await safeRoot(root);
   const state = control.read();
   const intent = state.intents.find(item => item.requestId === requestId);
-  if (!intent || intent.packageSha256 !== confirmPackageSha256) fail('PLUGIN_APPLY_CONFIRMATION_REQUIRED', 'Use the exact recorded request and independently reviewed package SHA-256.');
+  validateIntent(intent);
+  if (intent.packageSha256 !== confirmPackageSha256) fail('PLUGIN_APPLY_CONFIRMATION_REQUIRED', 'Use the independently reviewed package SHA-256.');
   if (state.revision !== expectedRevision) fail('PLUGIN_CONTROL_STALE', 'Use the current control revision.');
-  if (intent.status !== 'awaiting-verified-executor') fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'This request has already progressed. Inspect or explicitly reconcile it instead of reapplying.');
+  if (intent.status !== 'awaiting-verified-executor') fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'Inspect or explicitly reconcile an already progressed request; do not reapply it.');
   if (state.intents.some(item => item.status === 'applying') || state.receipts.length > 1997 || state.events.length > 1997)
-    fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'Another incomplete operation or the control capacity must be reviewed first.');
+    fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'Another incomplete operation or control capacity requires review first.');
   const barrierPath = path.join(root, PLUGIN_SELECTION_BARRIER);
   try { await fs.lstat(barrierPath); fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'A source transaction barrier exists. No barrier was removed.'); }
   catch (cause) { if (cause.code !== 'ENOENT') throw cause; }
@@ -100,27 +106,32 @@ export async function applyToolSelection({ control, root, requestId, expectedRev
   }
 }
 
-/** Explicit recovery never guesses, reexecutes a tool, deletes a package or rolls back a remote write. */
+/** Explicit recovery observes bytes; it never guesses, reexecutes a tool or rolls back remote writes. */
 export async function reconcileToolSelection({ control, root, requestId, expectedRevision, subject }) {
   await safeRoot(root);
   const state = control.read();
   if (state.revision !== expectedRevision) fail('PLUGIN_CONTROL_STALE', 'Use the current control revision.');
   const intent = state.intents.find(item => item.requestId === requestId);
-  if (!intent || !intent.application || !['applying', 'selection-applied', 'not-applied'].includes(intent.status))
+  validateIntent(intent);
+  if (!intent.application || !['applying', 'selection-applied', 'not-applied'].includes(intent.status))
     fail('PLUGIN_APPLY_NOT_PREPARED', 'No prepared selection transaction exists for this request.');
   const application = intent.application;
-  if (!/^config(?:\.[a-z0-9-]+)?\.json$/u.test(application.configuration) || application.intentId !== intent.id || application.requestId !== requestId)
+  if (!configurationName(application.configuration) || application.configuration !== intent.configuration
+    || application.intentId !== intent.id || application.requestId !== requestId || application.schemaVersion !== 1
+    || !/^[a-f0-9]{64}$/u.test(application.beforeSha256) || !/^[a-f0-9]{64}$/u.test(application.afterSha256))
     fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'The stored application identity requires review.');
   const barrierPath = path.join(root, PLUGIN_SELECTION_BARRIER);
   let marker;
   try { marker = JSON.parse((await fileBytes(barrierPath)).toString('utf8')); }
   catch (cause) { if (cause.code !== 'ENOENT') throw cause; }
-  if (marker && JSON.stringify(marker) !== JSON.stringify(application)) fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'The barrier belongs to another or altered transaction.');
+  if (marker && controlDigest(marker) !== controlDigest(application)) fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'The barrier belongs to another or altered transaction.');
   const currentSha = sha(await fileBytes(path.join(root, application.configuration)));
   const applied = currentSha === application.afterSha256;
   if (!applied && currentSha !== application.beforeSha256) fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'Configuration bytes match neither side of the reviewed change. Nothing was reset.');
+  if (intent.status === 'selection-applied' && !applied || intent.status === 'not-applied' && applied)
+    fail('PLUGIN_APPLY_SOURCE_CHANGED', 'Configuration changed after the recorded result. A new review is required.');
   if (applied && (await packageSnapshot(path.join(root, intent.pluginId))).sha256 !== intent.packageSha256)
-    fail('PLUGIN_APPLY_SOURCE_CHANGED', 'Package bytes changed after the reviewed configuration write. Keep the barrier and review the code.');
+    fail('PLUGIN_APPLY_SOURCE_CHANGED', 'Package bytes changed after the configuration write. Keep the barrier and review the code.');
   let result = { intent, selectionApplied: applied, backendChanged: false, codeInstalled: false, dataDeleted: false, restartRequired: true };
   if (intent.status === 'applying') result = await control.transact({ requestId: 'apply-finish:' + intent.id, expectedRevision, subject, operation: { type: 'selection.reconcile', intentId: intent.id, observedSha256: currentSha } }, next => {
     const current = next.intents.find(item => item.id === intent.id);
