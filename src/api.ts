@@ -8,9 +8,9 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (!['GET', 'HEAD'].includes(method) && csrfToken) headers['X-CSRF-Token'] = csrfToken;
   if (path === '/session/login') headers['X-Workspace-Login'] = '1';
-  // Bound only read-only status requests. A mutation's result must never be
-  // described as cancelled merely because the browser stopped waiting for it.
-  const bounded = method === 'GET' && ['/bootstrap', '/diagnostics', '/personal-worker', '/conversations/runtime', '/medusa/catalog/status'].includes(path);
+  // Bound only read-only requests. A mutation's result must never be described
+  // as cancelled merely because the browser stopped waiting for it.
+  const bounded = method === 'GET' && (['/bootstrap', '/diagnostics', '/personal-worker', '/conversations/runtime', '/medusa/catalog/status', '/plugin-library'].includes(path) || path.startsWith('/plugin-library/requests/') || path.startsWith('/plugin-library/releases/'));
   const controller = bounded ? new AbortController() : undefined;
   async function read(): Promise<T> {
     let response: Response;
