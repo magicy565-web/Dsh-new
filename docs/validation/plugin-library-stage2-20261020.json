@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "acceptance": "compatibility-only",
+  "environment": {
+    "node": "v22.16.0",
+    "platform": "linux",
+    "architecture": "x64"
+  },
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "test/plugin-library.test.mjs"
+  ],
+  "counts": {
+    "tests": 66,
+    "pass": 66,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "exitCode": 0,
+  "signal": null,
+  "tapSha256": "58fa525720b460d34dea0830beafc64c83fbc653e7c5ea88df01192bf41c82cf",
+  "sources": [
+    {
+      "path": "server/index.mjs",
+      "bytes": 77801,
+      "sha256": "2fd4ea8f134cc5c9fc44718825c6a3503a6417c6d3f0389972a609db94c4bd8a",
+      "gitBlobSha1": "de5b25ea4b4e993a7d94a48e330f5b077015eb3d"
+    },
+    {
+      "path": "server/workspace-backend-plugins.mjs",
+      "bytes": 1966,
+      "sha256": "c4e94724fc3f001cfd498fb63954eaaf41b869efadbf16ca822a9b0a153193fc",
+      "gitBlobSha1": "52d0897ab3f0eeaa246700cb5d325252c257a6a1"
+    },
+    {
+      "path": "server/workspace-plugin-config.mjs",
+      "bytes": 4309,
+      "sha256": "674a41de017dda223825d545a5a527b7806ca5ce18d5fbacfb9f2adaa70c24de",
+      "gitBlobSha1": "d84d66cf7e7aa6db397bff54fd4519327e9ed63e"
+    },
+    {
+      "path": "server/plugin-library/apply.mjs",
+      "bytes": 12212,
+      "sha256": "b307f64ce2233ff1571d4fcd3ed42c45feadbe9eccbd9ad2663b1f6cdd64efc0",
+      "gitBlobSha1": "7e91513cf7825267df22bbe686b46e47d088497f"
+    },
+    {
+      "path": "server/plugin-library/control-store.mjs",
+      "bytes": 10326,
+      "sha256": "966c77d1bc27a78ea28bfcce73c71264a468166d1663b29e2c19af2d78a54bef",
+      "gitBlobSha1": "455b663df3260220d8a9f524c5fa855b686225ae"
+    },
+    {
+      "path": "server/plugin-library/http.mjs",
+      "bytes": 15387,
+      "sha256": "f527122f545bb7ad87bbcc5f37010325efa62499219ec60b8460e77bc83cc8e8",
+      "gitBlobSha1": "8f76ebc792334b64d5d72674a0cfd36dce56185c"
+    },
+    {
+      "path": "server/plugin-library/inventory.mjs",
+      "bytes": 8325,
+      "sha256": "2e7fac46f8df3fc497d4c2f592c0aad176a9caa00b6b4f7e7d244f7c374f3cca",
+      "gitBlobSha1": "1d4985c3c55460235774934e633c78e1762903bb"
+    },
+    {
+      "path": "server/plugin-library/releases.mjs",
+      "bytes": 6046,
+      "sha256": "45228a5448bb57cbfe548b0f0dbe2ea3e0d4e533f79f8de6da0f9bd505393eac",
+      "gitBlobSha1": "24d270b6b28a062b2b1851498791c94c188c8a40"
+    },
+    {
+      "path": "test/plugin-library.test.mjs",
+      "bytes": 473,
+      "sha256": "ce7cad22f55805c47671e9d078b586ba9e65a753b5fd80ba02d8cc583ed1600f",
+      "gitBlobSha1": "6cc6a1073dd075c7407aa621771fcb399d0bfc3c"
+    },
+    {
+      "path": "test/plugin-library/fixtures.mjs",
+      "bytes": 6545,
+      "sha256": "42bbf86a6b3a32ed3b762ff010684d659c29fc3ed1a5d50ee54d29d29758dc0a",
+      "gitBlobSha1": "a19bf8253c12df834e8062f6b735c81b40b74209"
+    },
+    {
+      "path": "test/plugin-library/control-store.test.mjs",
+      "bytes": 6235,
+      "sha256": "a44a85360d3f2db24cb277b921e3be46416e8418a37f6d978a4aec6422f5fad8",
+      "gitBlobSha1": "a87c01c589da5a08b5260084572f3692d459be19"
+    },
+    {
+      "path": "test/plugin-library/releases-inventory.test.mjs",
+      "bytes": 6317,
+      "sha256": "1f90f19385f88bb6a72e34b0d65039df3154083e9ae0c643f724d1d2a957f062",
+      "gitBlobSha1": "04aeb77e4ae633c796b3481b985b104641fff9de"
+    },
+    {
+      "path": "test/plugin-library/http.test.mjs",
+      "bytes": 10844,
+      "sha256": "38bd545ff181b59ffcf04a8a87076f5362518e6e297d3c50eaa6af94458d9412",
+      "gitBlobSha1": "cd794bcac85091467c11c524de73e9ab4039bde9"
+    },
+    {
+      "path": "test/plugin-library/lifecycle.test.mjs",
+      "bytes": 6888,
+      "sha256": "6eb7d4a20af8a678ab769a41e966ace9de8fd0ac66bc1265a09f865107486131",
+      "gitBlobSha1": "0b8eed3d8bd87b204302fa2416420ee1a840d1ed"
+    },
+    {
+      "path": "test/plugin-library/host-wiring.test.mjs",
+      "bytes": 2991,
+      "sha256": "dfec45274467b5a2f31c06698f80eb5ce5b41101f087d3320e10a1fe90d0e571",
+      "gitBlobSha1": "f057fb0e120f66ab50291068093f0c0be5501d6c"
+    },
+    {
+      "path": "scripts/verify-plugin-library.mjs",
+      "bytes": 3753,
+      "sha256": "ae826c9ebfada2abbde07c2fa37bd6345f6bc73d3f31090c1adf6484d29611fd",
+      "gitBlobSha1": "ec2a756d5e3b45519a803d7457d90ce31bc4203c"
+    }
+  ],
+  "scope": {
+    "originalSelector": true,
+    "realFilesystem": true,
+    "syntheticIdentities": true,
+    "realLoopbackHttp": true,
+    "originalResponderBody": "focused-vm-test",
+    "wholeCreateAppStarted": false,
+    "originalSignedIngressExercised": false,
+    "ompSdkExecuted": false,
+    "realModelCalls": 0,
+    "realBusinessServiceCalls": 0,
+    "browserExecuted": false,
+    "productionDeployed": false
+  },
+  "sourceBase": "3b476ee86ffd89138f2cdb89d4677c3f11252af3",
+  "earlierRunsNotAdded": [
+    {
+      "name": "stage2-first-full",
+      "tests": 56,
+      "pass": 55,
+      "fail": 1,
+      "purpose": "exposed historical receipt aliasing"
+    },
+    {
+      "name": "second-review-red",
+      "tests": 24,
+      "pass": 18,
+      "fail": 6,
+      "purpose": "manifest race, signature canonicality and image-internal executable path cases"
+    }
+  ],
+  "targetNodePreflight": {
+    "schemaVersion": 1,
+    "status": "not-run",
+    "reason": "Use Linux and the project-supported Node 24+. --compatibility explicitly allows Node 22 checks, not release acceptance.",
+    "environment": {
+      "node": "v22.16.0",
+      "platform": "linux",
+      "architecture": "x64"
+    },
+    "executedTests": 0
+  },
+  "sourceInventoryPreparation": {
+    "attemptedAdditionalCliFingerprint": "not available in scoped source copy; not a dependency of this test set",
+    "result": "runner refused before test execution; removed the unrelated CLI from scoped source list; retained original selector hash",
+    "executedTestsInRefusedAttempt": 0
+  },
+  "sourceSerialization": {
+    "remoteIndexBlob": "de5b25ea4b4e993a7d94a48e330f5b077015eb3d",
+    "differenceFromEarlierRun": "Three formatting/callback-parameter-only changes during literal upload; exact local/remote blob match and full 66-case rerun performed.",
+    "noAssertionsChanged": true
+  }
+}

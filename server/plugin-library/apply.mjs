@@ -63,13 +63,15 @@ export function planToolSelection({ intent, inventory, configurationBytes }) {
 }
 
 /** Offline only: the CLI holds the same exclusive control-store lock as the managed Host. */
-export async function applyToolSelection({ control, root, requestId, expectedRevision, confirmPackageSha256, subject }) {
+export async function applyToolSelection({ control, root, requestId, expectedRevision, confirmPackageSha256, subject, clock = Date.now }) {
   await safeRoot(root);
   const state = control.read();
   const intent = state.intents.find(item => item.requestId === requestId);
   validateIntent(intent);
   if (intent.packageSha256 !== confirmPackageSha256) fail('PLUGIN_APPLY_CONFIRMATION_REQUIRED', 'Use the independently reviewed package SHA-256.');
   if (state.revision !== expectedRevision) fail('PLUGIN_CONTROL_STALE', 'Use the current control revision.');
+  if (!Number.isFinite(Date.parse(intent.expiresAt)) || Date.parse(intent.expiresAt) <= clock())
+    fail('PLUGIN_APPLY_REAPPROVAL_REQUIRED', 'This request is expired or lacks an explicit validity limit. Create a new reviewed request; no old request was adopted.');
   if (intent.status !== 'awaiting-verified-executor') fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'Inspect or explicitly reconcile an already progressed request; do not reapply it.');
   if (state.intents.some(item => item.status === 'applying') || state.receipts.length > 1997 || state.events.length > 1997)
     fail('PLUGIN_APPLY_RECONCILE_REQUIRED', 'Another incomplete operation or control capacity requires review first.');
@@ -97,7 +99,8 @@ export async function applyToolSelection({ control, root, requestId, expectedRev
       fail('PLUGIN_APPLY_SOURCE_CHANGED', 'The reviewed source changed before application. Explicit reconciliation is required.');
     writer = await fs.open(temporary, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | (constants.O_NOFOLLOW || 0), 0o600);
     await writer.writeFile(plan.after); await writer.sync(); await writer.close(); writer = null;
-    if (sha(await fileBytes(configPath)) !== plan.beforeSha256) fail('PLUGIN_APPLY_SOURCE_CHANGED', 'The original configuration changed before commit.');
+    if (Date.parse(intent.expiresAt) <= clock()) fail('PLUGIN_APPLY_REAPPROVAL_REQUIRED', 'The request expired before commit. Explicit reconciliation is required.');
+    if (sha(await fileBytes(configPath)) !== plan.beforeSha256 || (await packageSnapshot(path.join(root, intent.pluginId))).sha256 !== confirmPackageSha256) fail('PLUGIN_APPLY_SOURCE_CHANGED', 'The original configuration or package changed before commit.');
     await fs.rename(temporary, configPath); await syncDirectory(root);
     return await reconcileToolSelection({ control, root, requestId, expectedRevision: control.read().revision, subject });
   } finally {

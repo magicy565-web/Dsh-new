@@ -77,7 +77,7 @@ export async function openPluginControlStore({ directory, workspaceId, ApiError,
     state = await readState();
   } catch (error) { await unlock(); throw error; }
   const live = () => { if (!healthy || closing) fail(503, 'PLUGIN_CONTROL_UNAVAILABLE', 'Plugin control is unavailable. Reconcile the original request before retrying.'); };
-  async function persist(next) {
+  async function persist(next, assertCurrent) {
     const bytes = canonical(next);
     if (Buffer.byteLength(bytes) > 2 * 1024 * 1024) fail(507, 'PLUGIN_CONTROL_CAPACITY', 'Control records reached their bounded capacity. Nothing was pruned.');
     const temporary = path.join(directory, 'state.' + randomUUID() + '.tmp');
@@ -87,6 +87,10 @@ export async function openPluginControlStore({ directory, workspaceId, ApiError,
       await handle.writeFile(bytes); await handle.sync(); await handle.close(); handle = null;
       const currentLock = await fs.lstat(lockPath);
       if (!currentLock.isFile() || currentLock.ino !== lockStat.ino || currentLock.dev !== lockStat.dev) throw new Error('Control writer changed.');
+      // Recheck after asynchronous staging and immediately before commit.
+      // Cross-system revocation and filesystem rename are not an atomic transaction.
+      // The HTTP layer also checks the live authority before final delivery.
+      live(); assertCurrent();
       await fs.rename(temporary, statePath); renamed = true;
       const parent = await fs.open(directory, constants.O_RDONLY);
       try { await parent.sync(); } finally { await parent.close(); }
@@ -123,11 +127,13 @@ export async function openPluginControlStore({ directory, workspaceId, ApiError,
         const result = change(next, { at, subject, revision: state.revision + 1 });
         if (result && typeof result.then === 'function') throw new TypeError('Control transactions must not execute asynchronous services.');
         next.revision++;
-        const reply = { ...result, schemaVersion: 1, revision: next.revision };
+        // Detach from live domain rows before adding the historical receipt.
+        // structuredClone(next) preserves aliases, so cloning only on read is insufficient.
+        const reply = { ...structuredClone(result), schemaVersion: 1, revision: next.revision };
         canonical(reply); assertCurrent();
         next.receipts.push({ id: requestId, subject, fingerprint, result: reply });
         next.events.push({ revision: next.revision, at, subject, operation: operation.type, requestId });
-        await persist(next);
+        await persist(next, assertCurrent);
         return structuredClone(reply);
       };
       const pending = queue.then(execute); queue = pending.catch(() => {}); return pending;

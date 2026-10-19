@@ -55,6 +55,7 @@ import {createEnterpriseMemoryLedger} from './enterprise-memory-ledger.mjs';
 import {createOpenFgaClient} from './enterprise-openfga.mjs';
 import { libraryHttp } from './library-http.mjs';
 import { backendPluginSelection, backendPluginsFromEnvironment, mountMedusaBackend } from './workspace-backend-plugins.mjs';
+import { createPluginLibraryModule } from './plugin-library/http.mjs';
 import { createSourcingMcpAuth, handleSourcingMcpHttp } from './sourcing-mcp.mjs';
 import { createRunOutputService } from './run-output.mjs';
 import { createWorkspaceLibraryAdapter, WORKSPACE_LIBRARY_ADAPTER } from './workspace-library.mjs';
@@ -74,10 +75,12 @@ function decodeApiId(value) {
 }
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mimeTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.json': 'application/json' };
-async function respond(res, status, body) {
+async function respond(res, status, body, beforeWrite) {
   if (res.filterWorkspaceResponse && status < 400) body = res.filterWorkspaceResponse(body);
   if (body === undefined) throw new ApiError(404, 'NOT_FOUND', 'The requested record is outside this reviewed binding.');
   await res.accessFinish?.(status);
+  // A trusted response owner may recheck its live source/identity after the audit await.
+  beforeWrite?.();
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
   res.end(JSON.stringify(body));
 }
@@ -120,8 +123,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
   const backendSelection = backendPluginSelection(backendPlugins);
   const store = await openStore(dataDirectory);
-  let medusaModule;
-  let runtime, artifacts, capabilities, access, recovery, goalBrain, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure, enterpriseMemory, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent, medusaCatalog, spaceService;
+  let medusaModule, pluginLibraryModule;
+  let runtime, artifacts, capabilities, access, recovery, goalBrain, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure,enterpriseMemory, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent, medusaCatalog, spaceService;
   try {
     if (businessAgent && Object.values(store.read().workspaceThreadHarness || {}).some(value => Array.isArray(value) && value.length))
       throw new Error('Existing alpha ThreadHarness records are retained. Review their archive/migration before enabling this adapter; no second executor or automatic state synchronization will adopt them.');
@@ -141,6 +144,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     enterpriseMemory=createEnterpriseMemoryLedger({store,library:businessLibrary,disclosure:enterpriseDisclosure,workspaceId:accessConfig.workspaceId||'local',clock:accessClock});
     medusaModule = await mountMedusaBackend(backendSelection, {ApiError,library:businessLibrary,workspaceId:accessConfig.workspaceId||'local',environment:capabilityEnvironment,fetchImpl:medusaFetch});
     medusaCatalog = medusaModule?.service;
+    pluginLibraryModule = await createPluginLibraryModule({ ApiError, access, workspaceId: accessConfig.workspaceId || 'local', environment: capabilityEnvironment, backendSelection, clock: accessClock });
     libraryModelRead = createLibraryModelRead({ library: businessLibrary, artifacts, access, policy: libraryModelReadPolicy, clock: accessClock });
     dotAuth = dotWorkerConfig && createDotWorkerAuth({ tokenDigest: dotWorkerConfig.tokenDigest });
     if (dotWorkerConfig?.enabled === true && !dotAuth)
@@ -234,7 +238,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (!builtinAgent && !businessAgentOptions.engineAdapter) throw new Error('The business conversation adapter requires the original configured Agent member service.');
       businessAgent.attach({ store, runtime, access, instanceId, libraryModelRead, artifacts, marketValidationMonitoring, capabilities, accessClock, supplierService, supplierPublication, shopify, goalBrain, medusaCatalog, sessionReadonlyClient: builtinAgent?.sessionReadonlyClient });
     }
-  } catch (error) { await medusaModule?.close(); await marketValidationMonitoring?.close(); await supplierMonitoring?.close(); await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
+  } catch (error) { await pluginLibraryModule?.close(); await medusaModule?.close(); await marketValidationMonitoring?.close(); await supplierMonitoring?.close(); await builtinAgent?.close(); await provider.close?.(); await piMuse?.close(); await museHost?.close(); await artifacts?.close?.(); await capabilities?.close?.(); await access?.close(); await store.close(); throw error; }
   const musePrivacy = piMuse || createMuseOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
   const agentPrivacy = createAgentOwnerPolicy({ read: () => store.read(), error: (status, code, message) => new ApiError(status, code, message) });
   const supplierMcpExtension = bridge => createSupplierWorkerMcpExtension({ bridge, service: supplierService, store, workspaceId: accessConfig.workspaceId || 'local', memberRole: subject => accessConfig.mode === 'enterprise' ? accessConfig.members.get(subject) : subject === 'local-operator' ? 'admin' : null });
@@ -378,6 +382,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await staticResponse(req, res, pathname, staticDirectory);
       }
       if (method === 'GET') {
+        if (pluginLibraryModule && await pluginLibraryModule.handle({req,res,pathname,context,respond})) return;
         if (medusaModule && await medusaModule.handle({req,res,pathname,context,respond})) return;
         if (await marketValidationMonitorHttp({ service: marketValidationMonitoring, req, res, pathname, context, respond })) return;
         if (!builtinAgent && pathname === '/api/agent-ui/v1/status') return await respond(res, 200, disabledAgentUiStatus());
@@ -468,9 +473,9 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         const match = pathname.match(/^\/api\/conversations\/([^/]+)(?:\/messages)?$/);
         if (match) {
           const conversationId = decodeApiId(match[1]);
-          const item = state.conversations.find(item => item.id === conversationId);
+          const item = state.conversations.find(c => c.id === conversationId);
           if (!item) throw new ApiError(404, 'NOT_FOUND', 'Conversation not found.');
-          return await respond(res, 200, { conversation: item, messages: state.messages.filter(item => item.conversationId === conversationId) });
+          return await respond(res, 200, { conversation: item, messages: state.messages.filter(m => m.conversationId === conversationId) });
         }
         throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
       }
@@ -487,6 +492,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         return await respond(res,200,await museBridge.quarantineExpired({...body,taskRef:museQuarantine[1],reviewedBy:context.subject}));
       }
 
+      if (pluginLibraryModule && await pluginLibraryModule.handle({req,res,pathname,context,body,respond})) return;
       if (medusaModule && await medusaModule.handle({req,res,pathname,context,body,respond})) return;
       try {
         if (await handleGoalBrainHttp({ pathname, method, context, host: goalBrain, resolveReadSession: businessAgent?.brainReadSession, body, res, respond })) return;
@@ -668,7 +674,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         server.closeIdleConnections();
         try {
           // Signal both domains before waiting, so a connector cannot delay model cancellation.
-          const results = await Promise.allSettled([medusaModule?.close(), builtinAgent?.close(), capabilities.close?.(), runtime.close(), museHost?.close(), piMuse?.close(), supplierMonitoring?.close(), marketValidationMonitoring?.close()]);
+          const results = await Promise.allSettled([pluginLibraryModule?.close(), medusaModule?.close(), builtinAgent?.close(), capabilities.close?.(), runtime.close(), museHost?.close(), piMuse?.close(), supplierMonitoring?.close(), marketValidationMonitoring?.close()]);
           await artifacts.close?.();
           const failure = results.find(result => result.status === 'rejected');
           if (failure) throw failure.reason;

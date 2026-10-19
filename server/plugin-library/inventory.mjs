@@ -19,6 +19,22 @@ const labels = Object.freeze({
 const refuse = () => { throw Object.assign(new Error('Plugin inventory is unavailable; no package code was executed.'), { code: 'PLUGIN_INVENTORY_REFUSED' }); };
 const publicText = (value, maximum) => typeof value === 'string' && value.length <= maximum && !/[\u0000-\u001f\u007f]/u.test(value) ? value : '';
 
+const descriptorIdentity = items => JSON.stringify(items.map(({ id, name, manifest, extensions, skills }) => ({ id, name, manifest, extensions, skills })).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+async function boundedSourceRead(handle, before, maximum) {
+  if (!Number.isSafeInteger(before.size) || before.size > maximum) refuse();
+  const buffer = Buffer.alloc(before.size + 1);
+  let length = 0;
+  while (length < buffer.length) {
+    const read = await handle.read(buffer, length, buffer.length - length, length);
+    if (!read.bytesRead) break;
+    length += read.bytesRead;
+  }
+  const after = await handle.stat();
+  if (length !== before.size || before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs) refuse();
+  return buffer.subarray(0, length);
+}
+
+
 /** Read reviewed source files without importing extensions or executing hooks. */
 export async function packageSnapshot(directory) {
   const base = path.resolve(directory);
@@ -40,7 +56,7 @@ export async function packageSnapshot(directory) {
       try {
         const before = await handle.stat();
         if (!before.isFile() || before.ino !== stat.ino || before.dev !== stat.dev || before.nlink !== 1 || await fs.realpath(file) !== file) refuse();
-        const bytes = await handle.readFile();
+        const bytes = await boundedSourceRead(handle, before, 8 * 1024 * 1024);
         const after = await handle.stat();
         if (bytes.length !== before.size || before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs) refuse();
         totalBytes += bytes.length;
@@ -58,7 +74,7 @@ async function configurationHash(root, configuration) {
   try {
     const stat = await handle.stat();
     if (!stat.isFile() || stat.nlink !== 1 || stat.size > 65536) refuse();
-    return hash(await handle.readFile());
+    return hash(await boundedSourceRead(handle, stat, 65536));
   } finally { await handle.close(); }
 }
 
@@ -75,7 +91,7 @@ export async function readPluginInventory({ root = DEFAULT_PLUGIN_ROOT, backendS
     const selected = await projectPlugins({ root, configuration });
     if (selected.installed.length > 100 || await configurationHash(root, configuration) !== sha256) refuse();
     inventory ??= selected.installed;
-    if (JSON.stringify(selected.installed.map(item => item.id).sort()) !== JSON.stringify(inventory.map(item => item.id).sort())) refuse();
+    if (descriptorIdentity(selected.installed) !== descriptorIdentity(inventory)) refuse();
     profiles.push({ configuration, sha256, selected: selected.enabled.map(item => item.id).sort() });
   }
   const packages = [];
@@ -97,8 +113,12 @@ export async function readPluginInventory({ root = DEFAULT_PLUGIN_ROOT, backendS
   packages.sort((a, b) => a.id.localeCompare(b.id, 'en'));
   for (const profile of profiles) {
     const current = await projectPlugins({ root, configuration: profile.configuration });
-    if (await configurationHash(root, profile.configuration) !== profile.sha256 || JSON.stringify(current.enabled.map(item => item.id).sort()) !== JSON.stringify(profile.selected)) refuse();
+    if (descriptorIdentity(current.installed) !== descriptorIdentity(inventory) || await configurationHash(root, profile.configuration) !== profile.sha256 || JSON.stringify(current.enabled.map(item => item.id).sort()) !== JSON.stringify(profile.selected)) refuse();
   }
+  // A manifest or source edit between discovery and hashing must not mix two
+  // versions into a stable-looking receipt. This is still a point-in-time read,
+  // not protection against an adversarial writer sharing the OS account.
+  for (const item of packages) if ((await packageSnapshot(path.join(root, item.id))).sha256 !== item.packageSha256) refuse();
   // Runtime/backend selection is separate from immutable source identity, so the
   // same source receipt remains comparable in an offline administrator CLI.
   const sourcePackages = packages.map(({ id, name, version, packageSha256, extensions, skills }) => ({ id, name, version, packageSha256, extensions, skills }));

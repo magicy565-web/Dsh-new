@@ -40,6 +40,7 @@ export function verifyReleaseEnvelope(envelope, trust) {
   exact(envelope, ['manifest', 'keyId', 'signature']);
   text(envelope.keyId, 100, /^[A-Za-z0-9._-]+$/u);
   text(envelope.signature, 88, /^[A-Za-z0-9+/]{86}==$/u);
+  if (Buffer.from(envelope.signature, 'base64').toString('base64') !== envelope.signature) throw new TypeError('Use canonical signature bytes.');
   const manifest = envelope.manifest;
   exact(manifest, ['schemaVersion', 'id', 'name', 'version', 'description', 'license', 'publisher', 'execution', 'artifact', 'permissions']);
   if (manifest.schemaVersion !== 1 || manifest.execution !== 'isolated-oci') throw new TypeError('This release path accepts isolated OCI descriptors only. Native OMP packages remain reviewed repository code.');
@@ -51,7 +52,7 @@ export function verifyReleaseEnvelope(envelope, trust) {
   if (manifest.artifact.protocol !== 'workspace-plugin-json-v1' || !Array.isArray(manifest.artifact.command) || manifest.artifact.command.length < 1 || manifest.artifact.command.length > 32)
     throw new TypeError('Use the bounded JSON executable contract.');
   for (const argument of manifest.artifact.command) text(argument, 512);
-  if (!manifest.artifact.command[0].startsWith('/') || manifest.artifact.command[0].includes('/../')) throw new TypeError('The container executable must use an absolute image-internal path.');
+  if (!manifest.artifact.command[0].startsWith('/') || manifest.artifact.command[0].split('/').slice(1).some(part => !part || part === '.' || part === '..')) throw new TypeError('The container executable must use an absolute image-internal path.');
   exact(manifest.permissions, ['network', 'hostFilesystem', 'input', 'output']);
   if (manifest.permissions.network !== 'none' || manifest.permissions.hostFilesystem !== 'none' || manifest.permissions.input !== 'explicit-json' || manifest.permissions.output !== 'json')
     throw new TypeError('Network access and host-filesystem grants are outside this reviewed release path.');
