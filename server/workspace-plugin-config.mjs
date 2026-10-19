@@ -20,6 +20,13 @@ async function localFile(root, relative, directory = false) {
 export async function projectPlugins({ root = DEFAULT_PLUGIN_ROOT, disabled = [], none = false, configuration = 'config.json' } = {}) {
   root = path.resolve(root);
   if ((await fs.lstat(root)).isSymbolicLink() || await fs.realpath(root) !== root) refuse();
+  // An offline selection write is not considered complete merely because one
+  // file exists. A crash/uncertain commit leaves this barrier for explicit
+  // reconciliation; no OMP Session or plugin factory may silently adopt it.
+  try {
+    await fs.lstat(path.join(root, '.plugin-selection-transaction.json'));
+    throw Object.assign(new Error('A plugin selection transaction requires explicit reconciliation before native loading.'), { code: 'PROJECT_PLUGIN_RECONCILIATION_REQUIRED' });
+  } catch (error) { if (error.code !== 'ENOENT') throw error; }
   if(!/^config(?:\.[a-z0-9-]+)?\.json$/.test(configuration))refuse();
   const config = JSON.parse(await fs.readFile(await localFile(root,configuration),'utf8'));
   if (Object.keys(config).some(k=>!['extensions','disabledExtensions'].includes(k)) || !Array.isArray(config.extensions)
