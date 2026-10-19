@@ -1,5 +1,6 @@
 import { Modal } from '../Modal';
 import { Notice, useRead } from '../library/common';
+import { PluginLibraryPanel } from '../plugins/PluginLibraryPanel';
 import type { Bootstrap } from '../types';
 import type { Session } from '../api';
 import type { useConversationRuntime } from './useConversationRuntime';
@@ -24,10 +25,7 @@ export function PluginStatusDialog({ data, session, runtime, snapshotStale, onCl
       <p>{runtime.value ? `${runtime.value.engine.toUpperCase()} · ${runtime.value.engineScope}` : runtime.status === 'legacy' ? '当前服务未提供业务会话运行时接口，沿用原聊天接口。' : '等待原服务的运行时响应。'}</p>
       <Notice error={runtime.error} retry={runtime.retry}/>
     </section>
-    <section className="harness-connection" aria-label="OMP 插件清单状态">
-      <div><h3>OMP 插件清单</h3><span className="harness-state">状态不可用</span></div>
-      <p>当前服务尚未提供完整插件状态，请由管理员核对。工具包可发现、连接器已配置，均不表示业务插件已可执行。</p>
-    </section>
+    <PluginLibraryPanel session={session} snapshotStale={snapshotStale}/>
     <section className="harness-connection" aria-label="Medusa 连接状态">
       <div><h3>Medusa</h3><span className="harness-state">{medusa.loading ? '读取中' : !allowed || medusa.error || !validMedusa ? '状态不可用' : medusa.value!.medusa.configured ? '已配置 · 在线待验证' : '未配置'}</span></div>
       <p>{!allowed ? '当前账号无权读取连接配置。' : validMedusa && medusa.value!.medusa.configured ? '原连接仅用于内部产品草稿；不代表已发布或有库存。' : '配置或在线状态尚未得到确认。'}</p>
@@ -46,4 +44,3 @@ export function PluginStatusDialog({ data, session, runtime, snapshotStale, onCl
     <div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose}>返回工作台</button></div>
   </Modal>;
 }
-
