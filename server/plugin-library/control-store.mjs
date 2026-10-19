@@ -18,27 +18,22 @@ export function canonical(value, depth = 0) {
 }
 export const controlDigest = value => sha(canonical(value));
 
-/**
- * Only plugin publication/review/intents live here. This is NOT a Library,
- * enterprise-data grant store, Session store, Worker queue or Agent runtime.
- * The explicitly provisioned private directory has one writer. No stale-lock
- * stealing, implicit directory creation, secret discovery or business execution.
- */
+/** Plugin review/intents only; not a business-data authority, grant store or Agent runtime. */
 export async function openPluginControlStore({ directory, workspaceId, ApiError, clock = Date.now }) {
   const fail = (status, code, message) => { throw new ApiError(status, code, message); };
   if (typeof directory !== 'string' || !path.isAbsolute(directory) || directory !== path.resolve(directory)
-    || typeof workspaceId !== 'string' || !workspaceId || workspaceId === 'local')
+    || typeof workspaceId !== 'string' || !workspaceId || workspaceId.length > 128 || workspaceId === 'local')
     fail(503, 'PLUGIN_CONTROL_CONFIGURATION_REQUIRED', 'A canonical private directory and enterprise workspace are required.');
   const stat = await fs.lstat(directory);
   if (!stat.isDirectory() || stat.isSymbolicLink() || await fs.realpath(directory) !== directory
-    || process.platform === 'win32' || (stat.mode & 0o077) !== 0 || stat.uid !== process.getuid())
+    || process.platform !== 'linux' || (stat.mode & 0o077) !== 0 || stat.uid !== process.getuid())
     fail(503, 'PLUGIN_CONTROL_DIRECTORY_REFUSED', 'Use a pre-provisioned owner-only directory on the supported Linux host.');
   const lockPath = path.join(directory, 'writer.lock');
   let lock;
   try { lock = await fs.open(lockPath, constants.O_CREAT | constants.O_EXCL | constants.O_RDWR | (constants.O_NOFOLLOW || 0), 0o600); }
   catch (error) { if (error.code === 'EEXIST') fail(503, 'PLUGIN_CONTROL_WRITER_BUSY', 'A writer or unreviewed stale lock exists. No lock was removed.'); throw error; }
   const lockStat = await lock.stat();
-  let healthy = true, closing = false, queue = Promise.resolve();
+  let healthy = true, closing = false, queue = Promise.resolve(), closePromise;
   const statePath = path.join(directory, 'state.json');
   let state;
   async function readState() {
@@ -46,10 +41,16 @@ export async function openPluginControlStore({ directory, workspaceId, ApiError,
     try { handle = await fs.open(statePath, constants.O_RDONLY | (constants.O_NOFOLLOW || 0)); }
     catch (error) { if (error.code === 'ENOENT') return { schemaVersion: 1, workspaceId, revision: 0, releases: [], intents: [], receipts: [], events: [] }; throw error; }
     try {
-      const file = await handle.stat();
-      if (!file.isFile() || file.nlink !== 1 || file.uid !== process.getuid() || (file.mode & 0o077) !== 0 || file.size > 2 * 1024 * 1024)
+      const file = await handle.stat(), maximum = 2 * 1024 * 1024;
+      if (!file.isFile() || file.nlink !== 1 || file.uid !== process.getuid() || (file.mode & 0o077) !== 0 || file.size > maximum)
         fail(503, 'PLUGIN_CONTROL_STATE_REFUSED', 'Plugin control state requires review; it was not reset.');
-      const value = JSON.parse(await handle.readFile('utf8'));
+      const buffer = Buffer.alloc(maximum + 1);
+      let length = 0;
+      while (length < buffer.length) { const read = await handle.read(buffer, length, buffer.length - length, length); if (!read.bytesRead) break; length += read.bytesRead; }
+      const after = await handle.stat();
+      if (length > maximum || length !== file.size || file.size !== after.size || file.mtimeMs !== after.mtimeMs || file.ctimeMs !== after.ctimeMs)
+        fail(503, 'PLUGIN_CONTROL_STATE_REFUSED', 'Plugin control state changed while reading; nothing was reset.');
+      const value = JSON.parse(buffer.subarray(0, length).toString('utf8'));
       if (!plain(value) || value.schemaVersion !== 1 || value.workspaceId !== workspaceId || !Number.isSafeInteger(value.revision) || value.revision < 0
         || Object.keys(value).some(key => !['schemaVersion', 'workspaceId', 'revision', 'releases', 'intents', 'receipts', 'events'].includes(key))
         || !['releases', 'intents', 'receipts', 'events'].every(key => Array.isArray(value[key]) && value[key].length <= 2000))
@@ -122,7 +123,7 @@ export async function openPluginControlStore({ directory, workspaceId, ApiError,
         const result = change(next, { at, subject, revision: state.revision + 1 });
         if (result && typeof result.then === 'function') throw new TypeError('Control transactions must not execute asynchronous services.');
         next.revision++;
-        const reply = { schemaVersion: 1, revision: next.revision, ...result };
+        const reply = { ...result, schemaVersion: 1, revision: next.revision };
         canonical(reply); assertCurrent();
         next.receipts.push({ id: requestId, subject, fingerprint, result: reply });
         next.events.push({ revision: next.revision, at, subject, operation: operation.type, requestId });
@@ -131,6 +132,9 @@ export async function openPluginControlStore({ directory, workspaceId, ApiError,
       };
       const pending = queue.then(execute); queue = pending.catch(() => {}); return pending;
     },
-    async close() { if (closing) return queue; closing = true; await queue; await unlock(); },
+    close() {
+      if (!closePromise) { closing = true; closePromise = queue.then(unlock); }
+      return closePromise;
+    },
   });
 }
