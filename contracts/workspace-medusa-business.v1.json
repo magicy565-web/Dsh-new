@@ -1,0 +1,210 @@
+{
+  "schema_version": "workspace-medusa-business/1.0",
+  "baseline_commit": "42415610fe536586153f945455e0b04dc29f4cbd",
+  "medusa_version": "2.21.2",
+  "implementation": "packages/medusa-enterprise-product-context/src/business-routes.ts",
+  "status": "implemented; disabled without explicit deployment grants; real-service acceptance pending",
+  "authentication": {
+    "actor_type": "user",
+    "methods": [
+      "bearer",
+      "session"
+    ],
+    "excluded": [
+      "api-key",
+      "AGENT_CONTEXT_READ_TOKEN"
+    ],
+    "credential_owner": "trusted backend only; never model tool arguments"
+  },
+  "authorization": {
+    "setting": "WORKSPACE_MEDUSA_BUSINESS_GRANTS_JSON",
+    "default": "deny",
+    "grant_shape": {
+      "actor_id": "existing Medusa user id",
+      "product_ids": [
+        "exact existing prod_* id"
+      ],
+      "capabilities": [
+        "product.read",
+        "price.read",
+        "inventory.read",
+        "context.summary.write"
+      ]
+    },
+    "activation": "requires explicit deployment/user authorization; no wildcard and no automatic grant"
+  },
+  "operations": [
+    {
+      "name": "medusa.business.product.read.v1",
+      "method": "GET",
+      "path": "/admin/workspace-business/v1/products/{id}",
+      "capabilities": [
+        "product.read"
+      ],
+      "path_parameters": {
+        "id": "^prod_[A-Za-z0-9]+$"
+      },
+      "query": {
+        "include": [
+          "omitted",
+          "prices",
+          "inventory",
+          "prices,inventory"
+        ]
+      },
+      "additional_capabilities": {
+        "prices": "price.read",
+        "inventory": "inventory.read"
+      },
+      "unknown_parameters": "reject 400",
+      "response_fields": [
+        "schema_version",
+        "observed_at",
+        "revision",
+        "consistency",
+        "product",
+        "summary"
+      ],
+      "product_fields": [
+        "id",
+        "title",
+        "description",
+        "status",
+        "updated_at",
+        "variants"
+      ],
+      "variant_fields": [
+        "id",
+        "title",
+        "sku",
+        "manage_inventory",
+        "allow_backorder"
+      ],
+      "price_fields": [
+        "id",
+        "currency_code",
+        "amount",
+        "min_quantity",
+        "max_quantity",
+        "price_list_id",
+        "price_rules.attribute",
+        "price_rules.value"
+      ],
+      "inventory_fields": [
+        "inventory_item_id",
+        "required_quantity",
+        "location_levels.id",
+        "location_levels.location_id",
+        "location_levels.stocked_quantity",
+        "location_levels.reserved_quantity",
+        "location_levels.incoming_quantity",
+        "location_levels.available_quantity",
+        "location_levels.updated_at"
+      ],
+      "summary_fields": [
+        "agent_summary",
+        "status",
+        "review_version",
+        "source_hash"
+      ],
+      "revision": "sha256 of canonical JSON {product,summary}; observed snapshot only, not cross-module transaction or write CAS",
+      "pricing": "native stored price rows, not calculated checkout price; currency amounts are not rescaled; rules and quantity bounds must be honored",
+      "inventory": "location quantities and kit requirements only; not sales-channel availability, reservation or promise to ship",
+      "provenance": "native Medusa product and Product Context; internal data, not automatically approved marketing claims"
+    },
+    {
+      "name": "medusa.business.context.summary.write.v1",
+      "method": "POST",
+      "path": "/admin/workspace-business/v1/products/{id}/summary",
+      "capabilities": [
+        "product.read",
+        "context.summary.write"
+      ],
+      "required_body": {
+        "operation_id": "UUID generated and retained by trusted host",
+        "review_version": "integer 1..2147483646 from latest read",
+        "source_hash": "64 lowercase hex from latest read summary.source_hash",
+        "agent_summary": "string <=5000 characters or null",
+        "confirmation": "sha256 canonical JSON intent; computed only after trusted host obtains user confirmation"
+      },
+      "unknown_fields": "reject 400",
+      "confirmation_material": {
+        "schema_version": "workspace-medusa-business/1.0",
+        "action": "context.summary.write",
+        "actor_id": "authenticated user id",
+        "product_id": "path id",
+        "operation_id": "body operation_id",
+        "review_version": "body review_version",
+        "source_hash": "body source_hash",
+        "agent_summary": "body agent_summary"
+      },
+      "canonicalization": "recursively sort object keys lexicographically, preserve array order; UTF-8 JSON without whitespace",
+      "confirmation_security": "digest binds intent, NOT proof of human approval. Host must enforce confirmation and keep native credential private. Do not expose digest-generation/write credential to model.",
+      "effects": [
+        "change agent_summary",
+        "increment review_version",
+        "status ready_for_review",
+        "clear reviewed_by/reviewed_at",
+        "store operation receipt in existing source_hash"
+      ],
+      "response_fields": [
+        "schema_version",
+        "operation_id",
+        "outcome",
+        "replayed",
+        "product_id",
+        "summary.agent_summary",
+        "summary.status",
+        "summary.review_version",
+        "receipt"
+      ],
+      "preconditions": [
+        "existing Product Context required; no implicit create",
+        "current numeric version and fresh source hash must match",
+        "integer ceiling requires existing admin workflow, never wrap"
+      ],
+      "idempotency": {
+        "mechanism": "atomic CAS on context id/version/source_hash/deleted_at; durable rev:<first32hex of intent digest>:unreviewed receipt",
+        "retry": "replay exact retained body with same actor/product; current matching receipt returns applied without a second mutation",
+        "after_later_edit": "409; outcome of old operation cannot be proven from current row. Do not retry with new operation ID or fresh revision automatically. Human reconciliation required.",
+        "scope": "latest write receipt only; no permanent operation ledger or universal Idempotency-Key support"
+      },
+      "on_timeout": "retain exact intent and confirmation, mark uncertain; resume exact request only while authorized. 409 remains conflict/uncertain, never report success."
+    }
+  ],
+  "errors": {
+    "400": [
+      "INVALID_BODY",
+      "INVALID_QUERY"
+    ],
+    "401": [
+      "UNAUTHENTICATED",
+      "native authentication failure"
+    ],
+    "403": [
+      "CAPABILITY_DENIED"
+    ],
+    "404": [
+      "PRODUCT_NOT_FOUND"
+    ],
+    "409": [
+      "CONTEXT_REQUIRED",
+      "REVISION_CONFLICT"
+    ],
+    "422": [
+      "CONFIRMATION_MISMATCH"
+    ],
+    "500": [
+      "native/internal error; write outcome may be uncertain"
+    ]
+  },
+  "excluded": [
+    "payment/refund execution",
+    "order/fulfillment writes",
+    "arbitrary Admin proxy",
+    "model/session implementation",
+    "customer PII",
+    "existing production grant expansion",
+    "new DB models"
+  ]
+}
