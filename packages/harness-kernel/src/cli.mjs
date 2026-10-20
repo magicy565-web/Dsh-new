@@ -3,7 +3,7 @@ import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, resolveRows } from './resolve.mjs';
-import { applyPatches, digestComposition, readPatch, setRowDisabled } from './patch.mjs';
+import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled } from './patch.mjs';
 import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
 
 const USAGE = `Usage: wh <command> [options]
@@ -12,7 +12,7 @@ Commands:
   list      Resolve and print composition rows (entry, status, requires/provides). No plugin is mounted.
   plugins   Alias of list; both accept --patch layers.
   doctor    Load the composition (mount plugins, no HTTP serving), report health, then dispose.
-  patch     Inspect or edit a patch layer: \`show\`, \`disable <id>\`, \`enable <id>\` (requires --patch).
+  patch     Inspect or edit a patch layer: \`show\`, \`journal\`, \`disable <id>\`, \`enable <id>\` (requires --patch).
   presets   Agent presets: \`wh presets list\` or \`wh presets show <name>\`.
   help      Print this text.
 
@@ -281,6 +281,21 @@ async function runPatch({ root, args, patchPaths, json, stdout, stderr }) {
     if (!document.entries.length && !document.insert.length) stdout.write('  (empty layer)\n');
     for (const entry of document.entries) stdout.write(`  entry ${entry.id}: ${JSON.stringify({ ...entry, id: undefined })}\n`);
     for (const row of document.insert) stdout.write(`  insert ${row.id}: ${row.name}\n`);
+    return 0;
+  }
+  if (subcommand === 'journal') {
+    const entries = await readPatchJournal(patchPath, { root });
+    if (json) {
+      stdout.write(`${JSON.stringify(entries, null, 2)}\n`);
+      return 0;
+    }
+    if (!entries.length) {
+      stdout.write(`no journal entries for ${patchPath}\n`);
+      return 0;
+    }
+    for (const entry of entries) {
+      stdout.write(`${entry.at} ${entry.event} ${entry.action ?? ''} ${entry.rowId ?? ''} ${entry.afterDigest ?? entry.digest ?? ''}`.trimEnd() + '\n');
+    }
     return 0;
   }
   if (subcommand === 'disable' || subcommand === 'enable') {

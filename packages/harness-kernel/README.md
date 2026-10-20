@@ -194,10 +194,23 @@ wh patch enable  inquiries --patch harness.local.patch.yml
 YAML comments in the old layer are not preserved by a rewrite; the `.bak` file is
 the reversible record. A malformed existing layer is refused rather than rewritten.
 
+Every patch write appends one metadata-only line to `<file>.journal.jsonl`
+(`{at, event, file, action?, rowId?, beforeDigest, afterDigest, backup?}`); an
+emptied layer records `patch.remove`. Read it with:
+
+```sh
+wh patch journal --patch harness.local.patch.yml [--json]
+```
+
+Mount/start/stop events are recorded when `--audit <file>` (or
+`createHarness({ auditPath })`) is given: each line carries the composition digest,
+the patch digest and applied actions, the preset name and the mounted plugin ids —
+never message bodies or customer data.
+
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 61 tests, 0 fail
+node --test packages/harness-kernel/test     # 62 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 

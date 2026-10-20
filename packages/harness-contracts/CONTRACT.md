@@ -81,6 +81,7 @@ insert:                       # 追加新行
 - `writePatch` / `setRowDisabled`：先校验再原子写（同目录临时文件 + rename），旧字节存 `<file>.bak`；清空最后一层时删除文件而不是写入空 patch；原文件损坏时拒绝改写。
 - `digestComposition`：有效行（id/name/config/disabled）的稳定 SHA-256，暴露为 `harness.composition.digest` 与 `harness.patches.digest`，用于记录/比对"实际挂载了什么"。
 - CLI：`wh patch show|disable <id>|enable <id> --patch <file>`。
+- 审计：每次 patch 写入/删层追加一行到 `<file>.journal.jsonl`（`at/event/action/rowId/beforeDigest/afterDigest/backup`，不含业务数据）；`wh patch journal --patch <file>` 读取。`createHarness({ auditPath })` / `node harness.mjs --audit <file>` 记录 `harness.mount|start|stop`，每行带组合 digest、patch digest、preset 与插件 id 列表。
 
 ## 3. 内核 API（`packages/harness-kernel/src/app.mjs`）
 

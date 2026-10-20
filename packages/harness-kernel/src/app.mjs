@@ -1,6 +1,7 @@
 // Workspace Harness kernel: bootstrap a Cordis context from a YAML composition,
 // mount plugins in dependency order, fail closed with rollback, and serve HTTP.
 import { Context, FiberState } from 'cordis';
+import { appendFile } from 'node:fs/promises';
 import {
   ERROR,
   HarnessError,
@@ -144,9 +145,9 @@ function contextForRow(ctx, row) {
  * Mounting happens eagerly (fail closed with reverse-order rollback); the HTTP server
  * only starts on `start()`.
  *
- * @param {{compositionPath?: string, composition?: object, preset?: object, patchPaths?: string[], patches?: object[], root?: string, logger?: object}} options
+ * @param {{compositionPath?: string, composition?: object, preset?: object, patchPaths?: string[], patches?: object[], auditPath?: string, root?: string, logger?: object}} options
  */
-export async function createHarness({ compositionPath, composition: composed, preset = null, patchPaths = [], patches = [], root = process.cwd(), logger = console } = {}) {
+export async function createHarness({ compositionPath, composition: composed, preset = null, patchPaths = [], patches = [], auditPath = null, root = process.cwd(), logger = console } = {}) {
   const effectiveLogger = logger ?? console;
   let file = null;
   let composition;
@@ -364,12 +365,32 @@ export async function createHarness({ compositionPath, composition: composed, pr
     throw error;
   }
 
+  const auditEntry = async (event, extra = {}) => {
+    if (!auditPath) return;
+    try {
+      const line = JSON.stringify({
+        at: new Date().toISOString(),
+        event,
+        composition: { file, name: composition.name, digest: digestComposition(composition) },
+        patches: { files: patchInfo.files, digest: patchInfo.digest, applied: patchInfo.applied },
+        preset: preset?.name ?? null,
+        plugins: [...plugins.keys()],
+        ...extra,
+      });
+      await appendFile(auditPath, `${line}\n`, { mode: 0o600 });
+    } catch (error) {
+      logError(effectiveLogger, `[harness] audit append failed: ${error?.message ?? error}`);
+    }
+  };
+  await auditEntry('harness.mount');
+
   const start = async () => {
     if (stopped) throw new HarnessError(ERROR.pluginFailed, 'harness has been stopped; create a new harness.');
     if (server) return { server, address };
     const result = await http.start({ host: composition.server.host, port: composition.server.port });
     server = result.server;
     address = result.address;
+    await auditEntry('harness.start', { address: address?.url ?? null });
     return result;
   };
 
@@ -383,6 +404,7 @@ export async function createHarness({ compositionPath, composition: composed, pr
     }
     await rollback(mounted);
     await disposeKernel();
+    await auditEntry('harness.stop');
   };
 
   return {

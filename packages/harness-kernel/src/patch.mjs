@@ -2,7 +2,7 @@
 // base composition. Same idea as dsh's cordis.patch.yml, reduced to the parts the
 // Workspace Harness actually needs and validated fail-closed.
 import { createHash } from 'node:crypto';
-import { copyFile, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { appendFile, copyFile, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { ERROR, HarnessError, validateComposition, validateRow } from '../../harness-contracts/src/index.mjs';
@@ -141,8 +141,9 @@ const entriesForWrite = patch => patch.entries.map(entry => ({
  * Write a validated patch layer atomically. The previous bytes are copied to
  * `<file>.bak` first so a reviewable, reversible edit always exists. Comments in
  * the old file are not preserved (YAML re-serialisation); the backup keeps them.
+ * Every write appends one line to `<file>.journal.jsonl` (no message bodies).
  */
-export async function writePatch(patchPath, document, { root = process.cwd(), backup = true } = {}) {
+export async function writePatch(patchPath, document, { root = process.cwd(), backup = true, note = null } = {}) {
   const file = isAbsolute(patchPath) ? patchPath : resolvePath(root, patchPath);
   const patch = validatePatch(document, { file });
   const text = stringifyYaml({
@@ -153,8 +154,10 @@ export async function writePatch(patchPath, document, { root = process.cwd(), ba
   });
   if (Buffer.byteLength(text, 'utf8') > MAX_PATCH_BYTES) fail(`the rewritten patch would exceed ${MAX_PATCH_BYTES} bytes.`);
   let backupFile = null;
+  let beforeDigest = null;
   try {
-    await readFile(file);
+    const previous = await readFile(file);
+    beforeDigest = digestText(previous);
     if (backup) {
       backupFile = `${file}.bak`;
       await copyFile(file, backupFile);
@@ -163,7 +166,37 @@ export async function writePatch(patchPath, document, { root = process.cwd(), ba
   const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
   await writeFile(temporary, text, { mode: 0o600 });
   await rename(temporary, file);
-  return Object.freeze({ file, backup: backupFile, patch });
+  const afterDigest = digestText(Buffer.from(text, 'utf8'));
+  await appendPatchJournal(file, {
+    at: new Date().toISOString(), event: 'patch.write', file,
+    beforeDigest, afterDigest, backup: backupFile,
+    ...(isPlain(note) ? note : {}),
+  });
+  return Object.freeze({ file, backup: backupFile, patch, digest: afterDigest, beforeDigest });
+}
+
+const digestText = value => createHash('sha256').update(value).digest('hex');
+
+export const patchJournalPath = file => `${file}.journal.jsonl`;
+
+/** Append one metadata-only audit line; a journal failure never breaks the write. */
+export async function appendPatchJournal(file, entry) {
+  try {
+    await appendFile(patchJournalPath(file), `${JSON.stringify(entry)}\n`, { mode: 0o600 });
+  } catch { /* the audit trail is best-effort; the layer write already succeeded */ }
+}
+
+/** Read the journal for a patch layer (bounded, newest last). */
+export async function readPatchJournal(patchPath, { root = process.cwd(), limit = 200 } = {}) {
+  const file = isAbsolute(patchPath) ? patchPath : resolvePath(root, patchPath);
+  let raw;
+  try { raw = await readFile(patchJournalPath(file), 'utf8'); } catch { return []; }
+  const lines = raw.split('\n').filter(Boolean).slice(-limit);
+  const entries = [];
+  for (const line of lines) {
+    try { entries.push(JSON.parse(line)); } catch { /* skip a torn line, keep the rest */ }
+  }
+  return entries;
 }
 
 /**
@@ -198,9 +231,10 @@ export async function setRowDisabled(patchPath, rowId, disabled, { root = proces
     if (existing === null) return Object.freeze({ file, removed: false, action: 'enable', rowId, patch: null });
     const backupFile = `${file}.bak`;
     await copyFile(file, backupFile);
+    await appendPatchJournal(file, { at: new Date().toISOString(), event: 'patch.remove', file, action: 'enable', rowId, backup: backupFile });
     await rm(file, { force: true });
     return Object.freeze({ file, removed: true, backup: backupFile, action: 'enable', rowId, patch: null });
   }
-  const written = await writePatch(file, { ...document, entries }, { root, backup: true });
+  const written = await writePatch(file, { ...document, entries }, { root, backup: true, note: { action: disabled ? 'disable' : 'enable', rowId } });
   return Object.freeze({ ...written, action: disabled ? 'disable' : 'enable', rowId });
 }

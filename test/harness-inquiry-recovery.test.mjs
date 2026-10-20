@@ -22,7 +22,7 @@ const row = (overrides = {}) => ({
 });
 const envelope = inquiries => JSON.stringify({ schema: 'historical-inquiry.input.v1', synthetic: false, inquiries });
 
-async function fixture(t, { includePlugin = true, patch = null } = {}) {
+async function fixture(t, { includePlugin = true, patch = null, audit = false } = {}) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'harness-inquiry-'));
   const storage = path.join(directory, 'data').replace(/\\/gu, '/');
   const composition = [
@@ -55,7 +55,10 @@ async function fixture(t, { includePlugin = true, patch = null } = {}) {
     await fs.writeFile(patchFile, `${JSON.stringify(patch, null, 2)}\n`, 'utf8');
     patchPaths.push(patchFile);
   }
-  const harness = await createHarness({ compositionPath: file, patchPaths, root: ROOT });
+  const harness = await createHarness({
+    compositionPath: file, patchPaths, root: ROOT,
+    ...(audit ? { auditPath: path.join(directory, 'harness.audit.jsonl') } : {}),
+  });
   const started = await harness.start();
   const base = started.address.url;
   const request = async (route, method = 'GET', body) => {
@@ -68,7 +71,7 @@ async function fixture(t, { includePlugin = true, patch = null } = {}) {
     return { status: response.status, body: text ? JSON.parse(text) : null };
   };
   t.after(async () => { await harness.stop(); await fs.rm(directory, { recursive: true, force: true }); });
-  return { harness, request, base, directory };
+  return { harness, request, base, directory, auditPath: path.join(directory, 'harness.audit.jsonl') };
 }
 
 test('the harness runs the inquiry plugin over the real seams end to end', async t => {
@@ -238,5 +241,21 @@ test('a patch layer can insert a plugin the base composition omits', async t => 
   assert.equal(status.status, 200, JSON.stringify(status.body));
   const tools = harness.ctx.reflect.get('tools', false);
   assert.deepEqual(tools.list({ actor }).map(tool => tool.name).sort(), ['inquiry_recovery_opportunities', 'inquiry_recovery_select', 'inquiry_recovery_status']);
+});
+
+test('the harness records mount/start/stop audit lines with composition digests', async t => {
+  const { harness, auditPath } = await fixture(t, { patch: { version: 1, entries: [{ id: 'tools', config: { allowedTools: ['inquiry_recovery_status'] } }] }, audit: true });
+  await harness.stop();
+  const lines = (await fs.readFile(auditPath, 'utf8')).split('\n').filter(Boolean).map(line => JSON.parse(line));
+  assert.deepEqual(lines.map(line => line.event), ['harness.mount', 'harness.start', 'harness.stop']);
+  const mount = lines[0];
+  assert.equal(mount.composition.name, 'integration');
+  assert.match(mount.composition.digest, /^[a-f0-9]{64}$/u);
+  assert.match(mount.patches.digest, /^[a-f0-9]{64}$/u);
+  assert.deepEqual(mount.patches.applied.map(entry => entry.action), ['config']);
+  assert.ok(mount.plugins.includes('inquiries'));
+  assert.equal(mount.preset, null);
+  assert.match(lines[1].address, /^http:\/\/127\.0\.0\.1:\d+$/u);
+  assert.doesNotMatch(JSON.stringify(lines), /未发送|buyer@alpha/u);
 });
 

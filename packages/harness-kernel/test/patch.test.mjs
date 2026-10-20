@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { readComposition } from '../src/resolve.mjs';
-import { applyPatches, digestComposition, readPatch, setRowDisabled, validatePatch, writePatch } from '../src/patch.mjs';
+import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled, validatePatch, writePatch } from '../src/patch.mjs';
 import { runWh, parseArgv } from '../src/cli.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -165,5 +165,39 @@ test('wh patch show/disable/enable edits the layer and reports the backup', asyn
   assert.equal(await runWh(['patch', 'disable', '--patch', file], { root: directory, ...missing }), 2);
   assert.match(missing.stderr.text, /requires a row id/u);
   assert.equal(await runWh(['patch', 'show'], { root: directory, ...capture() }), 2);
+});
+
+test('patch writes leave a metadata-only journal with digests, and wh patch journal reads it', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'harness-patch-journal-'));
+  t.after(async () => { await fs.rm(directory, { recursive: true, force: true }); });
+  const file = path.join(directory, 'layer.yml');
+
+  await setRowDisabled(file, 'inquiries', true, { root: directory });
+  let entries = await readPatchJournal(file, { root: directory });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].event, 'patch.write');
+  assert.equal(entries[0].action, 'disable');
+  assert.equal(entries[0].rowId, 'inquiries');
+  assert.equal(entries[0].beforeDigest, null);
+  assert.match(entries[0].afterDigest, /^[a-f0-9]{64}$/u);
+
+  await setRowDisabled(file, 'tools', true, { root: directory });
+  entries = await readPatchJournal(file, { root: directory });
+  assert.equal(entries.length, 2);
+  assert.equal(entries[1].beforeDigest, entries[0].afterDigest, 'digest chain links consecutive writes');
+  assert.equal(entries[1].backup, `${file}.bak`);
+
+  await setRowDisabled(file, 'inquiries', false, { root: directory });
+  const removed = await setRowDisabled(file, 'tools', false, { root: directory });
+  assert.equal(removed.removed, true);
+  entries = await readPatchJournal(file, { root: directory });
+  assert.equal(entries.length, 4);
+  assert.equal(entries.at(-1).event, 'patch.remove');
+  assert.doesNotMatch(JSON.stringify(entries), /buyer@alpha/u, 'journal holds metadata only');
+
+  const shown = capture();
+  assert.equal(await runWh(['patch', 'journal', '--patch', file, '--json'], { root: directory, ...shown }), 0);
+  assert.equal(JSON.parse(shown.stdout.text).length, 4);
+  assert.equal(await runWh(['patch', 'journal', '--patch', path.join(directory, 'none.yml')], { root: directory, ...capture() }), 0);
 });
 
