@@ -1,10 +1,13 @@
 // `wh` CLI: list a composition without mounting it, or doctor it (load + health, no serve).
+import { readFile } from 'node:fs/promises';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, resolveRows } from './resolve.mjs';
 import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled } from './patch.mjs';
 import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
+
+const STORAGE_STATE_FILE = 'workspace.json';
 
 const USAGE = `Usage: wh <command> [options]
 
@@ -13,6 +16,7 @@ Commands:
   plugins   Alias of list; both accept --patch layers.
   doctor    Load the composition (mount plugins, no HTTP serving), report health, then dispose.
   patch     Inspect or edit a patch layer: \`show\`, \`journal\`, \`disable <id>\`, \`enable <id>\` (requires --patch).
+  audit     Read the durable audit trail straight from the storage state file (no lock, no mount).
   presets   Agent presets: \`wh presets list\` or \`wh presets show <name>\`.
   help      Print this text.
 
@@ -20,6 +24,9 @@ Options:
   -c, --composition <file>  Composition file (default: harness.local.yml, relative to --root).
   -p, --patch <file>        Composition patch layer; repeatable, applied in order.
       --root <dir>          Workspace root used by the plugin-name resolution rules (default: cwd).
+      --state <file>        Storage state file for \`wh audit\` (default: the storage row directory).
+      --kind <kind>         \`wh audit\`: only events of this kind (e.g. inquiry, tool, harness).
+      --limit <n>           \`wh audit\`: newest n events (default 20, max 200).
       --json                Machine-readable JSON output.
   -h, --help                Print this text.
 `;
@@ -40,6 +47,9 @@ export function parseArgv(argv = []) {
     args: [],
     composition: 'harness.local.yml',
     patches: [],
+    state: null,
+    kind: null,
+    limit: null,
     root: null,
     json: false,
     help: false,
@@ -69,6 +79,37 @@ export function parseArgv(argv = []) {
       }
     } else if (argument.startsWith('--patch=')) {
       options.patches.push(argument.slice('--patch='.length));
+    } else if (argument === '--state') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires a file path.`);
+      else {
+        options.state = value;
+        index += 1;
+      }
+    } else if (argument.startsWith('--state=')) {
+      options.state = argument.slice('--state='.length);
+    } else if (argument === '--kind') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires a kind.`);
+      else {
+        options.kind = value;
+        index += 1;
+      }
+    } else if (argument.startsWith('--kind=')) {
+      options.kind = argument.slice('--kind='.length);
+    } else if (argument === '--limit') {
+      const value = argv[index + 1];
+      const parsed = Number(value);
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires an integer 1-200.`);
+      else {
+        index += 1;
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 200) errors.push(`${argument} requires an integer 1-200.`);
+        else options.limit = parsed;
+      }
+    } else if (argument.startsWith('--limit=')) {
+      const parsed = Number(argument.slice('--limit='.length));
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 200) errors.push('--limit requires an integer 1-200.');
+      else options.limit = parsed;
     } else if (argument === '--root' || argument === '-r') {
       const value = argv[index + 1];
       if (!value || value.startsWith('-')) errors.push(`${argument} requires a directory.`);
@@ -315,6 +356,76 @@ async function runPatch({ root, args, patchPaths, json, stdout, stderr }) {
   return 2;
 }
 
+/** Local mirror of the audit schema; the CLI must not depend on the seams package. */
+function normalizeAuditRecord(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  if (typeof entry.kind === 'string') {
+    return {
+      at: entry.at, kind: entry.kind, action: entry.action,
+      actor: entry.actor ?? null, ok: entry.ok !== false,
+      code: entry.code ?? null, detail: entry.detail ?? null, ref: entry.ref ?? null,
+    };
+  }
+  if (typeof entry.tool === 'string') {
+    return {
+      at: entry.at, kind: 'tool', action: entry.tool,
+      actor: entry.actor ?? null, ok: entry.ok !== false,
+      code: entry.errorCode ?? null, detail: entry.approvalId ? { approvalId: entry.approvalId } : null, ref: null,
+    };
+  }
+  return null;
+}
+
+/**
+ * `wh audit`: read the durable audit trail from the storage state file without
+ * mounting anything. Works offline, takes no lock, writes nothing.
+ */
+export async function runAudit({
+  compositionPath, patchPaths = [], state, kind = null, limit = null,
+  root, json = false, stdout = process.stdout, stderr = process.stderr,
+} = {}) {
+  let statePath = state ? (isAbsolute(state) ? state : resolvePath(root, state)) : null;
+  if (!statePath) {
+    const { composition } = await readComposition(compositionPath, { root });
+    let effective = composition;
+    if (patchPaths.length) {
+      const layers = [];
+      for (const patchPath of patchPaths) layers.push((await readPatch(patchPath, { root })).patch);
+      effective = applyPatches(effective, layers).composition;
+    }
+    const storageRow = effective.rows.find(row => row.id === 'storage');
+    const directory = storageRow?.config?.directory;
+    if (typeof directory !== 'string' || !directory) {
+      stderr.write('wh: the composition has no storage row with a directory; pass --state <file>\n');
+      return 2;
+    }
+    statePath = resolvePath(isAbsolute(directory) ? directory : resolvePath(root, directory), STORAGE_STATE_FILE);
+  }
+  let raw;
+  try { raw = await readFile(statePath, 'utf8'); }
+  catch (error) {
+    stderr.write(`wh: cannot read audit state ${displayPath(root, statePath)} (${error?.code ?? error?.message ?? error})\n`);
+    return 2;
+  }
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch { stderr.write(`wh: audit state ${displayPath(root, statePath)} is not valid JSON\n`); return 1; }
+  const size = limit ?? 20;
+  const entries = (Array.isArray(parsed?.harnessAudit) ? parsed.harnessAudit : [])
+    .map(normalizeAuditRecord).filter(Boolean)
+    .filter(entry => kind === null || entry.kind === kind)
+    .slice(-size).reverse();
+  if (json) {
+    stdout.write(`${JSON.stringify({ file: displayPath(root, statePath), events: entries }, null, 2)}\n`);
+    return 0;
+  }
+  stdout.write(`audit ${displayPath(root, statePath)}: ${entries.length} event(s)\n`);
+  for (const entry of entries) {
+    stdout.write(`${entry.at} ${entry.ok ? 'ok  ' : 'FAIL'} ${entry.kind}/${entry.action}${entry.actor?.subject ? ` by ${entry.actor.subject}` : ''}${entry.code ? ` [${entry.code}]` : ''}\n`);
+  }
+  return 0;
+}
+
 /**
  * Run the `wh` CLI.
  * @returns {Promise<number>} process exit code
@@ -333,11 +444,16 @@ export async function runWh(argv = [],
     return options.command && options.command !== 'help' ? 2 : 0;
   }
   const effectiveRoot = options.root ? (isAbsolute(options.root) ? options.root : resolvePath(root, options.root)) : root;
-  const context = { compositionPath: options.composition, patchPaths: options.patches, root: effectiveRoot, json: options.json, args: options.args, stdout, stderr };
+  const context = {
+    compositionPath: options.composition, patchPaths: options.patches, state: options.state,
+    kind: options.kind, limit: options.limit, root: effectiveRoot, json: options.json,
+    args: options.args, stdout, stderr,
+  };
   try {
     if (options.command === 'list' || options.command === 'plugins') return await runList(context);
     if (options.command === 'doctor') return await runDoctor(context);
     if (options.command === 'patch') return await runPatch(context);
+    if (options.command === 'audit') return await runAudit(context);
     if (options.command === 'presets') return await runPresets(context);
     stderr.write(`wh: unknown command "${options.command}"\n\n${USAGE}`);
     return 2;

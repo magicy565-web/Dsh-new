@@ -7,3 +7,4 @@ import './test/params.test.mjs';
 import './test/cli.test.mjs';
 import './test/presets.test.mjs';
 import './test/patch.test.mjs';
+import './test/audit-cli.test.mjs';

@@ -207,10 +207,25 @@ Mount/start/stop events are recorded when `--audit <file>` (or
 the patch digest and applied actions, the preset name and the mounted plugin ids —
 never message bodies or customer data.
 
+Composition patches, `wh patch journal`, and `--audit <file>` lifecycle lines are
+covered above. `wh audit` reads the durable trail without mounting anything:
+
+```sh
+wh audit --composition harness.dev.yml            # newest 20 events
+wh audit --composition harness.dev.yml --kind inquiry --limit 50
+wh audit --state .harness-dev-data/workspace.json --json
+```
+
+It resolves the storage row's directory (patches applied), reads `workspace.json`
+directly, takes no lock and writes nothing; missing state → exit 2, invalid JSON →
+exit 1, no storage row → exit 2 with an explicit message. Legacy tool entries are
+normalised to `{kind:'tool', action: tool, code: errorCode}` so the output matches
+`ctx.audit.list()`.
+
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 62 tests, 0 fail
+node --test packages/harness-kernel/test     # 64 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
