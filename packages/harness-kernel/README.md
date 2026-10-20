@@ -246,10 +246,27 @@ listed as installations. An installed package is resolved by the normal
 composition rule (`plugins/<name>`), so installing is enough for the kernel to
 mount it.
 
+## Environment capability declarations
+
+A manifest may declare `env: ["DEEPSEEK_API_KEY", ...]` (≤16 upper-case names, no
+duplicates). That is the complete list of environment variables the plugin is
+allowed to read; the declaration carries names, never values. `wh plugins --json`
+exposes it per row and `wh doctor` prints a read-only section:
+
+```
+environment reads (declared names only, never values):
+  llm-bridge: DEEPSEEK_API_KEY
+```
+
+`harness.manifests` exposes `{pluginId, manifestId, env}` for tooling. The
+`workspace-llm-bridge` plugin additionally refuses a composition that points
+`apiKeyEnv` at a variable outside its declaration, so configuration cannot widen
+the credential surface.
+
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 70 tests, 0 fail
+node --test packages/harness-kernel/test     # 73 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 

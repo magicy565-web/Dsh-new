@@ -6,6 +6,7 @@
   "entry": "./src/index.mjs",
   "requires": ["llm"],
   "provides": [],
+  "env": ["DEEPSEEK_API_KEY"],
   "configSchema": {
     "type": "object",
     "properties": {

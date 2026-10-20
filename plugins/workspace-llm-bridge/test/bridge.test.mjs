@@ -39,32 +39,38 @@ test('disabled by default: nothing is registered and health says why', async t =
 });
 
 test('enabled without a credential stays unconfigured and never prints a value', async t => {
-  const harness = await boot(t, { enabled: true, apiKeyEnv: 'HARNESS_LLM_TEST_MISSING' });
+  const previous = process.env.DEEPSEEK_API_KEY;
+  delete process.env.DEEPSEEK_API_KEY;
+  t.after(() => { if (previous !== undefined) process.env.DEEPSEEK_API_KEY = previous; });
+  const harness = await boot(t, { enabled: true });
   const llm = harness.ctx.reflect.get('llm', false);
   assert.deepEqual(llm.providers(), []);
   const check = health(harness);
   assert.equal(check.detail.configured, false);
-  assert.equal(check.detail.env, 'HARNESS_LLM_TEST_MISSING');
+  assert.equal(check.detail.env, 'DEEPSEEK_API_KEY');
   assert.match(check.detail.reason, /credential is not set/u);
 });
 
+test('a composition cannot point apiKeyEnv at an undeclared variable', async t => {
+  await assert.rejects(boot(t, { enabled: true, apiKeyEnv: 'AWS_SECRET_ACCESS_KEY' }), error => /declared environment variables/u.test(error.message));
+});
+
 test('enabled with a credential registers the runtime provider without exposing the secret', async t => {
-  const variable = 'HARNESS_LLM_TEST_KEY';
   const secret = 'test-key-do-not-leak-123';
-  const previous = process.env[variable];
-  process.env[variable] = secret;
+  const previous = process.env.DEEPSEEK_API_KEY;
+  process.env.DEEPSEEK_API_KEY = secret;
   t.after(() => {
-    if (previous === undefined) delete process.env[variable];
-    else process.env[variable] = previous;
+    if (previous === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = previous;
   });
-  const harness = await boot(t, { enabled: true, apiKeyEnv: variable, model: 'deepseek-v4-pro', maxTokens: 222 });
+  const harness = await boot(t, { enabled: true, model: 'deepseek-v4-pro', maxTokens: 222 });
   const llm = harness.ctx.reflect.get('llm', false);
   assert.deepEqual(llm.providers(), [{ id: 'workspace-deepseek', model: 'deepseek-v4-pro', label: 'Workspace runtime (deepseek-v4-pro)' }]);
   const check = health(harness);
   assert.equal(check.detail.configured, true);
   assert.equal(check.detail.provider, 'workspace-deepseek');
   assert.equal(check.detail.model, 'deepseek-v4-pro');
-  assert.doesNotMatch(JSON.stringify(harness.healthz()), /test-key-do-not-leak|HARNESS_LLM_TEST_KEY=/u);
+  assert.doesNotMatch(JSON.stringify(harness.healthz()), /test-key-do-not-leak|DEEPSEEK_API_KEY=/u);
 });
 
 test('the plugin validates its configuration and requires ctx.llm', async t => {

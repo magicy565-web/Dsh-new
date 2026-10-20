@@ -206,6 +206,7 @@ function rowSummary(entry) {
     entry: entry.entry ?? null,
     requires: entry.manifest ? [...entry.manifest.requires] : [],
     provides: entry.manifest ? [...entry.manifest.provides] : [],
+    env: entry.manifest ? [...(entry.manifest.env ?? [])] : [],
   };
   if (entry.manifest) summary.manifestId = entry.manifest.id;
   if (entry.error) summary.error = { code: entry.error.code ?? 'HARNESS_ERROR', message: entry.error.message };
@@ -263,6 +264,9 @@ export async function runDoctor({
   const harness = await createHarness({ compositionPath, patchPaths, root, logger: cliLogger(stderr) });
   try {
     const health = harness.healthz();
+    const envReads = harness.manifests
+      .filter(entry => entry.env.length)
+      .map(entry => ({ pluginId: entry.pluginId, manifestId: entry.manifestId, env: [...entry.env] }));
     const document = {
       name: harness.composition.name,
       file: displayPath(root, harness.composition.file),
@@ -270,6 +274,7 @@ export async function runDoctor({
       status: health.status,
       plugins: health.plugins,
       checks: health.checks,
+      envReads,
       routes: harness.http.routeList(),
     };
     if (json) {
@@ -284,6 +289,10 @@ export async function runDoctor({
         stdout.write('health checks:\n');
         for (const check of health.checks) {
           stdout.write(`  ${check.name}: ${check.status}${check.detail ? ` (${check.detail})` : ''}\n`);
+        }
+        if (envReads.length) {
+          stdout.write('environment reads (declared names only, never values):\n');
+          for (const entry of envReads) stdout.write(`  ${entry.pluginId}: ${entry.env.join(', ')}\n`);
         }
       }
       stdout.write('routes:\n');

@@ -7,6 +7,10 @@ import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/ind
 import { createRuntimeProvider } from './adapter.mjs';
 
 const DEFAULT_ENV = 'DEEPSEEK_API_KEY';
+// Capability declaration: this plugin may only read variables listed here (and in
+// harness.plugin.json `env`). A composition cannot point apiKeyEnv at some other
+// secret that the plugin was never allowed to see.
+const DECLARED_ENV = Object.freeze([DEFAULT_ENV]);
 
 export async function apply(ctx, config = {}) {
   if (!ctx || typeof ctx !== 'object') throw new TypeError('workspace-llm-bridge requires a kernel context.');
@@ -23,6 +27,8 @@ export async function apply(ctx, config = {}) {
     throw new HarnessError(ERROR.manifestInvalid, 'timeoutMs must be an integer between 1000 and 600000.');
 
   const apiKeyEnv = config.apiKeyEnv ?? DEFAULT_ENV;
+  if (!DECLARED_ENV.includes(apiKeyEnv))
+    throw new HarnessError(ERROR.manifestInvalid, `apiKeyEnv must be one of the declared environment variables (${DECLARED_ENV.join(', ')}).`);
   const model = config.model ?? 'deepseek-flash';
   const providerId = config.providerId ?? 'workspace-deepseek';
 

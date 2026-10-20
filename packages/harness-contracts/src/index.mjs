@@ -56,6 +56,8 @@ export class HarnessError extends Error {
 }
 
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const ENV_NAME = /^[A-Z][A-Z0-9_]{1,127}$/u;
+const MAX_ENV_READS = 16;
 const isPlain = value => value !== null && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 
 export function assertId(value, label) {
@@ -87,11 +89,20 @@ export function validateManifest(manifest) {
     if (manifest[list] !== undefined && (!Array.isArray(manifest[list]) || manifest[list].some(item => typeof item !== 'string')))
       throw new HarnessError(ERROR.manifestInvalid, `manifest.${list} must be an array of names.`);
   }
+  // `env` declares the environment variables the plugin is allowed to read. It is
+  // a capability declaration, never a value store; the CLI surfaces it read-only.
+  if (manifest.env !== undefined) {
+    if (!Array.isArray(manifest.env) || manifest.env.length > MAX_ENV_READS || manifest.env.some(name => typeof name !== 'string' || !ENV_NAME.test(name)))
+      throw new HarnessError(ERROR.manifestInvalid, `manifest.env must be an array of at most ${MAX_ENV_READS} upper-case environment variable names.`);
+    if (new Set(manifest.env).size !== manifest.env.length)
+      throw new HarnessError(ERROR.manifestInvalid, 'manifest.env must not repeat a variable.');
+  }
   return Object.freeze({
     id: manifest.id, version: manifest.version, kind: manifest.kind, entry: manifest.entry,
     requires: Object.freeze([...(manifest.requires ?? [])]), provides: Object.freeze([...(manifest.provides ?? [])]),
     routes: Object.freeze([...(manifest.routes ?? [])]), tools: Object.freeze([...(manifest.tools ?? [])]),
     skills: Object.freeze([...(manifest.skills ?? [])]), slots: Object.freeze([...(manifest.slots ?? [])]),
+    env: Object.freeze([...(manifest.env ?? [])]),
     configSchema: manifest.configSchema ?? null, description: manifest.description ?? '',
   });
 }

@@ -56,6 +56,10 @@ plugins:
 
 校验用 `validateComposition`；行对象 `{id,name,config,disabled,isolate}`。
 
+### 清单能力声明（`env`）
+
+`harness.plugin.json` 可选 `env: ["DEEPSEEK_API_KEY", ...]`（≤16 个、大写名、不重复）：声明插件**允许读取**的环境变量名。它是能力声明，**不是值存储**；代码不得读取未声明变量。`wh plugins --json` 的行输出与 `wh doctor`（"environment reads (declared names only, never values)"）只展示声明名，永不展示值。`llm-bridge` 因此拒绝把 `apiKeyEnv` 指向未声明的变量。
+
 ### 组合 patch 层（`packages/harness-kernel/src/patch.mjs`）
 
 ```yaml

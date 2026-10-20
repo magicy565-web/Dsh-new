@@ -418,6 +418,12 @@ export async function createHarness({ compositionPath, composition: composed, pr
     composition: { file, name: composition.name, server: composition.server, digest: digestComposition(composition) },
     preset,
     patches: patchInfo,
+    // Capability declarations of the mounted rows (no values, no secrets).
+    manifests: resolved.map(entry => Object.freeze({
+      pluginId: entry.row.id,
+      manifestId: entry.manifest?.id ?? null,
+      env: Object.freeze(entry.manifest ? [...entry.manifest.env] : []),
+    })),
     http,
   };
 }
