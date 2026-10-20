@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
-import { displayPath, readComposition, resolveRows } from './resolve.mjs';
+import { displayPath, readComposition, readRowManifest, resolveRows } from './resolve.mjs';
 import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled } from './patch.mjs';
 import { checkInstallDrift, installPlugin, listInstalled, readInstallJournal, rollbackPlugin, uninstallPlugin } from './install.mjs';
 import { appendAuditEntry } from './audit-state.mjs';
@@ -17,6 +17,7 @@ const USAGE = `Usage: wh <command> [options]
 Commands:
   list      Resolve and print composition rows (entry, status, requires/provides). No plugin is mounted.
   plugins   Alias of list; both accept --patch layers.
+  capabilities  Capability inventory: services/routes/tools/skills/env per row, unmet requires.
   doctor    Load the composition (mount plugins, no HTTP serving), report health, then dispose.
   patch     Inspect or edit a patch layer: \`show\`, \`journal\`, \`disable <id>\`, \`enable <id>\` (requires --patch).
   audit     Read the durable audit trail straight from the storage state file (no lock, no mount).
@@ -73,6 +74,7 @@ export function parseArgv(argv = []) {
     journal: false,
     check: false,
     strict: false,
+    capabilitiesCheck: false,
     publicKey: null,
     actor: null,
     auditState: null,
@@ -158,6 +160,8 @@ export function parseArgv(argv = []) {
       options.check = true;
     } else if (argument === '--strict') {
       options.strict = true;
+    } else if (argument === '--check-unmet') {
+      options.capabilitiesCheck = true;
     } else if (argument === '--public-key') {
       const value = argv[index + 1];
       if (!value || value.startsWith('-')) errors.push(`${argument} requires a PEM file.`);
@@ -296,6 +300,98 @@ export async function runList({ compositionPath, patchPaths = [], root, json = f
         'The rows are listed with status "missing"/"invalid"; starting the harness will fail closed.\n',
     );
   }
+  return 0;
+}
+
+/**
+ * `wh capabilities`: read-only capability inventory for a composition, without
+ * mounting plugins (manifests and rows only).
+ */
+export async function runCapabilities({
+  compositionPath, patchPaths = [], root, json = false, capabilitiesCheck = false,
+  stdout = process.stdout,
+} = {}) {
+  const { file, composition: base } = await readComposition(compositionPath, { root });
+  let composition = base;
+  if (patchPaths.length) {
+    const layers = [];
+    for (const patchPath of patchPaths) layers.push((await readPatch(patchPath, { root })).patch);
+    composition = applyPatches(composition, layers).composition;
+  }
+  const resolved = await resolveRows(composition.rows, { root, compositionFile: file });
+  const rows = [];
+  for (const entry of resolved) {
+    // A disabled row has no imported module; its manifest is read only by this
+    // read-only inventory so the report can describe what it would contribute.
+    const manifest = entry.manifest ?? (entry.row.disabled ? await readRowManifest(entry.row, { root, compositionFile: file }) : null);
+    rows.push({
+      id: entry.row.id,
+      name: entry.row.name,
+      disabled: Boolean(entry.row.disabled),
+      status: entry.status,
+      entry: entry.entry ?? null,
+      manifestId: manifest?.id ?? null,
+      version: manifest?.version ?? null,
+      kind: manifest?.kind ?? null,
+      provides: manifest ? [...manifest.provides] : [],
+      requires: manifest ? [...manifest.requires] : [],
+      env: manifest ? [...(manifest.env ?? [])] : [],
+      routes: manifest ? [...(manifest.routes ?? [])] : [],
+      tools: manifest ? [...(manifest.tools ?? [])] : [],
+      skills: manifest ? [...(manifest.skills ?? [])] : [],
+      slots: manifest ? [...(manifest.slots ?? [])] : [],
+    });
+  }
+  const kernelServices = new Set(['http', 'health']);
+  const provided = new Map();
+  for (const row of rows) {
+    if (row.disabled || !row.manifestId) continue;
+    for (const service of row.provides) {
+      if (!provided.has(service)) provided.set(service, []);
+      provided.get(service).push(row.id);
+    }
+  }
+  const available = new Set([...provided.keys(), ...kernelServices]);
+  const unmet = [];
+  for (const row of rows) {
+    if (row.disabled || !row.manifestId) continue;
+    for (const service of row.requires) {
+      if (!available.has(service)) unmet.push({ pluginId: row.id, service });
+    }
+  }
+  const conflicts = [...provided.entries()]
+    .filter(([, pluginIds]) => pluginIds.length > 1)
+    .map(([service, pluginIds]) => ({ service, pluginIds }));
+  const document = {
+    composition: { name: composition.name, file: displayPath(root, file), digest: digestComposition(composition) },
+    rows,
+    services: Object.fromEntries(provided.entries()),
+    unmet,
+    conflicts,
+    tools: [...new Set(rows.flatMap(row => row.tools))],
+    routes: [...new Set(rows.flatMap(row => row.routes))],
+    env: [...new Set(rows.flatMap(row => row.env))],
+    skills: [...new Set(rows.flatMap(row => row.skills))],
+  };
+  if (json) {
+    stdout.write(`${JSON.stringify(document, null, 2)}\n`);
+  } else {
+    stdout.write(`capabilities of "${document.composition.name}" (${document.composition.file})\n`);
+    stdout.write(`digest: ${document.composition.digest}\n`);
+    for (const row of rows) {
+      const marker = row.disabled ? 'disabled' : row.status;
+      stdout.write(`  ${pad(row.id, 18)}${pad(marker, 10)}${row.manifestId ?? '-'}@${row.version ?? '-'}\n`);
+      if (row.provides.length) stdout.write(`    provides: ${row.provides.join(', ')}\n`);
+      if (row.requires.length) stdout.write(`    requires: ${row.requires.join(', ')}\n`);
+      if (row.env.length) stdout.write(`    env: ${row.env.join(', ')}\n`);
+      if (row.routes.length) stdout.write(`    routes: ${row.routes.length}, tools: ${row.tools.length}, skills: ${row.skills.length}\n`);
+    }
+    if (conflicts.length) stdout.write(`conflicts: ${conflicts.map(item => `${item.service} (${item.pluginIds.join(', ')})`).join('; ')}\n`);
+    stdout.write(`unmet requires: ${unmet.length ? unmet.map(item => `${item.pluginId}→${item.service}`).join(', ') : 'none'}\n`);
+    stdout.write(`tools: ${document.tools.join(', ') || '-'}\n`);
+    stdout.write(`env declared: ${document.env.join(', ') || '-'}\n`);
+  }
+  if (capabilitiesCheck && (unmet.length || conflicts.length)) return 1;
   return 0;
 }
 
@@ -727,12 +823,13 @@ export async function runWh(argv = [],
     compositionPath: options.composition, patchPaths: options.patches, state: options.state,
     kind: options.kind, workspace: options.workspace, limit: options.limit, root: effectiveRoot, json: options.json,
     target: options.target, backup: options.backup, upgrade: options.upgrade,
-    journal: options.journal, check: options.check, strict: options.strict, publicKey: options.publicKey, actor: options.actor, auditState: options.auditState,
+    journal: options.journal, check: options.check, strict: options.strict, capabilitiesCheck: options.capabilitiesCheck, publicKey: options.publicKey, actor: options.actor, auditState: options.auditState,
     args: options.args, stdout, stderr,
   };
   try {
     if (options.command === 'list' || options.command === 'plugins') return await runList(context);
     if (options.command === 'doctor') return await runDoctor(context);
+    if (options.command === 'capabilities') return await runCapabilities(context);
     if (options.command === 'patch') return await runPatch(context);
     if (options.command === 'audit') return await runAudit(context);
     if (options.command === 'installed') return await runInstalled(context);

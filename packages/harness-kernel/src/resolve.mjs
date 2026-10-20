@@ -151,6 +151,18 @@ async function loadManifestFile(manifestPath) {
   }
 }
 
+/**
+ * Best-effort manifest lookup for a row without importing its module. Used by the
+ * read-only capability inventory so a disabled row can still describe what it
+ * would contribute. Returns null when the row has no manifest file or it is invalid.
+ */
+export async function readRowManifest(row, options = {}) {
+  const located = locateRow(row, options);
+  if (located.error || !located.expected || located.kind !== 'plugin') return null;
+  try { return await loadManifestFile(located.expected); }
+  catch { return null; }
+}
+
 /** Derive a manifest for entry modules that do not ship a harness.plugin.json. */
 function synthesizeManifest(module, row, entryPath, { root }) {
   const provides = stringList(module.provides);

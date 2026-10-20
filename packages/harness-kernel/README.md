@@ -267,6 +267,18 @@ refuses to overwrite a state file it cannot parse; an audit write failure warns 
 does not undo the installation.
 
 
+## Capability inventory
+
+`wh capabilities [--composition <file>] [--patch <file>] [--check-unmet] [--json]`
+prints a read-only inventory without mounting any plugin: per row it shows the
+manifest id/version, provided and required services, routes, tools, skills, slots
+and declared env names; it also aggregates the tool/env/skill sets, detected
+service conflicts (two rows providing the same service) and unmet requirements
+(disabled rows contribute nothing and are not counted).
+
+`--check-unmet` exits 1 when there is an unmet requirement or a conflict, so a CI
+check can fail a composition before anyone starts it.
+
 ## Doctor report
 
 `wh doctor [--composition <file>] [--target <dir>] [--json]` mounts the composition
@@ -356,7 +368,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 93 tests, 0 fail
+node --test packages/harness-kernel/test     # 96 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 

@@ -271,7 +271,7 @@ wh rollback <id> [--target plugins] [--backup <dir>] [--actor <subject>] [--json
 node node_modules/typescript/bin/tsc --noEmit          # 不许回归
 node --test packages/harness-kernel/test                # A
 node --test packages/harness-seams/test                 # B
-node packages/harness-kernel/bin/wh.mjs list --composition harness.local.yml
+node packages/harness-kernel/bin/wh.mjs list --composition harness.local.yml`nnode packages/harness-kernel/bin/wh.mjs capabilities --composition harness.local.yml --check-unmet
 node harness.mjs --composition harness.local.yml        # 启动后：
 #   curl -s localhost:8790/healthz
 #   curl -s localhost:8790/api/inquiry-recovery/status
