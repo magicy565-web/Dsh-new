@@ -239,3 +239,105 @@ test('a fully rejected import returns the per-row reasons through HTTP', async t
   assert.equal(response.body.error.rejected[0].code, 'INQUIRY_FACT_UNSUPPORTED');
   assert.equal(recovery.status(actor).counts.leads, 0);
 });
+
+test('selection stages the draft as an immutable artifact with unverified provenance', async t => {
+  const captured = [];
+  const artifacts = {
+    async create(input) {
+      captured.push(input);
+      return { artifact: { id: 'artifact-1', currentVersion: 1, sha256: 'a'.repeat(64), filename: input.filename }, duplicate: false };
+    },
+  };
+  const { recovery } = await fixture(t, { artifacts });
+  await importJson(recovery, [row()]);
+  const detail = recovery.lead('lead-alpha', actor);
+  assert.equal(detail.card.decision, 'need_evidence');
+  await recovery.reviewIdentity('lead-alpha', {
+    requestId: randomUUID(), sourceHash: detail.card.sourceHash, status: 'confirmed', basis: [{ sourceId: 'm1', quote: detail.facts[0].quote }],
+  }, actor);
+  const card = recovery.lead('lead-alpha', actor).card;
+  const selection = await recovery.selectLead('lead-alpha', {
+    requestId: randomUUID(), expectedRevision: card.revision, sourceHash: card.sourceHash, asOf: '2026-10-21',
+  }, actor);
+
+  assert.equal(captured.length, 1);
+  const input = captured[0];
+  assert.equal(input.filename, `followup-${card.leadId}.md`);
+  assert.ok(input.content.includes('未发送'));
+  assert.equal(input.metadata.inquiryRecovery.sent, false);
+  assert.equal(input.metadata.inquiryRecovery.humanReviewed, false);
+  assert.equal(input.metadata.inquiryRecovery.independentlyVerified, false);
+  assert.equal(input.metadata.inquiryRecovery.sourceHash, card.sourceHash);
+  assert.equal(input.sourceConversationId, undefined);
+  assert.deepEqual(selection.artifact, { artifactId: 'artifact-1', version: 1, sha256: 'a'.repeat(64), filename: input.filename });
+
+  await assert.rejects(recovery.selectLead('lead-alpha', {
+    requestId: randomUUID(), expectedRevision: card.revision, sourceHash: card.sourceHash, asOf: '2026-10-21', conversationId: 'someone-elses',
+  }, actor), code('INQUIRY_CONVERSATION_REFUSED'));
+});
+
+test('missing recipient or product evidence blocks follow-up even after identity review', async t => {
+  const { recovery } = await fixture(t);
+  await importJson(recovery, [row({ leadId: 'lead-norecipient', sourceId: 'src-no', contactEmail: '', customerName: '', companyUrl: '', productId: '' })]);
+  const detail = recovery.lead('lead-norecipient', actor);
+  await recovery.reviewIdentity('lead-norecipient', {
+    requestId: randomUUID(), sourceHash: detail.card.sourceHash, status: 'confirmed', basis: [{ sourceId: 'm1', quote: detail.facts[0].quote }],
+  }, actor);
+  const card = recovery.lead('lead-norecipient', actor).card;
+  assert.equal(card.decision, 'need_evidence');
+  assert.ok(card.missing.includes('contact_channel'));
+  assert.ok(card.missing.includes('company_url'));
+  assert.ok(card.missing.includes('product_binding'));
+  await assert.rejects(recovery.selectLead('lead-norecipient', {
+    requestId: randomUUID(), expectedRevision: card.revision, sourceHash: card.sourceHash, asOf: '2026-10-21',
+  }, actor), code('INQUIRY_NOT_ELIGIBLE'));
+});
+
+test('ambiguous dates stay unknown instead of rolling over or using the server timezone', async t => {
+  const { recovery } = await fixture(t);
+  await importJson(recovery, [row({ lastContactAt: '2026-02-30', requestedAt: '2026-09-19T08:00' })]);
+  const card = recovery.lead('lead-alpha', actor).card;
+  assert.equal(card.lastContactAt, null);
+  assert.ok(card.dateUnknown.includes('lastContactAt'));
+  assert.ok(card.dateUnknown.includes('requestedAt'));
+  assert.deepEqual(card.reasons, ['IDENTITY_UNCONFIRMED', 'LAST_CONTACT_UNKNOWN']);
+});
+
+test('oversized JSON imports and CSV text after a closing quote are refused', async t => {
+  const { recovery } = await fixture(t);
+  const big = 'x'.repeat(70 * 1024);
+  await assert.rejects(recovery.importInquiries({ format: 'json', requestId: randomUUID(),
+    content: JSON.stringify({ schema: 'historical-inquiry.input.v1', synthetic: false, inquiries: [row({ body: big })] }) }, actor),
+    code('INQUIRY_IMPORT_TOO_LARGE'));
+  await assert.rejects(recovery.importInquiries({ format: 'csv', requestId: randomUUID(),
+    content: 'leadId,sourceId,revision,companyName\nla,src,1,"Alpha"LLC\n' }, actor), code('INQUIRY_IMPORT_INVALID'));
+});
+
+test('a damaged recovery section fails closed instead of throwing or appending', async t => {
+  const { recovery, store } = await fixture(t);
+  await store.update(state => {
+    state.inquiryRecovery = { version: 1, workspaceId: 'ws-1', leads: [{ leadId: 'broken' }], imports: [], conflicts: [], selections: [], commands: [], events: [] };
+  });
+  assert.throws(() => recovery.status(actor), code('INQUIRY_STORE_INVALID'));
+  await assert.rejects(importJson(recovery, [row()]), code('INQUIRY_STORE_INVALID'));
+  const after = store.read().inquiryRecovery;
+  assert.equal(after.leads.length, 1);
+  assert.equal(after.leads[0].leadId, 'broken');
+});
+
+test('a newer revision keeps omitted optional fields instead of erasing them', async t => {
+  const { recovery } = await fixture(t);
+  await importJson(recovery, [row()]);
+  const first = recovery.lead('lead-alpha', actor).card;
+  await recovery.reviewIdentity('lead-alpha', {
+    requestId: randomUUID(), sourceHash: first.sourceHash, status: 'confirmed', basis: [{ sourceId: 'm1', quote: 'We need 500 pcs hydraulic cylinder' }],
+  }, actor);
+  const updated = await importJson(recovery, [row({ revision: 2, lastContactAt: '2026-10-10', companyName: '', contactEmail: '', productId: '' })]);
+  assert.equal(updated.updated, 1);
+  const card = recovery.lead('lead-alpha', actor).card;
+  assert.equal(card.company.name, 'Alpha Trading LLC');
+  assert.equal(card.company.email, 'buyer@alpha.example.com');
+  assert.equal(card.request.productId, 'prod-1');
+  assert.equal(card.identity.status, 'unknown');
+  assert.equal(card.sourceHash, recovery.lead('lead-alpha', actor).card.sourceHash);
+});

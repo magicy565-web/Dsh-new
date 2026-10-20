@@ -76,6 +76,9 @@ test('historical inquiry recovery is reachable through the real application HTTP
   assert.equal(selected.body.draft.sent, false);
   assert.equal(selected.body.goalDraft.enabled, false);
   assert.equal(selected.body.goalDraft.notWritten, true);
+  assert.ok(selected.body.artifact?.artifactId, 'the draft must be a real artifact');
+  const artifacts = await f.request('/api/artifacts');
+  assert.ok(artifacts.body.artifacts.some(item => item.id === selected.body.artifact.artifactId));
 
   await f.restart();
   const restored = await f.request('/api/inquiry-recovery/opportunities?asOf=2026-10-21');
@@ -84,6 +87,7 @@ test('historical inquiry recovery is reachable through the real application HTTP
   const selections = await f.request('/api/inquiry-recovery/selections');
   assert.equal(selections.body.selections.length, 1);
   assert.equal(selections.body.selections[0].leadId, 'lead-alpha');
+  assert.equal(selections.body.selections[0].artifact.artifactId, selected.body.artifact.artifactId);
 });
 
 test('the recovery HTTP surface refuses malformed imports and unknown routes without touching data', async t => {

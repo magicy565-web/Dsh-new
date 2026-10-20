@@ -60,9 +60,18 @@ function explicitDate(value) {
   if (value === undefined || value === null || value === '') return { value: null, unknown: true };
   if (typeof value !== 'string') return { value: null, unknown: true };
   const input = value.trim();
-  if (!/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/u.test(input))
+  // A calendar date, or a datetime that states its timezone. A datetime without
+  // an offset is never guessed against the server clock.
+  if (!/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2}))?$/u.test(input))
     return { value: null, unknown: true, raw: input.slice(0, 64) };
-  const parsed = Date.parse(/^\d{4}-\d{2}-\d{2}$/u.test(input) ? `${input}T00:00:00.000Z` : input);
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(input)) {
+    const [year, month, day] = input.split('-').map(Number);
+    const calendar = new Date(Date.UTC(year, month - 1, day));
+    if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1 || calendar.getUTCDate() !== day)
+      return { value: null, unknown: true, raw: input.slice(0, 64) };
+    return { value: calendar.toISOString(), unknown: false };
+  }
+  const parsed = Date.parse(input);
   if (!Number.isFinite(parsed)) return { value: null, unknown: true, raw: input.slice(0, 64) };
   return { value: new Date(parsed).toISOString(), unknown: false };
 }
@@ -91,21 +100,23 @@ export function parseCsv(source) {
   if (Buffer.byteLength(source, 'utf8') > MAX_IMPORT_BYTES) fail(413, 'INQUIRY_IMPORT_TOO_LARGE', 'The CSV exceeds 64 KiB.');
   const input = source.replace(/^\uFEFF/u, '');
   const rows = [];
-  let field = '', row = [], quoted = false;
+  let field = '', row = [], quoted = false, closed = false;
   for (let index = 0; index < input.length; index++) {
     const char = input[index];
     if (quoted) {
       if (char === '"') {
-        if (input[index + 1] === '"') { field += '"'; index++; } else quoted = false;
+        if (input[index + 1] === '"') { field += '"'; index++; } else { quoted = false; closed = true; }
       } else field += char;
       continue;
     }
+    if (closed && char !== ',' && char !== '\n' && char !== '\r')
+      fail(400, 'INQUIRY_IMPORT_INVALID', 'Only a delimiter may follow a closing CSV quote.');
     if (char === '"') {
       if (field) fail(400, 'INQUIRY_IMPORT_INVALID', 'A quote may only open a CSV field.');
       quoted = true;
-    } else if (char === ',') { row.push(field); field = ''; }
-    else if (char === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-    else if (char === '\r') { if (input[index + 1] === '\n') index++; row.push(field); rows.push(row); row = []; field = ''; }
+    } else if (char === ',') { row.push(field); field = ''; closed = false; }
+    else if (char === '\n') { row.push(field); rows.push(row); row = []; field = ''; closed = false; }
+    else if (char === '\r') { if (input[index + 1] === '\n') index++; row.push(field); rows.push(row); row = []; field = ''; closed = false; }
     else field += char;
   }
   if (quoted) fail(400, 'INQUIRY_IMPORT_INVALID', 'The CSV contains an unterminated quoted field.');
@@ -209,12 +220,12 @@ function decisionFor(lead, asOfMs, staleDays = DEFAULT_STALE_DAYS) {
   const last = Date.parse(lead.lastContactAt ?? '');
   const daysStale = Number.isFinite(last) ? Math.max(0, Math.floor((asOfMs - last) / DAY)) : null;
   if (daysStale === null) reasons.push('LAST_CONTACT_UNKNOWN');
-  if (reasons.length) return { decision: 'need_evidence', reasons, daysStale, missing };
+  if (reasons.length || missing.length) return { decision: 'need_evidence', reasons, daysStale, missing };
   if (daysStale >= staleDays) return { decision: 'follow_up', reasons: ['STALE_FOLLOW_UP'], daysStale, missing };
   return { decision: 'nurture', reasons: ['RECENT_CONTACT'], daysStale, missing };
 }
 
-function nextStepFor(lead, decision) {
+function nextStepFor(lead, decision, staleDays = DEFAULT_STALE_DAYS) {
   if (decision.decision === 'hold')
     return { action: '暂停复联', why: `当前状态为 ${lead.status}，不生成外发草稿。`, risk: '仅当客户重新主动联系后重新评估。' };
   if (decision.decision === 'need_evidence')
@@ -224,7 +235,7 @@ function nextStepFor(lead, decision) {
       risk: '在补齐前不得报价、承诺交期或假设客户仍在采购。',
     };
   if (decision.decision === 'nurture')
-    return { action: '保持节奏，到期后再评估', why: `最近一次联系在 ${decision.daysStale} 天前，未超过 ${DEFAULT_STALE_DAYS} 天阈值。`, risk: '不要为了推进而虚构新进展。' };
+    return { action: '保持节奏，到期后再评估', why: `最近一次联系在 ${decision.daysStale} 天前，未超过 ${staleDays} 天阈值。`, risk: '不要为了推进而虚构新进展。' };
   return {
     action: `发出一次简短跟进（已 ${decision.daysStale} 天未联系）`,
     why: '引用对方原话中的需求，只问一个容易回答的问题。',
@@ -242,7 +253,7 @@ function evidenceFor(lead) {
 
 function draftFor(lead, decision, asOf) {
   const evidence = evidenceFor(lead);
-  const facts = evidence.map(item => `- [${item.kind}] ${item.quote}（${item.sourceMessageId}，${item.occurredAt ?? '日期未知'}）`).join('\n');
+  const facts = evidence.map(item => `- [${item.kind}] ${item.quote}（${item.sourceMessageId}，${item.occurredAt ?? '日期未知'}；独立核实：否${item.kind === 'purchase' ? '，采购说法未经核实，不是订单' : ''}）`).join('\n');
   const lines = [
     '<!-- 未发送：人审必需。本文件由 Workspace 依据已导入历史生成，未经模型撰写、未做外部联系。 -->',
     `# 复联草稿 · ${lead.companyName || lead.leadId}`,
@@ -289,7 +300,7 @@ function cardFor(lead, asOfMs, staleDays) {
     identity: { status: lead.identity.status, reviewerConfirmed: lead.identity.reviewerConfirmed === true },
     lastContactAt: lead.lastContactAt, daysStale: decision.daysStale,
     decision: decision.decision, reasons: decision.reasons, missing: decision.missing,
-    evidence: evidenceFor(lead), nextStep: nextStepFor(lead, decision),
+    evidence: evidenceFor(lead), nextStep: nextStepFor(lead, decision, staleDays),
     draft: draft ? { filename: draft.filename, sha256: draft.sha256, sent: false, humanReviewRequired: true } : null,
     dateUnknown: lead.dateUnknown, updatedAt: lead.updatedAt,
   };
@@ -306,10 +317,11 @@ function requireMember(actor) {
   return actor;
 }
 
-export function createInquiryRecoveryService({ store, clock = Date.now, workspaceId = 'local', staleDays = DEFAULT_STALE_DAYS } = {}) {
+export function createInquiryRecoveryService({ store, artifacts = null, clock = Date.now, workspaceId = 'local', staleDays = DEFAULT_STALE_DAYS } = {}) {
   if (!store?.read || !store?.update || typeof clock !== 'function') throw new TypeError('The original Workspace store and a clock are required.');
   if (typeof workspaceId !== 'string' || !workspaceId) throw new TypeError('A workspace identity is required.');
   if (!Number.isInteger(staleDays) || staleDays < 1 || staleDays > 365) throw new TypeError('staleDays must be between 1 and 365.');
+  if (artifacts !== null && typeof artifacts?.create !== 'function') throw new TypeError('Artifacts must expose the original create service.');
 
   const fresh = () => ({ version: VERSION, workspaceId, leads: [], imports: [], conflicts: [], selections: [], commands: [], events: [] });
 
@@ -319,6 +331,16 @@ export function createInquiryRecoveryService({ store, clock = Date.now, workspac
     if (db.version !== VERSION || db.workspaceId !== workspaceId) fail(409, 'INQUIRY_WORKSPACE_CHANGED', 'This recovery store belongs to its original enterprise.');
     for (const key of ['leads', 'imports', 'conflicts', 'selections', 'commands', 'events'])
       if (!Array.isArray(db[key])) fail(409, 'INQUIRY_STORE_INVALID', 'The recovery store needs review; no data was overwritten.');
+    // A damaged section must fail closed instead of feeding decisionFor a
+    // half-shaped lead (which used to surface as a TypeError/500).
+    for (const lead of db.leads) {
+      if (!lead || typeof lead !== 'object' || typeof lead.leadId !== 'string' || !lead.leadId
+        || typeof lead.sourceId !== 'string' || !Number.isSafeInteger(lead.revision)
+        || typeof lead.sourceHash !== 'string' || !/^[a-f0-9]{64}$/u.test(lead.sourceHash)
+        || !STATUSES.has(lead.status) || !Array.isArray(lead.facts) || !Array.isArray(lead.history)
+        || !lead.identity || !IDENTITY_STATES.has(lead.identity.status))
+        fail(409, 'INQUIRY_STORE_INVALID', 'The recovery store needs review; no data was overwritten.');
+    }
     return db;
   }
 
@@ -352,7 +374,10 @@ export function createInquiryRecoveryService({ store, clock = Date.now, workspac
     const digest = sourceHash(record);
     const sameLead = db.leads.filter(lead => lead.leadId === record.leadId && lead.sourceId === record.sourceId);
     const current = sameLead.sort((a, b) => b.revision - a.revision)[0];
-    const conflict = (kind, detail) => db.conflicts.push({ id: randomUUID(), leadId: record.leadId, sourceId: record.sourceId, kind, detail, importId, at: now(clock) });
+    const conflict = (kind, detail) => {
+      db.conflicts.push({ id: randomUUID(), leadId: record.leadId, sourceId: record.sourceId, kind, detail, importId, at: now(clock) });
+      if (db.conflicts.length > 500) db.conflicts.splice(0, db.conflicts.length - 500);
+    };
     if (current) {
       const identical = db.leads.find(lead => lead.leadId === record.leadId && lead.sourceId === record.sourceId && lead.revision === record.revision);
       if (identical) {
@@ -374,12 +399,17 @@ export function createInquiryRecoveryService({ store, clock = Date.now, workspac
         return 'conflict';
       }
       const previous = { revision: current.revision, sourceHash: current.sourceHash, at: current.updatedAt };
-      Object.assign(current, record, {
+      // A newer revision may omit optional identity/request fields (CSV exports
+      // often do). Keep the last reviewed value instead of silently erasing it.
+      const carried = {};
+      for (const key of ['companyName', 'companyUrl', 'contactEmail', 'customerName', 'productId', 'product', 'unit', 'destination'])
+        if (!record[key] && current[key]) carried[key] = current[key];
+      Object.assign(current, record, carried, {
         sourceHash: digest, importId, updatedAt: now(clock), updatedBy: actor.subject,
         revisionHistory: [...(current.revisionHistory || []), previous].slice(-20),
         identity: { status: 'unknown', reviewerConfirmed: false, basis: [] },
       });
-      if (db.conflicts.length > 500) db.conflicts.splice(0, db.conflicts.length - 500);
+      if (Object.keys(carried).length) current.carriedForward = [...new Set([...(current.carriedForward || []), ...Object.keys(carried)])];
       return 'updated';
     }
     if (db.leads.some(lead => lead.leadId === record.leadId)) {
@@ -394,6 +424,30 @@ export function createInquiryRecoveryService({ store, clock = Date.now, workspac
     return 'inserted';
   }
 
+  function planSelection(leadId, body, db = null) {
+    const source = db ?? snapshot();
+    const lead = source.leads.find(item => item.leadId === leadId);
+    if (!lead) fail(404, 'INQUIRY_NOT_FOUND', 'The imported lead was not found.');
+    if (body?.expectedRevision !== lead.revision) fail(409, 'INQUIRY_REVISION_CONFLICT', 'The lead changed; reload before selecting it.');
+    if (body?.sourceHash !== lead.sourceHash) fail(409, 'INQUIRY_SOURCE_CHANGED', 'The lead source changed; reload before selecting it.');
+    const asOfMs = body?.asOf === undefined ? Number(clock()) : Date.parse(`${body.asOf}T23:59:59.999Z`);
+    if (!Number.isFinite(asOfMs)) fail(400, 'INQUIRY_ASOF_INVALID', 'asOf must be YYYY-MM-DD.');
+    const decision = decisionFor(lead, asOfMs, staleDays);
+    if (decision.decision !== 'follow_up') fail(409, 'INQUIRY_NOT_ELIGIBLE', `Only stale, evidence-complete leads can produce a follow-up draft (current: ${decision.decision}).`);
+    const draft = draftFor(lead, decision, new Date(asOfMs).toISOString().slice(0, 10));
+    return { lead, decision, draft, asOfMs };
+  }
+
+  function ownedConversationId(conversationId, actor) {
+    if (conversationId === undefined || conversationId === null || conversationId === '') return null;
+    if (typeof conversationId !== 'string' || !conversationId.trim() || conversationId.length > 200)
+      fail(400, 'INQUIRY_CONVERSATION_INVALID', 'conversationId must be a bounded identifier.');
+    const conversation = (store.read().conversations ?? []).find(item => item.id === conversationId);
+    if (!conversation || conversation.subject !== actor.subject)
+      fail(403, 'INQUIRY_CONVERSATION_REFUSED', 'Attach only your own Workspace conversation, or omit it.');
+    return conversationId;
+  }
+
   return Object.freeze({
     /** Import authorized historical inquiries. Every rejected row is reported, never dropped silently. */
     async importInquiries(body, actor) {
@@ -401,6 +455,8 @@ export function createInquiryRecoveryService({ store, clock = Date.now, workspac
       const format = body?.format === 'csv' ? 'csv' : body?.format === 'json' ? 'json' : null;
       if (!format) fail(400, 'INQUIRY_IMPORT_FORMAT', 'Use format csv or json.');
       const sourceName = text(body.sourceName, 'sourceName', 120, true) || (format === 'csv' ? 'inquiries.csv' : 'inquiries.json');
+      const contentBytes = typeof body.content === 'string' ? Buffer.byteLength(body.content, 'utf8') : Buffer.byteLength(JSON.stringify(body.content ?? null), 'utf8');
+      if (contentBytes > MAX_IMPORT_BYTES) fail(413, 'INQUIRY_IMPORT_TOO_LARGE', 'The import exceeds the 64 KiB input limit.');
       let records;
       try {
         if (format === 'csv') records = parseCsv(body.content);
@@ -509,21 +565,42 @@ export function createInquiryRecoveryService({ store, clock = Date.now, workspac
     /** Selecting a lead produces an unsent draft and a non-enabled Goal draft. It never sends or enables anything. */
     async selectLead(leadId, body, actor) {
       requireMember(actor);
+      // Stage the draft as an immutable artifact before the store commit so a
+      // crash cannot leave a selection that claims a file it never wrote. The
+      // transaction below re-validates revision/sourceHash; a stale write leaves
+      // an unreferenced draft artifact, never a wrong attachment.
+      const planned = planSelection(leadId, body);
+      let artifact = null;
+      if (artifacts) {
+        const conversationId = ownedConversationId(body?.conversationId, actor);
+        const created = await artifacts.create({
+          requestId: `inquiry-recovery-${body.requestId}`,
+          filename: planned.draft.filename,
+          content: planned.draft.content,
+          title: `未发送复联草稿 · ${planned.lead.companyName || planned.lead.leadId}`,
+          description: 'Unreviewed follow-up draft generated from imported inquiry history. NOT SENT.',
+          metadata: {
+            inquiryRecovery: {
+              leadId: planned.lead.leadId, sourceId: planned.lead.sourceId, revision: planned.lead.revision,
+              sourceHash: planned.lead.sourceHash, importId: planned.lead.importId, decision: planned.decision.decision,
+              sent: false, humanReviewRequired: true, humanReviewed: false, independentlyVerified: false,
+            },
+          },
+          ...(conversationId ? { sourceConversationId: conversationId } : {}),
+        });
+        artifact = { artifactId: created.artifact.id, version: created.artifact.currentVersion, sha256: created.artifact.sha256, filename: created.artifact.filename };
+      }
       return await command(actor, 'inquiry.select', body, db => {
-        const lead = db.leads.find(item => item.leadId === leadId);
-        if (!lead) fail(404, 'INQUIRY_NOT_FOUND', 'The imported lead was not found.');
-        if (body.expectedRevision !== lead.revision) fail(409, 'INQUIRY_REVISION_CONFLICT', 'The lead changed; reload before selecting it.');
-        if (body.sourceHash !== lead.sourceHash) fail(409, 'INQUIRY_SOURCE_CHANGED', 'The lead source changed; reload before selecting it.');
-        const asOfMs = body.asOf === undefined ? Number(clock()) : Date.parse(`${body.asOf}T23:59:59.999Z`);
-        if (!Number.isFinite(asOfMs)) fail(400, 'INQUIRY_ASOF_INVALID', 'asOf must be YYYY-MM-DD.');
-        const decision = decisionFor(lead, asOfMs, staleDays);
-        if (decision.decision !== 'follow_up') fail(409, 'INQUIRY_NOT_ELIGIBLE', `Only stale, evidence-complete leads can produce a follow-up draft (current: ${decision.decision}).`);
-        const draft = draftFor(lead, decision, new Date(asOfMs).toISOString().slice(0, 10));
+        const current = planSelection(leadId, body, db);
+        if (current.lead.sourceHash !== planned.lead.sourceHash || current.lead.revision !== planned.lead.revision)
+          fail(409, 'INQUIRY_SOURCE_CHANGED', 'The lead changed while the draft was being written; reload and select again.');
+        const { lead, decision, draft } = current;
         const selection = {
           id: randomUUID(), leadId, at: now(clock), actor: actor.subject, requestId: body.requestId,
-          leadRevision: lead.revision, leadSourceHash: lead.sourceHash, asOf: new Date(asOfMs).toISOString(),
+          leadRevision: lead.revision, leadSourceHash: lead.sourceHash, asOf: new Date(planned.asOfMs).toISOString(),
           decision: decision.decision, daysStale: decision.daysStale,
           draft: { ...draft, sent: false, humanReviewRequired: true, humanReviewed: false },
+          artifact,
           goalDraft: {
             draft: true, enabled: false, notWritten: true,
             title: `复联：${lead.companyName || lead.leadId}`,
@@ -534,7 +611,7 @@ export function createInquiryRecoveryService({ store, clock = Date.now, workspac
         };
         db.selections.push(selection);
         if (db.selections.length > 500) db.selections.shift();
-        event(db, 'inquiry.selected', actor, { leadId, selectionId: selection.id, daysStale: decision.daysStale });
+        event(db, 'inquiry.selected', actor, { leadId, selectionId: selection.id, daysStale: decision.daysStale, artifactId: artifact?.artifactId ?? null });
         return selection;
       });
     },
@@ -562,6 +639,11 @@ export function createInquiryRecoveryService({ store, clock = Date.now, workspac
 }
 
 /** HTTP mapping kept separate from the Host router, mirroring supply-http.mjs. */
+function decodeLeadId(value) {
+  try { return decodeURIComponent(value); }
+  catch { throw new ApiError(400, 'INQUIRY_PATH_INVALID', 'Invalid identifier encoding.'); }
+}
+
 export async function inquiryRecoveryHttp({ recovery, method, pathname, body = {}, query = {}, actor }) {
   if (method === 'GET') {
     if (pathname === '/api/inquiry-recovery/status') return { status: 200, body: recovery.status(actor) };
@@ -588,9 +670,9 @@ export async function inquiryRecoveryHttp({ recovery, method, pathname, body = {
       }
     }
     const identity = pathname.match(/^\/api\/inquiry-recovery\/leads\/([^/]+)\/identity$/u);
-    if (identity) return { status: 200, body: await recovery.reviewIdentity(decodeURIComponent(identity[1]), body, actor) };
+    if (identity) return { status: 200, body: await recovery.reviewIdentity(decodeLeadId(identity[1]), body, actor) };
     const select = pathname.match(/^\/api\/inquiry-recovery\/leads\/([^/]+)\/select$/u);
-    if (select) return { status: 201, body: await recovery.selectLead(decodeURIComponent(select[1]), body, actor) };
+    if (select) return { status: 201, body: await recovery.selectLead(decodeLeadId(select[1]), body, actor) };
   }
   return null;
 }
