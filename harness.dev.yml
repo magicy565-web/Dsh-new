@@ -4,7 +4,7 @@ server: { host: 127.0.0.1, port: 8791 }
 plugins:
   - id: storage
     name: '@workspace-harness/seams/storage'
-    config: { directory: .harness-data }
+    config: { directory: .harness-dev-data }
   - id: artifacts
     name: '@workspace-harness/seams/artifacts'
   - id: approval

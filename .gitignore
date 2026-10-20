@@ -30,3 +30,4 @@ source-manifest.json
 
 .medusa/
 .harness-data/
+.harness-dev-data/
