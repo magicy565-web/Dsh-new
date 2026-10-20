@@ -1,6 +1,7 @@
 // Harness plugin: historical inquiry recovery.
 // The domain service stays in server/inquiry-recovery.mjs for P0; P1 extracts it
 // into a package so this plugin owns no server/* import.
+import { randomUUID } from 'node:crypto';
 import { createInquiryRecoveryService, inquiryRecoveryHttp } from '../../../server/inquiry-recovery.mjs';
 import { HarnessError, ERROR } from '../../../packages/harness-contracts/src/index.mjs';
 
@@ -42,6 +43,32 @@ export async function apply(ctx, config = {}) {
   };
   for (const [method, path] of ROUTES) ctx.http.route({ method, path, handler: handler(method) });
 
+  // Approval surface for the single write tool. A ticket is one-shot, actor-bound
+  // and expires; the tools seam consumes it before the handler runs.
+  const APPROVABLE = new Set(['inquiry_recovery_select']);
+  ctx.http.route({
+    method: 'POST', path: '/api/inquiry-recovery/approvals',
+    handler: async (_req, _res, context) => {
+      const body = context?.body ?? {};
+      if (!APPROVABLE.has(body.tool)) throw new HarnessError(ERROR.toolRefused, `Tool ${JSON.stringify(body.tool)} is not approvable here.`);
+      const request = await ctx.approval.request({ actor: context.actor, tool: body.tool, args: body.args ?? {}, reason: body.reason ?? '' });
+      return { status: 201, body: { id: request.id, status: request.status, expiresAt: request.expiresAt ?? null } };
+    },
+  });
+  ctx.http.route({
+    method: 'POST', path: '/api/inquiry-recovery/approvals/:approvalId/decide',
+    handler: async (_req, _res, context) => {
+      const decision = context?.body?.decision;
+      if (!['approve', 'deny'].includes(decision)) throw new HarnessError(ERROR.toolRefused, 'decision must be approve or deny.');
+      const result = await ctx.approval.decide(context.params.approvalId, decision, context.actor);
+      return { status: 200, body: { id: result.id, status: result.status } };
+    },
+  });
+  ctx.http.route({
+    method: 'GET', path: '/api/inquiry-recovery/approvals',
+    handler: async (_req, _res, context) => ({ status: 200, body: { approvals: ctx.approval.list({ status: context?.query?.status }) } }),
+  });
+
   ctx.tools.register({
     name: 'inquiry_recovery_status',
     description: 'Read the historical-inquiry recovery summary: lead counts by decision (follow_up / need_evidence / nurture / hold) and import/conflict counters. No customer data is returned.',
@@ -80,6 +107,35 @@ export async function apply(ctx, config = {}) {
           nextStep: card.nextStep.action, draftReady: card.draft !== null,
         })),
         omitted: Math.max(0, listing.cards.length - limit),
+      };
+    },
+  });
+
+  ctx.tools.register({
+    name: 'inquiry_recovery_select',
+    description: 'Produce an unsent follow-up draft and a non-enabled Goal draft for one stale, evidence-complete lead. Requires a one-shot approval ticket for this exact tool; nothing is sent, priced or enabled.',
+    parameters: {
+      type: 'object',
+      properties: {
+        leadId: { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}$', description: 'Imported lead to select.' },
+        expectedRevision: { type: 'integer', minimum: 1, description: 'Revision returned by the opportunities tool; a stale value is refused.' },
+        sourceHash: { type: 'string', pattern: '^[a-f0-9]{64}$', description: 'sourceHash returned for that revision.' },
+        asOf: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$', description: 'Evaluation date; defaults to today.' },
+      },
+      required: ['leadId', 'expectedRevision', 'sourceHash'],
+      additionalProperties: false,
+    },
+    approval: 'always',
+    authority: 'workspace',
+    handler: async (args, execution) => {
+      const selection = await recovery.selectLead(args.leadId, {
+        requestId: randomUUID(), expectedRevision: args.expectedRevision, sourceHash: args.sourceHash, asOf: args.asOf,
+      }, execution.actor);
+      return {
+        selectionId: selection.id, leadId: selection.leadId, decision: selection.decision, daysStale: selection.daysStale,
+        draft: { filename: selection.draft.filename, sha256: selection.draft.sha256, sent: false, humanReviewRequired: true, humanReviewed: false },
+        artifact: selection.artifact,
+        goalDraft: { title: selection.goalDraft.title, enabled: false, notWritten: true },
       };
     },
   });

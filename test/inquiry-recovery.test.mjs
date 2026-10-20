@@ -402,3 +402,45 @@ test('conversation attachment follows the real createdBy ownership and workspace
     requestId: randomUUID(), expectedRevision: ready.revision, sourceHash: ready.sourceHash, asOf: '2026-10-21', conversationId: 'conv-missing',
   }, actor), code('INQUIRY_CONVERSATION_REFUSED'));
 });
+
+test('a fact is dropped when a newer revision no longer backs it with stored history', async t => {
+  const { recovery } = await fixture(t);
+  await importJson(recovery, [row()]);
+  const updated = await importJson(recovery, [row({
+    revision: 2,
+    history: [{ id: 'm9', direction: 'outbound', sentAt: '2026-10-05', body: 'Completely new thread without the old quote.' }],
+    facts: [],
+  })]);
+  assert.equal(updated.updated, 1);
+  const detail = recovery.lead('lead-alpha', actor);
+  assert.equal(detail.facts.length, 0);
+  assert.equal(detail.history.length, 1);
+  assert.equal(detail.history[0].id, 'm9');
+  const card = recovery.lead('lead-alpha', actor).card;
+  assert.equal(card.decision, 'need_evidence');
+  assert.ok(card.reasons.includes('NO_VERBATIM_EVIDENCE'));
+});
+
+test('a rejected or stale selection never writes a draft artifact', async t => {
+  const captured = [];
+  const artifacts = { async create(input) { captured.push(input); return { artifact: { id: 'artifact-x', currentVersion: 1, sha256: 'c'.repeat(64), filename: input.filename }, duplicate: false }; } };
+  const { recovery } = await fixture(t, { artifacts });
+  await importJson(recovery, [row()]);
+  const detail = recovery.lead('lead-alpha', actor);
+  await recovery.reviewIdentity('lead-alpha', {
+    requestId: randomUUID(), sourceHash: detail.card.sourceHash, status: 'confirmed', basis: [{ sourceId: 'm1', quote: 'We need 500 pcs hydraulic cylinder' }],
+  }, actor);
+  const card = recovery.lead('lead-alpha', actor).card;
+  await assert.rejects(recovery.selectLead('lead-alpha', {
+    requestId: randomUUID(), expectedRevision: card.revision + 5, sourceHash: card.sourceHash, asOf: '2026-10-21',
+  }, actor), code('INQUIRY_REVISION_CONFLICT'));
+  assert.equal(captured.length, 0, 'a refused select must not leave an orphan draft artifact');
+
+  const accepted = await recovery.selectLead('lead-alpha', {
+    requestId: randomUUID(), expectedRevision: card.revision, sourceHash: card.sourceHash, asOf: '2026-10-21',
+  }, actor);
+  assert.equal(captured.length, 1);
+  assert.equal(accepted.artifact.artifactId, 'artifact-x');
+  const stored = recovery.selections(actor).selections[0];
+  assert.equal(stored.artifact.artifactId, 'artifact-x');
+});

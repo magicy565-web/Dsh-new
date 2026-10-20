@@ -101,6 +101,27 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
   await assert.rejects(tools.execute('inquiry_recovery_opportunities', { asOf: 'not-a-date' }, { actor }),
     error => error.code === 'HARNESS_TOOL_INVALID');
   await assert.rejects(tools.execute('not_a_tool', {}, { actor }), error => error.code === 'HARNESS_TOOL_REFUSED');
+
+  // The write tool is gated by a one-shot approval ticket issued through the plugin's own HTTP surface.
+  const selectArgs = { leadId: 'lead-alpha', expectedRevision: stale.revision, sourceHash: stale.sourceHash, asOf: '2026-10-21' };
+  await assert.rejects(tools.execute('inquiry_recovery_select', selectArgs, { actor }),
+    error => error.code === 'HARNESS_APPROVAL_REQUIRED');
+
+  const requested = await request('/api/inquiry-recovery/approvals', 'POST', { tool: 'inquiry_recovery_select', args: selectArgs, reason: 'operator asked for a follow-up draft' });
+  assert.equal(requested.status, 201, JSON.stringify(requested.body));
+  const approved = await request(`/api/inquiry-recovery/approvals/${requested.body.id}/decide`, 'POST', { decision: 'approve' });
+  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+  assert.equal(approved.body.status, 'approved');
+
+  const selectedByTool = await tools.execute('inquiry_recovery_select', { ...selectArgs, approvalId: requested.body.id }, { actor });
+  assert.equal(selectedByTool.decision, 'follow_up');
+  assert.equal(selectedByTool.draft.sent, false);
+  assert.equal(selectedByTool.goalDraft.enabled, false);
+  assert.ok(selectedByTool.selectionId);
+
+  // Tickets are one-shot: the same id cannot authorise a second execution.
+  await assert.rejects(tools.execute('inquiry_recovery_select', { ...selectArgs, approvalId: requested.body.id }, { actor }),
+    error => error.code === 'HARNESS_APPROVAL_REQUIRED');
 });
 
 test('disabling the inquiry row removes both its routes and its tools', async t => {

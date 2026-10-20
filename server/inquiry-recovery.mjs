@@ -417,6 +417,17 @@ export function createInquiryRecoveryService({ store, artifacts = null, clock = 
         revisionHistory: [...(current.revisionHistory || []), previous].slice(-20),
         identity: { status: 'unknown', reviewerConfirmed: false, basis: [] },
       });
+      // A carried fact is only valid while the effective history still contains
+      // its verbatim quote. New history + omitted facts must not leave orphan
+      // "evidence" that nothing in the record backs any more.
+      const backed = current.facts.filter(fact => {
+        const message = current.history.find(entry => entry.id === fact.sourceMessageId);
+        return Boolean(message && message.body.includes(fact.quote));
+      });
+      if (backed.length !== current.facts.length) {
+        current.factsDropped = (current.factsDropped ?? 0) + (current.facts.length - backed.length);
+        current.facts = backed;
+      }
       if (Object.keys(carried).length) current.carriedForward = [...new Set([...(current.carriedForward || []), ...Object.keys(carried)])];
       return 'updated';
     }
@@ -575,42 +586,17 @@ export function createInquiryRecoveryService({ store, artifacts = null, clock = 
     /** Selecting a lead produces an unsent draft and a non-enabled Goal draft. It never sends or enables anything. */
     async selectLead(leadId, body, actor) {
       requireMember(actor);
-      // Stage the draft as an immutable artifact before the store commit so a
-      // crash cannot leave a selection that claims a file it never wrote. The
-      // transaction below re-validates revision/sourceHash; a stale write leaves
-      // an unreferenced draft artifact, never a wrong attachment.
-      const planned = planSelection(leadId, body);
-      let artifact = null;
-      if (artifacts) {
-        const conversationId = ownedConversationId(body?.conversationId, actor);
-        const created = await artifacts.create({
-          requestId: `inquiry-recovery-${body.requestId}`,
-          filename: planned.draft.filename,
-          content: planned.draft.content,
-          title: `未发送复联草稿 · ${planned.lead.companyName || planned.lead.leadId}`,
-          description: 'Unreviewed follow-up draft generated from imported inquiry history. NOT SENT.',
-          metadata: {
-            inquiryRecovery: {
-              leadId: planned.lead.leadId, sourceId: planned.lead.sourceId, revision: planned.lead.revision,
-              sourceHash: planned.lead.sourceHash, importId: planned.lead.importId, decision: planned.decision.decision,
-              sent: false, humanReviewRequired: true, humanReviewed: false, independentlyVerified: false,
-            },
-          },
-          ...(conversationId ? { sourceConversationId: conversationId } : {}),
-        });
-        artifact = { artifactId: created.artifact.id, version: created.artifact.currentVersion, sha256: created.artifact.sha256, filename: created.artifact.filename };
-      }
-      return await command(actor, 'inquiry.select', body, db => {
-        const current = planSelection(leadId, body, db);
-        if (current.lead.sourceHash !== planned.lead.sourceHash || current.lead.revision !== planned.lead.revision)
-          fail(409, 'INQUIRY_SOURCE_CHANGED', 'The lead changed while the draft was being written; reload and select again.');
-        const { lead, decision, draft } = current;
-        const selection = {
+      // Ownership is checked before anything is written.
+      const conversationId = ownedConversationId(body?.conversationId, actor);
+      const selection = await command(actor, 'inquiry.select', body, db => {
+        const { lead, decision, draft, asOfMs } = planSelection(leadId, body, db);
+        const record = {
           id: randomUUID(), leadId, at: now(clock), actor: actor.subject, requestId: body.requestId,
-          leadRevision: lead.revision, leadSourceHash: lead.sourceHash, asOf: new Date(planned.asOfMs).toISOString(),
+          sourceId: lead.sourceId, importId: lead.importId,
+          leadRevision: lead.revision, leadSourceHash: lead.sourceHash, asOf: new Date(asOfMs).toISOString(),
           decision: decision.decision, daysStale: decision.daysStale,
           draft: { ...draft, sent: false, humanReviewRequired: true, humanReviewed: false },
-          artifact,
+          artifact: null,
           goalDraft: {
             draft: true, enabled: false, notWritten: true,
             title: `复联：${lead.companyName || lead.leadId}`,
@@ -619,11 +605,40 @@ export function createInquiryRecoveryService({ store, artifacts = null, clock = 
             authorityRequired: '发送、报价与任何对外承诺需要单独的人工审批；本 Goal 草稿未启用、未写入 Runtime。',
           },
         };
-        db.selections.push(selection);
+        db.selections.push(record);
         if (db.selections.length > 500) db.selections.shift();
-        event(db, 'inquiry.selected', actor, { leadId, selectionId: selection.id, daysStale: decision.daysStale, artifactId: artifact?.artifactId ?? null });
-        return selection;
+        event(db, 'inquiry.selected', actor, { leadId, selectionId: record.id, daysStale: decision.daysStale, artifactId: null });
+        return record;
       });
+      if (!artifacts) return selection;
+      // The artifact is written only after the selection committed, so a rejected
+      // or stale select can never leave an orphan draft file behind. A crash
+      // between the two steps leaves a selection with `artifact: null`, which the
+      // idempotent replay below repairs.
+      const created = await artifacts.create({
+        requestId: `inquiry-recovery-${selection.requestId}`,
+        filename: selection.draft.filename,
+        content: selection.draft.content,
+        title: `未发送复联草稿 · ${selection.leadId}`,
+        description: 'Unreviewed follow-up draft generated from imported inquiry history. NOT SENT.',
+        metadata: {
+          inquiryRecovery: {
+            leadId: selection.leadId, sourceId: selection.sourceId, revision: selection.leadRevision,
+            sourceHash: selection.leadSourceHash, importId: selection.importId, decision: selection.decision,
+            sent: false, humanReviewRequired: true, humanReviewed: false, independentlyVerified: false,
+          },
+        },
+        ...(conversationId ? { sourceConversationId: conversationId } : {}),
+      });
+      const reference = { artifactId: created.artifact.id, version: created.artifact.currentVersion, sha256: created.artifact.sha256, filename: created.artifact.filename };
+      selection.artifact = await store.update(state => {
+        const db = database(state);
+        const stored = db.selections.find(item => item.id === selection.id);
+        if (!stored) return reference;
+        stored.artifact ??= reference;
+        return stored.artifact;
+      });
+      return selection;
     },
 
     selections(actor) {
