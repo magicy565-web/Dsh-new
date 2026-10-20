@@ -5,7 +5,7 @@
   "description": "历史询盘捞回：授权导入、证据绑定决策、未发送草稿；暴露只读工具与 HTTP 路由",
   "entry": "./src/index.mjs",
   "client": "./client/index.tsx",
-  "requires": ["storage", "tools", "approval"],
+  "requires": ["storage", "artifacts", "tools", "approval"],
   "provides": ["inquiries"],
   "configSchema": {
     "type": "object",

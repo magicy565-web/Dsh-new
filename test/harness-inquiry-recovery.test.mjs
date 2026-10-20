@@ -31,6 +31,8 @@ async function fixture(t, { includePlugin = true } = {}) {
     '  - id: storage',
     "    name: '@workspace-harness/seams/storage'",
     `    config: { directory: '${storage}' }`,
+    '  - id: artifacts',
+    "    name: '@workspace-harness/seams/artifacts'",
     '  - id: approval',
     "    name: '@workspace-harness/seams/approval'",
     '  - id: tools',
@@ -58,7 +60,7 @@ async function fixture(t, { includePlugin = true } = {}) {
 
 test('the harness runs the inquiry plugin over the real seams end to end', async t => {
   const { harness, request } = await fixture(t);
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'inquiries', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'inquiries', 'storage', 'tools']);
 
   const health = await request('/healthz');
   assert.equal(health.status, 200);
@@ -118,6 +120,13 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
   assert.equal(selectedByTool.draft.sent, false);
   assert.equal(selectedByTool.goalDraft.enabled, false);
   assert.ok(selectedByTool.selectionId);
+  assert.ok(selectedByTool.artifact?.artifactId, 'the harness path must persist a real artifact');
+  const artifacts = harness.ctx.reflect.get('artifacts', false);
+  const stored = await artifacts.read(selectedByTool.artifact.artifactId);
+  assert.ok(stored.content.includes('未发送'));
+  assert.equal(stored.artifact.metadata.inquiryRecovery.sent, false);
+  assert.equal(stored.artifact.metadata.inquiryRecovery.independentlyVerified, false);
+  assert.ok(stored.artifact.metadata.inquiryRecovery.sourceHash);
 
   // Tickets are one-shot: the same id cannot authorise a second execution.
   await assert.rejects(tools.execute('inquiry_recovery_select', { ...selectArgs, approvalId: requested.body.id }, { actor }),
@@ -126,7 +135,7 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
 
 test('disabling the inquiry row removes both its routes and its tools', async t => {
   const { harness, request } = await fixture(t, { includePlugin: false });
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'storage', 'tools']);
   const missing = await request('/api/inquiry-recovery/status');
   assert.equal(missing.status, 404);
   const tools = harness.ctx.reflect.get('tools', false);

@@ -5,6 +5,8 @@ plugins:
   - id: storage
     name: '@workspace-harness/seams/storage'
     config: { directory: .harness-data }
+  - id: artifacts
+    name: '@workspace-harness/seams/artifacts'
   - id: approval
     name: '@workspace-harness/seams/approval'
   - id: tools

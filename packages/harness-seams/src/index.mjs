@@ -7,3 +7,4 @@
 export { createStorage, createStorageProvider, resolveStorageDirectory, DEFAULT_DIRECTORY, REPO_ROOT } from './storage.mjs';
 export { createApproval, createApprovalProvider, DEFAULT_TTL_MS } from './approval.mjs';
 export { createTools, createToolsProvider, validateArgs, MAX_AUDIT_ENTRIES } from './tools.mjs';
+export { createArtifacts, createArtifactsProvider, resolveArtifactsDirectory } from './artifacts.mjs';

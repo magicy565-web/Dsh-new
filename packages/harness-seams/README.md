@@ -8,16 +8,23 @@ contract in `packages/harness-contracts/CONTRACT.md` §5:
 | `src/storage.mjs` | `ctx.storage` | `createStorageProvider({ directory, root })` |
 | `src/approval.mjs` | `ctx.approval` | `createApprovalProvider({ clock, ttlMs })` |
 | `src/tools.mjs` | `ctx.tools` | `createToolsProvider({ policy })` |
-| `src/index.mjs` | all three | re-exports |
+| `src/artifacts.mjs` | `ctx.artifacts` | `createArtifactsProvider({ directory, maxBytes, maxTotalBytes, maxArtifacts })` |
+| `src/index.mjs` | all four | re-exports |
 
 Every provider is `{ apply(ctx, config) }`: it publishes the service on the
 kernel context (Cordis `ctx.provide`) and returns an async disposer.
 
 ```js
-import { createStorageProvider, createApprovalProvider, createToolsProvider } from '@workspace-harness/seams';
+import {
+  createStorageProvider,
+  createApprovalProvider,
+  createToolsProvider,
+  createArtifactsProvider,
+} from '@workspace-harness/seams';
 
 const providers = [
   createStorageProvider({ directory: '.harness-data' }),
+  createArtifactsProvider(), // requires ctx.storage; defaults to <storage.directory>/artifacts
   createApprovalProvider(), // defaults: clock = Date.now, ttlMs = 60_000
   createToolsProvider(),    // optional policy(actor, tool, args) for approval: 'policy'
 ];
@@ -37,13 +44,20 @@ plugins:
   - id: storage
     name: @workspace-harness/seams/storage
     config: { directory: .harness-data }
+  - id: artifacts
+    name: @workspace-harness/seams/artifacts
   - id: approval
     name: @workspace-harness/seams/approval
   - id: tools
     name: @workspace-harness/seams/tools
 ```
 
+`artifacts` declares `requires: [storage]`; the kernel injects storage and refuses
+the composition (`HARNESS_PLUGIN_MISSING_DEPENDENCY`) if no storage provider is
+mounted.
+
 Direct construction for embedders and tests: `await createStorage({ directory })`,
+`await createArtifacts({ store, directory, maxBytes, maxTotalBytes, maxArtifacts })`,
 `createApproval({ clock, ttlMs })`, `createTools({ storage, approval, policy, clock, ctx })`.
 
 ## Storage directory rule
@@ -59,8 +73,29 @@ Store failures (for example `WORKSPACE_DATA_INVALID` for a damaged
 `workspace.json`) are propagated unchanged, exactly as `server/store.mjs`
 reports them.
 
+## Artifacts directory rule
+
+Artifacts live under the configured state directory, never the repository root:
+
+- `config.directory` defaults to `<ctx.storage.directory>/artifacts`;
+- a relative `config.directory` resolves against `ctx.storage.directory`;
+- an absolute `config.directory` is honoured only when it is inside
+  `ctx.storage.directory`;
+- the storage directory itself, any escaping path (relative or absolute) and the
+  repository root are refused with `HARNESS_STORAGE_INVALID` before any I/O.
+
+Artifact metadata is committed through `ctx.storage.update` (the same durable
+workspace snapshot the rest of the harness uses); only blob bytes live in the
+private artifacts directory. The blob format, locking, quotas and SHA-256
+integrity checks are the existing `server/artifacts.mjs` service — the seam only
+adapts `ctx.storage` and the directory.
+
 ## Behaviour summary
 
+- **artifacts**: `ctx.artifacts` delegates to `server/artifacts.mjs`
+  (`create`/`update`/`read`/`download`/`inspect`/`list`/`get`/`close` plus
+  `directory`); requires `ctx.storage`; idempotent `create` on a repeated
+  `requestId`; `close()` shuts the service down and later operations fail.
 - **approval**: one-shot tickets; TTL default 60s with injectable clock; expired
   tickets auto-deny; unknown/expired/consumed ids fail closed; only the
   requesting actor or an admin may decide; only the requesting actor may consume.

@@ -7,6 +7,7 @@ export const HARNESS_VERSION = 1;
 /** Abstract service keys exposed on ctx. Business plugins depend on these, never on concrete modules. */
 export const SERVICE = Object.freeze({
   storage: 'storage',      // durable workspace state (provider: local store adapter)
+  artifacts: 'artifacts',  // immutable versioned artifacts + provenance (provider: artifact adapter)
   tools: 'tools',          // model-facing tool registry + execution pipeline
   approval: 'approval',    // one-shot human approval decisions, fail-closed
   skills: 'skills',        // agent skill provider registry

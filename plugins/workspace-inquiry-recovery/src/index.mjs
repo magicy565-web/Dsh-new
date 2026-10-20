@@ -1,8 +1,8 @@
 // Harness plugin: historical inquiry recovery.
-// The domain service stays in server/inquiry-recovery.mjs for P0; P1 extracts it
-// into a package so this plugin owns no server/* import.
+// The domain lives in packages/domain-inquiry-recovery; this plugin only wires
+// seams (storage/artifacts/tools/approval) and HTTP routes.
 import { randomUUID } from 'node:crypto';
-import { createInquiryRecoveryService, inquiryRecoveryHttp } from '../../../server/inquiry-recovery.mjs';
+import { createInquiryRecoveryService, inquiryRecoveryHttp } from '../../../packages/domain-inquiry-recovery/src/index.mjs';
 import { HarnessError, ERROR } from '../../../packages/harness-contracts/src/index.mjs';
 
 const ROUTES = [
@@ -25,7 +25,7 @@ export async function apply(ctx, config = {}) {
 
   const recovery = createInquiryRecoveryService({
     store: ctx.storage,
-    artifacts: config.artifacts ?? null,
+    artifacts: ctx.artifacts ?? config.artifacts ?? null,
     workspaceId: config.workspaceId ?? 'local',
     staleDays: config.staleDays ?? 7,
   });

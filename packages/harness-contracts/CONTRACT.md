@@ -103,6 +103,20 @@ ctx.storage.directory → string
 
 实现复用 repo 的 `server/store.mjs` 的 `openStore(directory)`；目录必须由组合 `config.directory` 指定，默认 `.harness-data`。**绝不写现有 Workspace 数据目录。**
 
+### `ctx.artifacts`（provider：`packages/harness-seams/src/artifacts.mjs`）
+
+```js
+ctx.artifacts.create({ requestId?, filename, content, title?, description?, metadata? }) → { artifact, duplicate }
+ctx.artifacts.update(id, { content?, filename?, expectedRevision?, ... }) → { artifact }
+ctx.artifacts.read(id, { version? }) → { artifact, content }
+ctx.artifacts.download(id, { version? }) → { bytes, filename, mimeType }
+ctx.artifacts.inspect(id) / ctx.artifacts.get(id) / ctx.artifacts.list()
+ctx.artifacts.close() → Promise<void>
+ctx.artifacts.directory → string
+```
+
+复用 `server/artifacts.mjs`（元数据在 `state.artifacts`，字节在私有目录）。`requires: ['storage']`；默认目录 `<ctx.storage.directory>/artifacts`，相对路径按 storage 目录解析，绝对路径必须位于其内；仓库根、逃逸路径、storage 根一律 `HARNESS_STORAGE_INVALID`。同一 `requestId` 相同内容幂等返回同一工件，不同内容 → 冲突。
+
 ### `ctx.approval`（provider：`packages/harness-seams/src/approval.mjs`）
 
 ```js
