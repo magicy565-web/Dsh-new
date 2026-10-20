@@ -1,0 +1,10 @@
+{
+  "name": "@workspace-harness/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework-agnostic client plugin slot registry for the Workspace Harness",
+  "exports": {
+    ".": "./src/index.mjs"
+  }
+}

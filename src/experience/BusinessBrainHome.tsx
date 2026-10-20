@@ -3,6 +3,7 @@ import type { Bootstrap, Goal } from '../types';
 import { api, ApiError } from '../api';
 import { Icon } from '../icons';
 import { BusinessBrainDecisionSheet } from './BusinessBrainDecisionSheet';
+import { PluginSlot } from '../harness/pluginHost';
 import './business-brain-home.css';
 
 export type DecisionDraft = {
@@ -139,17 +140,8 @@ export function BusinessBrainHome({
         </button>
       </header>
 
-      <section className="brain-recovery" aria-label="历史询盘捞回">
-        <div>
-          <span className="brain-eyebrow">INQUIRY RECOVERY</span>
-          <h2>询盘捞回</h2>
-          <p>用已导入的历史询盘和逐字证据，找出该跟进、该补证和该暂停的线索。</p>
-        </div>
-        <button type="button" className="brain-recovery-open" onClick={() => onOpenRecovery?.()}>
-          询盘捞回
-          <Icon name="chevron" size={14} />
-        </button>
-      </section>
+      {/* Plugin-contributed home cards. The inquiry recovery entry is a client plugin now. */}
+      <PluginSlot name="home.cards" props={{ onOpenRecovery }} />
 
       <div className="brain-section-label">
         <span>{checking ? '正在刷新经营信号' : '当前最值得关注'}</span>
