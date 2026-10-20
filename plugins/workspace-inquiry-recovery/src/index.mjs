@@ -128,37 +128,55 @@ export async function apply(ctx, config = {}) {
   ctx.http.route({
     method: 'POST', path: '/api/inquiry-recovery/approvals',
     handler: async (_req, _res, context) => {
+      const workspaceId = authorize(context?.actor);
       const body = context?.body ?? {};
       if (!APPROVABLE.has(body.tool)) throw new HarnessError(ERROR.toolRefused, `Tool ${JSON.stringify(body.tool)} is not approvable here.`);
       const request = await ctx.approval.request({ actor: context.actor, tool: body.tool, args: body.args ?? {}, reason: body.reason ?? '' });
-      return { status: 201, body: { id: request.id, status: request.status, expiresAt: request.expiresAt ?? null } };
+      return { status: 201, body: { id: request.id, status: request.status, expiresAt: request.expiresAt ?? null, workspaceId } };
     },
   });
   ctx.http.route({
     method: 'POST', path: '/api/inquiry-recovery/approvals/:approvalId/decide',
     handler: async (_req, _res, context) => {
+      const workspaceId = authorize(context?.actor);
       const decision = context?.body?.decision;
       if (!['approve', 'deny'].includes(decision)) throw new HarnessError(ERROR.toolRefused, 'decision must be approve or deny.');
+      // A ticket belongs to the workspace of the actor who requested it.
+      if (workspaceId) {
+        const ticket = ctx.approval.list({}).find(item => item.id === context.params.approvalId);
+        if (ticket && ticket.actor?.workspaceId !== workspaceId)
+          throw new HarnessError(ERROR.workspaceForbidden, 'This approval belongs to another workspace.');
+      }
       const result = await ctx.approval.decide(context.params.approvalId, decision, context.actor);
       return { status: 200, body: { id: result.id, status: result.status } };
     },
   });
   ctx.http.route({
     method: 'GET', path: '/api/inquiry-recovery/approvals',
-    handler: async (_req, _res, context) => ({ status: 200, body: { approvals: ctx.approval.list({ status: context?.query?.status }) } }),
+    handler: async (_req, _res, context) => {
+      const workspaceId = authorize(context?.actor);
+      const approvals = ctx.approval.list({ status: context?.query?.status })
+        .filter(item => (workspaceId ? item.actor?.workspaceId === workspaceId : true));
+      return { status: 200, body: { approvals, workspaceId } };
+    },
   });
 
   // Read-only audit trail for this plugin's business events. Requires the audit
-  // seam; metadata only, so no draft or message content can be served here.
+  // seam; metadata only, so no draft or message content can be served here. The
+  // trail is filtered to the caller's workspace so tenants cannot see each other's
+  // activity.
   ctx.http.route({
     method: 'GET', path: '/api/inquiry-recovery/audit',
     handler: async (_req, _res, context) => {
       const service = audit();
       if (!service) throw new HarnessError(ERROR.pluginMissingDependency, 'ctx.audit is not mounted; the audit trail is unavailable in this composition.');
       if (context?.actor?.role !== 'admin') throw new HarnessError(ERROR.toolRefused, 'admin role is required to read the inquiry audit trail.');
+      const workspaceId = authorize(context?.actor);
       const limit = context?.query?.limit === undefined ? 100 : Number(context.query.limit);
       if (!Number.isInteger(limit) || limit < 1 || limit > 200) throw new HarnessError(ERROR.toolInvalid, 'limit must be an integer between 1 and 200.');
-      return { status: 200, body: { events: service.list({ kind: 'inquiry', limit }), total: service.summary().byKind.inquiry ?? 0 } };
+      const all = service.list({ kind: 'inquiry', limit: 200 })
+        .filter(event => (workspaceId ? event?.detail?.workspaceId === workspaceId : true));
+      return { status: 200, body: { events: all.slice(0, limit), total: all.length, workspaceId: workspaceId ?? null } };
     },
   });
 

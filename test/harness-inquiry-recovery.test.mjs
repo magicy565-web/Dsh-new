@@ -388,4 +388,27 @@ test('two workspaces keep separate inquiry data end to end', async t => {
   assert.equal(root.inquiryRecovery, undefined);
   assert.equal(root.workspaces.local.inquiryRecovery.leads[0].leadId, 'lead-alpha');
   assert.equal(root.workspaces.beta.inquiryRecovery.leads[0].leadId, 'lead-beta');
+
+  // The audit trail is per tenant: each admin sees only its own workspace events.
+  const localAudit = await request('/api/inquiry-recovery/audit');
+  assert.equal(localAudit.status, 200, JSON.stringify(localAudit.body));
+  assert.equal(localAudit.body.total, 1);
+  assert.equal(localAudit.body.workspaceId, 'local');
+  assert.deepEqual(localAudit.body.events.map(event => event.detail.workspaceId), ['local']);
+  const betaAudit = await request('/api/inquiry-recovery/audit', 'GET', undefined, beta);
+  assert.equal(betaAudit.body.total, 1);
+  assert.equal(betaAudit.body.workspaceId, 'beta');
+  assert.deepEqual(betaAudit.body.events.map(event => event.detail.workspaceId), ['beta']);
+
+  // Approvals are per tenant too: a beta admin cannot list or decide a local ticket.
+  const requested = await request('/api/inquiry-recovery/approvals', 'POST', {
+    tool: 'inquiry_recovery_select', args: { leadId: 'lead-alpha' }, reason: 'tenant isolation check',
+  });
+  assert.equal(requested.status, 201, JSON.stringify(requested.body));
+  assert.equal((await request('/api/inquiry-recovery/approvals')).body.approvals.some(item => item.id === requested.body.id), true);
+  const betaList = await request('/api/inquiry-recovery/approvals', 'GET', undefined, beta);
+  assert.equal(betaList.body.approvals.some(item => item.id === requested.body.id), false, 'a local ticket is invisible to beta');
+  const betaDecide = await request(`/api/inquiry-recovery/approvals/${requested.body.id}/decide`, 'POST', { decision: 'approve' }, beta);
+  assert.equal(betaDecide.status, 403);
+  assert.equal(betaDecide.body.error.code, 'HARNESS_WORKSPACE_FORBIDDEN');
 });
