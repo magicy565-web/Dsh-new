@@ -289,6 +289,11 @@ install drift status, and a `ready`/`blocked` verdict with an explicit blocker l
 `install-missing`). Exit code is 1 when blocked; `--out` writes the JSON atomically
 for review archival.
 
+`--audit-state <file> --actor <subject>` also records the verdict in that storage
+state's audit stream as `kind:"review"` (`action` = verdict, `ok`, digest and the
+blocker kinds), so `wh audit --kind review` shows the review history next to tool,
+business and install events.
+
 ## Doctor report
 
 `wh doctor [--composition <file>] [--target <dir>] [--json]` mounts the composition
@@ -378,7 +383,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 99 tests, 0 fail
+node --test packages/harness-kernel/test     # 100 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 

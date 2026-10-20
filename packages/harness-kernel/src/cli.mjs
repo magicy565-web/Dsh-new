@@ -47,7 +47,7 @@ Options:
       --out <file>          \`wh review\`: write the report JSON to this file (atomic).
       --public-key <pem>    \`wh install\`: PEM public key for an offline ed25519 signature check.
       --actor <subject>     Actor recorded in the install journal (default: local-operator).
-      --audit-state <file>  Append install/upgrade/uninstall/rollback to this storage state's audit stream.
+      --audit-state <file>  Append install/upgrade/uninstall/rollback/review events to this storage state's audit stream.
       --upgrade             \`wh install\`: replace an existing installation (the old one is kept as a backup).
       --json                Machine-readable JSON output.
   -h, --help                Print this text.
@@ -417,7 +417,7 @@ export async function runCapabilities({
  */
 export async function runReview({
   compositionPath, patchPaths = [], root, target = null, json = false, out = null,
-  stdout = process.stdout, stderr = process.stderr,
+  auditState = null, actor = null, stdout = process.stdout, stderr = process.stderr,
 } = {}) {
   const { file, composition: base } = await readComposition(compositionPath, { root });
   let composition = base;
@@ -497,6 +497,26 @@ export async function runReview({
     verdict: blockers.length ? 'blocked' : 'ready',
     blockers,
   };
+  if (auditState) {
+    try {
+      await appendAuditEntry(auditState, {
+        kind: 'review',
+        action: document.verdict,
+        actor: { subject: actor ?? 'local-operator', role: 'operator' },
+        ok: document.verdict === 'ready',
+        code: document.verdict === 'ready' ? null : 'HARNESS_REVIEW_BLOCKED',
+        ref: document.composition.name,
+        detail: {
+          digest: document.composition.digest,
+          rows: document.summary.rows,
+          blockers: blockers.map(blocker => blocker.kind),
+          env: envReads,
+        },
+      }, { root });
+    } catch (error) {
+      stderr.write(`wh: warning: review audit entry not written (${error?.message ?? error})\n`);
+    }
+  }
   if (out) {
     const outPath = isAbsolute(out) ? out : resolvePath(root, out);
     const temporary = `${outPath}.${process.pid}.${Date.now()}.tmp`;

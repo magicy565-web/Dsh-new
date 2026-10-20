@@ -120,3 +120,38 @@ test('review blocks on unresolved rows, install drift and missing packages', asy
   assert.equal(await runWh(['review', '--composition', 'harness.yml', '--json'], { root, ...missing }), 1);
   assert.deepEqual(JSON.parse(missing.stdout.text).blockers.map(item => item.kind), ['unresolved-row', 'install-missing']);
 });
+
+test('review verdicts are recorded in the unified audit stream on request', async t => {
+  const root = await fixture(t);
+  const auditState = path.join(root, 'data', 'workspace.json');
+
+  const ready = capture();
+  assert.equal(await runWh(['review', '--composition', 'harness.yml', '--audit-state', auditState, '--actor', 'ops'], { root, ...ready }), 0);
+  const auditReady = capture();
+  assert.equal(await runWh(['audit', '--state', auditState, '--kind', 'review', '--json'], { root, ...auditReady }), 0);
+  const events = JSON.parse(auditReady.stdout.text).events;
+  assert.equal(events.length, 1);
+  assert.equal(events[0].kind, 'review');
+  assert.equal(events[0].action, 'ready');
+  assert.equal(events[0].ok, true);
+  assert.equal(events[0].actor.subject, 'ops');
+  assert.equal(events[0].ref, 'review-fixture');
+  assert.match(events[0].detail.digest, /^[a-f0-9]{64}$/u);
+  assert.deepEqual(events[0].detail.blockers, []);
+
+  // A blocked review is recorded as a failed event with the blocker kinds.
+  await fs.writeFile(path.join(root, 'ghost.yml'), [
+    'version: 1', 'name: ghosted', 'server: { host: 127.0.0.1, port: 0 }', 'plugins:',
+    '  - id: ghost', '    name: does-not-exist',
+    '',
+  ].join('\n'), 'utf8');
+  const blocked = capture();
+  assert.equal(await runWh(['review', '--composition', 'ghost.yml', '--audit-state', auditState, '--actor', 'ops'], { root, ...blocked }), 1);
+  const auditBlocked = capture();
+  assert.equal(await runWh(['audit', '--state', auditState, '--kind', 'review', '--json'], { root, ...auditBlocked }), 0);
+  const all = JSON.parse(auditBlocked.stdout.text).events;
+  assert.deepEqual(all.map(event => event.action), ['blocked', 'ready'], 'newest first');
+  assert.equal(all[0].ok, false);
+  assert.equal(all[0].code, 'HARNESS_REVIEW_BLOCKED');
+  assert.deepEqual(all[0].detail.blockers, ['unresolved-row']);
+});
