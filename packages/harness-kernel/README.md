@@ -176,14 +176,28 @@ wh plugins --composition harness.dev.yml --patch harness.patch.example.yml [--js
 validated inline patches also work via `{ patches: [document] }`. Patches fail
 closed on an unknown target id, a duplicate insert id, a rename attempt, or a
 malformed layer — a typo can never silently disable nothing. `harness.patches`
-exposes the applied actions. This is the runtime enable/disable mechanism: a
-patched-out row is never imported, so its routes, tools and health entry all
+exposes the applied actions and `harness.patches.digest` is a stable SHA-256 of
+the effective rows (also `harness.composition.digest`), so an operator can record
+or compare exactly what was mounted. This is the runtime enable/disable mechanism:
+a patched-out row is never imported, so its routes, tools and health entry all
 disappear together.
+
+Editing a layer from the CLI (validated before writing, previous bytes kept as
+`<file>.bak`, atomic rename; an emptied layer is deleted instead of written):
+
+```sh
+wh patch show    --patch harness.local.patch.yml
+wh patch disable inquiries --patch harness.local.patch.yml
+wh patch enable  inquiries --patch harness.local.patch.yml
+```
+
+YAML comments in the old layer are not preserved by a rewrite; the `.bak` file is
+the reversible record. A malformed existing layer is refused rather than rewritten.
 
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 57 tests, 0 fail
+node --test packages/harness-kernel/test     # 61 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
@@ -193,8 +207,9 @@ disabled rows (module that throws on import is never imported), route conflicts
 (exact, cross-plugin, overlapping `:param`, built-in `/healthz`), `:param`
 decode/priority/no-trailing-slash/malformed-encoding, `/healthz` shape, 404 JSON,
 actor headers, POST body/query, `HarnessError` status mapping, 500 no-leak, JSON
-body errors, clean stop, CLI `list`/`doctor`/`presets` and usage errors, patch
-override/insert/disable semantics and fail-closed edge cases.
+body errors, clean stop, CLI `list`/`doctor`/`presets`/`patch` and usage errors,
+patch override/insert/disable semantics, atomic layer writing with backup, empty
+layer removal, digest stability, and fail-closed edge cases.
 
 ## Not wired yet (owned by other work packages)
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { readComposition } from '../src/resolve.mjs';
-import { applyPatches, readPatch, validatePatch } from '../src/patch.mjs';
+import { applyPatches, digestComposition, readPatch, setRowDisabled, validatePatch, writePatch } from '../src/patch.mjs';
 import { runWh, parseArgv } from '../src/cli.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -93,3 +93,77 @@ test('wh plugins and wh list accept --patch layers and show the effective rows',
   assert.deepEqual(parsed.options.patches, ['a.yml', 'b.yml']);
   assert.equal(parseArgv(['list', '--patch']).errors.length, 1);
 });
+
+test('setRowDisabled writes a reviewed layer, backs it up, and removes it when empty', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'harness-patch-write-'));
+  t.after(async () => { await fs.rm(directory, { recursive: true, force: true }); });
+  const file = path.join(directory, 'local.yml');
+
+  const created = await setRowDisabled(file, 'inquiries', true, { root: directory });
+  assert.equal(created.action, 'disable');
+  assert.equal(created.backup, null, 'first write has no previous layer to back up');
+  const first = await readPatch(file, { root: directory });
+  assert.deepEqual(first.patch.entries, [{ id: 'inquiries', disabled: true }]);
+
+  const backedUp = await setRowDisabled(file, 'tools', true, { root: directory });
+  assert.equal(backedUp.backup, `${file}.bak`);
+  assert.ok(await fs.readFile(`${file}.bak`, 'utf8'));
+  const second = await readPatch(file, { root: directory });
+  assert.deepEqual(second.patch.entries.map(entry => entry.id), ['inquiries', 'tools']);
+
+  // Enabling everything back leaves an empty layer, which is removed (not written invalid).
+  await setRowDisabled(file, 'inquiries', false, { root: directory });
+  const removed = await setRowDisabled(file, 'tools', false, { root: directory });
+  assert.equal(removed.removed, true);
+  await assert.rejects(readPatch(file, { root: directory }), code('HARNESS_COMPOSITION_INVALID'));
+});
+
+test('writePatch refuses a malformed layer and keeps the previous bytes intact', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'harness-patch-refuse-'));
+  t.after(async () => { await fs.rm(directory, { recursive: true, force: true }); });
+  const file = path.join(directory, 'layer.yml');
+  await writePatch(file, { version: 1, name: 'keep', entries: [{ id: 'inquiries', disabled: true }] }, { root: directory });
+  const before = await fs.readFile(file, 'utf8');
+  await assert.rejects(writePatch(file, { version: 1, entries: [{ id: 'inquiries', disabled: 'nope' }] }, { root: directory }), code('HARNESS_COMPOSITION_INVALID'));
+  assert.equal(await fs.readFile(file, 'utf8'), before, 'a refused write must not touch the layer');
+});
+
+test('digestComposition is stable and changes when the effective rows change', async t => {
+  const composition = await base();
+  const first = digestComposition(composition);
+  assert.equal(first, digestComposition(await base()));
+  const patched = applyPatches(composition, [validatePatch({ version: 1, entries: [{ id: 'inquiries', disabled: true }] })]).composition;
+  assert.notEqual(digestComposition(patched), first);
+  const reformatted = structuredClone(composition);
+  reformatted.rows = reformatted.rows.map(row => ({ ...row, config: { ...row.config } }));
+  assert.equal(digestComposition(reformatted), first);
+});
+
+test('wh patch show/disable/enable edits the layer and reports the backup', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'harness-patch-command-'));
+  t.after(async () => { await fs.rm(directory, { recursive: true, force: true }); });
+  const file = path.join(directory, 'layer.yml');
+  await fs.writeFile(file, 'version: 1\nname: cli\nentries:\n  - id: inquiries\n    disabled: true\n', 'utf8');
+
+  const shown = capture();
+  assert.equal(await runWh(['patch', 'show', '--patch', file, '--json'], { root: directory, ...shown }), 0);
+  assert.deepEqual(JSON.parse(shown.stdout.text).entries, [{ id: 'inquiries', disabled: true }]);
+
+  const disabled = capture();
+  assert.equal(await runWh(['patch', 'disable', 'tools', '--patch', file, '--json'], { root: directory, ...disabled }), 0);
+  const result = JSON.parse(disabled.stdout.text);
+  assert.equal(result.action, 'disable');
+  assert.equal(result.rowId, 'tools');
+  assert.ok(result.backup.endsWith('.bak'));
+
+  const enabled = capture();
+  assert.equal(await runWh(['patch', 'enable', 'inquiries', '--patch', file, '--json'], { root: directory, ...enabled }), 0);
+  const reloaded = await readPatch(file, { root: directory });
+  assert.deepEqual(reloaded.patch.entries.map(entry => entry.id), ['tools']);
+
+  const missing = capture();
+  assert.equal(await runWh(['patch', 'disable', '--patch', file], { root: directory, ...missing }), 2);
+  assert.match(missing.stderr.text, /requires a row id/u);
+  assert.equal(await runWh(['patch', 'show'], { root: directory, ...capture() }), 2);
+});
+

@@ -8,7 +8,7 @@ import {
   validateConfig,
 } from '../../harness-contracts/src/index.mjs';
 import { KERNEL_SERVICES, readComposition, resolveRows } from './resolve.mjs';
-import { applyPatches, readPatch, validatePatch } from './patch.mjs';
+import { applyPatches, digestComposition, readPatch, validatePatch } from './patch.mjs';
 import { HttpKernel } from './http.mjs';
 
 function logError(logger, ...args) {
@@ -157,14 +157,14 @@ export async function createHarness({ compositionPath, composition: composed, pr
     file = loaded.file;
     composition = loaded.composition;
   }
-  let patchInfo = Object.freeze({ applied: Object.freeze([]), files: Object.freeze([]) });
+  let patchInfo = Object.freeze({ applied: Object.freeze([]), files: Object.freeze([]), digest: digestComposition(composition) });
   if (patchPaths.length || patches.length) {
     const layers = [];
     for (const path of patchPaths) layers.push((await readPatch(path, { root })).patch);
     for (const document of patches) layers.push(validatePatch(document));
     const applied = applyPatches(composition, layers);
     composition = applied.composition;
-    patchInfo = Object.freeze({ applied: applied.applied, files: applied.files });
+    patchInfo = Object.freeze({ applied: applied.applied, files: applied.files, digest: digestComposition(composition) });
   }
   const resolved = await resolveRows(composition.rows, { root, compositionFile: file });
   const enabled = resolved.filter(entry => !entry.row.disabled);
@@ -393,7 +393,7 @@ export async function createHarness({ compositionPath, composition: composed, pr
     stop,
     healthz,
     // Extra, non-contractual introspection used by the CLI and tests.
-    composition: { file, name: composition.name, server: composition.server },
+    composition: { file, name: composition.name, server: composition.server, digest: digestComposition(composition) },
     preset,
     patches: patchInfo,
     http,

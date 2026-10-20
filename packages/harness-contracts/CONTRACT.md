@@ -78,6 +78,9 @@ insert:                       # 追加新行
 - 应用顺序：组合文件 → `--patch`/`patchPaths` 按给出顺序 → （如有）preset 行覆盖。
 - `createHarness({ compositionPath, patchPaths, patches })`；`harness.patches.applied` 记录每步 action（`disable`/`enable`/`config`/`insert`）。
 - 被 `disabled` 的行**不会 import**，其路由、工具、health 一并消失——这是运行时可装卸的最小真实形态。
+- `writePatch` / `setRowDisabled`：先校验再原子写（同目录临时文件 + rename），旧字节存 `<file>.bak`；清空最后一层时删除文件而不是写入空 patch；原文件损坏时拒绝改写。
+- `digestComposition`：有效行（id/name/config/disabled）的稳定 SHA-256，暴露为 `harness.composition.digest` 与 `harness.patches.digest`，用于记录/比对"实际挂载了什么"。
+- CLI：`wh patch show|disable <id>|enable <id> --patch <file>`。
 
 ## 3. 内核 API（`packages/harness-kernel/src/app.mjs`）
 

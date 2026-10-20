@@ -3,7 +3,7 @@ import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, resolveRows } from './resolve.mjs';
-import { applyPatches, readPatch } from './patch.mjs';
+import { applyPatches, digestComposition, readPatch, setRowDisabled } from './patch.mjs';
 import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
 
 const USAGE = `Usage: wh <command> [options]
@@ -12,6 +12,7 @@ Commands:
   list      Resolve and print composition rows (entry, status, requires/provides). No plugin is mounted.
   plugins   Alias of list; both accept --patch layers.
   doctor    Load the composition (mount plugins, no HTTP serving), report health, then dispose.
+  patch     Inspect or edit a patch layer: \`show\`, \`disable <id>\`, \`enable <id>\` (requires --patch).
   presets   Agent presets: \`wh presets list\` or \`wh presets show <name>\`.
   help      Print this text.
 
@@ -81,7 +82,7 @@ export function parseArgv(argv = []) {
       errors.push(`unknown option: ${argument}`);
     } else if (!options.command) {
       options.command = argument;
-    } else if (options.command === 'presets') {
+    } else if (options.command === 'presets' || options.command === 'patch') {
       options.args.push(argument);
     } else {
       errors.push(`unexpected argument: ${argument}`);
@@ -145,6 +146,7 @@ export async function runList({ compositionPath, patchPaths = [], root, json = f
     name: composition.name,
     file: displayPath(root, file),
     server: composition.server,
+    digest: digestComposition(composition),
     patches: applied,
     rows: resolved.map(rowSummary),
   };
@@ -256,6 +258,48 @@ async function runPresets({ root, args, json, stdout, stderr }) {
   return 2;
 }
 
+async function runPatch({ root, args, patchPaths, json, stdout, stderr }) {
+  const [subcommand, rowId] = args;
+  if (!patchPaths.length) {
+    stderr.write('wh: patch requires --patch <file>\n');
+    return 2;
+  }
+  const patchPath = patchPaths[0];
+  if (!subcommand || subcommand === 'show') {
+    const { file, patch } = await readPatch(patchPath, { root });
+    const document = {
+      file: displayPath(root, file),
+      name: patch.name,
+      entries: patch.entries,
+      insert: patch.insert.map(row => ({ id: row.id, name: row.name, config: row.config })),
+    };
+    if (json) {
+      stdout.write(`${JSON.stringify(document, null, 2)}\n`);
+      return 0;
+    }
+    stdout.write(`patch ${document.file}${document.name ? ` (${document.name})` : ''}\n`);
+    if (!document.entries.length && !document.insert.length) stdout.write('  (empty layer)\n');
+    for (const entry of document.entries) stdout.write(`  entry ${entry.id}: ${JSON.stringify({ ...entry, id: undefined })}\n`);
+    for (const row of document.insert) stdout.write(`  insert ${row.id}: ${row.name}\n`);
+    return 0;
+  }
+  if (subcommand === 'disable' || subcommand === 'enable') {
+    if (!rowId) {
+      stderr.write(`wh: patch ${subcommand} requires a row id\n`);
+      return 2;
+    }
+    const result = await setRowDisabled(patchPath, rowId, subcommand === 'disable', { root });
+    if (json) {
+      stdout.write(`${JSON.stringify({ file: result.file, action: result.action, rowId: result.rowId, backup: result.backup ?? null, removed: result.removed === true }, null, 2)}\n`);
+      return 0;
+    }
+    stdout.write(`${result.action} ${result.rowId} in ${result.file}${result.backup ? ` (backup ${result.backup})` : ''}${result.removed ? ' (layer removed)' : ''}\n`);
+    return 0;
+  }
+  stderr.write(`wh: unknown patch subcommand "${subcommand}"\n`);
+  return 2;
+}
+
 /**
  * Run the `wh` CLI.
  * @returns {Promise<number>} process exit code
@@ -278,6 +322,7 @@ export async function runWh(argv = [],
   try {
     if (options.command === 'list' || options.command === 'plugins') return await runList(context);
     if (options.command === 'doctor') return await runDoctor(context);
+    if (options.command === 'patch') return await runPatch(context);
     if (options.command === 'presets') return await runPresets(context);
     stderr.write(`wh: unknown command "${options.command}"\n\n${USAGE}`);
     return 2;

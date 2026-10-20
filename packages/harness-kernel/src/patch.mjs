@@ -1,9 +1,10 @@
 // Composition patch layers: override, insert or disable rows without editing the
 // base composition. Same idea as dsh's cordis.patch.yml, reduced to the parts the
 // Workspace Harness actually needs and validated fail-closed.
-import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { copyFile, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { ERROR, HarnessError, validateComposition, validateRow } from '../../harness-contracts/src/index.mjs';
 
 const NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
@@ -117,4 +118,89 @@ export function applyPatches(composition, patches = []) {
     applied: Object.freeze(applied),
     files: Object.freeze(patches.map(patch => patch.file).filter(Boolean)),
   });
+}
+
+/** Stable digest of the effective composition, for audit and drift comparison. */
+export function digestComposition(composition) {
+  const rows = (composition?.rows ?? []).map(row => ({ id: row.id, name: row.name, config: row.config ?? {}, disabled: Boolean(row.disabled) }));
+  return createHash('sha256').update(JSON.stringify({ name: composition?.name ?? null, server: composition?.server ?? null, rows })).digest('hex');
+}
+
+const rowsForWrite = patch => patch.insert.map(row => ({
+  id: row.id, name: row.name, config: structuredClone(row.config ?? {}), ...(row.disabled ? { disabled: true } : {}),
+}));
+
+const entriesForWrite = patch => patch.entries.map(entry => ({
+  id: entry.id,
+  ...(entry.disabled !== undefined ? { disabled: entry.disabled } : {}),
+  ...(entry.config !== undefined ? { config: structuredClone(entry.config) } : {}),
+  ...(entry.name !== undefined ? { name: entry.name } : {}),
+}));
+
+/**
+ * Write a validated patch layer atomically. The previous bytes are copied to
+ * `<file>.bak` first so a reviewable, reversible edit always exists. Comments in
+ * the old file are not preserved (YAML re-serialisation); the backup keeps them.
+ */
+export async function writePatch(patchPath, document, { root = process.cwd(), backup = true } = {}) {
+  const file = isAbsolute(patchPath) ? patchPath : resolvePath(root, patchPath);
+  const patch = validatePatch(document, { file });
+  const text = stringifyYaml({
+    version: 1,
+    ...(patch.name ? { name: patch.name } : {}),
+    entries: entriesForWrite(patch),
+    ...(patch.insert.length ? { insert: rowsForWrite(patch) } : {}),
+  });
+  if (Buffer.byteLength(text, 'utf8') > MAX_PATCH_BYTES) fail(`the rewritten patch would exceed ${MAX_PATCH_BYTES} bytes.`);
+  let backupFile = null;
+  try {
+    await readFile(file);
+    if (backup) {
+      backupFile = `${file}.bak`;
+      await copyFile(file, backupFile);
+    }
+  } catch { /* first write: no previous layer to back up */ }
+  const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(temporary, text, { mode: 0o600 });
+  await rename(temporary, file);
+  return Object.freeze({ file, backup: backupFile, patch });
+}
+
+/**
+ * Set (or clear) the `disabled` override for one row inside an existing patch
+ * layer. The whole layer is re-validated before writing; a malformed file is
+ * refused instead of being silently rewritten.
+ */
+export async function setRowDisabled(patchPath, rowId, disabled, { root = process.cwd() } = {}) {
+  if (typeof rowId !== 'string' || !rowId.trim()) fail('a row id is required.');
+  if (typeof disabled !== 'boolean') fail('disabled must be a boolean.');
+  const file = isAbsolute(patchPath) ? patchPath : resolvePath(root, patchPath);
+  let document = { version: 1, name: 'local-overrides', entries: [] };
+  let existing = null;
+  try { existing = await readFile(file, 'utf8'); } catch { /* create a new layer */ }
+  if (existing !== null) {
+    if (Buffer.byteLength(existing, 'utf8') > MAX_PATCH_BYTES) fail(`patch ${file} exceeds ${MAX_PATCH_BYTES} bytes.`);
+    let parsed;
+    try { parsed = parseYaml(existing); } catch (error) { throw new HarnessError(ERROR.compositionInvalid, `patch ${file} is not valid YAML: ${error?.message ?? error}`); }
+    const validated = validatePatch(parsed, { file });
+    document = {
+      version: 1,
+      ...(validated.name ? { name: validated.name } : {}),
+      entries: entriesForWrite(validated),
+      ...(validated.insert.length ? { insert: rowsForWrite(validated) } : {}),
+    };
+  }
+  const entries = document.entries.filter(entry => entry.id !== rowId);
+  if (disabled) entries.push({ id: rowId, disabled: true });
+  if (!entries.length && !(document.insert?.length)) {
+    // Removing the last override leaves an empty layer; delete the file instead of
+    // writing a patch that validatePatch would reject as empty.
+    if (existing === null) return Object.freeze({ file, removed: false, action: 'enable', rowId, patch: null });
+    const backupFile = `${file}.bak`;
+    await copyFile(file, backupFile);
+    await rm(file, { force: true });
+    return Object.freeze({ file, removed: true, backup: backupFile, action: 'enable', rowId, patch: null });
+  }
+  const written = await writePatch(file, { ...document, entries }, { root, backup: true });
+  return Object.freeze({ ...written, action: disabled ? 'disable' : 'enable', rowId });
 }
