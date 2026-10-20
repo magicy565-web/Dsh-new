@@ -11,3 +11,4 @@ import './test/audit-cli.test.mjs';
 import './test/install.test.mjs';
 import './test/env-declaration.test.mjs';
 import './test/legacy-adapter.test.mjs';
+import './test/bundle.test.mjs';

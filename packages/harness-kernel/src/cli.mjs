@@ -7,6 +7,7 @@ import { displayPath, readComposition, resolveRows } from './resolve.mjs';
 import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled } from './patch.mjs';
 import { installPlugin, listInstalled, readInstallJournal, rollbackPlugin, uninstallPlugin } from './install.mjs';
 import { appendAuditEntry } from './audit-state.mjs';
+import { installBundle } from './bundle.mjs';
 import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
 
 const STORAGE_STATE_FILE = 'workspace.json';
@@ -21,6 +22,7 @@ Commands:
   audit     Read the durable audit trail straight from the storage state file (no lock, no mount).
   installed List installed plugin packages in the target directory.
   install   Install (or --upgrade) a local plugin package directory; atomic, digest-checked.
+  install-bundle Install every plugin listed in a bundle manifest, with rollback on failure.
   uninstall Move an installed package to a backup directory.
   rollback  Restore an installed package from its newest (or named) backup.
   presets   Agent presets: \`wh presets list\` or \`wh presets show <name>\`.
@@ -204,7 +206,8 @@ export function parseArgv(argv = []) {
     } else if (!options.command) {
       options.command = argument;
     } else if (options.command === 'presets' || options.command === 'patch'
-      || options.command === 'install' || options.command === 'uninstall' || options.command === 'rollback') {
+      || options.command === 'install' || options.command === 'install-bundle'
+      || options.command === 'uninstall' || options.command === 'rollback') {
       options.args.push(argument);
     } else {
       errors.push(`unexpected argument: ${argument}`);
@@ -592,6 +595,38 @@ async function runInstall({ root, target, upgrade, args, publicKey = null, actor
   return 0;
 }
 
+async function runInstallBundle({ root, target, upgrade, args, publicKey = null, actor = null, auditState = null, json, stdout, stderr }) {
+  const [source] = args;
+  if (!source) {
+    stderr.write('wh: install-bundle requires a bundle directory\n');
+    return 2;
+  }
+  let key = null;
+  if (publicKey) {
+    const keyPath = isAbsolute(publicKey) ? publicKey : resolvePath(root, publicKey);
+    key = await readFile(keyPath, 'utf8').catch(() => { throw new HarnessError('HARNESS_PLUGIN_FAILED', `cannot read public key ${displayPath(root, keyPath)}`); });
+  }
+  const result = await installBundle({
+    bundleDir: isAbsolute(source) ? source : resolvePath(root, source),
+    root, target: target ?? 'plugins', upgrade: upgrade === true,
+    publicKey: key, actor: actor ?? 'local-operator',
+  });
+  if (auditState) {
+    await recordInstallAudit({
+      root, auditState, stderr, actor, pluginId: result.bundle, action: 'bundle-install',
+      detail: { bundle: result.bundle, plugins: result.installed.map(item => ({ id: item.id, version: item.version, digest: item.digest })) },
+    });
+  }
+  if (json) {
+    stdout.write(`${JSON.stringify({ ...result, directory: displayPath(root, target ?? 'plugins') }, null, 2)}\n`);
+    return 0;
+  }
+  stdout.write(`installed bundle ${result.bundle}: ${result.installed.length} plugin(s)\n`);
+  for (const item of result.installed) stdout.write(`  ${pad(item.id, 24)}${pad(item.version, 10)}${item.digest.slice(0, 12)}${item.signed ? ' [signed]' : ''}\n`);
+  stdout.write(`providers: ${result.providers.join(', ') || '-'}\n`);
+  return 0;
+}
+
 async function runUninstall({ root, target, args, actor = null, auditState = null, json, stdout, stderr }) {
   const [id] = args;
   if (!id) {
@@ -663,6 +698,7 @@ export async function runWh(argv = [],
     if (options.command === 'audit') return await runAudit(context);
     if (options.command === 'installed') return await runInstalled(context);
     if (options.command === 'install') return await runInstall(context);
+    if (options.command === 'install-bundle') return await runInstallBundle(context);
     if (options.command === 'uninstall') return await runUninstall(context);
     if (options.command === 'rollback') return await runRollback(context);
     if (options.command === 'presets') return await runPresets(context);

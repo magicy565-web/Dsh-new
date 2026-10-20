@@ -104,7 +104,7 @@ export function verifyPackageSignature(pkg, { publicKey = null } = {}) {
 
 export const installJournalPath = ({ root = process.cwd(), target = TARGET_DEFAULT } = {}) => join(resolvePath(root, target), JOURNAL_NAME);
 
-async function appendJournal({ root, target, entry }) {
+export async function appendInstallJournal({ root, target, entry }) {
   try { await appendFile(installJournalPath({ root, target }), `${JSON.stringify(entry)}\n`, { mode: 0o600 }); }
   catch { /* journaling is best effort; the installation already succeeded */ }
 }
@@ -212,7 +212,7 @@ export async function installPlugin({
       if (backup) await rename(backup, destination).catch(() => {});
       throw error;
     }
-    await appendJournal({ root, target, entry: {
+    await appendInstallJournal({ root, target, entry: {
       at: new Date().toISOString(), action: existing ? 'upgrade' : 'install', actor,
       id: pkg.id, version: pkg.version, digest: pkg.digest, previousDigest,
       signed: signature.signed, verified: signature.verified, signer: signature.signer,
@@ -237,7 +237,7 @@ export async function uninstallPlugin({ id, root = process.cwd(), target = TARGE
   try { digest = (await readPackage(destination)).digest; } catch { digest = null; }
   const backup = join(targetDir, `.backup-${pluginId}-${Date.now()}-${randomUUID().slice(0, 8)}`);
   await rename(destination, backup);
-  await appendJournal({ root, target, entry: {
+  await appendInstallJournal({ root, target, entry: {
     at: new Date().toISOString(), action: 'uninstall', actor, id: pluginId, digest,
     backup: relative(targetDir, backup).split(sep).join('/'),
   } });
@@ -272,7 +272,7 @@ export async function rollbackPlugin({ id, root = process.cwd(), target = TARGET
     await rename(destination, displaced);
   }
   await rename(source, destination);
-  await appendJournal({ root, target, entry: {
+  await appendInstallJournal({ root, target, entry: {
     at: new Date().toISOString(), action: 'rollback', actor, id: pluginId,
     digest: restoredDigest, restoredFrom: relative(targetDir, source).split(sep).join('/'),
     displaced: displaced ? relative(targetDir, displaced).split(sep).join('/') : null,

@@ -284,6 +284,28 @@ the harness share one `workspace.json`; `storage` is required, other seams are
 risks (acto mapping, lifecycle/lock, parallel-workstream conflicts) and acceptance
 criteria.
 
+## Bundle installation
+
+A bundle is a directory with `harness.bundle.json` describing plugins that must be
+installed together:
+
+```json
+{ "version": 1, "name": "growth-suite", "plugins": [{ "id": "plugin-a", "dir": "a" }, { "id": "plugin-b", "dir": "b", "version": "0.2.0" }] }
+```
+
+`wh install-bundle <dir> [--upgrade] [--public-key <pem>] [--actor <subject>]`:
+
+- validates the manifest (bounded ids/dirs, dirs stay inside the bundle, declared
+  versions must match the package) and every package (same rules as `wh install`);
+- reconciles services: duplicate `provides` across the bundle and already-installed
+  plugins are a conflict, and a `requires` without a provider fails before anything
+  is written (kernel services `http`/`health` are always available);
+- installs in order and, on any failure, rolls back everything it already did
+  (fresh installs are removed, upgrades are restored from their backup), then
+  rethrows with the failing plugin and the rollback list;
+- records each plugin install plus one `bundle-install` (or `bundle-failed` with
+  `rolledBack`) line in the install journal.
+
 ## Environment capability declarations
 
 A manifest may declare `env: ["DEEPSEEK_API_KEY", ...]` (≤16 upper-case names, no
@@ -304,7 +326,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 83 tests, 0 fail
+node --test packages/harness-kernel/test     # 88 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
