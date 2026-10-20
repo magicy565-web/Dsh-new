@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createHarness } from '../packages/harness-kernel/src/app.mjs';
+import { createEchoProvider } from '../packages/harness-seams/src/llm.mjs';
 
 const ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/u, '$1'));
 const actor = { subject: 'local-operator', role: 'admin', workspaceId: 'local' };
@@ -37,6 +38,11 @@ async function fixture(t, { includePlugin = true } = {}) {
     "    name: '@workspace-harness/seams/approval'",
     '  - id: tools',
     "    name: '@workspace-harness/seams/tools'",
+    '  - id: llm',
+    "    name: '@workspace-harness/seams/llm'",
+    '  - id: skills',
+    "    name: '@workspace-harness/seams/skills'",
+    '    config: { scanOnMount: true }',
     ...(includePlugin ? ['  - id: inquiries', '    name: workspace-inquiry-recovery', '    config: {}'] : []),
     '',
   ].join('\n');
@@ -60,7 +66,7 @@ async function fixture(t, { includePlugin = true } = {}) {
 
 test('the harness runs the inquiry plugin over the real seams end to end', async t => {
   const { harness, request } = await fixture(t);
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'inquiries', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'inquiries', 'llm', 'skills', 'storage', 'tools']);
 
   const health = await request('/healthz');
   assert.equal(health.status, 200);
@@ -104,6 +110,21 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
     error => error.code === 'HARNESS_TOOL_INVALID');
   await assert.rejects(tools.execute('not_a_tool', {}, { actor }), error => error.code === 'HARNESS_TOOL_REFUSED');
 
+  // The model seam is mounted but unconfigured until a real provider is registered.
+  const llm = harness.ctx.reflect.get('llm', false);
+  assert.deepEqual(llm.providers(), []);
+  llm.register(createEchoProvider());
+  const echo = await llm.complete({ messages: [{ role: 'user', content: 'harness llm online' }] });
+  assert.equal(echo.text, 'harness llm online');
+
+  // Skills discovered from plugins/*/skills/* at mount; the body is data, never executed.
+  const skills = harness.ctx.reflect.get('skills', false);
+  const discovered = skills.list();
+  assert.ok(discovered.some(skill => skill.name === 'historical-inquiry-recovery'), JSON.stringify(discovered));
+  const skill = skills.load('historical-inquiry-recovery');
+  assert.ok(skill.body.includes('历史询盘捞回'));
+  assert.equal(skill.source.endsWith('SKILL.md'), true);
+
   // The write tool is gated by a one-shot approval ticket issued through the plugin's own HTTP surface.
   const selectArgs = { leadId: 'lead-alpha', expectedRevision: stale.revision, sourceHash: stale.sourceHash, asOf: '2026-10-21' };
   await assert.rejects(tools.execute('inquiry_recovery_select', selectArgs, { actor }),
@@ -135,7 +156,7 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
 
 test('disabling the inquiry row removes both its routes and its tools', async t => {
   const { harness, request } = await fixture(t, { includePlugin: false });
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'llm', 'skills', 'storage', 'tools']);
   const missing = await request('/api/inquiry-recovery/status');
   assert.equal(missing.status, 404);
   const tools = harness.ctx.reflect.get('tools', false);

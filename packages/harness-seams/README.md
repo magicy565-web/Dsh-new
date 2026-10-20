@@ -9,10 +9,31 @@ contract in `packages/harness-contracts/CONTRACT.md` §5:
 | `src/approval.mjs` | `ctx.approval` | `createApprovalProvider({ clock, ttlMs })` |
 | `src/tools.mjs` | `ctx.tools` | `createToolsProvider({ policy })` |
 | `src/artifacts.mjs` | `ctx.artifacts` | `createArtifactsProvider({ directory, maxBytes, maxTotalBytes, maxArtifacts })` |
-| `src/index.mjs` | all four | re-exports |
+| `src/llm.mjs` | `ctx.llm` | `createLlmProvider({ providers, defaultProvider })` |
+| `src/skills.mjs` | `ctx.skills` | `createSkillsProvider({ roots, maxSkills, maxBytes })` |
+| `src/index.mjs` | all six | re-exports |
 
 Every provider is `{ apply(ctx, config) }`: it publishes the service on the
 kernel context (Cordis `ctx.provide`) and returns an async disposer.
+
+### `ctx.llm` (offline-first model seam)
+
+The package never performs network calls. A deployment registers a real provider
+(pi/OMP or the DeepSeek API); without one the service fails closed with
+`HARNESS_LLM_NOT_CONFIGURED` instead of inventing a reply.
+
+```js
+import { createLlmProvider, createEchoProvider, createReplayProvider } from '@workspace-harness/seams';
+
+ctx.llm.register(createEchoProvider());                       // offline smoke
+const result = await ctx.llm.complete({ messages: [{ role: 'user', content: 'hi' }] });
+// → { provider, model, text, toolCalls, usage }
+```
+
+`complete()` validates the request/response shapes, refuses ambiguous provider
+selection, records metadata-only audit entries (no message bodies, capped at 100)
+and maps provider failures to `HARNESS_LLM_FAILED` without forwarding provider
+messages. `createReplayProvider({ responses })` scripts offline acceptance runs.
 
 ```js
 import {
@@ -106,3 +127,83 @@ adapts `ctx.storage` and the directory.
   argument validation; JSON-serializable results only; the last 1000 executions
   are appended to `state.harnessAudit` when storage is mounted (best effort).
 - Handlers receive `handler(args, { actor, signal, ctx, storage, approval, tools })`.
+
+## Skills service (`src/skills.mjs`)
+
+`ctx.skills` is a bounded, read-only agent-skill registry. Skill bodies are
+opaque data: the seam never executes, imports or evaluates them, and no network
+I/O exists anywhere in the module. Mount it like any other provider:
+
+| Module | Service | Factory |
+| --- | --- | --- |
+| `src/skills.mjs` | `ctx.skills` | `createSkills({ roots, maxSkills, maxBytes, root })` / `createSkillsProvider({...})` |
+
+```yaml
+plugins:
+  - id: skills
+    name: @workspace-harness/seams/skills
+    config: { roots: ["plugins/*/skills/*"], maxSkills: 200, maxBytes: 65536 }
+```
+
+`config` keys are optional and match the factory options; factory options win
+over `config`. The direct factory is `createSkills()` and the module also exposes
+the provider-shaped `apply(ctx, config)` fallback plus
+`manifest = { id: 'skills', kind: 'provider', provides: ['skills'], requires: [] }`.
+
+Service API:
+
+```js
+ctx.skills.register({ name, description, body, source, pluginId? }) // -> frozen record
+ctx.skills.list({ pluginId?, limit? }) // -> [{ name, description, source, pluginId, bytes }]
+ctx.skills.load(name)                  // -> { name, description, body, source }
+ctx.skills.scan()                      // -> { skills: [summaries], errors: [{source, code, message}] }
+ctx.skills.remove(name)                // -> true
+ctx.skills.close()                     // -> void (idempotent; later calls fail closed)
+ctx.skills.roots                       // read-only resolved scan patterns (diagnostics)
+```
+
+- `name` matches `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`; `description` is a
+  non-empty single line of at most 4096 characters; `body` is a string capped at
+  `maxBytes` (default 64 KiB) and `source` is a non-empty one-line string;
+  `pluginId` is optional and must match the manifest id grammar.
+- The registry holds at most `maxSkills` records (default 200). `list()` returns
+  detached summaries sorted by name (deterministic) and honours an optional
+  `pluginId` filter and a further `limit`.
+- `load()` returns exactly `{ name, description, body, source }`; unknown names
+  throw `HARNESS_SKILL_NOT_FOUND`. `remove()` removes and returns `true`.
+- `close()` is idempotent: it clears the registry and makes every later
+  operation throw `HARNESS_SKILL_CLOSED` (the provider disposer calls it).
+
+### Scan rules
+
+- Default roots are `plugins/*/skills/*` resolved against the repository root
+  (derived from the module location, overridable with `root`).
+- A relative root resolves against `root` and must stay inside it; an absolute
+  root is honoured as explicit operator intent (tests/CI/dedicated checkouts).
+  Only one `*` wildcard per path segment is supported (`**` is refused).
+- Only `<root>/SKILL.md` files are read; nothing outside the configured roots is
+  ever opened. A directory without `SKILL.md` is skipped silently.
+- Symbolic links are refused everywhere on the walk (root components, skill
+  directories, `SKILL.md` files); they are reported as errors, never followed.
+- Frontmatter is parsed with a tiny strict grammar: the file must start with
+  `---`, close with `---`, and contain only `name:` and `description:` plain
+  (optionally quoted) scalar lines. Unknown keys, duplicate keys, nested YAML,
+  block/flow scalars and missing values are malformed.
+- A malformed, unreadable, oversized or duplicate skill is reported as an error
+  entry in the `scan()` result; it never crashes the scan. Files larger than
+  `maxBytes` plus the 8 KiB frontmatter allowance are refused before reading.
+  Valid skills are registered, so `list()`/`load()` serve them afterwards; a
+  rescan of the same source refreshes the record in place.
+- `pluginId` is derived from `<repo>/plugins/<id>/skills/<skill>/SKILL.md` and is
+  `null` for roots elsewhere.
+
+### Skills error codes
+
+`HARNESS_SKILL_INVALID` (invalid registration/frontmatter),
+`HARNESS_SKILL_DUPLICATE`, `HARNESS_SKILL_NOT_FOUND` — these three are already in
+`packages/harness-contracts/src/index.mjs` (`ERROR.skillInvalid`,
+`ERROR.skillDuplicate`, `ERROR.skillNotFound`). The seam additionally uses
+stable local codes, exported as `SKILL_ERROR`: `HARNESS_SKILL_TOO_LARGE`
+(body/file cap), `HARNESS_SKILL_LIMIT` (registry full), `HARNESS_SKILL_ROOT_INVALID`
+(unsafe root or symlink) and `HARNESS_SKILL_CLOSED` (operation after `close()`).
+

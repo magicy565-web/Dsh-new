@@ -117,6 +117,23 @@ ctx.artifacts.directory → string
 
 复用 `server/artifacts.mjs`（元数据在 `state.artifacts`，字节在私有目录）。`requires: ['storage']`；默认目录 `<ctx.storage.directory>/artifacts`，相对路径按 storage 目录解析，绝对路径必须位于其内；仓库根、逃逸路径、storage 根一律 `HARNESS_STORAGE_INVALID`。同一 `requestId` 相同内容幂等返回同一工件，不同内容 → 冲突。
 
+### `ctx.llm`（provider：`packages/harness-seams/src/llm.mjs`）
+
+```js
+ctx.llm.register({ id, model?, label?, complete(request) }) → deregister()
+ctx.llm.providers() → [{ id, model, label }]
+ctx.llm.complete({ provider?, messages, tools?, maxTokens?, signal? }, { actor? })
+  → { provider, model, text, toolCalls: [{ name, arguments }], usage }
+ctx.llm.lastRequest() / ctx.llm.audit()      // 只含元数据，绝不记录消息正文
+ctx.llm.close() → Promise<void>
+```
+
+该包**不进行网络请求**：真实 provider 由部署代码注册（pi/OMP 或 DeepSeek API）。未注册任何 provider 时一律 fail-closed（`HARNESS_LLM_NOT_CONFIGURED`），绝不编造回复。`createEchoProvider()` / `createReplayProvider({responses})` 仅供离线验收；provider 报错统一转成 `HARNESS_LLM_FAILED` 且不转发其消息；audit 上限 100 条、只记录 provider/model/计数/结果码。
+
+### `ctx.skills`（provider：`packages/harness-seams/src/skills.mjs`）
+
+见该模块 README：注册/扫描/读取技能，技能正文是数据，永不执行。
+
 ### `ctx.approval`（provider：`packages/harness-seams/src/approval.mjs`）
 
 ```js

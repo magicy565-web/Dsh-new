@@ -11,6 +11,11 @@ plugins:
     name: '@workspace-harness/seams/approval'
   - id: tools
     name: '@workspace-harness/seams/tools'
+  - id: llm
+    name: '@workspace-harness/seams/llm'
+  - id: skills
+    name: '@workspace-harness/seams/skills'
+    config: { scanOnMount: true }
   - id: inquiries
     name: workspace-inquiry-recovery
     config: {}

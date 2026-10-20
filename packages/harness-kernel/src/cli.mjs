@@ -3,13 +3,15 @@ import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, resolveRows } from './resolve.mjs';
+import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
 
 const USAGE = `Usage: wh <command> [options]
 
 Commands:
-  list     Resolve and print composition rows (entry, status, requires/provides). No plugin is mounted.
-  doctor   Load the composition (mount plugins, no HTTP serving), report health, then dispose.
-  help     Print this text.
+  list      Resolve and print composition rows (entry, status, requires/provides). No plugin is mounted.
+  doctor    Load the composition (mount plugins, no HTTP serving), report health, then dispose.
+  presets   Agent presets: \`wh presets list\` or \`wh presets show <name>\`.
+  help      Print this text.
 
 Options:
   -c, --composition <file>  Composition file (default: harness.local.yml, relative to --root).
@@ -31,6 +33,7 @@ function cliLogger(stderr) {
 export function parseArgv(argv = []) {
   const options = {
     command: null,
+    args: [],
     composition: 'harness.local.yml',
     root: null,
     json: false,
@@ -65,6 +68,8 @@ export function parseArgv(argv = []) {
       errors.push(`unknown option: ${argument}`);
     } else if (!options.command) {
       options.command = argument;
+    } else if (options.command === 'presets') {
+      options.args.push(argument);
     } else {
       errors.push(`unexpected argument: ${argument}`);
     }
@@ -182,12 +187,56 @@ export async function runDoctor({
   }
 }
 
+async function runPresets({ root, args, json, stdout, stderr }) {
+  const [subcommand, name] = args;
+  if (!subcommand || subcommand === 'list') {
+    const presets = await listPresets({ root });
+    if (json) {
+      stdout.write(`${JSON.stringify(presets.map(presetSummary), null, 2)}\n`);
+      return 0;
+    }
+    if (!presets.length) {
+      stdout.write('no presets found (expected presets/*.yml under --root)\n');
+      return 0;
+    }
+    stdout.write('NAME              TITLE                  PLUGINS       TOOLS  SKILLS\n');
+    for (const preset of presets) {
+      stdout.write(`${pad(preset.name, 18)}${pad(preset.title, 23)}${pad(preset.plugins.map(row => row.id).join(','), 14)}${pad(preset.tools.length, 7)}${preset.skills.length}\n`);
+    }
+    return 0;
+  }
+  if (subcommand === 'show') {
+    if (!name) {
+      stderr.write('wh: presets show requires a preset name\n');
+      return 2;
+    }
+    const preset = await loadPreset(name, { root });
+    const composed = await composePreset(preset, { root });
+    const summary = presetSummary(preset);
+    if (json) {
+      stdout.write(`${JSON.stringify({ ...summary, composition: composed.composition.rows }, null, 2)}\n`);
+      return 0;
+    }
+    stdout.write(`preset ${summary.name} (${summary.title})\n`);
+    stdout.write(`file: ${displayPath(summary.file, root)}\n`);
+    if (summary.extends) stdout.write(`extends: ${summary.extends}\n`);
+    stdout.write(`plugins: ${summary.plugins.join(', ') || '-'}\n`);
+    stdout.write(`tools: ${summary.tools.join(', ') || '-'}\n`);
+    stdout.write(`denyTools: ${summary.denyTools.join(', ') || '-'}\n`);
+    stdout.write(`skills: ${summary.skills.join(', ') || '-'}\n`);
+    stdout.write(`model: ${summary.model?.provider ?? '-'}${summary.model?.model ? `/${summary.model.model}` : ''}\n`);
+    stdout.write(`persona:\n${summary.persona.split('\n').map(line => `  ${line}`).join('\n')}\n`);
+    return 0;
+  }
+  stderr.write(`wh: unknown presets subcommand "${subcommand}"\n`);
+  return 2;
+}
+
 /**
  * Run the `wh` CLI.
  * @returns {Promise<number>} process exit code
  */
-export async function runWh(
-  argv = [],
+export async function runWh(argv = [],
   { stdout = process.stdout, stderr = process.stderr, root = process.cwd() } = {},
 ) {
   const { options, errors } = parseArgv(argv);
@@ -201,10 +250,11 @@ export async function runWh(
     return options.command && options.command !== 'help' ? 2 : 0;
   }
   const effectiveRoot = options.root ? (isAbsolute(options.root) ? options.root : resolvePath(root, options.root)) : root;
-  const context = { compositionPath: options.composition, root: effectiveRoot, json: options.json, stdout, stderr };
+  const context = { compositionPath: options.composition, root: effectiveRoot, json: options.json, args: options.args, stdout, stderr };
   try {
     if (options.command === 'list') return await runList(context);
     if (options.command === 'doctor') return await runDoctor(context);
+    if (options.command === 'presets') return await runPresets(context);
     stderr.write(`wh: unknown command "${options.command}"\n\n${USAGE}`);
     return 2;
   } catch (error) {

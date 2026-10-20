@@ -120,10 +120,35 @@ boots, prints the URL, serves, and shuts down cleanly on `SIGINT`/`SIGTERM`.
   make the contract command `node --test packages/harness-kernel/test` work; the
   individual `test/*.test.mjs` files also run directly.
 
+## Agent presets
+
+A preset is a capability profile over a base composition: persona + extra plugin
+rows + allowed/denied tool names + skills + optional model metadata. Presets never
+grant authority; they only select what the base composition already provides.
+
+```sh
+wh presets list [--json]            # scan <root>/presets/*.yml
+wh presets show growth-manager [--json]
+```
+
+```js
+import { listPresets, loadPreset, composePreset } from './packages/harness-kernel/src/presets.mjs';
+
+const composed = await composePreset(await loadPreset('growth-manager', { root }), { root });
+// → { composition, preset, persona, tools, denyTools, skills, model }
+```
+
+Rules: `version: 1`, kebab-case `name`, required `title` (≤120) and `persona`
+(≤8000), ≤32 plugin rows (duplicate ids refused, base rows overridden by id),
+`tools`/`denyTools`/`skills` are bounded identifier lists (a tool cannot be both
+allowed and denied), `extends` must be a relative composition path inside the
+repository. Two real presets ship in `presets/`: `growth-manager` (may request the
+approval-gated select tool) and `inquiry-analyst` (read-only; denies select).
+
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 47 tests, 0 fail
+node --test packages/harness-kernel/test     # 52 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
@@ -141,5 +166,9 @@ body errors, clean stop, CLI `list`/`doctor` and usage errors.
   (work package C) is left as a commented example line. Once that plugin lands,
   uncomment the row — its manifest `requires: [tools, storage, approval]` will be
   topologically ordered after the three seam rows.
+- `harness.local.yml` does mount the `market` row (`plugins/workspace-market`,
+  `config.demo: true` for the local composition). It serves `/market` and
+  `/api/market/*`; the demo catalog is explicit and the computer runtime stays
+  `off`, so screens stay unavailable.
 - Other agents own `packages/harness-contracts/**`, `packages/harness-seams/**`,
   `plugins/**`, `server/**`; this package only imports the frozen contracts.

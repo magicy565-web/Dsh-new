@@ -31,6 +31,16 @@ export const ERROR = Object.freeze({
   approvalRequired: 'HARNESS_APPROVAL_REQUIRED',
   approvalRefused: 'HARNESS_APPROVAL_REFUSED',
   storageInvalid: 'HARNESS_STORAGE_INVALID',
+  skillInvalid: 'HARNESS_SKILL_INVALID',
+  skillDuplicate: 'HARNESS_SKILL_DUPLICATE',
+  skillNotFound: 'HARNESS_SKILL_NOT_FOUND',
+  llmInvalid: 'HARNESS_LLM_INVALID',
+  llmDuplicate: 'HARNESS_LLM_DUPLICATE',
+  llmProviderRequired: 'HARNESS_LLM_PROVIDER_REQUIRED',
+  llmNotConfigured: 'HARNESS_LLM_NOT_CONFIGURED',
+  llmFailed: 'HARNESS_LLM_FAILED',
+  llmAborted: 'HARNESS_LLM_ABORTED',
+  llmExhausted: 'HARNESS_LLM_EXHAUSTED',
 });
 
 export class HarnessError extends Error {
