@@ -12,6 +12,7 @@ contract in `packages/harness-contracts/CONTRACT.md` §5:
 | `src/llm.mjs` | `ctx.llm` | `createLlmProvider({ providers, defaultProvider })` |
 | `src/skills.mjs` | `ctx.skills` | `createSkillsProvider({ roots, maxSkills, maxBytes })` |
 | `src/audit.mjs` | `ctx.audit` | `createAuditProvider({ limit })` |
+| `src/workspace.mjs` | `ctx.workspace` | `createWorkspaceProvider({ workspaces, defaultWorkspaceId })` |
 
 Every provider is `{ apply(ctx, config) }`: it publishes the service on the
 kernel context (Cordis `ctx.provide`) and returns an async disposer.
@@ -238,5 +239,41 @@ plugins:
     name: @workspace-harness/seams/audit
     config: { limit: 1000 }
 ```
+
+## Workspace service (`src/workspace.mjs`)
+
+`ctx.workspace` resolves tenants and members from the composition: nothing is read
+from the network and no business data lives here. It takes no dependency, so it can
+mount before anything that needs it.
+
+```js
+ctx.workspace.resolve(actor, { workspaceId? }) // -> { workspaceId, workspaceName, subject, role }
+ctx.workspace.assertRole(actor, ['admin'], { workspaceId? })
+ctx.workspace.list(actor)                      // -> [{ id, name, role }] (own memberships only)
+ctx.workspace.close()
+```
+
+```yaml
+plugins:
+  - id: workspace
+    name: @workspace-harness/seams/workspace
+    config:
+      defaultWorkspaceId: local
+      workspaces:
+        - id: local
+          name: 本地空间
+          members: [{ subject: local-operator, role: admin }]
+```
+
+- Unknown tenant → `HARNESS_WORKSPACE_INVALID`; known tenant without a membership →
+  `HARNESS_WORKSPACE_FORBIDDEN`; the kernel maps them to 400/403.
+- The membership record is authoritative: an actor header claiming `admin` is still
+  a `viewer` when the configuration says so.
+- With no default tenant and no `actor.workspaceId`, resolution fails instead of
+  guessing a tenant. Duplicate workspace/member ids and unknown roles are refused
+  at construction (max 100 workspaces, 200 members each).
+- Business plugins call `resolve()` at their HTTP and tool entry points; when
+  `ctx.workspace` is absent they keep working for backward compatibility.
+
 
 

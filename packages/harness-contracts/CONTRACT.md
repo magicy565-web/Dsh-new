@@ -163,7 +163,6 @@ ctx.llm.close() → Promise<void>
 见该模块 README：注册/扫描/读取技能，技能正文是数据，永不执行。
 
 ### `ctx.audit`（provider：`packages/harness-seams/src/audit.mjs`）
-
 ```js
 ctx.audit.record({ kind, action, actor?, ok?, code?, detail?, ref? }) → entry
 ctx.audit.list({ kind?, actor?, since?, limit? }) → entry[]   // 最新在前
@@ -172,6 +171,17 @@ ctx.audit.close()
 ```
 
 `requires: ['storage']`，条目持久化在 `state.harnessAudit`（与 tools seam 同一数组），`list()` 会把 P0 的旧 tool 条目（`{tool, ok, errorCode}`）归一化成统一视图。只存元数据：`detail` ≤2KB 的浅对象、`code` 必须是大写错误码、禁止未知字段；**绝不自动记录消息正文或客户数据**。调用方显式传入的 `detail` 由其自己负责合规。
+
+### `ctx.workspace`（provider：`packages/harness-seams/src/workspace.mjs`）
+
+```js
+ctx.workspace.resolve(actor, { workspaceId? }) → { workspaceId, workspaceName, subject, role }
+ctx.workspace.assertRole(actor, ['admin'|'operator'|'viewer', ...], { workspaceId? }) → 同上
+ctx.workspace.list(actor) → [{ id, name, role }]     // 只返回 actor 自己的成员关系
+ctx.workspace.close()
+```
+
+`requires: []`；租户与成员来自组合配置（`workspaces: [{id,name,members:[{subject,role}]}]` + `defaultWorkspaceId`），不读网络、不存业务数据。失败关闭：未知租户 → `HARNESS_WORKSPACE_INVALID`（HTTP 400），已存在租户但非成员 → `HARNESS_WORKSPACE_FORBIDDEN`（HTTP 403）；**角色以成员记录为准**，actor 头部自称的 role 不能提权；没有默认租户且 actor 未带 workspaceId 时拒绝而不是猜测。业务插件在 HTTP 与工具入口先 `resolve()`，未挂载 `ctx.workspace` 时跳过（向后兼容）。
 
 ### `ctx.approval`（provider：`packages/harness-seams/src/approval.mjs`）
 

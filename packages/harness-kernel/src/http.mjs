@@ -36,6 +36,8 @@ export const ERROR_STATUS = Object.freeze({
   [ERROR.approvalRequired]: 403,
   [ERROR.approvalRefused]: 403,
   [ERROR.storageInvalid]: 500,
+  [ERROR.workspaceInvalid]: 400,
+  [ERROR.workspaceForbidden]: 403,
   [HTTP_ERROR.routeNotFound]: 404,
   [HTTP_ERROR.invalidPath]: 400,
   [HTTP_ERROR.invalidBody]: 400,

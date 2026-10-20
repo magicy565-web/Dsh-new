@@ -37,6 +37,14 @@ async function fixture(t, { includePlugin = true, patch = null, audit = false } 
     "    name: '@workspace-harness/seams/artifacts'",
     '  - id: audit',
     "    name: '@workspace-harness/seams/audit'",
+    '  - id: workspace',
+    "    name: '@workspace-harness/seams/workspace'",
+    '    config:',
+    '      defaultWorkspaceId: local',
+    '      workspaces:',
+    '        - id: local',
+    '          name: 本地空间',
+    '          members: [{ subject: local-operator, role: admin }]',
     '  - id: approval',
     "    name: '@workspace-harness/seams/approval'",
     '  - id: tools',
@@ -78,7 +86,7 @@ async function fixture(t, { includePlugin = true, patch = null, audit = false } 
 
 test('the harness runs the inquiry plugin over the real seams end to end', async t => {
   const { harness, request } = await fixture(t);
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'inquiries', 'llm', 'skills', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'inquiries', 'llm', 'skills', 'storage', 'tools', 'workspace']);
 
   const health = await request('/healthz');
   assert.equal(health.status, 200);
@@ -193,7 +201,7 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
 
 test('disabling the inquiry row removes both its routes and its tools', async t => {
   const { harness, request } = await fixture(t, { includePlugin: false });
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'llm', 'skills', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'llm', 'skills', 'storage', 'tools', 'workspace']);
   const missing = await request('/api/inquiry-recovery/status');
   assert.equal(missing.status, 404);
   const tools = harness.ctx.reflect.get('tools', false);
@@ -256,7 +264,7 @@ test('a preset that grants a write tool still requires a one-shot approval ticke
 
 test('a patch layer can disable a mounted plugin at boot', async t => {
   const { harness, request } = await fixture(t, { patch: { version: 1, entries: [{ id: 'inquiries', disabled: true }] } });
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'llm', 'skills', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'llm', 'skills', 'storage', 'tools', 'workspace']);
   assert.equal(harness.patches.applied.length, 1);
   assert.equal(harness.patches.applied[0].action, 'disable');
   assert.equal((await request('/api/inquiry-recovery/status')).status, 404);
@@ -320,3 +328,20 @@ test('the harness records mount/start/stop audit lines with composition digests'
   assert.doesNotMatch(JSON.stringify(lines), /未发送|buyer@alpha/u);
 });
 
+
+test('a non-member of the configured workspace is refused before any inquiry data is read', async t => {
+  const { harness, request } = await fixture(t);
+  const stranger = { subject: 'mallory', role: 'admin', workspaceId: 'local' };
+  const denied = await request('/api/inquiry-recovery/status', 'GET', undefined, stranger);
+  assert.equal(denied.status, 403, JSON.stringify(denied.body));
+  assert.equal(denied.body.error.code, 'HARNESS_WORKSPACE_FORBIDDEN');
+  assert.doesNotMatch(JSON.stringify(denied.body), /counts|leads/u, 'no tenant data is returned on refusal');
+
+  const tools = harness.ctx.reflect.get('tools', false);
+  await assert.rejects(tools.execute('inquiry_recovery_status', {}, { actor: stranger }), error => error.code === 'HARNESS_WORKSPACE_FORBIDDEN');
+  await assert.rejects(tools.execute('inquiry_recovery_opportunities', { asOf: '2026-10-21' }, { actor: stranger }), error => error.code === 'HARNESS_WORKSPACE_FORBIDDEN');
+
+  // A member still works.
+  const allowed = await request('/api/inquiry-recovery/status');
+  assert.equal(allowed.status, 200);
+});

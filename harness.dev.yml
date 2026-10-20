@@ -9,6 +9,14 @@ plugins:
     name: '@workspace-harness/seams/artifacts'
   - id: audit
     name: '@workspace-harness/seams/audit'
+  - id: workspace
+    name: '@workspace-harness/seams/workspace'
+    config:
+      defaultWorkspaceId: local
+      workspaces:
+        - id: local
+          name: 本地空间
+          members: [{ subject: local-operator, role: admin }]
   - id: approval
     name: '@workspace-harness/seams/approval'
   - id: tools

@@ -42,6 +42,8 @@ export const ERROR = Object.freeze({
   llmFailed: 'HARNESS_LLM_FAILED',
   llmAborted: 'HARNESS_LLM_ABORTED',
   llmExhausted: 'HARNESS_LLM_EXHAUSTED',
+  workspaceInvalid: 'HARNESS_WORKSPACE_INVALID',
+  workspaceForbidden: 'HARNESS_WORKSPACE_FORBIDDEN',
 });
 
 export class HarnessError extends Error {

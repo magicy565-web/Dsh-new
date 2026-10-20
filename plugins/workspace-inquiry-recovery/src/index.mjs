@@ -66,7 +66,20 @@ export async function apply(ctx, config = {}) {
     }
   };
 
+  // ctx.workspace is optional: when it is mounted every route resolves the actor's
+  // membership first, so a non-member of the configured tenant is refused with 403
+  // instead of reading another workspace's inquiry data.
+  const workspace = () => {
+    try { return ctx.reflect?.get?.('workspace', false) ?? null; } catch { return null; }
+  };
+  const authorize = actor => {
+    const service = workspace();
+    if (!service) return;
+    service.resolve(actor, config.workspaceId ? { workspaceId: config.workspaceId } : {});
+  };
+
   const handler = (method, registeredPath) => async (_req, _res, context) => {
+    authorize(context?.actor);
     const result = await inquiryRecoveryHttp({
       recovery, method,
       pathname: context?.pathname ?? '',
@@ -128,6 +141,7 @@ export async function apply(ctx, config = {}) {
     readOnly: true,
     authority: 'workspace',
     handler: async (_args, execution) => {
+      authorize(execution?.actor);
       const status = recovery.status(execution?.actor);
       return { engineVersion: status.engineVersion, staleDays: status.staleDays, asOf: status.asOf, counts: status.counts };
     },
@@ -148,6 +162,7 @@ export async function apply(ctx, config = {}) {
     readOnly: true,
     authority: 'workspace',
     handler: async (args, execution) => {
+      authorize(execution?.actor);
       const listing = recovery.opportunities({ asOfDate: args?.asOf }, execution?.actor);
       const limit = args?.limit ?? 10;
       return {
@@ -179,6 +194,7 @@ export async function apply(ctx, config = {}) {
     approval: 'always',
     authority: 'workspace',
     handler: async (args, execution) => {
+      authorize(execution?.actor);
       const selection = await recovery.selectLead(args.leadId, {
         requestId: randomUUID(), expectedRevision: args.expectedRevision, sourceHash: args.sourceHash, asOf: args.asOf,
       }, execution.actor);
