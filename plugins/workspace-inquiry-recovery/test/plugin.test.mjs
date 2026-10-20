@@ -51,14 +51,14 @@ const row = (overrides = {}) => ({
 test('the plugin registers its routes, read-only tools and health probe', async t => {
   const { ctx, routes, tools, health } = fakeContext();
   const dispose = await apply(ctx, { workspaceId: 'local' });
-  assert.equal(routes.size, 12);
+  assert.equal(routes.size, 13);
   assert.deepEqual([...routes.keys()], [
     'GET /api/inquiry-recovery/status', 'GET /api/inquiry-recovery/opportunities',
     'GET /api/inquiry-recovery/selections', 'GET /api/inquiry-recovery/conflicts',
     'GET /api/inquiry-recovery/leads/:leadId', 'POST /api/inquiry-recovery/import',
     'POST /api/inquiry-recovery/leads/:leadId/identity', 'POST /api/inquiry-recovery/leads/:leadId/select',
     'POST /api/inquiry-recovery/approvals', 'POST /api/inquiry-recovery/approvals/:approvalId/decide',
-    'GET /api/inquiry-recovery/approvals', 'GET /api/inquiry-recovery/audit',
+    'GET /api/inquiry-recovery/approvals', 'GET /api/inquiry-recovery/audit', 'GET /api/inquiry-recovery/artifacts/:artifactId',
   ]);
   assert.deepEqual([...tools.keys()], ['inquiry_recovery_status', 'inquiry_recovery_opportunities', 'inquiry_recovery_select']);
   assert.equal(tools.get('inquiry_recovery_select').approval, 'always');

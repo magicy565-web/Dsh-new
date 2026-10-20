@@ -578,6 +578,7 @@ export function createInquiryRecoveryService({ store, artifacts = null, clock = 
         description: 'Unreviewed follow-up draft generated from imported inquiry history. NOT SENT.',
         metadata: {
           inquiryRecovery: {
+            workspaceId,
             leadId: selection.leadId, sourceId: selection.sourceId, revision: selection.leadRevision,
             sourceHash: selection.leadSourceHash, importId: selection.importId, decision: selection.decision,
             sent: false, humanReviewRequired: true, humanReviewed: false, independentlyVerified: false,

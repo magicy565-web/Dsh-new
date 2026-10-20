@@ -30,10 +30,10 @@ async function fixture(t) {
   await fs.writeFile(state, JSON.stringify({
     version: 1,
     harnessAudit: [
-      unified({ id: 'e1', at: '2026-10-20T01:00:00.000Z', action: 'import' }),
-      unified({ id: 'e2', at: '2026-10-20T02:00:00.000Z', action: 'identity-review', detail: { leadId: 'lead-alpha' } }),
+      unified({ id: 'e1', at: '2026-10-20T01:00:00.000Z', action: 'import', detail: { status: 201, workspaceId: 'alpha' } }),
+      unified({ id: 'e2', at: '2026-10-20T02:00:00.000Z', action: 'identity-review', detail: { leadId: 'lead-alpha', workspaceId: 'alpha' } }),
       { id: 'legacy', at: '2026-10-20T03:00:00.000Z', actor: { subject: 'local-operator', role: 'admin' }, tool: 'inquiry_recovery_status', approvalId: null, ok: false, errorCode: 'HARNESS_TOOL_REFUSED' },
-      unified({ id: 'e3', at: '2026-10-20T04:00:00.000Z', action: 'select', detail: { leadId: 'lead-alpha', selectionId: 'sel-1' } }),
+      unified({ id: 'e3', at: '2026-10-20T04:00:00.000Z', action: 'select', detail: { leadId: 'lead-beta', selectionId: 'sel-1', workspaceId: 'beta' } }),
     ],
   }), 'utf8');
   return { directory, composition, state, data };
@@ -60,6 +60,17 @@ test('wh audit reads the storage state file without mounting anything', async t 
   const direct = capture();
   assert.equal(await runWh(['audit', '--state', path.join(directory, 'data', 'workspace.json')], { root: directory, ...direct }), 0);
   assert.match(direct.stdout.text, /4 event\(s\)/u);
+
+  const alpha = capture();
+  assert.equal(await runWh(['audit', '--composition', composition, '--workspace', 'alpha', '--json'], { root: directory, ...alpha }), 0);
+  const alphaDocument = JSON.parse(alpha.stdout.text);
+  assert.equal(alphaDocument.workspace, 'alpha');
+  assert.deepEqual(alphaDocument.events.map(event => event.action), ['identity-review', 'import']);
+  assert.ok(alphaDocument.events.every(event => event.detail.workspaceId === 'alpha'));
+
+  const unknown = capture();
+  assert.equal(await runWh(['audit', '--composition', composition, '--workspace', 'gamma', '--json'], { root: directory, ...unknown }), 0);
+  assert.deepEqual(JSON.parse(unknown.stdout.text).events, [], 'an unknown workspace matches nothing rather than everything');
 });
 
 test('wh audit fails honestly on missing state, no storage row and invalid JSON', async t => {
@@ -83,6 +94,8 @@ test('wh audit fails honestly on missing state, no storage row and invalid JSON'
   // The composition path is still honoured even when only the patch layer moves the storage row.
   assert.equal(parseArgv(['audit', '--state', 'x.json']).options.state, 'x.json');
   assert.equal(parseArgv(['audit', '--kind', 'tool']).options.kind, 'tool');
+  assert.equal(parseArgv(['audit', '--workspace', 'alpha']).options.workspace, 'alpha');
+  assert.equal(parseArgv(['audit', '--workspace']).errors.length, 1);
   assert.equal(parseArgv(['audit', '--limit', '5']).options.limit, 5);
   assert.equal(parseArgv(['audit', '--limit=0']).errors.length, 1);
   assert.equal(parseArgv(['audit', '--limit', '500']).errors.length, 1);

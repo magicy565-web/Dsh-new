@@ -412,3 +412,41 @@ test('two workspaces keep separate inquiry data end to end', async t => {
   assert.equal(betaDecide.status, 403);
   assert.equal(betaDecide.body.error.code, 'HARNESS_WORKSPACE_FORBIDDEN');
 });
+test('an artifact id is only readable inside the workspace that owns it', async t => {
+  const { harness, request } = await fixture(t);
+  const beta = { subject: 'beta-operator', role: 'admin', workspaceId: 'beta' };
+
+  // Produce a real draft artifact in the local workspace through the HTTP surface.
+  const imported = await request('/api/inquiry-recovery/import', 'POST', { format: 'json', requestId: randomUUID(), content: envelope([row()]) });
+  assert.equal(imported.status, 201, JSON.stringify(imported.body));
+  const first = await request('/api/inquiry-recovery/opportunities?asOf=2026-10-21');
+  const card = first.body.cards[0];
+  const reviewed = await request('/api/inquiry-recovery/leads/lead-alpha/identity', 'POST', {
+    requestId: randomUUID(), sourceHash: card.sourceHash, status: 'confirmed',
+    basis: [{ sourceId: 'canton-2024', quote: 'Please quote 500 pcs hydraulic cylinder' }],
+  });
+  assert.equal(reviewed.status, 200, JSON.stringify(reviewed.body));
+  const ready = await request('/api/inquiry-recovery/opportunities?asOf=2026-10-21');
+  const stale = ready.body.cards[0];
+  const selected = await request('/api/inquiry-recovery/leads/lead-alpha/select', 'POST', {
+    requestId: randomUUID(), expectedRevision: stale.revision, sourceHash: stale.sourceHash, asOf: '2026-10-21',
+  });
+  assert.equal(selected.status, 201, JSON.stringify(selected.body));
+  const artifactId = selected.body.artifact.artifactId;
+  assert.ok(artifactId);
+
+  const localRead = await request(`/api/inquiry-recovery/artifacts/${artifactId}`);
+  assert.equal(localRead.status, 200, JSON.stringify(localRead.body));
+  assert.equal(localRead.body.artifact.metadata.inquiryRecovery.workspaceId, 'local');
+  assert.ok(localRead.body.content.includes('未发送'));
+
+  const betaRead = await request(`/api/inquiry-recovery/artifacts/${artifactId}`, 'GET', undefined, beta);
+  assert.equal(betaRead.status, 404, JSON.stringify(betaRead.body));
+  assert.equal(betaRead.body.error.code, 'INQUIRY_ARTIFACT_NOT_FOUND');
+  assert.doesNotMatch(JSON.stringify(betaRead.body), /未发送|hydraulic/u);
+
+  const missing = await request('/api/inquiry-recovery/artifacts/does-not-exist');
+  assert.equal(missing.status, 404);
+  assert.equal(missing.body.error.code, 'INQUIRY_ARTIFACT_NOT_FOUND');
+  assert.equal(harness.ctx.reflect.get('artifacts', false) !== undefined, true);
+});

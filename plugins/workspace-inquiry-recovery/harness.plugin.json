@@ -27,7 +27,8 @@
     "GET /api/inquiry-recovery/approvals",
     "POST /api/inquiry-recovery/approvals",
     "POST /api/inquiry-recovery/approvals/:approvalId/decide",
-    "GET /api/inquiry-recovery/audit"
+    "GET /api/inquiry-recovery/audit",
+    "GET /api/inquiry-recovery/artifacts/:artifactId"
   ],
   "tools": ["inquiry_recovery_status", "inquiry_recovery_opportunities", "inquiry_recovery_select"],
   "skills": ["skills/inquiries"]

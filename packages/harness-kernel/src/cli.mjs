@@ -26,6 +26,7 @@ Options:
       --root <dir>          Workspace root used by the plugin-name resolution rules (default: cwd).
       --state <file>        Storage state file for \`wh audit\` (default: the storage row directory).
       --kind <kind>         \`wh audit\`: only events of this kind (e.g. inquiry, tool, harness).
+      --workspace <id>      \`wh audit\`: only events recorded for this workspace.
       --limit <n>           \`wh audit\`: newest n events (default 20, max 200).
       --json                Machine-readable JSON output.
   -h, --help                Print this text.
@@ -49,6 +50,7 @@ export function parseArgv(argv = []) {
     patches: [],
     state: null,
     kind: null,
+    workspace: null,
     limit: null,
     root: null,
     json: false,
@@ -97,6 +99,15 @@ export function parseArgv(argv = []) {
       }
     } else if (argument.startsWith('--kind=')) {
       options.kind = argument.slice('--kind='.length);
+    } else if (argument === '--workspace') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires a workspace id.`);
+      else {
+        options.workspace = value;
+        index += 1;
+      }
+    } else if (argument.startsWith('--workspace=')) {
+      options.workspace = argument.slice('--workspace='.length);
     } else if (argument === '--limit') {
       const value = argv[index + 1];
       const parsed = Number(value);
@@ -381,7 +392,7 @@ function normalizeAuditRecord(entry) {
  * mounting anything. Works offline, takes no lock, writes nothing.
  */
 export async function runAudit({
-  compositionPath, patchPaths = [], state, kind = null, limit = null,
+  compositionPath, patchPaths = [], state, kind = null, workspace = null, limit = null,
   root, json = false, stdout = process.stdout, stderr = process.stderr,
 } = {}) {
   let statePath = state ? (isAbsolute(state) ? state : resolvePath(root, state)) : null;
@@ -414,12 +425,13 @@ export async function runAudit({
   const entries = (Array.isArray(parsed?.harnessAudit) ? parsed.harnessAudit : [])
     .map(normalizeAuditRecord).filter(Boolean)
     .filter(entry => kind === null || entry.kind === kind)
+    .filter(entry => workspace === null || entry?.detail?.workspaceId === workspace)
     .slice(-size).reverse();
   if (json) {
-    stdout.write(`${JSON.stringify({ file: displayPath(root, statePath), events: entries }, null, 2)}\n`);
+    stdout.write(`${JSON.stringify({ file: displayPath(root, statePath), ...(workspace ? { workspace } : {}), events: entries }, null, 2)}\n`);
     return 0;
   }
-  stdout.write(`audit ${displayPath(root, statePath)}: ${entries.length} event(s)\n`);
+  stdout.write(`audit ${displayPath(root, statePath)}${workspace ? ` (workspace ${workspace})` : ''}: ${entries.length} event(s)\n`);
   for (const entry of entries) {
     stdout.write(`${entry.at} ${entry.ok ? 'ok  ' : 'FAIL'} ${entry.kind}/${entry.action}${entry.actor?.subject ? ` by ${entry.actor.subject}` : ''}${entry.code ? ` [${entry.code}]` : ''}\n`);
   }
@@ -446,7 +458,7 @@ export async function runWh(argv = [],
   const effectiveRoot = options.root ? (isAbsolute(options.root) ? options.root : resolvePath(root, options.root)) : root;
   const context = {
     compositionPath: options.composition, patchPaths: options.patches, state: options.state,
-    kind: options.kind, limit: options.limit, root: effectiveRoot, json: options.json,
+    kind: options.kind, workspace: options.workspace, limit: options.limit, root: effectiveRoot, json: options.json,
     args: options.args, stdout, stderr,
   };
   try {

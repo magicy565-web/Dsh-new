@@ -180,6 +180,28 @@ export async function apply(ctx, config = {}) {
     },
   });
 
+  // Artifact bytes are only readable inside the workspace that owns them. The
+  // domain records `metadata.inquiryRecovery.workspaceId`; a foreign id is a 404,
+  // not a 403, so a tenant cannot even probe which ids exist.
+  ctx.http.route({
+    method: 'GET', path: '/api/inquiry-recovery/artifacts/:artifactId',
+    handler: async (_req, _res, context) => {
+      const workspaceId = authorize(context?.actor);
+      const artifacts = ctx.artifacts ?? config.artifacts ?? null;
+      if (!artifacts?.read) throw new HarnessError(ERROR.pluginMissingDependency, 'ctx.artifacts is not mounted; drafts cannot be read.');
+      let stored;
+      try {
+        stored = await artifacts.read(context.params.artifactId);
+      } catch {
+        return { status: 404, body: { error: { code: 'INQUIRY_ARTIFACT_NOT_FOUND', message: 'The artifact is not available.' } } };
+      }
+      const owner = stored?.artifact?.metadata?.inquiryRecovery?.workspaceId;
+      if (workspaceId && owner !== workspaceId)
+        return { status: 404, body: { error: { code: 'INQUIRY_ARTIFACT_NOT_FOUND', message: 'The artifact is not available in this workspace.' } } };
+      return { status: 200, body: { artifact: stored.artifact, content: stored.content } };
+    },
+  });
+
   ctx.tools.register({
     name: 'inquiry_recovery_status',
     description: 'Read the historical-inquiry recovery summary: lead counts by decision (follow_up / need_evidence / nurture / hold) and import/conflict counters. No customer data is returned.',

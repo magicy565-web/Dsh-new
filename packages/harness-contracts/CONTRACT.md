@@ -241,6 +241,8 @@ export async function apply(ctx, config) {
 
 **业务审计（当前实现）**：命中 `POST /import`、`POST /leads/:leadId/identity`、`POST /leads/:leadId/select` 成功后，插件向 `ctx.audit` 追加 `{kind:'inquiry', action:'import'|'identity-review'|'select', actor, ref, detail:{status, leadId?, requestId?, selectionId?, workspaceId?}}`；审计不可用时业务请求照常成功。`GET /api/inquiry-recovery/audit?limit=`（仅 admin，1–200）返回该插件的审计事件与总数；limit 非法 → 400，非 admin → 403，`ctx.audit` 未挂载 → 500。审计只含元数据，绝不含消息正文、草稿或客户数据。**多租户可见性**：审计按调用者解析出的 workspace 过滤（无 workspace 时保持旧的全局视图）；审批列表同样只返回本租户票据，跨租户 `decide` → 403 `HARNESS_WORKSPACE_FORBIDDEN`；审批列表响应带 `workspaceId` 以便前端核对。
 
+**工件读取**：`GET /api/inquiry-recovery/artifacts/:artifactId` 返回 `{artifact, content}`；领域在创建草稿工件时把 `metadata.inquiryRecovery.workspaceId` 写入，读取时校验归属——非本租户或不存在一律 404 `INQUIRY_ARTIFACT_NOT_FOUND`（不做 403，避免租户探测 id 是否存在）；`ctx.artifacts` 未挂载 → 500。
+
 ## 7. 验收（A/B/C 各自必须提供）
 
 ```sh

@@ -213,6 +213,7 @@ covered above. `wh audit` reads the durable trail without mounting anything:
 ```sh
 wh audit --composition harness.dev.yml            # newest 20 events
 wh audit --composition harness.dev.yml --kind inquiry --limit 50
+wh audit --composition harness.dev.yml --workspace local   # one tenant only
 wh audit --state .harness-dev-data/workspace.json --json
 ```
 
