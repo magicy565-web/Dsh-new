@@ -261,7 +261,7 @@ wh rollback <id> [--target plugins] [--backup <dir>] [--actor <subject>] [--json
 - 内容摘要 = 对排序后的 `{path, sha256, size}` 列表求 SHA-256（排除 `harness.package.json` 自身）。
 - 可选签名：`harness.package.json` = `{version:1, digest, signature, signer}`，`signature` 是对 digest 字符串的 ed25519 签名（base64）。签名包必须提供 `--public-key <pem>` 离线校验；digest 或签名不匹配一律拒绝；未签名包记为 `signature: none` 且 journal `signed:false`，绝不声称已校验。
 - 原子性：先复制到 `.staging-*`，校验后 rename 到 `plugins/<id>`；升级先把旧安装 rename 到 `.backup-*`，失败时回滚；卸载 = rename 到 `.backup-*`；回滚 = 恢复最新（或显式）备份，当前安装移到 `.rollback-*`。
-- 审计：每次操作追加一行到 `<target>/.install-journal.jsonl`（`at/action/actor/id/version/digest/previousDigest/signed/verified/signer/backup`，仅元数据）；`wh installed --journal` 读取。
+- 审计：每次操作追加一行到 `<target>/.install-journal.jsonl`（`at/action/actor/id/version/digest/previousDigest/signed/verified/signer/backup`，仅元数据）；`wh installed --journal` 读取。`--audit-state <file>` 还会把同一操作追加到该 storage 状态文件的 `harnessAudit`（`kind:"install"`），于是 `wh audit`/ctx.audit 与工具、业务事件在同一流中可见；追加是原子的（temp+rename）、上限 1000 条、无法解析的状态文件拒绝覆盖；审计写失败只告警、不回滚安装。
 - 安装后的包由常规解析规则（`plugins/<name>`）发现，无需额外注册即可被组合挂载。
 
 ## 8. 验收（A/B/C 各自必须提供）

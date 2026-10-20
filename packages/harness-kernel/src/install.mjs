@@ -218,7 +218,7 @@ export async function installPlugin({
       signed: signature.signed, verified: signature.verified, signer: signature.signer,
       backup: backup ? relative(targetDir, backup).split(sep).join('/') : null,
     } });
-    return Object.freeze({ id: pkg.id, version: pkg.version, digest: pkg.digest, destination, backup, signature });
+    return Object.freeze({ id: pkg.id, version: pkg.version, digest: pkg.digest, previousDigest, destination, backup, signature });
   } catch (error) {
     await rm(staging, { recursive: true, force: true }).catch(() => {});
     if (error instanceof HarnessError) throw error;
@@ -241,7 +241,7 @@ export async function uninstallPlugin({ id, root = process.cwd(), target = TARGE
     at: new Date().toISOString(), action: 'uninstall', actor, id: pluginId, digest,
     backup: relative(targetDir, backup).split(sep).join('/'),
   } });
-  return Object.freeze({ id: pluginId, backup });
+  return Object.freeze({ id: pluginId, digest, backup });
 }
 
 /**
@@ -277,5 +277,5 @@ export async function rollbackPlugin({ id, root = process.cwd(), target = TARGET
     digest: restoredDigest, restoredFrom: relative(targetDir, source).split(sep).join('/'),
     displaced: displaced ? relative(targetDir, displaced).split(sep).join('/') : null,
   } });
-  return Object.freeze({ id: pluginId, restoredFrom: source, displaced });
+  return Object.freeze({ id: pluginId, digest: restoredDigest, restoredFrom: source, displaced });
 }

@@ -6,6 +6,7 @@ import os from 'node:os';
 import { createHarness } from '../src/app.mjs';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { installPlugin, listInstalled, readInstallJournal, readPackage, rollbackPlugin, uninstallPlugin, verifyPackageSignature } from '../src/install.mjs';
+import { appendAuditEntry } from '../src/audit-state.mjs';
 import { runWh } from '../src/cli.mjs';
 
 const errorCode = code => error => error?.code === code;
@@ -225,4 +226,65 @@ test('wh install verifies a signed package with --public-key and records the act
   const unsigned = capture();
   assert.equal(await runWh(['install', source, '--upgrade'], { root, ...unsigned }), 0);
   assert.match(unsigned.stdout.text, /signature: none/u, 'upgrading without a key must not silently claim verification');
+});
+test('install operations can be appended to the unified audit stream', async t => {
+  const { root, source } = await fixture(t);
+  const auditState = path.join(root, 'data', 'workspace.json');
+  await packageAt(source);
+
+  const appended = await appendAuditEntry(auditState, {
+    kind: 'install', action: 'install', actor: { subject: 'alice', role: 'operator' },
+    ok: true, ref: 'sample-plugin', detail: { digest: 'a'.repeat(64) },
+  }, { root });
+  assert.equal(appended.total, 1);
+  assert.match(appended.entry.id, /^[0-9a-f-]{36}$/u);
+  assert.match(appended.entry.at, /^\d{4}-\d{2}-\d{2}T/u);
+
+  const read = capture();
+  assert.equal(await runWh(['audit', '--state', auditState, '--json'], { root, ...read }), 0);
+  const document = JSON.parse(read.stdout.text);
+  assert.equal(document.events.length, 1);
+  assert.equal(document.events[0].kind, 'install');
+  assert.equal(document.events[0].action, 'install');
+  assert.equal(document.events[0].actor.subject, 'alice');
+  assert.equal(document.events[0].detail.digest, 'a'.repeat(64));
+});
+
+test('the audit append is capped, rejects malformed entries and never overwrites damaged state', async t => {
+  const { root } = await fixture(t);
+  const auditState = path.join(root, 'data', 'workspace.json');
+  for (let index = 0; index < 3; index += 1)
+    await appendAuditEntry(auditState, { kind: 'install', action: `install-${index}` }, { root, limit: 2 });
+  const read = capture();
+  assert.equal(await runWh(['audit', '--state', auditState, '--json'], { root, ...read }), 0);
+  assert.deepEqual(JSON.parse(read.stdout.text).events.map(event => event.action), ['install-2', 'install-1']);
+
+  await assert.rejects(appendAuditEntry(auditState, { kind: 'Bad Kind', action: 'install' }, { root }), error => error.code === 'HARNESS_STORAGE_INVALID');
+  await assert.rejects(appendAuditEntry(auditState, { kind: 'install', action: 'install', body: 'nope' }, { root }), error => error.code === 'HARNESS_STORAGE_INVALID');
+
+  const damaged = path.join(root, 'damaged.json');
+  await fs.writeFile(damaged, '{not json', 'utf8');
+  await assert.rejects(appendAuditEntry(damaged, { kind: 'install', action: 'install' }, { root }), error => error.code === 'HARNESS_STORAGE_INVALID');
+  assert.equal(await fs.readFile(damaged, 'utf8'), '{not json', 'damaged state is never overwritten');
+});
+
+test('wh install/uninstall/rollback write install events to --audit-state', async t => {
+  const { root, source } = await fixture(t);
+  const auditState = path.join(root, 'data', 'workspace.json');
+  await packageAt(source);
+
+  const installed = capture();
+  assert.equal(await runWh(['install', source, '--actor', 'ops', '--audit-state', auditState], { root, ...installed }), 0);
+  const removed = capture();
+  assert.equal(await runWh(['uninstall', 'sample-plugin', '--actor', 'ops', '--audit-state', auditState], { root, ...removed }), 0);
+  const restored = capture();
+  assert.equal(await runWh(['rollback', 'sample-plugin', '--actor', 'ops', '--audit-state', auditState], { root, ...restored }), 0);
+
+  const read = capture();
+  assert.equal(await runWh(['audit', '--state', auditState, '--json'], { root, ...read }), 0);
+  const events = JSON.parse(read.stdout.text).events;
+  assert.deepEqual(events.map(event => event.action), ['rollback', 'uninstall', 'install'], 'newest first');
+  assert.ok(events.every(event => event.kind === 'install' && event.ok === true && event.actor.subject === 'ops'));
+  assert.match(events[0].detail.digest, /^[a-f0-9]{64}$/u);
+  assert.doesNotMatch(read.stdout.text, /apply\(ctx\)|installed fixture/u, 'only metadata reaches the audit stream');
 });

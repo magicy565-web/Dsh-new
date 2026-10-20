@@ -259,6 +259,13 @@ Every operation appends one metadata-only line to `<target>/.install-journal.jso
 `{at, action, actor, id, version, digest, previousDigest, signed, verified, signer,
 backup}`. Nothing from package code or customer data is logged.
 
+`--audit-state <file>` also appends each operation to that storage state's
+`harnessAudit` stream as `{kind:"install", action, actor, ok, ref, detail}`, so
+`wh audit` and the ctx.audit readers see package changes next to tool and business
+events. The append is atomic (temp file + rename), capped at 1000 entries, and
+refuses to overwrite a state file it cannot parse; an audit write failure warns but
+does not undo the installation.
+
 
 ## Environment capability declarations
 
@@ -280,7 +287,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 76 tests, 0 fail
+node --test packages/harness-kernel/test     # 79 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
