@@ -56,6 +56,29 @@ plugins:
 
 校验用 `validateComposition`；行对象 `{id,name,config,disabled,isolate}`。
 
+### 组合 patch 层（`packages/harness-kernel/src/patch.mjs`）
+
+```yaml
+version: 1
+name: offline-readonly        # 可选
+entries:                      # 覆盖已存在的行；字段整体替换，config 不深合并
+  - id: inquiries
+    disabled: true
+  - id: tools
+    config: { allowedTools: [inquiry_recovery_status] }
+insert:                       # 追加新行
+  - id: market
+    name: workspace-market
+    config: { demo: true }
+```
+
+- `entries[].id` 必须命中现有行，否则 `HARNESS_COMPOSITION_INVALID`；不允许改名（`name` 只能断言原值）。
+- `insert[].id` 不得与现有行重复；行本身按 `validateRow` 校验。
+- 空 patch、未知字段、类型错误、重复 target 一律 fail closed；`config` 是整体替换。
+- 应用顺序：组合文件 → `--patch`/`patchPaths` 按给出顺序 → （如有）preset 行覆盖。
+- `createHarness({ compositionPath, patchPaths, patches })`；`harness.patches.applied` 记录每步 action（`disable`/`enable`/`config`/`insert`）。
+- 被 `disabled` 的行**不会 import**，其路由、工具、health 一并消失——这是运行时可装卸的最小真实形态。
+
 ## 3. 内核 API（`packages/harness-kernel/src/app.mjs`）
 
 ```js

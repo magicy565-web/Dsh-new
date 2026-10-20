@@ -9,6 +9,7 @@ const USAGE = `Usage: node harness.mjs [options]
 Options:
   -c, --composition <file>  Composition file (default: harness.local.yml).
   -p, --preset <name>       Agent preset name from presets/ (composed over its base).
+      --patch <file>        Composition patch layer; repeatable, applied in order.
       --root <dir>          Workspace root for plugin resolution (default: cwd).
   -h, --help                Print this text.
 
@@ -16,7 +17,7 @@ Options:
 `;
 
 function parseArgs(argv) {
-  const options = { composition: null, preset: null, root: process.cwd(), help: false };
+  const options = { composition: null, preset: null, patches: [], root: process.cwd(), help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--help' || argument === '-h') options.help = true;
@@ -24,10 +25,13 @@ function parseArgs(argv) {
     else if (argument.startsWith('--composition=')) options.composition = argument.slice('--composition='.length);
     else if (argument === '--preset' || argument === '-p') options.preset = argv[++index];
     else if (argument.startsWith('--preset=')) options.preset = argument.slice('--preset='.length);
+    else if (argument === '--patch') options.patches.push(argv[++index]);
+    else if (argument.startsWith('--patch=')) options.patches.push(argument.slice('--patch='.length));
     else if (argument === '--root' || argument === '-r') options.root = argv[++index];
     else if (argument.startsWith('--root=')) options.root = argument.slice('--root='.length);
     else throw new Error(`unknown argument: ${argument}`);
   }
+  if (options.patches.some(patch => typeof patch !== 'string' || !patch.trim())) throw new Error('--patch requires a file path.');
   if (options.preset !== null && options.composition !== null) throw new Error('--composition and --preset are mutually exclusive.');
   options.composition ??= options.preset === null ? 'harness.local.yml' : null;
   if (!options.composition && !options.preset) throw new Error('--composition requires a file path.');
@@ -51,12 +55,14 @@ async function main() {
           name: preset.name, title: preset.title, persona: preset.persona,
           tools: composed.tools, denyTools: composed.denyTools, skills: composed.skills, model: composed.model,
         },
+        patchPaths: options.patches,
         root: options.root,
         logger: console,
       });
     } else {
       harness = await createHarness({
         compositionPath: options.composition,
+        patchPaths: options.patches,
         root: options.root,
         logger: console,
       });

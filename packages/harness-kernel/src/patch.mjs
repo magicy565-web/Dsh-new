@@ -1,0 +1,120 @@
+// Composition patch layers: override, insert or disable rows without editing the
+// base composition. Same idea as dsh's cordis.patch.yml, reduced to the parts the
+// Workspace Harness actually needs and validated fail-closed.
+import { readFile } from 'node:fs/promises';
+import { isAbsolute, resolve as resolvePath } from 'node:path';
+import { parse as parseYaml } from 'yaml';
+import { ERROR, HarnessError, validateComposition, validateRow } from '../../harness-contracts/src/index.mjs';
+
+const NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const MAX_PATCH_BYTES = 64 * 1024;
+
+const fail = (message) => { throw new HarnessError(ERROR.compositionInvalid, message); };
+const isPlain = value => value !== null && typeof value === 'object' && !Array.isArray(value)
+  && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+
+/** A patch entry targets an existing row by id; fields are replaced wholesale. */
+function validateEntry(entry, index) {
+  if (!isPlain(entry)) fail(`patch entry ${index} must be an object.`);
+  if (typeof entry.id !== 'string' || !NAME.test(entry.id) && !/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(entry.id))
+    fail(`patch entry ${index}.id must be a row id.`);
+  const output = { id: entry.id };
+  for (const key of Object.keys(entry)) {
+    if (key === 'id') continue;
+    if (!['disabled', 'config', 'name'].includes(key)) fail(`patch entry ${entry.id} has an unsupported field ${key}.`);
+  }
+  if (entry.disabled !== undefined) {
+    if (typeof entry.disabled !== 'boolean') fail(`patch entry ${entry.id}.disabled must be a boolean.`);
+    output.disabled = entry.disabled;
+  }
+  if (entry.config !== undefined) {
+    if (!isPlain(entry.config)) fail(`patch entry ${entry.id}.config must be an object (it replaces the row config wholesale).`);
+    output.config = structuredClone(entry.config);
+  }
+  if (entry.name !== undefined) {
+    if (typeof entry.name !== 'string' || !entry.name.trim()) fail(`patch entry ${entry.id}.name must be a non-empty string.`);
+    output.name = entry.name;
+  }
+  if (output.disabled === undefined && output.config === undefined && output.name === undefined)
+    fail(`patch entry ${entry.id} changes nothing.`);
+  return output;
+}
+
+export function validatePatch(document, { file = null } = {}) {
+  if (!isPlain(document)) fail('a patch must be a YAML mapping.');
+  if (document.version !== 1) fail('patch.version must be 1.');
+  const name = document.name === undefined ? null : document.name;
+  if (name !== null && (typeof name !== 'string' || !name.trim())) fail('patch.name must be non-empty text.');
+  const insert = document.insert === undefined ? [] : document.insert;
+  if (!Array.isArray(insert) || insert.length > 64) fail('patch.insert must be an array of at most 64 rows.');
+  const entries = document.entries === undefined ? [] : document.entries;
+  if (!Array.isArray(entries) || entries.length > 64) fail('patch.entries must be an array of at most 64 entries.');
+  const rows = insert.map((row, index) => validateRow(row, index));
+  const changes = entries.map((entry, index) => validateEntry(entry, index));
+  if (new Set(changes.map(change => change.id)).size !== changes.length) fail('patch.entries targets the same row twice.');
+  if (!rows.length && !changes.length) fail('the patch is empty.');
+  return Object.freeze({ version: 1, name, insert: Object.freeze(rows), entries: Object.freeze(changes), file });
+}
+
+export async function readPatch(patchPath, { root = process.cwd() } = {}) {
+  if (typeof patchPath !== 'string' || !patchPath.trim()) fail('a patch path is required.');
+  const file = isAbsolute(patchPath) ? patchPath : resolvePath(root, patchPath);
+  let raw;
+  try { raw = await readFile(file, 'utf8'); }
+  catch { throw new HarnessError(ERROR.compositionInvalid, `patch not found: ${file}`); }
+  if (Buffer.byteLength(raw, 'utf8') > MAX_PATCH_BYTES) fail(`patch ${file} exceeds ${MAX_PATCH_BYTES} bytes.`);
+  let document;
+  try { document = parseYaml(raw); }
+  catch (error) { throw new HarnessError(ERROR.compositionInvalid, `patch ${file} is not valid YAML: ${error?.message ?? error}`); }
+  return { file, patch: validatePatch(document, { file }) };
+}
+
+const rowDocument = row => ({
+  id: row.id,
+  name: row.name,
+  config: structuredClone(row.config ?? {}),
+  ...(row.disabled ? { disabled: true } : {}),
+  ...(row.isolate && Object.keys(row.isolate).length ? { isolate: row.isolate } : {}),
+});
+
+/**
+ * Apply validated patches over a validated composition.
+ * A patch may disable a row, replace its config, or insert a new row. Unknown
+ * targets and duplicate inserts fail closed so a typo cannot silently do nothing.
+ */
+export function applyPatches(composition, patches = []) {
+  if (!composition || !Array.isArray(composition.rows)) fail('applyPatches requires a validated composition.');
+  if (!Array.isArray(patches)) fail('patches must be an array.');
+  const rows = composition.rows.map(rowDocument);
+  const byId = new Map(rows.map(row => [row.id, row]));
+  const applied = [];
+  for (const patch of patches) {
+    if (!patch || !Array.isArray(patch.entries) || !Array.isArray(patch.insert)) fail('applyPatches received an unvalidated patch.');
+    for (const entry of patch.entries) {
+      const row = byId.get(entry.id);
+      if (!row) throw new HarnessError(ERROR.compositionInvalid, `patch ${patch.file ?? patch.name ?? ''} targets unknown row ${JSON.stringify(entry.id)}.`, { rowId: entry.id });
+      if (entry.name !== undefined && entry.name !== row.name)
+        throw new HarnessError(ERROR.compositionInvalid, `patch may not rename row ${entry.id} (${row.name} -> ${entry.name}).`, { rowId: entry.id });
+      if (entry.config !== undefined) row.config = structuredClone(entry.config);
+      if (entry.disabled !== undefined) {
+        if (entry.disabled) row.disabled = true;
+        else delete row.disabled;
+      }
+      applied.push({ patch: patch.file ?? patch.name ?? null, id: entry.id, action: entry.disabled === undefined ? 'config' : entry.disabled ? 'disable' : 'enable' });
+    }
+    for (const inserted of patch.insert) {
+      if (byId.has(inserted.id)) throw new HarnessError(ERROR.compositionInvalid, `patch inserts duplicate row ${JSON.stringify(inserted.id)}.`, { rowId: inserted.id });
+      const row = { id: inserted.id, name: inserted.name, config: structuredClone(inserted.config ?? {}), ...(inserted.disabled ? { disabled: true } : {}) };
+      rows.push(row);
+      byId.set(row.id, row);
+      applied.push({ patch: patch.file ?? patch.name ?? null, id: row.id, action: 'insert' });
+    }
+  }
+  const document = { version: 1, name: composition.name, server: composition.server, plugins: rows };
+  const result = validateComposition(document);
+  return Object.freeze({
+    composition: result,
+    applied: Object.freeze(applied),
+    files: Object.freeze(patches.map(patch => patch.file).filter(Boolean)),
+  });
+}

@@ -22,7 +22,7 @@ const row = (overrides = {}) => ({
 });
 const envelope = inquiries => JSON.stringify({ schema: 'historical-inquiry.input.v1', synthetic: false, inquiries });
 
-async function fixture(t, { includePlugin = true } = {}) {
+async function fixture(t, { includePlugin = true, patch = null } = {}) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'harness-inquiry-'));
   const storage = path.join(directory, 'data').replace(/\\/gu, '/');
   const composition = [
@@ -49,7 +49,13 @@ async function fixture(t, { includePlugin = true } = {}) {
   ].join('\n');
   const file = path.join(directory, 'harness.test.yml');
   await fs.writeFile(file, composition, 'utf8');
-  const harness = await createHarness({ compositionPath: file, root: ROOT });
+  const patchPaths = [];
+  if (patch) {
+    const patchFile = path.join(directory, 'harness.test.patch.yml');
+    await fs.writeFile(patchFile, `${JSON.stringify(patch, null, 2)}\n`, 'utf8');
+    patchPaths.push(patchFile);
+  }
+  const harness = await createHarness({ compositionPath: file, patchPaths, root: ROOT });
   const started = await harness.start();
   const base = started.address.url;
   const request = async (route, method = 'GET', body) => {
@@ -210,3 +216,27 @@ test('a preset that grants a write tool still requires a one-shot approval ticke
     error => error.code === 'HARNESS_APPROVAL_REQUIRED',
   );
 });
+
+test('a patch layer can disable a mounted plugin at boot', async t => {
+  const { harness, request } = await fixture(t, { patch: { version: 1, entries: [{ id: 'inquiries', disabled: true }] } });
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'llm', 'skills', 'storage', 'tools']);
+  assert.equal(harness.patches.applied.length, 1);
+  assert.equal(harness.patches.applied[0].action, 'disable');
+  assert.equal((await request('/api/inquiry-recovery/status')).status, 404);
+  const tools = harness.ctx.reflect.get('tools', false);
+  assert.deepEqual(tools.list({ actor }), []);
+});
+
+test('a patch layer can insert a plugin the base composition omits', async t => {
+  const { harness, request } = await fixture(t, {
+    includePlugin: false,
+    patch: { version: 1, insert: [{ id: 'inquiries', name: 'workspace-inquiry-recovery', config: {} }] },
+  });
+  assert.ok(harness.healthz().plugins.some(plugin => plugin.id === 'inquiries'));
+  assert.equal(harness.patches.applied[0].action, 'insert');
+  const status = await request('/api/inquiry-recovery/status');
+  assert.equal(status.status, 200, JSON.stringify(status.body));
+  const tools = harness.ctx.reflect.get('tools', false);
+  assert.deepEqual(tools.list({ actor }).map(tool => tool.name).sort(), ['inquiry_recovery_opportunities', 'inquiry_recovery_select', 'inquiry_recovery_status']);
+});
+

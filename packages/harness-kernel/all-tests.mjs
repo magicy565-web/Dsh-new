@@ -6,3 +6,4 @@ import './test/http.test.mjs';
 import './test/params.test.mjs';
 import './test/cli.test.mjs';
 import './test/presets.test.mjs';
+import './test/patch.test.mjs';

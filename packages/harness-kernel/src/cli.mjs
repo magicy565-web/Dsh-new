@@ -3,18 +3,21 @@ import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, resolveRows } from './resolve.mjs';
+import { applyPatches, readPatch } from './patch.mjs';
 import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
 
 const USAGE = `Usage: wh <command> [options]
 
 Commands:
   list      Resolve and print composition rows (entry, status, requires/provides). No plugin is mounted.
+  plugins   Alias of list; both accept --patch layers.
   doctor    Load the composition (mount plugins, no HTTP serving), report health, then dispose.
   presets   Agent presets: \`wh presets list\` or \`wh presets show <name>\`.
   help      Print this text.
 
 Options:
   -c, --composition <file>  Composition file (default: harness.local.yml, relative to --root).
+  -p, --patch <file>        Composition patch layer; repeatable, applied in order.
       --root <dir>          Workspace root used by the plugin-name resolution rules (default: cwd).
       --json                Machine-readable JSON output.
   -h, --help                Print this text.
@@ -35,6 +38,7 @@ export function parseArgv(argv = []) {
     command: null,
     args: [],
     composition: 'harness.local.yml',
+    patches: [],
     root: null,
     json: false,
     help: false,
@@ -55,6 +59,15 @@ export function parseArgv(argv = []) {
       }
     } else if (argument.startsWith('--composition=')) {
       options.composition = argument.slice('--composition='.length);
+    } else if (argument === '--patch' || argument === '-p') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires a file path.`);
+      else {
+        options.patches.push(value);
+        index += 1;
+      }
+    } else if (argument.startsWith('--patch=')) {
+      options.patches.push(argument.slice('--patch='.length));
     } else if (argument === '--root' || argument === '-r') {
       const value = argv[index + 1];
       if (!value || value.startsWith('-')) errors.push(`${argument} requires a directory.`);
@@ -115,14 +128,24 @@ function rowSummary(entry) {
 }
 
 /** `wh list`: resolve rows without mounting any plugin (no HTTP server, no apply()). */
-export async function runList({ compositionPath, root, json = false, stdout = process.stdout } = {}) {
-  const { file, composition } = await readComposition(compositionPath, { root });
+export async function runList({ compositionPath, patchPaths = [], root, json = false, stdout = process.stdout } = {}) {
+  const { file, composition: base } = await readComposition(compositionPath, { root });
+  let composition = base;
+  let applied = [];
+  if (patchPaths.length) {
+    const patches = [];
+    for (const patchPath of patchPaths) patches.push((await readPatch(patchPath, { root })).patch);
+    const layered = applyPatches(composition, patches);
+    composition = layered.composition;
+    applied = layered.applied;
+  }
   const resolved = await resolveRows(composition.rows, { root, compositionFile: file });
   const document = {
     version: composition.version,
     name: composition.name,
     file: displayPath(root, file),
     server: composition.server,
+    patches: applied,
     rows: resolved.map(rowSummary),
   };
   if (json) {
@@ -145,12 +168,13 @@ export async function runList({ compositionPath, root, json = false, stdout = pr
 /** `wh doctor`: load the composition (mount, no serving), report health, dispose. */
 export async function runDoctor({
   compositionPath,
+  patchPaths = [],
   root,
   json = false,
   stdout = process.stdout,
   stderr = process.stderr,
 } = {}) {
-  const harness = await createHarness({ compositionPath, root, logger: cliLogger(stderr) });
+  const harness = await createHarness({ compositionPath, patchPaths, root, logger: cliLogger(stderr) });
   try {
     const health = harness.healthz();
     const document = {
@@ -250,9 +274,9 @@ export async function runWh(argv = [],
     return options.command && options.command !== 'help' ? 2 : 0;
   }
   const effectiveRoot = options.root ? (isAbsolute(options.root) ? options.root : resolvePath(root, options.root)) : root;
-  const context = { compositionPath: options.composition, root: effectiveRoot, json: options.json, args: options.args, stdout, stderr };
+  const context = { compositionPath: options.composition, patchPaths: options.patches, root: effectiveRoot, json: options.json, args: options.args, stdout, stderr };
   try {
-    if (options.command === 'list') return await runList(context);
+    if (options.command === 'list' || options.command === 'plugins') return await runList(context);
     if (options.command === 'doctor') return await runDoctor(context);
     if (options.command === 'presets') return await runPresets(context);
     stderr.write(`wh: unknown command "${options.command}"\n\n${USAGE}`);

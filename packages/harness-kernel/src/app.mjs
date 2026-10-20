@@ -8,6 +8,7 @@ import {
   validateConfig,
 } from '../../harness-contracts/src/index.mjs';
 import { KERNEL_SERVICES, readComposition, resolveRows } from './resolve.mjs';
+import { applyPatches, readPatch, validatePatch } from './patch.mjs';
 import { HttpKernel } from './http.mjs';
 
 function logError(logger, ...args) {
@@ -143,9 +144,9 @@ function contextForRow(ctx, row) {
  * Mounting happens eagerly (fail closed with reverse-order rollback); the HTTP server
  * only starts on `start()`.
  *
- * @param {{compositionPath?: string, composition?: object, preset?: object, root?: string, logger?: object}} options
+ * @param {{compositionPath?: string, composition?: object, preset?: object, patchPaths?: string[], patches?: object[], root?: string, logger?: object}} options
  */
-export async function createHarness({ compositionPath, composition: composed, preset = null, root = process.cwd(), logger = console } = {}) {
+export async function createHarness({ compositionPath, composition: composed, preset = null, patchPaths = [], patches = [], root = process.cwd(), logger = console } = {}) {
   const effectiveLogger = logger ?? console;
   let file = null;
   let composition;
@@ -155,6 +156,15 @@ export async function createHarness({ compositionPath, composition: composed, pr
     const loaded = await readComposition(compositionPath, { root });
     file = loaded.file;
     composition = loaded.composition;
+  }
+  let patchInfo = Object.freeze({ applied: Object.freeze([]), files: Object.freeze([]) });
+  if (patchPaths.length || patches.length) {
+    const layers = [];
+    for (const path of patchPaths) layers.push((await readPatch(path, { root })).patch);
+    for (const document of patches) layers.push(validatePatch(document));
+    const applied = applyPatches(composition, layers);
+    composition = applied.composition;
+    patchInfo = Object.freeze({ applied: applied.applied, files: applied.files });
   }
   const resolved = await resolveRows(composition.rows, { root, compositionFile: file });
   const enabled = resolved.filter(entry => !entry.row.disabled);
@@ -385,6 +395,7 @@ export async function createHarness({ compositionPath, composition: composed, pr
     // Extra, non-contractual introspection used by the CLI and tests.
     composition: { file, name: composition.name, server: composition.server },
     preset,
+    patches: patchInfo,
     http,
   };
 }

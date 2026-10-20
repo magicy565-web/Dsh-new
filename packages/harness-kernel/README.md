@@ -148,10 +148,42 @@ allowed and denied), `extends` must be a relative composition path inside the
 repository. Two real presets ship in `presets/`: `growth-manager` (may request the
 approval-gated select tool) and `inquiry-analyst` (read-only; denies select).
 
+## Composition patches
+
+A patch layer changes an existing composition without editing it (see
+`harness.patch.example.yml`):
+
+```yaml
+version: 1
+name: offline-readonly
+entries:
+  - id: inquiries            # target an existing row by id
+    disabled: true
+  - id: tools                # config replaces the row config wholesale
+    config: { allowedTools: [inquiry_recovery_status] }
+insert:
+  - id: market               # append a row the base composition omits
+    name: workspace-market
+    config: { demo: true }
+```
+
+```sh
+node harness.mjs --composition harness.dev.yml --patch harness.patch.example.yml
+wh plugins --composition harness.dev.yml --patch harness.patch.example.yml [--json]
+```
+
+`createHarness({ compositionPath, patchPaths: [...] })` applies layers in order;
+validated inline patches also work via `{ patches: [document] }`. Patches fail
+closed on an unknown target id, a duplicate insert id, a rename attempt, or a
+malformed layer — a typo can never silently disable nothing. `harness.patches`
+exposes the applied actions. This is the runtime enable/disable mechanism: a
+patched-out row is never imported, so its routes, tools and health entry all
+disappear together.
+
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 52 tests, 0 fail
+node --test packages/harness-kernel/test     # 57 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
@@ -161,7 +193,8 @@ disabled rows (module that throws on import is never imported), route conflicts
 (exact, cross-plugin, overlapping `:param`, built-in `/healthz`), `:param`
 decode/priority/no-trailing-slash/malformed-encoding, `/healthz` shape, 404 JSON,
 actor headers, POST body/query, `HarnessError` status mapping, 500 no-leak, JSON
-body errors, clean stop, CLI `list`/`doctor` and usage errors.
+body errors, clean stop, CLI `list`/`doctor`/`presets` and usage errors, patch
+override/insert/disable semantics and fail-closed edge cases.
 
 ## Not wired yet (owned by other work packages)
 
