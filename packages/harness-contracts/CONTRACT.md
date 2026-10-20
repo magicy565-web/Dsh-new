@@ -75,7 +75,7 @@ insert:                       # 追加新行
 - `entries[].id` 必须命中现有行，否则 `HARNESS_COMPOSITION_INVALID`；不允许改名（`name` 只能断言原值）。
 - `insert[].id` 不得与现有行重复；行本身按 `validateRow` 校验。
 - 空 patch、未知字段、类型错误、重复 target 一律 fail closed；`config` 是整体替换。
-- 应用顺序：组合文件 → `--patch`/`patchPaths` 按给出顺序 → （如有）preset 行覆盖。
+- 应用顺序：组合文件 → preset 行覆盖（`composePreset` 时合并）→ `--patch`/`patchPaths` 按给出顺序（启动时应用）。因此 patch 总是最后生效，可以覆盖 preset 注入的 `allowedTools`/`deniedTools`，也可以禁用 preset 依赖的插件行。
 - `createHarness({ compositionPath, patchPaths, patches })`；`harness.patches.applied` 记录每步 action（`disable`/`enable`/`config`/`insert`）。
 - 被 `disabled` 的行**不会 import**，其路由、工具、health 一并消失——这是运行时可装卸的最小真实形态。
 - `writePatch` / `setRowDisabled`：先校验再原子写（同目录临时文件 + rename），旧字节存 `<file>.bak`；清空最后一层时删除文件而不是写入空 patch；原文件损坏时拒绝改写。

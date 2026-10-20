@@ -201,7 +201,7 @@ test('disabling the inquiry row removes both its routes and its tools', async t 
   assert.deepEqual(names, []);
 });
 
-async function presetHarness(t, name) {
+async function presetHarness(t, name, { patch = null } = {}) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), `harness-preset-${name}-`));
   const preset = await loadPreset(name, { root: ROOT });
   const composed = await composePreset(preset, { root: ROOT });
@@ -212,9 +212,16 @@ async function presetHarness(t, name) {
     ...(row.id === 'storage' ? { config: { directory: storage } } : Object.keys(row.config ?? {}).length ? { config: row.config } : {}),
     ...(row.disabled ? { disabled: true } : {}),
   }));
+  let patchPaths = [];
+  if (patch) {
+    const patchFile = path.join(directory, 'harness.patch.yml');
+    await fs.writeFile(patchFile, `${JSON.stringify(patch, null, 2)}\n`, 'utf8');
+    patchPaths = [patchFile];
+  }
   const harness = await createHarness({
     composition: { version: 1, name: preset.name, server: { host: '127.0.0.1', port: 0 }, plugins },
     preset: { name: preset.name, title: preset.title, persona: preset.persona, tools: composed.tools, denyTools: composed.denyTools, skills: composed.skills, model: composed.model },
+    patchPaths,
     root: ROOT,
   });
   await harness.start();
@@ -268,6 +275,33 @@ test('a patch layer can insert a plugin the base composition omits', async t => 
   assert.equal(status.status, 200, JSON.stringify(status.body));
   const tools = harness.ctx.reflect.get('tools', false);
   assert.deepEqual(tools.list({ actor }).map(tool => tool.name).sort(), ['inquiry_recovery_opportunities', 'inquiry_recovery_select', 'inquiry_recovery_status']);
+});
+
+test('a patch layer overrides the preset tool allow-list at boot', async t => {
+  // growth-manager allows three tools; the patch replaces the tools row config, so
+  // only the intersection of "preset allows" and "patch allows" can be called.
+  const { harness } = await presetHarness(t, 'growth-manager', {
+    patch: { version: 1, entries: [{ id: 'tools', config: { allowedTools: ['inquiry_recovery_status'] } }] },
+  });
+  assert.equal(harness.preset.name, 'growth-manager');
+  assert.deepEqual(harness.patches.applied.map(entry => entry.action), ['config']);
+  const tools = harness.ctx.reflect.get('tools', false);
+  assert.deepEqual(tools.list({ actor }).map(tool => tool.name), ['inquiry_recovery_status']);
+  await assert.rejects(
+    tools.execute('inquiry_recovery_select', { leadId: 'lead-alpha', expectedRevision: 1, sourceHash: 'a'.repeat(64) }, { actor }),
+    error => error.code === 'HARNESS_TOOL_REFUSED',
+  );
+});
+
+test('a patch layer that disables a row also removes it from a preset composition', async t => {
+  const { harness } = await presetHarness(t, 'inquiry-analyst', {
+    patch: { version: 1, entries: [{ id: 'inquiries', disabled: true }] },
+  });
+  assert.ok(!harness.healthz().plugins.some(plugin => plugin.id === 'inquiries'));
+  assert.equal(harness.patches.applied[0].action, 'disable');
+  const tools = harness.ctx.reflect.get('tools', false);
+  assert.deepEqual(tools.list({ actor }), [], 'a disabled plugin cannot contribute tools even when the preset names them');
+  assert.equal(harness.preset.tools.length, 2, 'preset metadata still describes its intent');
 });
 
 test('the harness records mount/start/stop audit lines with composition digests', async t => {
