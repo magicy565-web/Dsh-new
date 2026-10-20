@@ -1,5 +1,5 @@
 // `wh` CLI: list a composition without mounting it, or doctor it (load + health, no serve).
-import { readFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
 import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
@@ -18,6 +18,7 @@ Commands:
   list      Resolve and print composition rows (entry, status, requires/provides). No plugin is mounted.
   plugins   Alias of list; both accept --patch layers.
   capabilities  Capability inventory: services/routes/tools/skills/env per row, unmet requires.
+  review    One deployment-review document (capabilities + install drift + env) with a verdict; --out writes it.
   doctor    Load the composition (mount plugins, no HTTP serving), report health, then dispose.
   patch     Inspect or edit a patch layer: \`show\`, \`journal\`, \`disable <id>\`, \`enable <id>\` (requires --patch).
   audit     Read the durable audit trail straight from the storage state file (no lock, no mount).
@@ -40,6 +41,10 @@ Options:
       --target <dir>        Plugin package directory for install/uninstall/rollback/installed (default: plugins).
       --backup <dir>        \`wh rollback\`: restore this explicit backup directory.
       --journal             \`wh installed\`: print the install journal instead of the package list.
+      --check               \`wh installed\`: compare installed digests with the journal (exit 1 on drift).
+      --strict              \`wh installed --check\`: also fail when a package has no install record.
+      --check-unmet         \`wh capabilities\`: exit 1 when requires are unmet or services conflict.
+      --out <file>          \`wh review\`: write the report JSON to this file (atomic).
       --public-key <pem>    \`wh install\`: PEM public key for an offline ed25519 signature check.
       --actor <subject>     Actor recorded in the install journal (default: local-operator).
       --audit-state <file>  Append install/upgrade/uninstall/rollback to this storage state's audit stream.
@@ -75,6 +80,7 @@ export function parseArgv(argv = []) {
     check: false,
     strict: false,
     capabilitiesCheck: false,
+    out: null,
     publicKey: null,
     actor: null,
     auditState: null,
@@ -162,6 +168,15 @@ export function parseArgv(argv = []) {
       options.strict = true;
     } else if (argument === '--check-unmet') {
       options.capabilitiesCheck = true;
+    } else if (argument === '--out') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires a file path.`);
+      else {
+        options.out = value;
+        index += 1;
+      }
+    } else if (argument.startsWith('--out=')) {
+      options.out = argument.slice('--out='.length);
     } else if (argument === '--public-key') {
       const value = argv[index + 1];
       if (!value || value.startsWith('-')) errors.push(`${argument} requires a PEM file.`);
@@ -395,6 +410,115 @@ export async function runCapabilities({
   return 0;
 }
 
+/**
+ * `wh review`: one deployment-review document without mounting plugins. Combines the
+ * capability inventory, the install drift check and declared env names, then gives a
+ * `ready`/`blocked` verdict. `--out <file>` writes the JSON atomically for archiving.
+ */
+export async function runReview({
+  compositionPath, patchPaths = [], root, target = null, json = false, out = null,
+  stdout = process.stdout, stderr = process.stderr,
+} = {}) {
+  const { file, composition: base } = await readComposition(compositionPath, { root });
+  let composition = base;
+  if (patchPaths.length) {
+    const layers = [];
+    for (const patchPath of patchPaths) layers.push((await readPatch(patchPath, { root })).patch);
+    composition = applyPatches(composition, layers).composition;
+  }
+  const resolved = await resolveRows(composition.rows, { root, compositionFile: file });
+  const rows = [];
+  for (const entry of resolved) {
+    const manifest = entry.manifest ?? (entry.row.disabled ? await readRowManifest(entry.row, { root, compositionFile: file }) : null);
+    rows.push({
+      id: entry.row.id, name: entry.row.name, disabled: Boolean(entry.row.disabled), status: entry.status,
+      manifestId: manifest?.id ?? null, version: manifest?.version ?? null,
+      provides: manifest ? [...manifest.provides] : [], requires: manifest ? [...manifest.requires] : [],
+      env: manifest ? [...(manifest.env ?? [])] : [], toolCount: manifest ? manifest.tools.length : 0,
+      routeCount: manifest ? manifest.routes.length : 0, skillCount: manifest ? manifest.skills.length : 0,
+    });
+  }
+  const kernelServices = new Set(['http', 'health']);
+  const provided = new Map();
+  for (const row of rows) {
+    if (row.disabled || !row.manifestId) continue;
+    for (const service of row.provides) {
+      if (!provided.has(service)) provided.set(service, []);
+      provided.get(service).push(row.id);
+    }
+  }
+  const available = new Set([...provided.keys(), ...kernelServices]);
+  const unmet = [];
+  const unresolved = [];
+  for (const row of rows) {
+    if (row.disabled) continue;
+    if (row.status !== 'resolved') { unresolved.push({ pluginId: row.id, status: row.status }); continue; }
+    for (const service of row.requires) if (!available.has(service)) unmet.push({ pluginId: row.id, service });
+  }
+  const conflicts = [...provided.entries()].filter(([, ids]) => ids.length > 1).map(([service, pluginIds]) => ({ service, pluginIds }));
+  const pluginsDirectory = target ?? 'plugins';
+  const drift = await checkInstallDrift({ root, target: pluginsDirectory });
+  const blockers = [
+    ...unresolved.map(item => ({ kind: 'unresolved-row', pluginId: item.pluginId, status: item.status })),
+    ...unmet.map(item => ({ kind: 'unmet-requires', pluginId: item.pluginId, service: item.service })),
+    ...conflicts.map(item => ({ kind: 'service-conflict', service: item.service, pluginIds: item.pluginIds })),
+    ...drift.drift.map(id => ({ kind: 'install-drift', pluginId: id })),
+    ...drift.missing.map(id => ({ kind: 'install-missing', pluginId: id })),
+  ];
+  const envReads = [...new Set(rows.flatMap(row => row.env))];
+  const document = {
+    generatedAt: new Date().toISOString(),
+    composition: { name: composition.name, file: displayPath(root, file), digest: digestComposition(composition) },
+    patches: { digest: digestComposition(composition), files: patchPaths.map(item => displayPath(root, item)) },
+    summary: {
+      rows: rows.length,
+      enabled: rows.filter(row => !row.disabled).length,
+      disabled: rows.filter(row => row.disabled).length,
+      services: [...provided.keys()].sort(),
+      tools: [...new Set(rows.flatMap(row => row.toolCount ? row.toolCount : []))],
+      env: envReads,
+      unmet: unmet.length,
+      conflicts: conflicts.length,
+      unresolved: unresolved.length,
+      installDrift: drift.drift.length,
+      installMissing: drift.missing.length,
+      installUntracked: drift.untracked.length,
+    },
+    rows,
+    envReads,
+    installed: {
+      directory: displayPath(root, resolvePath(root, pluginsDirectory)),
+      ok: drift.ok,
+      packages: drift.packages,
+      drift: drift.drift,
+      untracked: drift.untracked,
+      missing: drift.missing,
+    },
+    verdict: blockers.length ? 'blocked' : 'ready',
+    blockers,
+  };
+  if (out) {
+    const outPath = isAbsolute(out) ? out : resolvePath(root, out);
+    const temporary = `${outPath}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, { mode: 0o600 });
+    await rename(temporary, outPath);
+    stderr.write(`wh: review written to ${displayPath(root, outPath)}\n`);
+  }
+  if (json) {
+    stdout.write(`${JSON.stringify(document, null, 2)}\n`);
+  } else {
+    stdout.write(`review "${document.composition.name}" (${document.composition.file}): ${document.verdict}\n`);
+    stdout.write(`digest: ${document.composition.digest}\n`);
+    stdout.write(`rows: ${document.summary.rows} (enabled ${document.summary.enabled}, disabled ${document.summary.disabled})\n`);
+    stdout.write(`services: ${document.summary.services.join(', ') || '-'}\n`);
+    stdout.write(`env declared: ${envReads.join(', ') || '-'}\n`);
+    stdout.write(`installed (${document.installed.directory}): ${document.installed.ok ? 'ok' : 'MISMATCH'}\n`);
+    for (const blocker of blockers) {
+      stdout.write(`  blocker: ${blocker.kind}${blocker.pluginId ? ` ${blocker.pluginId}` : ''}${blocker.service ? ` (${blocker.service})` : ''}${blocker.status ? ` [${blocker.status}]` : ''}\n`);
+    }
+  }
+  return blockers.length ? 1 : 0;
+}
 /** `wh doctor`: load the composition (mount, no serving), report health, dispose. */
 export async function runDoctor({
   compositionPath,
@@ -823,13 +947,14 @@ export async function runWh(argv = [],
     compositionPath: options.composition, patchPaths: options.patches, state: options.state,
     kind: options.kind, workspace: options.workspace, limit: options.limit, root: effectiveRoot, json: options.json,
     target: options.target, backup: options.backup, upgrade: options.upgrade,
-    journal: options.journal, check: options.check, strict: options.strict, capabilitiesCheck: options.capabilitiesCheck, publicKey: options.publicKey, actor: options.actor, auditState: options.auditState,
+    journal: options.journal, check: options.check, strict: options.strict, capabilitiesCheck: options.capabilitiesCheck, out: options.out, publicKey: options.publicKey, actor: options.actor, auditState: options.auditState,
     args: options.args, stdout, stderr,
   };
   try {
     if (options.command === 'list' || options.command === 'plugins') return await runList(context);
     if (options.command === 'doctor') return await runDoctor(context);
     if (options.command === 'capabilities') return await runCapabilities(context);
+    if (options.command === 'review') return await runReview(context);
     if (options.command === 'patch') return await runPatch(context);
     if (options.command === 'audit') return await runAudit(context);
     if (options.command === 'installed') return await runInstalled(context);

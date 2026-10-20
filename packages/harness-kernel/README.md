@@ -279,6 +279,16 @@ service conflicts (two rows providing the same service) and unmet requirements
 `--check-unmet` exits 1 when there is an unmet requirement or a conflict, so a CI
 check can fail a composition before anyone starts it.
 
+## Deployment review
+
+`wh review [--composition <file>] [--patch <file>] [--target <dir>] [--out <file>] [--json]`
+produces one archivable deployment-review document without mounting anything:
+composition and patch digests, per-row capabilities, aggregated services/tools/env,
+install drift status, and a `ready`/`blocked` verdict with an explicit blocker list
+(`unresolved-row`, `unmet-requires`, `service-conflict`, `install-drift`,
+`install-missing`). Exit code is 1 when blocked; `--out` writes the JSON atomically
+for review archival.
+
 ## Doctor report
 
 `wh doctor [--composition <file>] [--target <dir>] [--json]` mounts the composition
@@ -368,7 +378,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 96 tests, 0 fail
+node --test packages/harness-kernel/test     # 99 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
