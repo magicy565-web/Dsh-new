@@ -267,6 +267,22 @@ refuses to overwrite a state file it cannot parse; an audit write failure warns 
 does not undo the installation.
 
 
+## Doctor report
+
+`wh doctor [--composition <file>] [--target <dir>] [--json]` mounts the composition
+(no serving), reports health, and now also returns one read-only monitoring
+document:
+
+- `digest` / `patches.digest` — the effective composition and patch digests;
+- `envReads` — declared environment variable names per plugin (never values);
+- `installed` — package drift status from `checkInstallDrift` (packages, drift,
+  untracked, missing);
+- `checked` routes with their originating plugin.
+
+Exit code is 0 only when health is `ok` **and** the install target is not drifted
+(drifted digests or journalled-but-missing packages fail; untracked packages are
+tolerated, run `wh installed --check --strict` for that).
+
 ## Legacy runtime adapter
 
 `legacy-adapter.mjs` is the P1 primitive: it exposes the mounted harness seams in
@@ -340,7 +356,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 90 tests, 0 fail
+node --test packages/harness-kernel/test     # 93 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 

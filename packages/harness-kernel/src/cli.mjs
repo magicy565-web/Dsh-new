@@ -304,6 +304,7 @@ export async function runDoctor({
   compositionPath,
   patchPaths = [],
   root,
+  target = null,
   json = false,
   stdout = process.stdout,
   stderr = process.stderr,
@@ -314,20 +315,33 @@ export async function runDoctor({
     const envReads = harness.manifests
       .filter(entry => entry.env.length)
       .map(entry => ({ pluginId: entry.pluginId, manifestId: entry.manifestId, env: [...entry.env] }));
+    const pluginsDirectory = target ?? 'plugins';
+    const installed = await checkInstallDrift({ root, target: pluginsDirectory });
     const document = {
       name: harness.composition.name,
       file: displayPath(root, harness.composition.file),
+      digest: harness.composition.digest,
+      patches: { digest: harness.patches.digest, files: harness.patches.files },
       server: harness.composition.server,
       status: health.status,
       plugins: health.plugins,
       checks: health.checks,
       envReads,
+      installed: {
+        directory: displayPath(root, resolvePath(root, pluginsDirectory)),
+        ok: installed.ok,
+        packages: installed.packages.map(item => ({ id: item.id, status: item.status, installedDigest: item.installedDigest })),
+        drift: installed.drift,
+        untracked: installed.untracked,
+        missing: installed.missing,
+      },
       routes: harness.http.routeList(),
     };
     if (json) {
       stdout.write(`${JSON.stringify(document, null, 2)}\n`);
     } else {
       stdout.write(`composition "${document.name}" (${document.file}) status: ${document.status}\n`);
+      stdout.write(`digest: ${document.digest}\n`);
       stdout.write('plugins:\n');
       for (const plugin of health.plugins) {
         stdout.write(`  ${plugin.id}: ${plugin.status}${plugin.error ? ` (${plugin.error})` : ''}\n`);
@@ -342,12 +356,16 @@ export async function runDoctor({
           for (const entry of envReads) stdout.write(`  ${entry.pluginId}: ${entry.env.join(', ')}\n`);
         }
       }
+      stdout.write(`installed packages (${document.installed.directory}): ${document.installed.ok ? 'ok' : 'MISMATCH'}\n`);
+      for (const item of document.installed.packages) stdout.write(`  ${item.id}: ${item.status}\n`);
+      if (document.installed.missing.length) stdout.write(`  missing: ${document.installed.missing.join(', ')}\n`);
+      if (document.installed.untracked.length) stdout.write(`  untracked: ${document.installed.untracked.join(', ')}\n`);
       stdout.write('routes:\n');
       for (const route of document.routes) {
         stdout.write(`  ${route.method} ${route.path}  <- ${route.pluginId}\n`);
       }
     }
-    return health.status === 'ok' ? 0 : 1;
+    return health.status === 'ok' && installed.ok ? 0 : 1;
   } finally {
     await harness.stop();
   }

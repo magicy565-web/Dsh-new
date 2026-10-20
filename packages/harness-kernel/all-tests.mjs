@@ -12,3 +12,4 @@ import './test/install.test.mjs';
 import './test/env-declaration.test.mjs';
 import './test/legacy-adapter.test.mjs';
 import './test/bundle.test.mjs';
+import './test/doctor-report.test.mjs';
