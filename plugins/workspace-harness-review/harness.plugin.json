@@ -1,0 +1,20 @@
+{
+  "id": "workspace-harness-review",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "只读暴露 wh review 生成的评审快照（GET /api/harness/review，仅 admin）；文件缺失时健康检查如实降级，绝不编造评审结果。",
+  "entry": "./src/index.mjs",
+  "requires": [],
+  "provides": [],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "reviewFile": { "type": "string" },
+      "maxAgeHours": { "type": "integer" }
+    },
+    "required": ["reviewFile"],
+    "additionalProperties": false
+  },
+  "routes": ["GET /api/harness/review"],
+  "tools": []
+}

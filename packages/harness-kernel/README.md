@@ -294,6 +294,14 @@ state's audit stream as `kind:"review"` (`action` = verdict, `ok`, digest and th
 blocker kinds), so `wh audit --kind review` shows the review history next to tool,
 business and install events.
 
+## Serving the review snapshot
+
+`plugins/workspace-harness-review` exposes `wh review --out` output over HTTP for
+operators (admin only): `GET /api/harness/review` returns the archived document;
+missing/invalid/stale files answer 503 and degrade the plugin health check instead
+of inventing a verdict. See that plugin's README for the config and an end-to-end
+example.
+
 ## Doctor report
 
 `wh doctor [--composition <file>] [--target <dir>] [--json]` mounts the composition
