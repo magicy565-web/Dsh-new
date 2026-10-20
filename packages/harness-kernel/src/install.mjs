@@ -226,6 +226,41 @@ export async function installPlugin({
   }
 }
 
+/**
+ * Compare installed packages with the latest journal state (offline drift check).
+ * status: `ok` (digest matches), `drift` (content changed since the last journalled
+ * operation) or `untracked` (a package directory with no journal record).
+ * `missing` lists journal-expected packages that are no longer on disk.
+ */
+export async function checkInstallDrift({ root = process.cwd(), target = TARGET_DEFAULT, strict = false } = {}) {
+  const installed = await listInstalled({ root, target });
+  const journal = await readInstallJournal({ root, target, limit: 500 });
+  const expected = new Map();
+  for (const entry of journal) {
+    if (!entry || typeof entry.id !== 'string' || typeof entry.action !== 'string') continue;
+    if (entry.action === 'install' || entry.action === 'upgrade' || entry.action === 'rollback') expected.set(entry.id, typeof entry.digest === 'string' ? entry.digest : null);
+    else if (entry.action === 'uninstall') expected.delete(entry.id);
+  }
+  const present = new Set(installed.map(item => item.id));
+  const packages = installed.map(item => {
+    const journalDigest = expected.get(item.id) ?? null;
+    const status = journalDigest === null ? 'untracked' : journalDigest === item.digest ? 'ok' : 'drift';
+    return Object.freeze({ id: item.id, installedDigest: item.digest, journalDigest, status });
+  });
+  const missing = [...expected.keys()].filter(id => !present.has(id));
+  const drift = packages.filter(item => item.status === 'drift').map(item => item.id);
+  const untracked = packages.filter(item => item.status === 'untracked').map(item => item.id);
+  // Repo-shipped (git checkout) plugins are legitimately untracked; a drifted digest
+  // or a journalled package that vanished is always a failure. --strict also fails
+  // on untracked copies.
+  return Object.freeze({
+    ok: drift.length === 0 && missing.length === 0 && !(strict && untracked.length > 0),
+    packages: Object.freeze(packages),
+    drift: Object.freeze(drift),
+    untracked: Object.freeze(untracked),
+    missing: Object.freeze(missing),
+  });
+}
 /** Move an installed package out of the way, keeping a restorable backup. */
 export async function uninstallPlugin({ id, root = process.cwd(), target = TARGET_DEFAULT, actor = 'local-operator' } = {}) {
   const pluginId = assertId(id);

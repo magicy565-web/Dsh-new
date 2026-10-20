@@ -306,6 +306,20 @@ installed together:
 - records each plugin install plus one `bundle-install` (or `bundle-failed` with
   `rolledBack`) line in the install journal.
 
+## Install drift check
+
+`wh installed --check` compares each installed package's content digest with the
+latest digest recorded in the install journal:
+
+- `drift` — the installed files changed since the last journalled operation;
+- `missing` — the journal says the package is installed but it is gone;
+- `untracked` — a package directory with no journal record (reported, not a failure
+  by default, because git-checkout plugins legitimately have no install record;
+  `--strict` turns it into a failure).
+
+Exit code is 1 when the target drifted or a journalled package vanished; 0
+otherwise. The check is read-only: it mounts nothing and writes nothing.
+
 ## Environment capability declarations
 
 A manifest may declare `env: ["DEEPSEEK_API_KEY", ...]` (≤16 upper-case names, no
@@ -326,7 +340,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 88 tests, 0 fail
+node --test packages/harness-kernel/test     # 90 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 

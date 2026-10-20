@@ -5,7 +5,7 @@ import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, resolveRows } from './resolve.mjs';
 import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled } from './patch.mjs';
-import { installPlugin, listInstalled, readInstallJournal, rollbackPlugin, uninstallPlugin } from './install.mjs';
+import { checkInstallDrift, installPlugin, listInstalled, readInstallJournal, rollbackPlugin, uninstallPlugin } from './install.mjs';
 import { appendAuditEntry } from './audit-state.mjs';
 import { installBundle } from './bundle.mjs';
 import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
@@ -71,6 +71,8 @@ export function parseArgv(argv = []) {
     backup: null,
     upgrade: false,
     journal: false,
+    check: false,
+    strict: false,
     publicKey: null,
     actor: null,
     auditState: null,
@@ -152,6 +154,10 @@ export function parseArgv(argv = []) {
       options.upgrade = true;
     } else if (argument === '--journal') {
       options.journal = true;
+    } else if (argument === '--check') {
+      options.check = true;
+    } else if (argument === '--strict') {
+      options.strict = true;
     } else if (argument === '--public-key') {
       const value = argv[index + 1];
       if (!value || value.startsWith('-')) errors.push(`${argument} requires a PEM file.`);
@@ -520,9 +526,24 @@ export async function runAudit({
   return 0;
 }
 
-/** `wh installed`: installed packages, or the install journal with --journal. */
-export async function runInstalled({ root, target = null, journal = false, json = false, stdout = process.stdout } = {}) {
+/** `wh installed`: installed packages, the install journal, or a drift check. */
+export async function runInstalled({ root, target = null, journal = false, check = false, strict = false, json = false, stdout = process.stdout } = {}) {
   const directory = target ?? 'plugins';
+  if (check) {
+    const drift = await checkInstallDrift({ root, target: directory, strict });
+    if (json) {
+      stdout.write(`${JSON.stringify({ directory: displayPath(root, directory), ...drift }, null, 2)}\n`);
+      return drift.ok ? 0 : 1;
+    }
+    stdout.write(`install drift ${displayPath(root, directory)}: ${drift.ok ? 'ok' : 'MISMATCH'}\n`);
+    for (const item of drift.packages) {
+      const detail = item.status === 'drift' ? ` (installed ${item.installedDigest.slice(0, 12)} != journal ${item.journalDigest ? item.journalDigest.slice(0, 12) : 'none'})` : '';
+      stdout.write(`  ${pad(item.id, 24)}${item.status}${detail}\n`);
+    }
+    for (const id of drift.missing) stdout.write(`  ${pad(id, 24)}missing (the journal says it is installed)\n`);
+    if (drift.untracked.length) stdout.write(`  ${drift.untracked.length} untracked package(s) (present on disk without an install record; use --strict to fail)\n`);
+    return drift.ok ? 0 : 1;
+  }
   if (journal) {
     const entries = await readInstallJournal({ root, target: directory, limit: 50 });
     if (json) {
@@ -688,7 +709,7 @@ export async function runWh(argv = [],
     compositionPath: options.composition, patchPaths: options.patches, state: options.state,
     kind: options.kind, workspace: options.workspace, limit: options.limit, root: effectiveRoot, json: options.json,
     target: options.target, backup: options.backup, upgrade: options.upgrade,
-    journal: options.journal, publicKey: options.publicKey, actor: options.actor, auditState: options.auditState,
+    journal: options.journal, check: options.check, strict: options.strict, publicKey: options.publicKey, actor: options.actor, auditState: options.auditState,
     args: options.args, stdout, stderr,
   };
   try {

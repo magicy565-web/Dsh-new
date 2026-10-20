@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createHarness } from '../src/app.mjs';
 import { generateKeyPairSync, sign } from 'node:crypto';
-import { installPlugin, listInstalled, readInstallJournal, readPackage, rollbackPlugin, uninstallPlugin, verifyPackageSignature } from '../src/install.mjs';
+import { checkInstallDrift, installPlugin, listInstalled, readInstallJournal, readPackage, rollbackPlugin, uninstallPlugin, verifyPackageSignature } from '../src/install.mjs';
 import { appendAuditEntry } from '../src/audit-state.mjs';
 import { runWh } from '../src/cli.mjs';
 
@@ -287,4 +287,68 @@ test('wh install/uninstall/rollback write install events to --audit-state', asyn
   assert.ok(events.every(event => event.kind === 'install' && event.ok === true && event.actor.subject === 'ops'));
   assert.match(events[0].detail.digest, /^[a-f0-9]{64}$/u);
   assert.doesNotMatch(read.stdout.text, /apply\(ctx\)|installed fixture/u, 'only metadata reaches the audit stream');
+});
+test('drift check compares installed content with the latest journalled digest', async t => {
+  const { root, source, plugins } = await fixture(t);
+  await packageAt(source);
+  await installPlugin({ sourceDir: source, root });
+
+  let drift = await checkInstallDrift({ root });
+  assert.equal(drift.ok, true);
+  assert.deepEqual(drift.packages.map(item => item.status), ['ok']);
+  assert.deepEqual(drift.missing, []);
+
+  // Tampering with installed content is detected.
+  await fs.writeFile(path.join(plugins, 'sample-plugin', 'index.mjs'), `${PLUGIN_SOURCE}\n// tampered after install\n`, 'utf8');
+  drift = await checkInstallDrift({ root });
+  assert.equal(drift.ok, false);
+  assert.equal(drift.packages[0].status, 'drift');
+  assert.notEqual(drift.packages[0].installedDigest, drift.packages[0].journalDigest);
+  const checked = capture();
+  assert.equal(await runWh(['installed', '--check'], { root, ...checked }), 1);
+  assert.match(checked.stdout.text, /MISMATCH/u);
+  assert.match(checked.stdout.text, /drift/u);
+
+  // Re-installing the same package restores the journalled digest.
+  await installPlugin({ sourceDir: source, root, upgrade: true });
+  drift = await checkInstallDrift({ root });
+  assert.equal(drift.ok, true);
+  const repaired = capture();
+  assert.equal(await runWh(['installed', '--check', '--json'], { root, ...repaired }), 0);
+  assert.equal(JSON.parse(repaired.stdout.text).ok, true);
+});
+
+test('drift check reports untracked copies and journalled packages that vanished', async t => {
+  const { root, source, plugins } = await fixture(t);
+  await packageAt(source);
+  await installPlugin({ sourceDir: source, root });
+
+  // A package copied in by hand has no journal record. That is reported, but it is
+  // not a failure by default because git-checkout plugins are legitimately untracked;
+  // --strict turns it into one.
+  await packageAt(path.join(root, 'manual'), { id: 'manual-plugin' });
+  await fs.cp(path.join(root, 'manual'), path.join(plugins, 'manual-plugin'), { recursive: true });
+  let drift = await checkInstallDrift({ root });
+  assert.equal(drift.ok, true, 'untracked copies are reported but tolerated by default');
+  assert.deepEqual(drift.untracked, ['manual-plugin']);
+  assert.equal(drift.packages.find(item => item.id === 'manual-plugin').status, 'untracked');
+  const strictDrift = await checkInstallDrift({ root, strict: true });
+  assert.equal(strictDrift.ok, false);
+  const strictCli = capture();
+  assert.equal(await runWh(['installed', '--check', '--strict'], { root, ...strictCli }), 1);
+  assert.match(strictCli.stdout.text, /untracked package\(s\)/u);
+
+  // Deleting an installation behind the journal's back is reported as missing.
+  await fs.rm(path.join(plugins, 'sample-plugin'), { recursive: true, force: true });
+  await fs.rm(path.join(plugins, 'manual-plugin'), { recursive: true, force: true });
+  drift = await checkInstallDrift({ root });
+  assert.equal(drift.ok, false);
+  assert.deepEqual(drift.missing, ['sample-plugin']);
+
+  // An uninstall clears the expectation, so the check is clean again.
+  await installPlugin({ sourceDir: source, root });
+  await uninstallPlugin({ id: 'sample-plugin', root });
+  drift = await checkInstallDrift({ root });
+  assert.equal(drift.ok, true);
+  assert.deepEqual(drift.missing, []);
 });

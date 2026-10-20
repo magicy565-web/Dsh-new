@@ -250,7 +250,7 @@ export async function apply(ctx, config) {
 
 ```sh
 wh installed [--target plugins] [--json]
-wh installed --journal [--json]          # append-only install log
+wh installed --journal [--json]          # append-only install log`nwh installed --check [--strict] [--json]  # digest drift vs the journal
 wh install <dir> [--target plugins] [--upgrade] [--public-key <pem>] [--actor <subject>] [--json]
 wh uninstall <id> [--target plugins] [--actor <subject>] [--json]
 wh rollback <id> [--target plugins] [--backup <dir>] [--actor <subject>] [--json]
