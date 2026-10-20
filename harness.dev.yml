@@ -15,6 +15,9 @@ plugins:
     name: '@workspace-harness/seams/tools'
   - id: llm
     name: '@workspace-harness/seams/llm'
+  - id: llm-bridge
+    name: workspace-llm-bridge
+    config: { enabled: false }
   - id: skills
     name: '@workspace-harness/seams/skills'
     config: { scanOnMount: true }
