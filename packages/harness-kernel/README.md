@@ -267,6 +267,23 @@ refuses to overwrite a state file it cannot parse; an audit write failure warns 
 does not undo the installation.
 
 
+## Legacy runtime adapter
+
+`legacy-adapter.mjs` is the P1 primitive: it exposes the mounted harness seams in
+the service shapes the existing enterprise server already passes around.
+
+```js
+import { createLegacyServices, createLegacyInquiryRecovery } from './legacy-adapter.mjs';
+const services = createLegacyServices(harness);   // { store, artifacts, approval, tools, audit, workspace }
+const recovery = await createLegacyInquiryRecovery(harness, { staleDays: 7 });
+```
+
+`store` is the live `ctx.storage` instance (not a copy), so the legacy server and
+the harness share one `workspace.json`; `storage` is required, other seams are
+`null` when absent. See `docs/HARNESS-P1-MIGRATION.md` for the exact wiring plan,
+risks (acto mapping, lifecycle/lock, parallel-workstream conflicts) and acceptance
+criteria.
+
 ## Environment capability declarations
 
 A manifest may declare `env: ["DEEPSEEK_API_KEY", ...]` (≤16 upper-case names, no
@@ -287,7 +304,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 79 tests, 0 fail
+node --test packages/harness-kernel/test     # 83 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
