@@ -1,0 +1,7 @@
+{
+  "id": "routes-conflict",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "Fixture plugin registering the same route twice (must be a startup failure).",
+  "entry": "./src/index.mjs"
+}

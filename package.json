@@ -72,7 +72,9 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "@earendil-works/pi-coding-agent": "1.1.0",
-    "@earendil-works/pi-tui": "1.1.0"
+    "@earendil-works/pi-tui": "1.1.0",
+    "cordis": "4.0.0-rc.11",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/react": "18.3.31",

@@ -1,0 +1,7 @@
+{
+  "id": "degraded-health",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "Fixture plugin registering a degraded health check.",
+  "entry": "./src/index.mjs"
+}

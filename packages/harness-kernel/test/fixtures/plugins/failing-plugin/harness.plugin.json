@@ -1,0 +1,7 @@
+{
+  "id": "failing-plugin",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "Fixture plugin: records apply and then throws.",
+  "entry": "./src/index.mjs"
+}

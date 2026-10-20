@@ -1,0 +1,12 @@
+{
+  "id": "routes-param",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "Fixture plugin: one-segment :param routes, static priority, decode handling.",
+  "entry": "./src/index.mjs",
+  "routes": [
+    "GET /api/param/leads/static",
+    "GET /api/param/leads/:leadId",
+    "PUT /api/param/leads/:leadId/identity"
+  ]
+}

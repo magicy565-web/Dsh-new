@@ -1,0 +1,9 @@
+{
+  "id": "trace-consumer",
+  "version": "0.1.0",
+  "kind": "provider",
+  "description": "Fixture provider: requires alpha and provides beta.",
+  "entry": "./src/index.mjs",
+  "requires": ["alpha"],
+  "provides": ["beta"]
+}

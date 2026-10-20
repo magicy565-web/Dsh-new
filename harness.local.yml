@@ -1,0 +1,16 @@
+version: 1
+name: local
+server: { host: 127.0.0.1, port: 8790 }
+plugins:
+  # Seam providers (work package B): storage/approval/tools.
+  - id: storage
+    name: '@workspace-harness/seams/storage'
+    config: { directory: .harness-data }
+  - id: approval
+    name: '@workspace-harness/seams/approval'
+  - id: tools
+    name: '@workspace-harness/seams/tools'
+  # Business plugin (work package C) is enabled once plugins/workspace-inquiries exists:
+  # - id: inquiries
+  #   name: workspace-inquiries
+  #   config: {}

@@ -1,0 +1,10 @@
+{
+  "id": "trace-provider",
+  "version": "0.1.0",
+  "kind": "provider",
+  "description": "Fixture provider: provides service alpha and records lifecycle order.",
+  "entry": "./src/index.mjs",
+  "requires": [],
+  "provides": ["alpha"],
+  "configSchema": { "type": "object", "properties": { "label": { "type": "string" } }, "additionalProperties": true }
+}

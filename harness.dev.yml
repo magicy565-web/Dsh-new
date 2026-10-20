@@ -1,0 +1,14 @@
+version: 1
+name: dev
+server: { host: 127.0.0.1, port: 8791 }
+plugins:
+  - id: storage
+    name: '@workspace-harness/seams/storage'
+    config: { directory: .harness-data }
+  - id: approval
+    name: '@workspace-harness/seams/approval'
+  - id: tools
+    name: '@workspace-harness/seams/tools'
+  - id: inquiries
+    name: workspace-inquiry-recovery
+    config: {}
