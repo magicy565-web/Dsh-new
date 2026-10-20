@@ -1,0 +1,91 @@
+.harness-console {
+  display: grid;
+  gap: 10px;
+}
+
+.harness-console-plugins {
+  display: grid;
+  gap: 6px;
+}
+
+.harness-console-plugin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #e4e8ee);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.harness-console-plugin strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.harness-console-plugin span {
+  color: var(--muted, #68778d);
+  overflow-wrap: anywhere;
+}
+
+.harness-console-probes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.harness-console-probes > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #e4e8ee);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+}
+
+.harness-console-probes dt {
+  font-size: 11px;
+  color: var(--muted, #68778d);
+}
+
+.harness-console-probes dd {
+  margin: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.harness-console-probes dd[data-state="ok"] {
+  color: #1f7a4d;
+}
+
+.harness-console-probes dd[data-state="missing"],
+.harness-console-probes dd[data-state="error"] {
+  color: #9b4f4f;
+}
+
+.harness-console-hint code {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.harness-console-refresh {
+  justify-self: start;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line, #e4e8ee);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: inherit;
+  font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  .harness-console-plugin {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
