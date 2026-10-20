@@ -5,7 +5,7 @@ import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, resolveRows } from './resolve.mjs';
 import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled } from './patch.mjs';
-import { installPlugin, listInstalled, rollbackPlugin, uninstallPlugin } from './install.mjs';
+import { installPlugin, listInstalled, readInstallJournal, rollbackPlugin, uninstallPlugin } from './install.mjs';
 import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
 
 const STORAGE_STATE_FILE = 'workspace.json';
@@ -35,6 +35,9 @@ Options:
       --limit <n>           \`wh audit\`: newest n events (default 20, max 200).
       --target <dir>        Plugin package directory for install/uninstall/rollback/installed (default: plugins).
       --backup <dir>        \`wh rollback\`: restore this explicit backup directory.
+      --journal             \`wh installed\`: print the install journal instead of the package list.
+      --public-key <pem>    \`wh install\`: PEM public key for an offline ed25519 signature check.
+      --actor <subject>     Actor recorded in the install journal (default: local-operator).
       --upgrade             \`wh install\`: replace an existing installation (the old one is kept as a backup).
       --json                Machine-readable JSON output.
   -h, --help                Print this text.
@@ -63,6 +66,9 @@ export function parseArgv(argv = []) {
     target: null,
     backup: null,
     upgrade: false,
+    journal: false,
+    publicKey: null,
+    actor: null,
     root: null,
     json: false,
     help: false,
@@ -139,6 +145,26 @@ export function parseArgv(argv = []) {
       options.backup = argument.slice('--backup='.length);
     } else if (argument === '--upgrade') {
       options.upgrade = true;
+    } else if (argument === '--journal') {
+      options.journal = true;
+    } else if (argument === '--public-key') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires a PEM file.`);
+      else {
+        options.publicKey = value;
+        index += 1;
+      }
+    } else if (argument.startsWith('--public-key=')) {
+      options.publicKey = argument.slice('--public-key='.length);
+    } else if (argument === '--actor') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires an actor subject.`);
+      else {
+        options.actor = value;
+        index += 1;
+      }
+    } else if (argument.startsWith('--actor=')) {
+      options.actor = argument.slice('--actor='.length);
     } else if (argument === '--limit') {
       const value = argv[index + 1];
       const parsed = Number(value);
@@ -479,9 +505,21 @@ export async function runAudit({
   return 0;
 }
 
-/** `wh installed`: installed packages in the target directory. */
-export async function runInstalled({ root, target = null, json = false, stdout = process.stdout } = {}) {
+/** `wh installed`: installed packages, or the install journal with --journal. */
+export async function runInstalled({ root, target = null, journal = false, json = false, stdout = process.stdout } = {}) {
   const directory = target ?? 'plugins';
+  if (journal) {
+    const entries = await readInstallJournal({ root, target: directory, limit: 50 });
+    if (json) {
+      stdout.write(`${JSON.stringify({ directory: displayPath(root, directory), journal: entries }, null, 2)}\n`);
+      return 0;
+    }
+    stdout.write(`install journal ${displayPath(root, directory)}: ${entries.length} entr(ies)\n`);
+    for (const entry of entries) {
+      stdout.write(`${entry.at} ${pad(entry.action, 10)}${pad(entry.id, 24)}${pad(entry.version ?? '-', 10)}${(entry.digest ?? '-').slice(0, 12)}${entry.previousDigest ? ` <- ${String(entry.previousDigest).slice(0, 12)}` : ''}${entry.signed ? (entry.verified ? ' [signed+verified]' : ' [signed]') : ''} by ${entry.actor ?? '-'}\n`);
+    }
+    return 0;
+  }
   const installed = await listInstalled({ root, target: directory });
   if (json) {
     stdout.write(`${JSON.stringify({ directory: displayPath(root, directory), packages: installed }, null, 2)}\n`);
@@ -492,15 +530,21 @@ export async function runInstalled({ root, target = null, json = false, stdout =
   return 0;
 }
 
-async function runInstall({ root, target, upgrade, args, json, stdout, stderr }) {
+async function runInstall({ root, target, upgrade, args, publicKey = null, actor = null, json, stdout, stderr }) {
   const [source] = args;
   if (!source) {
     stderr.write('wh: install requires a package directory\n');
     return 2;
   }
+  let key = null;
+  if (publicKey) {
+    const keyPath = isAbsolute(publicKey) ? publicKey : resolvePath(root, publicKey);
+    key = await readFile(keyPath, 'utf8').catch(() => { throw new HarnessError('HARNESS_PLUGIN_FAILED', `cannot read public key ${displayPath(root, keyPath)}`); });
+  }
   const result = await installPlugin({
     sourceDir: isAbsolute(source) ? source : resolvePath(root, source),
     root, target: target ?? 'plugins', upgrade: upgrade === true,
+    publicKey: key, actor: actor ?? 'local-operator',
   });
   if (json) {
     stdout.write(`${JSON.stringify({ ...result, destination: displayPath(root, result.destination), backup: result.backup ? displayPath(root, result.backup) : null }, null, 2)}\n`);
@@ -508,16 +552,18 @@ async function runInstall({ root, target, upgrade, args, json, stdout, stderr })
   }
   stdout.write(`installed ${result.id}@${result.version} (${result.digest.slice(0, 12)}) -> ${displayPath(root, result.destination)}`);
   stdout.write(result.backup ? ` (previous kept at ${displayPath(root, result.backup)})\n` : '\n');
+  if (result.signature?.signed) stdout.write(`signature: verified${result.signature.signer ? ` (${result.signature.signer})` : ''}\n`);
+  else stdout.write('signature: none (unsigned local package)\n');
   return 0;
 }
 
-async function runUninstall({ root, target, args, json, stdout, stderr }) {
+async function runUninstall({ root, target, args, actor = null, json, stdout, stderr }) {
   const [id] = args;
   if (!id) {
     stderr.write('wh: uninstall requires a plugin id\n');
     return 2;
   }
-  const result = await uninstallPlugin({ id, root, target: target ?? 'plugins' });
+  const result = await uninstallPlugin({ id, root, target: target ?? 'plugins', actor: actor ?? 'local-operator' });
   if (json) {
     stdout.write(`${JSON.stringify({ ...result, backup: displayPath(root, result.backup) }, null, 2)}\n`);
     return 0;
@@ -526,7 +572,7 @@ async function runUninstall({ root, target, args, json, stdout, stderr }) {
   return 0;
 }
 
-async function runRollback({ root, target, backup, args, json, stdout, stderr }) {
+async function runRollback({ root, target, backup, args, actor = null, json, stdout, stderr }) {
   const [id] = args;
   if (!id) {
     stderr.write('wh: rollback requires a plugin id\n');
@@ -535,6 +581,7 @@ async function runRollback({ root, target, backup, args, json, stdout, stderr })
   const result = await rollbackPlugin({
     id, root, target: target ?? 'plugins',
     backup: backup ? (isAbsolute(backup) ? backup : resolvePath(root, backup)) : null,
+    actor: actor ?? 'local-operator',
   });
   if (json) stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   else stdout.write(`restored ${result.id} from ${displayPath(root, result.restoredFrom)}${result.displaced ? ` (displaced current installation to ${displayPath(root, result.displaced)})` : ''}\n`);
@@ -563,6 +610,7 @@ export async function runWh(argv = [],
     compositionPath: options.composition, patchPaths: options.patches, state: options.state,
     kind: options.kind, workspace: options.workspace, limit: options.limit, root: effectiveRoot, json: options.json,
     target: options.target, backup: options.backup, upgrade: options.upgrade,
+    journal: options.journal, publicKey: options.publicKey, actor: options.actor,
     args: options.args, stdout, stderr,
   };
   try {

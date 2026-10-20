@@ -4,7 +4,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createHarness } from '../src/app.mjs';
-import { installPlugin, listInstalled, readPackage, rollbackPlugin, uninstallPlugin } from '../src/install.mjs';
+import { generateKeyPairSync, sign } from 'node:crypto';
+import { installPlugin, listInstalled, readInstallJournal, readPackage, rollbackPlugin, uninstallPlugin, verifyPackageSignature } from '../src/install.mjs';
 import { runWh } from '../src/cli.mjs';
 
 const errorCode = code => error => error?.code === code;
@@ -146,4 +147,82 @@ test('wh install / installed / uninstall / rollback work on the target directory
   const usage = capture();
   assert.equal(await runWh(['install'], { root, ...usage }), 2);
   assert.match(usage.stderr.text, /requires a package directory/u);
+});
+
+test('every install operation is recorded in the install journal', async t => {
+  const { root, source } = await fixture(t);
+  await packageAt(source);
+  await installPlugin({ sourceDir: source, root, actor: 'alice' });
+  await packageAt(source, { version: '0.2.0', body: `${PLUGIN_SOURCE}\n// v2\n` });
+  await installPlugin({ sourceDir: source, root, upgrade: true, actor: 'alice' });
+  await uninstallPlugin({ id: 'sample-plugin', root, actor: 'bob' });
+  await rollbackPlugin({ id: 'sample-plugin', root, actor: 'carol' });
+
+  const journal = await readInstallJournal({ root });
+  assert.deepEqual(journal.map(entry => entry.action), ['install', 'upgrade', 'uninstall', 'rollback']);
+  assert.equal(journal[0].actor, 'alice');
+  assert.equal(journal[1].actor, 'alice');
+  assert.equal(journal[1].previousDigest, journal[0].digest);
+  assert.equal(journal[2].actor, 'bob');
+  assert.equal(journal[3].actor, 'carol');
+  assert.match(journal[0].digest, /^[a-f0-9]{64}$/u);
+  assert.equal(journal[0].signed, false);
+  assert.doesNotMatch(JSON.stringify(journal), /apply\(ctx\)|installed fixture/u, 'the journal holds metadata only');
+  assert.equal((await listInstalled({ root })).length, 1, 'the journal file itself is not a package');
+
+  const shown = capture();
+  assert.equal(await runWh(['installed', '--journal'], { root, ...shown }), 0);
+  assert.match(shown.stdout.text, /install journal/u);
+  assert.match(shown.stdout.text, /rollback/u);
+  assert.match(shown.stdout.text, /by carol/u);
+});
+
+test('signed packages are verified offline; tampering and wrong keys are refused', async t => {
+  const { root, source } = await fixture(t);
+  await packageAt(source);
+  const digest = (await readPackage(source)).digest;
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const pem = publicKey.export({ type: 'spki', format: 'pem' });
+  const signature = sign(null, Buffer.from(digest, 'utf8'), privateKey).toString('base64');
+  await fs.writeFile(path.join(source, 'harness.package.json'), JSON.stringify({ version: 1, digest, signature, signer: 'release-bot' }), 'utf8');
+
+  const pkg = await readPackage(source);
+  assert.equal(pkg.digest, digest, 'the package metadata file is excluded from its own digest');
+  assert.deepEqual(verifyPackageSignature(pkg, { publicKey: pem }), { signed: true, verified: true, signer: 'release-bot' });
+  assert.throws(() => verifyPackageSignature(pkg), /pass --public-key/u);
+
+  const installed = await installPlugin({ sourceDir: source, root, publicKey: pem, actor: 'release-bot' });
+  assert.equal(installed.signature.verified, true);
+  const [entry] = await readInstallJournal({ root });
+  assert.equal(entry.signed, true);
+  assert.equal(entry.verified, true);
+
+  await fs.writeFile(path.join(source, 'index.mjs'), `${PLUGIN_SOURCE}\n// tampered\n`, 'utf8');
+  await assert.rejects(installPlugin({ sourceDir: source, root, target: 'signed-a', publicKey: pem }), error => /declared digest does not match/u.test(error.message));
+  await fs.writeFile(path.join(source, 'index.mjs'), PLUGIN_SOURCE, 'utf8');
+  const { publicKey: other } = generateKeyPairSync('ed25519');
+  await assert.rejects(installPlugin({ sourceDir: source, root, target: 'signed-b', publicKey: other.export({ type: 'spki', format: 'pem' }) }), error => /signature does not match/u.test(error.message));
+});
+
+test('wh install verifies a signed package with --public-key and records the actor', async t => {
+  const { root, source } = await fixture(t);
+  await packageAt(source);
+  const digest = (await readPackage(source)).digest;
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const pem = publicKey.export({ type: 'spki', format: 'pem' });
+  await fs.writeFile(path.join(source, 'harness.package.json'), JSON.stringify({ version: 1, digest, signature: sign(null, Buffer.from(digest, 'utf8'), privateKey).toString('base64'), signer: 'release-bot' }), 'utf8');
+  await fs.writeFile(path.join(root, 'release.pub.pem'), pem, 'utf8');
+
+  const result = capture();
+  assert.equal(await runWh(['install', source, '--public-key', 'release.pub.pem', '--actor', 'ops'], { root, ...result }), 0);
+  assert.match(result.stdout.text, /signature: verified \(release-bot\)/u);
+  const [entry] = await readInstallJournal({ root });
+  assert.equal(entry.actor, 'ops');
+  assert.equal(entry.signed, true);
+  assert.equal(entry.verified, true);
+
+  await fs.rm(path.join(source, 'harness.package.json'));
+  const unsigned = capture();
+  assert.equal(await runWh(['install', source, '--upgrade'], { root, ...unsigned }), 0);
+  assert.match(unsigned.stdout.text, /signature: none/u, 'upgrading without a key must not silently claim verification');
 });

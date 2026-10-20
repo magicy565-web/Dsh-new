@@ -250,15 +250,18 @@ export async function apply(ctx, config) {
 
 ```sh
 wh installed [--target plugins] [--json]
-wh install <dir> [--target plugins] [--upgrade] [--json]
-wh uninstall <id> [--target plugins] [--json]
-wh rollback <id> [--target plugins] [--backup <dir>] [--json]
+wh installed --journal [--json]          # append-only install log
+wh install <dir> [--target plugins] [--upgrade] [--public-key <pem>] [--actor <subject>] [--json]
+wh uninstall <id> [--target plugins] [--actor <subject>] [--json]
+wh rollback <id> [--target plugins] [--backup <dir>] [--actor <subject>] [--json]
 ```
 
 - 来源是**本地目录**（`harness.plugin.json` + entry）；不联网、不解压归档、安装期不执行包代码。
 - 校验：`validateManifest`、entry 必须位于包内且存在、拒绝符号链接、≤512 文件 / ≤4 MiB。
-- 内容摘要 = 对排序后的 `{path, sha256, size}` 列表求 SHA-256；暂存副本摘要必须与源一致才 rename。
+- 内容摘要 = 对排序后的 `{path, sha256, size}` 列表求 SHA-256（排除 `harness.package.json` 自身）。
+- 可选签名：`harness.package.json` = `{version:1, digest, signature, signer}`，`signature` 是对 digest 字符串的 ed25519 签名（base64）。签名包必须提供 `--public-key <pem>` 离线校验；digest 或签名不匹配一律拒绝；未签名包记为 `signature: none` 且 journal `signed:false`，绝不声称已校验。
 - 原子性：先复制到 `.staging-*`，校验后 rename 到 `plugins/<id>`；升级先把旧安装 rename 到 `.backup-*`，失败时回滚；卸载 = rename 到 `.backup-*`；回滚 = 恢复最新（或显式）备份，当前安装移到 `.rollback-*`。
+- 审计：每次操作追加一行到 `<target>/.install-journal.jsonl`（`at/action/actor/id/version/digest/previousDigest/signed/verified/signer/backup`，仅元数据）；`wh installed --journal` 读取。
 - 安装后的包由常规解析规则（`plugins/<name>`）发现，无需额外注册即可被组合挂载。
 
 ## 8. 验收（A/B/C 各自必须提供）

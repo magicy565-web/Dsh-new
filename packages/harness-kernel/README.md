@@ -231,7 +231,9 @@ archives and never executes package code while installing.
 
 ```sh
 wh installed                       # id, version, content digest of each package
+wh installed --journal             # append-only install/upgrade/uninstall/rollback log
 wh install ./packages/my-plugin    # stage, digest-check, atomic rename
+wh install ./packages/my-plugin --public-key release.pub.pem   # verify ed25519 offline
 wh install ./packages/my-plugin --upgrade   # keeps the previous install as a backup
 wh uninstall my-plugin             # moves the install to a backup directory
 wh rollback my-plugin              # restores the newest (or --backup <dir>) copy
@@ -241,10 +243,22 @@ Rules: `harness.plugin.json` must pass `validateManifest`, `entry` must stay ins
 the package and exist, symlinks are refused, and packages are bounded (512 files /
 4 MiB). The content digest is a SHA-256 over the sorted `{path, sha256, size}` file
 list; the staged copy must match it before the rename. Failures leave the target
-untouched; dot-directories (`.staging-*`, `.backup-*`, `.rollback-*`) are never
-listed as installations. An installed package is resolved by the normal
-composition rule (`plugins/<name>`), so installing is enough for the kernel to
-mount it.
+untouched; dot-directories/files (`.staging-*`, `.backup-*`, `.rollback-*`,
+`.install-journal.jsonl`) are never listed as installations. An installed package is
+resolved by the normal composition rule (`plugins/<name>`), so installing is enough
+for the kernel to mount it.
+
+Signing (optional, offline): a package may ship `harness.package.json`
+`{version:1, digest, signature, signer}` where `digest` excludes that metadata file
+and `signature` is an ed25519 signature (base64) over the digest string. A signed
+package requires `--public-key <pem>` and fails closed on a digest or signature
+mismatch; unsigned packages install as `signature: none` and the journal records
+`signed:false`, so verification is never claimed without doing it.
+
+Every operation appends one metadata-only line to `<target>/.install-journal.jsonl`:
+`{at, action, actor, id, version, digest, previousDigest, signed, verified, signer,
+backup}`. Nothing from package code or customer data is logged.
+
 
 ## Environment capability declarations
 
@@ -266,7 +280,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 73 tests, 0 fail
+node --test packages/harness-kernel/test     # 76 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
