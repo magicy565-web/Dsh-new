@@ -8,6 +8,7 @@
 import './storage.test.mjs';
 import './approval.test.mjs';
 import './tools.test.mjs';
+import './tools-access.test.mjs';
 import './artifacts.test.mjs';
 import './llm.test.mjs';
 import './skills.test.mjs';

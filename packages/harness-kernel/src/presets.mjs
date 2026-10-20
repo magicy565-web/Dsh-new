@@ -117,10 +117,26 @@ export async function composePreset(preset, { root = process.cwd() } = {}) {
   const rows = new Map();
   for (const row of base.rows) rows.set(row.id, { id: row.id, name: row.name, config: row.config, ...(row.disabled ? { disabled: true } : {}) });
   for (const row of preset.plugins) rows.set(row.id, { id: row.id, name: row.name, config: row.config, ...(row.disabled ? { disabled: true } : {}) });
+  // Enforce the preset's tool selection through the tools provider config, so a
+  // mounted preset cannot call a tool it did not declare.
+  const toolsRow = rows.get('tools');
+  if (toolsRow && (preset.tools.length || preset.denyTools.length)) {
+    rows.set('tools', {
+      ...toolsRow,
+      config: {
+        ...(toolsRow.config ?? {}),
+        ...(preset.tools.length ? { allowedTools: [...preset.tools] } : {}),
+        ...(preset.denyTools.length ? { deniedTools: [...preset.denyTools] } : {}),
+      },
+    });
+  }
   const document = { version: 1, name: preset.name, server: base.server, plugins: [...rows.values()] };
   const composition = validateComposition(document);
   return Object.freeze({
     composition,
+    // The raw document (plugins array) so `createHarness({ composition })` can
+    // validate and mount it directly.
+    document,
     preset,
     persona: preset.persona,
     tools: preset.tools,

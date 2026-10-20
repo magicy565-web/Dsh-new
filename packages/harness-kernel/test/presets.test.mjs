@@ -51,6 +51,19 @@ test('a preset composes over its base composition without hiding base rows', asy
   assert.equal(composed.persona, preset.persona);
 });
 
+test('composing a preset injects its tool selection into the tools provider config', async t => {
+  const growth = await composePreset(await loadPreset('growth-manager', { root: ROOT }), { root: ROOT });
+  const growthTools = growth.composition.rows.find(row => row.id === 'tools');
+  assert.deepEqual(growthTools.config.allowedTools, ['inquiry_recovery_status', 'inquiry_recovery_opportunities', 'inquiry_recovery_select']);
+  assert.equal(growthTools.config.deniedTools, undefined);
+
+  const analyst = await composePreset(await loadPreset('inquiry-analyst', { root: ROOT }), { root: ROOT });
+  const analystTools = analyst.composition.rows.find(row => row.id === 'tools');
+  assert.deepEqual(analystTools.config.allowedTools, ['inquiry_recovery_status', 'inquiry_recovery_opportunities']);
+  assert.deepEqual(analystTools.config.deniedTools, ['inquiry_recovery_select']);
+  assert.equal(analystTools.config.auditLimit, undefined);
+});
+
 test('the CLI lists and shows presets, and still rejects stray positionals elsewhere', async t => {
   const list = capture();
   assert.equal(await runWh(['presets', 'list', '--json'], { root: ROOT, ...list }), 0);

@@ -4,6 +4,7 @@ import { Context, FiberState } from 'cordis';
 import {
   ERROR,
   HarnessError,
+  validateComposition,
   validateConfig,
 } from '../../harness-contracts/src/index.mjs';
 import { KERNEL_SERVICES, readComposition, resolveRows } from './resolve.mjs';
@@ -137,16 +138,24 @@ function contextForRow(ctx, row) {
 }
 
 /**
- * Create a harness from a composition file.
+ * Create a harness from a composition file or an already-composed composition.
  *
  * Mounting happens eagerly (fail closed with reverse-order rollback); the HTTP server
  * only starts on `start()`.
  *
- * @param {{compositionPath?: string, root?: string, logger?: object}} options
+ * @param {{compositionPath?: string, composition?: object, preset?: object, root?: string, logger?: object}} options
  */
-export async function createHarness({ compositionPath, root = process.cwd(), logger = console } = {}) {
+export async function createHarness({ compositionPath, composition: composed, preset = null, root = process.cwd(), logger = console } = {}) {
   const effectiveLogger = logger ?? console;
-  const { file, composition } = await readComposition(compositionPath, { root });
+  let file = null;
+  let composition;
+  if (composed !== undefined && composed !== null) {
+    composition = validateComposition(composed);
+  } else {
+    const loaded = await readComposition(compositionPath, { root });
+    file = loaded.file;
+    composition = loaded.composition;
+  }
   const resolved = await resolveRows(composition.rows, { root, compositionFile: file });
   const enabled = resolved.filter(entry => !entry.row.disabled);
 
@@ -375,6 +384,7 @@ export async function createHarness({ compositionPath, root = process.cwd(), log
     healthz,
     // Extra, non-contractual introspection used by the CLI and tests.
     composition: { file, name: composition.name, server: composition.server },
+    preset,
     http,
   };
 }

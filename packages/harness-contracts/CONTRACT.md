@@ -159,6 +159,8 @@ ctx.tools.execute(name, args, { actor, signal }) → Promise<unknown>
 
 P0 策略：`approval: 'never'` 只允许只读工具；`'always'` 必须消费票据；`'policy'` 由注入的 `policy(actor, tool, args)` 决定（默认 = always）。
 
+**预设工具选择**：provider 的 `config` 支持 `allowedTools`（非空时只允许列出的工具）与 `deniedTools`（永远拒绝，优先于 allowed）；两者重叠 → 配置错误。被隐藏/拒绝的工具从 `list()` 消失，`execute()` 抛 `HARNESS_TOOL_REFUSED` 并写入审计。`composePreset` 会把预设的 `tools`/`denyTools` 注入 `tools` 行配置，因此预设不能调用自己未声明的工具。
+
 ### `ctx.health`
 
 `ctx.health.register(name, fn)`；内核 `healthz()` 汇总。

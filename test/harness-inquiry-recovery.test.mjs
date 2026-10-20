@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createHarness } from '../packages/harness-kernel/src/app.mjs';
+import { composePreset, loadPreset } from '../packages/harness-kernel/src/presets.mjs';
 import { createEchoProvider } from '../packages/harness-seams/src/llm.mjs';
 
 const ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/u, '$1'));
@@ -162,4 +163,50 @@ test('disabling the inquiry row removes both its routes and its tools', async t 
   const tools = harness.ctx.reflect.get('tools', false);
   const names = tools.list({ actor }).map(tool => tool.name);
   assert.deepEqual(names, []);
+});
+
+async function presetHarness(t, name) {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), `harness-preset-${name}-`));
+  const preset = await loadPreset(name, { root: ROOT });
+  const composed = await composePreset(preset, { root: ROOT });
+  const storage = path.join(directory, 'data').replace(/\\/gu, '/');
+  const plugins = composed.composition.rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    ...(row.id === 'storage' ? { config: { directory: storage } } : Object.keys(row.config ?? {}).length ? { config: row.config } : {}),
+    ...(row.disabled ? { disabled: true } : {}),
+  }));
+  const harness = await createHarness({
+    composition: { version: 1, name: preset.name, server: { host: '127.0.0.1', port: 0 }, plugins },
+    preset: { name: preset.name, title: preset.title, persona: preset.persona, tools: composed.tools, denyTools: composed.denyTools, skills: composed.skills, model: composed.model },
+    root: ROOT,
+  });
+  await harness.start();
+  t.after(async () => { await harness.stop(); await fs.rm(directory, { recursive: true, force: true }); });
+  return { harness, preset };
+}
+
+test('an agent preset boots with its tool allow-list enforced', async t => {
+  const { harness } = await presetHarness(t, 'inquiry-analyst');
+  assert.equal(harness.healthz().status, 'ok');
+  assert.equal(harness.preset.name, 'inquiry-analyst');
+  assert.equal(harness.preset.title, '询盘捞回专员');
+  const tools = harness.ctx.reflect.get('tools', false);
+  const names = tools.list({ actor }).map(tool => tool.name);
+  assert.deepEqual(names.sort(), ['inquiry_recovery_opportunities', 'inquiry_recovery_status']);
+  await assert.rejects(
+    tools.execute('inquiry_recovery_select', { leadId: 'lead-alpha', expectedRevision: 1, sourceHash: 'a'.repeat(64) }, { actor }),
+    error => error.code === 'HARNESS_TOOL_REFUSED' && /not enabled for this preset/u.test(error.message),
+  );
+});
+
+test('a preset that grants a write tool still requires a one-shot approval ticket', async t => {
+  const { harness } = await presetHarness(t, 'growth-manager');
+  const tools = harness.ctx.reflect.get('tools', false);
+  const names = tools.list({ actor }).map(tool => tool.name).sort();
+  assert.deepEqual(names, ['inquiry_recovery_opportunities', 'inquiry_recovery_select', 'inquiry_recovery_status']);
+  await assert.rejects(
+    tools.execute('inquiry_recovery_select', { leadId: 'lead-alpha', expectedRevision: 1, sourceHash: 'a'.repeat(64) }, { actor }),
+    error => error.code === 'HARNESS_APPROVAL_REQUIRED',
+  );
 });

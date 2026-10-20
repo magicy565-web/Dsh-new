@@ -125,9 +125,12 @@ boots, prints the URL, serves, and shuts down cleanly on `SIGINT`/`SIGTERM`.
 A preset is a capability profile over a base composition: persona + extra plugin
 rows + allowed/denied tool names + skills + optional model metadata. Presets never
 grant authority; they only select what the base composition already provides.
+`composePreset` injects `allowedTools`/`deniedTools` into the `tools` row, so a
+mounted preset cannot call a tool it did not declare.
 
 ```sh
-wh presets list [--json]            # scan <root>/presets/*.yml
+node harness.mjs --preset inquiry-analyst          # boot the harness as this agent
+wh presets list [--json]                            # scan <root>/presets/*.yml
 wh presets show growth-manager [--json]
 ```
 

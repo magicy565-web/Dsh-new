@@ -193,9 +193,22 @@ export function createTools({
   clock = () => Date.now(),
   auditLimit = MAX_AUDIT_ENTRIES,
   ctx = null,
+  allowedTools,
+  deniedTools,
 } = {}) {
   if (typeof clock !== 'function') throw new TypeError('tools.clock must be a function returning epoch milliseconds.');
   if (policy !== undefined && typeof policy !== 'function') throw new TypeError('tools.policy must be a function(actor, tool, args) when provided.');
+  const accessList = (value, label) => {
+    if (value === undefined) return [];
+    if (!Array.isArray(value) || value.length > 128 || value.some(name => typeof name !== 'string' || !name.trim()))
+      throw new TypeError(`tools.${label} must be an array of bounded tool names.`);
+    return [...new Set(value)];
+  };
+  const allowed = accessList(allowedTools, 'allowedTools');
+  const denied = accessList(deniedTools, 'deniedTools');
+  if (allowed.length && denied.some(name => allowed.includes(name)))
+    throw new TypeError('tools.allowedTools and tools.deniedTools must not overlap.');
+  const permitted = name => (denied.includes(name) ? false : allowed.length === 0 || allowed.includes(name));
   const limit = Number.isSafeInteger(auditLimit) && auditLimit > 0 ? auditLimit : MAX_AUDIT_ENTRIES;
   const registry = new Map();
   const storageOption = storage;
@@ -310,7 +323,7 @@ export function createTools({
   }
 
   function list() {
-    return [...registry.values()].map(tool => ({
+    return [...registry.values()].filter(tool => permitted(tool.name)).map(tool => ({
       name: tool.name,
       description: tool.description,
       parameters: structuredClone(tool.parameters),
@@ -328,6 +341,11 @@ export function createTools({
       const toolName = typeof name === 'string' ? name : String(name);
       const error = new HarnessError(ERROR.toolRefused, `Unknown tool ${JSON.stringify(toolName)}.`, { tool: toolName });
       await writeAudit({ at: startedAt, actor, tool: toolName, approvalId: null, ok: false, errorCode: error.code });
+      throw error;
+    }
+    if (!permitted(tool.name)) {
+      const error = new HarnessError(ERROR.toolRefused, `Tool ${tool.name} is not enabled for this preset.`, { tool: tool.name });
+      await writeAudit({ at: startedAt, actor, tool: tool.name, approvalId: null, ok: false, errorCode: error.code });
       throw error;
     }
     let ticketId = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? rawArgs.approvalId : undefined;
@@ -411,6 +429,8 @@ export function createToolsProvider(options = {}) {
         approval: approvalOption,
         clock: options.clock,
         auditLimit: options.auditLimit ?? config?.auditLimit,
+        allowedTools: options.allowedTools ?? config?.allowedTools,
+        deniedTools: options.deniedTools ?? config?.deniedTools,
         ctx,
       });
     }
