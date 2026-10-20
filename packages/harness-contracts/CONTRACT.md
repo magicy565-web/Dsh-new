@@ -183,6 +183,8 @@ ctx.workspace.close()
 
 `requires: []`；租户与成员来自组合配置（`workspaces: [{id,name,members:[{subject,role}]}]` + `defaultWorkspaceId`），不读网络、不存业务数据。失败关闭：未知租户 → `HARNESS_WORKSPACE_INVALID`（HTTP 400），已存在租户但非成员 → `HARNESS_WORKSPACE_FORBIDDEN`（HTTP 403）；**角色以成员记录为准**，actor 头部自称的 role 不能提权；没有默认租户且 actor 未带 workspaceId 时拒绝而不是猜测。业务插件在 HTTP 与工具入口先 `resolve()`，未挂载 `ctx.workspace` 时跳过（向后兼容）。
 
+**数据隔离（`packages/harness-seams/src/scope.mjs`）**：`scopeStorage(storage, workspaceId)` 返回一个 store 形状的视图，读写落在 `state.workspaces[<id>]` 分区；分区缺失时读为空对象、首次 update 时创建，非法 id → `HARNESS_WORKSPACE_INVALID`，分区根被损坏 → `HARNESS_STORAGE_INVALID`。业务插件为每个解析出的租户各建一个领域服务并绑定其分区，因此租户之间的线索/选择/冲突在磁盘上就是分开的；共享顶层状态（如 `state.artifacts`、`state.harnessAudit`）不进入分区。
+
 ### `ctx.approval`（provider：`packages/harness-seams/src/approval.mjs`）
 
 ```js

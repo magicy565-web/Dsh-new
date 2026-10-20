@@ -275,5 +275,22 @@ plugins:
 - Business plugins call `resolve()` at their HTTP and tool entry points; when
   `ctx.workspace` is absent they keep working for backward compatibility.
 
+### Tenant-scoped storage (`src/scope.mjs`)
+
+```js
+import { scopeStorage } from '@workspace-harness/seams/scope.mjs';
+const alpha = scopeStorage(ctx.storage, 'alpha');
+alpha.read();                       // -> state.workspaces.alpha ({} when absent)
+await alpha.update(state => { ... }); // creates the partition on first write
+```
+
+`scopeStorage` is the isolation primitive behind `ctx.workspace`: two workspaces
+never share business records even though the storage seam keeps one durable file
+and one lock. An invalid tenant id throws `HARNESS_WORKSPACE_INVALID`; a damaged
+`state.workspaces` root throws `HARNESS_STORAGE_INVALID` on write and reads as
+empty instead of crashing. Shared top-level state (`state.artifacts`,
+`state.harnessAudit`) stays outside the partitions.
+
+
 
 

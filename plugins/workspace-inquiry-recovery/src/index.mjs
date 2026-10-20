@@ -4,6 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import { createInquiryRecoveryService, inquiryRecoveryHttp } from '../../../packages/domain-inquiry-recovery/src/index.mjs';
 import { HarnessError, ERROR } from '../../../packages/harness-contracts/src/index.mjs';
+import { scopeStorage } from '../../../packages/harness-seams/src/scope.mjs';
 
 const ROUTES = [
   ['GET', '/api/inquiry-recovery/status'],
@@ -37,12 +38,30 @@ export async function apply(ctx, config = {}) {
     staleDays: config.staleDays ?? 7,
   });
 
+  // One domain service per resolved tenant, each bound to its own storage partition.
+  // Without ctx.workspace the plugin keeps the legacy single-tenant store.
+  const recoveries = new Map();
+  const recoveryFor = workspaceId => {
+    if (!workspaceId) return recovery;
+    let scoped = recoveries.get(workspaceId);
+    if (!scoped) {
+      scoped = createInquiryRecoveryService({
+        store: scopeStorage(ctx.storage, workspaceId),
+        artifacts: ctx.artifacts ?? config.artifacts ?? null,
+        workspaceId,
+        staleDays: config.staleDays ?? 7,
+      });
+      recoveries.set(workspaceId, scoped);
+    }
+    return scoped;
+  };
+
   // ctx.audit is optional: when it is mounted the plugin records metadata-only
   // business events (never message bodies) and serves a read-only audit route.
   const audit = () => {
     try { return ctx.reflect?.get?.('audit', false) ?? null; } catch { return null; }
   };
-  const recordInquiryAudit = async (method, registeredPath, result, context) => {
+  const recordInquiryAudit = async (method, registeredPath, result, context, workspaceId = null) => {
     const service = audit();
     if (!service) return;
     const action = AUDITED_ACTIONS.get(`${method} ${registeredPath}`);
@@ -51,7 +70,7 @@ export async function apply(ctx, config = {}) {
     if (status >= 400) return;
     const params = context?.params ?? {};
     const body = result?.body ?? {};
-    const detail = { status };
+    const detail = { status, ...(workspaceId ? { workspaceId } : {}) };
     if (typeof params.leadId === 'string') detail.leadId = params.leadId;
     if (action === 'import' && typeof body.requestId === 'string') detail.requestId = body.requestId;
     if (action === 'select' && typeof body.selectionId === 'string') detail.selectionId = body.selectionId;
@@ -74,21 +93,31 @@ export async function apply(ctx, config = {}) {
   };
   const authorize = actor => {
     const service = workspace();
-    if (!service) return;
-    service.resolve(actor, config.workspaceId ? { workspaceId: config.workspaceId } : {});
+    if (!service) return null;
+    return service.resolve(actor, config.workspaceId ? { workspaceId: config.workspaceId } : {}).workspaceId;
   };
 
   const handler = (method, registeredPath) => async (_req, _res, context) => {
-    authorize(context?.actor);
-    const result = await inquiryRecoveryHttp({
-      recovery, method,
-      pathname: context?.pathname ?? '',
-      body: context?.body ?? {},
-      query: context?.query ?? {},
-      actor: context?.actor,
-    });
+    const workspaceId = authorize(context?.actor);
+    let result;
+    try {
+      result = await inquiryRecoveryHttp({
+        recovery: recoveryFor(workspaceId), method,
+        pathname: context?.pathname ?? '',
+        body: context?.body ?? {},
+        query: context?.query ?? {},
+        actor: context?.actor,
+      });
+    } catch (error) {
+      // Domain errors carry their own HTTP status; forward 4xx as-is so a missing
+      // or cross-tenant lead is a real 404/409 instead of a generic 500.
+      if (Number.isInteger(error?.status) && error.status >= 400 && error.status < 500) {
+        return { status: error.status, body: { error: { code: error.code ?? 'INQUIRY_ERROR', message: error.message } } };
+      }
+      throw error;
+    }
     if (!result) throw new HarnessError(ERROR.pluginFailed, 'The inquiry recovery route did not match its own registration.');
-    await recordInquiryAudit(method, registeredPath, result, context);
+    await recordInquiryAudit(method, registeredPath, result, context, workspaceId);
     return result;
   };
   for (const [method, path] of ROUTES) ctx.http.route({ method, path, handler: handler(method, path) });
@@ -141,8 +170,8 @@ export async function apply(ctx, config = {}) {
     readOnly: true,
     authority: 'workspace',
     handler: async (_args, execution) => {
-      authorize(execution?.actor);
-      const status = recovery.status(execution?.actor);
+      const workspaceId = authorize(execution?.actor);
+      const status = recoveryFor(workspaceId).status(execution?.actor);
       return { engineVersion: status.engineVersion, staleDays: status.staleDays, asOf: status.asOf, counts: status.counts };
     },
   });
@@ -162,8 +191,8 @@ export async function apply(ctx, config = {}) {
     readOnly: true,
     authority: 'workspace',
     handler: async (args, execution) => {
-      authorize(execution?.actor);
-      const listing = recovery.opportunities({ asOfDate: args?.asOf }, execution?.actor);
+      const workspaceId = authorize(execution?.actor);
+      const listing = recoveryFor(workspaceId).opportunities({ asOfDate: args?.asOf }, execution?.actor);
       const limit = args?.limit ?? 10;
       return {
         asOf: listing.asOf, staleDays: listing.staleDays, summary: listing.summary,
@@ -194,8 +223,8 @@ export async function apply(ctx, config = {}) {
     approval: 'always',
     authority: 'workspace',
     handler: async (args, execution) => {
-      authorize(execution?.actor);
-      const selection = await recovery.selectLead(args.leadId, {
+      const workspaceId = authorize(execution?.actor);
+      const selection = await recoveryFor(workspaceId).selectLead(args.leadId, {
         requestId: randomUUID(), expectedRevision: args.expectedRevision, sourceHash: args.sourceHash, asOf: args.asOf,
       }, execution.actor);
       return {

@@ -14,4 +14,5 @@ import './llm.test.mjs';
 import './skills.test.mjs';
 import './audit.test.mjs';
 import './workspace.test.mjs';
+import './scope.test.mjs';
 import './integration.test.mjs';

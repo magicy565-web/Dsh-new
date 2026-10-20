@@ -45,6 +45,9 @@ async function fixture(t, { includePlugin = true, patch = null, audit = false } 
     '        - id: local',
     '          name: 本地空间',
     '          members: [{ subject: local-operator, role: admin }]',
+    '        - id: beta',
+    '          name: Beta 工厂',
+    '          members: [{ subject: beta-operator, role: admin }]',
     '  - id: approval',
     "    name: '@workspace-harness/seams/approval'",
     '  - id: tools',
@@ -74,7 +77,10 @@ async function fixture(t, { includePlugin = true, patch = null, audit = false } 
   const request = async (route, method = 'GET', body, as = actor) => {
     const response = await fetch(`${base}${route}`, {
       method,
-      headers: { 'content-type': 'application/json', 'x-harness-actor': as.subject, 'x-harness-role': as.role },
+      headers: {
+        'content-type': 'application/json', 'x-harness-actor': as.subject, 'x-harness-role': as.role,
+        ...(typeof as.workspaceId === 'string' && as.workspaceId ? { 'x-harness-workspace': as.workspaceId } : {}),
+      },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const text = await response.text();
@@ -344,4 +350,42 @@ test('a non-member of the configured workspace is refused before any inquiry dat
   // A member still works.
   const allowed = await request('/api/inquiry-recovery/status');
   assert.equal(allowed.status, 200);
+});
+test('two workspaces keep separate inquiry data end to end', async t => {
+  const { harness, request } = await fixture(t);
+  const beta = { subject: 'beta-operator', role: 'admin', workspaceId: 'beta' };
+  const betaRow = row({ leadId: 'lead-beta', sourceId: 'canton-2024', companyName: 'Beta Trading LLC', companyUrl: 'https://beta.example.com', contactEmail: 'buyer@beta.example.com', customerName: 'Lee' });
+
+  const localImport = await request('/api/inquiry-recovery/import', 'POST', { format: 'json', requestId: randomUUID(), content: envelope([row()]) });
+  assert.equal(localImport.status, 201, JSON.stringify(localImport.body));
+  const betaImport = await request('/api/inquiry-recovery/import', 'POST', { format: 'json', requestId: randomUUID(), content: envelope([betaRow]) }, beta);
+  assert.equal(betaImport.status, 201, JSON.stringify(betaImport.body));
+
+  const localStatus = await request('/api/inquiry-recovery/status');
+  assert.equal(localStatus.body.counts.leads, 1, 'local sees only its own lead');
+  const betaStatus = await request('/api/inquiry-recovery/status', 'GET', undefined, beta);
+  assert.equal(betaStatus.body.counts.leads, 1, 'beta sees only its own lead');
+
+  // Cross-tenant reads of an existing lead id are a real 404, not a leak.
+  const localReadsBeta = await request('/api/inquiry-recovery/leads/lead-beta');
+  assert.equal(localReadsBeta.status, 404);
+  assert.doesNotMatch(JSON.stringify(localReadsBeta.body), /Beta Trading|buyer@beta/u);
+  const betaReadsLocal = await request('/api/inquiry-recovery/leads/lead-alpha', 'GET', undefined, beta);
+  assert.equal(betaReadsLocal.status, 404);
+  assert.doesNotMatch(JSON.stringify(betaReadsLocal.body), /Alpha Trading|buyer@alpha/u);
+
+  // Tools follow the same partition as HTTP.
+  const tools = harness.ctx.reflect.get('tools', false);
+  const betaViaTool = await tools.execute('inquiry_recovery_status', {}, { actor: beta });
+  assert.equal(betaViaTool.counts.leads, 1);
+
+  // Proof at rest: the storage file holds one partition per tenant and no legacy
+  // top-level business state.
+  const storage = harness.ctx.reflect.get('storage', false);
+  const root = storage.read();
+  assert.equal(root.workspaces.local.inquiryRecovery.leads.length, 1);
+  assert.equal(root.workspaces.beta.inquiryRecovery.leads.length, 1);
+  assert.equal(root.inquiryRecovery, undefined);
+  assert.equal(root.workspaces.local.inquiryRecovery.leads[0].leadId, 'lead-alpha');
+  assert.equal(root.workspaces.beta.inquiryRecovery.leads[0].leadId, 'lead-beta');
 });

@@ -17,3 +17,4 @@ export {
 } from './skills.mjs';
 export { createAudit, createAuditProvider } from './audit.mjs';
 export { createWorkspace, createWorkspaceProvider } from './workspace.mjs';
+export { scopeStorage } from './scope.mjs';
