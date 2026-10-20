@@ -93,6 +93,11 @@ test('production DOM 390: settings.section renders the console with real registr
   assert.ok(recovery.textContent.includes('可用'), recovery.textContent);
   assert.equal(audit.getAttribute('data-state'), 'missing', 'the enterprise app has no audit endpoint; the SPA fallback is not availability');
   assert.ok(audit.textContent.includes('未提供审计接口'), audit.textContent);
+  const review = consoleSection.querySelector('[data-probe="review"]');
+  await wait(() => review.getAttribute('data-state') !== 'loading', 'review probe settled');
+  assert.equal(review.getAttribute('data-state'), 'missing', 'the enterprise app has no review endpoint');
+  assert.ok(review.textContent.includes('未提供评审接口'), review.textContent);
+  assert.equal(ui.document.querySelector('.harness-console-review'), null, 'no verdict block without a readable review');
   assert.equal(consoleSection.querySelectorAll('[data-audit-index]').length, 0, 'no fabricated audit events');
 
   const before = f.requests.filter(row => row.path.startsWith('/api/inquiry-recovery/audit')).length;
@@ -162,5 +167,54 @@ test('production DOM 390: unregistering the console plugin removes it while the 
   await wait(() => !ui.document.querySelector('.harness-console'), 'console disappears once unregistered');
   assert.ok(ui.document.querySelector('.plugin-slot[data-slot="settings.section"]'), 'slot host stays mounted');
   assert.ok(ui.document.querySelector('.settings-modal'), 'settings dialog survives');
+  assert.deepEqual(ui.errors, []);
+});
+
+test('production DOM 390: the console shows a real review verdict when the route answers', async t => {
+  const f = await fixture(t);
+  const digest = 'b'.repeat(64);
+  const withReview = async (path, options = {}) => {
+    if (String(path) === '/api/harness/review') {
+      return new Response(JSON.stringify({
+        review: { generatedAt: '2026-10-21T02:00:00.000Z', composition: { name: 'dev', digest }, verdict: 'blocked', blockers: [{ kind: 'unmet-requires' }, { kind: 'install-drift' }] },
+        file: '.harness-review.json', generatedAt: '2026-10-21T02:00:00.000Z', state: 'ok',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return f.fetch(path, options);
+  };
+  const ui = f.render('/home', { width: 390, fetch: withReview });
+  await wait(() => ui.document.querySelector('.app-shell[aria-busy="false"]'), 'workspace shell loaded');
+  await openSettings(ui);
+  await wait(() => ui.document.querySelector('.harness-console'), 'console rendered');
+  const review = ui.document.querySelector('[data-probe="review"]');
+  await wait(() => review.getAttribute('data-state') === 'ok', 'review probe becomes readable');
+  assert.equal(review.getAttribute('data-verdict'), 'blocked');
+  assert.ok(review.textContent.includes('判定：blocked'), review.textContent);
+  const section = ui.document.querySelector('.harness-console-review');
+  assert.ok(section, 'the review block is rendered');
+  assert.equal(section.getAttribute('data-verdict'), 'blocked');
+  assert.ok(section.textContent.includes('blocked'));
+  assert.ok(section.textContent.includes(digest.slice(0, 12)), 'the composition digest is shown');
+  assert.ok(section.textContent.includes('2 个阻断项'));
+  assert.ok(section.textContent.includes('unmet-requires'));
+  assert.deepEqual(ui.errors, []);
+});
+
+test('production DOM 390: a stale review is shown as unreadable, never as ready', async t => {
+  const f = await fixture(t);
+  const stale = async (path, options = {}) => {
+    if (String(path) === '/api/harness/review') {
+      return new Response(JSON.stringify({ error: { code: 'HARNESS_REVIEW_UNAVAILABLE', message: 'review is older than 24h' }, state: 'stale' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+    }
+    return f.fetch(path, options);
+  };
+  const ui = f.render('/home', { width: 390, fetch: stale });
+  await wait(() => ui.document.querySelector('.app-shell[aria-busy="false"]'), 'workspace shell loaded');
+  await openSettings(ui);
+  await wait(() => ui.document.querySelector('.harness-console'), 'console rendered');
+  const review = ui.document.querySelector('[data-probe="review"]');
+  await wait(() => review.getAttribute('data-state') === 'error', 'stale review becomes an error state');
+  assert.ok(review.textContent.includes('stale'), review.textContent);
+  assert.equal(ui.document.querySelector('.harness-console-review'), null, 'a stale review never renders a verdict block');
   assert.deepEqual(ui.errors, []);
 });
