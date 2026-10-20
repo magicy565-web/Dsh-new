@@ -223,10 +223,33 @@ exit 1, no storage row → exit 2 with an explicit message. Legacy tool entries 
 normalised to `{kind:'tool', action: tool, code: errorCode}` so the output matches
 `ctx.audit.list()`.
 
+## Offline package management
+
+`install.mjs` installs plugin packages from a local directory into a controlled
+target (default `<root>/plugins`). It never touches the network, never extracts
+archives and never executes package code while installing.
+
+```sh
+wh installed                       # id, version, content digest of each package
+wh install ./packages/my-plugin    # stage, digest-check, atomic rename
+wh install ./packages/my-plugin --upgrade   # keeps the previous install as a backup
+wh uninstall my-plugin             # moves the install to a backup directory
+wh rollback my-plugin              # restores the newest (or --backup <dir>) copy
+```
+
+Rules: `harness.plugin.json` must pass `validateManifest`, `entry` must stay inside
+the package and exist, symlinks are refused, and packages are bounded (512 files /
+4 MiB). The content digest is a SHA-256 over the sorted `{path, sha256, size}` file
+list; the staged copy must match it before the rename. Failures leave the target
+untouched; dot-directories (`.staging-*`, `.backup-*`, `.rollback-*`) are never
+listed as installations. An installed package is resolved by the normal
+composition rule (`plugins/<name>`), so installing is enough for the kernel to
+mount it.
+
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 64 tests, 0 fail
+node --test packages/harness-kernel/test     # 70 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 

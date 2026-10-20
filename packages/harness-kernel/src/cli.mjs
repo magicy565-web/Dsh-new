@@ -5,6 +5,7 @@ import { HarnessError } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, resolveRows } from './resolve.mjs';
 import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled } from './patch.mjs';
+import { installPlugin, listInstalled, rollbackPlugin, uninstallPlugin } from './install.mjs';
 import { composePreset, listPresets, loadPreset, presetSummary } from './presets.mjs';
 
 const STORAGE_STATE_FILE = 'workspace.json';
@@ -17,6 +18,10 @@ Commands:
   doctor    Load the composition (mount plugins, no HTTP serving), report health, then dispose.
   patch     Inspect or edit a patch layer: \`show\`, \`journal\`, \`disable <id>\`, \`enable <id>\` (requires --patch).
   audit     Read the durable audit trail straight from the storage state file (no lock, no mount).
+  installed List installed plugin packages in the target directory.
+  install   Install (or --upgrade) a local plugin package directory; atomic, digest-checked.
+  uninstall Move an installed package to a backup directory.
+  rollback  Restore an installed package from its newest (or named) backup.
   presets   Agent presets: \`wh presets list\` or \`wh presets show <name>\`.
   help      Print this text.
 
@@ -28,6 +33,9 @@ Options:
       --kind <kind>         \`wh audit\`: only events of this kind (e.g. inquiry, tool, harness).
       --workspace <id>      \`wh audit\`: only events recorded for this workspace.
       --limit <n>           \`wh audit\`: newest n events (default 20, max 200).
+      --target <dir>        Plugin package directory for install/uninstall/rollback/installed (default: plugins).
+      --backup <dir>        \`wh rollback\`: restore this explicit backup directory.
+      --upgrade             \`wh install\`: replace an existing installation (the old one is kept as a backup).
       --json                Machine-readable JSON output.
   -h, --help                Print this text.
 `;
@@ -52,6 +60,9 @@ export function parseArgv(argv = []) {
     kind: null,
     workspace: null,
     limit: null,
+    target: null,
+    backup: null,
+    upgrade: false,
     root: null,
     json: false,
     help: false,
@@ -108,6 +119,26 @@ export function parseArgv(argv = []) {
       }
     } else if (argument.startsWith('--workspace=')) {
       options.workspace = argument.slice('--workspace='.length);
+    } else if (argument === '--target') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires a directory.`);
+      else {
+        options.target = value;
+        index += 1;
+      }
+    } else if (argument.startsWith('--target=')) {
+      options.target = argument.slice('--target='.length);
+    } else if (argument === '--backup') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) errors.push(`${argument} requires a directory.`);
+      else {
+        options.backup = value;
+        index += 1;
+      }
+    } else if (argument.startsWith('--backup=')) {
+      options.backup = argument.slice('--backup='.length);
+    } else if (argument === '--upgrade') {
+      options.upgrade = true;
     } else if (argument === '--limit') {
       const value = argv[index + 1];
       const parsed = Number(value);
@@ -134,7 +165,8 @@ export function parseArgv(argv = []) {
       errors.push(`unknown option: ${argument}`);
     } else if (!options.command) {
       options.command = argument;
-    } else if (options.command === 'presets' || options.command === 'patch') {
+    } else if (options.command === 'presets' || options.command === 'patch'
+      || options.command === 'install' || options.command === 'uninstall' || options.command === 'rollback') {
       options.args.push(argument);
     } else {
       errors.push(`unexpected argument: ${argument}`);
@@ -438,6 +470,68 @@ export async function runAudit({
   return 0;
 }
 
+/** `wh installed`: installed packages in the target directory. */
+export async function runInstalled({ root, target = null, json = false, stdout = process.stdout } = {}) {
+  const directory = target ?? 'plugins';
+  const installed = await listInstalled({ root, target: directory });
+  if (json) {
+    stdout.write(`${JSON.stringify({ directory: displayPath(root, directory), packages: installed }, null, 2)}\n`);
+    return 0;
+  }
+  stdout.write(`installed ${installed.length} package(s) in ${displayPath(root, directory)}\n`);
+  for (const item of installed) stdout.write(`${pad(item.id, 24)}${pad(item.version, 10)}${item.digest}\n`);
+  return 0;
+}
+
+async function runInstall({ root, target, upgrade, args, json, stdout, stderr }) {
+  const [source] = args;
+  if (!source) {
+    stderr.write('wh: install requires a package directory\n');
+    return 2;
+  }
+  const result = await installPlugin({
+    sourceDir: isAbsolute(source) ? source : resolvePath(root, source),
+    root, target: target ?? 'plugins', upgrade: upgrade === true,
+  });
+  if (json) {
+    stdout.write(`${JSON.stringify({ ...result, destination: displayPath(root, result.destination), backup: result.backup ? displayPath(root, result.backup) : null }, null, 2)}\n`);
+    return 0;
+  }
+  stdout.write(`installed ${result.id}@${result.version} (${result.digest.slice(0, 12)}) -> ${displayPath(root, result.destination)}`);
+  stdout.write(result.backup ? ` (previous kept at ${displayPath(root, result.backup)})\n` : '\n');
+  return 0;
+}
+
+async function runUninstall({ root, target, args, json, stdout, stderr }) {
+  const [id] = args;
+  if (!id) {
+    stderr.write('wh: uninstall requires a plugin id\n');
+    return 2;
+  }
+  const result = await uninstallPlugin({ id, root, target: target ?? 'plugins' });
+  if (json) {
+    stdout.write(`${JSON.stringify({ ...result, backup: displayPath(root, result.backup) }, null, 2)}\n`);
+    return 0;
+  }
+  stdout.write(`uninstalled ${result.id}; backup kept at ${displayPath(root, result.backup)}\n`);
+  return 0;
+}
+
+async function runRollback({ root, target, backup, args, json, stdout, stderr }) {
+  const [id] = args;
+  if (!id) {
+    stderr.write('wh: rollback requires a plugin id\n');
+    return 2;
+  }
+  const result = await rollbackPlugin({
+    id, root, target: target ?? 'plugins',
+    backup: backup ? (isAbsolute(backup) ? backup : resolvePath(root, backup)) : null,
+  });
+  if (json) stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  else stdout.write(`restored ${result.id} from ${displayPath(root, result.restoredFrom)}${result.displaced ? ` (displaced current installation to ${displayPath(root, result.displaced)})` : ''}\n`);
+  return 0;
+}
+
 /**
  * Run the `wh` CLI.
  * @returns {Promise<number>} process exit code
@@ -459,6 +553,7 @@ export async function runWh(argv = [],
   const context = {
     compositionPath: options.composition, patchPaths: options.patches, state: options.state,
     kind: options.kind, workspace: options.workspace, limit: options.limit, root: effectiveRoot, json: options.json,
+    target: options.target, backup: options.backup, upgrade: options.upgrade,
     args: options.args, stdout, stderr,
   };
   try {
@@ -466,6 +561,10 @@ export async function runWh(argv = [],
     if (options.command === 'doctor') return await runDoctor(context);
     if (options.command === 'patch') return await runPatch(context);
     if (options.command === 'audit') return await runAudit(context);
+    if (options.command === 'installed') return await runInstalled(context);
+    if (options.command === 'install') return await runInstall(context);
+    if (options.command === 'uninstall') return await runUninstall(context);
+    if (options.command === 'rollback') return await runRollback(context);
     if (options.command === 'presets') return await runPresets(context);
     stderr.write(`wh: unknown command "${options.command}"\n\n${USAGE}`);
     return 2;

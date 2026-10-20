@@ -80,8 +80,7 @@ insert:                       # 追加新行
 - 被 `disabled` 的行**不会 import**，其路由、工具、health 一并消失——这是运行时可装卸的最小真实形态。
 - `writePatch` / `setRowDisabled`：先校验再原子写（同目录临时文件 + rename），旧字节存 `<file>.bak`；清空最后一层时删除文件而不是写入空 patch；原文件损坏时拒绝改写。
 - `digestComposition`：有效行（id/name/config/disabled）的稳定 SHA-256，暴露为 `harness.composition.digest` 与 `harness.patches.digest`，用于记录/比对"实际挂载了什么"。
-- CLI：`wh patch show|disable <id>|enable <id> --patch <file>`。
-- `wh audit`：直接读 storage 状态文件（`workspace.json`）中的 `harnessAudit`，不挂载、不加锁、不写入；支持 `--state/--kind/--limit/--json`；旧工具条目归一化为统一 schema；缺文件 → exit 2、非法 JSON → exit 1、无 storage 行 → exit 2。
+- CLI：`wh patch show|disable <id>|enable <id> --patch <file>`。- `wh audit`：直接读 storage 状态文件（`workspace.json`）中的 `harnessAudit`，不挂载、不加锁、不写入；支持 `--state/--kind/--limit/--json`；旧工具条目归一化为统一 schema；缺文件 → exit 2、非法 JSON → exit 1、无 storage 行 → exit 2。
 - 审计：每次 patch 写入/删层追加一行到 `<file>.journal.jsonl`（`at/event/action/rowId/beforeDigest/afterDigest/backup`，不含业务数据）；`wh patch journal --patch <file>` 读取。`createHarness({ auditPath })` / `node harness.mjs --audit <file>` 记录 `harness.mount|start|stop`，每行带组合 digest、patch digest、preset 与插件 id 列表。
 
 ## 3. 内核 API（`packages/harness-kernel/src/app.mjs`）
@@ -243,7 +242,22 @@ export async function apply(ctx, config) {
 
 **工件读取**：`GET /api/inquiry-recovery/artifacts/:artifactId` 返回 `{artifact, content}`；领域在创建草稿工件时把 `metadata.inquiryRecovery.workspaceId` 写入，读取时校验归属——非本租户或不存在一律 404 `INQUIRY_ARTIFACT_NOT_FOUND`（不做 403，避免租户探测 id 是否存在）；`ctx.artifacts` 未挂载 → 500。
 
-## 7. 验收（A/B/C 各自必须提供）
+## 7. 插件包管理（`packages/harness-kernel/src/install.mjs`，离线）
+
+```sh
+wh installed [--target plugins] [--json]
+wh install <dir> [--target plugins] [--upgrade] [--json]
+wh uninstall <id> [--target plugins] [--json]
+wh rollback <id> [--target plugins] [--backup <dir>] [--json]
+```
+
+- 来源是**本地目录**（`harness.plugin.json` + entry）；不联网、不解压归档、安装期不执行包代码。
+- 校验：`validateManifest`、entry 必须位于包内且存在、拒绝符号链接、≤512 文件 / ≤4 MiB。
+- 内容摘要 = 对排序后的 `{path, sha256, size}` 列表求 SHA-256；暂存副本摘要必须与源一致才 rename。
+- 原子性：先复制到 `.staging-*`，校验后 rename 到 `plugins/<id>`；升级先把旧安装 rename 到 `.backup-*`，失败时回滚；卸载 = rename 到 `.backup-*`；回滚 = 恢复最新（或显式）备份，当前安装移到 `.rollback-*`。
+- 安装后的包由常规解析规则（`plugins/<name>`）发现，无需额外注册即可被组合挂载。
+
+## 8. 验收（A/B/C 各自必须提供）
 
 ```sh
 node node_modules/typescript/bin/tsc --noEmit          # 不许回归
