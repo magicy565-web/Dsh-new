@@ -16,7 +16,7 @@ const emptyHash = hash('');
 const cookieName = '__Host-workspace_session';
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const administrative = /^(?:\/api\/(settings|skills|connectors|approvals|schedules|access|commerce-shopify|worker-opportunities|cloud-experts|cloud-teams)(?:\/|$)|\/api\/runs\/[^/]+\/action-decision$|\/api\/worker-orders\/[^/]+\/promote$|\/api\/library\/documents\/[^/]+\/versions\/[^/]+\/reviews$)/;
-const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|library|commerce-projects|worker-orders|supply|agent-ui)(?:\/|$)/;
+const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|library|commerce-projects|worker-orders|supply|inquiry-recovery|agent-ui)(?:\/|$)/;
 const iso = value => new Date(value).toISOString();
 function routeLabel(pathname) {
   const parts = pathname.split('/');

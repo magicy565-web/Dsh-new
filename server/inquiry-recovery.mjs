@@ -13,6 +13,8 @@ const MAX_BODY = 4000;
 const DEFAULT_STALE_DAYS = 7;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$/u;
+// leadId becomes a URL path segment, so it may not contain a slash.
+const LEAD_ID = /^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}$/u;
 const STATUSES = new Set(['active', 'won', 'lost', 'opted_out', 'manual_hold']);
 const HOLD_STATUSES = new Set(['won', 'lost', 'opted_out', 'manual_hold']);
 const DIRECTIONS = new Set(['inbound', 'outbound', 'internal']);
@@ -64,13 +66,13 @@ function explicitDate(value) {
   // an offset is never guessed against the server clock.
   if (!/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2}))?$/u.test(input))
     return { value: null, unknown: true, raw: input.slice(0, 64) };
-  if (/^\d{4}-\d{2}-\d{2}$/u.test(input)) {
-    const [year, month, day] = input.split('-').map(Number);
-    const calendar = new Date(Date.UTC(year, month - 1, day));
-    if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1 || calendar.getUTCDate() !== day)
-      return { value: null, unknown: true, raw: input.slice(0, 64) };
-    return { value: calendar.toISOString(), unknown: false };
-  }
+  // Neither a bare date nor a datetime may carry an impossible calendar day:
+  // Date.parse would silently roll 2026-02-30 over to 2026-03-02.
+  const [year, month, day] = input.slice(0, 10).split('-').map(Number);
+  const calendar = new Date(Date.UTC(year, month - 1, day));
+  if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1 || calendar.getUTCDate() !== day)
+    return { value: null, unknown: true, raw: input.slice(0, 64) };
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(input)) return { value: calendar.toISOString(), unknown: false };
   const parsed = Date.parse(input);
   if (!Number.isFinite(parsed)) return { value: null, unknown: true, raw: input.slice(0, 64) };
   return { value: new Date(parsed).toISOString(), unknown: false };
@@ -145,6 +147,7 @@ function normalizeRow(source, label = 'row') {
   for (const key of Object.keys(source)) if (!COLUMNS.includes(key))
     fail(400, 'INQUIRY_ROW_INVALID', `${label} contains unsupported field ${key}.`);
   const leadId = identifier(source.leadId, 'leadId');
+  if (!LEAD_ID.test(leadId)) fail(400, 'INQUIRY_FIELD_INVALID', 'leadId may not contain a slash; it becomes a route segment.');
   const sourceId = identifier(source.sourceId, 'sourceId');
   const revision = integer(source.revision, 'revision', 1, Number.MAX_SAFE_INTEGER);
   const status = source.status === undefined || source.status === '' ? 'active' : String(source.status).trim();
@@ -214,6 +217,7 @@ function decisionFor(lead, asOfMs, staleDays = DEFAULT_STALE_DAYS) {
   }
   const reasons = [], missing = [];
   if (lead.identity.status !== 'confirmed') reasons.push(lead.identity.status === 'conflicting' ? 'IDENTITY_CONFLICT' : 'IDENTITY_UNCONFIRMED');
+  if (!Array.isArray(lead.facts) || lead.facts.length === 0) reasons.push('NO_VERBATIM_EVIDENCE');
   if (!lead.contactEmail && !lead.customerName) missing.push('contact_channel');
   if (!lead.companyUrl) missing.push('company_url');
   if (!lead.productId) missing.push('product_binding');
@@ -404,6 +408,10 @@ export function createInquiryRecoveryService({ store, artifacts = null, clock = 
       const carried = {};
       for (const key of ['companyName', 'companyUrl', 'contactEmail', 'customerName', 'productId', 'product', 'unit', 'destination'])
         if (!record[key] && current[key]) carried[key] = current[key];
+      if (record.quantity === null && current.quantity !== null) carried.quantity = current.quantity;
+      if (!record.body && current.body) carried.body = current.body;
+      for (const key of ['history', 'facts', 'requestedCertifications'])
+        if (Array.isArray(record[key]) && record[key].length === 0 && (current[key]?.length ?? 0) > 0) carried[key] = current[key];
       Object.assign(current, record, carried, {
         sourceHash: digest, importId, updatedAt: now(clock), updatedBy: actor.subject,
         revisionHistory: [...(current.revisionHistory || []), previous].slice(-20),
@@ -443,7 +451,9 @@ export function createInquiryRecoveryService({ store, artifacts = null, clock = 
     if (typeof conversationId !== 'string' || !conversationId.trim() || conversationId.length > 200)
       fail(400, 'INQUIRY_CONVERSATION_INVALID', 'conversationId must be a bounded identifier.');
     const conversation = (store.read().conversations ?? []).find(item => item.id === conversationId);
-    if (!conversation || conversation.subject !== actor.subject)
+    const owner = conversation?.createdBy ?? conversation?.subject;
+    const workspace = conversation?.workspaceId;
+    if (!conversation || owner !== actor.subject || (workspace !== undefined && workspace !== workspaceId))
       fail(403, 'INQUIRY_CONVERSATION_REFUSED', 'Attach only your own Workspace conversation, or omit it.');
     return conversationId;
   }

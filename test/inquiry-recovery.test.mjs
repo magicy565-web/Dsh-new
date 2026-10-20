@@ -341,3 +341,64 @@ test('a newer revision keeps omitted optional fields instead of erasing them', a
   assert.equal(card.identity.status, 'unknown');
   assert.equal(card.sourceHash, recovery.lead('lead-alpha', actor).card.sourceHash);
 });
+
+test('a newer revision cannot erase quantity, body, history or facts', async t => {
+  const { recovery } = await fixture(t);
+  await importJson(recovery, [row({ body: 'Original notes from the trade fair.' })]);
+  await importJson(recovery, [row({ revision: 2, quantity: '', body: '', history: [], facts: [], requestedCertifications: [] })]);
+  const detail = recovery.lead('lead-alpha', actor);
+  assert.equal(detail.card.request.quantity, 500);
+  assert.equal(detail.facts.length, 1);
+  assert.equal(detail.history.length, 1);
+  assert.equal(detail.card.evidence[0].quote, 'We need 500 pcs hydraulic cylinder');
+});
+
+test('a lead without verbatim evidence can never become follow_up', async t => {
+  const { recovery } = await fixture(t);
+  await importJson(recovery, [row({ leadId: 'lead-no-facts', sourceId: 'src-nf', facts: [] })]);
+  const detail = recovery.lead('lead-no-facts', actor);
+  await recovery.reviewIdentity('lead-no-facts', {
+    requestId: randomUUID(), sourceHash: detail.card.sourceHash, status: 'confirmed', basis: [{ sourceId: 'src-nf', quote: 'operator note' }],
+  }, actor);
+  const card = recovery.lead('lead-no-facts', actor).card;
+  assert.equal(card.decision, 'need_evidence');
+  assert.ok(card.reasons.includes('NO_VERBATIM_EVIDENCE'));
+  await assert.rejects(recovery.selectLead('lead-no-facts', {
+    requestId: randomUUID(), expectedRevision: card.revision, sourceHash: card.sourceHash, asOf: '2026-10-21',
+  }, actor), code('INQUIRY_NOT_ELIGIBLE'));
+});
+
+test('impossible calendar days inside a datetime stay unknown', async t => {
+  const { recovery } = await fixture(t);
+  await importJson(recovery, [row({ lastContactAt: '2026-02-30T00:00:00Z' })]);
+  const card = recovery.lead('lead-alpha', actor).card;
+  assert.equal(card.lastContactAt, null);
+  assert.ok(card.dateUnknown.includes('lastContactAt'));
+});
+
+test('a leadId may not contain a slash because it is a route segment', async t => {
+  const { recovery } = await fixture(t);
+  await assert.rejects(importJson(recovery, [row({ leadId: 'vendor/lead-1' })]),
+    error => error?.code === 'INQUIRY_IMPORT_REJECTED' && error.rejected[0].code === 'INQUIRY_FIELD_INVALID');
+});
+
+test('conversation attachment follows the real createdBy ownership and workspace', async t => {
+  const captured = [];
+  const artifacts = { async create(input) { captured.push(input); return { artifact: { id: 'artifact-c', currentVersion: 1, sha256: 'b'.repeat(64), filename: input.filename }, duplicate: false }; } };
+  const { recovery, store } = await fixture(t, { artifacts });
+  await importJson(recovery, [row()]);
+  const card = recovery.lead('lead-alpha', actor).card;
+  await recovery.reviewIdentity('lead-alpha', {
+    requestId: randomUUID(), sourceHash: card.sourceHash, status: 'confirmed', basis: [{ sourceId: 'm1', quote: 'We need 500 pcs hydraulic cylinder' }],
+  }, actor);
+  await store.update(state => { state.conversations.push({ id: 'conv-own', createdBy: 'owner-a', workspaceId: 'ws-1', subject: 'ignored' }); });
+  const ready = recovery.lead('lead-alpha', actor).card;
+  const selection = await recovery.selectLead('lead-alpha', {
+    requestId: randomUUID(), expectedRevision: ready.revision, sourceHash: ready.sourceHash, asOf: '2026-10-21', conversationId: 'conv-own',
+  }, actor);
+  assert.equal(selection.artifact.artifactId, 'artifact-c');
+  assert.equal(captured[0].sourceConversationId, 'conv-own');
+  await assert.rejects(recovery.selectLead('lead-alpha', {
+    requestId: randomUUID(), expectedRevision: ready.revision, sourceHash: ready.sourceHash, asOf: '2026-10-21', conversationId: 'conv-missing',
+  }, actor), code('INQUIRY_CONVERSATION_REFUSED'));
+});
