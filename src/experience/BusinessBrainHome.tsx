@@ -54,7 +54,8 @@ export function BusinessBrainHome({
   onStartGoal,
   onOpenGoal,
   onContinueConversation,
-  onNavigate
+  onNavigate,
+  onOpenRecovery
 }: {
   data: Bootstrap | null;
   loading: boolean;
@@ -64,6 +65,7 @@ export function BusinessBrainHome({
   onOpenGoal: (goal: Goal) => void;
   onContinueConversation: (conversationId: string) => void;
   onNavigate: (page: 'goals' | 'library' | 'activity' | 'chat') => void;
+  onOpenRecovery?: () => void;
 }) {
   const [conversationId, setConversationId] = useState<string | undefined>(() => newestConversation(data)?.id);
   useEffect(() => { if (!conversationId) setConversationId(newestConversation(data)?.id); }, [conversationId, data?.conversations]);
@@ -136,6 +138,18 @@ export function BusinessBrainHome({
           <Icon name="chat" size={18} />
         </button>
       </header>
+
+      <section className="brain-recovery" aria-label="历史询盘捞回">
+        <div>
+          <span className="brain-eyebrow">INQUIRY RECOVERY</span>
+          <h2>询盘捞回</h2>
+          <p>用已导入的历史询盘和逐字证据，找出该跟进、该补证和该暂停的线索。</p>
+        </div>
+        <button type="button" className="brain-recovery-open" onClick={() => onOpenRecovery?.()}>
+          询盘捞回
+          <Icon name="chevron" size={14} />
+        </button>
+      </section>
 
       <div className="brain-section-label">
         <span>{checking ? '正在刷新经营信号' : '当前最值得关注'}</span>

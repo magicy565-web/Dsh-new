@@ -5,3 +5,11 @@
 @media(min-width:761px){.brain-sheet{margin-bottom:18px;border-radius:22px;max-height:760px}.brain-sheet-layer{padding:18px}.brain-sheet-backdrop{background:rgba(16,23,34,.22)}}
 
 .brain-review-section{background:#fafbfc;margin-left:-18px;margin-right:-18px;padding-left:18px;padding-right:18px}.brain-review-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:11px 0}.brain-review-choices button{border:1px solid #dfe5ed;background:#fff;color:#657389;border-radius:10px;min-height:38px;font-size:11px}.brain-review-choices button.selected{border-color:#aeb9c8;background:#f0f3f6;color:#1d2838}.brain-review-section textarea{display:block;width:100%;box-sizing:border-box;min-height:84px;resize:vertical;border:1px solid #dfe5ed;border-radius:11px;background:#fff;padding:10px;font:inherit;font-size:12px;line-height:1.6;outline:none}.brain-review-section textarea:focus{border-color:#aeb9c8}.brain-review-submit{margin-top:8px;border:0;background:#263246;color:#fff;border-radius:10px;min-height:40px;padding:9px 12px;font-size:11px}.brain-review-submit:disabled{opacity:.45}.brain-review-error{font-size:11px;color:#9b4f4f;margin:7px 0 0}
+
+/* Entry point to the existing historical inquiry recovery page. */
+.brain-recovery{display:flex;flex-direction:column;gap:10px;padding:14px 15px;margin:0 0 18px;border:1px solid #e4e8ee;border-radius:17px;background:#fff}
+.brain-recovery h2{font-size:17px;line-height:1.35;margin:5px 0 4px;letter-spacing:-.015em}
+.brain-recovery p{font-size:12px;line-height:1.7;color:#68778d;margin:0}
+.brain-recovery-open{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:10px 13px;border-radius:12px;background:#141b29;color:#fff;border:0;font-size:12px}
+.brain-recovery-open:disabled{opacity:.45}
+@media(min-width:600px){.brain-recovery{flex-direction:row;align-items:center;justify-content:space-between;gap:18px}.brain-recovery-open{align-self:center;flex:0 0 auto}}

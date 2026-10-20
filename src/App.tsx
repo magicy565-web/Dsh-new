@@ -10,6 +10,7 @@ import Workers from './Workers';
 import CloudExperts from './CloudExperts';
 import { CloudControl } from './experience/CloudControl';
 import { BusinessBrainHome } from './experience/BusinessBrainHome';
+import { InquiryRecovery } from './experience/InquiryRecovery';
 import { GoalFocus } from './experience/GoalFocus';
 import { GoalComposer } from './experience/GoalComposer';
 import { BusinessLibrary } from './library/BusinessLibrary';
@@ -35,7 +36,7 @@ import type { ManagementTab } from './Management';
 import type { IconName } from './icons';
 import type { Approval, Artifact, Bootstrap, Conversation, Goal, InputContext, Memory, Message, Run, Settings, Runtime } from './types';
 
-type Page = 'home' | 'commerce' | 'workers' | 'services' | 'chat' | 'activity' | 'ideas' | 'goals' | 'library';
+type Page = 'home' | 'commerce' | 'workers' | 'services' | 'chat' | 'activity' | 'ideas' | 'goals' | 'library' | 'recovery';
 type Route = { page: Page; id?: string; invalid?: true };
 type Dialog = { type: 'plugins' } | { type: 'references'; conversationId: string } | { type: 'goal-details' } | { type: 'context'; conversationId?: string; goalId?: string } | { type: 'management'; tab: ManagementTab } | { type: 'settings' } | { type: 'search' } | { type: 'category'; category: Category } | { type: 'rename'; conversation: Conversation } | { type: 'delete'; kind: 'conversation' | 'memory' | 'goal'; id: string; title: string } | { type: 'note'; memory?: Memory } | null;
 type Category = { title: string; icon: IconName; label: string; description: string; prompt: string };
@@ -48,13 +49,13 @@ const categories: Category[] = [
   { title: '业务效率', icon: 'bolt', label: '业务效率', description: '减少重复性业务工作，设计可以交给 Worker 的标准流程。', prompt: '我们想降低企业日常业务的重复性工作，请帮助识别适合交给 AI Worker 的任务，并确定验收标准。' },
   { title: '其他增长', icon: 'sparkle', label: '其他增长', description: '任何具体业务成果都可以先定义为可委托任务。', prompt: '我们有一个企业增长目标。请先明确成果、范围、预算及权限，不要直接执行未经批准的外部操作。' },
 ];
-const pageLabels: Record<Page, string> = { home: '经营', commerce: '产品托管', workers: '云端专家', services: '业务任务', chat: '对话', activity: '动态', ideas: '灵感', goals: '目标', library: '资料库' };
+const pageLabels: Record<Page, string> = { home: '经营', commerce: '产品托管', workers: '云端专家', services: '业务任务', chat: '对话', activity: '动态', ideas: '灵感', goals: '目标', library: '资料库', recovery: '询盘捞回' };
 const statusLabels: Record<string, string> = { draft: '待开始', running: '进行中', awaiting_approval: '待审批', paused: '已暂停', blocked: '等待连接', completed: '已审核', succeeded: '成果已返回', interrupted: '结果待核对', review_required: '待审核', cancelled: '已取消', failed: '需要重试', idle: '就绪' };
 const defaultSettings: Settings = { name: 'Workspace', language: 'zh', model: 'deepseek-flash', maxGoalSteps: 3 };
 function routePath() { return location.protocol === 'file:' ? location.hash.replace(/^#/, '') || '/chat' : location.pathname; }
 function readRoute(): Route {
   const [page, ...parts] = routePath().split('/').filter(Boolean);
-  const target: Page = ['home', 'commerce', 'workers', 'services', 'chat', 'activity', 'ideas', 'goals', 'library'].includes(page) ? page === 'commerce' ? 'library' : page as Page : 'chat';
+  const target: Page = ['home', 'commerce', 'workers', 'services', 'chat', 'activity', 'ideas', 'goals', 'library', 'recovery'].includes(page) ? page === 'commerce' ? 'library' : page as Page : 'chat';
   const raw = parts.length ? parts.join('/') : undefined;
   return { page: target, ...(raw ? target === 'chat' ? conversationIdFromRoute(raw) : { id: raw } : {}) };
 }
@@ -327,7 +328,9 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
       </> : <>
         {!['home', 'workers'].includes(route.page) && <header className="page-mobile-header"><span>{pageLabels[route.page]}</span><span className="workspace-wordmark">WORKSPACE</span></header>}
         <div className={`page-content page-${route.page}`}>
-          {route.page === 'home' && <BusinessBrainHome data={data} loading={loading} readOnly={readOnly || publicOnly || runtimeUnavailable} onStartAnalysis={(value, conversationId) => void startBrainPrompt(value, conversationId)} onStartGoal={(card, conversationId) => void startBrainGoal(card, conversationId)} onOpenGoal={goal => navigate('goals', goal.id)} onContinueConversation={conversationId => navigate('chat', conversationId)} onNavigate={page => navigate(page)} />}
+          {route.page === 'home' && <BusinessBrainHome data={data} loading={loading} readOnly={readOnly || publicOnly || runtimeUnavailable} onStartAnalysis={(value, conversationId) => void startBrainPrompt(value, conversationId)} onStartGoal={(card, conversationId) => void startBrainGoal(card, conversationId)} onOpenGoal={goal => navigate('goals', goal.id)} onContinueConversation={conversationId => navigate('chat', conversationId)} onNavigate={page => navigate(page)} onOpenRecovery={() => navigate('recovery')} />}
+
+          {route.page === 'recovery' && <InquiryRecovery role={session.user?.role || 'viewer'} />}
 
           {selectedGoal && <><GoalFocus key={selectedGoal.id} goal={selectedGoal} runtime={data?.runtime} runs={(data?.runs || []).filter(run => run.conversationId === selectedGoal.conversationId)} artifacts={data?.artifacts || []} messages={(data?.messages || []).filter(message => message.conversationId === selectedGoal.conversationId)} activity={data?.activity || []} working={busy} readOnly={readOnly || publicOnly || runtimeUnavailable} onBack={() => navigate('chat', selectedGoal.conversationId)} onStart={() => void goalAction(selectedGoal, selectedGoal.status === 'draft' ? 'start' : 'resume')} onPause={() => void goalAction(selectedGoal, 'pause')} onReview={() => setDialog({ type: 'goal-details' })} onApproval={() => navigate('chat', selectedGoal.conversationId)} onReferences={() => selectedGoal.conversationId && setDialog({ type: 'references', conversationId: selectedGoal.conversationId })} onInputs={() => setDialog({ type: 'context', conversationId: selectedGoal.conversationId, goalId: selectedGoal.id })} inputLabel={inputSummary(selectedGoal.inputContext || data?.conversations.find(item => item.id === selectedGoal.conversationId)?.inputContext)} onRetry={item => void retryTaskRun(item)} runCards={data && (data.runs || []).filter(run => run.conversationId === selectedGoal.conversationId).map(run => <TaskRunCard key={run.id} run={run} data={data} role={session.user?.role || 'viewer'} busy={busy} onDecision={(item, proposalId, decision) => void runDecision(item, proposalId, decision)} onResume={item => void resumeRun(item)} onRetry={item => void retryTaskRun(item)} onCancel={item => void mutate(`/runs/${item.id}/cancel`, 'POST', {})}/>)} revision={data?.meta?.sequence || 0} onChannels={() => navigate('commerce')} onCommerceProject={id => navigate('commerce', id)} onResearchOrder={id => navigate('services', id)} onRuntime={() => setDialog({ type: 'settings' })} onFollowup={async content => {
             if (!selectedGoal.conversationId) return false;

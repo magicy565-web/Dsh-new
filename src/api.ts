@@ -1,7 +1,7 @@
 export type Session = { mode: 'local' | 'enterprise'; authenticated: boolean; workspaceId: string; user: { id: string; role: 'admin' | 'operator' | 'viewer' } | null; csrfToken: string | null; expiresAt: string | null; idleExpiresAt: string | null };
 let csrfToken: string | null = null;
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public code?: string) { super(message); }
+  constructor(message: string, public status: number, public code?: string, public detail?: unknown) { super(message); }
 }
 export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
@@ -24,7 +24,7 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
         csrfToken = null;
         window.dispatchEvent(new CustomEvent('workspace-session-required'));
       }
-      throw new ApiError(typeof result.error === 'string' ? result.error : result.error?.message || result.message || '操作未完成，请重试', response.status, code);
+      throw new ApiError(typeof result.error === 'string' ? result.error : result.error?.message || result.message || '操作未完成，请重试', response.status, code, result);
     }
     return result as T;
   }
