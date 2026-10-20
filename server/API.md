@@ -207,3 +207,58 @@ and payload `{expectedRevision,content,filename?}`. A connector instance must be
 saved disabled, explicitly enabled and selected for a task; every invocation still
 needs its exact approval. It cannot read arbitrary server paths or use the network.
 This does not add native SDK approval support or change native profile permissions.
+
+## AI-work 产品库与开发计划委托（首个通用 AI-work：客户线索挖掘）
+
+平台首个通用 AI-work：`lead-discovery`（客户线索挖掘）。它作为**产品**发布在平台 AI-work 产品库中；实例化时必须绑定**企业产品库中的精确产品版本**（`productId` + `revision` + SHA-256），计划中的品类、SKU、MOQ、交期与供货条件只来自产品库，缺项标记不编造。委托生成开发计划与不可变计划书工件，从不调用模型。审批后可导入**客户授权线索**（CSV/JSON，逐行证据校验 + 去重 + 规则评分），或在配置 `SERPER_API_KEY` / `COMPANIES_HOUSE_API_KEY` 后按计划 query **自动搜索公开网页/英国公司登记**（结果只作为带来源与摘要的候选，进入人工审核）；随后生成**未发送开发信草稿**并审批。配置 `OUTREACH_PROVIDER` 后，管理员可逐封发送已批准草稿（受占位符、退订/抑制、同意记录约束）；默认未配置，草稿保持未发送。
+
+| Method | Route | Role | Action |
+|---|---|---|---|
+| GET | `/api/ai-works` | member | 已发布 AI-work 产品目录 + 注册表状态 |
+| GET | `/api/ai-works/status` | member | 产品/委托/候选计数、数据源可用性、产品库是否接入 |
+| GET | `/api/ai-works/:id` | member | 单个产品定义（含 inputSchema/workflow/交付物/验收） |
+| POST | `/api/ai-works` | admin | 发布产品（首次创建或 `expectedRevision` 版本升级；`requestId` 幂等） |
+| POST | `/api/ai-works/:id/delegations` | operator/admin | 建立开发计划委托（校验输入、读取产品库精确版本、生成计划、保存计划书工件） |
+| GET | `/api/ai-work-delegations` | member | 委托列表 |
+| GET | `/api/ai-work-delegations/:id` | member | 委托详情（含计划、产品版本钉住信息、执行状态、计划书工件） |
+| GET | `/api/ai-work-sources` | member | 数据源可用性（`authorized_import` 始终可用；`serper`/`companies_house` 配置 API key 后为 available） |
+| POST | `/api/ai-work-delegations/:id/candidates` | operator/admin | 导入客户授权线索（CSV/JSON；逐行校验、域名/公司去重、规则评分；64 KiB / 100 行上限） |
+| GET | `/api/ai-work-delegations/:id/candidates` | member | 候选线索列表（证据、fitScore、审核状态） |
+| POST | `/api/ai-work-delegations/:id/execute` | operator/admin | 执行：已配置自动源时按计划 query 搜索（每 query ≤10 条，最多 3 query/源）；否则使用已导入线索；无输入返回 `awaitingSource:true`；全部查询失败 → `failed` + `lastError`，不伪造候选 |
+| POST | `/api/ai-work-candidates/:id/review` | operator/admin | 人工审核 `qualified`/`rejected` + 理由（≥2 字，幂等） |
+| POST | `/api/ai-work-candidates/:id/drafts` | operator/admin | 合格线索生成**未发送**开发信草稿（语言 en/de，默认目标市场语言；证据引用；签名/退订占位） |
+| GET | `/api/ai-work-delegations/:id/drafts` | member | 委托下的草稿列表 |
+| GET | `/api/ai-work-drafts/:id` | member | 草稿详情（subject/body/证据/合规/警告/状态/发送回执） |
+| PATCH | `/api/ai-work-drafts/:id` | operator/admin | 编辑待审批草稿（替换占位符；revision+1，需重新审批；已发送不可编辑） |
+| POST | `/api/ai-work-drafts/:id/approve` | admin | 审批草稿（`confirmed:true`；审批本身不发送） |
+| POST | `/api/ai-work-drafts/:id/reject` | operator/admin | 拒绝草稿（理由 ≥2 字；可重新生成 revision+1） |
+| GET | `/api/ai-work-outreach` | member | 外发通道 readiness（provider/from；未配置时发送 503）+ 发送统计（sent/attempts/failedAttempts/suppressions/lastError）+ 失败草稿列表（最多 20） |
+| POST | `/api/ai-work-drafts/:id/send` | admin | 发送已批准草稿：需 provider 已配置、占位符已替换、HTTPS 退订链接、未抑制；德国等需 `consentConfirmed:true`+`consentBasis`；provider 接受后才 `sent:true` |
+| GET | `/api/ai-work-delegations/:id/export/candidates` | member | 候选 CSV（UTF-8；含来源 URL/摘录/评分/状态，行数受上限保护） |
+| GET | `/api/ai-work-delegations/:id/export/drafts` | member | 草稿 CSV（含语言/revision/状态/sent/回执/provider messageId/主题） |
+| GET | `/api/ai-work-delegations/:id/events` | member | 该委托审计事件（最近 100 条，倒序；JSON） |
+| GET | `/api/ai-work-delegations/:id/export/events` | member | 该委托审计事件 CSV（eventId/type/at/actor/detail） |
+| GET | `/api/ai-work-suppressions` | member | 退订/抑制名单 |
+| POST | `/api/ai-work-suppressions` | admin | 新增抑制（`email` 或 `domain` + `reason`） |
+| POST | `/api/ai-work-suppressions/:id/remove` | admin | 撤销抑制 |
+
+外发环境变量（服务端，不写入前端）：`OUTREACH_PROVIDER=resend|postmark`、`RESEND_API_KEY` 或 `POSTMARK_SERVER_TOKEN`、`OUTREACH_FROM_EMAIL`（必填）、`OUTREACH_FROM_NAME`/`OUTREACH_REPLY_TO`（可选）；`AI_WORK_DUAL_APPROVAL=true` 时审批人与发送人必须是不同 admin。未配置时草稿保持未发送，`send` 返回 503 `OUTREACH_NOT_CONFIGURED`。
+| POST | `/api/ai-work-delegations/:id/approve` | admin | 审批开发计划（`confirmed:true` + `requestId`，一次审批可安全重试） |
+| POST | `/api/ai-work-delegations/:id/cancel` | operator/admin | 取消 draft 委托 |
+
+创建委托示例：
+
+```json
+POST /api/ai-works/lead-discovery/delegations
+{
+  "requestId": "stable-request-id",
+  "productId": "企业产品库产品 UUID",
+  "targetCountry": "美国",
+  "buyerType": "进口商",
+  "targetCount": 50,
+  "deadlineDays": 30,
+  "notes": "首批优先有进口记录的经销商"
+}
+```
+
+响应包含 `delegation.plan`（市场/买家画像/搜索 query/数据源/工作流/交付物/验收/风险/合规提示）、`delegation.productRefs`（field/productId/revision/sha256）、`planHash` 与 `artifactId`。产品库为空时先通过 `/api/library/products` 建立产品；产品被归档或不存在时分别返回 `PRODUCT_ARCHIVED` / `PRODUCT_NOT_FOUND`。

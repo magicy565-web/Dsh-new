@@ -5,6 +5,7 @@ import { assertWindowsDirectoryVolume } from './windows-volume.mjs';
 import { assertPrivateWindowsPath } from './windows-private-acl.mjs';
 import { validateMuseJointSlots } from './muse-worker-slot.mjs';
 import { validateMuseDraftRegistry } from './muse-draft.mjs';
+import { validateAiWorksState } from './ai-works.mjs';
 
 import {validateWorkspaceModelBudgetState} from './workspace-model-budget.mjs';
 
@@ -101,6 +102,12 @@ export function validateState(state, version = STORE_VERSION) {
   }
   // V12 optional bridge receipt registry: legacy schema-v3 snapshots stay readable.
   if (Object.hasOwn(state, 'workerDelegations')) validateCollection(state.workerDelegations);
+  // Optional platform AI-work product registry + development-plan delegations.
+  // The first published AI-work is created lazily on startup; legacy snapshots
+  // without this collection remain valid.
+  if (Object.hasOwn(state, 'aiWorks')) {
+    try { validateAiWorksState(state.aiWorks); } catch { throw invalid(); }
+  }
   // Optional private single-enterprise sourcing pilot. No migration of legacy
   // records or assumption that these are multi-tenant-ready business tables.
   if (Object.hasOwn(state, 'supplyNetwork')) {

@@ -16,12 +16,12 @@ const emptyHash = hash('');
 const cookieName = '__Host-workspace_session';
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const administrative = /^(?:\/api\/(settings|skills|connectors|approvals|schedules|access|commerce-shopify|worker-opportunities|cloud-experts|cloud-teams)(?:\/|$)|\/api\/runs\/[^/]+\/action-decision$|\/api\/worker-orders\/[^/]+\/promote$|\/api\/library\/documents\/[^/]+\/versions\/[^/]+\/reviews$)/;
-const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|library|commerce-projects|worker-orders|supply|inquiry-recovery|agent-ui)(?:\/|$)/;
+const writable = /^\/api\/(conversations|goals|runs|memories|artifacts|library|commerce-projects|worker-orders|supply|inquiry-recovery|ai-works|ai-work-delegations|ai-work-candidates|ai-work-drafts|ai-work-outreach|ai-work-suppressions|agent-ui)(?:\/|$)/;
 const iso = value => new Date(value).toISOString();
 function routeLabel(pathname) {
   const parts = pathname.split('/');
   if (parts[1] !== 'api') return 'static';
-  const roots = new Set(['session', 'access', 'health', 'diagnostics', 'bootstrap', 'status', 'events', 'conversations', 'goals', 'runs', 'memories', 'artifacts', 'library', 'commerce-projects', 'commerce-status', 'commerce-shopify', 'settings', 'skills', 'connectors', 'approvals', 'schedules', 'activity', 'search', 'capabilities', 'schedule-runs', 'connector-runs', 'worker-services', 'worker-orders', 'worker-opportunities', 'cloud-expert-catalog', 'cloud-experts', 'cloud-teams']);
+  const roots = new Set(['session', 'access', 'health', 'diagnostics', 'bootstrap', 'status', 'events', 'conversations', 'goals', 'runs', 'memories', 'artifacts', 'library', 'commerce-projects', 'commerce-status', 'commerce-shopify', 'settings', 'skills', 'connectors', 'approvals', 'schedules', 'activity', 'search', 'capabilities', 'schedule-runs', 'connector-runs', 'worker-services', 'worker-orders', 'worker-opportunities', 'cloud-expert-catalog', 'cloud-experts', 'cloud-teams', 'ai-works', 'ai-work-sources', 'ai-work-delegations', 'ai-work-candidates', 'ai-work-drafts', 'ai-work-outreach', 'ai-work-suppressions']);
   if (!roots.has(parts[2]) && parts[2] !== 'agent-ui') return '/api/unknown';
   return `/api/${parts[2]}${parts.length > 3 ? '/:resource' : ''}`;
 }
