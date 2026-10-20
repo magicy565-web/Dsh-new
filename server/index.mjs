@@ -218,7 +218,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       merchantMember: subject => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(subject)) : subject === 'local-operator' });
     // Historical inquiry recovery runs on the original store and member session.
     // It can import authorized history and produce unsent drafts; it never sends.
-    inquiryRecovery = createInquiryRecoveryService({ store, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local' });
+    inquiryRecovery = createInquiryRecoveryService({ store, artifacts, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local' });
     const workerDigests = [dotWorkerConfig?.tokenDigest, museWorkerConfig?.tokenDigest].filter(Boolean);
     const sourcingDigests = [sourcingMcpConfig?.tokenDigest, ...(sourcingMcpConfig?.principals || []).map(row => row.tokenDigest)].filter(Boolean);
     if (sourcingMcpConfig?.enabled && sourcingDigests.some(value => workerDigests.includes(value)))
