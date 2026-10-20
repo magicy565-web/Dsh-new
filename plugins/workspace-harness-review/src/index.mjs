@@ -3,7 +3,7 @@
 // A missing/stale/foreign file is reported as such instead of being hidden.
 import { promises as fs } from 'node:fs';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
-import { HarnessError, ERROR } from '../../../packages/harness-contracts/src/index.mjs';
+import { HarnessError, ERROR, REVIEW_STATE } from '../../../packages/harness-contracts/src/index.mjs';
 
 const MAX_REVIEW_BYTES = 1024 * 1024;
 const DAY_MS = 86_400_000;
@@ -66,7 +66,7 @@ export async function apply(ctx, config = {}) {
       if (cached.state !== 'ok') {
         return {
           status: 503,
-          body: { error: { code: 'HARNESS_REVIEW_UNAVAILABLE', message: cached.detail }, file, state: cached.state },
+          body: { error: { code: ERROR.reviewUnavailable, message: cached.detail }, file, state: cached.state },
         };
       }
       return { status: 200, body: { review: cached.document, file, generatedAt: cached.generatedAt, state: 'ok' } };

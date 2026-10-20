@@ -4,6 +4,26 @@
 
 export const HARNESS_VERSION = 1;
 
+/**
+ * Deployment-review vocabulary shared by `wh review`, the review snapshot plugin and
+ * the client console. Values are stable wire strings; never compare against a
+ * hand-written literal in another module.
+ */
+export const REVIEW_VERDICT = Object.freeze({ ready: 'ready', blocked: 'blocked' });
+
+export const REVIEW_BLOCKER = Object.freeze({
+  unresolvedRow: 'unresolved-row',   // a composition row could not be resolved
+  unmetRequires: 'unmet-requires',   // a plugin requires a service nobody provides
+  serviceConflict: 'service-conflict', // two enabled plugins provide the same service
+  installDrift: 'install-drift',     // installed content differs from the journal digest
+  installMissing: 'install-missing', // the journal says installed but the directory is gone
+});
+
+export const REVIEW_STATE = Object.freeze({
+  ok: 'ok', missing: 'missing', invalid: 'invalid', stale: 'stale', unavailable: 'unavailable',
+});
+
+
 /** Abstract service keys exposed on ctx. Business plugins depend on these, never on concrete modules. */
 export const SERVICE = Object.freeze({
   storage: 'storage',      // durable workspace state (provider: local store adapter)
@@ -44,6 +64,8 @@ export const ERROR = Object.freeze({
   llmExhausted: 'HARNESS_LLM_EXHAUSTED',
   workspaceInvalid: 'HARNESS_WORKSPACE_INVALID',
   workspaceForbidden: 'HARNESS_WORKSPACE_FORBIDDEN',
+  reviewUnavailable: 'HARNESS_REVIEW_UNAVAILABLE',
+  reviewBlocked: 'HARNESS_REVIEW_BLOCKED',
 });
 
 export class HarnessError extends Error {

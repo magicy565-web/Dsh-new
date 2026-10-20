@@ -4,7 +4,16 @@
 // that endpoint actually returns. It never invents harness state.
 import { useCallback, useEffect, useState } from 'react';
 import type { ClientPlugin } from '../../../packages/harness-client/src/index.mjs';
+import { REVIEW_BLOCKER } from '../../../packages/harness-contracts/src/index.mjs';
 import './client.css';
+
+const BLOCKER_LABELS: Record<string, string> = {
+  [REVIEW_BLOCKER.unresolvedRow]: '未解析的插件行',
+  [REVIEW_BLOCKER.unmetRequires]: '缺少服务依赖',
+  [REVIEW_BLOCKER.serviceConflict]: '服务提供冲突',
+  [REVIEW_BLOCKER.installDrift]: '安装内容被改动',
+  [REVIEW_BLOCKER.installMissing]: '已安装包丢失',
+};
 
 type Probe = { status: 'loading' | 'ok' | 'missing' | 'error'; detail?: string };
 type AuditEvent = { at?: string; kind?: string; action?: string; ok?: boolean; code?: string | null; actor?: { subject?: string } | null };
@@ -185,7 +194,7 @@ export function HarnessConsole(_props: Record<string, unknown>) {
           <p className="field-help">
             评审判定 <strong>{review.verdict}</strong>
             {review.digest ? <> · 组合摘要 <code>{review.digest.slice(0, 12)}</code></> : null}
-            {review.blockers?.length ? <> · {review.blockers.length} 个阻断项：{review.blockers.join('、')}</> : <> · 无阻断项</>}
+            {review.blockers?.length ? <> · {review.blockers.length} 个阻断项：{review.blockers.map(kind => `${BLOCKER_LABELS[kind] ?? '未知阻断'}（${kind}）`).join('、')}</> : <> · 无阻断项</>}
           </p>
         </div>
       )}

@@ -196,7 +196,8 @@ test('production DOM 390: the console shows a real review verdict when the route
   assert.ok(section.textContent.includes('blocked'));
   assert.ok(section.textContent.includes(digest.slice(0, 12)), 'the composition digest is shown');
   assert.ok(section.textContent.includes('2 个阻断项'));
-  assert.ok(section.textContent.includes('unmet-requires'));
+  assert.ok(section.textContent.includes('缺少服务依赖（unmet-requires）'), 'blockers are labelled from the shared contract');
+  assert.ok(section.textContent.includes('安装内容被改动（install-drift）'));
   assert.deepEqual(ui.errors, []);
 });
 

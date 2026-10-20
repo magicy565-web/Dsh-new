@@ -286,8 +286,7 @@ produces one archivable deployment-review document without mounting anything:
 composition and patch digests, per-row capabilities, aggregated services/tools/env,
 install drift status, and a `ready`/`blocked` verdict with an explicit blocker list
 (`unresolved-row`, `unmet-requires`, `service-conflict`, `install-drift`,
-`install-missing`). Exit code is 1 when blocked; `--out` writes the JSON atomically
-for review archival.
+`install-missing`). The verdict and blocker strings are exported from the frozen contracts (`REVIEW_VERDICT`, `REVIEW_BLOCKER`, `REVIEW_STATE`, `ERROR.reviewBlocked`), so the CLI, the review plugin and the client console never compare hand-written literals. Exit code is 1 when blocked; `--out` writes the JSON atomically for review archival.
 
 `--audit-state <file> --actor <subject>` also records the verdict in that storage
 state's audit stream as `kind:"review"` (`action` = verdict, `ok`, digest and the
@@ -391,7 +390,7 @@ the credential surface.
 ## Tests
 
 ```sh
-node --test packages/harness-kernel/test     # 100 tests, 0 fail
+node --test packages/harness-kernel/test     # 102 tests, 0 fail
 node node_modules/typescript/bin/tsc --noEmit
 ```
 

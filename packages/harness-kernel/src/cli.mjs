@@ -1,7 +1,7 @@
 // `wh` CLI: list a composition without mounting it, or doctor it (load + health, no serve).
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
-import { HarnessError } from '../../harness-contracts/src/index.mjs';
+import { ERROR, HarnessError, REVIEW_BLOCKER, REVIEW_VERDICT } from '../../harness-contracts/src/index.mjs';
 import { createHarness } from './app.mjs';
 import { displayPath, readComposition, readRowManifest, resolveRows } from './resolve.mjs';
 import { applyPatches, digestComposition, readPatch, readPatchJournal, setRowDisabled } from './patch.mjs';
@@ -459,11 +459,11 @@ export async function runReview({
   const pluginsDirectory = target ?? 'plugins';
   const drift = await checkInstallDrift({ root, target: pluginsDirectory });
   const blockers = [
-    ...unresolved.map(item => ({ kind: 'unresolved-row', pluginId: item.pluginId, status: item.status })),
-    ...unmet.map(item => ({ kind: 'unmet-requires', pluginId: item.pluginId, service: item.service })),
-    ...conflicts.map(item => ({ kind: 'service-conflict', service: item.service, pluginIds: item.pluginIds })),
-    ...drift.drift.map(id => ({ kind: 'install-drift', pluginId: id })),
-    ...drift.missing.map(id => ({ kind: 'install-missing', pluginId: id })),
+    ...unresolved.map(item => ({ kind: REVIEW_BLOCKER.unresolvedRow, pluginId: item.pluginId, status: item.status })),
+    ...unmet.map(item => ({ kind: REVIEW_BLOCKER.unmetRequires, pluginId: item.pluginId, service: item.service })),
+    ...conflicts.map(item => ({ kind: REVIEW_BLOCKER.serviceConflict, service: item.service, pluginIds: item.pluginIds })),
+    ...drift.drift.map(id => ({ kind: REVIEW_BLOCKER.installDrift, pluginId: id })),
+    ...drift.missing.map(id => ({ kind: REVIEW_BLOCKER.installMissing, pluginId: id })),
   ];
   const envReads = [...new Set(rows.flatMap(row => row.env))];
   const document = {
@@ -494,7 +494,7 @@ export async function runReview({
       untracked: drift.untracked,
       missing: drift.missing,
     },
-    verdict: blockers.length ? 'blocked' : 'ready',
+    verdict: blockers.length ? REVIEW_VERDICT.blocked : REVIEW_VERDICT.ready,
     blockers,
   };
   if (auditState) {
@@ -503,8 +503,8 @@ export async function runReview({
         kind: 'review',
         action: document.verdict,
         actor: { subject: actor ?? 'local-operator', role: 'operator' },
-        ok: document.verdict === 'ready',
-        code: document.verdict === 'ready' ? null : 'HARNESS_REVIEW_BLOCKED',
+        ok: document.verdict === REVIEW_VERDICT.ready,
+        code: document.verdict === REVIEW_VERDICT.ready ? null : ERROR.reviewBlocked,
         ref: document.composition.name,
         detail: {
           digest: document.composition.digest,
