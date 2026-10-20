@@ -100,7 +100,7 @@ test('cli: list on the real harness.local.yml does not crash when seams are abse
   const document = JSON.parse(stdout);
   assert.deepEqual(
     document.rows.map(row => row.id),
-    ['storage', 'approval', 'tools'],
+    ['storage', 'approval', 'tools', 'market'],
   );
   for (const row of document.rows) {
     assert.ok(['resolved', 'missing', 'invalid'].includes(row.status), `unexpected status ${row.status}`);

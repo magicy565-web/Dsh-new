@@ -14,3 +14,8 @@ plugins:
   # - id: inquiries
   #   name: workspace-inquiries
   #   config: {}
+  # Muse AI Worker 市场：/market 页面 + /api/market/* + 工作电脑 desk 只读工具。
+  # demo: true 只给本地组合；生产组合去掉这一行或设 false（空目录，不读演示夹具）。
+  - id: market
+    name: workspace-market
+    config: { demo: true }

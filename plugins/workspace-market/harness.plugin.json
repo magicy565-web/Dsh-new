@@ -1,0 +1,31 @@
+{
+  "id": "workspace-market",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "Muse AI Worker 市场：浏览 Worker、方案页、开通工作电脑、Grok Bot 状态；真实 HTTP 契约 + 只读/审批工具 + Muse 品牌页面。",
+  "entry": "./src/index.mjs",
+  "requires": ["storage", "tools", "approval"],
+  "provides": ["market"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "demo": { "type": "boolean" },
+      "workspaceId": { "type": "string" }
+    },
+    "additionalProperties": false
+  },
+  "routes": [
+    "GET /api/market/status",
+    "GET /api/market/workers",
+    "GET /api/market/workers/:workerId/scheme",
+    "POST /api/market/workers/:workerId/activate",
+    "GET /api/market/activations",
+    "GET /api/market/desk",
+    "POST /api/market/desk/computers/:computerId/screen",
+    "GET /market",
+    "GET /market/app.js",
+    "GET /market/app.css",
+    "GET /"
+  ],
+  "tools": ["market_workers", "market_desk", "market_activate_worker"]
+}
