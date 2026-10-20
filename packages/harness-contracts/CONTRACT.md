@@ -226,6 +226,8 @@ export async function apply(ctx, config) {
 
 写操作（import/identity/select）P0 **只走 HTTP**，不暴露为工具；P1 再加工具与审批。
 
+**业务审计（当前实现）**：命中 `POST /import`、`POST /leads/:leadId/identity`、`POST /leads/:leadId/select` 成功后，插件向 `ctx.audit` 追加 `{kind:'inquiry', action:'import'|'identity-review'|'select', actor, ref, detail:{status, leadId?, requestId?, selectionId?}}`；审计不可用时业务请求照常成功。`GET /api/inquiry-recovery/audit?limit=`（仅 admin，1–200）返回该插件的审计事件与总数；limit 非法 → 400，非 admin → 403，`ctx.audit` 未挂载 → 500。审计只含元数据，绝不含消息正文、草稿或客户数据。
+
 ## 7. 验收（A/B/C 各自必须提供）
 
 ```sh

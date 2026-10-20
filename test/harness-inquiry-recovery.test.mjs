@@ -63,10 +63,10 @@ async function fixture(t, { includePlugin = true, patch = null, audit = false } 
   });
   const started = await harness.start();
   const base = started.address.url;
-  const request = async (route, method = 'GET', body) => {
+  const request = async (route, method = 'GET', body, as = actor) => {
     const response = await fetch(`${base}${route}`, {
       method,
-      headers: { 'content-type': 'application/json', 'x-harness-actor': actor.subject, 'x-harness-role': actor.role },
+      headers: { 'content-type': 'application/json', 'x-harness-actor': as.subject, 'x-harness-role': as.role },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const text = await response.text();
@@ -109,6 +109,19 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
   assert.equal(selected.status, 201, JSON.stringify(selected.body));
   assert.equal(selected.body.draft.sent, false);
   assert.equal(selected.body.goalDraft.enabled, false);
+
+  // ctx.audit records the three business mutations as metadata-only events.
+  const auditTrail = await request('/api/inquiry-recovery/audit');
+  assert.equal(auditTrail.status, 200, JSON.stringify(auditTrail.body));
+  assert.deepEqual(auditTrail.body.events.map(event => event.action).sort(), ['identity-review', 'import', 'select']);
+  assert.equal(auditTrail.body.total, 3);
+  const selectEvent = auditTrail.body.events.find(event => event.action === 'select');
+  assert.equal(selectEvent.kind, 'inquiry');
+  assert.deepEqual(selectEvent.actor, { subject: actor.subject, role: actor.role });
+  assert.equal(selectEvent.detail.leadId, 'lead-alpha');
+  assert.doesNotMatch(JSON.stringify(auditTrail.body), /buyer@alpha|Please quote|未发送/u, 'the audit trail carries metadata only');
+  assert.equal((await request('/api/inquiry-recovery/audit', 'GET', undefined, { ...actor, role: 'viewer' })).status, 403);
+  assert.equal((await request('/api/inquiry-recovery/audit?limit=1000')).status, 400);
 
   const tools = harness.ctx.reflect.get('tools', false);
   const status = await tools.execute('inquiry_recovery_status', {}, { actor });

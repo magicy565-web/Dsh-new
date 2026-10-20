@@ -26,7 +26,8 @@
     "POST /api/inquiry-recovery/leads/:leadId/select",
     "GET /api/inquiry-recovery/approvals",
     "POST /api/inquiry-recovery/approvals",
-    "POST /api/inquiry-recovery/approvals/:approvalId/decide"
+    "POST /api/inquiry-recovery/approvals/:approvalId/decide",
+    "GET /api/inquiry-recovery/audit"
   ],
   "tools": ["inquiry_recovery_status", "inquiry_recovery_opportunities", "inquiry_recovery_select"],
   "skills": ["skills/inquiries"]

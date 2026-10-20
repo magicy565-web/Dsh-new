@@ -16,6 +16,13 @@ const ROUTES = [
   ['POST', '/api/inquiry-recovery/leads/:leadId/select'],
 ];
 
+// Mutating business actions that are recorded in ctx.audit (metadata only).
+const AUDITED_ACTIONS = new Map([
+  ['POST /api/inquiry-recovery/import', 'import'],
+  ['POST /api/inquiry-recovery/leads/:leadId/identity', 'identity-review'],
+  ['POST /api/inquiry-recovery/leads/:leadId/select', 'select'],
+]);
+
 export async function apply(ctx, config = {}) {
   if (!ctx?.http?.route) throw new HarnessError(ERROR.pluginFailed, 'workspace-inquiries requires ctx.http.route.');
   if (!ctx?.storage?.read) throw new HarnessError(ERROR.pluginMissingDependency, 'workspace-inquiries requires ctx.storage.');
@@ -30,7 +37,36 @@ export async function apply(ctx, config = {}) {
     staleDays: config.staleDays ?? 7,
   });
 
-  const handler = method => async (_req, _res, context) => {
+  // ctx.audit is optional: when it is mounted the plugin records metadata-only
+  // business events (never message bodies) and serves a read-only audit route.
+  const audit = () => {
+    try { return ctx.reflect?.get?.('audit', false) ?? null; } catch { return null; }
+  };
+  const recordInquiryAudit = async (method, registeredPath, result, context) => {
+    const service = audit();
+    if (!service) return;
+    const action = AUDITED_ACTIONS.get(`${method} ${registeredPath}`);
+    if (!action) return;
+    const status = result?.status ?? 200;
+    if (status >= 400) return;
+    const params = context?.params ?? {};
+    const body = result?.body ?? {};
+    const detail = { status };
+    if (typeof params.leadId === 'string') detail.leadId = params.leadId;
+    if (action === 'import' && typeof body.requestId === 'string') detail.requestId = body.requestId;
+    if (action === 'select' && typeof body.selectionId === 'string') detail.selectionId = body.selectionId;
+    try {
+      await service.record({
+        kind: 'inquiry', action, actor: context?.actor ?? null, ok: true,
+        ref: typeof params.leadId === 'string' ? params.leadId : (typeof body.requestId === 'string' ? body.requestId : null),
+        detail,
+      });
+    } catch {
+      // Audit must never fail a business request; the seam logs nothing here.
+    }
+  };
+
+  const handler = (method, registeredPath) => async (_req, _res, context) => {
     const result = await inquiryRecoveryHttp({
       recovery, method,
       pathname: context?.pathname ?? '',
@@ -39,9 +75,10 @@ export async function apply(ctx, config = {}) {
       actor: context?.actor,
     });
     if (!result) throw new HarnessError(ERROR.pluginFailed, 'The inquiry recovery route did not match its own registration.');
+    await recordInquiryAudit(method, registeredPath, result, context);
     return result;
   };
-  for (const [method, path] of ROUTES) ctx.http.route({ method, path, handler: handler(method) });
+  for (const [method, path] of ROUTES) ctx.http.route({ method, path, handler: handler(method, path) });
 
   // Approval surface for the single write tool. A ticket is one-shot, actor-bound
   // and expires; the tools seam consumes it before the handler runs.
@@ -67,6 +104,20 @@ export async function apply(ctx, config = {}) {
   ctx.http.route({
     method: 'GET', path: '/api/inquiry-recovery/approvals',
     handler: async (_req, _res, context) => ({ status: 200, body: { approvals: ctx.approval.list({ status: context?.query?.status }) } }),
+  });
+
+  // Read-only audit trail for this plugin's business events. Requires the audit
+  // seam; metadata only, so no draft or message content can be served here.
+  ctx.http.route({
+    method: 'GET', path: '/api/inquiry-recovery/audit',
+    handler: async (_req, _res, context) => {
+      const service = audit();
+      if (!service) throw new HarnessError(ERROR.pluginMissingDependency, 'ctx.audit is not mounted; the audit trail is unavailable in this composition.');
+      if (context?.actor?.role !== 'admin') throw new HarnessError(ERROR.toolRefused, 'admin role is required to read the inquiry audit trail.');
+      const limit = context?.query?.limit === undefined ? 100 : Number(context.query.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 200) throw new HarnessError(ERROR.toolInvalid, 'limit must be an integer between 1 and 200.');
+      return { status: 200, body: { events: service.list({ kind: 'inquiry', limit }), total: service.summary().byKind.inquiry ?? 0 } };
+    },
   });
 
   ctx.tools.register({
