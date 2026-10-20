@@ -280,7 +280,7 @@ const recovery = await createLegacyInquiryRecovery(harness, { staleDays: 7 });
 
 `store` is the live `ctx.storage` instance (not a copy), so the legacy server and
 the harness share one `workspace.json`; `storage` is required, other seams are
-`null` when absent. See `docs/HARNESS-P1-MIGRATION.md` for the exact wiring plan,
+`null` when absent. See `packages/harness-kernel/P1-MIGRATION.md` for the exact wiring plan,
 risks (acto mapping, lifecycle/lock, parallel-workstream conflicts) and acceptance
 criteria.
 
