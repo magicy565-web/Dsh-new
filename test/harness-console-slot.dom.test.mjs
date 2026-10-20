@@ -35,13 +35,13 @@ async function fixture(t) {
   });
   const assets = await readdir(resolve('dist/assets'));
   const script = await readFile(resolve('dist/assets', assets.find(name => /^index-.*\.js$/u.test(name))), 'utf8');
-  function render(path = '/home', { width = 390 } = {}) {
+  function render(path = '/home', { width = 390, fetch: customFetch } = {}) {
     const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
       url: `http://127.0.0.1:${address.port}${path}`, runScripts: 'outside-only', pretendToBeVisual: true,
     });
     const { window } = dom; windows.push(window); installBrowserPlatform(window);
     Object.defineProperty(window, 'innerWidth', { value: width, writable: true });
-    window.fetch = fetch; window.scrollTo = () => {};
+    window.fetch = customFetch || fetch; window.scrollTo = () => {};
     const errors = []; window.addEventListener('error', event => errors.push(event.error?.message || event.message));
     window.eval(script);
     return { window, document: window.document, errors };
@@ -83,16 +83,70 @@ test('production DOM 390: settings.section renders the console with real registr
 
   const health = consoleSection.querySelector('[data-probe="healthz"]');
   const recovery = consoleSection.querySelector('[data-probe="recovery"]');
+  const audit = consoleSection.querySelector('[data-probe="audit"]');
   await wait(() => health.getAttribute('data-state') !== 'loading', 'healthz probe settled');
   await wait(() => recovery.getAttribute('data-state') !== 'loading', 'recovery probe settled');
+  await wait(() => audit.getAttribute('data-state') !== 'loading', 'audit probe settled');
   assert.equal(health.getAttribute('data-state'), 'missing', 'the enterprise app does not mount /healthz');
   assert.ok(health.textContent.includes('未挂载'), health.textContent);
   assert.equal(recovery.getAttribute('data-state'), 'ok', 'the real inquiry recovery route is available');
   assert.ok(recovery.textContent.includes('可用'), recovery.textContent);
+  assert.equal(audit.getAttribute('data-state'), 'missing', 'the enterprise app has no audit endpoint; the SPA fallback is not availability');
+  assert.ok(audit.textContent.includes('未提供审计接口'), audit.textContent);
+  assert.equal(consoleSection.querySelectorAll('[data-audit-index]').length, 0, 'no fabricated audit events');
 
-  const before = f.requests.filter(row => row.path === '/healthz').length;
+  const before = f.requests.filter(row => row.path.startsWith('/api/inquiry-recovery/audit')).length;
   consoleSection.querySelector('.harness-console-refresh').click();
-  await wait(() => f.requests.filter(row => row.path === '/healthz').length > before, 'refresh re-probes the endpoints');
+  await wait(() => f.requests.filter(row => row.path.startsWith('/api/inquiry-recovery/audit')).length > before, 'refresh re-reads the audit trail');
+  assert.deepEqual(ui.errors, []);
+});
+
+test('production DOM 390: the console renders real audit events when the endpoint answers', async t => {
+  const f = await fixture(t);
+  const auditEvents = [
+    { at: '2026-10-21T02:00:00.000Z', kind: 'inquiry', action: 'select', actor: { subject: 'local-operator' }, ok: true },
+    { at: '2026-10-21T01:00:00.000Z', kind: 'tool', action: 'inquiry_recovery_status', actor: { subject: 'auditor' }, ok: false, code: 'HARNESS_TOOL_REFUSED' },
+  ];
+  const withAudit = async (path, options = {}) => {
+    if (String(path).startsWith('/api/inquiry-recovery/audit')) {
+      return new Response(JSON.stringify({ events: auditEvents, total: 2 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return f.fetch(path, options);
+  };
+  const ui = f.render('/home', { width: 390, fetch: withAudit });
+  await wait(() => ui.document.querySelector('.app-shell[aria-busy="false"]'), 'workspace shell loaded');
+  await openSettings(ui);
+  await wait(() => ui.document.querySelector('.harness-console'), 'console rendered');
+  const audit = ui.document.querySelector('[data-probe="audit"]');
+  await wait(() => audit.getAttribute('data-state') === 'ok', 'audit state becomes readable');
+  assert.ok(audit.textContent.includes('可读'), audit.textContent);
+  const items = [...ui.document.querySelectorAll('[data-audit-index]')];
+  assert.equal(items.length, 2);
+  assert.ok(items[0].textContent.includes('inquiry/select'));
+  assert.ok(items[0].textContent.includes('local-operator'));
+  assert.ok(items[0].textContent.includes('成功'));
+  assert.equal(items[1].getAttribute('data-ok'), 'false');
+  assert.ok(items[1].textContent.includes('HARNESS_TOOL_REFUSED'));
+  assert.ok(items[1].querySelector('.harness-console-event-state').textContent.includes('失败'));
+  assert.deepEqual(ui.errors, []);
+});
+
+test('production DOM 390: a 403 audit response is shown as insufficient permission, not as empty', async t => {
+  const f = await fixture(t);
+  const forbidden = async (path, options = {}) => {
+    if (String(path).startsWith('/api/inquiry-recovery/audit')) {
+      return new Response(JSON.stringify({ error: { code: 'HARNESS_TOOL_REFUSED', message: 'admin role is required' } }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
+    return f.fetch(path, options);
+  };
+  const ui = f.render('/home', { width: 390, fetch: forbidden });
+  await wait(() => ui.document.querySelector('.app-shell[aria-busy="false"]'), 'workspace shell loaded');
+  await openSettings(ui);
+  await wait(() => ui.document.querySelector('.harness-console'), 'console rendered');
+  const audit = ui.document.querySelector('[data-probe="audit"]');
+  await wait(() => audit.getAttribute('data-state') === 'error', 'audit state becomes an error');
+  assert.ok(audit.textContent.includes('需要 admin 权限'), audit.textContent);
+  assert.equal(ui.document.querySelectorAll('[data-audit-index]').length, 0, 'a 403 never renders as an empty-but-healthy trail');
   assert.deepEqual(ui.errors, []);
 });
 

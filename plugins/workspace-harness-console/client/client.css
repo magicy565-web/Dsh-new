@@ -71,6 +71,54 @@
   overflow-wrap: anywhere;
 }
 
+.harness-console-audit {
+  display: grid;
+  gap: 6px;
+}
+
+.harness-console-events {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.harness-console-events li {
+  display: grid;
+  grid-template-columns: 1.3fr 1.4fr 1fr 0.8fr;
+  gap: 6px;
+  align-items: baseline;
+  padding: 6px 8px;
+  border: 1px solid var(--line, #e4e8ee);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.harness-console-events li[data-ok="false"] {
+  border-color: #d8b4b4;
+}
+
+.harness-console-event-time,
+.harness-console-event-actor {
+  color: var(--muted, #68778d);
+  overflow-wrap: anywhere;
+}
+
+.harness-console-event-action,
+.harness-console-event-state {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .harness-console-events li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
 .harness-console-refresh {
   justify-self: start;
   min-height: 44px;
