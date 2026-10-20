@@ -7,6 +7,8 @@ plugins:
     config: { directory: .harness-dev-data }
   - id: artifacts
     name: '@workspace-harness/seams/artifacts'
+  - id: audit
+    name: '@workspace-harness/seams/audit'
   - id: approval
     name: '@workspace-harness/seams/approval'
   - id: tools

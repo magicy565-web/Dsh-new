@@ -15,3 +15,4 @@ export {
 export {
   createSkills, createSkillsProvider, parseSkillDocument, SKILL_ERROR, DEFAULT_ROOTS, DEFAULT_MAX_SKILLS, DEFAULT_MAX_BYTES,
 } from './skills.mjs';
+export { createAudit, createAuditProvider } from './audit.mjs';

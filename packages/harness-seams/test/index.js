@@ -12,4 +12,5 @@ import './tools-access.test.mjs';
 import './artifacts.test.mjs';
 import './llm.test.mjs';
 import './skills.test.mjs';
+import './audit.test.mjs';
 import './integration.test.mjs';

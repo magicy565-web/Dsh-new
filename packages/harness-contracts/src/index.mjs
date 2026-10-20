@@ -14,6 +14,7 @@ export const SERVICE = Object.freeze({
   llm: 'llm',              // provider-neutral model seam (pi/OMP or DeepSeek API)
   workspace: 'workspace',  // enterprise/workspace identity and member scopes
   inquiries: 'inquiries',  // historical inquiry recovery domain service
+  audit: 'audit',          // durable metadata-only audit stream (patch, tool, business events)
   health: 'health',        // plugin health aggregation
 });
 

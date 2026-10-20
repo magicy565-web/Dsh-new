@@ -161,6 +161,17 @@ ctx.llm.close() → Promise<void>
 
 见该模块 README：注册/扫描/读取技能，技能正文是数据，永不执行。
 
+### `ctx.audit`（provider：`packages/harness-seams/src/audit.mjs`）
+
+```js
+ctx.audit.record({ kind, action, actor?, ok?, code?, detail?, ref? }) → entry
+ctx.audit.list({ kind?, actor?, since?, limit? }) → entry[]   // 最新在前
+ctx.audit.summary() → { byKind, total, failed }
+ctx.audit.close()
+```
+
+`requires: ['storage']`，条目持久化在 `state.harnessAudit`（与 tools seam 同一数组），`list()` 会把 P0 的旧 tool 条目（`{tool, ok, errorCode}`）归一化成统一视图。只存元数据：`detail` ≤2KB 的浅对象、`code` 必须是大写错误码、禁止未知字段；**绝不自动记录消息正文或客户数据**。调用方显式传入的 `detail` 由其自己负责合规。
+
 ### `ctx.approval`（provider：`packages/harness-seams/src/approval.mjs`）
 
 ```js

@@ -11,7 +11,7 @@ contract in `packages/harness-contracts/CONTRACT.md` §5:
 | `src/artifacts.mjs` | `ctx.artifacts` | `createArtifactsProvider({ directory, maxBytes, maxTotalBytes, maxArtifacts })` |
 | `src/llm.mjs` | `ctx.llm` | `createLlmProvider({ providers, defaultProvider })` |
 | `src/skills.mjs` | `ctx.skills` | `createSkillsProvider({ roots, maxSkills, maxBytes })` |
-| `src/index.mjs` | all six | re-exports |
+| `src/audit.mjs` | `ctx.audit` | `createAuditProvider({ limit })` |
 
 Every provider is `{ apply(ctx, config) }`: it publishes the service on the
 kernel context (Cordis `ctx.provide`) and returns an async disposer.
@@ -206,4 +206,37 @@ ctx.skills.roots                       // read-only resolved scan patterns (diag
 stable local codes, exported as `SKILL_ERROR`: `HARNESS_SKILL_TOO_LARGE`
 (body/file cap), `HARNESS_SKILL_LIMIT` (registry full), `HARNESS_SKILL_ROOT_INVALID`
 (unsafe root or symlink) and `HARNESS_SKILL_CLOSED` (operation after `close()`).
+
+## Audit service (`src/audit.mjs`)
+
+`ctx.audit` is one durable, queryable audit stream for plugins. It requires
+`ctx.storage` and appends to `state.harnessAudit` — the same array the tools seam
+has written since P0 — so tool executions and new business events appear in one
+view without rewriting history.
+
+```js
+ctx.audit.record({ kind, action, actor?, ok?, code?, detail?, ref? }) // -> frozen entry
+ctx.audit.list({ kind?, actor?, since?, limit? })  // -> newest first
+ctx.audit.summary()                                // -> { byKind, total, failed }
+ctx.audit.close()                                  // -> idempotent; later record() fails
+```
+
+- `kind`/`action` are bounded identifiers; `ok` defaults to `true`; `code` must be
+  an upper-case error code; `ref` is bounded text (a ticket or call id).
+- `detail` is an optional plain object of at most 2 KiB. Unknown fields are
+  refused, so a caller cannot smuggle a message body into the trail.
+- At most 1000 entries are kept (config `limit`); the oldest are dropped first.
+- `list()` normalises the legacy tool entry shape (`{tool, ok, errorCode}`) into
+  `{kind: 'tool', action: tool, code: errorCode}`, so consumers never branch on
+  which writer produced an entry.
+- Durability is the storage seam's: a restarted harness with the same directory
+  reads the same trail.
+
+```yaml
+plugins:
+  - id: audit
+    name: @workspace-harness/seams/audit
+    config: { limit: 1000 }
+```
+
 

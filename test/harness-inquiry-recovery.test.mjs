@@ -35,6 +35,8 @@ async function fixture(t, { includePlugin = true, patch = null, audit = false } 
     `    config: { directory: '${storage}' }`,
     '  - id: artifacts',
     "    name: '@workspace-harness/seams/artifacts'",
+    '  - id: audit',
+    "    name: '@workspace-harness/seams/audit'",
     '  - id: approval',
     "    name: '@workspace-harness/seams/approval'",
     '  - id: tools',
@@ -76,7 +78,7 @@ async function fixture(t, { includePlugin = true, patch = null, audit = false } 
 
 test('the harness runs the inquiry plugin over the real seams end to end', async t => {
   const { harness, request } = await fixture(t);
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'inquiries', 'llm', 'skills', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'inquiries', 'llm', 'skills', 'storage', 'tools']);
 
   const health = await request('/healthz');
   assert.equal(health.status, 200);
@@ -119,6 +121,18 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
   await assert.rejects(tools.execute('inquiry_recovery_opportunities', { asOf: 'not-a-date' }, { actor }),
     error => error.code === 'HARNESS_TOOL_INVALID');
   await assert.rejects(tools.execute('not_a_tool', {}, { actor }), error => error.code === 'HARNESS_TOOL_REFUSED');
+
+  // ctx.audit exposes the tools seam's own entries through one unified stream.
+  const audit = harness.ctx.reflect.get('audit', false);
+  const toolEvents = audit.list({ kind: 'tool', limit: 100 });
+  assert.ok(toolEvents.some(entry => entry.action === 'inquiry_recovery_opportunities' && entry.ok === true), JSON.stringify(toolEvents));
+  assert.ok(toolEvents.some(entry => entry.action === 'not_a_tool' && entry.ok === false && entry.code === 'HARNESS_TOOL_REFUSED'));
+  const recorded = await audit.record({ kind: 'harness', action: 'integration.probe', actor, ok: true, ref: 'probe-1' });
+  assert.equal(recorded.kind, 'harness');
+  assert.equal(audit.list({ kind: 'harness' })[0].action, 'integration.probe');
+  assert.deepEqual(audit.list({ actor: actor.subject, kind: 'harness' }).map(entry => entry.action), ['integration.probe']);
+  assert.ok(audit.summary().total >= 3);
+  assert.doesNotMatch(JSON.stringify(audit.list({ limit: 100 })), /buyer@alpha|未发送/u, 'the audit stream carries metadata only');
 
   // The model seam is mounted but unconfigured until a real provider is registered.
   const llm = harness.ctx.reflect.get('llm', false);
@@ -166,7 +180,7 @@ test('the harness runs the inquiry plugin over the real seams end to end', async
 
 test('disabling the inquiry row removes both its routes and its tools', async t => {
   const { harness, request } = await fixture(t, { includePlugin: false });
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'llm', 'skills', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'llm', 'skills', 'storage', 'tools']);
   const missing = await request('/api/inquiry-recovery/status');
   assert.equal(missing.status, 404);
   const tools = harness.ctx.reflect.get('tools', false);
@@ -222,7 +236,7 @@ test('a preset that grants a write tool still requires a one-shot approval ticke
 
 test('a patch layer can disable a mounted plugin at boot', async t => {
   const { harness, request } = await fixture(t, { patch: { version: 1, entries: [{ id: 'inquiries', disabled: true }] } });
-  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'llm', 'skills', 'storage', 'tools']);
+  assert.deepEqual(harness.healthz().plugins.map(plugin => plugin.id).sort(), ['approval', 'artifacts', 'audit', 'llm', 'skills', 'storage', 'tools']);
   assert.equal(harness.patches.applied.length, 1);
   assert.equal(harness.patches.applied[0].action, 'disable');
   assert.equal((await request('/api/inquiry-recovery/status')).status, 404);
