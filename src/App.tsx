@@ -329,7 +329,7 @@ export default function App({ session, onLogout }: { session: Session; onLogout:
         </>}
       </> : <>
         {!['home', 'workers'].includes(route.page) && <header className="page-mobile-header"><span>{pageLabels[route.page]}</span><span className="workspace-wordmark">WORKSPACE</span></header>}
-        <div className={`page-content page-${route.page}`}>
+        <div className={`page-content page-${route.page}${route.page === 'library' && route.id === 'product-library' ? ' page-library-wide' : ''}`}>
           {route.page === 'home' && <BusinessBrainHome data={data} loading={loading} readOnly={readOnly || publicOnly || runtimeUnavailable} onStartAnalysis={(value, conversationId) => void startBrainPrompt(value, conversationId)} onStartGoal={(card, conversationId) => void startBrainGoal(card, conversationId)} onOpenGoal={goal => navigate('goals', goal.id)} onContinueConversation={conversationId => navigate('chat', conversationId)} onNavigate={page => navigate(page)} onOpenRecovery={() => navigate('recovery')} />}
 
           {route.page === 'recovery' && <InquiryRecovery role={session.user?.role || 'viewer'} />}

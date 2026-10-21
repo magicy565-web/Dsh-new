@@ -37,4 +37,13 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
 export async function loadSession() { const session = await api<Session>('/session'); csrfToken = session.csrfToken; return session; }
 export async function loginSession() { const session = await api<Session>('/session/login', 'POST', {}); csrfToken = session.csrfToken; return session; }
 export async function logoutSession() { await api('/session/logout', 'POST', {}); csrfToken = null; }
-export const requestId = () => crypto.randomUUID();
+export const requestId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // Plain HTTP origins are not secure contexts, so crypto.randomUUID is absent.
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};

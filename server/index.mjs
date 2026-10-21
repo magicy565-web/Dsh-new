@@ -58,6 +58,7 @@ import {createEnterpriseMemoryLedger} from './enterprise-memory-ledger.mjs';
 import {createOpenFgaClient} from './enterprise-openfga.mjs';
 import { libraryHttp } from './library-http.mjs';
 import { backendPluginSelection, backendPluginsFromEnvironment, mountMedusaBackend } from './workspace-backend-plugins.mjs';
+import { createProductLibraryProxy } from './product-library-proxy.mjs';
 import { createPluginLibraryModule } from './plugin-library/http.mjs';
 import { createSourcingMcpAuth, handleSourcingMcpHttp } from './sourcing-mcp.mjs';
 import { createRunOutputService } from './run-output.mjs';
@@ -121,6 +122,9 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
+  const productLibraryProxy = accessConfig.mode === 'local'
+    ? createProductLibraryProxy({ targetUrl: capabilityEnvironment.WORKSPACE_PRODUCT_LIBRARY_URL || 'http://127.0.0.1:8790' })
+    : null;
   const businessAgent = businessAgentOptions && createPiBusinessAgentAdapter({ provider, options: businessAgentOptions });
   if (businessAgent) provider = businessAgent.provider;
   if (!Number.isInteger(schedulerIntervalMs) || schedulerIntervalMs < 50 || schedulerIntervalMs > 60000) throw new Error('schedulerIntervalMs must be 50–60000.');
@@ -318,6 +322,11 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       const url = new URL(req.url, 'http://localhost');
       const pathname = url.pathname.replace(/\/$/, '') || '/';
       const method = req.method;
+      // The Product Library is a separate reviewed harness. In local access
+      // mode the same-origin app proxies its API so the UI needs no CORS and
+      // the loopback port stays private. Enterprise deployments must use the
+      // reviewed signed ingress instead.
+      if (productLibraryProxy && productLibraryProxy(req, res, url)) return;
       // Independent read-only supply connector for the private pilot. It never
       // shares Dot/Muse credentials or permits public RFQ mutations.
       if (pathname === '/mcp/sourcing') {
