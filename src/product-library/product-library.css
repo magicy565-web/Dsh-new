@@ -32,7 +32,7 @@
 .pl-search{display:flex;align-items:center;gap:8px;flex:1;max-width:420px;border:1px solid var(--pl-border);border-radius:10px;padding:0 12px;background:var(--pl-surface)}
 .pl-search input{flex:1;border:0;outline:0;background:transparent;min-height:42px;font:inherit;color:inherit}
 .pl-layout{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:18px;align-items:start}
-.pl-list{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 300px);overflow:auto;padding-right:2px}
+.pl-list{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 210px);overflow:auto;padding-right:2px;position:sticky;top:72px;align-self:start}
 .pl-item{display:flex;flex-direction:column;gap:6px;text-align:left;border:1px solid var(--pl-border);border-radius:12px;padding:12px 14px;background:var(--pl-surface);color:inherit;cursor:pointer;font:inherit}
 .pl-item:hover{border-color:#b8c8bc}
 .pl-item.selected{border-color:#204d35;box-shadow:0 0 0 2px rgba(32,77,53,.1)}
@@ -107,4 +107,5 @@
 .pl-upload label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--pl-muted)}
 .pl-upload .pl-editor-actions{grid-column:1/-1}
 .pl-hint{font-size:12px;color:var(--pl-muted);margin:0 0 10px}
-@media(max-width:900px){.pl-layout{grid-template-columns:1fr}.pl-hits{grid-template-columns:1fr}.pl-list{max-height:none;flex-direction:row;overflow:auto;padding-bottom:6px}.pl-item{min-width:240px}.pl-room-head{flex-direction:column}.pl-room-actions{justify-content:flex-start}.pl-context dl{grid-template-columns:1fr}.pl-upload{grid-template-columns:1fr}}
+.page-library-wide .bl-tabs{position:sticky;top:0;z-index:6;background:var(--surface,#fff);padding-top:6px}
+@media(max-width:1120px){.pl-layout{grid-template-columns:1fr}.pl-hits{grid-template-columns:1fr}.pl-list{position:static;max-height:none;flex-direction:row;overflow:auto;padding-bottom:6px}.pl-item{min-width:240px}.pl-room-head{flex-direction:column}.pl-room-actions{justify-content:flex-start}.pl-context dl{grid-template-columns:1fr}.pl-upload{grid-template-columns:1fr}}
