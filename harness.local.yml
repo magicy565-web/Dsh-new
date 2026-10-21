@@ -19,3 +19,10 @@ plugins:
   - id: market
     name: workspace-market
     config: { demo: true }
+  # 产品资料库：以 Medusa 商品 + 已审核 Product Context 为事实底座的产品空间。
+  # 不配置 source 时只开放已有 room，status.configured=false；配置专用 readTokenFile
+  # （绝对路径、0600）后才连接真实 Medusa Agent 面。写入一律走审批票据。
+  - id: product-library
+    name: workspace-product-library
+    config: { workspaceId: local }
+
