@@ -13,6 +13,25 @@ const clean=v=>JSON.parse(JSON.stringify(v));
 const canonical=v=>Array.isArray(v)?`[${v.map(canonical).join(',')}]`:v&&typeof v==='object'?`{${Object.keys(v).sort().map(k=>`${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}`:JSON.stringify(v);
 const hash=v=>createHash('sha256').update(typeof v==='string'?v:canonical(v)).digest('hex');
 
+/** Lexical terms for task recall: ASCII words plus CJK character bigrams. */
+function taskTerms(query){
+  const terms=new Set();
+  for(const token of String(query??'').toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u)){
+    if(!token)continue;
+    if(/^[0-9a-z._-]+$/u.test(token)){if(token.length>=2)terms.add(token);continue;}
+    const chars=[...token];if(chars.length<=6)terms.add(token);
+    for(let i=0;i+1<chars.length;i++)terms.add(chars[i]+chars[i+1]);
+    if(terms.size>64)break;
+  }
+  return [...terms].slice(0,64);
+}
+function taskScore(row,terms,now){
+  const haystack=`${row.statement}\n${row.subjectId}\n${row.factKey}`.toLocaleLowerCase();
+  let hits=0;for(const term of terms)if(haystack.includes(term))hits+=1;
+  const ageDays=Math.max(0,(now-Date.parse(row.updatedAt))/86400000);
+  return Math.min(hits,8)*12+Math.max(0,14-ageDays)*0.8;
+}
+
 function validateSource(source){
   if(!source||typeof source!=='object'||!SOURCE_KINDS.includes(source.kind)||!ID.test(source.ref)||!Number.isSafeInteger(source.revision)||source.revision<1||!Number.isSafeInteger(source.version)||source.version<1||!SHA.test(source.sha256))
     fail(400,'MEMORY_SOURCE_INVALID','A memory must pin an exact source revision, version and SHA-256.');
@@ -77,6 +96,32 @@ function validateStored(row){
   if(row.audience==='internal'&&row.customerId!==null) fail(500,'MEMORY_STORE_INVALID','Internal memory cannot carry a customer identity.');
 }
 export function validateEnterpriseMemory(row){validateStored(row);return clean(row);}
+
+/**
+ * Revalidate the exact enterprise facts a run pinned before execution.
+ *
+ * Only the referenced rows are checked. A new or unrelated memory does not
+ * invalidate a running task, while a changed revision, expiry, revocation or
+ * source-version change of a fact actually disclosed to the model does.
+ */
+export function assertTaskFactsCurrent(state,facts){
+  if(!Array.isArray(facts)) fail(500,'MEMORY_CONTEXT_INVALID','A pinned enterprise memory snapshot is invalid.');
+  if(facts.length===0) return true;
+  if(facts.length>50) fail(500,'MEMORY_CONTEXT_INVALID','A pinned enterprise memory snapshot is too large.');
+  const list=Array.isArray(state?.businessLibrary?.enterpriseMemories)?state.businessLibrary.enterpriseMemories:[];
+  for(const fact of facts){
+    if(!fact||!UUID.test(fact.id??'')||!ID.test(fact.workspaceId??'')||!Number.isSafeInteger(fact.revision)||fact.revision<1
+      ||typeof fact.statement!=='string'||!fact.statement)
+      fail(500,'MEMORY_CONTEXT_INVALID','A pinned enterprise memory snapshot is invalid.');
+    const row=list.find(item=>item.id===fact.id);
+    if(!row||row.workspaceId!==fact.workspaceId||row.audience!=='internal'||row.status!=='active'
+      ||row.revision!==fact.revision||row.statement!==fact.statement)
+      fail(409,'MEMORY_CONTEXT_CHANGED','A pinned enterprise memory changed before the run could use it.');
+    if(row.expiresAt&&Date.parse(row.expiresAt)<=Date.now()) fail(409,'MEMORY_CONTEXT_EXPIRED','A pinned enterprise memory expired before the run could use it.');
+    currentSource(null,row.source,state);
+  }
+  return true;
+}
 
 export function createEnterpriseMemoryLedger({store,library,disclosure=null,workspaceId,clock=Date.now}={}){
   if(!store||typeof store.read!=='function'||typeof store.update!=='function') throw new TypeError('Enterprise memory requires the original Workspace store.');
@@ -236,5 +281,48 @@ export function createEnterpriseMemoryLedger({store,library,disclosure=null,work
     return {memoryId:idValue,history:result};
   }
   function resolveResource({resourceId,forGrant=false}){const row=rows(store.read()).find(x=>x.id===resourceId&&x.workspaceId===workspaceId);if(!row)return null;if(row.status==='active'||forGrant&&row.status==='pending')currentSource(store,row.source);return row;}
-  return Object.freeze({remember,rememberFromConversationTurn,read,lookup,revalidateSnapshot,revoke,list,history,resolveResource,status:()=>({provider:'structured-library-memory',enabled:true,vectorSearch:false,sourceBound:true,history:true,customerAuthorization:!!disclosure})});
+
+  /**
+   * Select the enterprise facts a task run may see, with an audit pin.
+   *
+   * The selection is relevance-ranked and bounded. Only the facts that will
+   * actually be disclosed are source-checked, so one revoked unrelated fact
+   * cannot fail every task. `contextRevision` is an audit label, not a global
+   * invalidation switch; callers revalidate the exact `facts` ids/revisions.
+   */
+  function taskFacts(actor,input={}){
+    actorOk(actor,'internal');
+    const query=typeof input.query==='string'?input.query.slice(0,4000):'';
+    const limit=Number.isSafeInteger(input.limit)?Math.min(Math.max(input.limit,1),50):24;
+    const maxChars=Number.isSafeInteger(input.maxChars)?Math.min(Math.max(input.maxChars,1000),12000):6000;
+    const state=store.read(), now=clock();
+    const list=rows(state).filter(row=>row.status==='active'&&row.audience==='internal'&&row.workspaceId===workspaceId
+      &&(!row.expiresAt||Date.parse(row.expiresAt)>now));
+    const terms=taskTerms(query);
+    const ranked=list.map(row=>({row,score:taskScore(row,terms,now)}))
+      .sort((a,b)=>b.score-a.score||Date.parse(b.row.updatedAt)-Date.parse(a.row.updatedAt));
+    const facts=[];let chars=0;let skippedSources=0;let skippedBudget=0;
+    for(const {row} of ranked){
+      if(facts.length>=limit)break;
+      try{currentSource(store,row.source,state);}catch{skippedSources+=1;continue;}
+      const size=Buffer.byteLength(row.statement,'utf8')+180;
+      if(chars+size>maxChars){skippedBudget+=1;continue;}
+      facts.push({id:row.id,workspaceId,revision:row.revision,subjectType:row.subjectType,subjectId:row.subjectId,
+        factKey:row.factKey,statement:row.statement,source:clean(row.source),updatedAt:row.updatedAt,expiresAt:row.expiresAt??null});
+      chars+=size;
+    }
+    return {facts,contextRevision:hash(list.map(row=>`${row.id}:${row.revision}`).sort().join('|')),
+      total:list.length,omitted:list.length-facts.length,skippedSources,skippedBudget,generatedAt:iso(now)};
+  }
+  function contextRevision(actor){
+    actorOk(actor,'internal');
+    const now=clock();
+    const list=rows(store.read()).filter(row=>row.status==='active'&&row.audience==='internal'&&row.workspaceId===workspaceId
+      &&(!row.expiresAt||Date.parse(row.expiresAt)>now));
+    return hash(list.map(row=>`${row.id}:${row.revision}`).sort().join('|'));
+  }
+  return Object.freeze({remember,rememberFromConversationTurn,read,lookup,revalidateSnapshot,revoke,list,history,resolveResource,
+    recallForTask:(actor,input={})=>taskFacts(actor,input),contextRevision,
+    assertTaskSnapshot:(state,facts)=>assertTaskFactsCurrent(state,facts),
+    status:()=>({provider:'structured-library-memory',enabled:true,vectorSearch:false,sourceBound:true,history:true,customerAuthorization:!!disclosure,taskRecall:true})});
 }
