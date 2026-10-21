@@ -1,0 +1,41 @@
+{
+  "id": "workspace-business-memory",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "企业经营记忆：每个工作空间一套独立、来源固定、人工审核的业务记忆；模型可召回与提出候选，管理员审核后生效，并生成可追溯到记忆的增长简报。",
+  "entry": "./src/index.mjs",
+  "requires": ["storage", "tools", "approval", "workspace", "audit"],
+  "provides": ["businessMemory"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "workspaceId": { "type": "string", "minLength": 1 },
+      "productLibraryBaseURL": { "type": "string" },
+      "allowLoopbackHTTP": { "type": "boolean" },
+      "allowConversationSources": { "type": "boolean" },
+      "timeoutMs": { "type": "integer", "minimum": 50, "maximum": 10000 }
+    },
+    "additionalProperties": false
+  },
+  "routes": [
+    "GET /api/business-memory/status",
+    "GET /api/business-memory/map",
+    "GET /api/business-memory/brief",
+    "GET /api/business-memory/records",
+    "GET /api/business-memory/records/:id",
+    "POST /api/business-memory/records",
+    "POST /api/business-memory/records/:id/review",
+    "POST /api/business-memory/records/:id/revoke",
+    "GET /business-memory"
+  ],
+  "tools": [
+    "business_memory_status",
+    "business_memory_recall",
+    "business_memory_read",
+    "business_memory_map",
+    "business_memory_brief",
+    "business_memory_propose",
+    "business_memory_review",
+    "business_memory_revoke"
+  ]
+}
