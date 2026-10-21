@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, requestId } from '../api';
 import { Icon } from '../icons';
 import './product-library.css';
@@ -49,7 +49,6 @@ type Room = {
   source: { configured: boolean; kind: string; live: boolean; warning?: string | null };
 };
 type Editor = { mode: 'new' | 'edit'; pageId?: string; title: string; body: string; selected: string[] };
-type Tab = 'overview' | 'pages' | 'documents';
 
 const keyOf = (source: string, field: string) => `${source}:${field}`;
 const errorText = (error: unknown) => error instanceof ApiError ? error.message : error instanceof Error ? error.message : '操作未完成，请重试。';
@@ -108,16 +107,19 @@ export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [roomLoading, setRoomLoading] = useState(false);
+  const [pageId, setPageId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [tab, setTab] = useState<Tab>('overview');
   const [editor, setEditor] = useState<Editor | null>(null);
-  const [comment, setComment] = useState<{ pageId: string; body: string } | null>(null);
+  const [comment, setComment] = useState('');
+  const [commentOpen, setCommentOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadLabel, setUploadLabel] = useState('');
   const [uploadKind, setUploadKind] = useState('spec_sheet');
   const [uploadEvidence, setUploadEvidence] = useState('');
+  const pendingPage = useRef<string | null>(null);
+  const previousProduct = useRef<string | null>(null);
 
   const selectedRow = useMemo(() => payload?.items.find(item => item.productId === selectedId) ?? null, [payload, selectedId]);
 
@@ -146,15 +148,26 @@ export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
     try {
       const next = await api<Room>(`/product-library/products/${encodeURIComponent(productId)}`);
       setRoom(next);
+      const preferred = pendingPage.current;
+      pendingPage.current = null;
+      setPageId(current => {
+        if (current && next.pages.some(page => page.id === current)) return current;
+        if (preferred && next.pages.some(page => page.id === preferred)) return preferred;
+        return next.pages[0]?.id ?? null;
+      });
     } catch (reason) {
-      if (reason instanceof ApiError && reason.status === 404) setRoom(null);
+      if (reason instanceof ApiError && reason.status === 404) { setRoom(null); setPageId(null); }
       else setError(errorText(reason));
     } finally { setRoomLoading(false); }
   }, []);
 
   useEffect(() => {
-    if (!selectedId) { setRoom(null); return; }
-    setRoom(null); setEditor(null); setComment(null); setUploadOpen(false); setTab('overview');
+    if (!selectedId) { setRoom(null); setPageId(null); previousProduct.current = null; return; }
+    const changedProduct = previousProduct.current !== selectedId;
+    previousProduct.current = selectedId;
+    if (changedProduct) {
+      setRoom(null); setPageId(null); setEditor(null); setCommentOpen(false); setComment(''); setUploadOpen(false);
+    }
     void loadRoom(selectedId);
   }, [selectedId, refreshKey, loadRoom]);
 
@@ -185,18 +198,16 @@ export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
   async function syncRoom() {
     if (!selectedId) return;
     await run(async () => {
-      const result = await api<{ changed: boolean; changedFields: string[]; stalePages?: string[] }>(`/product-library/products/${encodeURIComponent(selectedId)}/sync`, 'POST', { requestId: requestId() });
+      const result = await api<{ changed: boolean; changedFields: string[] }>(`/product-library/products/${encodeURIComponent(selectedId)}/sync`, 'POST', { requestId: requestId() });
       return result.changed ? `已重新同步：${result.changedFields.join('、')}` : '已是最新，无需同步。';
     });
   }
 
   function startNewPage() {
     if (!room) return;
-    setTab('pages');
     setEditor({ mode: 'new', title: '', body: '', selected: defaultCitations(room) });
   }
   function startEditPage(page: LibraryPage) {
-    setTab('pages');
     setEditor({
       mode: 'edit', pageId: page.id, title: page.title, body: page.body,
       selected: page.citations.map(citation => keyOf(citation.source, citation.field)),
@@ -210,9 +221,10 @@ export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
     await run(async () => {
       const citations = citationsFor(room, editor.selected);
       if (editor.mode === 'new') {
-        await api(`/product-library/products/${encodeURIComponent(room.productId)}/pages`, 'POST', {
+        const result = await api<{ pageId: string }>(`/product-library/products/${encodeURIComponent(room.productId)}/pages`, 'POST', {
           requestId: requestId(), title, body: editor.body, citations,
         });
+        setPageId(result.pageId);
       } else {
         const page = room.pages.find(item => item.id === editor.pageId);
         if (!page) throw new Error('页面已不存在，请刷新。');
@@ -226,12 +238,12 @@ export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
   }
 
   async function submitComment(page: LibraryPage) {
-    if (!room || !comment || comment.pageId !== page.id || !comment.body.trim()) return;
+    if (!room || !comment.trim()) return;
     await run(async () => {
       await api(`/product-library/products/${encodeURIComponent(room.productId)}/pages/${encodeURIComponent(page.id)}/comments`, 'POST', {
-        requestId: requestId(), expectedRevision: page.revision, version: page.version, body: comment.body.trim(),
+        requestId: requestId(), expectedRevision: page.revision, version: page.version, body: comment.trim(),
       });
-      setComment(null);
+      setComment(''); setCommentOpen(false);
       return '评论已添加。';
     });
   }
@@ -270,183 +282,129 @@ export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
     });
   }
 
+  function openHit(hit: SearchHit) {
+    setSelectedId(hit.productId);
+    if (hit.kind === 'page') pendingPage.current = hit.id;
+    setQuery('');
+  }
+
   const options = room ? contextOptions(room) : [];
-  const counts = room?.counts;
-  const stats = [
-    { label: '已审核商品', value: payload?.total ?? 0, icon: 'box' as const },
-    { label: '资料空间', value: status?.rooms ?? 0, icon: 'library' as const },
-    { label: '页面', value: status?.pages ?? 0, icon: 'file' as const },
-    { label: '已通过', value: status?.approvedPages ?? 0, icon: 'checkmark' as const },
-  ];
+  const activePage = room?.pages.find(page => page.id === pageId) ?? null;
 
-  return <div className="pl-page">
-    <header className="pl-hero">
-      <div className="pl-hero-copy">
-        <span className="pl-overline"><i aria-hidden="true" />MEDUSA · PRODUCT KNOWLEDGE</span>
-        <h2>产品资料库</h2>
-        <p>把已审核的商品事实变成可协作的资料空间：页面有版本和引用，附件有 SHA-256，Agent 只读通过审核的上下文。</p>
-        <div className="pl-hero-meta">
-          <span className={status?.configured ? 'pl-connection on' : 'pl-connection'}><b />{status ? status.configured ? 'Medusa 已连接' : 'Medusa 未配置' : '读取中'}</span>
-          <span>工作空间 {status?.workspaceId ?? 'local'}</span>
-          <span>来源 {status?.source ?? '—'}</span>
-        </div>
+  return <div className="pl-workspace">
+    <aside className="pl-rail">
+      <div className="pl-rail-head">
+        <div className="pl-rail-title"><span className="pl-overline">PRODUCT LIBRARY</span><h2>产品资料库</h2></div>
+        <p className="pl-rail-status"><span className={status?.configured ? 'pl-dot on' : 'pl-dot'} />{status ? status.configured ? 'Medusa 已连接' : 'Medusa 未配置' : '读取中…'}{status && <em>{status.rooms} 空间 · {status.pages} 页</em>}</p>
+        <div className="pl-search"><Icon name="search" size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索商品、页面或附件…" aria-label="搜索产品资料库" />{query && <button onClick={() => setQuery('')} aria-label="清空搜索"><Icon name="close" size={13} /></button>}</div>
       </div>
-      <div className="pl-stats">
-        {stats.map(item => <div className="pl-stat" key={item.label}>
-          <span className="pl-stat-icon"><Icon name={item.icon} size={18} /></span>
-          <strong>{item.value}</strong>
-          <small>{item.label}</small>
-        </div>)}
-      </div>
-    </header>
-
-    {error && <div className="pl-error" role="alert"><Icon name="warning" size={16} />{error}<button onClick={() => setError('')} aria-label="关闭错误"><Icon name="close" size={14} /></button></div>}
-    {notice && <div className="pl-notice" role="status"><Icon name="check" size={16} />{notice}</div>}
-    {payload?.source.warning === 'PRODUCT_LIBRARY_SOURCE_UNCONFIGURED' && <div className="pl-warning" role="status"><Icon name="info" size={16} />产品资料库还没有连接 Medusa：只显示已打开的资料空间。</div>}
-
-    <div className="pl-toolbar">
-      <div className="pl-search"><Icon name="search" size={18} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索商品、页面或附件…" aria-label="搜索产品资料库" />{query && <button onClick={() => setQuery('')} aria-label="清空搜索"><Icon name="close" size={14} /></button>}</div>
-      <span className="pl-toolbar-count">{payload ? `${payload.total} 件已审核商品` : '读取中…'}</span>
-      <button className="pl-secondary" onClick={refresh} disabled={loading || busy}><Icon name="refresh" size={15} />刷新</button>
-    </div>
-
-    {query.trim() && hits && hits.items.length > 0 && <div className="pl-hits" aria-label="资料库搜索结果">
-      <div className="pl-hits-head">资料库搜索 · {hits.total} 条</div>
-      {hits.items.map(hit => <button key={`${hit.kind}:${hit.id}`} onClick={() => setSelectedId(hit.productId)}>
-        <span className={`pl-hit-kind ${hit.kind}`}>{hit.kind === 'page' ? '页面' : hit.kind === 'document' ? '附件' : '商品'}</span>
-        <strong>{hit.title}</strong>
-        <small>{hit.productTitle}</small>
-        <p>{hit.snippet}</p>
-      </button>)}
-    </div>}
-
-    {loading && !payload ? <div className="pl-skeleton"><span /><span /><span /></div> : !payload?.items.length ? <div className="pl-empty-block"><span className="pl-empty-icon"><Icon name="box" size={28} /></span><h3>还没有已审核的商品</h3><p>在 Medusa 后台为商品建立并审核 Product Context 后，这里会出现可用的资料空间。</p></div> : <div className="pl-layout">
-      <aside className="pl-sidebar" aria-label="已审核商品">
-        <div className="pl-sidebar-head"><span>已审核商品</span><small>{payload.items.length}</small></div>
-        <div className="pl-list">
-          {payload.items.map(item => <button key={item.productId} className={`pl-item ${item.productId === selectedId ? 'selected' : ''}`} onClick={() => setSelectedId(item.productId)}>
-            <span className={`pl-item-avatar ${tone(item.productId)}`}>{initials(item.title)}</span>
-            <span className="pl-item-body">
-              <span className="pl-item-title">{item.title}</span>
-              <span className="pl-item-sub">{item.status || 'draft'} · {item.variantCount} 个变体</span>
-              <span className="pl-progress"><i style={{ width: `${Math.max(4, Math.min(100, item.readinessScore))}%` }} /></span>
-              <span className="pl-item-foot"><span>{item.readinessScore}% 就绪</span><span>{item.pageCount} 页 · {item.documentCount} 附件</span></span>
-            </span>
-            <Icon name="chevron" size={15} />
+      <div className="pl-rail-scroll">
+        {query.trim() && hits && hits.items.length > 0 && <div className="pl-hits">
+          <div className="pl-hits-head">搜索结果 · {hits.total}</div>
+          {hits.items.map(hit => <button key={`${hit.kind}:${hit.id}`} onClick={() => openHit(hit)}>
+            <span className={`pl-hit-kind ${hit.kind}`}>{hit.kind === 'page' ? '页面' : hit.kind === 'document' ? '附件' : '商品'}</span>
+            <strong>{hit.title}</strong><small>{hit.productTitle}</small><p>{hit.snippet}</p>
           </button>)}
-        </div>
-      </aside>
-
-      <section className="pl-detail" aria-live="polite">
-        {roomLoading && <div className="pl-skeleton"><span /><span /><span /></div>}
-        {!roomLoading && !room && selectedRow && <div className="pl-empty-block">
-          <span className="pl-empty-icon"><Icon name="library" size={28} /></span>
-          <h3>{selectedRow.title}</h3>
-          <p>该商品已有已审核的 Product Context，但还没有建立资料空间。打开后即可写页面、评论和上传证据附件。</p>
-          <button className="pl-primary" onClick={() => void openRoom()} disabled={readOnly || busy}>{busy ? '打开中…' : '打开资料空间'}</button>
         </div>}
-        {!roomLoading && room && <>
-          <div className="pl-room-hero">
-            <span className={`pl-room-avatar ${tone(room.productId)}`}>{initials(room.pin.product.title)}</span>
-            <div className="pl-room-copy">
-              <span className="pl-kicker">PRODUCT ROOM · {room.productId}</span>
-              <h3>{room.pin.product.title}</h3>
-              <p>{room.pin.product.description || '暂无商品描述。'}</p>
-              <div className="pl-room-meta">
-                <span className="pl-badge ready">{room.pin.product.status || 'draft'}</span>
-                <span>{room.pin.product.variants.length} 个变体</span>
-                <span>review rev {room.pin.context.reviewVersion}</span>
-                <span>pin {room.pin.hash.slice(0, 10)}…</span>
-              </div>
-            </div>
-            <div className="pl-room-side">
-              <div className="pl-ring" style={{ background: `conic-gradient(#285cff ${Math.max(0, Math.min(100, room.pin.context.readinessScore))}%, #edf0f4 0)` }}><span>{room.pin.context.readinessScore}</span><small>就绪度</small></div>
-              <div className="pl-room-actions">
-                <button className="pl-secondary" onClick={() => void syncRoom()} disabled={readOnly || busy}><Icon name="refresh" size={15} />同步</button>
-                <button className="pl-primary" onClick={startNewPage} disabled={readOnly || !!editor}><Icon name="plus" size={15} />新建页面</button>
-              </div>
-            </div>
+        <div className="pl-rail-section"><span>商品</span><small>{payload?.items.length ?? 0}</small></div>
+        {loading && !payload ? <div className="pl-skeleton"><span /><span /><span /></div> : !payload?.items.length ? <div className="pl-rail-empty"><Icon name="box" size={20} /><p>没有已审核商品</p></div> : payload.items.map(item => <button key={item.productId} className={`pl-product ${item.productId === selectedId ? 'selected' : ''}`} onClick={() => setSelectedId(item.productId)}>
+          <span className={`pl-product-avatar ${tone(item.productId)}`}>{initials(item.title)}</span>
+          <span className="pl-product-body"><strong>{item.title}</strong><small>{item.status || 'draft'} · {item.variantCount} 变体</small><span className="pl-progress"><i style={{ width: `${Math.max(4, Math.min(100, item.readinessScore))}%` }} /></span></span>
+        </button>)}
+        {room && <div className="pl-pages-nav">
+          <div className="pl-rail-section"><span>页面</span><button className="pl-rail-add" onClick={startNewPage} disabled={readOnly || !!editor} aria-label="新建页面"><Icon name="plus" size={15} /></button></div>
+          {room.pages.map(page => <button key={page.id} className={`pl-page-nav ${page.id === pageId ? 'selected' : ''}`} onClick={() => { setPageId(page.id); setEditor(null); setCommentOpen(false); }}>
+            <span className={`pl-status-dot ${page.status}`} /><span>{page.title}</span><small>v{page.version}</small>
+          </button>)}
+          {!room.pages.length && <p className="pl-rail-empty">还没有页面</p>}
+        </div>}
+      </div>
+      <div className="pl-rail-foot"><span>{status?.source ?? '—'}</span>{payload?.source.warning && <em>未配置</em>}</div>
+    </aside>
+
+    <main className="pl-document">
+      {error && <div className="pl-error" role="alert"><Icon name="warning" size={15} />{error}<button onClick={() => setError('')} aria-label="关闭错误"><Icon name="close" size={13} /></button></div>}
+      {notice && <div className="pl-notice" role="status"><Icon name="check" size={15} />{notice}</div>}
+      {roomLoading ? <div className="pl-doc-loading"><div className="pl-skeleton"><span /><span /><span /></div></div> : !room ? <div className="pl-doc-empty">
+        <span className="pl-doc-empty-icon"><Icon name="library" size={26} /></span>
+        <h2>{selectedRow?.title ?? '产品资料库'}</h2>
+        <p>{selectedRow ? '该商品已有已审核的 Product Context，但还没有建立资料空间。打开后即可写页面、评论和上传证据附件。' : '左侧选择一件已审核商品。'}</p>
+        {selectedRow && <button className="pl-primary" onClick={() => void openRoom()} disabled={readOnly || busy}>{busy ? '打开中…' : '打开资料空间'}</button>}
+      </div> : editor ? <div className="pl-editor-doc">
+        <div className="pl-editor-head"><div><span className="pl-overline">{editor.mode === 'new' ? 'NEW PAGE' : 'NEW VERSION'}</span><h2>{editor.mode === 'new' ? '新建页面' : '保存新版本'}</h2>{editor.mode === 'edit' && <p>编辑已通过的页面会撤回审核，需要重新通过。</p>}</div><button className="pl-secondary" onClick={() => setEditor(null)}>取消</button></div>
+        <label>标题<input value={editor.title} onChange={event => setEditor({ ...editor, title: event.target.value })} maxLength={200} placeholder="例如：美国市场上市简报" /></label>
+        <label>正文<textarea value={editor.body} onChange={event => setEditor({ ...editor, body: event.target.value })} maxLength={65536} rows={14} placeholder="写清市场判断、证据与下一步…" /></label>
+        <fieldset><legend>引用来源 · 保存时固定 value hash</legend>
+          {options.map(option => <label className="pl-check" key={option.key}><input type="checkbox" checked={editor.selected.includes(option.key)} onChange={event => setEditor({ ...editor, selected: event.target.checked ? [...editor.selected, option.key] : editor.selected.filter(key => key !== option.key) })} />{option.label}</label>)}
+        </fieldset>
+        <div className="pl-editor-actions"><button className="pl-secondary" onClick={() => setEditor(null)}>取消</button><button className="pl-primary" onClick={() => void saveEditor()} disabled={busy || !editor.title.trim()}>{busy ? '保存中…' : '保存页面'}</button></div>
+      </div> : activePage ? <>
+        <header className="pl-doc-head">
+          <div className="pl-breadcrumb"><span>{room.pin.product.title}</span><Icon name="chevron" size={12} /><span>页面</span></div>
+          <div className="pl-doc-title-row"><h1>{activePage.title}</h1><span className={`pl-badge ${activePage.status === 'approved' ? 'ready' : ''}`}>{activePage.status === 'approved' ? '已通过' : '草稿'}</span></div>
+          <div className="pl-doc-meta"><span>v{activePage.version}</span><span>rev {activePage.revision}</span><span>{formatDate(activePage.updatedAt)}</span>{activePage.approvedBy && <span>审核人 {activePage.approvedBy}</span>}</div>
+          <div className="pl-doc-actions">
+            <button className="pl-secondary" onClick={() => { setCommentOpen(value => !value); }} disabled={readOnly}><Icon name="chat" size={15} />评论</button>
+            <button className="pl-secondary" onClick={() => startEditPage(activePage)} disabled={readOnly || !!editor}>新版本</button>
+            {room.canApprove && <button className="pl-secondary" onClick={() => void toggleApproval(activePage)} disabled={busy}>{activePage.status === 'approved' ? '撤回审核' : '通过审核'}</button>}
+            <button className="pl-secondary" onClick={() => void syncRoom()} disabled={readOnly || busy} title="与 Medusa 重新同步"><Icon name="refresh" size={15} /></button>
           </div>
+        </header>
+        <article className="pl-doc-content">
+          <div className="pl-citations">{activePage.citations.map(citation => <span key={keyOf(citation.source, citation.field)} className={`pl-citation ${citation.status}`} title={citation.preview || ''}>{citation.label} · {citationStatusLabel[citation.status]}</span>)}</div>
+          <div className="pl-doc-body">{activePage.body || '（空页面）'}</div>
+          <section className="pl-doc-comments">
+            <div className="pl-doc-comments-head"><h4>评论 {activePage.comments.length}</h4>{activePage.comments.length > 0 && <small>按时间顺序</small>}</div>
+            {activePage.comments.map(item => <div className="pl-doc-comment" key={item.id}><span className="pl-comment-avatar">{initials(item.createdBy)}</span><div><strong>{item.createdBy}</strong><span>{formatDate(item.createdAt)}</span><p>{item.body}</p></div></div>)}
+            {commentOpen && <div className="pl-comment-form"><textarea value={comment} onChange={event => setComment(event.target.value)} placeholder="写一条评论…" maxLength={4000} aria-label="评论内容" /><div><button className="pl-secondary" onClick={() => { setCommentOpen(false); setComment(''); }}>取消</button><button className="pl-primary" onClick={() => void submitComment(activePage)} disabled={busy || !comment.trim()}>提交评论</button></div></div>}
+            {!commentOpen && <button className="pl-link" onClick={() => setCommentOpen(true)} disabled={readOnly}>添加评论</button>}
+          </section>
+        </article>
+      </> : <div className="pl-doc-empty">
+        <span className="pl-doc-empty-icon"><Icon name="file" size={26} /></span>
+        <h2>{room.pin.product.title}</h2>
+        <p>还没有页面。写第一份市场简报、上架说明或证据审阅。</p>
+        <button className="pl-primary" onClick={startNewPage} disabled={readOnly}><Icon name="plus" size={15} />新建页面</button>
+      </div>}
+    </main>
 
-          <nav className="pl-tabs" role="tablist" aria-label="产品资料空间">
-            {([['overview', '概览', null], ['pages', '页面', room.pages.length], ['documents', '附件', room.documents.length]] as [Tab, string, number | null][]).map(([key, label, count]) =>
-              <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? 'selected' : ''} onClick={() => setTab(key)}>{label}{count !== null && <em>{count}</em>}</button>)}
-          </nav>
-
-          {tab === 'overview' && <div className="pl-overview">
-            <div className="pl-tiles">
-              <article className="pl-tile"><span className="pl-tile-icon blue"><Icon name="people" size={18} /></span><small>买家画像</small><p>{room.pin.context.buyerProfile || '未填写'}</p></article>
-              <article className="pl-tile"><span className="pl-tile-icon green"><Icon name="globe" size={18} /></span><small>目标市场</small><p>{room.pin.context.targetMarkets.join('、') || '未填写'}</p></article>
-              <article className="pl-tile"><span className="pl-tile-icon amber"><Icon name="sparkle" size={18} /></span><small>使用场景</small><p>{room.pin.context.useCases.join('、') || '未填写'}</p></article>
-              <article className="pl-tile"><span className="pl-tile-icon violet"><Icon name="bolt" size={18} /></span><small>核心卖点</small><p>{room.pin.context.sellingPoints.join('、') || '未填写'}</p></article>
-              <article className="pl-tile wide"><span className="pl-tile-icon ink"><Icon name="money" size={18} /></span><small>商务条款</small><p>{policyText(room.pin.context.commercialPolicy)}</p></article>
-              <article className="pl-tile wide"><span className="pl-tile-icon amber"><Icon name="certificate" size={18} /></span><small>证据</small><div className="pl-evidence-list">{room.pin.context.evidence.length ? room.pin.context.evidence.map(item => <span key={item.id} className={`pl-evidence ${item.status}`}><Icon name="certificate" size={13} />{item.label}<em>{item.status}</em></span>) : <p>未填写</p>}</div></article>
-            </div>
-            <aside className="pl-source-card">
-              <div className="pl-source-head"><span>来源与一致性</span><Icon name="shield" size={16} /></div>
-              <dl>
-                <div><dt>审核版本</dt><dd>rev {room.pin.context.reviewVersion}</dd></div>
-                <div><dt>同步时间</dt><dd>{formatDate(room.pin.pinnedAt)}</dd></div>
-                <div><dt>商品状态</dt><dd>{room.pin.product.status || 'draft'}</dd></div>
-                <div><dt>封面</dt><dd>{room.pin.product.thumbnail ? '已提供' : '未提供'}</dd></div>
-              </dl>
-              <p className="pl-hash">hash {room.pin.hash.slice(0, 24)}…</p>
-              <p className="pl-hint">页面保存时会把每个引用固定到当前 pin；Medusa 侧更新后需要同步并重新保存页面。</p>
-            </aside>
+    <aside className="pl-info">
+      {room ? <>
+        <section className="pl-info-card">
+          <header><span>商品上下文</span><small>rev {room.pin.context.reviewVersion}</small></header>
+          <div className="pl-info-field"><small>买家画像</small><p>{room.pin.context.buyerProfile || '未填写'}</p></div>
+          <div className="pl-info-field"><small>目标市场</small><p>{room.pin.context.targetMarkets.join('、') || '未填写'}</p></div>
+          <div className="pl-info-field"><small>使用场景</small><p>{room.pin.context.useCases.join('、') || '未填写'}</p></div>
+          <div className="pl-info-field"><small>核心卖点</small><p>{room.pin.context.sellingPoints.join('、') || '未填写'}</p></div>
+          <div className="pl-info-field"><small>商务条款</small><p>{policyText(room.pin.context.commercialPolicy)}</p></div>
+          <div className="pl-info-evidence">{room.pin.context.evidence.length ? room.pin.context.evidence.map(item => <span key={item.id} className={`pl-evidence ${item.status}`}><Icon name="certificate" size={12} />{item.label}</span>) : <p>未填写证据</p>}</div>
+        </section>
+        <section className="pl-info-card">
+          <header><span>来源</span><Icon name="shield" size={15} /></header>
+          <div className="pl-info-row"><small>商品</small><code>{room.pin.product.id}</code></div>
+          <div className="pl-info-row"><small>商品状态</small><span>{room.pin.product.status || 'draft'}</span></div>
+          <div className="pl-info-row"><small>变体</small><span>{room.pin.product.variants.length}</span></div>
+          <div className="pl-info-row"><small>同步</small><span>{formatDate(room.pin.pinnedAt)}</span></div>
+          <p className="pl-hash">pin {room.pin.hash.slice(0, 22)}…</p>
+        </section>
+        <section className="pl-info-card">
+          <header><span>附件</span><small>{room.documents.length}</small></header>
+          {room.documents.map(document => <div className="pl-info-doc" key={document.id}>
+            <span className="pl-doc-icon"><Icon name="file" size={16} /></span>
+            <div><strong>{document.label}</strong><small>{formatBytes(document.size)} · {documentKindLabel(document.kind)}</small></div>
+            <a href={document.downloadPath} aria-label={`下载 ${document.label}`}><Icon name="download" size={15} /></a>
+          </div>)}
+          {!room.documents.length && <p className="pl-info-empty">没有附件</p>}
+          <button className="pl-secondary full" onClick={() => setUploadOpen(value => !value)} disabled={readOnly}><Icon name="upload" size={14} />上传附件</button>
+          {uploadOpen && <div className="pl-upload">
+            <label className="pl-file-drop">文件<input type="file" accept=".txt,.md,.csv,.json,.pdf,.png,.jpg,.jpeg,.webp" onChange={event => { setUploadFile(event.target.files?.[0] ?? null); setUploadLabel(event.target.files?.[0]?.name ?? ''); }} /><span>{uploadFile ? `${uploadFile.name} · ${formatBytes(uploadFile.size)}` : '选择文件（≤512 KiB）'}</span></label>
+            <label>名称<input value={uploadLabel} onChange={event => setUploadLabel(event.target.value)} maxLength={240} /></label>
+            <label>类型<select value={uploadKind} onChange={event => setUploadKind(event.target.value)}>{documentKinds.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label>关联证据<select value={uploadEvidence} onChange={event => setUploadEvidence(event.target.value)}><option value="">不关联</option>{room.pin.context.evidence.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            <div className="pl-editor-actions"><button className="pl-secondary" onClick={() => setUploadOpen(false)}>取消</button><button className="pl-primary" onClick={() => void attachDocument()} disabled={busy || !uploadFile}>{busy ? '上传中…' : '上传并校验'}</button></div>
           </div>}
-
-          {tab === 'pages' && <section className="pl-panel">
-            <div className="pl-panel-head"><div><h4>页面</h4><p>{room.pages.length} 个版本化页面 · {counts?.approved ?? 0} 个已通过</p></div><button className="pl-primary small" onClick={startNewPage} disabled={readOnly || !!editor}><Icon name="plus" size={15} />新建页面</button></div>
-            {editor && <div className="pl-editor">
-              <div className="pl-panel-head"><div><h4>{editor.mode === 'new' ? '新建页面' : '保存新版本'}</h4>{editor.mode === 'edit' && <p>编辑已通过的页面会撤回审核。</p>}</div><button className="pl-link" onClick={() => setEditor(null)}>取消</button></div>
-              <label>标题<input value={editor.title} onChange={event => setEditor({ ...editor, title: event.target.value })} maxLength={200} placeholder="例如：美国市场上市简报" /></label>
-              <label>正文<textarea value={editor.body} onChange={event => setEditor({ ...editor, body: event.target.value })} maxLength={65536} rows={7} placeholder="写清市场判断、证据与下一步…" /></label>
-              <fieldset><legend>引用来源</legend>
-                {options.map(option => <label className="pl-check" key={option.key}><input type="checkbox" checked={editor.selected.includes(option.key)} onChange={event => setEditor({ ...editor, selected: event.target.checked ? [...editor.selected, option.key] : editor.selected.filter(key => key !== option.key) })} />{option.label}</label>)}
-              </fieldset>
-              <div className="pl-editor-actions"><button className="pl-secondary" onClick={() => setEditor(null)}>取消</button><button className="pl-primary" onClick={() => void saveEditor()} disabled={busy || !editor.title.trim()}>{busy ? '保存中…' : '保存页面'}</button></div>
-            </div>}
-            {!room.pages.length && !editor && <div className="pl-empty-inline"><Icon name="file" size={22} /><p>还没有页面。写第一份市场简报或上架说明。</p></div>}
-            {room.pages.map(page => <article className={`pl-page-card ${page.status}`} key={page.id}>
-              <header>
-                <div><span className={`pl-status-dot ${page.status}`} /><strong>{page.title}</strong><span className={`pl-badge ${page.status === 'approved' ? 'ready' : ''}`}>{page.status === 'approved' ? '已通过' : '草稿'}</span></div>
-                <small>v{page.version} · rev {page.revision} · {formatDate(page.updatedAt)}</small>
-              </header>
-              <div className="pl-citations">{page.citations.map(citation => <span key={keyOf(citation.source, citation.field)} className={`pl-citation ${citation.status}`} title={citation.preview || ''}>{citation.label} · {citationStatusLabel[citation.status]}</span>)}</div>
-              <p className="pl-body">{page.body || '（空页面）'}</p>
-              <footer>
-                <span>{page.comments.length} 条评论{page.approvedBy ? ` · 审核人 ${page.approvedBy}` : ''}</span>
-                <div>
-                  <button className="pl-link" onClick={() => setComment({ pageId: page.id, body: '' })} disabled={readOnly}>评论</button>
-                  <button className="pl-link" onClick={() => startEditPage(page)} disabled={readOnly || !!editor}>新版本</button>
-                  {room.canApprove && <button className="pl-link" onClick={() => void toggleApproval(page)} disabled={busy}>{page.status === 'approved' ? '撤回审核' : '通过审核'}</button>}
-                </div>
-              </footer>
-              {!!page.comments.length && <ul className="pl-comments">{page.comments.map(item => <li key={item.id}><span>{item.createdBy}</span>{item.body}<small>{formatDate(item.createdAt)}</small></li>)}</ul>}
-              {comment?.pageId === page.id && <div className="pl-comment-form">
-                <textarea value={comment.body} onChange={event => setComment({ pageId: page.id, body: event.target.value })} placeholder="写一条评论…" maxLength={4000} aria-label="评论内容" />
-                <div><button className="pl-secondary" onClick={() => setComment(null)}>取消</button><button className="pl-primary" onClick={() => void submitComment(page)} disabled={busy || !comment.body.trim()}>提交评论</button></div>
-              </div>}
-            </article>)}
-          </section>}
-
-          {tab === 'documents' && <section className="pl-panel">
-            <div className="pl-panel-head"><div><h4>附件</h4><p>{room.documents.length} 个文件 · 下载时重新校验 SHA-256</p></div><button className="pl-secondary" onClick={() => setUploadOpen(value => !value)} disabled={readOnly}><Icon name="upload" size={15} />上传附件</button></div>
-            {uploadOpen && <div className="pl-upload">
-              <label className="pl-file-drop">文件<input type="file" accept=".txt,.md,.csv,.json,.pdf,.png,.jpg,.jpeg,.webp" onChange={event => { setUploadFile(event.target.files?.[0] ?? null); setUploadLabel(event.target.files?.[0]?.name ?? ''); }} /><span>{uploadFile ? `${uploadFile.name} · ${formatBytes(uploadFile.size)}` : '选择 PDF / 图片 / CSV / Markdown / 文本（≤512 KiB）'}</span></label>
-              <label>名称<input value={uploadLabel} onChange={event => setUploadLabel(event.target.value)} maxLength={240} /></label>
-              <label>类型<select value={uploadKind} onChange={event => setUploadKind(event.target.value)}>{documentKinds.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label>关联证据<select value={uploadEvidence} onChange={event => setUploadEvidence(event.target.value)}><option value="">不关联</option>{room.pin.context.evidence.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-              <div className="pl-editor-actions"><button className="pl-secondary" onClick={() => setUploadOpen(false)}>取消</button><button className="pl-primary" onClick={() => void attachDocument()} disabled={busy || !uploadFile}>{busy ? '上传中…' : '上传并校验'}</button></div>
-            </div>}
-            {!room.documents.length && !uploadOpen ? <div className="pl-empty-inline"><Icon name="file" size={22} /><p>没有附件。证书、规格书或检测报告都可以放在这里。</p></div> : <div className="pl-docs">{room.documents.map(document => <div className="pl-doc" key={document.id}>
-              <span className="pl-doc-icon"><Icon name="file" size={20} /></span>
-              <div className="pl-doc-body"><strong>{document.label}</strong><small>{document.filename} · {formatBytes(document.size)}</small><span className="pl-doc-meta"><em>{documentKindLabel(document.kind)}</em>{document.evidenceId && <em>{document.evidenceId}</em>}<code>{document.sha256.slice(0, 16)}…</code></span></div>
-              <a className="pl-icon-button" href={document.downloadPath} aria-label={`下载 ${document.label}`}><Icon name="download" size={17} /></a>
-            </div>)}</div>}
-          </section>}
-        </>}
-      </section>
-    </div>}
+        </section>
+      </> : <div className="pl-info-card"><header><span>说明</span></header><p className="pl-info-copy">选择商品后，这里会显示已审核的 Product Context、来源与附件。</p></div>}
+    </aside>
   </div>;
 }
