@@ -26,24 +26,25 @@ async function withServer(handler, run) {
   }
 }
 
-test('registers three read-only product library tools', () => {
+test('registers four read-only product library tools', () => {
   const ctx = fakeContext();
   apply(ctx, {});
-  assert.deepEqual([...ctx.toolsMap.keys()].sort(), ['product_library_list', 'product_library_read', 'product_library_status']);
+  assert.deepEqual([...ctx.toolsMap.keys()].sort(), ['product_library_list', 'product_library_read', 'product_library_search', 'product_library_status']);
   for (const tool of ctx.toolsMap.values()) {
     assert.equal(typeof tool.output.render, 'function');
     assert.deepEqual(tool.output.render({}, { ok: true }), [{ type: 'text', text: '{\n  "ok": true\n}' }]);
     assert.equal(tool.execute.length, 2);
   }
-  assert.equal(ctx.effects.length, 3);
+  assert.equal(ctx.effects.length, 4);
 });
 
-test('status and list proxy the harness HTTP surface', async () => {
+test('status, list and search proxy the harness HTTP surface', async () => {
   const seen = [];
   await withServer((req, res) => {
     seen.push(req.url);
     res.writeHead(200, { 'content-type': 'application/json' });
     if (req.url === '/api/product-library/status') res.end(JSON.stringify({ configured: false, source: 'unconfigured', rooms: 0 }));
+    else if (req.url?.startsWith('/api/product-library/search')) res.end(JSON.stringify({ total: 1, items: [{ kind: 'document', id: 'doc-1' }] }));
     else res.end(JSON.stringify({ source: { configured: false }, items: [], total: 0 }));
   }, async () => {
     const ctx = fakeContext();
@@ -52,8 +53,14 @@ test('status and list proxy the harness HTTP surface', async () => {
     assert.equal(status.configured, false);
     const list = await ctx.toolsMap.get('product_library_list').execute({ q: 'linen', limit: 5 }, {});
     assert.equal(list.total, 0);
+    const search = await ctx.toolsMap.get('product_library_search').execute({ q: 'oeko', limit: 3 }, {});
+    assert.equal(search.total, 1);
   });
-  assert.deepEqual(seen, ['/api/product-library/status', '/api/product-library/products?q=linen&limit=5']);
+  assert.deepEqual(seen, [
+    '/api/product-library/status',
+    '/api/product-library/products?q=linen&limit=5',
+    '/api/product-library/search?q=oeko&limit=3',
+  ]);
 });
 
 test('read encodes the exact product id and rejects malformed ids before any request', async () => {

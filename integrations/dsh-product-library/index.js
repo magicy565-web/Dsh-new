@@ -72,6 +72,24 @@ const definitions = [
     },
   },
   {
+    name: 'product_library_search',
+    description: 'Search inside opened Product Library rooms: product titles, page titles and bodies, and document labels/filenames. Returns bounded snippets with product/page/document ids; it does not invent products without a room or return document bytes.',
+    parameters: {
+      type: 'object',
+      properties: {
+        q: { type: 'string', minLength: 1, maxLength: 200, description: 'Case-insensitive substring to find.' },
+        limit: { type: 'integer', minimum: 1, maximum: 50, description: 'Maximum hits; defaults to 20.' },
+      },
+      required: ['q'],
+      additionalProperties: false,
+    },
+    async execute(args, exec) {
+      const query = new URLSearchParams({ q: String(args?.q ?? '').slice(0, 200) });
+      if (Number.isInteger(args?.limit)) query.set('limit', String(args.limit));
+      return request(`/api/product-library/search?${query}`, exec?.signal);
+    },
+  },
+  {
     name: 'product_library_read',
     description: 'Read one Product Library room: the exact pinned Medusa product and approved Product Context, its versioned pages, citation status (current/stale/missing), attached document metadata, comments and approval state. This is a read-only projection; it does not grant model disclosure, approve context, publish a product or return file bytes.',
     parameters: {

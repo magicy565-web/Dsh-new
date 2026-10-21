@@ -18,11 +18,18 @@ Harness」落了一个后端切片：
    - 新增 `product-library` 行；默认不配置 Medusa source，
      `status.configured=false`，只列已有 room，不伪造商品。
 3. **DSH 适配器** `integrations/dsh-product-library`
-   - Host-only bundle，注册 3 个只读工具：
-     `product_library_status` / `product_library_list` / `product_library_read`；
+   - Host-only bundle，注册 4 个只读工具：
+     `product_library_status` / `product_library_list` /
+     `product_library_search` / `product_library_read`；
    - 通过 `http://127.0.0.1:8790`（可用 `PRODUCT_LIBRARY_BASE_URL` 覆盖）
      调用仓库 Harness 的 HTTP 面；
    - 已安装到当前 DSH profile，工具在当前会话可用。
+4. **应用内页面** `src/product-library/` + `server/product-library-proxy.mjs`
+   - 资料库 → **产品资料库** 标签页：商品列表、room、已审核 Context、页面/评论/审核、
+     附件上传与下载；
+   - 应用在 **local 模式** 下把 `/api/product-library/*` 同源代理到 8790，
+     不暴露 loopback 端口、不需要 CORS；enterprise 模式不代理，继续走签名入口；
+   - HTTP 非安全上下文下 `requestId` 回退到 `crypto.getRandomValues`。
 
 ## ChatGPT Space 对标
 
@@ -68,27 +75,24 @@ GET  /api/product-library/products/:productId/documents/:documentId
 
 ## 验证
 
-以下均为本地、合成输入，不是真实 Medusa/PostgreSQL/生产 Host 验收：
+本地门禁、真实腾讯云部署与应用内流程分开记录：
 
 | 项 | 结果 |
 | --- | --- |
 | `node --test plugins/workspace-product-library/test/plugin.test.mjs` | 17/17 通过 |
 | `node --test integrations/dsh-product-library/test/index.test.mjs` | 5/5 通过 |
-| `wh doctor --composition harness.local.yml` | `status: ok`，product-library 行、artifacts seam 与 11 条路由注册 |
-| Harness HTTP 冒烟 | `/status`、`/products` 返回 `configured:false` 与显式 warning |
-| 附件冒烟（合成 Medusa，loopback） | 真实 kernel HTTP：open room → 上传 62 字节 PDF → 读 room 见 documents → 下载字节 SHA-256 完全一致 |
-| DSH 端到端（合成 Medusa，loopback） | DSH 工具 → Harness HTTP → 插件 → 合成 Agent 面；`status configured:true`、list 1 条、open room + 建页/上传后 `product_library_read` 返回 pin/页面/引用/doc 元数据 |
+| `node --test test/product-library-proxy.test.mjs` | 2/2 通过 |
+| `tsc --noEmit` / `vite build` | 通过 |
+| `wh doctor --composition harness.local.yml` | `status: ok`，product-library 行、artifacts seam 与 12 条路由注册 |
+| Harness HTTP 冒烟 | `/status`、`/products` 返回显式配置状态 |
+| 附件冒烟（合成 Medusa，loopback） | open room → 上传 62 字节 PDF → 下载字节 SHA-256 完全一致 |
+| 腾讯云真实 Medusa 端到端 | 新建商品 `prod_01M5FXD1MGMEG0HBMF3VGZG16N` → Product Context `approved` rev1 readiness 90 → 资料库列表出现 → open room → 页面 5 条引用全 `current` → 评论 → 页面通过 → 69 字节 PDF 上传/下载 SHA-256 一致 → 搜索命中页面+文档 |
+| 应用内浏览器流程（真实部署） | Playwright：新建页面 → 评论 → 通过审核 → 上传 42 字节 PDF → 下载 SHA-256 一致；页面/附件数递增 |
+| DSH 工具对真实部署 | `product_library_status` 返回 configured、rooms=1、pages=2；`product_library_search("OEKO-TEX")` 命中 2 页面 + 1 文档 |
 
-端到端验证使用的是临时 mock Medusa（127.0.0.1:9099）和临时私有 token 文件；
-验证结束后已停止进程并删除临时数据。`docs` 不包含该 mock 数据。
-
-未执行、不能声称通过：
-
-- 真实 Medusa v2 + PostgreSQL + 真实 `AGENT_CONTEXT_READ_TOKEN` 与轮换；
-- 生产 Host 的签名入口、会话撤销、并发写、断网重试；
-- 附件 OCR/全文检索/在线预览、multipart 上传与超过 512 KiB 的文件；
-- 幻灯片/动态块、任务与实时协作；
-- DSH 页面化（本切片只提供 DSH 只读工具）。
+腾讯云验证使用了真实 Medusa v2 + PostgreSQL；DSH 工具经本机 SSH 隧道访问服务器 8790。
+仍未执行：生产签名入口/会话撤销/并发写/断网重试；附件 OCR/全文检索/预览、
+multipart 与超过 512 KiB 的文件；幻灯片/动态块、任务与实时协作；DSH 独立页面化。
 
 ## 怎么用
 

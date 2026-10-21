@@ -12,6 +12,7 @@ Harness 插件接到当前 DeepSeek Harness，让对话中的 Agent 可以读取
 | --- | --- |
 | `product_library_status` | `GET /api/product-library/status` |
 | `product_library_list` | `GET /api/product-library/products` |
+| `product_library_search` | `GET /api/product-library/search?q=` |
 | `product_library_read` | `GET /api/product-library/products/:productId` |
 
 `product_library_read` 返回 room 的 pin、页面、引用状态、评论、附件**元数据**
