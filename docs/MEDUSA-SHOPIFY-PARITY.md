@@ -1,6 +1,6 @@
 # Medusa 对标 Shopify：发布契约 1:1 复刻
 
-状态：设计规格（S0）。本轮不改运行时代码；S1 起按切片实现。
+状态：S0 规格 + S1 目标抽象已完成（`supplier-publication` 不再硬编码 Shopify 常量，44/44 用例通过）。S2 起实现 Medusa adapter。
 
 ## 0. 复刻边界
 
