@@ -92,12 +92,15 @@ GET  /api/product-library/products/:productId/documents/:documentId
 
 ## 怎么用
 
-1. 在 `workspace-agent` 启动 Harness：
+1. 在 `workspace-agent` 启动 Harness（前台，Ctrl+C 停止）：
 
 ```powershell
 $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe"
-& $node packages/harness-kernel/bin/wh.mjs doctor --composition harness.local.yml
+& $node scripts/harness-serve.mjs
+# 或：npm run harness:serve （需要 PATH 中有 node）
 ```
+
+默认监听 `http://127.0.0.1:8790`；`HARNESS_COMPOSITION` 可换组合文件。
 
 2. 配 Medusa 读取（可选）：在 `harness.local.yml` 的 `product-library` 行加
    `source`，`readTokenFile` 指向私有的 Product Context Agent 读 token 文件
