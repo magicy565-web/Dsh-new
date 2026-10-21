@@ -148,6 +148,18 @@ test('proposed and expired facts never enter a task snapshot', async () => {
   assert.equal(recalled.facts[0].id, saved.memory.id);
 });
 
+test('recallForTask enforces the internal role and an exact serialized budget', async () => {
+  const { ledger } = fixture();
+  await ledger.remember(memory('m-1'), admin);
+  assert.throws(
+    () => ledger.recallForTask({ subject: 'viewer', role: 'viewer', workspaceId }, { query: 'March' }),
+    error => error.code === 'MEMORY_ROLE_REQUIRED',
+  );
+  const recalled = ledger.recallForTask(admin, { query: '', limit: 50, maxChars: 1200 });
+  assert.ok(Buffer.byteLength(JSON.stringify(recalled.facts), 'utf8') <= 1200);
+  assert.ok(recalled.facts.length >= 1);
+});
+
 test('a foreign workspace actor cannot recall this memory', async () => {
   const { ledger } = fixture();
   await ledger.remember(memory('m-1'), admin);

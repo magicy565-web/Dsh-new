@@ -29,7 +29,9 @@ function taskScore(row,terms,now){
   const haystack=`${row.statement}\n${row.subjectId}\n${row.factKey}`.toLocaleLowerCase();
   let hits=0;for(const term of terms)if(haystack.includes(term))hits+=1;
   const ageDays=Math.max(0,(now-Date.parse(row.updatedAt))/86400000);
-  return Math.min(hits,8)*12+Math.max(0,14-ageDays)*0.8;
+  const verified=row.source?.verified===true?8:0;
+  const decision=row.kind==='decision'||row.kind==='outcome'?4:0;
+  return Math.min(hits,8)*12+Math.max(0,14-ageDays)*0.8+verified+decision;
 }
 
 function validateSource(source){
@@ -305,11 +307,11 @@ export function createEnterpriseMemoryLedger({store,library,disclosure=null,work
     for(const {row} of ranked){
       if(facts.length>=limit)break;
       try{currentSource(store,row.source,state);}catch{skippedSources+=1;continue;}
-      const size=Buffer.byteLength(row.statement,'utf8')+180;
+      const fact={id:row.id,workspaceId,revision:row.revision,subjectType:row.subjectType,subjectId:row.subjectId,
+        factKey:row.factKey,statement:row.statement,source:clean(row.source),updatedAt:row.updatedAt,expiresAt:row.expiresAt??null};
+      const size=Buffer.byteLength(JSON.stringify(fact),'utf8')+1;
       if(chars+size>maxChars){skippedBudget+=1;continue;}
-      facts.push({id:row.id,workspaceId,revision:row.revision,subjectType:row.subjectType,subjectId:row.subjectId,
-        factKey:row.factKey,statement:row.statement,source:clean(row.source),updatedAt:row.updatedAt,expiresAt:row.expiresAt??null});
-      chars+=size;
+      facts.push(fact);chars+=size;
     }
     return {facts,contextRevision:hash(list.map(row=>`${row.id}:${row.revision}`).sort().join('|')),
       total:list.length,omitted:list.length-facts.length,skippedSources,skippedBudget,generatedAt:iso(now)};

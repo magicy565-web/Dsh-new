@@ -77,6 +77,8 @@ PR #112 原生链路仍单独未通过**，不能用本次单元测试替代。
 - `createRuntime({ ..., enterpriseMemory, memoryWorkspaceId })`；
 - `prepareRunInput` 从本次用户输入（消息创建路径传入 `content`；恢复/修改上下文
   路径取最后一条 user 消息）生成 query；
+- `completeObserved` 增加 **provider-neutral pre-dispatch 复核**：所有 provider
+  调用前都重新校验本次快照，排队后才启动的 run 同样覆盖；
 - 使用 conversation 的 `workspaceId` 构造内部服务 actor
   `{ subject: 'workspace-runtime', role: 'operator', workspaceId }`，只读本企业账本；
 - 快照仍写入 `run.inputContextSnapshot`，每次 run 可追溯；
@@ -104,9 +106,12 @@ PR #112 原生链路仍单独未通过**，不能用本次单元测试替代。
 
 | 命令 | 结果 |
 | --- | --- |
-| `node --test test/task-context.test.mjs test/task-context-enterprise-memory.test.mjs test/runtime-enterprise-memory.test.mjs test/enterprise-memory-ledger.test.mjs test/enterprise-memory-http.test.mjs test/goal-brain-memory-fact.test.mjs test/runtime-v2.test.mjs` | **75/75 通过**（含 runtime-v2 的 22 项） |
+| `node --test test/task-context.test.mjs test/task-context-enterprise-memory.test.mjs test/runtime-enterprise-memory.test.mjs test/enterprise-memory-ledger.test.mjs test/enterprise-memory-http.test.mjs test/goal-brain-memory-fact.test.mjs test/runtime-v2.test.mjs` | **79/79 通过**（含 runtime-v2 的 22 项） |
 | `node --test test/enterprise-memory-ledger.test.mjs test/enterprise-memory-http.test.mjs test/goal-brain-memory-fact.test.mjs test/pi-provider.test.mjs` | **40/40 通过** |
 | `tsc --noEmit` | 通过 |
+
+代码审查与逐路径结论见
+[代码审查记录](REVIEW-ENTERPRISE-MEMORY-TASK-CONTEXT-20261022.md)。
 
 新增测试覆盖：
 

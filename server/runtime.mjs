@@ -113,6 +113,11 @@ export async function createRuntime({ store, provider, goalTimeoutMs = 180_000, 
       observedSequence = sequence;
       lastObservation = { status, observedAt: now(), code, scope: 'current-process-provider-return' };
     };
+    // Provider-neutral pre-dispatch fence: revalidate the exact pinned context
+    // for every provider, including queued runs that start long after admission.
+    const guardState = store.read();
+    const guardedRun = guardState.runs?.find(run => run.id === options.runId);
+    if (guardedRun?.inputContextSnapshot) assertInputContextSnapshot(guardState, guardedRun.conversationId, guardedRun.inputContextSnapshot);
     try { const result = await provider.complete(options); record(options.signal?.aborted ? 'cancelled' : 'succeeded'); return result; }
     catch (error) { const code = observationCodes.has(error?.code) ? error.code : 'PROVIDER_FAILURE'; record(options.signal?.aborted || code === 'CANCELLED' ? 'cancelled' : 'failed', code); throw error; }
   }
