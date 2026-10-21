@@ -98,3 +98,21 @@ test('a harness refusal keeps its error code and message', async () => {
     await assert.rejects(() => ctx.toolsMap.get('product_library_read').execute({ productId: 'prod_missing' }, {}), /PRODUCT_LIBRARY_ROOM_NOT_FOUND: Open this product first\./u);
   });
 });
+
+test('an optional authorization header is forwarded to a protected harness', async () => {
+  const seen = [];
+  await withServer((req, res) => {
+    seen.push(req.headers.authorization ?? null);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ configured: true, source: 'medusa-approved-context', rooms: 0 }));
+  }, async () => {
+    process.env.PRODUCT_LIBRARY_AUTHORIZATION = 'Basic d29ya3NwYWNlOnNlY3JldA==';
+    try {
+      const ctx = fakeContext();
+      apply(ctx, {});
+      const status = await ctx.toolsMap.get('product_library_status').execute({}, {});
+      assert.equal(status.configured, true);
+    } finally { delete process.env.PRODUCT_LIBRARY_AUTHORIZATION; }
+  });
+  assert.deepEqual(seen, ['Basic d29ya3NwYWNlOnNlY3JldA==']);
+});

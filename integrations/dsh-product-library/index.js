@@ -15,8 +15,14 @@ function resolveBaseURL() {
   return url.origin;
 }
 
+function resolveAuthorization() {
+  const value = process.env.PRODUCT_LIBRARY_AUTHORIZATION?.trim();
+  return value || null;
+}
+
 async function request(pathname, signal) {
   const url = resolveBaseURL() + pathname;
+  const authorization = resolveAuthorization();
   let response;
   try {
     response = await fetch(url, {
@@ -24,7 +30,7 @@ async function request(pathname, signal) {
       redirect: 'error',
       cache: 'no-store',
       signal: AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)].filter(Boolean)),
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', ...(authorization ? { authorization } : {}) },
     });
   } catch (error) {
     if (error?.name === 'AbortError' || error?.name === 'TimeoutError') throw new Error('PRODUCT_LIBRARY_TIMEOUT: the Workspace product library did not answer in time.');
