@@ -4,7 +4,8 @@
 （product room）。页面、版本、引用、评论、审核与操作回执都在 Workspace Harness 的
 自有存储里；Medusa 仍是商品事实的唯一权威。
 
-这是后端与 Harness 集成切片，不是一套新前端：
+这是后端 + Harness 集成切片；应用内页面在 `src/product-library/`，通过
+`server/product-library-proxy.mjs` 同源访问本服务，不另起一套独立前端：
 
 - 一个商品 = 一个 Space；页面 = 版本化文档；引用 = 指回商品字段 / Product Context 字段 / 证据；
 - Agent 通过工具读写，写操作一律走 harness 审批票据；
