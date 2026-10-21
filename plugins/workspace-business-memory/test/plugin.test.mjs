@@ -277,3 +277,26 @@ test('model tools recall only active memory and propose pending candidates', asy
   assert.ok(brief.items.length >= 1);
   assert.equal(brief.basedOn.active, 0);
 });
+
+test('the context endpoint compiles the task block and keeps an injection receipt', async () => {
+  const harness = fakeContext();
+  await apply(harness.ctx, {});
+  const created = await harness.call('POST /api/business-memory/records', { body: proposalBody(), actor: OPERATOR });
+  await harness.call('POST /api/business-memory/records/:id/review', {
+    params: { id: created.body.record.id }, body: { decision: 'approve', requestId: randomUUID() }, actor: ADMIN,
+  });
+  const context = await harness.call('POST /api/business-memory/context', {
+    body: { taskId: 'session-1:1', sessionId: 'session-1', query: '海祺 补货', refs: [{ subjectType: 'customer', subjectId: 'customer-haiqi' }] },
+  });
+  assert.equal(context.status, 200);
+  assert.match(context.body.text, new RegExp(`mem:${created.body.record.id}`, 'u'));
+  assert.equal(context.body.items[0].why, 'subject-match');
+  assert.equal(context.body.counts.active, 1);
+  const receipts = await harness.call('GET /api/business-memory/injections', { query: { taskId: 'session-1:1' } });
+  assert.equal(receipts.body.total, 1);
+  assert.deepEqual(receipts.body.items[0].ids, [created.body.record.id]);
+  await assert.rejects(
+    () => harness.call('GET /api/business-memory/injections', { actor: VIEWER }),
+    error => error.code === 'BUSINESS_MEMORY_ADMIN_REQUIRED',
+  );
+});

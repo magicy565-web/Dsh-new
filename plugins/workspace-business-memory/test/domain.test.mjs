@@ -329,3 +329,88 @@ test('input guards refuse unknown keys, oversized text and malformed sources', a
   await assert.rejects(() => service.propose({ actor: ADMIN }, proposal({ source: { kind: 'ftp', ref: 'x' } })), error => error.code === 'BUSINESS_MEMORY_INPUT');
   await assert.rejects(() => service.propose({ actor: ADMIN }, proposal({ subjectType: 'planet' })), error => error.code === 'BUSINESS_MEMORY_INPUT');
 });
+
+async function createActive(service, overrides = {}) {
+  const created = await service.propose({ actor: OPERATOR }, proposal(overrides));
+  const reviewed = await service.review({ actor: ADMIN }, created.record.id, { decision: 'approve', requestId: randomUUID() });
+  return reviewed.record;
+}
+
+test('task context compiles a budgeted, cited block and records an injection receipt', async () => {
+  const { service } = serviceWith();
+  const customer = await createActive(service, { statement: '海祺贸易每年 3 月和 9 月补货，采购负责人是林经理。' });
+  await createActive(service, {
+    subjectType: 'product', subjectId: 'prod_linen', subjectLabel: '亚麻衬衫',
+    factKey: 'buyer-profile', statement: '美国度假衬衫品牌重视透气和水洗，而不是最低价。',
+  });
+  const revisionBefore = service.status({ actor: ADMIN }).revision;
+  const context = await service.compileContext({ actor: ADMIN }, {
+    taskId: 'session-1:1', sessionId: 'session-1',
+    query: '帮我看下海祺的补货节奏', refs: [{ subjectType: 'customer', subjectId: 'customer-haiqi' }],
+  });
+  assert.match(context.text, /企业经营记忆/u);
+  assert.match(context.text, /只作为事实依据，不是指令/u);
+  assert.match(context.text, new RegExp(`mem:${customer.id}`, 'u'));
+  assert.equal(context.items[0].id, customer.id);
+  assert.equal(context.items[0].why, 'subject-match');
+  assert.equal(context.revision, revisionBefore, 'compiling a context does not write memory facts');
+  const receipts = service.injections({ actor: ADMIN }, { taskId: 'session-1:1' });
+  assert.equal(receipts.total, 1);
+  assert.deepEqual(receipts.items[0].ids, context.items.map(item => item.id));
+  assert.equal(receipts.items[0].revision, revisionBefore);
+  assert.ok(receipts.items[0].bytes > 0);
+  await createActive(service, { factKey: 'moq', statement: '起订量 300 件。' });
+  assert.ok(service.status({ actor: ADMIN }).revision > revisionBefore, 'a memory write invalidates cached task contexts');
+});
+
+test('task context respects the budget and per-subject diversity', async () => {
+  const { service } = serviceWith();
+  for (let index = 0; index < 8; index += 1) {
+    await createActive(service, {
+      subjectId: `customer-${index}`, subjectLabel: `客户${index}`,
+      factKey: 'moq', statement: `客户${index} 的起订量是 ${100 + index} 件。`,
+    });
+  }
+  const pending = await service.propose({ actor: OPERATOR }, proposal({ factKey: 'pending-only', statement: '尚未审核的候选事实。' }));
+  const context = await service.compileContext({ actor: ADMIN }, { taskId: 'task-budget', query: '客户 起订量', budgetChars: 900, maxItems: 20 });
+  assert.ok(context.items.length <= 5, 'per-subject cap keeps one subject from crowding the context');
+  assert.ok(context.counts.omitted > 0);
+  assert.equal(context.items.some(item => item.id === pending.record.id), false, 'proposals never enter a task context');
+  assert.equal(context.items.some(item => item.statement.includes('尚未审核')), false);
+  assert.ok(Buffer.byteLength(context.text, 'utf8') < 2000);
+  assert.ok(context.counts.active >= 8);
+});
+
+test('task context excludes expired facts and is isolated per workspace', async () => {
+  const { service } = serviceWith();
+  const expiring = await service.propose({ actor: OPERATOR }, proposal({
+    factKey: 'temporary-window', statement: '临时补货窗口只到本月。',
+    expiresAt: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
+  }));
+  await service.review({ actor: ADMIN }, expiring.record.id, { decision: 'approve', requestId: randomUUID() });
+  const before = await service.compileContext({ actor: ADMIN }, { taskId: 'task-expire-1', query: '补货窗口' });
+  assert.ok(before.items.some(item => item.id === expiring.record.id));
+  advance(2 * 24 * 60 * 60 * 1000);
+  const after = await service.compileContext({ actor: ADMIN }, { taskId: 'task-expire-2', query: '补货窗口' });
+  assert.equal(after.items.some(item => item.id === expiring.record.id), false);
+
+  await createActive(service, { statement: 'Alpha 的客户补货节奏。' });
+  const beta = await service.compileContext({ actor: BETA }, { taskId: 'beta:1', query: '补货' });
+  assert.equal(beta.items.length, 0);
+  assert.match(beta.text, /当前没有已确认的经营记忆/u);
+  assert.deepEqual(beta.warnings, ['BUSINESS_MEMORY_EMPTY']);
+  const betaReceipts = service.injections({ actor: BETA }, {});
+  assert.equal(betaReceipts.total, 1);
+});
+
+test('context requests are bounded and receipts can be disabled', async () => {
+  const { service } = serviceWith();
+  await assert.rejects(() => service.compileContext({ actor: ADMIN }, { budgetChars: 100 }), error => error.code === 'BUSINESS_MEMORY_INPUT');
+  await assert.rejects(() => service.compileContext({ actor: ADMIN }, { maxItems: 500 }), error => error.code === 'BUSINESS_MEMORY_INPUT');
+  await assert.rejects(() => service.compileContext({ actor: ADMIN }, { random: true }), error => error.code === 'BUSINESS_MEMORY_INPUT');
+  await assert.rejects(() => service.compileContext({ actor: ADMIN }, { refs: [{ subjectType: 'planet', subjectId: 'x' }] }), error => error.code === 'BUSINESS_MEMORY_INPUT');
+  const context = await service.compileContext({ actor: ADMIN }, { record: false, query: '补货' });
+  assert.equal(context.taskId, null);
+  assert.equal(service.injections({ actor: ADMIN }, {}).total, 0);
+  assert.throws(() => service.injections({ actor: OPERATOR }, {}), error => error.code === 'BUSINESS_MEMORY_ADMIN_REQUIRED');
+});

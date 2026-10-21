@@ -18,6 +18,8 @@ export const ROUTES = Object.freeze([
   ['GET', `${BASE}/status`],
   ['GET', `${BASE}/map`],
   ['GET', `${BASE}/brief`],
+  ['POST', `${BASE}/context`],
+  ['GET', `${BASE}/injections`],
   ['GET', `${BASE}/records`],
   ['GET', `${BASE}/records/:id`],
   ['POST', `${BASE}/records`],
@@ -183,6 +185,14 @@ export async function applyService(ctx, service) {
   ctx.http.route({ method: 'GET', path: `${BASE}/status`, handler: call(context => ({ status: 200, body: service.status(context) })) });
   ctx.http.route({ method: 'GET', path: `${BASE}/map`, handler: call(context => ({ status: 200, body: service.map(context) })) });
   ctx.http.route({ method: 'GET', path: `${BASE}/brief`, handler: call(context => ({ status: 200, body: service.brief(context) })) });
+  ctx.http.route({
+    method: 'POST', path: `${BASE}/context`,
+    handler: call(async context => ({ status: 200, body: await service.compileContext(context, context.body ?? {}) })),
+  });
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/injections`,
+    handler: call(context => ({ status: 200, body: service.injections(context, context.query ?? {}) })),
+  });
   ctx.http.route({
     method: 'GET', path: `${BASE}/records`,
     handler: call(context => ({ status: 200, body: service.recall(context, context.query ?? {}) })),

@@ -21,6 +21,8 @@
     "GET /api/business-memory/status",
     "GET /api/business-memory/map",
     "GET /api/business-memory/brief",
+    "POST /api/business-memory/context",
+    "GET /api/business-memory/injections",
     "GET /api/business-memory/records",
     "GET /api/business-memory/records/:id",
     "POST /api/business-memory/records",

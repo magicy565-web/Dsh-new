@@ -18,7 +18,7 @@ function resolveBaseURL() {
   return url.origin;
 }
 
-async function request(pathname, { method = 'GET', body, signal } = {}) {
+async function request(pathname, { method = 'GET', body, signal, timeoutMs = TIMEOUT_MS } = {}) {
   const url = resolveBaseURL() + pathname;
   let response;
   try {
@@ -26,7 +26,7 @@ async function request(pathname, { method = 'GET', body, signal } = {}) {
       method,
       redirect: 'error',
       cache: 'no-store',
-      signal: AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)].filter(Boolean)),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)].filter(Boolean)),
       headers: { accept: 'application/json', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
@@ -189,8 +189,148 @@ const definitions = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Mandatory memory read for task execution.
+//
+// A recall tool is optional by nature, so this adapter also installs itself on
+// the execution path:
+//   - `agent/pre-step` reads the turn's task text and compiles a task-scoped
+//     memory block once per turn (async, bounded, fail-open by default);
+//   - `system-prompt/assemble` injects that block into every model step.
+// The server records an injection receipt with the memory revision and ids, so
+// "this task read memory" is auditable rather than a prompt convention.
+// ---------------------------------------------------------------------------
+const MAX_AGENTS = 200;
+const MAX_TASK_TEXT = 4000;
+const PACK_TTL_MS = 120_000;
+const CORE_TTL_MS = 30_000;
+
+function clampInt(raw, fallback, minimum, maximum) {
+  const value = Number.parseInt(raw ?? '', 10);
+  return Number.isFinite(value) ? Math.min(maximum, Math.max(minimum, value)) : fallback;
+}
+
+function messageText(message) {
+  if (typeof message?.content === 'string') return message.content;
+  if (Array.isArray(message?.content))
+    return message.content
+      .map(block => typeof block === 'string' ? block : block?.type === 'text' ? block.text : '')
+      .filter(Boolean)
+      .join('\n');
+  return '';
+}
+
+function turnText(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .filter(message => message?.role === 'user')
+    .map(messageText)
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, MAX_TASK_TEXT);
+}
+
+function errorCode(error) {
+  const match = /^([A-Z][A-Z0-9_]{1,79}):/u.exec(String(error?.message ?? ''));
+  return match ? match[1] : 'BUSINESS_MEMORY_UNAVAILABLE';
+}
+
+function unavailableText(code) {
+  return `【企业经营记忆 · 自动注入】\n本轮无法读取企业经营记忆（${code}）。不要声称记得企业事实；需要时明确说明记忆不可用，并建议先启动记忆服务。`;
+}
+
+function installInjection(ctx, options) {
+  const packs = new Map();
+  let corePack = null;
+
+  function rememberPack(agentId, value) {
+    packs.delete(agentId);
+    packs.set(agentId, value);
+    while (packs.size > MAX_AGENTS) packs.delete(packs.keys().next().value);
+  }
+
+  async function onPreStep(payload, next) {
+    if (!options.enabled) return next();
+    const agentId = payload?.agent?.id;
+    if (!agentId) return next();
+    const existing = packs.get(agentId);
+    if (existing && existing.turn === payload.turn && Date.now() - existing.at < PACK_TTL_MS) return next();
+    const decision = next();
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (payload.signal?.aborted) controller.abort();
+    else payload.signal?.addEventListener?.('abort', abort, { once: true });
+    const read = request('/api/business-memory/context', {
+      method: 'POST',
+      body: {
+        taskId: `${agentId}:${payload.turn}`,
+        sessionId: agentId,
+        query: turnText(payload.messages),
+        budgetChars: options.budgetChars,
+        maxItems: 24,
+        record: true,
+      },
+      signal: controller.signal,
+      timeoutMs: options.timeoutMs,
+    }).then(pack => rememberPack(agentId, {
+      turn: payload.turn, at: Date.now(), text: pack?.text ?? null,
+      revision: pack?.revision ?? null, counts: pack?.counts ?? null, error: null,
+    })).catch(error => rememberPack(agentId, {
+      turn: payload.turn, at: Date.now(), text: null, revision: null, counts: null, error: errorCode(error),
+    })).finally(() => payload.signal?.removeEventListener?.('abort', abort));
+    const [entered] = await Promise.all([decision, read]);
+    if (options.required) {
+      const pack = packs.get(agentId);
+      if (!pack || pack.turn !== payload.turn || pack.error)
+        throw new Error(`BUSINESS_MEMORY_REQUIRED: the task execution could not read enterprise memory (${pack?.error ?? 'BUSINESS_MEMORY_UNAVAILABLE'}).`);
+    }
+    return entered;
+  }
+
+  async function onAssemble(assembly, context, next) {
+    const base = await next();
+    if (!options.enabled) return base;
+    let agent;
+    try { agent = ctx.agents?.currentInitiator?.(); } catch { agent = undefined; }
+    // Title generation and other internal model calls have no executing agent;
+    // do not spend their prompt budget on business memory.
+    if (!agent) return base;
+    let pack = packs.get(agent.id);
+    if (!pack || Date.now() - pack.at > PACK_TTL_MS) pack = null;
+    if (!pack) {
+      if (!corePack || Date.now() - corePack.at > CORE_TTL_MS) {
+        try {
+          const value = await request('/api/business-memory/context', {
+            method: 'POST',
+            body: { query: '', budgetChars: Math.min(options.budgetChars, 1200), maxItems: 10, record: false },
+            signal: context?.signal,
+            timeoutMs: options.timeoutMs,
+          });
+          corePack = { at: Date.now(), text: value?.text ?? null, revision: value?.revision ?? null, error: null };
+        } catch (error) {
+          corePack = { at: Date.now(), text: null, revision: null, error: errorCode(error) };
+        }
+      }
+      pack = corePack;
+    }
+    const text = pack?.text || unavailableText(pack?.error ?? 'BUSINESS_MEMORY_UNAVAILABLE');
+    const contexts = (Array.isArray(base.contexts) ? base.contexts : []).filter(item => item?.name !== 'business-memory');
+    return { ...base, contexts: [...contexts, { name: 'business-memory', text }] };
+  }
+
+  const disposers = [];
+  for (const [name, handler] of [['agent/pre-step', onPreStep], ['system-prompt/assemble', onAssemble]]) {
+    const dispose = ctx.on(name, handler);
+    if (typeof dispose === 'function') disposers.push(dispose);
+  }
+  return async () => {
+    for (const dispose of disposers) {
+      try { await dispose(); } catch { /* Disposal is best-effort; the fiber scope also unwinds listeners. */ }
+    }
+  };
+}
+
 /** @param {object} ctx Cordis host context */
-export const inject = ['tools'];
+export const inject = ['tools', 'agents'];
 
 export function apply(ctx, _config = {}) {
   if (!ctx?.tools?.register) throw new Error('dsh-business-memory requires ctx.tools.');
@@ -198,6 +338,14 @@ export function apply(ctx, _config = {}) {
   for (const definition of definitions) {
     ctx.effect(() => ctx.tools.register({ ...definition, output }));
   }
+  const options = {
+    enabled: process.env.BUSINESS_MEMORY_INJECT !== '0',
+    required: process.env.BUSINESS_MEMORY_REQUIRED === '1',
+    budgetChars: clampInt(process.env.BUSINESS_MEMORY_CONTEXT_BUDGET, 2400, 400, 8000),
+    timeoutMs: clampInt(process.env.BUSINESS_MEMORY_CONTEXT_TIMEOUT_MS, 400, 100, 3000),
+  };
+  const disposeInjection = typeof ctx.on === 'function' ? installInjection(ctx, options) : null;
+  return async () => { if (disposeInjection) await disposeInjection(); };
 }
 
 export default { apply, inject };
