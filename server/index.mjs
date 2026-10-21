@@ -22,6 +22,7 @@ import { createGa4ProductTrafficAdapter } from './product-traffic-ga4.mjs';
 import { loadSupplierTrafficOptions } from './product-traffic-config.mjs';
 import { createSupplierNotificationHost, SUPPLIER_MONITOR_NOTIFICATION_ADAPTER } from './supplier-notification-host.mjs';
 import { createShopifyPublicationAdapter, SUPPLIER_SHOPIFY_ADAPTER } from './shopify-publication.mjs';
+import { createMedusaPublicationAdapter, createMedusaAdminClient, SUPPLIER_MEDUSA_ADAPTER } from './medusa-publication.mjs';
 import { createSupplierPublication, supplierPublicationHttp } from './supplier-publication.mjs';
 import { createSupplierWorkerMcpExtension } from './supplier-mcp.mjs';
 import { supplierOwnerMcpHttp } from './supplier-owner-mcp.mjs';
@@ -126,7 +127,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   const backendSelection = backendPluginSelection(backendPlugins);
   const store = await openStore(dataDirectory);
   let medusaModule, pluginLibraryModule;
-  let runtime, artifacts, capabilities, access, recovery, goalBrain, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure,enterpriseMemory, shopify, commerce, supply, inquiryRecovery, aiWorks, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent, medusaCatalog, spaceService;
+  let runtime, artifacts, capabilities, access, recovery, goalBrain, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure,enterpriseMemory, shopify, commerce, supply, inquiryRecovery, aiWorks, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, publicationCommerce, supplierPublication, supplierNotifications, builtinAgent, medusaCatalog, spaceService;
   try {
     if (businessAgent && Object.values(store.read().workspaceThreadHarness || {}).some(value => Array.isArray(value) && value.length))
       throw new Error('Existing alpha ThreadHarness records are retained. Review their archive/migration before enabling this adapter; no second executor or automatic state synchronization will adopt them.');
@@ -184,14 +185,24 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     workerOpportunities = createWorkerOpportunityService({ store });
     cloudExperts = createCloudExpertService({ store, workerCatalog: () => workerDesk.catalog(), workerDesk });
     await workerDesk.recoverInterrupted();
-    if (Object.hasOwn(connectorAdapters, SUPPLIER_SHOPIFY_ADAPTER) || Object.hasOwn(connectorAdapters, SUPPLIER_MONITOR_NOTIFICATION_ADAPTER)) throw new TypeError('The original supplier Shopify adapter ID cannot be overwritten.');
+    if (Object.hasOwn(connectorAdapters, SUPPLIER_SHOPIFY_ADAPTER) || Object.hasOwn(connectorAdapters, SUPPLIER_MEDUSA_ADAPTER) || Object.hasOwn(connectorAdapters, SUPPLIER_MONITOR_NOTIFICATION_ADAPTER)) throw new TypeError('The original supplier commerce adapter IDs cannot be overwritten.');
     if (!Object.keys(supplierNotificationOptions).length && capabilityEnvironment.WORKSPACE_SUPPLIER_NOTIFICATION_CONFIG_FILE) supplierNotificationOptions = await loadSupplierNotificationOptions(capabilityEnvironment.WORKSPACE_SUPPLIER_NOTIFICATION_CONFIG_FILE);
     const nativeSubscriptions = createNativeSubscriptionFacility({ access, clock: accessClock });
     supplierNotificationOptions = { ...supplierNotificationOptions, nativeFacility: nativeSubscriptions, resolveRecipient: supplierNotificationOptions.resolveRecipient || nativeSubscriptions.resolveRecipient, confirmSubscription: supplierNotificationOptions.confirmSubscription || nativeSubscriptions.confirmSubscription };
     supplierNotifications = createSupplierNotificationHost({ store, getCapabilities: () => capabilities, getSupplier: () => supplierService, options: supplierNotificationOptions, clock: accessClock, currentRole: subject => accessConfig.mode === 'enterprise' ? accessConfig.members.get(subject) : subject === 'local-operator' ? 'admin' : null });
-    publicationAdapter = createShopifyPublicationAdapter({ store, environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock,
-      readImage: (scope, ref) => supplierService.forActor({ subject: scope.subject, workspaceId: scope.workspaceId, role: scope.actorRole }).readImage(scope.conversationId, scope.serviceId, ref) });
-    capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [SUPPLIER_SHOPIFY_ADAPTER]: publicationAdapter, [SUPPLIER_MONITOR_NOTIFICATION_ADAPTER]: supplierNotifications.adapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'market-validation-monitor' ? marketValidationMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
+    // One reviewed commerce target at a time. Shopify stays the default; the
+    // Medusa target must be selected explicitly and is verified by its own
+    // read-only admin client. See docs/MEDUSA-SHOPIFY-PARITY.md.
+    const publicationTarget = String(capabilityEnvironment.WORKSPACE_SUPPLIER_PUBLICATION_TARGET || 'shopify').toLowerCase();
+    if (!['shopify', 'medusa'].includes(publicationTarget)) throw new TypeError('WORKSPACE_SUPPLIER_PUBLICATION_TARGET must be shopify or medusa.');
+    publicationCommerce = publicationTarget === 'medusa'
+      ? createMedusaAdminClient({ environment: capabilityEnvironment, fetchImpl: medusaFetch })
+      : null;
+    publicationAdapter = publicationTarget === 'medusa'
+      ? createMedusaPublicationAdapter({ environment: capabilityEnvironment, fetchImpl: medusaFetch, clock: accessClock })
+      : createShopifyPublicationAdapter({ store, environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock,
+        readImage: (scope, ref) => supplierService.forActor({ subject: scope.subject, workspaceId: scope.workspaceId, role: scope.actorRole }).readImage(scope.conversationId, scope.serviceId, ref) });
+    capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [publicationAdapter.target.adapter]: publicationAdapter, [SUPPLIER_MONITOR_NOTIFICATION_ADAPTER]: supplierNotifications.adapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'market-validation-monitor' ? marketValidationMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
     bindSpaceSafeBootstrap(runtime);
     museDrafts = piMuse ? createMuseDraftService({ store, runtime, piMuse, artifacts, provider }) : null;
@@ -218,7 +229,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       });
       goalBrain = createGoalBrainHost({ store, artifacts, access, libraryModelRead, ...goalBrainOptions, sourceAdapter, clock: accessClock });
     }
-    supplierPublication = await createSupplierPublication({ store, capabilities, shopify, adapter: publicationAdapter, clock: accessClock });
+    supplierPublication = await createSupplierPublication({ store, capabilities, shopify, commerce: publicationCommerce ?? shopify, adapter: publicationAdapter, clock: accessClock });
     await supplierNotifications.initialize();
     commerce = createCommerceService({ store, runtime, shopify, workerDesk, workerCatalog: () => workerDesk.catalog(), museConnection: () => museBridge?.info(), clock: accessClock });
     supply = createSupplyNetworkService({ store, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local',
