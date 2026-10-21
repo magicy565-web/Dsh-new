@@ -721,6 +721,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
 }
 
 export async function startWorkspaceServer({ reviewedBusiness = null, environment = process.env } = {}) {
+  // process.env has a null prototype, and the reviewed adapters validate plain
+  // records (AI-work source environment, capability environment). Copy it once
+  // so a normal `node server/index.mjs` start does not reject its own env.
+  environment = { ...environment };
   if (reviewedBusiness !== null && environment.WORKSPACE_BUSINESS_REVIEW_FILE) throw Error('Select one original reviewed business configuration source.');
   if (environment.WORKSPACE_BUSINESS_REVIEW_FILE) reviewedBusiness = await (await import('./workspace-omp-host.mjs')).loadReviewedBusinessOptions(environment.WORKSPACE_BUSINESS_REVIEW_FILE, environment);
   // Trusted in-process composition only. HTTP selections remain references,
