@@ -13,6 +13,7 @@ const BASE = '/api/product-library';
 const ROUTES = Object.freeze([
   ['GET', `${BASE}/status`],
   ['GET', `${BASE}/products`],
+  ['GET', `${BASE}/search`],
   ['GET', `${BASE}/products/:productId`],
   ['POST', `${BASE}/products/:productId/open`],
   ['POST', `${BASE}/products/:productId/sync`],
@@ -24,7 +25,7 @@ const ROUTES = Object.freeze([
   ['GET', `${BASE}/products/:productId/documents/:documentId`],
 ]);
 const TOOL_NAMES = Object.freeze([
-  'product_library_status', 'product_library_list', 'product_library_read',
+  'product_library_status', 'product_library_list', 'product_library_search', 'product_library_read',
   'product_library_open', 'product_library_sync', 'product_library_create_page',
   'product_library_save_page', 'product_library_comment', 'product_library_approve_page',
 ]);
@@ -106,6 +107,7 @@ export async function applyService(ctx, service) {
 
   ctx.http.route({ method: 'GET', path: `${BASE}/status`, handler: call(async () => ({ status: 200, body: status() })) });
   ctx.http.route({ method: 'GET', path: `${BASE}/products`, handler: call(async context => ({ status: 200, body: await service.list(context, context.query ?? {}) })) });
+  ctx.http.route({ method: 'GET', path: `${BASE}/search`, handler: call(async context => ({ status: 200, body: await service.search(context, context.query ?? {}) })) });
   ctx.http.route({ method: 'GET', path: `${BASE}/products/:productId`, handler: call(async context => ({ status: 200, body: await service.read(context, context.params?.productId) })) });
   ctx.http.route({ method: 'POST', path: `${BASE}/products/:productId/open`, handler: call(context => service.open(context, context.params?.productId, context.body ?? {})) });
   ctx.http.route({ method: 'POST', path: `${BASE}/products/:productId/sync`, handler: call(context => service.sync(context, context.params?.productId, context.body ?? {})) });
@@ -162,6 +164,24 @@ export async function applyService(ctx, service) {
     readOnly: true,
     authority: 'workspace',
     handler: async (args, execution) => service.list(toolContext(execution), args ?? {}),
+  });
+
+  tool({
+    name: 'product_library_search',
+    description: 'Search inside opened Product Library rooms: product titles, page titles and bodies, and document labels/filenames. Returns bounded snippets with product/page/document ids. It does not invent Medusa products that have no room and does not return document bytes.',
+    parameters: {
+      type: 'object',
+      properties: {
+        q: { type: 'string', minLength: 1, maxLength: 200, description: 'Case-insensitive substring to find.' },
+        limit: { type: 'integer', minimum: 1, maximum: 50, description: 'Maximum hits; defaults to 20.' },
+      },
+      required: ['q'],
+      additionalProperties: false,
+    },
+    approval: 'never',
+    readOnly: true,
+    authority: 'workspace',
+    handler: async (args, execution) => service.search(toolContext(execution), args ?? {}),
   });
 
   tool({

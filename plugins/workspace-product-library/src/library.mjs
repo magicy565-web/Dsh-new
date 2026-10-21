@@ -222,6 +222,15 @@ function preview(value) {
   return String(value).slice(0, 240);
 }
 
+/** Bounded context snippet around the first case-insensitive match. */
+function snippet(value, needle) {
+  const text = String(value ?? '').replace(/[\u0000-\u001f\u007f]+/gu, ' ').replace(/\s+/gu, ' ');
+  const index = text.toLocaleLowerCase().indexOf(needle);
+  if (index < 0) return null;
+  const start = Math.max(0, index - 60), end = Math.min(text.length, index + needle.length + 140);
+  return `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
+}
+
 /** Resolve one citation against the current pin; saved hashes detect drift. */
 export function resolveCitation(pin, citation) {
   const value = citationValue(pin, citation);
@@ -408,6 +417,28 @@ export function createProductLibraryService({ storage, source, artifacts, clock 
           return finish(stored, false, error.code);
         throw error;
       });
+    },
+
+    search(context, query = {}) {
+      actorOf(context, workspaceId);
+      const q = text(query.q, 200);
+      const needle = q.toLocaleLowerCase();
+      const limit = query.limit === undefined ? 20 : integer(Number(query.limit), { maximum: 50 });
+      const data = state(), items = [];
+      for (const room of data.rooms) {
+        const productSnippet = snippet(room.pin.product.title, needle);
+        if (productSnippet) items.push({ productId: room.productId, productTitle: room.pin.product.title, kind: 'product', id: room.productId, title: room.pin.product.title, snippet: productSnippet, status: room.pin.product.status ?? null });
+        for (const page of room.pages) {
+          const current = page.versions.at(-1);
+          const pageSnippet = snippet(`${current.title}\n${current.body}`, needle);
+          if (pageSnippet) items.push({ productId: room.productId, productTitle: room.pin.product.title, kind: 'page', id: page.id, title: current.title, snippet: pageSnippet, status: page.status, version: current.version });
+        }
+        for (const document of room.documents) {
+          const documentSnippet = snippet(`${document.label}\n${document.filename}`, needle);
+          if (documentSnippet) items.push({ productId: room.productId, productTitle: room.pin.product.title, kind: 'document', id: document.id, title: document.label, snippet: documentSnippet, status: document.kind, size: document.size, sha256: document.sha256 });
+        }
+      }
+      return { query: q, total: items.length, items: items.slice(0, limit) };
     },
 
     read(context, productIdInput) {

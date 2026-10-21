@@ -28,6 +28,7 @@
   "routes": [
     "GET /api/product-library/status",
     "GET /api/product-library/products",
+    "GET /api/product-library/search",
     "GET /api/product-library/products/:productId",
     "POST /api/product-library/products/:productId/open",
     "POST /api/product-library/products/:productId/sync",
@@ -41,6 +42,7 @@
   "tools": [
     "product_library_status",
     "product_library_list",
+    "product_library_search",
     "product_library_read",
     "product_library_open",
     "product_library_sync",

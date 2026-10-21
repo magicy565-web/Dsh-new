@@ -110,13 +110,13 @@ async function mounted(options = {}) {
 
 test('the plugin registers its routes, tools and health probe', async () => {
   const harness = await mounted();
-  assert.equal(harness.routes.size, 11);
+  assert.equal(harness.routes.size, 12);
   assert.deepEqual([...harness.tools.keys()].sort(), [
     'product_library_approve_page', 'product_library_comment', 'product_library_create_page',
     'product_library_list', 'product_library_open', 'product_library_read',
-    'product_library_save_page', 'product_library_status', 'product_library_sync',
+    'product_library_save_page', 'product_library_search', 'product_library_status', 'product_library_sync',
   ]);
-  for (const name of ['product_library_status', 'product_library_list', 'product_library_read']) {
+  for (const name of ['product_library_status', 'product_library_list', 'product_library_search', 'product_library_read']) {
     assert.equal(harness.tools.get(name).approval, 'never');
     assert.equal(harness.tools.get(name).readOnly, true);
   }
@@ -287,6 +287,33 @@ test('a viewer may comment but may not create, save or open', async () => {
     () => harness.call('POST /api/product-library/products/:productId/open', { params: { productId: 'prod_beta' }, body: { requestId: randomUUID() }, actor: VIEWER }),
     error => error.code === 'PRODUCT_LIBRARY_FORBIDDEN',
   );
+});
+
+test('search returns bounded snippets across pages and documents', async () => {
+  const harness = await mounted();
+  await harness.call('POST /api/product-library/products/:productId/open', { params: { productId: 'prod_alpha' }, body: { requestId: randomUUID() } });
+  await harness.call('POST /api/product-library/products/:productId/pages', {
+    params: { productId: 'prod_alpha' },
+    body: { requestId: randomUUID(), title: 'Resort launch', body: 'Target resort shirts and summer sets in the US.' },
+  });
+  await harness.call('POST /api/product-library/products/:productId/documents', {
+    params: { productId: 'prod_alpha' },
+    body: { requestId: randomUUID(), filename: 'certificate.pdf', base64: Buffer.from('pdf').toString('base64'), label: 'OEKO certificate', kind: 'certificate' },
+  });
+  const pageHits = await harness.call('GET /api/product-library/search', { query: { q: 'resort' } });
+  assert.equal(pageHits.status, 200);
+  assert.ok(pageHits.body.items.some(item => item.kind === 'page' && item.title === 'Resort launch'));
+  assert.ok(pageHits.body.items.every(item => item.snippet.toLowerCase().includes('resort')));
+  const docHits = await harness.call('GET /api/product-library/search', { query: { q: 'oeko' } });
+  assert.ok(docHits.body.items.some(item => item.kind === 'document' && item.title === 'OEKO certificate'));
+  const none = await harness.call('GET /api/product-library/search', { query: { q: 'nothing-matches-this' } });
+  assert.equal(none.body.total, 0);
+  await assert.rejects(
+    () => harness.call('GET /api/product-library/search', { query: { q: '   ' } }),
+    error => error.code === 'PRODUCT_LIBRARY_INPUT',
+  );
+  const viaTool = await harness.run('product_library_search', { q: 'resort' });
+  assert.ok(viaTool.items.some(item => item.kind === 'page'));
 });
 
 test('documents are uploaded through the artifacts seam and downloaded only by hash match', async () => {

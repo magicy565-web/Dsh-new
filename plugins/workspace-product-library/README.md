@@ -62,6 +62,7 @@ GET {MEDUSA_ORIGIN}/agent/product-contexts/:productId
 | --- | --- | --- |
 | GET | `/api/product-library/status` | 配置与计数 |
 | GET | `/api/product-library/products?q=&limit=` | 已审核商品 + 是否已建 room |
+| GET | `/api/product-library/search?q=&limit=` | 在已建 room 的商品名/页面正文/文档标签中搜索 |
 | GET | `/api/product-library/products/:productId` | room：pin、页面、引用状态、评论 |
 | POST | `/api/product-library/products/:productId/open` | 建 room（幂等 requestId） |
 | POST | `/api/product-library/products/:productId/sync` | 重新 pin，返回变更字段与过期页面 |
@@ -76,7 +77,7 @@ GET {MEDUSA_ORIGIN}/agent/product-contexts/:productId
 
 ## 工具
 
-只读：`product_library_status`、`product_library_list`、`product_library_read`。
+只读：`product_library_status`、`product_library_list`、`product_library_search`、`product_library_read`。
 写入（`approval: 'always'`）：`product_library_open`、`product_library_sync`、
 `product_library_create_page`、`product_library_save_page`、`product_library_comment`、
 `product_library_approve_page`。

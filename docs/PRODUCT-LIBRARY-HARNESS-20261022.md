@@ -52,6 +52,7 @@ Harness」落了一个后端切片：
 ```text
 GET  /api/product-library/status
 GET  /api/product-library/products?q=&limit=
+GET  /api/product-library/search?q=&limit=
 GET  /api/product-library/products/:productId
 POST /api/product-library/products/:productId/open
 POST /api/product-library/products/:productId/sync
@@ -71,7 +72,7 @@ GET  /api/product-library/products/:productId/documents/:documentId
 
 | 项 | 结果 |
 | --- | --- |
-| `node --test plugins/workspace-product-library/test/plugin.test.mjs` | 16/16 通过 |
+| `node --test plugins/workspace-product-library/test/plugin.test.mjs` | 17/17 通过 |
 | `node --test integrations/dsh-product-library/test/index.test.mjs` | 5/5 通过 |
 | `wh doctor --composition harness.local.yml` | `status: ok`，product-library 行、artifacts seam 与 11 条路由注册 |
 | Harness HTTP 冒烟 | `/status`、`/products` 返回 `configured:false` 与显式 warning |
