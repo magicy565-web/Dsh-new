@@ -30,9 +30,9 @@ export const SUPPLIER_SHOPIFY_TARGET = Object.freeze({
   isPublicationId: value => /^gid:\/\/shopify\/Publication\/\d+$/u.test(value ?? ''),
   actionName: action => `supplier.shopify.${action}`,
   draftStatus: 'shopify_draft',
-  clientConfigured: ({ shopify }) => Boolean(shopify?.status?.().configured),
+  clientConfigured: ({ commerce, shopify }) => Boolean((commerce ?? shopify)?.status?.().configured),
   /** Identity/capability verification owned by the target, not the business flow. */
-  verify: ({ shopify }) => shopify.verify(),
+  verify: ({ commerce, shopify }) => (commerce ?? shopify).verify(),
   allowsAction: (verified, action) => Array.isArray(verified?.scopes)
     && verified.scopes.includes('write_products')
     && (action === 'publish' ? verified.scopes.includes('write_publications') : true),

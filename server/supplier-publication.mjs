@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import { supplierFail, supplierHash } from './supplier-profile.mjs';
 import { assertSupplierProductSource, supplierFind, supplierRegistry, supplierRequest } from './supplier-draft.mjs';
 import { SUPPLIER_SHOPIFY_TARGET } from './shopify-publication.mjs';
@@ -16,8 +16,8 @@ const receiptValidFor = (target, value, operation) => Boolean(value)
 
 /** Business receipts stay on the original supplier entity; approvals and
  * connector executions stay in the original capability collections. */
-export async function createSupplierPublication({ store, capabilities, shopify, adapter, clock = Date.now, connectorId = null } = {}) {
-  if (!store || !capabilities || !shopify || !adapter) throw new TypeError('Use the existing Workspace store, capabilities, Shopify client and publication adapter.');
+export async function createSupplierPublication({ store, capabilities, shopify, adapter, commerce = shopify, clock = Date.now, connectorId = null } = {}) {
+  if (!store || !capabilities || !(shopify || commerce) || !adapter) throw new TypeError('Use the existing Workspace store, capabilities, commerce client and publication adapter.');
   // The business flow reads the commerce target from the adapter. Shopify is the
   // default only for adapters that predate the descriptor. See
   // docs/MEDUSA-SHOPIFY-PARITY.md.
@@ -138,9 +138,9 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
           const readiness = adapter.status();
           if (readiness.enabled && readiness.configured) await ensureConnector();
           const selectedConnector = connector();
-          if (!readiness.configured || !target.clientConfigured({ shopify, adapter }) || !readiness.enabled || selectedConnector.status !== 'ready') return { service: getService(cid, sid), operation: null, approval: null, status: 'blocked', error: { code: !readiness.configured || !target.clientConfigured({ shopify, adapter }) ? 'SHOPIFY_SETUP_REQUIRED' : 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', message: 'Configure and explicitly enable the existing host Shopify connector before preparing a write approval.' } };
+          if (!readiness.configured || !target.clientConfigured({ commerce, shopify, adapter }) || !readiness.enabled || selectedConnector.status !== 'ready') return { service: getService(cid, sid), operation: null, approval: null, status: 'blocked', error: { code: !readiness.configured || !target.clientConfigured({ commerce, shopify, adapter }) ? 'SHOPIFY_SETUP_REQUIRED' : 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', message: 'Configure and explicitly enable the existing host Shopify connector before preparing a write approval.' } };
           if (!selectedConnector.capabilities.includes(target.actionName(body.action))) return { service: getService(cid, sid), operation: null, approval: null, status: 'blocked', error: { code: body.action === 'repair_draft' ? 'SUPPLIER_REPAIR_CONNECTOR_REVIEW_REQUIRED' : 'SUPPLIER_PUBLICATION_CAPABILITY_REQUIRED', message: 'The existing Connector does not declare this separately reviewed action. Its capabilities were not expanded automatically.' } };
-          const verified = await target.verify({ shopify, adapter });
+          const verified = await target.verify({ commerce, shopify, adapter });
           if (!target.allowsAction(verified, body.action)) supplierFail(409, 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', 'The existing shop grant does not allow this exact operation.');
           if (target.consumerCurrency(verified) !== before.preview.market.currency) supplierFail(409, 'SHOPIFY_CURRENCY_MISMATCH', 'Consumer price currency must match the actual shop; no implicit conversion is performed.');
           let originalDraft = null, draftReceipt = null, repair = null;
@@ -180,7 +180,7 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
           });
           await ensureApproval(cid, sid, admitted.operationId);
           const operation = locate(store.read(), actor, cid, sid, admitted.operationId).operation;
-          return response(cid, sid, operation.id, { review: { title: body.action === 'draft' ? '创建已审阅的 Shopify 草稿' : body.action === 'repair_draft' ? '修复已对账的原 Shopify 草稿缺失步骤' : '正式发布已审阅的 Shopify 商品', scopeHash: operation.scopeHash, scope: clone(operation.scope), createsDraftOnly: body.action === 'draft', publishes: body.action === 'publish', ...(body.action === 'repair_draft' ? { repairsExistingDraft: true, createsProduct: false, uploadsMedia: false, repairSteps: clone(operation.scope.repair.steps), approveObservedMedia: operation.scope.repair.approveObservedMedia } : {}), automaticRetry: false } });
+          return response(cid, sid, operation.id, { review: { title: body.action === 'draft' ? '鍒涘缓宸插闃呯殑 Shopify 鑽夌' : body.action === 'repair_draft' ? '淇宸插璐︾殑鍘?Shopify 鑽夌缂哄け姝ラ' : '姝ｅ紡鍙戝竷宸插闃呯殑 Shopify 鍟嗗搧', scopeHash: operation.scopeHash, scope: clone(operation.scope), createsDraftOnly: body.action === 'draft', publishes: body.action === 'publish', ...(body.action === 'repair_draft' ? { repairsExistingDraft: true, createsProduct: false, uploadsMedia: false, repairSteps: clone(operation.scope.repair.steps), approveObservedMedia: operation.scope.repair.approveObservedMedia } : {}), automaticRetry: false } });
         },
         async decidePublication(cid, sid, body) {
           const found = checked(cid, sid, body, ['decision']);
