@@ -14,6 +14,10 @@ Harness 插件接到当前 DeepSeek Harness，让对话中的 Agent 可以读取
 | `product_library_list` | `GET /api/product-library/products` |
 | `product_library_read` | `GET /api/product-library/products/:productId` |
 
+`product_library_read` 返回 room 的 pin、页面、引用状态、评论、附件**元数据**
+（文件名/类型/大小/SHA-256/下载路径）。它不返回附件字节，也不上传、不批准、
+不写 Medusa；附件上传走 Harness HTTP（见插件 README）。
+
 ## 启动后端
 
 在 `workspace-agent` 仓库：

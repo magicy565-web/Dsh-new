@@ -73,7 +73,7 @@ const definitions = [
   },
   {
     name: 'product_library_read',
-    description: 'Read one Product Library room: the exact pinned Medusa product and approved Product Context, its versioned pages, citation status (current/stale/missing), comments and approval state. This is a read-only projection; it does not grant model disclosure, approve context or publish a product.',
+    description: 'Read one Product Library room: the exact pinned Medusa product and approved Product Context, its versioned pages, citation status (current/stale/missing), attached document metadata, comments and approval state. This is a read-only projection; it does not grant model disclosure, approve context, publish a product or return file bytes.',
     parameters: {
       type: 'object',
       properties: {

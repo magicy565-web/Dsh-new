@@ -21,9 +21,15 @@ export const SOURCE_HASH = /^(?:[a-f0-9]{64}|rev:[a-f0-9]{32}:[a-f0-9]{64})$/u;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u;
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u;
 const LIMITS = Object.freeze({
-  rooms: 200, pages: 100, versions: 50, comments: 200, citations: 50,
+  rooms: 200, pages: 100, versions: 50, comments: 200, citations: 50, documents: 50,
   receipts: 5000, title: 200, body: 65536, comment: 4000, label: 240,
 });
+/** JSON uploads must fit the kernel's 1 MiB request body; 512 KiB leaves room for base64 + metadata. */
+export const DOCUMENT_MAX_BYTES = 512 * 1024;
+export const DOCUMENT_KINDS = Object.freeze(['certificate', 'test_report', 'spec_sheet', 'case_study', 'other']);
+const DOCUMENT_MIME = /^[a-z0-9][a-z0-9.+-]{0,99}\/[a-z0-9][a-z0-9.+-]{0,99}$/u;
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/u;
+
 
 export class ProductLibraryError extends Error {
   constructor(status, code, message) {
@@ -109,6 +115,20 @@ export function validateLibraryState(state) {
         if (!isPlain(comment) || !UUID.test(comment.id) || !Number.isSafeInteger(comment.version)) fail(500, 'HARNESS_PRODUCT_LIBRARY_INVALID', 'Invalid comment.');
         text(comment.body, LIMITS.comment); stamp(comment.createdAt);
       }
+    }
+    if (!Array.isArray(room.documents) || room.documents.length > LIMITS.documents)
+      fail(500, 'HARNESS_PRODUCT_LIBRARY_INVALID', 'Invalid Product Library documents.');
+    const documentIds = new Set(), artifactIds = new Set();
+    for (const document of room.documents) {
+      if (!isPlain(document) || !UUID.test(document.id) || documentIds.has(document.id)
+        || !UUID.test(document.artifactId) || artifactIds.has(document.artifactId)
+        || !Number.isSafeInteger(document.size) || document.size < 1 || document.size > DOCUMENT_MAX_BYTES
+        || !/^[a-f0-9]{64}$/u.test(document.sha256 ?? '') || !DOCUMENT_KINDS.includes(document.kind)
+        || !DOCUMENT_MIME.test(document.mimeType ?? '') || !Number.isSafeInteger(document.revision) || document.revision < 1)
+        fail(500, 'HARNESS_PRODUCT_LIBRARY_INVALID', 'Invalid Product Library document.');
+      documentIds.add(document.id); artifactIds.add(document.artifactId);
+      text(document.filename, 255); text(document.label, LIMITS.label); stamp(document.createdAt);
+      if (document.evidenceId !== null && typeof document.evidenceId !== 'string') fail(500, 'HARNESS_PRODUCT_LIBRARY_INVALID', 'Invalid document evidence link.');
     }
   }
   for (const row of data.receipts) {
@@ -274,10 +294,15 @@ function roomView(room) {
     productId: room.productId,
     pin: structuredClone(room.pin),
     pages: room.pages.map(page => pageView(page, room.pin)),
+    documents: room.documents.map(document => ({
+      ...structuredClone(document),
+      downloadPath: `/api/product-library/products/${room.productId}/documents/${document.id}`,
+    })),
     counts: {
       pages: room.pages.length,
       approved: room.pages.filter(page => page.status === 'approved').length,
       comments: room.pages.reduce((total, page) => total + page.comments.length, 0),
+      documents: room.documents.length,
     },
     createdAt: room.createdAt, updatedAt: room.updatedAt,
   };
@@ -292,11 +317,13 @@ function roomView(room) {
  * @param {() => number} [options.clock]
  * @param {string} [options.workspaceId]
  */
-export function createProductLibraryService({ storage, source, clock = Date.now, workspaceId = 'local' } = {}) {
+export function createProductLibraryService({ storage, source, artifacts, clock = Date.now, workspaceId = 'local' } = {}) {
   if (!storage || typeof storage.read !== 'function' || typeof storage.update !== 'function')
     throw new TypeError('Product Library requires the harness storage seam.');
   if (!source || typeof source.read !== 'function' || typeof source.list !== 'function')
     throw new TypeError('Product Library requires a reviewed product source.');
+  if (!artifacts || typeof artifacts.create !== 'function' || typeof artifacts.download !== 'function')
+    throw new TypeError('Product Library requires the harness artifacts seam.');
   if (typeof workspaceId !== 'string' || !workspaceId) throw new TypeError('Product Library requires an exact workspace id.');
   const at = () => new Date(clock()).toISOString();
 
@@ -357,7 +384,7 @@ export function createProductLibraryService({ storage, source, clock = Date.now,
         status: room.pin.product.status, thumbnail: room.pin.product.thumbnail,
         variantCount: room.pin.product.variants.length, readinessScore: room.pin.context.readinessScore,
         reviewVersion: room.pin.context.reviewVersion, inLibrary: true, pageCount: room.pages.length,
-        approvedPages: room.pages.filter(page => page.status === 'approved').length,
+        approvedPages: room.pages.filter(page => page.status === 'approved').length, documentCount: room.documents.length,
       })).filter(row => !q || row.title.toLocaleLowerCase().includes(q.toLocaleLowerCase()));
       const finish = (items, live, warning) => ({ source: { configured: source.configured === true, kind: source.kind ?? 'unconfigured', live, ...(warning ? { warning } : {}) }, items: items.slice(0, limit), total: items.length });
       if (!source.configured) return finish(stored, false, 'PRODUCT_LIBRARY_SOURCE_UNCONFIGURED');
@@ -371,6 +398,7 @@ export function createProductLibraryService({ storage, source, clock = Date.now,
             variantCount: pin.product.variants.length, readinessScore: pin.context.readinessScore,
             reviewVersion: pin.context.reviewVersion, inLibrary: Boolean(room),
             pageCount: room?.pages.length ?? 0, approvedPages: room?.pages.filter(page => page.status === 'approved').length ?? 0,
+            documentCount: room?.documents.length ?? 0,
           };
         });
         return finish(remote, true, null);
@@ -416,7 +444,7 @@ export function createProductLibraryService({ storage, source, clock = Date.now,
         if (old) return { productId: id, created: false, revision: old.roomRevision ?? 1, replayed: false };
         const pin = pinFromRow(row, at());
         const now = at();
-        const room = { productId: id, pin, pages: [], roomRevision: 1, createdAt: now, updatedAt: now };
+        const room = { productId: id, pin, pages: [], documents: [], roomRevision: 1, createdAt: now, updatedAt: now };
         data.rooms.push(room);
         remember(data, actor, requestId, fingerprint, 'open', { productId: id, created: true, revision: 1 });
         return { productId: id, created: true, revision: 1, replayed: false };
@@ -538,6 +566,99 @@ export function createProductLibraryService({ storage, source, clock = Date.now,
         return summary;
       });
       return { status: 201, body: { ...result, replayed: false } };
+    },
+
+    async attachDocument(context, productIdInput, body = {}) {
+      const actor = actorOf(context, workspaceId);
+      assertWrite(actor);
+      const id = productId(productIdInput);
+      const requestId = uuid(body.requestId);
+      const filename = text(body.filename, 255);
+      const label = body.label === undefined ? filename : text(body.label, LIMITS.label);
+      const kind = body.kind === undefined ? 'other' : body.kind;
+      if (!DOCUMENT_KINDS.includes(kind)) fail(400, 'PRODUCT_LIBRARY_INPUT', `Use a document kind: ${DOCUMENT_KINDS.join(', ')}.`);
+      let mimeType = null;
+      if (body.mimeType !== undefined) {
+        mimeType = text(body.mimeType, 100);
+        if (!DOCUMENT_MIME.test(mimeType)) fail(400, 'PRODUCT_LIBRARY_INPUT', 'mimeType must be a lowercase media type.');
+      }
+      if (typeof body.base64 !== 'string' || body.base64.length % 4 !== 0 || !BASE64.test(body.base64))
+        fail(400, 'PRODUCT_LIBRARY_INPUT', 'base64 must be canonical padded base64.');
+      if (body.base64.length > Math.ceil(DOCUMENT_MAX_BYTES / 3) * 4)
+        fail(413, 'PRODUCT_LIBRARY_DOCUMENT_TOO_LARGE', `Documents are limited to ${DOCUMENT_MAX_BYTES} bytes.`);
+      const bytes = Buffer.from(body.base64, 'base64');
+      if (bytes.length < 1 || bytes.length > DOCUMENT_MAX_BYTES || bytes.toString('base64') !== body.base64)
+        fail(413, 'PRODUCT_LIBRARY_DOCUMENT_TOO_LARGE', `Documents are limited to ${DOCUMENT_MAX_BYTES} bytes and must use canonical base64.`);
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      let evidenceId = null;
+      if (body.evidenceId !== undefined && body.evidenceId !== null) evidenceId = text(body.evidenceId, 120);
+      const fingerprint = digest({ operation: 'attachDocument', product: id, filename, label, kind, mimeType, sha256, evidenceId });
+      const existing = receiptOf(state(), actor, requestId, fingerprint);
+      if (existing) return { status: 200, body: { ...structuredClone(existing.result), replayed: true } };
+      const room = roomOf(state(), id);
+      if (room.documents.length >= LIMITS.documents) fail(409, 'PRODUCT_LIBRARY_LIMIT', 'The bounded document list is full.');
+      if (evidenceId !== null && !room.pin.context.evidence.some(item => item.id === evidenceId))
+        fail(400, 'PRODUCT_LIBRARY_CITATION_UNKNOWN', 'The linked evidence id is not present on the pinned Product Context.');
+      let created;
+      try {
+        created = await artifacts.create({
+          requestId: `product-library-${requestId}`,
+          filename,
+          base64: body.base64,
+          ...(mimeType ? { mimeType } : {}),
+          title: label,
+          description: `Product Library document for ${id}`,
+          metadata: { productLibrary: { productId: id, evidenceId } },
+        });
+      } catch (error) {
+        if (error?.code === 'IDEMPOTENCY_CONFLICT') fail(409, 'PRODUCT_LIBRARY_IDEMPOTENCY_CONFLICT', 'This requestId already belongs to a different artifact.');
+        if (error?.code === 'UNSUPPORTED_ARTIFACT_TYPE' || error?.code === 'INVALID_FILENAME') fail(400, 'PRODUCT_LIBRARY_DOCUMENT_TYPE', 'Use txt, md, csv, json, pdf, png, jpg, jpeg or webp.');
+        if (error?.code === 'ARTIFACT_TOO_LARGE') fail(413, 'PRODUCT_LIBRARY_DOCUMENT_TOO_LARGE', 'The artifact store refused the document size.');
+        fail(error?.status && error.status < 500 ? 400 : 503, 'PRODUCT_LIBRARY_ARTIFACT_FAILED', 'The harness artifact store refused the document.');
+      }
+      const artifact = created?.artifact;
+      if (!artifact || !UUID.test(artifact.id) || artifact.size !== bytes.length || artifact.sha256 !== sha256 || typeof artifact.mimeType !== 'string')
+        fail(502, 'PRODUCT_LIBRARY_ARTIFACT_INVALID', 'The harness artifact store returned an invalid artifact.');
+      const now = at();
+      const document = {
+        id: randomUUID(), artifactId: artifact.id, filename, mimeType: artifact.mimeType, size: artifact.size,
+        sha256: artifact.sha256, label, kind, evidenceId, createdBy: actor.subject, createdAt: now, revision: 1,
+      };
+      let result;
+      try {
+        result = await storage.update(next => {
+          validateLibraryState(next);
+          const data = next[LIBRARY_KEY] ?? (next[LIBRARY_KEY] = defaultState());
+          const live = roomOf(data, id);
+          const duplicate = live.documents.find(item => item.artifactId === artifact.id);
+          if (duplicate) return { productId: id, documentId: duplicate.id, artifactId: duplicate.artifactId, revision: duplicate.revision, replayed: true };
+          if (live.documents.length >= LIMITS.documents) fail(409, 'PRODUCT_LIBRARY_LIMIT', 'The bounded document list is full.');
+          live.documents.push(document);
+          live.roomRevision += 1; live.updatedAt = now;
+          const summary = { productId: id, documentId: document.id, artifactId: document.artifactId, sha256: document.sha256, size: document.size, revision: document.revision };
+          remember(data, actor, requestId, fingerprint, 'attachDocument', summary);
+          return { ...summary, replayed: false };
+        });
+      } catch (error) {
+        await Promise.resolve(artifacts.delete?.(artifact.id)).catch(() => {});
+        throw error;
+      }
+      return { status: result.replayed ? 200 : 201, body: result };
+    },
+
+    async downloadDocument(context, productIdInput, documentIdInput) {
+      actorOf(context, workspaceId);
+      const id = productId(productIdInput), documentId = uuid(documentIdInput);
+      const room = roomOf(state(), id);
+      const document = room.documents.find(item => item.id === documentId);
+      if (!document) fail(404, 'PRODUCT_LIBRARY_DOCUMENT_NOT_FOUND', 'This Product Library document does not exist.');
+      let download;
+      try { download = await artifacts.download(document.artifactId); }
+      catch { fail(410, 'PRODUCT_LIBRARY_DOCUMENT_UNAVAILABLE', 'The stored document is no longer available.'); }
+      if (!download || !Buffer.isBuffer(download.bytes) || download.bytes.length !== document.size
+        || createHash('sha256').update(download.bytes).digest('hex') !== document.sha256)
+        fail(502, 'PRODUCT_LIBRARY_DOCUMENT_INVALID', 'The stored document bytes do not match their recorded hash.');
+      return { document: structuredClone(document), bytes: download.bytes, filename: download.filename ?? document.filename, mimeType: download.mimeType ?? document.mimeType };
     },
 
     async approve(context, productIdInput, pageIdInput, body = {}) {

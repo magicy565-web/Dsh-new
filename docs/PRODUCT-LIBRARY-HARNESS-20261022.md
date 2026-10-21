@@ -32,7 +32,8 @@ Harness」落了一个后端切片：
 | 对话转页面 | Agent 工具可建页/存新版本 | 纯文本 + 引用，不是块编辑器 |
 | 引用与来源 | 引用固定到 product/context/evidence 字段 + value hash | `sync` 后自动标 `stale` |
 | 版本历史/评论/审核 | 版本、版本锚定评论、管理员通过/撤回 | 编辑已通过页会撤回通过 |
-| 动态页面/幻灯片/任务/上传/实时协作 | 未做 | 明确不伪装 |
+| 文件附件 | 每个 room 存 ≤512 KiB 的 PDF/图片/CSV/MD/文本，SHA-256 固定，可关联 evidence | 走 harness artifacts seam |
+| 动态页面/幻灯片/任务/实时协作 | 未做 | 明确不伪装 |
 
 ## 数据与安全不变量
 
@@ -58,6 +59,8 @@ POST /api/product-library/products/:productId/pages
 POST /api/product-library/products/:productId/pages/:pageId/save
 POST /api/product-library/products/:productId/pages/:pageId/comments
 POST /api/product-library/products/:productId/pages/:pageId/approve
+POST /api/product-library/products/:productId/documents
+GET  /api/product-library/products/:productId/documents/:documentId
 ```
 
 完整说明见 [插件 README](../plugins/workspace-product-library/README.md)。
@@ -68,11 +71,12 @@ POST /api/product-library/products/:productId/pages/:pageId/approve
 
 | 项 | 结果 |
 | --- | --- |
-| `node --test plugins/workspace-product-library/test/plugin.test.mjs` | 14/14 通过 |
+| `node --test plugins/workspace-product-library/test/plugin.test.mjs` | 16/16 通过 |
 | `node --test integrations/dsh-product-library/test/index.test.mjs` | 5/5 通过 |
-| `wh doctor --composition harness.local.yml` | `status: ok`，product-library 行与 9 条路由注册 |
+| `wh doctor --composition harness.local.yml` | `status: ok`，product-library 行、artifacts seam 与 11 条路由注册 |
 | Harness HTTP 冒烟 | `/status`、`/products` 返回 `configured:false` 与显式 warning |
-| DSH 端到端（合成 Medusa，loopback） | DSH 工具 → Harness HTTP → 插件 → 合成 Agent 面；`status configured:true`、list 2 条、open room + 建页后 `product_library_read` 返回 pin/页面/3 条 `current` 引用 |
+| 附件冒烟（合成 Medusa，loopback） | 真实 kernel HTTP：open room → 上传 62 字节 PDF → 读 room 见 documents → 下载字节 SHA-256 完全一致 |
+| DSH 端到端（合成 Medusa，loopback） | DSH 工具 → Harness HTTP → 插件 → 合成 Agent 面；`status configured:true`、list 1 条、open room + 建页/上传后 `product_library_read` 返回 pin/页面/引用/doc 元数据 |
 
 端到端验证使用的是临时 mock Medusa（127.0.0.1:9099）和临时私有 token 文件；
 验证结束后已停止进程并删除临时数据。`docs` 不包含该 mock 数据。
@@ -81,7 +85,8 @@ POST /api/product-library/products/:productId/pages/:pageId/approve
 
 - 真实 Medusa v2 + PostgreSQL + 真实 `AGENT_CONTEXT_READ_TOKEN` 与轮换；
 - 生产 Host 的签名入口、会话撤销、并发写、断网重试；
-- 文件上传/OCR、幻灯片/动态块、任务与实时协作；
+- 附件 OCR/全文检索/在线预览、multipart 上传与超过 512 KiB 的文件；
+- 幻灯片/动态块、任务与实时协作；
 - DSH 页面化（本切片只提供 DSH 只读工具）。
 
 ## 怎么用

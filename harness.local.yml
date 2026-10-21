@@ -10,6 +10,8 @@ plugins:
     name: '@workspace-harness/seams/approval'
   - id: tools
     name: '@workspace-harness/seams/tools'
+  - id: artifacts
+    name: '@workspace-harness/seams/artifacts'
   # Business plugin (work package C) is enabled once plugins/workspace-inquiries exists:
   # - id: inquiries
   #   name: workspace-inquiries

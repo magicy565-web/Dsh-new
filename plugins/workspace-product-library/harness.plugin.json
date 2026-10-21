@@ -2,9 +2,9 @@
   "id": "workspace-product-library",
   "version": "0.1.0",
   "kind": "plugin",
-  "description": "产品资料库：以 Medusa 商品 + 已审核 Product Context 为事实底座的产品空间，含版本化页面、引用校验、评论、审核与 Agent 工具。",
+  "description": "产品资料库：以 Medusa 商品 + 已审核 Product Context 为事实底座的产品空间，含版本化页面、引用校验、评论、审核、附件与 Agent 工具。",
   "entry": "./src/index.mjs",
-  "requires": ["storage", "tools", "approval"],
+  "requires": ["storage", "artifacts", "tools", "approval"],
   "provides": ["productLibrary"],
   "configSchema": {
     "type": "object",
@@ -34,7 +34,9 @@
     "POST /api/product-library/products/:productId/pages",
     "POST /api/product-library/products/:productId/pages/:pageId/save",
     "POST /api/product-library/products/:productId/pages/:pageId/comments",
-    "POST /api/product-library/products/:productId/pages/:pageId/approve"
+    "POST /api/product-library/products/:productId/pages/:pageId/approve",
+    "POST /api/product-library/products/:productId/documents",
+    "GET /api/product-library/products/:productId/documents/:documentId"
   ],
   "tools": [
     "product_library_status",

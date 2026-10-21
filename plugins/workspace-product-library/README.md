@@ -20,7 +20,8 @@
 | 版本历史 | 每次保存追加版本；历史只读；编辑已通过页面会撤回通过 |
 | 评论 | 版本锚定评论，viewer 也可评论 |
 | 审核 | 管理员按精确 revision 通过/撤回页面 |
-| 上传、幻灯片、任务、实时协作 | 本切片未做，不伪装 |
+| 文件/附件 | 每个 room 可存 ≤512 KiB 的 PDF/图片/CSV/Markdown/文本，SHA-256 固定，可关联 Product Context evidence |
+| 幻灯片、任务、实时协作 | 本切片未做，不伪装 |
 
 ## 事实来源
 
@@ -68,6 +69,8 @@ GET {MEDUSA_ORIGIN}/agent/product-contexts/:productId
 | POST | `/api/product-library/products/:productId/pages/:pageId/save` | 保存新版本（expectedRevision） |
 | POST | `/api/product-library/products/:productId/pages/:pageId/comments` | 版本锚定评论 |
 | POST | `/api/product-library/products/:productId/pages/:pageId/approve` | 管理员通过/撤回 |
+| POST | `/api/product-library/products/:productId/documents` | 上传附件（JSON base64，≤512 KiB） |
+| GET | `/api/product-library/products/:productId/documents/:documentId` | 按 SHA-256 校验后下载原字节 |
 
 写操作都要求 `requestId`；相同 requestId + 相同内容返回原结果，不同内容返回 409。
 
@@ -95,13 +98,21 @@ $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependenci
 & $node --test plugins/workspace-product-library/test/plugin.test.mjs
 ```
 
-测试用本地 synthetic source / 本地 HTTP server，不连接真实 Medusa。真实 Medusa
-Agent 面、PostgreSQL、token 轮换和生产 Host 仍属于未执行的验收项。
+测试用本地 synthetic source / 本地 HTTP server / 合成 artifacts，不连接真实
+Medusa。真实 Medusa Agent 面、PostgreSQL、token 轮换和生产 Host 仍属于未执行的验收项。
+
+## 附件边界
+
+- 只支持 artifact seam 已支持的扩展名：txt、md、csv、json、pdf、png、jpg、jpeg、webp；
+- 单文件 ≤512 KiB（内核 HTTP body 1 MiB，base64 与 JSON 开销后留余量）；
+- 上传是 JSON base64，不是 multipart；没有缩略图、OCR、全文解析或病毒扫描；
+- 下载前重新校验字节 SHA-256，与文档记录不符时拒绝返回；
+- 文档可关联 Product Context 的 `evidence.id`，但不改变 evidence 的审核状态。
 
 ## 未做（明确边界）
 
 - 页面正文是纯文本（Markdown 语义），不是动态块编辑器或幻灯片；
-- 没有文件上传/OCR；证据元数据来自 Product Context 的 `evidence`；
+- 没有 OCR/全文检索、缩略图或在线预览；
 - 没有向 Medusa 写 Product Context 或商品；写回仍走原审核面；
 - 没有多租户隔离；`workspaceId` 只是 harness 内的作用域绑定；
 - 没有实时协作、任务、会议或连接器。

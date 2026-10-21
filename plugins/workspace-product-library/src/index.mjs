@@ -20,6 +20,8 @@ const ROUTES = Object.freeze([
   ['POST', `${BASE}/products/:productId/pages/:pageId/save`],
   ['POST', `${BASE}/products/:productId/pages/:pageId/comments`],
   ['POST', `${BASE}/products/:productId/pages/:pageId/approve`],
+  ['POST', `${BASE}/products/:productId/documents`],
+  ['GET', `${BASE}/products/:productId/documents/:documentId`],
 ]);
 const TOOL_NAMES = Object.freeze([
   'product_library_status', 'product_library_list', 'product_library_read',
@@ -72,6 +74,7 @@ const citationSchema = {
 export async function apply(ctx, config = {}) {
   if (!ctx?.http?.route) throw missing('http');
   if (!ctx?.storage?.read || !ctx?.storage?.update) throw missing('storage');
+  if (!ctx?.artifacts?.create || !ctx?.artifacts?.download) throw missing('artifacts');
   if (!ctx?.tools?.register) throw missing('tools');
   const checked = validateConfig(config);
   const workspaceId = checked.workspaceId ?? 'local';
@@ -84,7 +87,7 @@ export async function apply(ctx, config = {}) {
     if (error instanceof ProductLibraryError) throw manifestError(error.message);
     throw manifestError(error.message);
   }
-  const service = createProductLibraryService({ storage: ctx.storage, source, workspaceId });
+  const service = createProductLibraryService({ storage: ctx.storage, source, artifacts: ctx.artifacts, workspaceId });
   return applyService(ctx, service);
 }
 
@@ -110,6 +113,26 @@ export async function applyService(ctx, service) {
   ctx.http.route({ method: 'POST', path: `${BASE}/products/:productId/pages/:pageId/save`, handler: call(context => service.savePage(context, context.params?.productId, context.params?.pageId, context.body ?? {})) });
   ctx.http.route({ method: 'POST', path: `${BASE}/products/:productId/pages/:pageId/comments`, handler: call(context => service.comment(context, context.params?.productId, context.params?.pageId, context.body ?? {})) });
   ctx.http.route({ method: 'POST', path: `${BASE}/products/:productId/pages/:pageId/approve`, handler: call(context => service.approve(context, context.params?.productId, context.params?.pageId, context.body ?? {})) });
+  ctx.http.route({ method: 'POST', path: `${BASE}/products/:productId/documents`, handler: call(context => service.attachDocument(context, context.params?.productId, context.body ?? {})) });
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/products/:productId/documents/:documentId`,
+    handler: async (_req, _res, context) => {
+      try {
+        const result = await service.downloadDocument(context ?? {}, context?.params?.productId, context?.params?.documentId);
+        const fallback = result.filename.replace(/[^\x20-\x7e]/gu, '_').replace(/["\\]/gu, '_');
+        return new Response(result.bytes, {
+          status: 200,
+          headers: {
+            'content-type': result.mimeType,
+            'content-length': String(result.bytes.length),
+            'content-disposition': `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(result.filename)}`,
+            'cache-control': 'no-store',
+            'x-content-type-options': 'nosniff',
+          },
+        });
+      } catch (error) { throw asHarnessError(error); }
+    },
+  });
 
   const toolContext = execution => ({ actor: execution?.actor });
   const tool = definition => ctx.tools.register(definition);

@@ -4,7 +4,7 @@ import http from 'node:http';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { apply, applyService } from '../src/index.mjs';
 import { createProductLibraryService, PRODUCT_ID } from '../src/library.mjs';
 import { createMedusaProductContextSource, readPrivateToken } from '../src/source.mjs';
@@ -46,6 +46,26 @@ function syntheticSource(rows = [row()]) {
   };
 }
 
+function fakeArtifacts() {
+  const blobs = new Map();
+  return {
+    async create(body) {
+      const bytes = Buffer.from(body.base64, 'base64');
+      const id = randomUUID();
+      const mimeType = body.mimeType ?? 'application/pdf';
+      const artifact = { id, filename: body.filename, mimeType, size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+      blobs.set(id, { bytes, filename: body.filename, mimeType });
+      return { artifact };
+    },
+    async download(id) {
+      const blob = blobs.get(id);
+      if (!blob) { const error = new Error('missing artifact'); error.code = 'ARTIFACT_NOT_FOUND'; throw error; }
+      return { bytes: Buffer.from(blob.bytes), filename: blob.filename, mimeType: blob.mimeType };
+    },
+    async delete(id) { blobs.delete(id); },
+  };
+}
+
 function fakeContext(initial = {}) {
   const state = structuredClone(initial);
   const routes = new Map(), tools = new Map(), health = new Map();
@@ -63,6 +83,7 @@ function fakeContext(initial = {}) {
   };
   const ctx = {
     storage,
+    artifacts: fakeArtifacts(),
     approval: { request: async () => ({ id: 't', status: 'pending' }), decide: async () => ({ id: 't', status: 'approved' }), consume: async () => true, list: () => [] },
     http: { route: definition => { routes.set(`${definition.method} ${definition.path}`, definition); } },
     tools: { register: tool => { tools.set(tool.name, tool); } },
@@ -81,14 +102,15 @@ function fakeContext(initial = {}) {
 async function mounted(options = {}) {
   const source = options.source ?? syntheticSource(options.rows);
   const harness = fakeContext(options.initial);
-  const service = createProductLibraryService({ storage: harness.ctx.storage, source, workspaceId: 'local' });
+  const artifacts = options.artifacts ?? fakeArtifacts();
+  const service = createProductLibraryService({ storage: harness.ctx.storage, source, artifacts, workspaceId: 'local' });
   const dispose = await applyService(harness.ctx, service);
-  return { ...harness, source, service, dispose };
+  return { ...harness, source, artifacts, service, dispose };
 }
 
 test('the plugin registers its routes, tools and health probe', async () => {
   const harness = await mounted();
-  assert.equal(harness.routes.size, 9);
+  assert.equal(harness.routes.size, 11);
   assert.deepEqual([...harness.tools.keys()].sort(), [
     'product_library_approve_page', 'product_library_comment', 'product_library_create_page',
     'product_library_list', 'product_library_open', 'product_library_read',
@@ -267,6 +289,71 @@ test('a viewer may comment but may not create, save or open', async () => {
   );
 });
 
+test('documents are uploaded through the artifacts seam and downloaded only by hash match', async () => {
+  const harness = await mounted();
+  await harness.call('POST /api/product-library/products/:productId/open', { params: { productId: 'prod_alpha' }, body: { requestId: randomUUID() } });
+  const bytes = Buffer.from('%PDF-1.4 synthetic spec sheet\n', 'utf8');
+  const base64 = bytes.toString('base64');
+  const requestId = randomUUID();
+  const attached = await harness.call('POST /api/product-library/products/:productId/documents', {
+    params: { productId: 'prod_alpha' },
+    body: { requestId, filename: 'spec.pdf', base64, label: 'Test certificate', kind: 'certificate', evidenceId: 'ev_1' },
+  });
+  assert.equal(attached.status, 201);
+  assert.equal(attached.body.size, bytes.length);
+  assert.equal(attached.body.sha256, createHash('sha256').update(bytes).digest('hex'));
+  const read = await harness.call('GET /api/product-library/products/:productId', { params: { productId: 'prod_alpha' } });
+  assert.equal(read.body.documents.length, 1);
+  assert.equal(read.body.documents[0].label, 'Test certificate');
+  assert.equal(read.body.documents[0].evidenceId, 'ev_1');
+  assert.match(read.body.documents[0].downloadPath, /\/documents\//u);
+  assert.equal(read.body.counts.documents, 1);
+
+  const download = await harness.call('GET /api/product-library/products/:productId/documents/:documentId', {
+    params: { productId: 'prod_alpha', documentId: attached.body.documentId },
+  });
+  assert.ok(download instanceof Response);
+  assert.equal(download.status, 200);
+  assert.equal(download.headers.get('content-type'), 'application/pdf');
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), bytes);
+
+  const replay = await harness.call('POST /api/product-library/products/:productId/documents', {
+    params: { productId: 'prod_alpha' },
+    body: { requestId, filename: 'spec.pdf', base64, label: 'Test certificate', kind: 'certificate', evidenceId: 'ev_1' },
+  });
+  assert.equal(replay.status, 200);
+  assert.equal(replay.body.replayed, true);
+  assert.equal(replay.body.documentId, attached.body.documentId);
+});
+
+test('documents reject unknown evidence, non-canonical base64 and oversized files', async () => {
+  const harness = await mounted();
+  await harness.call('POST /api/product-library/products/:productId/open', { params: { productId: 'prod_alpha' }, body: { requestId: randomUUID() } });
+  const small = Buffer.from('hello').toString('base64');
+  await assert.rejects(
+    () => harness.call('POST /api/product-library/products/:productId/documents', {
+      params: { productId: 'prod_alpha' },
+      body: { requestId: randomUUID(), filename: 'note.txt', base64: small, evidenceId: 'ev_missing' },
+    }),
+    error => error.code === 'PRODUCT_LIBRARY_CITATION_UNKNOWN' && error.status === 400,
+  );
+  await assert.rejects(
+    () => harness.call('POST /api/product-library/products/:productId/documents', {
+      params: { productId: 'prod_alpha' },
+      body: { requestId: randomUUID(), filename: 'note.txt', base64: 'not-base64!' },
+    }),
+    error => error.code === 'PRODUCT_LIBRARY_INPUT',
+  );
+  const huge = Buffer.alloc(512 * 1024 + 1, 7).toString('base64');
+  await assert.rejects(
+    () => harness.call('POST /api/product-library/products/:productId/documents', {
+      params: { productId: 'prod_alpha' },
+      body: { requestId: randomUUID(), filename: 'big.pdf', base64: huge },
+    }),
+    error => error.code === 'PRODUCT_LIBRARY_DOCUMENT_TOO_LARGE' && error.status === 413,
+  );
+});
+
 test('the tools return the same domain results through execution.actor', async () => {
   const harness = await mounted();
   const opened = await harness.run('product_library_open', { productId: 'prod_alpha', requestId: randomUUID() });
@@ -360,6 +447,7 @@ test('the plugin refuses a bad config and missing seams', async () => {
   const harness = fakeContext();
   await assert.rejects(() => apply(harness.ctx, { source: { kind: 'nope' } }), error => error.code === 'HARNESS_MANIFEST_INVALID');
   await assert.rejects(() => apply({ ...harness.ctx, storage: undefined }), error => error.code === 'HARNESS_PLUGIN_MISSING_DEPENDENCY');
+  await assert.rejects(() => apply({ ...harness.ctx, artifacts: undefined }), error => error.code === 'HARNESS_PLUGIN_MISSING_DEPENDENCY');
   await assert.rejects(() => apply({ ...harness.ctx, http: undefined }), error => error.code === 'HARNESS_PLUGIN_MISSING_DEPENDENCY');
   await assert.rejects(() => apply(harness.ctx, null), error => error.code === 'HARNESS_MANIFEST_INVALID');
 });
