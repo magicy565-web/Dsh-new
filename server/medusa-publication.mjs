@@ -16,7 +16,7 @@ export const SUPPLIER_MEDUSA_TARGET = Object.freeze({
   adapter: SUPPLIER_MEDUSA_ADAPTER,
   actions: SUPPLIER_MEDUSA_ACTIONS,
   connectorRequestId: 'builtin-supplier-medusa-connector-v1',
-  connectorName: '供应商 Medusa 商品发布',
+  connectorName: '渚涘簲鍟?Medusa 鍟嗗搧鍙戝竷',
   connectorDescription: 'Explicitly reviewed supplier retail fields/images, draft creation and exact sales-channel publication on the self-hosted Medusa instance.',
   credentialRefs: Object.freeze({ medusa: 'WORKSPACE_MEDUSA_SECRET_API_KEY' }),
   resourcePrefix: 'medusa',
@@ -67,7 +67,8 @@ async function boundedJson(response) {
 export function createMedusaAdminClient({ environment = process.env, fetchImpl = fetch } = {}) {
   const baseURL = (environment.WORKSPACE_MEDUSA_BASE_URL || '').replace(/\/+$/u, '');
   const secret = environment.WORKSPACE_MEDUSA_SECRET_API_KEY || '';
-  const configured = /^https:\/\/[a-z0-9.-]+(?::\d{2,5})?$/iu.test(baseURL) && secret.trim().length >= 16;
+  const allowLoopbackHTTP = environment.WORKSPACE_MEDUSA_ALLOW_LOOPBACK_HTTP === '1';
+  const configured = (allowLoopbackHTTP ? /^http:\/\/127\.0\.0\.1(?::\d{2,5})?$/u : /^https:\/\/[a-z0-9.-]+(?::\d{2,5})?$/iu).test(baseURL) && secret.trim().length >= 16;
   const scopeReviewed = environment.WORKSPACE_MEDUSA_KEY_SCOPE_REVIEWED === '1';
   async function get(path) {
     if (!configured) supplierFail(409, 'MEDUSA_SETUP_REQUIRED', 'The existing Medusa host is unconfigured.');
@@ -100,8 +101,9 @@ export function createMedusaPublicationAdapter({ environment = process.env, fetc
   const baseURL = (environment.WORKSPACE_MEDUSA_BASE_URL || '').replace(/\/+$/u, '');
   const secret = environment.WORKSPACE_MEDUSA_SECRET_API_KEY || '';
   const salesChannelId = environment.WORKSPACE_MEDUSA_SALES_CHANNEL_ID || '';
+  const allowLoopbackHTTP = environment.WORKSPACE_MEDUSA_ALLOW_LOOPBACK_HTTP === '1';
   const enabled = environment.WORKSPACE_SUPPLIER_MEDUSA_WRITES_ENABLED === '1';
-  const configured = /^https:\/\/[a-z0-9.-]+(?::\d{2,5})?$/iu.test(baseURL) && typeof secret === 'string' && secret.trim().length >= 16;
+  const configured = (allowLoopbackHTTP ? /^http:\/\/127\.0\.0\.1(?::\d{2,5})?$/u : /^https:\/\/[a-z0-9.-]+(?::\d{2,5})?$/iu).test(baseURL) && typeof secret === 'string' && secret.trim().length >= 16;
   const fingerprint = supplierHash({ baseURL, enabled, salesChannelId: salesChannelId || null, credentialConfiguration: digest(secret) });
   const at = () => new Date(clock()).toISOString();
   const status = () => ({ enabled, configured, fingerprint, baseURL: configured ? baseURL : null, apiVersion: 'admin-v2', writesEnabled: enabled && configured, salesChannelConfigured: Boolean(salesChannelId), automaticRetry: false });
