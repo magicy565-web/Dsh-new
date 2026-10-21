@@ -26,6 +26,11 @@ type LibraryDocument = {
   label: string; kind: string; evidenceId: string | null; createdBy: string; createdAt: string; revision: number;
   downloadPath: string;
 };
+type SearchHit = {
+  productId: string; productTitle: string; kind: 'product' | 'page' | 'document'; id: string;
+  title: string; snippet: string; status: string; version?: number; size?: number; sha256?: string;
+};
+type SearchPayload = { query: string; total: number; items: SearchHit[] };
 type Pin = {
   product: { id: string; title: string; subtitle: string | null; handle: string | null; description: string | null; status: string | null; variants: { id: string; title: string | null; sku: string | null }[] };
   context: {
@@ -80,6 +85,7 @@ function citationsFor(room: Room, selected: string[]) {
 export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [payload, setPayload] = useState<ListPayload | null>(null);
+  const [hits, setHits] = useState<SearchPayload | null>(null);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -103,11 +109,14 @@ export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
     let active = true;
     const timer = window.setTimeout(() => {
       setLoading(true); setError('');
-      const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}&limit=50` : '?limit=50';
-      Promise.all([api<Status>('/product-library/status'), api<ListPayload>(`/product-library/products${suffix}`)])
-        .then(([nextStatus, nextPayload]) => {
+      const suffix = '?limit=50';
+      const search = query.trim()
+        ? api<SearchPayload>(`/product-library/search?q=${encodeURIComponent(query.trim())}&limit=20`)
+        : Promise.resolve(null);
+      Promise.all([api<Status>('/product-library/status'), api<ListPayload>(`/product-library/products${suffix}`), search])
+        .then(([nextStatus, nextPayload, nextHits]) => {
           if (!active) return;
-          setStatus(nextStatus); setPayload(nextPayload);
+          setStatus(nextStatus); setPayload(nextPayload); setHits(nextHits);
           setSelectedId(current => current && nextPayload.items.some(item => item.productId === current)
             ? current : nextPayload.items[0]?.productId ?? null);
         })
@@ -266,9 +275,19 @@ export function ProductLibrary({ readOnly }: { readOnly: boolean }) {
     {payload?.source.warning === 'PRODUCT_LIBRARY_SOURCE_UNCONFIGURED' && <div className="pl-warning" role="status"><Icon name="info" size={16} />产品资料库还没有连接 Medusa：只显示已打开的资料空间。</div>}
 
     <div className="pl-toolbar">
-      <div className="pl-search"><Icon name="search" size={17} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索已审核商品…" aria-label="搜索产品资料库" /></div>
+      <div className="pl-search"><Icon name="search" size={17} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索商品、页面或附件…" aria-label="搜索产品资料库" /></div>
       <button className="pl-secondary" onClick={refresh} disabled={loading || busy}><Icon name="refresh" size={15} />刷新</button>
     </div>
+
+    {query.trim() && hits && hits.items.length > 0 && <div className="pl-hits" aria-label="资料库搜索结果">
+      <div className="pl-hits-head">资料库搜索 · {hits.total} 条</div>
+      {hits.items.map(hit => <button key={`${hit.kind}:${hit.id}`} onClick={() => setSelectedId(hit.productId)}>
+        <span className={`pl-hit-kind ${hit.kind}`}>{hit.kind === 'page' ? '页面' : hit.kind === 'document' ? '附件' : '商品'}</span>
+        <strong>{hit.title}</strong>
+        <small>{hit.productTitle}</small>
+        <p>{hit.snippet}</p>
+      </button>)}
+    </div>}
 
     {loading && !payload ? <p className="pl-empty" role="status">正在读取 Medusa 与产品资料库…</p> : !payload?.items.length ? <div className="pl-empty-block"><Icon name="box" size={30} /><h3>还没有已审核的商品</h3><p>在 Medusa 后台为商品建立并审核 Product Context 后，这里会出现可用的资料空间。</p></div> : <div className="pl-layout">
       <aside className="pl-list" aria-label="已审核商品">
