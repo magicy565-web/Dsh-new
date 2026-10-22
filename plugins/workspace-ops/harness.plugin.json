@@ -1,0 +1,24 @@
+{
+  "id": "workspace-ops",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "运维面：运行状态、计数与数据体积；创建/列出备份；按备份 ID 二次确认后恢复。仅管理员。",
+  "entry": "./src/index.mjs",
+  "requires": ["storage", "workspace", "audit"],
+  "provides": ["ops"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "backupDirectory": { "type": "string", "minLength": 1 },
+      "version": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false
+  },
+  "routes": [
+    "GET /api/ops/status",
+    "GET /api/ops/backups",
+    "POST /api/ops/backups",
+    "POST /api/ops/restore"
+  ],
+  "tools": []
+}

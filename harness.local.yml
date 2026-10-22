@@ -66,6 +66,10 @@ plugins:
   - id: goals
     name: workspace-goals
     config: { workspaceId: local }
+  # 运维面：状态/计数/数据体积、备份与恢复；仅管理员。
+  - id: ops
+    name: workspace-ops
+    config: { version: 0.1.0 }
   # 收件箱：计划触发、待批准汇总到一处；只存通知与引用，不复制业务数据。
   - id: inbox
     name: workspace-inbox
