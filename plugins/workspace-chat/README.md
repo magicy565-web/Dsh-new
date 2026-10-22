@@ -92,6 +92,12 @@ action / resource / payload** 交给一个人决定。
 注意：审批由 `workspace-runner` 消费——模型请求工具 → run 阻塞 → 人在页面批准 →
 runner 用人类角色换取一次性票据 → 工具执行 → 回答。`scripts/guarded-smoke.mjs` 覆盖整条链路。
 
+## 消息选择
+
+`selection: { skills: [name], artifacts: [fileId] }`：最多 8 个技能、4 个文本文件。
+选择随 run 保存；runner 解析成固定版本（技能正文哈希、文件版本 + SHA-256）后写进
+`run.snapshot`，缺一不可、不会静默降级。
+
 ## 验证
 
 ```powershell

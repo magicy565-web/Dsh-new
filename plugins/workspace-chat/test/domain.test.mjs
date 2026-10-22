@@ -270,7 +270,7 @@ test('a message may select up to eight skills and nothing else', async () => {
     requestId: requestId(), content: 'q', selection: { skills: ['trade-terms'] },
   });
   assert.deepEqual(chat.readRun({ actor: ADMIN }, posted.run.id).snapshot.skills, ['trade-terms']);
-  assert.deepEqual(chat.readRun({ actor: ADMIN }, posted.run.id).selection, { skills: ['trade-terms'] });
+  assert.deepEqual(chat.readRun({ actor: ADMIN }, posted.run.id).selection, { skills: ['trade-terms'], artifacts: [] });
 
   await assert.rejects(
     chat.postMessage({ actor: ADMIN }, conversation.id, { requestId: requestId(), content: 'q', selection: { skills: Array.from({ length: 9 }, (_, index) => `s${index}`) } }),
@@ -310,6 +310,29 @@ test('recordContext is runner-only and merges pinned context into the snapshot',
   );
   await assert.rejects(
     chat.recordContext(runnerContext, posted.run.id, { skills: [{ name: 'x', sha256: 'nope' }] }),
+    error => error.code === 'CHAT_INPUT',
+  );
+});
+test('a message may select up to four files by id', async () => {
+  const chat = service();
+  const { conversation } = await chat.createConversation({ actor: ADMIN }, { requestId: requestId() });
+  const fileId = crypto.randomUUID();
+  const posted = await chat.postMessage({ actor: ADMIN }, conversation.id, {
+    requestId: requestId(), content: '看这个文件', selection: { artifacts: [fileId] },
+  });
+  assert.deepEqual(chat.readRun({ actor: ADMIN }, posted.run.id).snapshot.artifacts, [fileId]);
+
+  await assert.rejects(
+    chat.postMessage({ actor: ADMIN }, conversation.id, {
+      requestId: requestId(), content: 'q',
+      selection: { artifacts: Array.from({ length: 5 }, () => crypto.randomUUID()) },
+    }),
+    error => error.code === 'CHAT_INPUT',
+  );
+  await assert.rejects(
+    chat.postMessage({ actor: ADMIN }, conversation.id, {
+      requestId: requestId(), content: 'q', selection: { artifacts: ['not-a-uuid'] },
+    }),
     error => error.code === 'CHAT_INPUT',
   );
 });

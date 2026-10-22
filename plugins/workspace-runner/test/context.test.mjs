@@ -20,7 +20,7 @@ function fakeStorage() {
 
 const ADMIN = { subject: 'local-operator', role: 'admin', workspaceId: 'local' };
 
-function setup({ load = null } = {}) {
+function setup({ load = null, artifacts = null } = {}) {
   const chat = createChatService({ storage: fakeStorage() });
   const requests = [];
   const llm = {
@@ -30,7 +30,7 @@ function setup({ load = null } = {}) {
     },
   };
   const skills = load ? { load } : null;
-  const runner = createRunner({ chat, llm, skills });
+  const runner = createRunner({ chat, llm, skills, artifacts });
   chat.onPrepared(({ runId }) => { runner.enqueue(runId); });
   return { chat, runner, requests };
 }
@@ -89,4 +89,58 @@ test('a run without a skills selection still records an empty context', async ()
   assert.equal(run.status, 'completed');
   assert.deepEqual(run.snapshot.skills, []);
   assert.equal(typeof run.snapshot.contextChars, 'number');
+});
+
+test('a selected file is injected, bounded and pinned on the run', async () => {
+  const fileId = crypto.randomUUID();
+  const harness = setup({
+    artifacts: {
+      read: async id => ({
+        artifact: { id },
+        version: { version: 3, sha256: 'b'.repeat(64), filename: '客户需求.md' },
+        encoding: 'utf8',
+        content: '客户要求 MOQ 500，交期 30 天。',
+      }),
+    },
+  });
+  const posted = await startRun(harness.chat, { artifacts: [fileId] });
+  await harness.runner.drain();
+
+  const system = harness.requests[0].messages[0].content;
+  assert.match(system, /用户选择的文件/u);
+  assert.match(system, /客户要求 MOQ 500/u);
+
+  const run = harness.chat.readRun({ actor: ADMIN }, posted.run.id);
+  assert.equal(run.status, 'completed');
+  assert.deepEqual(run.snapshot.artifacts, [{
+    id: fileId, version: 3, sha256: 'b'.repeat(64), filename: '客户需求.md', chars: '客户要求 MOQ 500，交期 30 天。'.length,
+  }]);
+});
+
+test('a binary file is refused instead of being silently skipped', async () => {
+  const harness = setup({
+    artifacts: { read: async () => ({ encoding: 'base64', content: 'AAAA', version: { version: 1, sha256: 'c'.repeat(64), filename: 'scan.pdf' } }) },
+  });
+  const posted = await startRun(harness.chat, { artifacts: [crypto.randomUUID()] });
+  await harness.runner.drain();
+  assert.equal(harness.chat.readRun({ actor: ADMIN }, posted.run.id).error.code, 'ARTIFACT_UNSUPPORTED');
+});
+
+test('a missing file and an oversized selection both fail closed', async () => {
+  const missing = setup({ artifacts: { read: async () => { throw new Error('gone'); } } });
+  const first = await startRun(missing.chat, { artifacts: [crypto.randomUUID()] });
+  await missing.runner.drain();
+  assert.equal(missing.chat.readRun({ actor: ADMIN }, first.run.id).error.code, 'ARTIFACT_UNAVAILABLE');
+
+  const huge = setup({ artifacts: { read: async () => ({ encoding: 'utf8', content: 'x'.repeat(21_000), version: { version: 1, sha256: 'd'.repeat(64), filename: 'big.txt' } }) } });
+  const second = await startRun(huge.chat, { artifacts: [crypto.randomUUID()] });
+  await huge.runner.drain();
+  assert.equal(huge.chat.readRun({ actor: ADMIN }, second.run.id).error.code, 'ARTIFACT_TOO_LARGE');
+});
+
+test('a run that selects no file records an empty artifact list', async () => {
+  const harness = setup({});
+  const posted = await startRun(harness.chat);
+  await harness.runner.drain();
+  assert.deepEqual(harness.chat.readRun({ actor: ADMIN }, posted.run.id).snapshot.artifacts, []);
 });

@@ -17,7 +17,7 @@
 | B 工作空间与成员 | 成员表、角色、workspace 解析 | harness workspace seam | 已就位 | ✅ |
 | C 会话与运行 | 会话、消息、run 状态机、事件流 | `server/index.mjs`、`server/runtime.mjs` | 插件 `workspace-chat` + kernel 流式 | 未迁（流式本次补齐） |
 | D 模型与预算 | provider、token 预算、取消、用量 | `pi-provider.mjs`、`workspace-llm-bridge` | 插件 `workspace-llm-bridge` + 预算插件 | ✅ provider + SSE 流 + run 循环 |
-| E 上下文装配 | 文件、技能、记忆、企业事实 | `server/task-context.mjs` | 插件 `workspace-context` | 部分：技能 + 记忆已装配并固定进 `run.snapshot`；文件未迁 |
+| E 上下文装配 | 文件、技能、记忆、企业事实 | `server/task-context.mjs` | 插件 `workspace-context` | 部分：技能 + 文本文件 + 记忆已装配并固定进 `run.snapshot`；文件上传/下载面未做 |
 | F 工具与审批 | 工具注册、审批票据、连接器 | `workspace-bridge.mjs`、`capabilities.mjs`、approval/tools seams | 接缝已就位 + 插件 `workspace-approvals` | 部分 |
 | G 产物 | 生成文件、下载、发布 | `run-output.mjs`、artifacts seam | 接缝已就位 + 插件 | 部分 |
 | H 业务域 | 资料库、产品库、市场、采购、供应商、Medusa | `plugins/*` | 已在 harness | ✅ 大部分 |

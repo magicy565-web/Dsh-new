@@ -44,6 +44,7 @@ const isPlain = value => value !== null && typeof value === 'object' && !Array.i
   && Object.getPrototypeOf(value) === Object.prototype;
 const isId = value => typeof value === 'string' && value.length > 0 && value.length <= CHAT_LIMITS.id;
 const isIso = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
+const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u;
 
 function text(value, max, name, { empty = false } = {}) {
   if (typeof value !== 'string') fail(400, 'CHAT_INPUT', `${name} must be a string.`);
@@ -62,9 +63,9 @@ const SKILL_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u;
 
 /** Bound what a single message may attach as run context. */
 function validateSelection(selection) {
-  if (selection === undefined) return { skills: [] };
+  if (selection === undefined) return { skills: [], artifacts: [] };
   if (!isPlain(selection)) fail(400, 'CHAT_INPUT', 'selection must be an object.');
-  if (Object.keys(selection).some(key => key !== 'skills'))
+  if (Object.keys(selection).some(key => !['skills', 'artifacts'].includes(key)))
     fail(400, 'CHAT_INPUT', 'selection has an unsupported field.');
   const skills = selection.skills === undefined ? [] : selection.skills;
   if (!Array.isArray(skills) || skills.length > 8)
@@ -76,7 +77,17 @@ function validateSelection(selection) {
     if (seen.has(name)) fail(400, 'CHAT_INPUT', 'A skill is selected more than once.');
     seen.add(name);
   }
-  return { skills: [...skills] };
+  const artifacts = selection.artifacts === undefined ? [] : selection.artifacts;
+  if (!Array.isArray(artifacts) || artifacts.length > 4)
+    fail(400, 'CHAT_INPUT', 'selection.artifacts must be an array of at most 4 ids.');
+  const artifactSeen = new Set();
+  for (const id of artifacts) {
+    if (typeof id !== 'string' || !UUID.test(id))
+      fail(400, 'CHAT_INPUT', 'A selected artifact id is invalid.');
+    if (artifactSeen.has(id)) fail(400, 'CHAT_INPUT', 'A file is selected more than once.');
+    artifactSeen.add(id);
+  }
+  return { skills: [...skills], artifacts: [...artifacts] };
 }
 
 function validateRun(run) {
@@ -404,7 +415,7 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
           status: 'prepared', requestedBy: actor.subject,
           createdAt: now, startedAt: null, endedAt: null, cancelRequestedAt: null,
           error: null, usage: null, model: null,
-          snapshot: { messageId: message.id, memory: null, artifacts: [], skills: selection.skills },
+          snapshot: { messageId: message.id, memory: null, artifacts: selection.artifacts, skills: selection.skills },
           selection,
         };
         message.runId = run.id;

@@ -48,6 +48,7 @@ export async function apply(ctx, config = {}) {
   const tools = config.tools === false ? null : (ctx.get?.('tools', false) ?? null);
   const approval = config.tools === false ? null : (ctx.get?.('approval', false) ?? null);
   const skills = ctx.get?.('skills', false) ?? null;
+  const artifacts = ctx.get?.('artifacts', false) ?? null;
 
   if (config.enabled === false) {
     if (ctx.health?.register) ctx.health.register('runner', () => ({ status: 'ok', detail: { enabled: false } }));
@@ -55,7 +56,7 @@ export async function apply(ctx, config = {}) {
   }
 
   const runner = createRunner({
-    chat, llm, memory, tools, approval, skills, workspaceId,
+    chat, llm, memory, tools, approval, skills, artifacts, workspaceId,
     model: config.model ?? null,
     systemPrompt: config.systemPrompt,
     timeoutMs: config.timeoutMs ?? 120_000,
@@ -66,7 +67,7 @@ export async function apply(ctx, config = {}) {
 
   const unsubscribe = chat.onPrepared(({ runId }) => { runner.enqueue(runId); });
   if (ctx.health?.register) {
-    ctx.health.register('runner', () => ({ status: 'ok', detail: { ...runner.stats(), memory: Boolean(memory), tools: Boolean(tools), approval: Boolean(approval), skills: Boolean(skills) } }));
+    ctx.health.register('runner', () => ({ status: 'ok', detail: { ...runner.stats(), memory: Boolean(memory), tools: Boolean(tools), approval: Boolean(approval), skills: Boolean(skills), artifacts: Boolean(artifacts) } }));
   }
   let disposeService = null;
   if (typeof ctx.provide === 'function') disposeService = ctx.provide('runner', runner);

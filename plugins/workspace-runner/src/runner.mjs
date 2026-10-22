@@ -46,7 +46,7 @@ function failure(error) {
 export function createRunner({
   chat, llm, memory = null, workspaceId = 'local', systemPrompt = DEFAULT_SYSTEM,
   model = null, timeoutMs = 120_000, maxQueue = 100, deltaBatchChars = 160, deltaBatchMs = 120, clock = Date.now,
-  tools = null, approval = null, skills = null,
+  tools = null, approval = null, skills = null, artifacts = null,
 } = {}) {
   if (!chat || typeof chat.onPrepared !== 'function') throw new TypeError('The runner requires the chat service.');
   if (!llm || typeof llm.complete !== 'function') throw new TypeError('The runner requires the llm seam.');
@@ -180,6 +180,29 @@ export function createRunner({
     };
   }
 
+  /** Resolve the files a message selected; only UTF-8 text can be attached. */
+  async function artifactContext(run) {
+    const ids = run?.snapshot?.artifacts ?? [];
+    if (!ids.length) return { text: '', pinned: [] };
+    if (!artifacts || typeof artifacts.read !== 'function')
+      throw codedError('ARTIFACT_UNAVAILABLE', 'Artifacts are not mounted in this harness.');
+    const pinned = [];
+    const blocks = [];
+    let chars = 0;
+    for (const id of ids) {
+      let result;
+      try { result = await artifacts.read(id); } catch { throw codedError('ARTIFACT_UNAVAILABLE', `The selected file ${id} is unavailable.`); }
+      if (result?.encoding !== 'utf8' || typeof result?.content !== 'string')
+        throw codedError('ARTIFACT_UNSUPPORTED', 'Only text files can be attached to a run.');
+      chars += result.content.length;
+      if (chars > 20_000) throw codedError('ARTIFACT_TOO_LARGE', 'The selected files exceed the context budget.');
+      const version = result.version ?? {};
+      pinned.push({ id, version: version.version, sha256: version.sha256, filename: version.filename, chars: result.content.length });
+      blocks.push(`## ${version.filename ?? id}（v${version.version ?? 0}）\n${result.content}`);
+    }
+    return { text: ['【用户选择的文件】', ...blocks].join('\n\n'), pinned };
+  }
+
   function history(run) {
     const { messages } = chat.readConversation({ ...context }, run.conversationId, { messageLimit: 40 });
     const trimmed = [];
@@ -211,10 +234,12 @@ export function createRunner({
       const messages = history(run);
       const query = messages.filter(message => message.role === 'user').at(-1)?.content ?? '';
       const savedSkills = await skillContext(run);
+      const savedFiles = await artifactContext(run);
       const recalled = await memoryBlock(runId, query);
-      const system = [systemPrompt, savedSkills.text, recalled.text].filter(Boolean).join('\n\n');
+      const system = [systemPrompt, savedSkills.text, savedFiles.text, recalled.text].filter(Boolean).join('\n\n');
       await chat.recordContext({ ...context }, runId, {
         skills: savedSkills.pinned,
+        artifacts: savedFiles.pinned,
         memory: recalled.revision === null ? null : { revision: recalled.revision, ids: recalled.ids },
         contextChars: system.length,
       });
