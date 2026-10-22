@@ -93,7 +93,7 @@ function view(schedule) {
  * @param {Function} [options.clock]
  * @param {object|null} [options.audit]
  */
-export function createScheduleService({ storage, chat, workspaceId = 'local', resolveWorkspace = null, clock = Date.now, audit = null } = {}) {
+export function createScheduleService({ storage, chat, workspaceId = 'local', resolveWorkspace = null, clock = Date.now, audit = null, notify = null } = {}) {
   if (!storage || typeof storage.read !== 'function' || typeof storage.update !== 'function')
     throw new TypeError('Schedules require the harness storage seam.');
   if (!chat || typeof chat.postMessage !== 'function')
@@ -293,6 +293,15 @@ export function createScheduleService({ storage, chat, workspaceId = 'local', re
               if (current) { current.status = 'blocked'; current.updatedAt = at(); current.note = `DISPATCH_FAILED:${error?.code ?? 'UNKNOWN'}`; }
               return null;
             });
+            if (notify) {
+              await notify({
+                kind: 'schedule.blocked',
+                title: `计划派发失败：${schedule.title}`,
+                body: `DISPATCH_FAILED:${error?.code ?? 'UNKNOWN'}`,
+                refs: { scheduleId: schedule.id },
+                dedupeKey: `schedule-blocked:${dispatchId}`,
+              }).catch(() => {});
+            }
             continue;
           }
           await store.update(draft => {
@@ -313,6 +322,15 @@ export function createScheduleService({ storage, chat, workspaceId = 'local', re
             return null;
           });
           dispatched += 1;
+          if (notify) {
+            await notify({
+              kind: 'schedule.dispatched',
+              title: `计划已触发：${schedule.title}`,
+              body: schedule.prompt.slice(0, 500),
+              refs: { scheduleId: schedule.id, runId: run.id },
+              dedupeKey: `schedule:${dispatchId}`,
+            }).catch(() => {});
+          }
         }
         return { dispatched };
       } finally {

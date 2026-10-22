@@ -91,6 +91,16 @@ try {
   const pending = await fetch(`${base}/api/chat/conversations/${created.conversation.id}/approvals`).then(response => response.json());
   check('the approval shows the exact tool payload', pending.total === 1 && pending.items[0].payload?.factKey === 'moq', pending.items?.[0]?.payload);
 
+  let inbox = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    inbox = await fetch(`${base}/api/inbox?status=all`).then(response => response.json());
+    if (inbox.items.some(item => item.kind === 'approval.pending' && item.refs.approvalId === approvalId)) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  check('the pending approval lands in the inbox',
+    inbox.items.some(item => item.kind === 'approval.pending' && item.refs.approvalId === approvalId),
+    inbox.items.map(item => item.kind));
+
   // The tool must not have produced a memory record yet.
   const before = await fetch(`${base}/api/business-memory/records?status=all&q=MOQ`).then(response => response.json());
   check('nothing was written before approval', before.total === baseline.total, { before: before.total, baseline: baseline.total });
@@ -105,9 +115,10 @@ try {
     const frame = await frames.next();
     if (frame === null) break;
     seen.push(frame.event);
+    if (frame.event === 'run.failed') failureCode = frame.data?.data?.code ?? failureCode;
     if (frame.event === 'run.completed' || frame.event === 'run.failed') break;
   }
-  check('the run completes after approval', seen.includes('run.completed'), seen);
+  check('the run completes after approval', seen.includes('run.completed'), { seen, failureCode });
 
   const after = await fetch(`${base}/api/business-memory/records?status=all&q=MOQ`).then(response => response.json());
   check('the approved tool wrote exactly one new pending memory',

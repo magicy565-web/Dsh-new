@@ -203,11 +203,12 @@ function conversationView(conversation, state) {
  * @param {() => number} [options.clock]
  * @param {{record(entry:object):Promise<any>}} [options.audit]
  */
-export function createChatService({ storage, workspaceId = 'local', resolveWorkspace = null, clock = Date.now, audit = null } = {}) {
+export function createChatService({ storage, workspaceId = 'local', resolveWorkspace = null, clock = Date.now, audit = null, notify = null } = {}) {
   if (!storage || typeof storage.read !== 'function' || typeof storage.update !== 'function')
     throw new TypeError('Chat requires the harness storage seam.');
   if (typeof workspaceId !== 'string' || !workspaceId) throw new TypeError('Chat requires an exact workspace id.');
   if (resolveWorkspace !== null && typeof resolveWorkspace !== 'function') throw new TypeError('resolveWorkspace must be a function.');
+  if (notify !== null && typeof notify !== 'function') throw new TypeError('notify must be a function.');
 
   const at = () => new Date(clock()).toISOString();
   const listeners = new Map();
@@ -661,6 +662,15 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
       });
       if (emitted) emit(emitted);
       if (audit?.record) await audit.record({ kind: 'chat.approval', action: 'chat.approval.request', actor: actor.subject, ref: result.id });
+      if (notify) {
+        await notify({
+          kind: 'approval.pending',
+          title: `待批准：${action}`,
+          body: resource,
+          refs: { approvalId: result.id, runId, conversationId: result.conversationId },
+          dedupeKey: `approval:${result.id}`,
+        }).catch(() => {});
+      }
       return result;
     },
 

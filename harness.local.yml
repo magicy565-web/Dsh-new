@@ -29,6 +29,10 @@ plugins:
             - { subject: local-operator, role: admin }
             # 执行器以系统成员身份调用工具；它与人类决策分开，权限只到 operator。
             - { subject: 'service:runner', role: operator }
+  # 收件箱：计划触发、待批准汇总到一处；只存通知与引用，不复制业务数据。
+  - id: inbox
+    name: workspace-inbox
+    config: { workspaceId: local }
   # Business plugin (work package C) is enabled once plugins/workspace-inquiries exists:
   # - id: inquiries
   #   name: workspace-inquiries

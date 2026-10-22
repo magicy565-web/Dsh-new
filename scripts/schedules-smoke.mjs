@@ -69,6 +69,11 @@ try {
   const run = await fetch(`${base}/api/chat/runs/${detail.receipts[0].runId}`).then(response => response.json());
   check('the run belongs to the scheduled message', run.run.snapshot?.messageId === scheduledMessage?.id, run.run.snapshot?.messageId);
   check('the scheduler is the recorded requester', run.run.requestedBy === 'service:scheduler', run.run.requestedBy);
+
+  const inbox = await fetch(`${base}/api/inbox?status=all`).then(response => response.json());
+  check('the dispatch lands in the inbox',
+    inbox.items.some(item => item.kind === 'schedule.dispatched' && item.refs.scheduleId === schedule.schedule.id),
+    inbox.items.map(item => item.kind));
 } finally {
   await harness.stop().catch(() => {});
   await unlink(compositionPath).catch(() => {});

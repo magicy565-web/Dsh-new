@@ -45,12 +45,20 @@ export async function apply(ctx, config = {}) {
       return { workspaceId: resolved.workspaceId, subject: resolved.subject, role: resolved.role };
     }
     : null;
+  const notify = typeof ctx.get === 'function'
+    ? item => {
+      const inbox = ctx.get('inbox', false);
+      if (!inbox || typeof inbox.push !== 'function') return Promise.resolve();
+      return inbox.push({ actor: { subject: 'service:scheduler', role: 'operator', workspaceId }, trustedService: true }, item);
+    }
+    : null;
   const service = createScheduleService({
     storage: ctx.storage,
     chat: ctx.chat,
     workspaceId,
     resolveWorkspace,
     audit: ctx.audit ?? null,
+    notify,
   });
 
   const call = handler => async (_req, _res, context) => {
