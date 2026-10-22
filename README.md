@@ -11,21 +11,25 @@
 ## 一键安装（Windows）
 
 ```text
-dist/Workspace-Harness-Setup-0.5.0-rc.2.exe
+dist/Workspace-Harness-Setup-0.5.0-rc.2.exe          # 浏览器版，24.9 MiB
+dist/Workspace-Harness-Desktop-Setup-0.5.0-rc.2.exe  # 桌面版，约 111 MiB
 ```
 
 - 每用户安装到 `%LOCALAPPDATA%\Programs\WorkspaceHarness`，不需要管理员权限；
-- 自带 Node 24 运行时，机器不必预装 Node；
-- 双击快捷方式后台启动，等端口就绪后打开 `http://127.0.0.1:8790/home`；
+- 浏览器版自带 Node 24，双击后打开 `http://127.0.0.1:8790/home`；
+- 桌面版自带 Electron 45（Chromium 156 + Node 24.22），独立窗口 + 托盘，
+  关窗只隐藏到托盘；
 - 可变数据在 `%LOCALAPPDATA%\WorkspaceHarness\data`（升级/卸载保留），
-  日志在 `%LOCALAPPDATA%\WorkspaceHarness\logs`；
+  日志在 `%LOCALAPPDATA%\WorkspaceHarness\logs`；桌面版 Chromium 状态在
+  `%LOCALAPPDATA%\WorkspaceHarness\chromium`；
 - 安装包只含本地 Harness 工作台，不含 `integrations/dsh/` 的 DSH 桌面插件，
   也不读写 `~/.dsh`。
 
 构建安装包：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File installer\build.ps1
+powershell -ExecutionPolicy Bypass -File installer\build.ps1          # 浏览器版
+powershell -ExecutionPolicy Bypass -File installer\build-desktop.ps1  # 桌面版
 ```
 
 细节与验收命令见 [installer/README.md](installer/README.md)。
@@ -40,7 +44,7 @@ node scripts/harness-serve.mjs
 ```
 
 然后打开 `http://127.0.0.1:8790/home`。组合文件是 `harness.local.yml`，当前挂载
-24 个插件：首页、聊天/运行、目标、计划任务、收件箱、运维、市场、产品库、经营记忆、
+25 个插件：首页、聊天/运行、目标、计划任务、收件箱、运维、市场、产品库、经营记忆、
 文件、报价、采购、审批、身份、技能与模型接缝。
 
 模型默认关闭（`llm-bridge.enabled: false`）。需要真实模型时显式配置 provider 与

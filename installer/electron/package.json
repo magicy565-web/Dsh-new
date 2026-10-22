@@ -1,0 +1,10 @@
+{
+  "name": "workspace-harness-desktop",
+  "productName": "Workspace Harness",
+  "version": "0.5.0-rc.2",
+  "description": "Workspace Harness desktop shell",
+  "main": "main.js",
+  "author": "magicy565-web",
+  "license": "MIT",
+  "private": true
+}
