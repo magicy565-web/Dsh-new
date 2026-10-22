@@ -134,6 +134,14 @@ export function createAccessService({ storage, workspaceId = 'local', resolveWor
       return { workspaceId: session.workspaceId, subject: session.subject, role: session.role };
     },
 
+    /** Non-mutating membership lookup for signed ingress: actor or null. */
+    actorFor(subject) {
+      if (typeof subject !== 'string' || !subject.trim()) return null;
+      try {
+        const member = membership(subject.trim());
+        return { workspaceId: member.workspaceId, subject: member.subject, role: member.role };
+      } catch { return null; }
+    },
     /** Session details for the current caller (never exposed for other sessions). */
     sessionInfo(sessionId) {
       if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) return null;

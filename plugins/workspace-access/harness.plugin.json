@@ -9,7 +9,8 @@
   "configSchema": {
     "type": "object",
     "properties": {
-      "workspaceId": { "type": "string", "minLength": 1 }
+      "workspaceId": { "type": "string", "minLength": 1 },
+      "ingressPublicKeyFile": { "type": "string", "minLength": 1 }
     },
     "additionalProperties": false
   },

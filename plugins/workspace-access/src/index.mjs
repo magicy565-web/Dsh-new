@@ -4,7 +4,10 @@
 // x-harness-* headers stop being authority: every non-public route needs a
 // valid session cookie. Sign-in is loopback-only and only for workspace
 // members; the role always comes from the workspace seam.
+import { readFile } from 'node:fs/promises';
+import { isAbsolute } from 'node:path';
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
+import { INGRESS_HEADERS, createIngressVerifier } from './ingress.mjs';
 import { AccessError, SESSION_COOKIE, SESSION_TTL_MS, createAccessService } from './domain.mjs';
 
 export const PLUGIN_ID = 'workspace-access';
@@ -96,13 +99,25 @@ export async function apply(ctx, config = {}) {
   if (!ctx?.storage?.read) throw missing('storage');
   if (config === null || typeof config !== 'object' || Array.isArray(config))
     throw new HarnessError(ERROR.manifestInvalid, `${PLUGIN_ID} config must be an object.`);
-  if (Object.keys(config).some(key => !['workspaceId'].includes(key)))
+  if (Object.keys(config).some(key => !['workspaceId', 'ingressPublicKeyFile'].includes(key)))
     throw new HarnessError(ERROR.manifestInvalid, `${PLUGIN_ID} config has an unsupported field.`);
   const workspaceId = config.workspaceId ?? 'local';
   const resolveWorkspace = typeof ctx.workspace?.resolve === 'function'
     ? actor => ctx.workspace.resolve(actor)
     : null;
   const service = createAccessService({ storage: ctx.storage, workspaceId, resolveWorkspace });
+
+  let ingress = null;
+  if (config.ingressPublicKeyFile !== undefined) {
+    if (typeof config.ingressPublicKeyFile !== 'string' || !isAbsolute(config.ingressPublicKeyFile))
+      throw new HarnessError(ERROR.manifestInvalid, 'config.ingressPublicKeyFile must be an absolute path to a public key PEM.');
+    let pem;
+    try { pem = await readFile(config.ingressPublicKeyFile, 'utf8'); }
+    catch { throw new HarnessError(ERROR.manifestInvalid, 'config.ingressPublicKeyFile could not be read.'); }
+    if (pem.length > 8_192) throw new HarnessError(ERROR.manifestInvalid, 'config.ingressPublicKeyFile is too large.');
+    ingress = createIngressVerifier({ publicKeyPem: pem });
+    if (!ingress.enabled) throw new HarnessError(ERROR.manifestInvalid, 'config.ingressPublicKeyFile is not a valid Ed25519 public key.');
+  }
 
   const call = handler => async (_req, _res, context) => {
     try { return await handler(context ?? {}); }
@@ -175,16 +190,32 @@ export async function apply(ctx, config = {}) {
   });
 
   // From here on, the kernel asks this resolver instead of trusting headers.
-  const disposeResolver = typeof ctx.http.setActorResolver === 'function'
-    ? ctx.http.setActorResolver(request => {
-      const method = String(request?.method ?? 'GET').toUpperCase();
-      const mutating = !['GET', 'HEAD', 'OPTIONS'].includes(method);
-      const token = request?.headers?.['x-csrf-token'];
-      return service.resolveSession(cookieValue(request, SESSION_COOKIE), {
-        mutating,
-        csrfToken: typeof token === 'string' ? token : null,
+  const resolveActor = request => {
+    const headers = request?.headers ?? {};
+    if (ingress !== null && ingress.enabled && headers[INGRESS_HEADERS.subject] !== undefined) {
+      let pathname = '/';
+      try { pathname = new URL(request.url ?? '/', 'http://ingress.local').pathname; } catch { pathname = '/'; }
+      const verified = ingress.verify({
+        subject: headers[INGRESS_HEADERS.subject],
+        timestamp: headers[INGRESS_HEADERS.timestamp],
+        nonce: headers[INGRESS_HEADERS.nonce],
+        signature: headers[INGRESS_HEADERS.signature],
+        method: String(request?.method ?? 'GET').toUpperCase(),
+        path: pathname,
       });
-    })
+      // A present but invalid signature never falls back to a cookie.
+      return verified ? service.actorFor(verified.subject) : null;
+    }
+    const method = String(request?.method ?? 'GET').toUpperCase();
+    const mutating = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+    const token = headers['x-csrf-token'];
+    return service.resolveSession(cookieValue(request, SESSION_COOKIE), {
+      mutating,
+      csrfToken: typeof token === 'string' ? token : null,
+    });
+  };
+  const disposeResolver = typeof ctx.http.setActorResolver === 'function'
+    ? ctx.http.setActorResolver(resolveActor)
     : null;
   const disposeLoginPath = typeof ctx.http.setLoginPath === 'function' ? ctx.http.setLoginPath('/login') : null;
 

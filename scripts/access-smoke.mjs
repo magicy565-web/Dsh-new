@@ -7,6 +7,7 @@
 // Usage: node scripts/access-smoke.mjs
 import { readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import { parse, stringify } from 'yaml';
 import { createHarness } from '../packages/harness-kernel/src/app.mjs';
 
@@ -16,9 +17,26 @@ const check = (name, ok, detail) => { results.push({ name, ok: Boolean(ok), ...(
 
 const composition = parse(await readFile(path.join(root, 'harness.local.yml'), 'utf8'));
 composition.server = { host: '127.0.0.1', port: 0 };
-composition.plugins = [...composition.plugins, { id: 'access', name: 'workspace-access', config: { workspaceId: 'local' } }];
+const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+const ingressKeyPath = path.join(root, '.harness-access-smoke-key.pem');
+await writeFile(ingressKeyPath, publicKey.export({ type: 'spki', format: 'pem' }), 'utf8');
+composition.plugins = [...composition.plugins, {
+  id: 'access', name: 'workspace-access',
+  config: { workspaceId: 'local', ingressPublicKeyFile: ingressKeyPath },
+}];
 const compositionPath = path.join(root, '.harness-access-smoke.yml');
 await writeFile(compositionPath, stringify(composition), 'utf8');
+
+function signedHeaders({ subject = 'local-operator', method = 'GET', path, nonce }) {
+  const timestamp = Date.now();
+  const payload = Buffer.from([subject, String(timestamp), nonce, method, path].join('\n'), 'utf8');
+  return {
+    'x-ingress-subject': subject,
+    'x-ingress-timestamp': String(timestamp),
+    'x-ingress-nonce': nonce,
+    'x-ingress-signature': sign(null, payload, privateKey).toString('base64'),
+  };
+}
 
 const harness = await createHarness({ compositionPath, root, logger: { info() {}, warn() {}, error() {} } });
 try {
@@ -34,6 +52,26 @@ try {
 
   const page = await fetch(`${base}/chat`);
   check('even the page shell needs a session', page.status === 401, page.status);
+
+  // Enterprise signed ingress: Ed25519, no session cookie involved.
+  const ingress = await fetch(`${base}/api/chat/status`, {
+    headers: signedHeaders({ path: '/api/chat/status', nonce: 'ingressnonce0001' }),
+  });
+  check('a signed ingress request is accepted without a session', ingress.status === 200, ingress.status);
+
+  const replayHeaders = signedHeaders({ path: '/api/chat/status', nonce: 'ingressnonce0002' });
+  const firstReplay = await fetch(`${base}/api/chat/status`, { headers: replayHeaders });
+  const secondReplay = await fetch(`${base}/api/chat/status`, { headers: replayHeaders });
+  check('a replayed ingress signature is refused', firstReplay.status === 200 && secondReplay.status === 401, [firstReplay.status, secondReplay.status]);
+
+  const tampered = signedHeaders({ path: '/api/chat/status', nonce: 'ingressnonce0003' });
+  const tamperedResponse = await fetch(`${base}/api/chat/status`, { headers: { ...tampered, 'x-ingress-subject': 'spoofed' } });
+  check('a tampered ingress subject is refused', tamperedResponse.status === 401, tamperedResponse.status);
+
+  const stranger = await fetch(`${base}/api/chat/status`, {
+    headers: signedHeaders({ path: '/api/chat/status', nonce: 'ingressnonce0004', subject: 'stranger' }),
+  });
+  check('a signed non-member is refused', stranger.status === 401, stranger.status);
 
   const loginPage = await fetch(`${base}/login`);
   check('the login page is public', loginPage.status === 200 && /text\/html/u.test(loginPage.headers.get('content-type') ?? ''), loginPage.status);
@@ -88,6 +126,7 @@ try {
 } finally {
   await harness.stop().catch(() => {});
   await unlink(compositionPath).catch(() => {});
+  await unlink(ingressKeyPath).catch(() => {});
 }
 
 const failed = results.filter(item => !item.ok);
