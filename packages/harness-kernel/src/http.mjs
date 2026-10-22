@@ -158,7 +158,16 @@ export class HttpKernel {
     this._param = []; // parameterised records, registration order
     this._checks = new Map(); // health name → record
     this._scope = [];
+    this._actorResolver = null;
     this._registerKernelRoutes();
+  }
+
+  /** Install the authoritative actor resolver (session middleware); null clears it. */
+  setActorResolver(resolver) {
+    if (resolver !== null && typeof resolver !== 'function')
+      throw new HarnessError(ERROR.pluginFailed ?? 'HARNESS_PLUGIN_FAILED', 'setActorResolver requires a function or null.');
+    this._actorResolver = resolver;
+    return () => { if (this._actorResolver === resolver) this._actorResolver = null; };
   }
 
   _registerKernelRoutes() {
@@ -209,7 +218,7 @@ export class HttpKernel {
         { method: actualMethod, path, pluginId },
       );
     }
-    const record = { method: actualMethod, path, handler, pluginId, segments, hasParams, kernel };
+    const record = { method: actualMethod, path, handler, pluginId, segments, hasParams, kernel, public: definition.public === true };
     if (hasParams) {
       for (const other of this._param) {
         if (other.method !== actualMethod) continue;
@@ -464,12 +473,24 @@ export class HttpKernel {
       this.respondError(res, error);
       return;
     }
+    let actor = actorFromHeaders(req.headers);
+    if (this._actorResolver !== null) {
+      // A session layer is installed: request headers are no longer authority.
+      try { actor = await this._actorResolver(req); }
+      catch { actor = null; }
+      if (!actor && match.record.public !== true && match.record.kernel !== true) {
+        this.sendJson(res, 401, {
+          error: { code: 'HARNESS_UNAUTHENTICATED', message: 'Sign in to use this workspace.' },
+        });
+        return;
+      }
+    }
     const context = {
       method,
       pathname,
       query: queryObject(url),
       params: match.params,
-      actor: actorFromHeaders(req.headers),
+      actor,
       body,
     };
     try {
