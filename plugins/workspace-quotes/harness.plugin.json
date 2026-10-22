@@ -1,0 +1,25 @@
+{
+  "id": "workspace-quotes",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "报价单：服务端按行计算总额（整数分），状态机 draft→sent→accepted/rejected；模型创建报价必须经过一次人工批准。",
+  "entry": "./src/index.mjs",
+  "requires": ["storage", "workspace", "audit", "tools"],
+  "provides": ["quotes"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "workspaceId": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false
+  },
+  "routes": [
+    "GET /api/quotes/status",
+    "POST /api/quotes",
+    "GET /api/quotes",
+    "GET /api/quotes/:id",
+    "POST /api/quotes/:id/status",
+    "GET /quotes"
+  ],
+  "tools": ["quote_create", "quote_list"]
+}
