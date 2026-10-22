@@ -38,6 +38,11 @@ POST /api/ops/restore      { backupId, confirm }  confirm 必须原样重复 bac
 - **confirm 必须等于 backupId**，否则 409——恢复永远是显式动作；
 - 恢复会整体替换 durable state，并写入 audit（`ops.restore`）。
 
+## 页面
+
+`/ops` 是自包含运维台（严格 CSP）：状态计数、目标与计划概览、备份列表；
+「新建备份」一键生成，「恢复」要求手动输入备份 ID 确认。未登录访问会跳 `/login`；
+`/chat` 侧栏有「运维」入口。
 ## 验证
 
 ```powershell

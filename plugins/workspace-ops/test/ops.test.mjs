@@ -99,6 +99,14 @@ test('the HTTP surface creates, lists and restores a backup', async () => {
       return routes.get(key).handler({}, {}, { method, pathname, params: {}, query: {}, body, actor });
     };
 
+    const page = await routes.get('GET /ops').handler({}, {}, {});
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.match(html, /运维台/u);
+    assert.match(html, /id="stats"/u);
+    const script = html.match(/<script>([\s\S]*?)<\/script>/u)[1];
+    assert.doesNotThrow(() => new Function(script), 'the inline page script parses');
+
     const status = await call('GET /api/ops/status');
     assert.equal(status.body.version, '9.9.9');
 

@@ -28,6 +28,10 @@ try {
   const status = await fetch(`${base}/api/ops/status`).then(response => response.json());
   check('status reports a version and real counts', status.version === '0.1.0' && status.storage?.counts?.workspaces >= 1, status.storage?.counts);
 
+  const page = await fetch(`${base}/ops`);
+  const html = await page.text();
+  check('the ops page renders', page.status === 200 && html.includes('运维台') && html.includes('id="stats"'), page.status);
+
   const created = await fetch(`${base}/api/ops/backups`, { method: 'POST' })
     .then(async response => ({ ok: response.ok, body: await response.json() }));
   check('a backup is written', created.ok && created.body.backup?.bytes > 0, created.body.backup);

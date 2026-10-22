@@ -53,6 +53,8 @@ const PAGE = `<!doctype html>
   #chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 18px 8px; }
   .chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--muted); background: var(--panel); }
   .chip button { border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; }
+  header .nav { margin-left: 8px; color: var(--muted); text-decoration: none; font-size: 13px; }
+  header .nav:hover { color: var(--accent); }
   .goals { border-top: 1px solid var(--line); padding: 8px; max-height: 38%; overflow: auto; }
   .goals-head { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
   .goals-head strong { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
@@ -75,7 +77,7 @@ const PAGE = `<!doctype html>
 <body>
 <div class="app">
   <aside>
-    <header><strong>对话</strong><button id="new" title="新建会话">新会话</button></header>
+    <header><strong>对话</strong><button id="new" title="新建会话">新会话</button><a class="nav" href="/ops" title="运维台">运维</a></header>
     <ul id="list"></ul>
     <div class="goals">
       <div class="goals-head"><strong>目标</strong><button id="new-goal" title="新建目标">+ 新建</button></div>

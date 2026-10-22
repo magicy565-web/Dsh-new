@@ -2,6 +2,7 @@
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
+import { OPS_PAGE } from './area.mjs';
 import { OPS_LIMITS, OpsError, createOpsService, summarize } from './domain.mjs';
 
 export const PLUGIN_ID = 'workspace-ops';
@@ -13,6 +14,7 @@ export const ROUTES = Object.freeze([
   ['GET', `${BASE}/backups`],
   ['POST', `${BASE}/backups`],
   ['POST', `${BASE}/restore`],
+  ['GET', '/ops'],
 ]);
 
 const missing = service => new HarnessError(ERROR.pluginMissingDependency, `${PLUGIN_ID} requires ctx.${service}.`);
@@ -67,6 +69,20 @@ export async function apply(ctx, config = {}) {
     }
     return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
+
+  ctx.http.route({
+    method: 'GET', path: '/ops',
+    handler: () => new Response(OPS_PAGE, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+      },
+    }),
+  });
 
   ctx.http.route({ method: 'GET', path: `${BASE}/status`, handler: call(context => ({ status: 200, body: service.status(context) })) });
 

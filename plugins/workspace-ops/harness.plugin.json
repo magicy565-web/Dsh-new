@@ -18,7 +18,8 @@
     "GET /api/ops/status",
     "GET /api/ops/backups",
     "POST /api/ops/backups",
-    "POST /api/ops/restore"
+    "POST /api/ops/restore",
+    "GET /ops"
   ],
   "tools": []
 }
