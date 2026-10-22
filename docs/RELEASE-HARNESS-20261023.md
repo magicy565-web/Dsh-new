@@ -43,7 +43,7 @@ purchase-tool），最后跑 `wh doctor`。每一步继承 stdio，退出码 0 �
 
 ## 3. 一键安装包
 
-产物：`dist/Workspace-Harness-Setup-0.5.0-rc.2.exe`（约 80–90 MB，单文件，双击安装）。
+产物：`dist/Workspace-Harness-Setup-0.5.0-rc.2.exe`（24.9 MiB，单文件，双击安装）。
 
 安装器行为：
 
@@ -84,8 +84,8 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 | `/business-memory` | 企业经营记忆：候选/审核/事实 | `workspace-business-memory` |
 | `/api/artifacts/*` | 文本与二进制文件、元数据、下载（面板入口在 `/chat` 附件里） | `workspace-artifacts` |
 | `/quotes`、`/purchases` | 报价与采购单，写操作必须人工审批 | `workspace-quotes`、`workspace-purchases` |
-| `/login` | 会话、CSRF、企业签名入口 | `workspace-access` |
-| `/api/healthz` | 24 个插件健康检查 | kernel + seams |
+| `/login` | 企业模式的会话入口（本地单用户模式返回 404） | `workspace-access` |
+| `/api/healthz` | 25 个插件健康检查 | kernel + seams |
 
 模型默认关闭（`llm-bridge.enabled: false`）。安装器不创建凭据、不读取账号密钥；
 需要真实模型时按仓库 `README.md` / `docs/` 显式配置。
@@ -99,22 +99,27 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 | 合并冲突 | `server/index.mjs` 1 处，已取并集并 `node --check` 通过 |
 | 经营大脑相关单测 | 7 个文件 127/127 通过（`workspace-brain-read-http-compat` 在本机因 `/tmp` 路径不可用而跳过，非合并回归） |
 | Harness kernel | 106/106 通过 |
-| 安装包构建 | 见 `dist/SHA256SUMS.txt` 与本节更新 |
+| 安装包构建 | 见 `dist/SHA256SUMS.txt` 与第 6 节 |
 | 静默安装 + 启动 | 待第 6 节验收记录 |
-| 发布闸门 | 待跑完整 `scripts/release-check.mjs` |
+| 发布闸门 | `scripts/release-check.mjs` 67/67 步通过（ok: true，约 140s：51 个测试文件 + 15 个冒烟 + doctor） |
 
 ## 6. 安装验收记录
 
-安装到临时目录后执行：
+2026-10-23 用 `dist/Workspace-Harness-Setup-0.5.0-rc.2.exe` 实测：
 
-```powershell
-& "$env:TEMP\wh-install\WorkspaceHarness.exe" --no-browser
-Invoke-WebRequest http://127.0.0.1:8790/home -UseBasicParsing      # 200
-Invoke-WebRequest http://127.0.0.1:8790/healthz -UseBasicParsing   # 24 插件 ok
-& "$env:TEMP\wh-install\WorkspaceHarness.exe" --stop
-```
+| 步骤 | 结果 |
+| --- | --- |
+| 静默安装（`/VERYSILENT /DIR=%TEMP%\wh-install`） | 退出码 0；`WorkspaceHarness.exe`、`runtime\node.exe`、`plugins\workspace-inquiry-recovery` 均在 |
+| 首次启动（`--no-browser`） | 8790 就绪；数据写入 `%LOCALAPPDATA%\WorkspaceHarness\data` |
+| 页面 | `/home`、`/chat`、`/goals`、`/schedules`、`/inbox`、`/ops`、`/market`、`/business-memory`、`/quotes`、`/purchases` 全部 200 |
+| 健康检查 | `/healthz` 200，25/25 插件 `ok` |
+| 二次启动 | 不新增进程（node 进程数 1 → 1），只复用已有服务 |
+| `--stop` | 退出码 0，端口关闭；再次启动可从陈旧锁恢复 |
+| 卸载 | 退出码 0，安装目录删除；`data` 与 `logs` 保留 |
+| 安装包大小 | 24.9 MiB，SHA-256 `BA8DC045CB71D60E73D6A860FD96AD8218D362B1035BBB7AC0518CD0A00A2492` |
 
-结果在交付时补全；未实际执行的项保持“待验证”。
+`/login` 在本地单用户模式下返回 404 属预期：它是企业模式入口。
+`/inquiry-recovery` 没有独立页面，能力是模型工具 + HTTP 路由。
 
 ## 7. 已知边界
 
