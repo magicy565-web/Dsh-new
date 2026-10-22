@@ -88,6 +88,32 @@ test('the plugin registers every declared route and a health probe', async () =>
   assert.equal(health.detail.conversations, 0);
 });
 
+test('the chat page is self-contained and served with a strict CSP', async () => {
+  const harness = await mounted();
+  const response = await harness.call('GET /chat');
+  assert.match(response.headers.get('content-type'), /text\/html/u);
+  const csp = response.headers.get('content-security-policy');
+  assert.match(csp, /default-src 'none'/u);
+  assert.match(csp, /connect-src 'self'/u);
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  const html = await response.text();
+  assert.match(html, /<title>工作台 · 对话<\/title>/u);
+  assert.match(html, /new EventSource\(/u);
+  assert.doesNotMatch(html, /<script src=/u, 'the page must not load external scripts');
+  assert.doesNotMatch(html, /@import|https?:\/\/fonts/u, 'the page must not load external styles');
+});
+
+test('the inline page script parses as JavaScript', async () => {
+  const harness = await mounted();
+  const html = await (await harness.call('GET /chat')).text();
+  const match = html.match(/<script>([\s\S]*)<\/script>/u);
+  assert.ok(match, 'the page must ship its script inline');
+  assert.doesNotThrow(() => new Function(match[1]), 'the inline script must be syntactically valid');
+  for (const id of ['list', 'messages', 'composer', 'input', 'send', 'stop', 'new']) {
+    assert.match(html, new RegExp(`id="${id}"`, 'u'), `the page needs #${id}`);
+  }
+});
+
 test('a conversation, a message and a run are reachable over HTTP', async () => {
   const harness = await mounted();
   const created = await harness.call('POST /api/chat/conversations', { body: { requestId: crypto.randomUUID(), title: '补货' } });

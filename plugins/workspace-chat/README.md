@@ -65,6 +65,15 @@ chat.advance({ actor }, runId, 'completed', { usage: { outputTokens: 12 } });
 
 这些方法不在 HTTP 面上暴露：外部调用者只能取消，不能假装一个 run 已经完成。
 
+## 页面 `/chat`
+
+自包含 HTML（严格 CSP、无外部资源、无构建）：左侧会话列表，右侧消息流与输入框。
+
+- 发送后订阅该 run 的 SSE，把 `run.delta` 追加到当前回答气泡；
+- 顶部显示状态（准备 / 生成中 / 已完成 / 失败），失败显示错误码；
+- 「停止」调用 cancel；断线用 `after=<lastSeq>` 重连，最多两次；
+- 未配置模型时提示设置 `DEEPSEEK_API_KEY` 并打开 `llm-bridge.enabled`。
+
 ## 验证
 
 ```powershell

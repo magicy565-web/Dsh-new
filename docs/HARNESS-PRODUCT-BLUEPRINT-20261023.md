@@ -24,7 +24,7 @@
 | I 目标与信号 | Goal、Brain、经营信号 | `server/goal-brain*.mjs` | 插件 `workspace-goals` | 未迁 |
 | J 自动化 | 计划任务、通知、Worker 派发 | `capabilities.mjs`、`worker-*` | 插件 `workspace-schedule` | 未迁 |
 | K 运维 | 诊断、恢复、备份、部署、上线闸门 | 多个 `server/*`、`scripts/*` | 插件 `workspace-ops` | 未迁 |
-| L 界面 | 聊天壳、区域页面、管理控制台 | `src/` React | Harness 静态托管 + 每插件页面 | 未迁（`/market`、`/business-memory` 是先例） |
+| L 界面 | 聊天壳、区域页面、管理控制台 | `src/` React | Harness 静态托管 + 每插件页面 | 部分：`/chat`、`/market`、`/business-memory` 已有；管理控制台未迁 |
 
 ## 2. 归属原则
 

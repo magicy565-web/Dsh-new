@@ -75,6 +75,11 @@ try {
   check('a conversation is created over HTTP', created.status === 201 && created.body.conversation.title === '冒烟会话');
   const conversationId = created.body.conversation.id;
 
+  const page = await fetch(`${base}/chat`);
+  check('the chat page is served', page.status === 200 && /text\/html/u.test(page.headers.get('content-type') ?? ''));
+  check('the page carries a strict CSP', /default-src 'none'/u.test(page.headers.get('content-security-policy') ?? ''));
+  check('the page never loads external scripts', !/<script src=/u.test(await page.text()));
+
   const posted = await fetch(`${base}/api/chat/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

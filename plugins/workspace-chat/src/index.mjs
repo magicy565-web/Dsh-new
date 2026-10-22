@@ -6,6 +6,7 @@
 // Everything else (context, approvals, artifacts) addresses a run by id.
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
 import { ChatError, TERMINAL_STATUSES, createChatService } from './domain.mjs';
+import { AREA_PATH, renderChatPage } from './area.mjs';
 
 export const PLUGIN_ID = 'workspace-chat';
 const BASE = '/api/chat';
@@ -21,6 +22,7 @@ export const ROUTES = Object.freeze([
   ['GET', `${BASE}/runs/:id`],
   ['POST', `${BASE}/runs/:id/cancel`],
   ['GET', `${BASE}/runs/:id/events`],
+  ['GET', AREA_PATH],
 ]);
 
 const manifestError = message => new HarnessError(ERROR.manifestInvalid, message);
@@ -169,6 +171,18 @@ export async function apply(ctx, config = {}) {
           'x-accel-buffering': 'no',
         },
       });
+    },
+  });
+
+  ctx.http.route({
+    method: 'GET', path: AREA_PATH,
+    handler: async (_request, _response, context) => {
+      try {
+        // Resolve the actor before serving the page: a caller outside this
+        // workspace must not even get the shell.
+        service.status(context ?? {});
+        return renderChatPage();
+      } catch (error) { throw asHarnessError(error); }
     },
   });
 
