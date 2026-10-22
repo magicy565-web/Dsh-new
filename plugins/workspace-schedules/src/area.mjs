@@ -39,6 +39,7 @@ export const SCHEDULES_PAGE = `<!doctype html>
 <body>
 <header>
   <h1>计划任务</h1>
+  <a href="/home">首页</a>
   <a href="/chat">对话</a>
   <a href="/goals">目标</a>
   <a href="/ops">运维</a>

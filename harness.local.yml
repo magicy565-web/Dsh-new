@@ -12,6 +12,9 @@ plugins:
     name: '@workspace-harness/seams/tools'
   - id: artifacts
     name: '@workspace-harness/seams/artifacts'
+  # 首页：一个入口链到对话/目标/计划/运维。
+  - id: home
+    name: workspace-home
   # 元数据审计：记忆提出/审核/撤回都写入同一条 durable audit trail。
   - id: audit
     name: '@workspace-harness/seams/audit'

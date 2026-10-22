@@ -137,6 +137,10 @@ try {
   const goalsPage = await fetch(`${base}/goals`);
   const goalsHtml = await goalsPage.text();
   check('the goals page renders', goalsPage.status === 200 && goalsHtml.includes('新建目标'), goalsPage.status);
+
+  const homePage = await fetch(`${base}/home`);
+  const homeHtml = await homePage.text();
+  check('the workbench home renders', homePage.status === 200 && homeHtml.includes('工作台'), homePage.status);
 } finally {
   await harness.stop().catch(() => {});
 }
