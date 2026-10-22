@@ -1,7 +1,7 @@
 // Session domain: the harness' own sign-in, for a loopback single-operator
 // deployment. The workspace seam stays the authority on membership and roles;
 // a session only proves which member is talking.
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 export const ACCESS_STATE_VERSION = 2;
 const STATE_KEY = 'harnessAccess';
@@ -20,6 +20,11 @@ export class AccessError extends Error {
 }
 
 const fail = (status, code, message) => { throw new AccessError(status, code, message); };
+
+/** Opaque, non-replayable handle for a session id (used by admin listings). */
+export function sessionHandle(sessionId) {
+  return createHash('sha256').update(`session:${sessionId}`).digest('hex').slice(0, 24);
+}
 const isPlain = value => value !== null && typeof value === 'object' && !Array.isArray(value)
   && Object.getPrototypeOf(value) === Object.prototype;
 const isIso = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
@@ -174,10 +179,29 @@ export function createAccessService({ storage, workspaceId = 'local', resolveWor
       const items = state.sessions
         .filter(session => session.revokedAt === null && Date.parse(session.expiresAt) > now)
         .map(session => ({
-          id: session.id.slice(0, 8), subject: session.subject, role: session.role,
+          handle: sessionHandle(session.id), subject: session.subject, role: session.role,
           createdAt: session.createdAt, expiresAt: session.expiresAt, lastSeenAt: session.lastSeenAt,
         }));
       return { workspaceId, total: items.length, items };
+    },
+
+    /**
+     * Revoke another session by its opaque handle (admin only). Raw session ids
+     * never leave the server, so a leaked list cannot be replayed as cookies.
+     */
+    async revokeSession(context, handle) {
+      const actor = context?.actor;
+      if (!actor || actor.role !== 'admin') fail(403, 'ACCESS_FORBIDDEN', 'Only an administrator can revoke a session.');
+      if (typeof handle !== 'string' || !/^[a-f0-9]{16,64}$/u.test(handle)) fail(400, 'ACCESS_INPUT', 'handle is invalid.');
+      const store = partition(workspaceId);
+      let revoked = false;
+      await store.update(state => {
+        const session = state.sessions.find(item => sessionHandle(item.id) === handle && item.revokedAt === null);
+        if (session) { session.revokedAt = at(); revoked = true; }
+        return null;
+      });
+      if (!revoked) fail(404, 'ACCESS_NOT_FOUND', 'No such active session.');
+      return { revoked: true, handle };
     },
 
     /** Test/診断 helper: mint a session without going through HTTP. */

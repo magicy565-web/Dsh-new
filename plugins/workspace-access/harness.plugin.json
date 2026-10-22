@@ -19,6 +19,8 @@
     "POST /api/access/logout",
     "GET /api/access/session",
     "GET /api/access/sessions",
+    "POST /api/access/sessions/:handle/revoke",
+    "GET /sessions",
     "GET /login"
   ],
   "tools": []

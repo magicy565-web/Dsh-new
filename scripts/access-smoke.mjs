@@ -7,7 +7,7 @@
 // Usage: node scripts/access-smoke.mjs
 import { readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { parse, stringify } from 'yaml';
 import { createHarness } from '../packages/harness-kernel/src/app.mjs';
 
@@ -116,6 +116,34 @@ try {
     body: JSON.stringify({ subject: 'stranger' }),
   });
   check('a non-member cannot sign in', unknown.status === 403, unknown.status);
+
+  // Session management: a second session can be listed and revoked by an admin.
+  const second = await fetch(`${base}/api/access/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ subject: 'local-operator' }),
+  });
+  const secondCookie = ((second.headers.getSetCookie?.() ?? [second.headers.get('set-cookie')])[0] ?? '').split(';')[0];
+  check('a second session can sign in', second.status === 200 && /dsh_session=/u.test(secondCookie), second.status);
+
+  const listing = await fetch(`${base}/api/access/sessions`, { headers: { cookie: sessionCookie } }).then(response => response.json());
+  check('the session list is admin-visible and uses handles',
+    listing.total >= 2 && listing.items.every(item => typeof item.handle === 'string' && item.handle.length === 24), listing.total);
+
+  // Both sessions share the same subject, so pick the victim by its handle.
+  const handleOf = id => createHash('sha256').update(`session:${id}`).digest('hex').slice(0, 24);
+  const secondId = secondCookie.split('=')[1];
+  const victim = listing.items.find(item => item.handle === handleOf(secondId));
+  check('the second session is identifiable by handle', Boolean(victim), handleOf(secondId));
+  const revoked = await fetch(`${base}/api/access/sessions/${encodeURIComponent(victim.handle)}/revoke`, {
+    method: 'POST', headers: { cookie: sessionCookie, 'x-csrf-token': csrfToken },
+  });
+  check('an admin can revoke another session', revoked.status === 200, revoked.status);
+
+  const afterRevoke = await fetch(`${base}/api/chat/status`, { headers: { cookie: secondCookie } });
+  check('the revoked session stops working', [401, 403].includes(afterRevoke.status), afterRevoke.status);
+
+  const sessionsPage = await fetch(`${base}/sessions`, { headers: { cookie: sessionCookie } });
+  check('the sessions page renders', sessionsPage.status === 200 && (await sessionsPage.text()).includes('强制下线'), sessionsPage.status);
 
   const logout = await fetch(`${base}/api/access/logout`, {
     method: 'POST', headers: { cookie: sessionCookie, 'x-csrf-token': csrfToken },

@@ -8,6 +8,7 @@ import { readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
 import { INGRESS_HEADERS, createIngressVerifier } from './ingress.mjs';
+import { SESSIONS_PAGE } from './area.mjs';
 import { AccessError, SESSION_COOKIE, SESSION_TTL_MS, createAccessService } from './domain.mjs';
 
 export const PLUGIN_ID = 'workspace-access';
@@ -62,7 +63,9 @@ export const ROUTES = Object.freeze([
   ['POST', `${BASE}/logout`],
   ['GET', `${BASE}/session`],
   ['GET', `${BASE}/sessions`],
+  ['POST', `${BASE}/sessions/:handle/revoke`],
   ['GET', '/login'],
+  ['GET', '/sessions'],
 ]);
 
 const missing = service => new HarnessError(ERROR.pluginMissingDependency, `${PLUGIN_ID} requires ctx.${service}.`);
@@ -187,6 +190,25 @@ export async function apply(ctx, config = {}) {
   ctx.http.route({
     method: 'GET', path: `${BASE}/sessions`,
     handler: call(context => ({ status: 200, body: service.listSessions(context) })),
+  });
+
+  ctx.http.route({
+    method: 'POST', path: `${BASE}/sessions/:handle/revoke`,
+    handler: call(async context => ({ status: 200, body: await service.revokeSession(context, context.params?.handle) })),
+  });
+
+  ctx.http.route({
+    method: 'GET', path: '/sessions',
+    handler: () => new Response(SESSIONS_PAGE, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+      },
+    }),
   });
 
   // From here on, the kernel asks this resolver instead of trusting headers.
