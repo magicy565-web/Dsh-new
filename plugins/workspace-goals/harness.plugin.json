@@ -18,7 +18,8 @@
     "POST /api/goals",
     "GET /api/goals",
     "GET /api/goals/:id",
-    "POST /api/goals/:id/status"
+    "POST /api/goals/:id/status",
+    "GET /goals"
   ],
   "tools": []
 }

@@ -120,6 +120,10 @@ try {
   }).then(response => response.json());
   const goalDetail = await fetch(`${base}/api/goals/${goal.goal.id}`).then(response => response.json());
   check('a goal lists the run attached to it', goalDetail.runs.total === 1 && goalDetail.runs.items[0].id === linked.run.id, goalDetail.runs);
+
+  const goalsPage = await fetch(`${base}/goals`);
+  const goalsHtml = await goalsPage.text();
+  check('the goals page renders', goalsPage.status === 200 && goalsHtml.includes('新建目标'), goalsPage.status);
 } finally {
   await harness.stop().catch(() => {});
 }

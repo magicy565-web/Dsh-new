@@ -115,6 +115,13 @@ test('the HTTP surface creates, lists and moves a goal', async () => {
   assert.equal(routes.size, ROUTES.length);
   for (const [method, path] of ROUTES) assert.ok(routes.has(`${method} ${path}`), `${method} ${path}`);
 
+  const page = await routes.get('GET /goals').handler({}, {}, {});
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /新建目标/u);
+  const script = html.match(/<script>([\s\S]*?)<\/script>/u)[1];
+  assert.doesNotThrow(() => new Function(script), 'the inline page script parses');
+
   const call = async (key, { params = {}, body = {}, query = {}, actor = ADMIN } = {}) => {
     const [method, pathname] = key.split(' ');
     return routes.get(key).handler({}, {}, { method, pathname, params, body, query, actor });

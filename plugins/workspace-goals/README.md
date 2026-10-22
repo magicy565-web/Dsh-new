@@ -36,6 +36,11 @@ POST /api/goals/:id/status      { status, note? }
 `goalId`，并把目标从 `open` 推进到 `active`。新消息的目标关联写在 `run.goalId` 与
 `run.snapshot.goalId`，因此目标详情能直接列出这些 run。
 
+## 页面
+
+`/goals` 是自包含目标页（严格 CSP）：左侧全部目标 + 新建（标题/说明），右侧详情
+（状态、创建/关闭时间、关联运行表）与状态操作（开始/阻塞/完成/取消）。
+`/chat` 侧栏的「目标」标题可直接跳到该页。
 ## 验证
 
 ```powershell
