@@ -43,6 +43,15 @@ POST /api/ops/restore      { backupId, confirm }  confirm 必须原样重复 bac
 `/ops` 是自包含运维台（严格 CSP）：状态计数、目标与计划概览、备份列表；
 「新建备份」一键生成，「恢复」要求手动输入备份 ID 确认。未登录访问会跳 `/login`；
 `/chat` 侧栏有「运维」入口。
+## 异常退出后的锁
+
+进程被强杀时可能留下 `.harness-data/workspace.lock`。先确认锁里的 `pid` 已经不在运行，
+再删除该文件；**不要在进程仍存活时删锁**（会造成双写）。
+
+```powershell
+$owner = (Get-Content .harness-data\workspace.lock -Raw | ConvertFrom-Json).pid
+if (-not (Get-Process -Id $owner -ErrorAction SilentlyContinue)) { Remove-Item .harness-data\workspace.lock }
+```
 ## 验证
 
 ```powershell

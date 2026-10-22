@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 const MEMORY_MARKER = '记住：';
 const RFQ_MARKER = '询盘：';
 const QUOTE_MARKER = '报价：';
+const SALES_MARKER = '开单：';
 
 function lastUser(messages) {
   return [...messages].reverse().find(message => message.role === 'user');
@@ -47,10 +48,27 @@ async function complete(request) {
     if (text.startsWith(MEMORY_MARKER)) {
       return { text: '已提交经营记忆候选，等待人工审核。', toolCalls: [], usage: { outputTokens: 12 } };
     }
+    if (text.startsWith(SALES_MARKER)) {
+      return { text: `报价草稿已生成：${toolText(tools[tools.length - 1]).slice(0, 400)}`, toolCalls: [], usage: { outputTokens: 12 } };
+    }
     return { text: `草稿已生成：${toolText(tools[tools.length - 1]).slice(0, 1600)}`, toolCalls: [], usage: { outputTokens: 12 } };
   }
   if (text.startsWith(MEMORY_MARKER)) {
     return { text: '', toolCalls: [{ name: 'business_memory_propose', arguments: proposalFor(text) }], usage: {} };
+  }
+  if (text.startsWith(SALES_MARKER)) {
+    return {
+      text: '',
+      toolCalls: [{
+        name: 'quote_create',
+        arguments: {
+          customer: '海祺贸易',
+          currency: 'CNY',
+          lines: [{ description: '不锈钢法兰 DN50', quantity: 500, unitPriceMinor: 1250 }],
+        },
+      }],
+      usage: {},
+    };
   }
   if (text.startsWith(QUOTE_MARKER)) {
     return {
