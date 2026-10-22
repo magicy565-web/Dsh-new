@@ -57,7 +57,7 @@ export function planMigration(legacy, workspaceState = {}) {
   if (!isPlain(legacy)) throw new MigrationError('MIGRATION_INVALID', 'The legacy store must be a JSON object.');
   if (!LEGACY_VERSIONS.includes(legacy.version))
     throw new MigrationError('MIGRATION_VERSION', `Unsupported legacy store version: ${String(legacy.version)}.`);
-  for (const key of ['conversations', 'messages']) {
+  for (const key of ['conversations', 'messages', 'goals']) {
     if (legacy[key] !== undefined && !Array.isArray(legacy[key]))
       throw new MigrationError('MIGRATION_INVALID', `legacy.${key} must be an array.`);
     if (Array.isArray(legacy[key]) && legacy[key].length > MAX_RECORDS)
@@ -112,6 +112,43 @@ export function planMigration(legacy, workspaceState = {}) {
     existingMessages.add(id);
   }
 
+  // Goals: only statuses with an unambiguous harness equivalent are imported.
+  const goalState = isPlain(workspaceState.harnessGoals)
+    ? structuredClone(workspaceState.harnessGoals)
+    : { version: 1, goals: [], receipts: [] };
+  const existingGoals = new Set(goalState.goals.map(goal => goal.id));
+  const goalMap = isPlain(workspaceState.harnessLegacy) && isPlain(workspaceState.harnessLegacy.goals)
+    ? structuredClone(workspaceState.harnessLegacy.goals)
+    : {};
+  const goalStatus = { draft: 'open', done: 'done', cancelled: 'cancelled' };
+  const goals = [];
+  for (const row of legacy.goals ?? []) {
+    if (!isPlain(row) || typeof row.id !== 'string' || !row.id) { skip('GOAL_ID', row?.id ?? null); continue; }
+    if (typeof row.title !== 'string' || !row.title.trim()) { skip('GOAL_TITLE', row.id); continue; }
+    if (!isIso(row.createdAt)) { skip('GOAL_CREATED_AT', row.id); continue; }
+    const description = typeof row.description === 'string' ? row.description : '';
+    if (description.length > 4000) { skip('GOAL_DESCRIPTION_TOO_LONG', row.id); continue; }
+    if (!Object.hasOwn(goalStatus, row.status)) { skip(`GOAL_STATUS_${String(row.status).toUpperCase()}`, row.id); continue; }
+    const id = goalMap[row.id] ?? stableId('goal', row.id);
+    goalMap[row.id] = id;
+    if (existingGoals.has(id)) continue;
+    const createdAt = new Date(Date.parse(row.createdAt)).toISOString();
+    const updatedAt = new Date(Date.parse(isIso(row.updatedAt) ? row.updatedAt : row.createdAt)).toISOString();
+    const status = goalStatus[row.status];
+    goals.push({
+      id,
+      workspaceId: 'local',
+      title: row.title.trim().slice(0, 200),
+      description,
+      status,
+      createdBy: 'legacy-migration',
+      createdAt,
+      updatedAt,
+      closedAt: status === 'done' || status === 'cancelled' ? updatedAt : null,
+    });
+    existingGoals.add(id);
+  }
+
   const nextChat = {
     ...chat,
     conversations: [...chat.conversations, ...conversations],
@@ -120,11 +157,13 @@ export function planMigration(legacy, workspaceState = {}) {
   const nextWorkspace = {
     ...workspaceState,
     harnessChat: nextChat,
-    harnessLegacy: { version: MIGRATION_VERSION, conversations: legacyMap },
+    harnessGoals: { ...goalState, goals: [...goalState.goals, ...goals] },
+    harnessLegacy: { version: MIGRATION_VERSION, conversations: legacyMap, goals: goalMap },
   };
   return {
     conversations: conversations.length,
     messages: messages.length,
+    goals: goals.length,
     skipped: skipped.length,
     skippedReasons: Object.entries(skipped.reduce((acc, item) => { acc[item.reason] = (acc[item.reason] ?? 0) + 1; return acc; }, {})),
     samples: skipped.slice(0, 5),
@@ -174,6 +213,7 @@ async function main() {
     to: statePath,
     conversations: plan.conversations,
     messages: plan.messages,
+    goals: plan.goals,
     skipped: plan.skipped,
     skippedReasons: plan.skippedReasons,
     samples: plan.samples,
