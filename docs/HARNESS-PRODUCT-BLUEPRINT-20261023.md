@@ -49,8 +49,9 @@
 - **P0 内核**（本次完成一半）：流式 ✅、取消、鉴权钩子。
   门槛：kernel 全量测试 + 新增流式/取消测试。
 - **P1 会话与运行最小闭环**：`workspace-chat`（会话、消息、run 状态机、SSE）+ `workspace-runner`
-  （历史 + 记忆块 → `ctx.llm` → 写回回答）。已完成，模型调用按 `complete()` 一次性返回；
-  provider 级流式增量（`run.delta`）待 llm seam 增加 `stream` 能力后接入。
+  （历史 + 记忆块 → `ctx.llm` → 写回回答）。已完成：`ctx.llm.stream()` 支持 provider 流式增量，
+  runner 以 `run.delta` 事件分批推送（可配置 `deltaBatchChars` / `deltaBatchMs`），
+  complete-only provider 自动降级为单块。
   门槛：一个会话 → 一次 run → 流式事件顺序断言 → 重连可重放（`scripts/chat-smoke.mjs`、`scripts/runner-smoke.mjs`）。
 - **P2 上下文装配**：把 `task-context` 的快照语义搬进 `workspace-context`：文件版本、
   技能版本、记忆注入（已有服务）、越权检查。

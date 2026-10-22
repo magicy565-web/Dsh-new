@@ -45,9 +45,12 @@ function reader(response) {
 
 const composition = parse(await readFile(path.join(root, 'harness.local.yml'), 'utf8'));
 composition.server = { host: '127.0.0.1', port: 0 };
-composition.plugins = composition.plugins.map(row => row.id === 'llm-bridge'
-  ? { id: 'echo-provider', name: './scripts/fixtures/echo-provider' }
-  : row);
+composition.plugins = composition.plugins.map(row => {
+  if (row.id === 'llm-bridge') return { id: 'echo-provider', name: './scripts/fixtures/echo-provider' };
+  // Small batches so the smoke can observe several incremental frames.
+  if (row.id === 'runner') return { ...row, config: { ...row.config, deltaBatchChars: 4, deltaBatchMs: 0 } };
+  return row;
+});
 // Relative plugin rows resolve against the composition file, so write the
 // smoke composition next to the real one and remove it afterwards.
 const compositionPath = path.join(root, '.harness-runner-smoke.yml');
@@ -73,14 +76,17 @@ try {
   const stream = await fetch(`${base}/api/chat/runs/${posted.run.id}/events`, { headers: { accept: 'text/event-stream' } });
   const frames = reader(stream);
   const seen = [];
+  const deltas = [];
   for (;;) {
     const frame = await frames.next();
     if (frame === null) break;
     seen.push(frame.event);
+    if (frame.event === 'run.delta') deltas.push(frame.data?.data?.text ?? '');
     if (frame.event === 'run.completed' || frame.event === 'run.failed') break;
   }
   check('the run goes through running and completes', seen.includes('run.running') && seen.includes('run.completed'), seen);
-  check('the completed event carries usage', seen.includes('run.completed'));
+  check('the stream carries incremental deltas', deltas.length > 1, deltas.length);
+  check('the deltas concatenate to the answer', deltas.join('') === question, deltas.join(''));
 
   const { conversation, messages } = await fetch(`${base}/api/chat/conversations/${created.conversation.id}`).then(response => response.json());
   check('the conversation has the user message and one answer', messages.length === 2, messages.length);

@@ -37,7 +37,7 @@ function failure(error) {
  */
 export function createRunner({
   chat, llm, memory = null, workspaceId = 'local', systemPrompt = DEFAULT_SYSTEM,
-  model = null, timeoutMs = 120_000, maxQueue = 100, clock = Date.now,
+  model = null, timeoutMs = 120_000, maxQueue = 100, deltaBatchChars = 160, deltaBatchMs = 120, clock = Date.now,
 } = {}) {
   if (!chat || typeof chat.onPrepared !== 'function') throw new TypeError('The runner requires the chat service.');
   if (!llm || typeof llm.complete !== 'function') throw new TypeError('The runner requires the llm seam.');
@@ -127,15 +127,49 @@ export function createRunner({
 
       const request = { messages: [{ role: 'system', content: system }, ...messages], signal: controller.signal };
       if (model) request.model = model;
-      const result = await llm.complete(request, { actor: actor.subject });
+
+      let answer = '';
+      let usage = {};
+      let usedModel = null;
+      if (typeof llm.stream === 'function') {
+        // Emit incremental text to the run log so an SSE client can render while
+        // the model is still generating. Batched: one write per ~120 ms or 160 chars.
+        let pending = '';
+        let lastFlush = clock();
+        const flush = async force => {
+          if (!pending) return;
+          const now = clock();
+          if (!force && pending.length < deltaBatchChars && now - lastFlush < deltaBatchMs) return;
+          const chunk = pending;
+          pending = '';
+          lastFlush = now;
+          await chat.note({ ...context }, runId, 'run.delta', { text: chunk }).catch(() => {});
+        };
+        for await (const part of llm.stream(request, { actor: actor.subject })) {
+          if (part?.type === 'delta' && typeof part.text === 'string') {
+            answer += part.text;
+            pending += part.text;
+            await flush(false);
+          } else if (part?.type === 'done') {
+            usage = part.usage ?? {};
+            usedModel = part.model ?? null;
+          }
+        }
+        await flush(true);
+      } else {
+        const result = await llm.complete(request, { actor: actor.subject });
+        answer = typeof result?.text === 'string' ? result.text : '';
+        usage = result?.usage ?? {};
+        usedModel = result?.model ?? null;
+      }
 
       // A cancellation may land while the provider is finishing. The run is
       // already terminal then; never resurrect it with an answer.
       const current = await readRun(runId);
       if (!current || current.status !== 'running') { stats.cancelled += 1; return; }
 
-      await chat.appendMessage({ ...context }, runId, { role: 'assistant', content: result.text });
-      await chat.advance({ ...context }, runId, 'completed', { usage: result.usage ?? {}, model: result.model ?? null });
+      await chat.appendMessage({ ...context }, runId, { role: 'assistant', content: answer });
+      await chat.advance({ ...context }, runId, 'completed', { usage, model: usedModel });
       stats.completed += 1;
     } catch (error) {
       const aborted = controller.signal.aborted;

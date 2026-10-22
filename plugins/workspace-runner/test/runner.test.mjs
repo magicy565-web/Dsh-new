@@ -148,3 +148,37 @@ test('runs execute one at a time even when two arrive together', async () => {
   assert.equal(peak, 1);
   assert.equal(harness.runner.stats().completed, 2);
 });
+
+test('a streaming provider produces deltas and one stored answer', async () => {
+  const chat = createChatService({ storage: fakeStorage() });
+  const streamed = [];
+  const llm = {
+    complete: async () => { throw new Error('complete must not be used when stream exists'); },
+    stream: async function* (request) {
+      for (const chunk of ['海祺', '通常在', '3 月和 9 月补货。']) {
+        streamed.push(chunk);
+        await new Promise(resolve => setTimeout(resolve, 5));
+        yield { type: 'delta', text: chunk };
+      }
+      yield { type: 'done', text: streamed.join(''), usage: { outputTokens: 9 }, model: 'stream-1' };
+    },
+  };
+  const runner = createRunner({ chat, llm });
+  chat.onPrepared(({ runId }) => { runner.enqueue(runId); });
+  const { conversation, run } = await startRun(chat);
+  await runner.drain();
+
+  const stored = chat.readRun({}, run.id);
+  assert.equal(stored.status, 'completed');
+  assert.equal(stored.model, 'stream-1');
+  assert.deepEqual(stored.usage, { outputTokens: 9 });
+
+  const { messages } = chat.readConversation({}, conversation.id);
+  assert.equal(messages.at(-1).content, '海祺通常在3 月和 9 月补货。');
+
+  const events = chat.readEvents({}, run.id, 0).events;
+  const deltas = events.filter(event => event.type === 'run.delta');
+  assert.ok(deltas.length >= 1, 'the run log must carry incremental text');
+  assert.equal(deltas.map(event => event.data.text).join(''), '海祺通常在3 月和 9 月补货。');
+  assert.equal(events.at(-1).type, 'run.completed');
+});

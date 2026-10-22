@@ -20,9 +20,12 @@ function assertProvider(provider) {
   if (!isPlain(provider)) fail(ERROR.llmInvalid, 'A provider must be a plain object.');
   if (typeof provider.id !== 'string' || !ID.test(provider.id)) fail(ERROR.llmInvalid, 'provider.id must be a bounded identifier.');
   if (provider.model !== undefined && (typeof provider.model !== 'string' || provider.model.length > 120)) fail(ERROR.llmInvalid, 'provider.model must be bounded text.');
-  if (typeof provider.complete !== 'function') fail(ERROR.llmInvalid, `Provider ${provider.id} must expose complete(request).`);
-  const id = provider.id, model = provider.model, label = provider.label, complete = provider.complete;
-  return Object.freeze({ id, model, label: typeof label === 'string' ? label.slice(0, 200) : '', complete });
+  if (typeof provider.complete !== 'function' && typeof provider.stream !== 'function')
+    fail(ERROR.llmInvalid, `Provider ${provider.id} must expose complete(request) or stream(request).`);
+  const id = provider.id, model = provider.model, label = provider.label;
+  const complete = typeof provider.complete === 'function' ? provider.complete : null;
+  const stream = typeof provider.stream === 'function' ? provider.stream : null;
+  return Object.freeze({ id, model, label: typeof label === 'string' ? label.slice(0, 200) : '', complete, stream });
 }
 
 function assertRequest(request) {
@@ -42,6 +45,14 @@ function assertRequest(request) {
   return request;
 }
 
+function normalizeUsage(value) {
+  if (!isPlain(value)) return {};
+  return {
+    ...(Number.isSafeInteger(value.inputTokens) ? { inputTokens: value.inputTokens } : {}),
+    ...(Number.isSafeInteger(value.outputTokens) ? { outputTokens: value.outputTokens } : {}),
+  };
+}
+
 function normalizeResult(result, provider) {
   if (!isPlain(result)) fail(ERROR.llmInvalid, `Provider ${provider.id} returned a non-object result.`);
   const text = result.text === undefined ? '' : result.text;
@@ -54,10 +65,7 @@ function normalizeResult(result, provider) {
     if (!isPlain(args)) fail(ERROR.llmInvalid, 'Tool call arguments must be a JSON object.');
     return { name: call.name, arguments: clone(args) };
   });
-  const usage = isPlain(result.usage) ? {
-    ...(Number.isSafeInteger(result.usage.inputTokens) ? { inputTokens: result.usage.inputTokens } : {}),
-    ...(Number.isSafeInteger(result.usage.outputTokens) ? { outputTokens: result.usage.outputTokens } : {}),
-  } : {};
+  const usage = normalizeUsage(result.usage);
   return { provider: provider.id, model: provider.model ?? null, text, toolCalls, usage };
 }
 
@@ -117,6 +125,19 @@ export function createLlm({ providers = [], defaultProvider } = {}) {
     if (audit.length > AUDIT_LIMIT) audit.splice(0, audit.length - AUDIT_LIMIT);
   };
 
+  /** Resolve the provider a request names, or the only registered one. */
+  const selectProvider = request => {
+    const requested = request.provider ?? defaultProvider;
+    if (requested !== undefined) {
+      const provider = registry.get(requested);
+      if (!provider) fail(ERROR.llmProviderRequired, `Provider ${JSON.stringify(requested)} is not registered.`);
+      return provider;
+    }
+    if (registry.size === 1) return [...registry.values()][0];
+    if (registry.size === 0) fail(ERROR.llmNotConfigured, 'No model provider is registered for this harness.');
+    return fail(ERROR.llmProviderRequired, 'This harness has several providers; name one explicitly.');
+  };
+
   const llm = {
     register(provider) {
       const validated = assertProvider(provider);
@@ -130,14 +151,9 @@ export function createLlm({ providers = [], defaultProvider } = {}) {
     },
     async complete(request, { actor } = {}) {
       assertRequest(request);
-      const requested = request.provider ?? defaultProvider;
-      let provider;
-      if (requested !== undefined) {
-        provider = registry.get(requested);
-        if (!provider) fail(ERROR.llmProviderRequired, `Provider ${JSON.stringify(requested)} is not registered.`);
-      } else if (registry.size === 1) provider = [...registry.values()][0];
-      else if (registry.size === 0) fail(ERROR.llmNotConfigured, 'No model provider is registered for this harness.');
-      else fail(ERROR.llmProviderRequired, 'This harness has several providers; name one explicitly.');
+      const provider = selectProvider(request);
+      if (!provider.complete)
+        fail(ERROR.llmInvalid, `Provider ${provider.id} only supports streaming completion.`);
       if (request.signal?.aborted) fail(ERROR.llmAborted, 'The model request was cancelled.');
       const started = Date.now();
       try {
@@ -154,6 +170,55 @@ export function createLlm({ providers = [], defaultProvider } = {}) {
           messageCount: request.messages.length, toolCount: 0, ok: false, errorCode: code });
         if (error?.code === code) throw error;
         // Never forward a provider message: it may contain credentials or prompt text.
+        throw new HarnessError(code, `Model provider ${provider.id} failed.`);
+      }
+    },
+    /**
+     * Streaming completion. Yields `{ type: 'delta', text }` chunks and exactly
+     * one `{ type: 'done', text, usage, model, provider }`. A provider without
+     * stream() is adapted by calling complete() once and yielding one delta, so
+     * callers never branch on provider capabilities.
+     */
+    async *stream(request, { actor } = {}) {
+      assertRequest(request);
+      const provider = selectProvider(request);
+      if (request.signal?.aborted) fail(ERROR.llmAborted, 'The model request was cancelled.');
+      const started = Date.now();
+      let text = '';
+      let usage = {};
+      let model = provider.model ?? null;
+      try {
+        if (provider.stream) {
+          for await (const chunk of provider.stream(request, { actor })) {
+            if (request.signal?.aborted) fail(ERROR.llmAborted, 'The model request was cancelled.');
+            if (!isPlain(chunk)) fail(ERROR.llmInvalid, 'A stream chunk must be a plain object.');
+            const delta = chunk.delta ?? chunk.text;
+            if (delta !== undefined) {
+              if (typeof delta !== 'string') fail(ERROR.llmInvalid, 'A stream delta must be text.');
+              if (text.length + delta.length > MAX_MESSAGE_CHARS) fail(ERROR.llmInvalid, 'The streamed answer exceeds the bounded message budget.');
+              text += delta;
+              if (delta) yield { type: 'delta', text: delta };
+            }
+            if (chunk.usage !== undefined) usage = normalizeUsage(chunk.usage);
+            if (typeof chunk.model === 'string' && chunk.model.length <= 120) model = chunk.model;
+          }
+        } else {
+          const result = normalizeResult(await provider.complete(request, { actor }), provider);
+          text = result.text;
+          usage = result.usage;
+          model = result.model;
+          if (text) yield { type: 'delta', text };
+        }
+        if (request.signal?.aborted) fail(ERROR.llmAborted, 'The model request was cancelled.');
+        lastRequest = { provider: provider.id, model, at: new Date(started).toISOString(), messageCount: request.messages.length };
+        record({ at: lastRequest.at, provider: provider.id, model, messageCount: request.messages.length, toolCount: 0, ok: true });
+        yield { type: 'done', text, usage, model, provider: provider.id };
+      } catch (error) {
+        const preserved = new Set([ERROR.llmAborted, ERROR.llmInvalid, ERROR.llmExhausted, ERROR.llmNotConfigured, ERROR.llmProviderRequired, ERROR.llmDuplicate]);
+        const code = preserved.has(error?.code) ? error.code : (request.signal?.aborted ? ERROR.llmAborted : ERROR.llmFailed);
+        record({ at: new Date(started).toISOString(), provider: provider.id, model,
+          messageCount: request.messages.length, toolCount: 0, ok: false, errorCode: code });
+        if (error?.code === code) throw error;
         throw new HarnessError(code, `Model provider ${provider.id} failed.`);
       }
     },

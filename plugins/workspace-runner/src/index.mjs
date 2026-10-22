@@ -9,7 +9,7 @@ import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/ind
 import { createRunner } from './runner.mjs';
 
 export const PLUGIN_ID = 'workspace-runner';
-const CONFIG_KEYS = ['workspaceId', 'enabled', 'model', 'systemPrompt', 'timeoutMs', 'maxQueue', 'memory'];
+const CONFIG_KEYS = ['workspaceId', 'enabled', 'model', 'systemPrompt', 'timeoutMs', 'maxQueue', 'memory', 'deltaBatchChars', 'deltaBatchMs'];
 
 const manifestError = message => new HarnessError(ERROR.manifestInvalid, message);
 
@@ -32,6 +32,10 @@ export async function apply(ctx, config = {}) {
     throw manifestError('config.maxQueue must be an integer between 1 and 1000.');
   if (config.memory !== undefined && typeof config.memory !== 'boolean')
     throw manifestError('config.memory must be a boolean.');
+  if (config.deltaBatchChars !== undefined && (!Number.isInteger(config.deltaBatchChars) || config.deltaBatchChars < 1 || config.deltaBatchChars > 8_000))
+    throw manifestError('config.deltaBatchChars must be an integer between 1 and 8000.');
+  if (config.deltaBatchMs !== undefined && (!Number.isInteger(config.deltaBatchMs) || config.deltaBatchMs < 0 || config.deltaBatchMs > 5_000))
+    throw manifestError('config.deltaBatchMs must be an integer between 0 and 5000.');
 
   const workspaceId = config.workspaceId ?? 'local';
   const chat = ctx.chat;
@@ -51,6 +55,8 @@ export async function apply(ctx, config = {}) {
     systemPrompt: config.systemPrompt,
     timeoutMs: config.timeoutMs ?? 120_000,
     maxQueue: config.maxQueue ?? 100,
+    deltaBatchChars: config.deltaBatchChars ?? 160,
+    deltaBatchMs: config.deltaBatchMs ?? 120,
   });
 
   const unsubscribe = chat.onPrepared(({ runId }) => { runner.enqueue(runId); });
