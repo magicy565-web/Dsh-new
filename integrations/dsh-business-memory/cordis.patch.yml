@@ -1,0 +1,4 @@
+- insert:
+    - id: business-memory
+      name: '@local/dsh-business-memory'
+      config: {}
