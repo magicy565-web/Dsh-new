@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { planMigration, stableId } from './migrate-legacy.mjs';
 import { createChatService } from '../plugins/workspace-chat/src/domain.mjs';
 import { createGoalService } from '../plugins/workspace-goals/src/domain.mjs';
+import { validateMemoryState } from '../plugins/workspace-business-memory/src/domain.mjs';
 
 const legacy = {
   version: 3,
@@ -16,6 +17,10 @@ const legacy = {
     { id: 'g2', title: '已完成的', status: 'done', createdAt: '2026-09-01T09:00:00.000Z', updatedAt: '2026-09-05T09:00:00.000Z' },
     { id: 'g3', title: '运行中的', status: 'running', createdAt: '2026-09-01T09:00:00.000Z' },
     { id: 'g4', title: '', status: 'draft', createdAt: '2026-09-01T09:00:00.000Z' },
+  ],
+  memories: [
+    { id: 'mem1', content: '海祺的 MOQ 是 500 件', category: 'saved', enabled: true, createdAt: '2026-09-01T10:00:00.000Z' },
+    { id: 'mem2', content: '已停用的记忆', category: 'memory', enabled: false, createdAt: '2026-09-01T10:00:00.000Z' },
   ],
   messages: [
     { id: 'm1', conversationId: 'c1', role: 'user', content: '海祺这个月该补货吗？', createdAt: '2026-09-01T08:01:00.000Z' },
@@ -37,8 +42,9 @@ test('planning imports valid records and explains the rest', () => {
   const plan = planMigration(legacy, {});
   assert.equal(plan.conversations, 1);
   assert.equal(plan.messages, 2);
-  assert.equal(plan.skipped, 7);
+  assert.equal(plan.skipped, 8);
   assert.equal(plan.goals, 2);
+  assert.equal(plan.memories, 1);
   const reasons = Object.fromEntries(plan.skippedReasons);
   assert.equal(reasons.CONVERSATION_TITLE, 1);
   assert.equal(reasons.CONVERSATION_CREATED_AT, 1);
@@ -47,6 +53,7 @@ test('planning imports valid records and explains the rest', () => {
   assert.equal(reasons.MESSAGE_CONTENT, 1);
   assert.equal(reasons.GOAL_STATUS_RUNNING, 1);
   assert.equal(reasons.GOAL_TITLE, 1);
+  assert.equal(reasons.MEMORY_DISABLED, 1);
 });
 
 test('a second plan over the migrated state imports nothing', () => {
@@ -85,6 +92,16 @@ test('the migrated goals are accepted by the real goals service', () => {
   assert.ok(done, 'the done goal was imported');
   assert.ok(done.closedAt, 'a terminal goal carries closedAt');
   assert.equal(goals.list({ actor }, { status: 'open' }).total, 1);
+});
+test('migrated memories are proposed and pass the real memory validator', () => {
+  const plan = planMigration(legacy, {});
+  assert.equal(plan.nextWorkspace.harnessBusinessMemory.records.length, 1);
+  const record = plan.nextWorkspace.harnessBusinessMemory.records[0];
+  assert.equal(record.status, 'proposed');
+  assert.equal(record.kind, 'observation');
+  assert.equal(record.source.verified, false);
+  assert.deepEqual(record.history.map(entry => entry.action), ['proposed']);
+  assert.doesNotThrow(() => validateMemoryState(plan.nextWorkspace.harnessBusinessMemory));
 });
 test('an unsupported legacy version is refused instead of guessed', () => {
   assert.throws(() => planMigration({ version: 9, conversations: [] }), error => error.code === 'MIGRATION_VERSION');

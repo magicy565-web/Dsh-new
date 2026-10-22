@@ -28,6 +28,7 @@ node scripts/migrate-legacy.mjs --from C:\backup\legacy-state.json --to .harness
 | 幂等 | 会话/消息 id 由 `sha256("legacy:<类型>:<老 id>")` 确定性生成，映射写入 `harnessLegacy`；重复执行导入 0 条 |
 | 不伪造 | 不导入 run、事件、审批——历史消息本来就没有这些 |
 | 目标 | 只导入状态可无歧义映射的：`draft→open`、`done→done`、`cancelled→cancelled`；其余（如 `running`）跳过并记 `GOAL_STATUS_*`，由人决定 |
+| 记忆 | 一律导入为 `proposed`（`kind: observation`、`source.verified: false`），必须经人工审核才变成 `active`；`enabled:false` 的跳过 |
 | 附件 | 不迁移（二进制附件仍在老应用目录） |
 
 ## 迁移后的验证
@@ -47,6 +48,6 @@ node --test scripts/legacy-migration.test.mjs
 
 ## 尚未迁移
 
-- 老应用的 `activity`、`memories` 集合；
+- 老应用的 `activity` 集合与业务库；
 - 业务库（`businessLibrary`、产品/客户/询盘数据）；
 - 附件二进制。

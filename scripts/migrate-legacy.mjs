@@ -57,7 +57,7 @@ export function planMigration(legacy, workspaceState = {}) {
   if (!isPlain(legacy)) throw new MigrationError('MIGRATION_INVALID', 'The legacy store must be a JSON object.');
   if (!LEGACY_VERSIONS.includes(legacy.version))
     throw new MigrationError('MIGRATION_VERSION', `Unsupported legacy store version: ${String(legacy.version)}.`);
-  for (const key of ['conversations', 'messages', 'goals']) {
+  for (const key of ['conversations', 'messages', 'goals', 'memories']) {
     if (legacy[key] !== undefined && !Array.isArray(legacy[key]))
       throw new MigrationError('MIGRATION_INVALID', `legacy.${key} must be an array.`);
     if (Array.isArray(legacy[key]) && legacy[key].length > MAX_RECORDS)
@@ -149,6 +149,68 @@ export function planMigration(legacy, workspaceState = {}) {
     existingGoals.add(id);
   }
 
+  // Memories are imported as `proposed`: history stays visible but nothing is
+  // treated as a verified fact until a person reviews it.
+  const memoryState = isPlain(workspaceState.harnessBusinessMemory)
+    ? structuredClone(workspaceState.harnessBusinessMemory)
+    : { version: 1, revision: 0, records: [], receipts: [], injections: [] };
+  const existingMemories = new Set(memoryState.records.map(record => record.id));
+  const memoryMap = isPlain(workspaceState.harnessLegacy) && isPlain(workspaceState.harnessLegacy.memories)
+    ? structuredClone(workspaceState.harnessLegacy.memories)
+    : {};
+  const memories = [];
+  for (const row of legacy.memories ?? []) {
+    if (!isPlain(row) || typeof row.id !== 'string' || !row.id) { skip('MEMORY_ID', row?.id ?? null); continue; }
+    if (typeof row.content !== 'string' || !row.content.trim()) { skip('MEMORY_CONTENT', row.id); continue; }
+    if (row.content.length > 2000) { skip('MEMORY_CONTENT_TOO_LONG', row.id); continue; }
+    if (row.enabled === false) { skip('MEMORY_DISABLED', row.id); continue; }
+    if (!isIso(row.createdAt)) { skip('MEMORY_CREATED_AT', row.id); continue; }
+    const id = memoryMap[row.id] ?? stableId('memory-record', row.id);
+    memoryMap[row.id] = id;
+    if (existingMemories.has(id)) continue;
+    const createdAt = new Date(Date.parse(row.createdAt)).toISOString();
+    const updatedAt = new Date(Date.parse(isIso(row.updatedAt) ? row.updatedAt : row.createdAt)).toISOString();
+    const factKey = `legacy-${createHash('sha256').update(row.id).digest('hex').slice(0, 12)}`;
+    memories.push({
+      id,
+      workspaceId: 'local',
+      subjectType: 'company',
+      subjectId: 'legacy-import',
+      subjectLabel: '老应用导入',
+      factKey,
+      kind: 'observation',
+      status: 'proposed',
+      statement: row.content.trim(),
+      detail: null,
+      confidence: null,
+      tags: ['legacy-import'],
+      audience: 'internal',
+      revision: 1,
+      previousId: null,
+      createdBy: 'legacy-migration',
+      proposedBy: 'legacy-migration',
+      createdAt,
+      updatedAt,
+      proposedAt: createdAt,
+      activatedAt: null,
+      reviewedAt: null,
+      reviewedBy: null,
+      reviewNote: null,
+      expiresAt: null,
+      source: {
+        kind: 'operator',
+        ref: `legacy-memory:${row.id}`.slice(0, 300),
+        label: '老应用记忆导入',
+        basis: null,
+        sha256: null,
+        verified: false,
+        verifiedAt: null,
+      },
+      history: [{ revision: 1, action: 'proposed', actor: 'legacy-migration', at: createdAt }],
+    });
+    existingMemories.add(id);
+  }
+
   const nextChat = {
     ...chat,
     conversations: [...chat.conversations, ...conversations],
@@ -158,12 +220,14 @@ export function planMigration(legacy, workspaceState = {}) {
     ...workspaceState,
     harnessChat: nextChat,
     harnessGoals: { ...goalState, goals: [...goalState.goals, ...goals] },
-    harnessLegacy: { version: MIGRATION_VERSION, conversations: legacyMap, goals: goalMap },
+    harnessBusinessMemory: { ...memoryState, records: [...memoryState.records, ...memories] },
+    harnessLegacy: { version: MIGRATION_VERSION, conversations: legacyMap, goals: goalMap, memories: memoryMap },
   };
   return {
     conversations: conversations.length,
     messages: messages.length,
     goals: goals.length,
+    memories: memories.length,
     skipped: skipped.length,
     skippedReasons: Object.entries(skipped.reduce((acc, item) => { acc[item.reason] = (acc[item.reason] ?? 0) + 1; return acc; }, {})),
     samples: skipped.slice(0, 5),
@@ -214,6 +278,7 @@ async function main() {
     conversations: plan.conversations,
     messages: plan.messages,
     goals: plan.goals,
+    memories: plan.memories,
     skipped: plan.skipped,
     skippedReasons: plan.skippedReasons,
     samples: plan.samples,
