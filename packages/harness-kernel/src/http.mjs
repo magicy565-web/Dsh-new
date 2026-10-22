@@ -387,16 +387,43 @@ export class HttpKernel {
         res.destroy?.();
         return;
       }
-      const buffer =
-        result.body === null || result.status === 204 || result.status === 304
-          ? Buffer.alloc(0)
-          : Buffer.from(await result.arrayBuffer());
+      const body = result.body;
       res.statusCode = result.status;
       result.headers.forEach((value, key) => {
         if (!res.hasHeader(key)) res.setHeader(key, value);
       });
-      res.setHeader('content-length', String(buffer.length));
-      res.end(buffer);
+      if (body === null || result.status === 204 || result.status === 304) {
+        res.setHeader('content-length', '0');
+        res.end();
+        return;
+      }
+      // Stream chunk by chunk: SSE and long-running responses must reach the
+      // client before the producer finishes, so never buffer the whole body.
+      const reader = body.getReader();
+      let closed = false;
+      const onClose = () => { closed = true; reader.cancel().catch(() => {}); };
+      res.once('close', onClose);
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done || closed || res.destroyed || res.writableEnded) break;
+          if (!res.write(Buffer.from(value))) {
+            await new Promise(resolve => {
+              const finish = () => { res.off('drain', finish); res.off('close', finish); resolve(); };
+              res.once('drain', finish);
+              res.once('close', finish);
+            });
+          }
+        }
+        if (!closed && !res.writableEnded) res.end();
+      } catch {
+        // Headers are already sent: the only honest signal left is to drop the
+        // connection so the client sees a truncated stream, never a fake end.
+        res.destroy?.();
+      } finally {
+        res.off('close', onClose);
+        if (!closed) reader.cancel().catch(() => {});
+      }
       return;
     }
     if (typeof result === 'object' && typeof result.status === 'number') {

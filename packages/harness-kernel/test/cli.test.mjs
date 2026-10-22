@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parse } from 'yaml';
 import { runWh } from '../src/cli.mjs';
 import { ERROR } from '../../harness-contracts/src/index.mjs';
 import {
@@ -98,10 +100,11 @@ test('cli: list on the real harness.local.yml does not crash when seams are abse
   assert.equal(stderr, '');
   assert.equal(code, 0);
   const document = JSON.parse(stdout);
-  assert.deepEqual(
-    document.rows.map(row => row.id),
-    ['storage', 'approval', 'tools', 'market'],
-  );
+  // Read the declared rows from the composition itself: the point of this test
+  // is that `list` never crashes, not that the sample keeps a frozen row set.
+  const declared = parse(await readFile(join(REPO_ROOT, 'harness.local.yml'), 'utf8'))
+    .plugins.map(row => row.id);
+  assert.deepEqual(document.rows.map(row => row.id), declared);
   for (const row of document.rows) {
     assert.ok(['resolved', 'missing', 'invalid'].includes(row.status), `unexpected status ${row.status}`);
   }
