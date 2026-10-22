@@ -85,6 +85,10 @@ plugins:
   - id: purchases
     name: workspace-purchases
     config: { workspaceId: local }
+  # 历史询盘捞回：授权导入、证据绑定决策、未发送草稿；只读工具 + 审计写入。
+  - id: inquiry-recovery
+    name: workspace-inquiry-recovery
+    config: { workspaceId: local }
   # 报价单：服务端按行计算总额，状态机显式推进；模型创建需人工批准。
   - id: quotes
     name: workspace-quotes

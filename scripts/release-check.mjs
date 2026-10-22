@@ -23,6 +23,8 @@ const SMOKES = Object.freeze([
   'procurement-smoke.mjs',
   'quotes-smoke.mjs',
   'purchases-smoke.mjs',
+  'market-smoke.mjs',
+  'inquiry-recovery-smoke.mjs',
   'quote-tool-smoke.mjs',
   'purchase-tool-smoke.mjs',
 ]);
