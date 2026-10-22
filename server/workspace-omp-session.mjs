@@ -237,7 +237,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
     const monitorSnapshots = new Map(); // One disclosure boundary only.
     const checkedReceipts = new Set(); // Only this validation boundary, never a permission cache.
     for (const message of messages) {
-      if (message?.role !== 'toolResult' || ![...MEDUSA_CATALOG_TOOLS,...FACTORY_MATERIAL_TOOLS, ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : []), ...(shopifyProduct ? SHOPIFY_PRODUCT_TOOLS : [])].includes(message.toolName)) continue;
+      if (message?.role !== 'toolResult' || ![...MEDUSA_CATALOG_TOOLS,...(nativeBusiness&&typeof medusaClient?.context==='function'?['workspace_medusa_context']:[]),...FACTORY_MATERIAL_TOOLS, ...(factoryInquiries ? FACTORY_INQUIRY_TOOLS : []), ...(factoryIngestion ? FACTORY_INGESTION_TOOLS : []), ...(marketValidation ? [...MARKET_VALIDATION_TOOLS, ...MARKET_MONITOR_TOOLS] : []), ...(shopifyProduct ? SHOPIFY_PRODUCT_TOOLS : [])].includes(message.toolName)) continue;
       let receipt;
       try { receipt = JSON.parse((message.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n')); }
       catch {
@@ -603,6 +603,7 @@ export async function createWorkspaceOmpSession({ packageRoot, client, cwd, agen
   if(savedSession&&plugins)for(const message of nativeBusiness||medusaEnterprise?contextMessages():manager.getBranch().map(e=>e.message)){
     if(message?.role==='toolResult'&&!admittedTools.includes(message.toolName)||message?.role==='assistant'&&message.content?.some(block=>block.type==='toolCall'&&!admittedTools.includes(block.name)))throw Error('PROJECT_PLUGIN_HISTORY_TOOL_REFUSED');
   }
+  if(nativeBusiness&&typeof medusaClient?.context==='function'&&!admittedTools.includes('workspace_medusa_context'))throw Error('NATIVE_MEDUSA_PLUGIN_REQUIRED');
   if (localFactory || scopedHost || nativeBusiness || readOnlyBusiness) await session.setActiveToolsByName(admittedTools);
   if (privateProfile || factoryCustomers || scopedHost) {
     const { initializeExtensions } = await import(pathToFileURL(path.join(packageRoot, 'src/modes/runtime-init.ts')).href);

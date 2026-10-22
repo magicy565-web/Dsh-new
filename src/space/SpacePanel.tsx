@@ -13,6 +13,7 @@ type Version = { version: number; title: string; content: string; createdBy: str
 type Page = Node & { sourceResolution: SourceResolution[]; selected: Version; history: Omit<Version, 'content'>[]; comments: { id: string; version: number; body: string; createdBy: string }[] };
 type Result = { operation: { replayed: boolean; receipt: { spaceId: string; entityId: string; operation: string } } };
 type Pending = { path: string; body: Record<string, unknown>; after: (value: Result) => Promise<void> };
+type ViewLoad = { epoch: number; id: number };
 const endpoint = '/library/spaces';
 const message = (error: unknown) => error instanceof Error ? error.message : '操作未完成。';
 const bytes = (value: string) => new TextEncoder().encode(value).length;
@@ -43,6 +44,7 @@ function SpaceContent({ session, onDirty }: PanelProps) {
   function forgetRequest() { recoveryRequest.current = null; try { sessionStorage.removeItem(recoveryKey); } catch { /* Storage may be unavailable. No content is persisted. */ } }
   function rememberRequest(id: string) { recoveryRequest.current = id; try { sessionStorage.setItem(recoveryKey, id); } catch { /* Same-request reconciliation still works until refresh. */ } }
   const epoch = useRef(0), loadId = useRef(0), mounted = useRef(true);
+  const spaceReadIds = useRef(new Map<string, number>());
   const activePage = useRef<{ id: string; version: number } | null>(null);
   activePage.current = page ? { id: page.id, version: page.selected.version } : null;
   const activeSpaceId = useRef<string | null>(null), reportedDirty = useRef<boolean | null>(null);
@@ -73,30 +75,52 @@ function SpaceContent({ session, onDirty }: PanelProps) {
     }
   }
   const leaveDraft = () => !dirty || window.confirm('当前文字还未保存。放弃这些修改并切换吗？');
+  const beginLoad = (): ViewLoad => ({ epoch: epoch.current, id: ++loadId.current });
+  const isCurrentLoad = (load: ViewLoad) => mounted.current && load.epoch === epoch.current && load.id === loadId.current;
+  function beginSpaceRead(id: string) {
+    const ticket = (spaceReadIds.current.get(id) ?? 0) + 1;
+    spaceReadIds.current.set(id, ticket);
+    return () => spaceReadIds.current.get(id) === ticket;
+  }
+  function withCurrentPermissions(prior: Detail | null, value: Detail, isLatestRead: () => boolean): Detail {
+    // A newer Space GET owns permissions; a directory refresh must not replace them.
+    return isLatestRead() || prior?.id !== value.id ? value : { ...value, canEdit: prior.canEdit, canShare: prior.canShare };
+  }
 
   async function loadSpaces() { const current = epoch.current; const value = await api<{ spaces: Space[] }>(endpoint); if (!mounted.current || current !== epoch.current) return; setSpaces(value.spaces); }
   async function openSpace(id: string, force = false) {
     if (!force && !leaveDraft()) return;
-    const selected = ++loadId.current, current = epoch.current;
+    const load = beginLoad(), isLatestRead = beginSpaceRead(id);
     setBusy(true); setError('');
     try {
       const result = await api<{ space: Detail }>(`${endpoint}/${id}`);
-      if (!mounted.current || current !== epoch.current || selected !== loadId.current) return;
-      setSpace(result.space); setPage(null); setSourceDraft([]); setTitle(''); setContent(''); setParentId(''); setMoveTo('');
-    } catch (reason) { if (mounted.current && current === epoch.current && selected === loadId.current) { clearDenied(reason); setError(message(reason)); } }
-    finally { if (current === epoch.current && selected === loadId.current) setBusy(false); }
+      if (!isCurrentLoad(load)) return;
+      setSpace(prior => isCurrentLoad(load) ? withCurrentPermissions(prior, result.space, isLatestRead) : prior); setPage(null); setSourceDraft([]); setTitle(''); setContent(''); setParentId(''); setMoveTo('');
+      return load;
+    } catch (reason) { if (isCurrentLoad(load) && isLatestRead()) { clearDenied(reason); setError(message(reason)); } }
+    finally { if (isCurrentLoad(load)) setBusy(false); }
   }
-  async function refreshSpace(id: string) { const current = epoch.current; const result = await api<{ space: Detail }>(`${endpoint}/${id}`); if (!mounted.current || current !== epoch.current) return; setSpace(result.space); }
-  async function openPage(id: string, version?: number, force = false, inSpace = space?.id) {
+  async function refreshSpace(id: string) {
+    if (id !== activeSpaceId.current) return;
+    const load = beginLoad(), isLatestRead = beginSpaceRead(id);
+    try {
+      const result = await api<{ space: Detail }>(`${endpoint}/${id}`);
+      if (!isCurrentLoad(load) || id !== activeSpaceId.current) return;
+      setSpace(prior => isCurrentLoad(load) && id === activeSpaceId.current && prior?.id === id ? withCurrentPermissions(prior, result.space, isLatestRead) : prior);
+      return load;
+    } catch (reason) { if (isCurrentLoad(load) && id === activeSpaceId.current && isLatestRead()) throw reason; }
+  }
+  async function openPage(id: string, version?: number, force = false, inSpace = space?.id, continuation?: ViewLoad) {
     if (!inSpace || !force && !leaveDraft()) return;
-    const selected = ++loadId.current, current = epoch.current;
+    const load = continuation ?? beginLoad();
+    if (!isCurrentLoad(load)) return;
     setBusy(true); setError('');
     try {
       const result = await api<{ page: Page }>(`${endpoint}/${inSpace}/nodes/${id}${version ? `?version=${version}` : ''}`);
-      if (!mounted.current || current !== epoch.current || selected !== loadId.current) return;
+      if (!isCurrentLoad(load)) return;
       setPage(result.page); setSourceDraft(result.page.selected.sources ?? []); setTitle(result.page.selected.title); setContent(result.page.selected.content); setComment(''); setMoveTo(result.page.parentId ?? '');
-    } catch (reason) { if (mounted.current && current === epoch.current && selected === loadId.current) { clearDenied(reason); setError(message(reason)); } }
-    finally { if (current === epoch.current && selected === loadId.current) setBusy(false); }
+    } catch (reason) { if (isCurrentLoad(load)) { clearDenied(reason); setError(message(reason)); } }
+    finally { if (isCurrentLoad(load)) setBusy(false); }
   }
   useEffect(() => {
     mounted.current = true;
@@ -131,16 +155,21 @@ function SpaceContent({ session, onDirty }: PanelProps) {
     async function verifyVisibleSpace() {
       const id = activeSpaceId.current, ticket = ++serial;
       if (!id) return;
+      const load = { epoch: epoch.current, id: loadId.current }, isLatestRead = beginSpaceRead(id);
+      const isCurrent = () => !closed && ticket === serial && id === activeSpaceId.current
+        && isCurrentLoad(load) && isLatestRead();
       try {
-        await api(`${endpoint}/${id}`);
+        const value = await api<{ space: Detail }>(`${endpoint}/${id}`);
+        if (!isCurrent()) return;
+        setSpace(prior => isCurrent() && prior?.id === id ? { ...prior, canEdit: value.space.canEdit, canShare: value.space.canShare } : prior);
         const selected = activePage.current;
-        if (selected && !closed && ticket === serial && id === activeSpaceId.current) {
+        if (selected && isCurrent()) {
           const result = await api<{ page: Page }>(`${endpoint}/${id}/nodes/${selected.id}?version=${selected.version}`);
-          if (!closed && ticket === serial && id === activeSpaceId.current) setPage(prior => prior?.id === selected.id && prior.selected.version === selected.version ? { ...prior, sourceResolution: result.page.sourceResolution } : prior);
+          if (isCurrent()) setPage(prior => isCurrent() && prior?.id === selected.id && prior.selected.version === selected.version ? { ...prior, sourceResolution: result.page.sourceResolution } : prior);
         }
       }
       catch (reason) {
-        if (closed || ticket !== serial || id !== activeSpaceId.current) return;
+        if (!isCurrent()) return;
         if (reason instanceof ApiError && [401, 403, 404].includes(reason.status)) {
           clearDenied(reason);
           setError('Space 访问权限已变化，已清除当前私有内容。请重新核对企业会话。');
@@ -191,9 +220,9 @@ function SpaceContent({ session, onDirty }: PanelProps) {
       const result = await api<Result>(`${endpoint}/operations/${id}`);
       if (!mounted.current || current !== epoch.current) return;
       forgetRequest(); pending.current = null; setUncertain(false);
-      await loadSpaces(); await openSpace(result.operation.receipt.spaceId, true);
+      await loadSpaces(); const load = await openSpace(result.operation.receipt.spaceId, true);
       const receipt = result.operation.receipt;
-      if (receipt.entityId !== receipt.spaceId && receipt.operation !== 'createNode') await openPage(receipt.entityId, undefined, true, receipt.spaceId);
+      if (load && receipt.entityId !== receipt.spaceId && receipt.operation !== 'createNode') await openPage(receipt.entityId, undefined, true, receipt.spaceId, load);
       if (current === epoch.current) setNotice('已找到上次提交的回执，未重复写入。请从已保存内容继续。');
     } catch (reason) {
       if (mounted.current && current === epoch.current) {
@@ -206,7 +235,7 @@ function SpaceContent({ session, onDirty }: PanelProps) {
     if (busy || pending.current || recoveryRequest.current) return;
     void perform({ path, body: { requestId: requestId(), ...body }, after });
   }
-  async function reloadPage() { if (space && page) { await refreshSpace(space.id); await openPage(page.id, undefined, true); } }
+  async function reloadPage() { if (space && page) { const load = await refreshSpace(space.id); if (load) await openPage(page.id, undefined, true, space.id, load); } }
 
   if (session.mode !== 'enterprise' || !session.authenticated) return <section className="space-panel"><h2>Space 页面</h2><p>请通过原企业登录入口进入。此功能不提供绕过权限的本地演示模式。</p></section>;
   return <section className="space-panel" aria-label="企业 Space 页面">
@@ -220,8 +249,8 @@ function SpaceContent({ session, onDirty }: PanelProps) {
       {space && <>
         <div className="space-section-title"><h3>{space.name}</h3><button type="button" onClick={() => void openSpace(space.id)}>刷新目录</button></div>
         <label className="space-checkbox"><input type="checkbox" checked={showArchive} onChange={event => setShowArchive(event.target.checked)} />显示已归档内容</label>
-        <nav aria-label="页面和文件夹" className="space-node-list">{tree.map(({ node, depth }) => <div className="space-node-row" key={node.id}><button type="button" style={{ paddingInlineStart: `${14 + depth * 14}px` }} aria-current={page?.id === node.id ? 'page' : undefined} onClick={() => node.kind === 'page' ? void openPage(node.id) : setParentId(node.id)}><span>{node.kind === 'folder' ? '文件夹' : '页面'}</span><strong>{node.title}</strong>{node.archived && <small>已归档</small>}</button>{space.canEdit && <button type="button" aria-label={`${node.archived ? '恢复' : '归档'} ${node.title}`} onClick={() => { if (window.confirm(`确定${node.archived ? '恢复' : '归档'}“${node.title}”？`)) send(`${endpoint}/${space.id}/nodes/${node.id}/archive`, { expectedRevision: node.revision, archived: !node.archived }, async () => { await refreshSpace(space.id); if (page?.id === node.id) await openPage(node.id, undefined, true); }); }}>{node.archived ? '恢复' : '归档'}</button>}</div>)}</nav>
-        {space.canEdit && <details><summary>添加页面或文件夹</summary><form onSubmit={event => { event.preventDefault(); if (!leaveDraft()) return; send(`${endpoint}/${space.id}/nodes`, { kind, parentId: parentId || null, title: newTitle.trim(), ...(kind === 'page' ? { content: '' } : {}) }, async result => { setNewTitle(''); await refreshSpace(space.id); if (kind === 'page') await openPage(result.operation.receipt.entityId, undefined, true); }); }}><div className="space-form-row"><label>类型<select value={kind} onChange={event => setKind(event.target.value as 'page' | 'folder')}><option value="page">页面</option><option value="folder">文件夹</option></select></label><label>放在<select value={parentId} onChange={event => setParentId(event.target.value)}><option value="">Space 根目录</option>{tree.filter(({ node }) => node.kind === 'folder' && !node.archived).map(({ node, depth }) => <option key={node.id} value={node.id}>{'　'.repeat(depth)}{node.title}</option>)}</select></label></div><label>标题<input required value={newTitle} onChange={event => setNewTitle(event.target.value)} /></label><button disabled={!newTitle.trim() || bytes(newTitle) > 200}>添加</button></form></details>}
+        <nav aria-label="页面和文件夹" className="space-node-list">{tree.map(({ node, depth }) => <div className="space-node-row" key={node.id}><button type="button" style={{ paddingInlineStart: `${14 + depth * 14}px` }} aria-current={page?.id === node.id ? 'page' : undefined} onClick={() => node.kind === 'page' ? void openPage(node.id) : setParentId(node.id)}><span>{node.kind === 'folder' ? '文件夹' : '页面'}</span><strong>{node.title}</strong>{node.archived && <small>已归档</small>}</button>{space.canEdit && <button type="button" aria-label={`${node.archived ? '恢复' : '归档'} ${node.title}`} onClick={() => { if (window.confirm(`确定${node.archived ? '恢复' : '归档'}“${node.title}”？`)) send(`${endpoint}/${space.id}/nodes/${node.id}/archive`, { expectedRevision: node.revision, archived: !node.archived }, async () => { const load = await refreshSpace(space.id); if (load && page?.id === node.id) await openPage(node.id, undefined, true, space.id, load); }); }}>{node.archived ? '恢复' : '归档'}</button>}</div>)}</nav>
+        {space.canEdit && <details><summary>添加页面或文件夹</summary><form onSubmit={event => { event.preventDefault(); if (!leaveDraft()) return; send(`${endpoint}/${space.id}/nodes`, { kind, parentId: parentId || null, title: newTitle.trim(), ...(kind === 'page' ? { content: '' } : {}) }, async result => { setNewTitle(''); const load = await refreshSpace(space.id); if (load && kind === 'page') await openPage(result.operation.receipt.entityId, undefined, true, space.id, load); }); }}><div className="space-form-row"><label>类型<select value={kind} onChange={event => setKind(event.target.value as 'page' | 'folder')}><option value="page">页面</option><option value="folder">文件夹</option></select></label><label>放在<select value={parentId} onChange={event => setParentId(event.target.value)}><option value="">Space 根目录</option>{tree.filter(({ node }) => node.kind === 'folder' && !node.archived).map(({ node, depth }) => <option key={node.id} value={node.id}>{'　'.repeat(depth)}{node.title}</option>)}</select></label></div><label>标题<input required value={newTitle} onChange={event => setNewTitle(event.target.value)} /></label><button disabled={!newTitle.trim() || bytes(newTitle) > 200}>添加</button></form></details>}
         {page && <article className="space-editor" aria-label="页面编辑器"><div className="space-section-title"><h3>{historical ? `历史版本 ${page.selected.version}` : '编辑页面'}</h3><span>{dirty ? '有未保存修改' : `已保存 · v${page.selected.version}`}</span></div>
           <label>标题<input value={title} disabled={!space.canEdit || historical || page.archived} onChange={event => setTitle(event.target.value)} /></label>
           <label>正文<textarea rows={14} value={content} disabled={!space.canEdit || historical || page.archived} onChange={event => setContent(event.target.value)} spellCheck /></label>
@@ -233,7 +262,7 @@ function SpaceContent({ session, onDirty }: PanelProps) {
           {historical && space.canEdit && !page.archived && <button type="button" onClick={() => { if (window.confirm('把此历史内容保存为一个新版本？不会删除已有历史。')) send(`${endpoint}/${space.id}/nodes/${page.id}/restore`, { expectedRevision: page.revision, version: page.selected.version }, reloadPage); }}>恢复此内容为新版本</button>}
           <section aria-label="页面评论"><h4>讨论</h4>{page.comments.length ? page.comments.map(item => <blockquote key={item.id}><p>{item.body}</p><footer>{item.createdBy} · 针对 v{item.version}</footer></blockquote>) : <p className="space-hint">还没有评论。</p>}{space.canEdit && !page.archived && <form onSubmit={event => { event.preventDefault(); send(`${endpoint}/${space.id}/nodes/${page.id}/comments`, { expectedRevision: page.revision, version: page.selected.version, body: comment }, async () => { setComment(''); await reloadPage(); }); }}><label>针对当前所看版本的评论<textarea rows={3} value={comment} onChange={event => setComment(event.target.value)} /></label><button disabled={!comment.trim() || bytes(comment) > 4000 || dirty}>添加评论</button></form>}</section>
         </article>}
-        {space.canShare && <details className="space-sharing"><summary>成员与分享</summary><p className="space-hint">邀请会共享整个 Space，包括所有页面历史和评论；不会授予外部资料或第三方 Agent 权限。</p>{space.shares?.map(share => <div className="space-share-row" key={share.subject}><span>{share.subject} · {share.role === 'editor' ? '可编辑' : '只读'}{share.expiresAt ? ` · 截止 ${new Date(share.expiresAt).toLocaleString()}` : ''}</span><button type="button" onClick={() => { if (window.confirm(`撤销 ${share.subject} 的 Space 访问权？`)) send(`${endpoint}/${space.id}/revoke`, { expectedRevision: space.revision, subject: share.subject }, async () => refreshSpace(space.id)); }}>撤销</button></div>)}<form onSubmit={event => { event.preventDefault(); send(`${endpoint}/${space.id}/share`, { expectedRevision: space.revision, subject: recipient.trim(), role: shareRole, expiresAt: shareExpiry ? new Date(shareExpiry).toISOString() : null }, async () => { setRecipient(''); setShareExpiry(''); await refreshSpace(space.id); }); }}><label>现有企业成员的准确账号<input required value={recipient} onChange={event => setRecipient(event.target.value)} autoComplete="off" /></label><label>访问权限<select value={shareRole} onChange={event => setShareRole(event.target.value as 'viewer' | 'editor')}><option value="viewer">只读</option><option value="editor">可编辑</option></select></label><label>分享截止时间（可选）<input type="datetime-local" value={shareExpiry} onChange={event => setShareExpiry(event.target.value)} /></label><button disabled={!recipient.trim() || !!shareExpiry && (!Number.isFinite(Date.parse(shareExpiry)) || Date.parse(shareExpiry) <= Date.now())}>确认分享整个 Space</button></form></details>}
+        {space.canShare && <details className="space-sharing"><summary>成员与分享</summary><p className="space-hint">邀请会共享整个 Space，包括所有页面历史和评论；不会授予外部资料或第三方 Agent 权限。</p>{space.shares?.map(share => <div className="space-share-row" key={share.subject}><span>{share.subject} · {share.role === 'editor' ? '可编辑' : '只读'}{share.expiresAt ? ` · 截止 ${new Date(share.expiresAt).toLocaleString()}` : ''}</span><button type="button" onClick={() => { if (window.confirm(`撤销 ${share.subject} 的 Space 访问权？`)) send(`${endpoint}/${space.id}/revoke`, { expectedRevision: space.revision, subject: share.subject }, async () => { await refreshSpace(space.id); }); }}>撤销</button></div>)}<form onSubmit={event => { event.preventDefault(); send(`${endpoint}/${space.id}/share`, { expectedRevision: space.revision, subject: recipient.trim(), role: shareRole, expiresAt: shareExpiry ? new Date(shareExpiry).toISOString() : null }, async () => { setRecipient(''); setShareExpiry(''); await refreshSpace(space.id); }); }}><label>现有企业成员的准确账号<input required value={recipient} onChange={event => setRecipient(event.target.value)} autoComplete="off" /></label><label>访问权限<select value={shareRole} onChange={event => setShareRole(event.target.value as 'viewer' | 'editor')}><option value="viewer">只读</option><option value="editor">可编辑</option></select></label><label>分享截止时间（可选）<input type="datetime-local" value={shareExpiry} onChange={event => setShareExpiry(event.target.value)} /></label><button disabled={!recipient.trim() || !!shareExpiry && (!Number.isFinite(Date.parse(shareExpiry)) || Date.parse(shareExpiry) <= Date.now())}>确认分享整个 Space</button></form></details>}
       </>}
     </fieldset>
   </section>;

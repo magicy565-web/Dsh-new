@@ -1,0 +1,182 @@
+{
+  "base": "http://127.0.0.1:8790",
+  "generatedAt": "2026-10-21T19:08:06.223Z",
+  "passed": 23,
+  "failed": 0,
+  "results": [
+    {
+      "name": "status reachable",
+      "ok": true,
+      "detail": {
+        "workspaceId": "local",
+        "provider": "harness-business-memory",
+        "version": 1,
+        "records": 0,
+        "active": 0,
+        "proposed": 0,
+        "rejected": 0,
+        "superseded": 0,
+        "revoked": 0,
+        "expired": 0,
+        "subjects": 0,
+        "sourceKinds": 0,
+        "verifiableSources": [
+          "product-page",
+          "document"
+        ],
+        "humanReviewRequired": true,
+        "vectorSearch": false
+      }
+    },
+    {
+      "name": "status workspace is local",
+      "ok": true
+    },
+    {
+      "name": "status requires human review",
+      "ok": true
+    },
+    {
+      "name": "area page is html",
+      "ok": true
+    },
+    {
+      "name": "proposal is pending",
+      "ok": true
+    },
+    {
+      "name": "proposal keeps the Chinese statement",
+      "ok": true
+    },
+    {
+      "name": "proposal is human-attested",
+      "ok": true
+    },
+    {
+      "name": "pending memory is not a fact",
+      "ok": true,
+      "detail": {
+        "total": 0,
+        "baseline": 0
+      }
+    },
+    {
+      "name": "approval activates the fact",
+      "ok": true,
+      "detail": {
+        "record": {
+          "id": "566069f3-b593-4a8e-8e30-4b24692767dd",
+          "subjectType": "customer",
+          "subjectId": "customer-haiqi",
+          "subjectLabel": "海祺贸易",
+          "factKey": "reorder-window",
+          "kind": "fact",
+          "statement": "海祺贸易通常在每年 3 月和 9 月补货。",
+          "detail": null,
+          "confidence": null,
+          "tags": [
+            "复购",
+            "节奏"
+          ],
+          "audience": "internal",
+          "status": "active",
+          "revision": 1,
+          "previousId": null,
+          "source": {
+            "kind": "operator",
+            "ref": "operator:local-operator",
+            "label": "电话记录",
+            "sha256": null,
+            "verified": false,
+            "verifiedAt": null,
+            "basis": "2026-10-21 与客户采购负责人通话确认",
+            "attestation": "human-attested"
+          },
+          "proposedBy": "local-operator",
+          "proposedAt": "2026-10-21T19:08:06.075Z",
+          "reviewedBy": "local-operator",
+          "reviewedAt": "2026-10-21T19:08:06.110Z",
+          "reviewNote": "与客户确认",
+          "activatedAt": "2026-10-21T19:08:06.110Z",
+          "createdAt": "2026-10-21T19:08:06.075Z",
+          "createdBy": "local-operator",
+          "updatedAt": "2026-10-21T19:08:06.110Z",
+          "updatedBy": "local-operator",
+          "expiresAt": null,
+          "lifecycle": "active",
+          "expired": false,
+          "usable": true
+        }
+      }
+    },
+    {
+      "name": "approval records the reviewer",
+      "ok": true
+    },
+    {
+      "name": "recall finds the active fact",
+      "ok": true,
+      "detail": 1
+    },
+    {
+      "name": "a newer fact gets the next revision",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "name": "a newer fact chains the previous one",
+      "ok": true
+    },
+    {
+      "name": "the old fact is superseded",
+      "ok": true
+    },
+    {
+      "name": "conversation proposal is pending",
+      "ok": true
+    },
+    {
+      "name": "map counts the active fact",
+      "ok": true,
+      "detail": {
+        "total": 3,
+        "active": 1,
+        "proposed": 1,
+        "rejected": 0,
+        "superseded": 1,
+        "revoked": 0,
+        "expired": 0
+      }
+    },
+    {
+      "name": "map reports customer coverage",
+      "ok": true
+    },
+    {
+      "name": "brief is generated",
+      "ok": true
+    },
+    {
+      "name": "brief cites existing memory only",
+      "ok": true
+    },
+    {
+      "name": "brief counts the pending proposals",
+      "ok": true
+    },
+    {
+      "name": "brief contains no forecast vocabulary",
+      "ok": true
+    },
+    {
+      "name": "unsourced operator memory is refused",
+      "ok": true,
+      "detail": "BUSINESS_MEMORY_INPUT"
+    },
+    {
+      "name": "unknown workspace member is refused",
+      "ok": true,
+      "detail": "HARNESS_WORKSPACE_FORBIDDEN"
+    }
+  ]
+}

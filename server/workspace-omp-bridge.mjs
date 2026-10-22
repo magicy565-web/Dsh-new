@@ -184,7 +184,12 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               // Inquiry clients finish with original authorization followed by
               // synchronous source/Artifact checks; do not add an async gap
               // after that final check. Preserve the existing business fence.
-              if(nativeBusiness){await authorize();factDocumentTools?.assertDisclosureCurrent({messages,context:messages},factReceiver,input.signal);}
+              if(nativeBusiness){
+                await authorize();
+                if(medusaClient?.nativeScopeHash)await medusaClient.authorizeDisclosure({messages,context:messages},binding.model,input.signal);
+                factDocumentTools?.assertDisclosureCurrent({messages,context:messages},factReceiver,input.signal);
+                medusaClient?.nativeScopeHash&&medusaClient.assertPayloadCurrent({messages,context:messages},input.signal);
+              }
             }
             if (brainFactsConfigured) {
               if (factFinalCalls !== modelCalls || factOperations) throw Error('Original final fact disclosure required.');
@@ -256,8 +261,13 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
                 }
                 // Keep the original authority in Node and close the async
                 // callback boundary with its complete synchronous proof check.
+                if(medusaClient?.nativeScopeHash){
+                  if(typeof value.wireBody==='string')onWorkerLifecycle({phase:'nativeMedusaWireCheck'});
+                  await medusaClient.authorizeDisclosure(payload,receiver,rpcSignal);
+                }
                 factControl.assertDisclosureCurrent(payload,receiver,rpcSignal);
                 factDocumentTools?.assertDisclosureCurrent(payload,receiver,rpcSignal);
+                medusaClient?.nativeScopeHash&&medusaClient.assertPayloadCurrent(payload,rpcSignal);
                 if(factOperations || activity!==factActivity || value.modelCalls!==modelCalls)throw Error('Original fact disclosure changed during authorization.');
                 if (paidAdmission && value.phase === 'model:disclose' && value.wireBody !== undefined) {
                   if(modelBudget){assertBudgetCurrent();paidAdmission.assertCurrent(run.id);}
@@ -337,7 +347,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
               }
               else if((nativeBusiness||medusaEnterprise)&&message.method==='medusaCatalog'){
                 const [method,value,model]=message.args||[];
-                if(!medusaClient||!['status','preview','reconcile','refresh'].includes(method))throw Error('Original Medusa method required.');
+                if(!medusaClient||!['status','preview','reconcile','refresh',...(nativeBusiness&&medusaClient.nativeScopeHash?['context']:[])].includes(method))throw Error('Original Medusa method required.');
                 result=method==='refresh'?await medusaClient.refresh(value,model,rpcSignal):await medusaClient[method](value,rpcSignal,model);
               }
               else if(documentToolsConfigured&&message.method==='businessDocuments'){
@@ -458,7 +468,7 @@ export function createWorkspaceOmpEngineAdapter({ paths, configuration, publicTo
           }).catch(() => { if (paidAdmission) { providerReport = null; paidFailureFinalizing = true; }
             finish(new ProviderError('OMP_SNAPSHOT_CLEANUP_FAILED', 'The owned public Run snapshot could not be cleaned.')); }); });
         send({ type: 'start', config: { packageRoot: paths.packageRoot, cwd: isolationDirectory, agentDir, sessionDirectory, savedSession,
-          configuration, engineScope, nativeBusiness, medusaEnterprise, ...(modelBudget?{boundedBusiness:true}:paidAdmission?{paidAcceptance:NATIVE_FACTS_PAID_ACCEPTANCE}:{}), resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, brainConfigured:!!brainClient||brainFactsConfigured, ...(brainFactsConfigured?{brainFactsConfigured:true}:{}), ...(documentToolsConfigured?{documentToolsConfigured:true,maxModelCalls:modelRequestLimit}:{}), marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
+          configuration, engineScope, nativeBusiness, medusaEnterprise, ...(modelBudget?{boundedBusiness:true}:paidAdmission?{paidAcceptance:NATIVE_FACTS_PAID_ACCEPTANCE}:{}), resetBusinessContext:nativeBusiness&&run.businessAgentContext?.resetContext===true, medusaConfigured:!!medusaClient, nativeMedusaConfigured:!!medusaClient?.nativeScopeHash, brainConfigured:!!brainClient||brainFactsConfigured, ...(brainFactsConfigured?{brainFactsConfigured:true}:{}), ...(documentToolsConfigured?{documentToolsConfigured:true,maxModelCalls:modelRequestLimit}:{}), marketplaceConfigured:!!marketplaceClient, readOnlyBusiness: !nativeBusiness&&!scopedPlugin&&client.readOnlySession === true, enterpriseContext,enterpriseContextDescriptor:enterpriseContext?enterpriseContextHost.describe():null,freeTrade,freeTradeDescriptor:freeTrade?freeTradeHost.describe():null,pluginConfiguration:medusaEnterprise?{configuration:'config.medusa-enterprise-readonly.json',...pluginConfiguration}:nativeBusiness?{configuration:'config.business.json',...pluginConfiguration}:scopedPlugin?{configuration:enterpriseContext?'config.enterprise-context.json':'config.free-trade.json',...pluginConfiguration}:{},factoryMaterials, factoryCustomers, factoryInquiries, factoryIngestion, marketValidation, shopifyProduct, publicTools: publicToolConfiguration, syntheticResponses, syntheticPublicSearchResponses,
           content: user.content, runId: run.id, maxTokens: input.maxTokens } });
       }).catch(error => { paidAdmission?.stop(); throw error; });
     },

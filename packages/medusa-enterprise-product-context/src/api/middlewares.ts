@@ -12,6 +12,8 @@ const agentContextReadMiddleware=(req:any,res:any,next:any)=>{
 }
 
 export default defineMiddlewares({routes:[
+  {matcher:"/admin/workspace-business/v1/products/:id",method:"GET",middlewares:[authenticate("user",["session","bearer"])]},
+  {matcher:"/admin/workspace-business/v1/products/:id/summary",method:"POST",middlewares:[authenticate("user",["session","bearer"])]},
   {matcher:"/admin/products/:id/context",method:"GET",middlewares:[authenticate("user",["session","bearer","api-key"])]},
   {matcher:"/admin/products/:id/context",method:"POST",middlewares:[authenticate("user",["session","bearer","api-key"]),validateAndTransformBody(ProductContextInputSchema)]},
   {matcher:"/admin/product-contexts",method:"GET",middlewares:[authenticate("user",["session","bearer","api-key"])]},

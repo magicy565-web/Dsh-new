@@ -47,7 +47,7 @@ test('local plugin version, peers, engines, resolution and unrelated metadata ca
 test('checked-in host lock is the verified archive update with every external entry preserved',async()=>{
  const original=JSON.parse(execFileSync('git',['show',BASELINE+':apps/medusa-acceptance/package-lock.json'],{encoding:'utf8'}))
  const candidate=JSON.parse(await fs.readFile('apps/medusa-acceptance/package-lock.json'))
- const evidence=JSON.parse(await fs.readFile('docs/validation/omp-medusa-provider-closure-20261017.json'))
+ const evidence=JSON.parse(await fs.readFile('docs/medusa/business-package-v1.json'))
  const delta=assertLockDelta(original,candidate,evidence.reproduciblePackage.archiveA.integrity)
  assert.equal(delta.externalEntriesUnchanged,1147);assert.equal(delta.changedPaths.length,2)
  assert.equal(candidate.packages[LOCAL].version,'0.1.0')

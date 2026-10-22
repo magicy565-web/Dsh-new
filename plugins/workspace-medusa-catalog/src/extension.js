@@ -5,7 +5,7 @@ export { MEDUSA_CATALOG_PLUGIN, MEDUSA_CATALOG_INPUTS, MEDUSA_CATALOG_METHODS,
 
 export function medusaCatalogExtension(options = {}) {
   const service = createMedusaCatalogService(options);
-  return pi => medusaCatalogToolDefinitions().forEach(({ method, ...definition }) => pi.registerTool({
+  return pi => medusaCatalogToolDefinitions({nativeContext:typeof options.client?.context==='function'}).forEach(({ method, ...definition }) => pi.registerTool({
     ...definition,
     async execute(_id, args, signal, _update, ctx) {
       const receipt = await service[method](args, signal, ctx?.model);

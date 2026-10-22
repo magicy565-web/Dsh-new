@@ -108,7 +108,7 @@ test('actual MikroORM PostgreSQL metadata generates a revision-predicated UPDATE
 test('integer-bound revisions remain editable and revocable; ceiling stamps fence stale and concurrent writes',async()=>{
  const {MAX_REVIEW_VERSION}=require('../.medusa/server/src/product-context-validation.js');
  const {sealReviewSource}=require('../.medusa/server/src/product-context-review.js');
- const validate=require('../.medusa/server/src/api/middlewares.js').default.routes.find(r=>r.methods.includes('POST')).middlewares[1];
+ const validate=require('../.medusa/server/src/api/middlewares.js').default.routes.find(r=>r.matcher==='/admin/products/:id/context'&&r.methods.includes('POST')).middlewares[1];
  async function validationError(body){let error;await validate({body},response(),e=>{error=e});return error}
  for(const review_version of [0,99999,100000,MAX_REVIEW_VERSION-1,MAX_REVIEW_VERSION])assert.equal(await validationError({review_version}),undefined);
  for(const review_version of [undefined,-1,MAX_REVIEW_VERSION+1,1.5])assert.ok(await validationError({review_version}));
@@ -139,7 +139,7 @@ test('integer-bound revisions remain editable and revocable; ceiling stamps fenc
 
 test('complete shared schema refuses malformed legacy JSON before reapproval and both Agent projections',async()=>{
  const marker={source:'SYNTHETIC PRIVATE'};
- const validate=require('../.medusa/server/src/api/middlewares.js').default.routes.find(r=>r.methods.includes('POST')).middlewares[1];
+ const validate=require('../.medusa/server/src/api/middlewares.js').default.routes.find(r=>r.matcher==='/admin/products/:id/context'&&r.methods.includes('POST')).middlewares[1];
  const cases=[
   {evidence:[{id:'e',label:marker,type:'certificate',status:'verified'}]},
   {commercial_policy:{moq:{internal_note:'SYNTHETIC PRIVATE'}}},

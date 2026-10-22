@@ -6,7 +6,13 @@ import path from 'node:path';
 import {createServer} from 'node:http';
 import {createHash,generateKeyPairSync,randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
-import {startWorkspaceServer} from '../../server/index.mjs';
+import {createApp,startWorkspaceServer} from '../../server/index.mjs';
+import {createWorkspaceOmpBusinessOptions,loadReviewedBusinessOptions,workspaceOmpPublicToolConfiguration} from '../../server/workspace-omp-host.mjs';
+import {createWorkspaceOmpEngineAdapter} from '../../server/workspace-omp-bridge.mjs';
+import {workspaceOmpConfiguration} from '../../server/workspace-omp-configuration.mjs';
+import {createPiProvider} from '../../server/pi-provider.mjs';
+import {loadPiProviderConfig} from '../../server/pi-provider-config.mjs';
+import {accessConfigFromEnvironment} from '../../server/access.mjs';
 import {signWorkspaceRequest} from '../../server/auth-ingress.mjs';
 import {workspaceOmpPaths,verifyWorkspaceOmpRuntime} from '../../server/workspace-omp-runtime.mjs';
 import {DEEPSEEK_PRICES} from '../../server/deepseek-acceptance-policy.mjs';
@@ -16,9 +22,10 @@ import {decisionSetup} from './brain-decision-input.mjs';
 import {request} from '../agent-service.helpers.mjs';
 export const QUERY={subjectType:'product',subjectId:'synthetic-bottle',factKey:'moq'};
 export const STATEMENT='SYNTHETIC bottle MOQ is 120 units; confirm the supplier before any commercial promise.';
+export const LIBRARY_PRODUCT={name:'SYNTHETIC selected bottle',description:'SYNTHETIC reusable bottle for an unreviewed internal summary.',category:'SYNTHETIC_CATEGORY_NOT_APPROVED_FOR_MODEL'};
 const empty=()=>({artifacts:[],skills:[],memoryIds:[],connectorActions:[]});
 const quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
-export async function startupFixture(t,{documents=true,mode='control',durableBudget=false}={}){
+export async function startupFixture(t,{documents=true,mode='control',durableBudget=false,nativeMedusa=false,nativeGrant=true,expiresAt='2099-01-01T00:00:00.000Z',hooks=null}={}){
  const original=workspaceOmpPaths(process.env);await verifyWorkspaceOmpRuntime(original);
  const directory=await fs.mkdtemp('/tmp/native-document-startup-'),dataDirectory=path.join(directory,'data'),configFile=path.join(directory,'finite.json'),reportFile=path.join(directory,'provider-summary.json'),wrapper=path.join(directory,'finite-bun');
  const keys=generateKeyPairSync('ed25519'),workspaceId='document-startup-test',subject='member-a',parserSecret='synthetic-parser-only-no-network';
@@ -38,7 +45,17 @@ export async function startupFixture(t,{documents=true,mode='control',durableBud
   }
   const method=body===undefined?'GET':'POST';return request(baseURL,route,{method,...(body===undefined?{}:{body}),headers:{Host:'workspace.example',...(body===undefined?{}:{Origin:identity.publicOrigin}),...sessions.get(who),'X-Workspace-Assertion':signWorkspaceRequest({privateKey:keys.privateKey,...identity,subject:who,method,target:route,body:body===undefined?'':JSON.stringify(body)})}});
  };
+ const nativeState={calls:0,id:'prod_synthetic_native',title:'SYNTHETIC_NATIVE_TITLE',description:'SYNTHETIC_NATIVE_DESCRIPTION',summary:'SYNTHETIC_APPROVED_AGENT_SUMMARY',reviewVersion:3,sourceHash:'c'.repeat(64),status:'approved'};
+ const nativeToken='synthetic-native-model-read-token';
  let parserCalls=0;const parser=createServer(async(req,res)=>{
+  if(req.url==='/agent/product-contexts/'+nativeState.id){
+   assert.equal(req.method,'GET');assert.equal(req.headers.authorization,'Bearer '+nativeToken);nativeState.calls++;
+   if(nativeState.held){res.on('close',()=>{nativeState.closed=true;});nativeState.held();return;}
+   res.writeHead(nativeState.status==='approved'?200:404,{'content-type':'application/json'});
+   res.end(JSON.stringify(nativeState.status==='approved'?{schema_version:'1.0',review_policy:'medusa-product-context-current-source-v1',
+    context:{product_id:nativeState.id,status:'approved',review_version:nativeState.reviewVersion,source_hash:nativeState.sourceHash,agent_summary:nativeState.summary,commercial_policy:{private:'SYNTHETIC_UNAPPROVED_POLICY'}},
+    product:{id:nativeState.id,title:nativeState.title,description:nativeState.description,metadata:{private:'SYNTHETIC_UNAPPROVED_METADATA'}}}:{}));return;
+  }
   assert.equal(req.url,'/v1/convert/file');assert.equal(req.method,'POST');const parts=[];for await(const chunk of req)parts.push(chunk);
   const form=await new Request('http://synthetic-loopback',{method:'POST',headers:{'content-type':req.headers['content-type']},body:Buffer.concat(parts)}).formData();
   assert.equal(await form.get('files').text(),STATEMENT);parserCalls++;res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({status:'success',document:{text_content:STATEMENT},errors:[]}));
@@ -47,6 +64,10 @@ export async function startupFixture(t,{documents=true,mode='control',durableBud
  const uploaded=await workspace('/api/artifacts',{body:{requestId:randomUUID(),filename:'synthetic-bottle.txt',base64:Buffer.from(STATEMENT).toString('base64'),metadata:{businessLibrary:{visibility:'internal'}}}});assert.equal(uploaded.status,201,uploaded.text);
  const asset={artifactId:uploaded.json.artifact.id,version:uploaded.json.artifact.currentVersion,sha256:uploaded.json.artifact.sha256};
  const linked=await workspace('/api/library/documents',{body:{requestId:randomUUID(),title:'Synthetic bottle evidence',slotKey:'specification',asset}});assert.equal(linked.status,201,linked.text);const document=linked.json.document;
+ let product=null;
+ if(mode==='library-flow'){
+  const imported=await workspace('/api/library/products',{body:{requestId:randomUUID(),...LIBRARY_PRODUCT}});assert.equal(imported.status,201,imported.text);product=imported.json.product;
+ }
  // Create the ordinary owned Goal through the real signed HTTP route.
  // No direct runtime owner preparation or Store seed is necessary.
  const g=await workspace('/api/goals',{body:{requestId:randomUUID(),title:'Investigate synthetic MOQ',description:'No external action or spending',inputContext:empty()}});assert.equal(g.status,201,g.text);const goal=g.json.goal;
@@ -54,21 +75,53 @@ export async function startupFixture(t,{documents=true,mode='control',durableBud
  assert.equal(app.store.read().businessLibrary.enterpriseMemories.length,0);
  await app.close();sessions.clear();
  const model={provider:'workspace-deepseek',id:'deepseek-flash',api:'openai-completions',baseUrl:'https://api.deepseek.com'},recipient={kind:'pi-coding-agent',provider:model.provider,model:model.id,destination:model.baseUrl};
- const libraryModelReadPolicy={enabled:true,reviewed:true,workspaceId,subject,expiresAt:'2099-01-01T00:00:00.000Z',recipient,company:null,products:[],productFields:['name'],factoryMaterials:{products:[],productFields:['name'],documents:[{id:document.id,revision:document.revision,documentVersion:document.currentVersion,asset}]}};
+ const products=product?[{id:product.id,revision:product.revision}]:[],productFields=product?['name','description']:['name'];
+ const libraryModelReadPolicy={enabled:true,reviewed:true,workspaceId,subject,expiresAt,recipient,company:null,products,productFields,factoryMaterials:{products,productFields,documents:[{id:document.id,revision:document.revision,documentVersion:document.currentVersion,asset}]}};
+ const nativeSelection={enabled:true,reviewed:true,sourceId:randomUUID(),baseURL:'http://127.0.0.1:'+parser.address().port,allowLoopbackHTTP:true,
+  fields:['title','description','agent_summary'],products:[{productId:nativeState.id,reviewVersion:nativeState.reviewVersion,sourceHash:nativeState.sourceHash}]};
+ if(nativeMedusa&&nativeGrant)libraryModelReadPolicy.nativeMedusa=nativeSelection;
  const goalBrainOptions={originalReceiver:model,reviewedGoals:[{id:goal.id,originalRevision:goal.revision,currency:'USD',businessStatus:'active',capabilities:['analysis','draft','none'],budgetRemainingMinor:null,perTaskCapMinor:null,reviewed:true}]};
- const pluginConfiguration={disabled:['workspace-factory-materials','workspace-market-validation','workspace-shopify-product','workspace-medusa-catalog','workspace-marketplace']};
+ const pluginConfiguration={disabled:[...(product?[]:['workspace-factory-materials']),'workspace-market-validation','workspace-shopify-product',...(nativeMedusa?[]:['workspace-medusa-catalog']),'workspace-marketplace']};
  // Budget-only trajectory: eight explicitly reviewed distinct keys, all
  // discovered by the finite provider from the real wire schema, never info.
  const factKeys=documents&&mode==='limit'?Array.from({length:8},(_,index)=>({...QUERY,factKey:'synthetic-budget-'+index})):[QUERY];
  const reviewed={pluginConfiguration,libraryModelReadPolicy,goalBrainOptions,selection:{enabled:true,reviewed:true,customerId:'synthetic-customer',sources:[{documentId:document.id,asset}],allowMemoryRead:true,allowMemoryWrite:true},connection:{reviewed:true,baseURL:'http://127.0.0.1:'+parser.address().port},parserTransfer:{approved:true,purpose:'document-extraction',transfer:'complete-file',recipient:{kind:'docling',destination:'http://127.0.0.1:'+parser.address().port+'/v1/convert/file'}},brainMemoryFactKeys:factKeys,brainDocumentTools:true,...(durableBudget?{modelBudget:{kind:WORKSPACE_MODEL_BUDGET,reviewed:true,budgetId:'synthetic-continuous',workspaceId,subject,expiresAt:'2099-01-01T00:00:00.000Z',limitCny:5,historicalUpperCny:0.139804,receiver:{provider:model.provider,id:model.id,baseUrl:model.baseUrl}}}:{paidAcceptance:{kind:NATIVE_FACTS_PAID_ACCEPTANCE,historicalUpperCny:0.139804}})};
  const reviewFile=path.join(directory,'reviewed-business.json');await fs.writeFile(reviewFile,JSON.stringify(reviewed),{mode:0o600});
- if(documents)app=await startWorkspaceServer({environment:{...environment,WORKSPACE_BUSINESS_REVIEW_FILE:reviewFile}});
+ const tokenFile=path.join(directory,'native-read-token');
+ if(nativeMedusa&&nativeGrant){await fs.writeFile(tokenFile,nativeToken,{mode:0o600});environment.WORKSPACE_MEDUSA_MODEL_READ_TOKEN_FILE=tokenFile;}
+ async function bootReviewed(){
+  if(!hooks)return startWorkspaceServer({environment:{...environment,WORKSPACE_BUSINESS_REVIEW_FILE:reviewFile}});
+  // Race tests use the same original business factory/Host and fixed SDK, with
+  // its existing trusted lifecycle seam. The ordinary CLI cases use the branch
+  // above unchanged; no production configuration or mock SDK is introduced.
+  const loaded=await loadReviewedBusinessOptions(reviewFile,environment);
+  const options=createWorkspaceOmpBusinessOptions({environment,baseURL,paidAcceptance:loaded.paidAcceptance,modelBudget:loaded.modelBudget,
+    pluginConfiguration:loaded.pluginConfiguration,resolveReviewedBusinessBinding:args=>loaded.resolveBinding({...args,
+      enterpriseContextSessionBinding:value=>app.enterpriseContextSessionBinding(args.actor,value),conversationReferences:id=>app.businessLibrary.getConversationReferences(id)})});
+  const engine=createWorkspaceOmpEngineAdapter({paths:workspaceOmpPaths(environment),configuration:workspaceOmpConfiguration(environment),nativeBusiness:true,
+    paidAcceptance:loaded.paidAcceptance,modelBudget:loaded.modelBudget,pluginConfiguration:loaded.pluginConfiguration,
+    publicTools:workspaceOmpPublicToolConfiguration(environment),infrastructure:environment,onWorkerLifecycle:event=>hooks.lifecycle?.(event)});
+  options.engineAdapter={scope:engine.scope,complete:args=>engine.complete({...args,authorize:async(...values)=>{await args.authorize(...values);await hooks.authorize?.();}})};
+  const created=await createApp({dataDirectory,provider:createPiProvider(loadPiProviderConfig(environment)),access:await accessConfigFromEnvironment(environment),
+    capabilityEnvironment:environment,businessAgentOptions:options,libraryModelReadPolicy:loaded.libraryModelReadPolicy,goalBrainOptions:loaded.goalBrainOptions,
+    nativeMedusaModelConnection:loaded.nativeMedusaModelConnection});
+  hooks.ready?.({policy:loaded.libraryModelReadPolicy});await created.listen(port);return created;
+ }
+ if(documents)app=await bootReviewed();
  else app=await startWorkspaceServer({environment,reviewedBusiness:{libraryModelReadPolicy,goalBrainOptions,resolveBinding:async()=>({})}});
  const c=await workspace('/api/conversations',{body:{requestId:randomUUID(),title:'Document to Brain first slice',inputContext:empty()}});assert.equal(c.status,201,c.text);const cid=c.json.conversation.id;
  if(documents){const missing=await workspace('/api/conversations/'+cid+'/messages',{body:{requestId:randomUUID(),content:'Read only explicitly reviewed selected documents.',workspaceExecution:false,inputContext:empty()}});assert.equal(missing.status,409,missing.text);assert.equal(missing.json.error.code,'BUSINESS_AGENT_DOCUMENT_SELECTION_REQUIRED');assert.equal(app.store.read().runs.length,0);}
- const refs=await workspace('/api/conversations/'+cid+'/library-references',{body:{requestId:randomUUID(),expectedRevision:0,references:{products:[],documents:[{documentId:document.id,documentVersion:document.currentVersion}]}}});assert.equal(refs.status,200,refs.text);
- const writeFixture=turn=>fs.writeFile(configFile,JSON.stringify({mode,documents,bounded:documents,turn,statement:STATEMENT,parserSecret,inputs:decisionSetup('not-a-discovered-goal',[]),reportFile}),{mode:0o600});await writeFixture(1);
- return {app,workspace,cid,asset,document,goal,writeFixture,parserCalls:()=>parserCalls,readProvider:async()=>JSON.parse(await fs.readFile(reportFile,'utf8')),
+ const refs=await workspace('/api/conversations/'+cid+'/library-references',{body:{requestId:randomUUID(),expectedRevision:0,references:{products:product?[{productId:product.id,productRevision:product.revision}]:[],documents:[{documentId:document.id,documentVersion:document.currentVersion}]}}});assert.equal(refs.status,200,refs.text);
+ const writeFixture=turn=>fs.writeFile(configFile,JSON.stringify({mode,documents,bounded:documents,turn,statement:STATEMENT,...(product?{product:LIBRARY_PRODUCT}:{}),...(nativeMedusa?{nativeProduct:{id:nativeState.id,title:nativeState.title,description:nativeState.description,summary:nativeState.summary}}:{}),parserSecret,inputs:decisionSetup('not-a-discovered-goal',[]),reportFile}),{mode:0o600});await writeFixture(1);
+ return {get app(){return app;},workspace,cid,asset,document,product,goal,nativeState,writeFixture,parserCalls:()=>parserCalls,readProvider:async()=>JSON.parse(await fs.readFile(reportFile,'utf8')),
+  async restartNativeContract(action){
+   assert.equal(hooks,null);await app.close();sessions.clear();const next=JSON.parse(await fs.readFile(reviewFile,'utf8'));
+   if(action==='add'){next.libraryModelReadPolicy.nativeMedusa=structuredClone(nativeSelection);await fs.writeFile(tokenFile,nativeToken,{mode:0o600});environment.WORKSPACE_MEDUSA_MODEL_READ_TOKEN_FILE=tokenFile;}
+   else if(action==='remove'){delete next.libraryModelReadPolicy.nativeMedusa;delete environment.WORKSPACE_MEDUSA_MODEL_READ_TOKEN_FILE;}
+   else if(action==='change')next.libraryModelReadPolicy.nativeMedusa.fields=['title'];
+   else if(action!=='same')throw Error('Unknown synthetic restart case');
+   await fs.writeFile(reviewFile,JSON.stringify(next),{mode:0o600});app=await bootReviewed();
+  },
   sessionDiagnostics:async()=>{const map=app.store.read().conversations.find(c=>c.id===cid).businessAgentSession;if(!map)return {mapped:false};const entries=(await fs.readFile(map.sessionFile,'utf8')).trim().split('\n').map(JSON.parse);return {mapped:true,loopRedirects:entries.filter(e=>e.customType==='tool-call-loop-redirect').map(e=>({customType:e.customType,count:Number.isSafeInteger(e.details?.count)?e.details.count:null})),failedTools:entries.map(e=>e.message).filter(m=>m?.role==='toolResult'&&m.isError).map(m=>({toolName:m.toolName,reason:/^[A-Z][A-Z0-9_]{0,95}$/.test(m.details?.reason||'')?m.details.reason:null}))};},
   mapping:()=>app.store.read().conversations.find(c=>c.id===cid).businessAgentSession,
   messages:async()=>{const map=app.store.read().conversations.find(c=>c.id===cid).businessAgentSession;return(await fs.readFile(map.sessionFile,'utf8')).trim().split('\n').map(JSON.parse).map(e=>e.message).filter(Boolean);}};

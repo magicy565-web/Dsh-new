@@ -61,6 +61,8 @@
     "build:omp": "node scripts/build-omp.mjs",
     "test:omp": "node --test test/workspace-omp-unified.test.mjs",
     "test:market": "node --test plugins/workspace-market/test",
+    "test:product-library": "node --test plugins/workspace-product-library/test/plugin.test.mjs integrations/dsh-product-library/test/index.test.mjs test/product-library-proxy.test.mjs",
+    "harness:serve": "node scripts/harness-serve.mjs",
     "legacy:workspace": "node --env-file-if-exists=.env scripts/workspace-omp-legacy.mjs",
     "test:medusa-live": "node scripts/medusa-catalog-live-smoke.mjs"
   },

@@ -4,13 +4,17 @@ import path from 'node:path';
 import {projectPlugins} from '../server/workspace-plugin-config.mjs';
 import {workspaceOmpPaths} from '../server/workspace-omp-runtime.mjs';
 import {loadWorkspaceOmpSdk} from '../server/workspace-omp-session.mjs';
-globalThis.fetch=async()=>{throw Error('BUILD_NETWORK_FORBIDDEN');};
-const plugins=await projectPlugins(),sdk=await loadWorkspaceOmpSdk(workspaceOmpPaths({}).packageRoot),results=[];
-const temporary=await fs.mkdtemp(path.resolve('.cache/build-'));
-try{
+export async function compileAndLoadPlugins(plugins,sdk,temporary){
+  const results=[];
   for(const plugin of plugins.installed){
     const built=await Bun.build({entrypoints:plugin.extensions,target:'bun',format:'esm',packages:'external',write:false});
     if(!built.success)throw Error('NATIVE_PLUGIN_COMPILE_FAILED: '+plugin.id+' '+built.logs.join(' '));
+    // Disabled/unselected packages retain static checks, but their optional
+    // peers and module side effects must not become default build requirements.
+    if(!plugin.enabled){
+      results.push({id:plugin.id,compiled:true,nativeDiscovered:false,nativeLoaded:false,registeredTools:[],businessToolsExecuted:0});
+      continue;
+    }
     const discovered=await sdk.discoverExtensionPaths([plugin.directory],temporary,undefined,{ambient:false});
     const exact=discovered.filter(file=>plugin.extensions.includes(file));
     if(exact.length!==plugin.extensions.length)throw Error('NATIVE_PLUGIN_DISCOVERY_FAILED: '+plugin.id);
@@ -18,6 +22,14 @@ try{
     if(loaded.errors.length)throw Error('NATIVE_PLUGIN_LOAD_FAILED: '+plugin.id+' '+JSON.stringify(loaded.errors));
     results.push({id:plugin.id,compiled:true,nativeDiscovered:true,nativeLoaded:true,registeredTools:loaded.extensions.flatMap(e=>[...e.tools.keys()]),businessToolsExecuted:0});
   }
+  return results;
+}
+if(import.meta.main){
+globalThis.fetch=async()=>{throw Error('BUILD_NETWORK_FORBIDDEN');};
+const plugins=await projectPlugins(),sdk=await loadWorkspaceOmpSdk(workspaceOmpPaths({}).packageRoot);
+const temporary=await fs.mkdtemp(path.resolve('.cache/build-'));
+try{
+  const results=await compileAndLoadPlugins(plugins,sdk,temporary);
   // Native loader lifecycle without persistent Session writes or business calls.
   const lifecycleRoot=path.join(temporary,'plugins');await fs.mkdir(lifecycleRoot);
   await fs.cp(path.resolve('plugins/workspace-plugin-info'),path.join(lifecycleRoot,'workspace-plugin-info'),{recursive:true});
@@ -35,3 +47,4 @@ try{
     lifecycle:{nativeEnableLoad:true,disabledNotDiscovered:true,noPluginsNotDiscovered:true,uninstalledNotDiscovered:true},
     persistentSessionTests:'separate; not implied by compile/load success'}));
 }finally{await fs.rm(temporary,{recursive:true,force:true});}
+}

@@ -8,6 +8,38 @@ import { multiVariantPreview, inspectReviewedVariants } from './shopify-variant-
 // never a model tool and does not own approvals, a queue, or a separate store.
 export const SUPPLIER_SHOPIFY_ADAPTER = 'workspace-supplier-shopify';
 export const SUPPLIER_SHOPIFY_ACTIONS = Object.freeze(['supplier.shopify.draft', 'supplier.shopify.publish', 'supplier.shopify.repair_draft']);
+
+/**
+ * Target descriptor. The supplier publication flow reads this instead of
+ * hard-coding Shopify identifiers, so a second commerce target (Medusa) can
+ * implement the same contract without forking the business flow.
+ * See docs/MEDUSA-SHOPIFY-PARITY.md.
+ */
+export const SUPPLIER_SHOPIFY_TARGET = Object.freeze({
+  id: 'shopify',
+  label: 'Shopify',
+  adapter: SUPPLIER_SHOPIFY_ADAPTER,
+  actions: SUPPLIER_SHOPIFY_ACTIONS,
+  connectorRequestId: 'builtin-supplier-shopify-connector-v1',
+  connectorName: '供应商 Shopify 商品发布',
+  connectorDescription: 'Explicitly reviewed supplier retail fields/images, draft creation and exact-channel publication.',
+  credentialRefs: Object.freeze({ shopify: 'WORKSPACE_SHOPIFY_ADMIN_TOKEN' }),
+  resourcePrefix: 'shopify',
+  isProductId: value => /^gid:\/\/shopify\/Product\/\d+$/u.test(value ?? ''),
+  isVariantId: value => /^gid:\/\/shopify\/ProductVariant\/\d+$/u.test(value ?? ''),
+  isPublicationId: value => /^gid:\/\/shopify\/Publication\/\d+$/u.test(value ?? ''),
+  actionName: action => `supplier.shopify.${action}`,
+  draftStatus: 'shopify_draft',
+  clientConfigured: ({ commerce, shopify }) => Boolean((commerce ?? shopify)?.status?.().configured),
+  /** Identity/capability verification owned by the target, not the business flow. */
+  verify: ({ commerce, shopify }) => (commerce ?? shopify).verify(),
+  allowsAction: (verified, action) => Array.isArray(verified?.scopes)
+    && verified.scopes.includes('write_products')
+    && (action === 'publish' ? verified.scopes.includes('write_publications') : true),
+  consumerCurrency: verified => verified?.shop?.currency ?? null,
+  scopeFields: (verified, body) => ({ shopDomain: verified.shop.domain, shopId: verified.shop.id, publicationId: body.publicationId || null }),
+});
+
 const NS = 'cnsubscribe_workspace';
 const gid = (kind, value) => typeof value === 'string' && new RegExp(`^gid://shopify/${kind}/\\d+$`).test(value);
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -208,6 +240,7 @@ export function createShopifyPublicationAdapter({ environment = process.env, fet
     return media;
   }
   const adapter = {
+    target: SUPPLIER_SHOPIFY_TARGET,
     status, fingerprint, reconcile, planRepair,
     capabilities: [...SUPPLIER_SHOPIFY_ACTIONS], credentialEnvNames: ['WORKSPACE_SHOPIFY_ADMIN_TOKEN'],
     actionDescriptions: { 'supplier.shopify.draft': 'Create one reviewed Shopify draft and transfer only its explicitly reviewed retail fields/images.', 'supplier.shopify.publish': 'Activate and publish one exact approved draft to one existing selected Shopify publication.', 'supplier.shopify.repair_draft': 'Complete only a separately reviewed missing retail-variant step on one exact existing draft; never create, upload, activate or publish.' },

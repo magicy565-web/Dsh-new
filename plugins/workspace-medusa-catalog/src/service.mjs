@@ -29,15 +29,20 @@ const descriptions = {
   preview: 'Read only a currently authorized original Library product revision for Medusa draft preview. Does not send data to Medusa or publish anything.',
   reconcile: 'Read back an exact originally selected product handle from the explicitly configured Medusa instance. No mutations, retries or publishing.',
 };
+const nativeContextInput=object({productId:{type:'string',pattern:'^prod_[A-Za-z0-9_-]{1,123}$',maxLength:128}});
+function validateNativeInput(input){
+  if(!input||Object.getPrototypeOf(input)!==Object.prototype||Object.keys(input).join(',')!=='productId'||typeof input.productId!=='string'||!/^prod_[A-Za-z0-9_-]{1,123}$/u.test(input.productId))throw Error('Exact native Medusa product required.');
+  return {productId:input.productId};
+}
 // Trusted in-process service boundary. The injected original client remains the
 // data/authorization authority; callers still need Host final-disclosure checks.
 export function createMedusaCatalogService({ client, authorize } = {}) {
-  return Object.freeze(Object.fromEntries(MEDUSA_CATALOG_METHODS.map(method => [method,
+  return Object.freeze(Object.fromEntries([...MEDUSA_CATALOG_METHODS,...(typeof client?.context==='function'?['context']:[])].map(method => [method,
     async (args, signal, model) => {
       let receipt;
       try {
         signal?.throwIfAborted();
-        const input = validateMedusaCatalogInput(method, args);
+        const input = method==='context'?validateNativeInput(args):validateMedusaCatalogInput(method, args);
         if (!client?.[method] || typeof authorize !== 'function') receipt = {
           plugin: MEDUSA_CATALOG_PLUGIN, status: 'unconfigured', reason: 'ORIGINAL_REVIEWED_HOST_REQUIRED', sources: [],
         };
@@ -57,11 +62,13 @@ export function createMedusaCatalogService({ client, authorize } = {}) {
     },
   ])));
 }
-export function medusaCatalogToolDefinitions() {
-  return MEDUSA_CATALOG_METHODS.map((method, index) => ({
+export function medusaCatalogToolDefinitions({nativeContext=false}={}) {
+  return [...MEDUSA_CATALOG_METHODS.map((method, index) => ({
     method, name: MEDUSA_CATALOG_TOOLS[index], label: 'Medusa catalog ' + method,
     description: descriptions[method], parameters: structuredClone(MEDUSA_CATALOG_INPUTS[method]), approval: 'read',
-  }));
+  })),...(nativeContext?[{method:'context',name:'workspace_medusa_context',label:'Native Medusa product context',
+    description:'Read only the native product fields independently authorized for this exact member, model and current approval. Use workspace_medusa_status for reviewed native IDs. Space references are not model permission. No writes.',
+    parameters:structuredClone(nativeContextInput),approval:'read'}]:[])];
 }
 
 export { createMedusaApprovedSource, MedusaApprovedSourceError } from './approved-source.mjs';

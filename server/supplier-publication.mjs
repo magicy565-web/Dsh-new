@@ -1,29 +1,40 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import { supplierFail, supplierHash } from './supplier-profile.mjs';
 import { assertSupplierProductSource, supplierFind, supplierRegistry, supplierRequest } from './supplier-draft.mjs';
-import { SUPPLIER_SHOPIFY_ADAPTER, SUPPLIER_SHOPIFY_ACTIONS } from './shopify-publication.mjs';
+import { SUPPLIER_SHOPIFY_TARGET } from './shopify-publication.mjs';
 
 const gid = (kind, value) => typeof value === 'string' && new RegExp(`^gid://shopify/${kind}/\\d+$`).test(value);
 const sha = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const clone = value => structuredClone(value);
-const receiptValid = (value, operation) => value && value.previewHash === operation.scope.previewHash && gid('Product', value.productId) && value.shopId === operation.scope.shopId && value.shopDomain === operation.scope.shopDomain && Array.isArray(value.variantIds) && value.variantIds.every(id => gid('ProductVariant', id));
+const receiptValidFor = (target, value, operation) => Boolean(value)
+  && value.previewHash === operation.scope.previewHash
+  && target.isProductId(value.productId)
+  && (value.shopId ?? null) === (operation.scope.shopId ?? null)
+  && (value.shopDomain ?? null) === (operation.scope.shopDomain ?? null)
+  && Array.isArray(value.variantIds)
+  && value.variantIds.every(id => target.isVariantId(id));
 
 /** Business receipts stay on the original supplier entity; approvals and
  * connector executions stay in the original capability collections. */
-export async function createSupplierPublication({ store, capabilities, shopify, adapter, clock = Date.now, connectorId = null } = {}) {
-  if (!store || !capabilities || !shopify || !adapter) throw new TypeError('Use the existing Workspace store, capabilities, Shopify client and publication adapter.');
+export async function createSupplierPublication({ store, capabilities, shopify, adapter, commerce = shopify, clock = Date.now, connectorId = null } = {}) {
+  if (!store || !capabilities || !(shopify || commerce) || !adapter) throw new TypeError('Use the existing Workspace store, capabilities, commerce client and publication adapter.');
+  // The business flow reads the commerce target from the adapter. Shopify is the
+  // default only for adapters that predate the descriptor. See
+  // docs/MEDUSA-SHOPIFY-PARITY.md.
+  const target = adapter.target ?? SUPPLIER_SHOPIFY_TARGET;
+  const receiptValid = (value, operation) => receiptValidFor(target, value, operation);
   const at = () => new Date(clock()).toISOString();
   const originalConnectors = () => store.read().capabilities?.connectors || [];
-  if (!connectorId) connectorId = originalConnectors().find(item => item.adapter === SUPPLIER_SHOPIFY_ADAPTER)?.id || null;
+  if (!connectorId) connectorId = originalConnectors().find(item => item.adapter === target.adapter)?.id || null;
   async function ensureConnector() {
-    connectorId ||= originalConnectors().find(item => item.adapter === SUPPLIER_SHOPIFY_ADAPTER)?.id || null;
-    if (!connectorId) connectorId = (await capabilities.createConnector({ requestId: 'builtin-supplier-shopify-connector-v1', name: '供应商 Shopify 商品发布', description: 'Explicitly reviewed supplier retail fields/images, draft creation and exact-channel publication.', adapter: SUPPLIER_SHOPIFY_ADAPTER, capabilities: [...SUPPLIER_SHOPIFY_ACTIONS], credentialRefs: { shopify: 'WORKSPACE_SHOPIFY_ADMIN_TOKEN' }, enabled: false })).connector.id;
+    connectorId ||= originalConnectors().find(item => item.adapter === target.adapter)?.id || null;
+    if (!connectorId) connectorId = (await capabilities.createConnector({ requestId: target.connectorRequestId, name: target.connectorName, description: target.connectorDescription, adapter: target.adapter, capabilities: [...target.actions], credentialRefs: { ...target.credentialRefs }, enabled: false })).connector.id;
     return connector();
   }
   function connector() {
     if (!connectorId) return { id: null, status: 'not_configured', enabled: false };
     const value = originalConnectors().find(item => item.id === connectorId);
-    if (!value || value.adapter !== SUPPLIER_SHOPIFY_ADAPTER) supplierFail(409, 'SUPPLIER_CONNECTOR_REQUIRED', 'Use the original registered supplier Shopify connector.');
+    if (!value || value.adapter !== target.adapter) supplierFail(409, 'SUPPLIER_CONNECTOR_REQUIRED', 'Use the original registered supplier commerce connector.');
     return capabilities.getConnector(connectorId);
   }
   function locate(state, actor, cid, sid, operationId) {
@@ -92,7 +103,7 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
     return { ...clone(operation), approvalStatus: approval?.status || null, approval, stale, businessCompletion: operation.receipt?.published ? 'published' : operation.receipt?.found ? 'draft_only' : 'not_completed', canExecute: !stale && operation.status === 'approved' && approval?.status === 'approved' && Date.parse(approval.expiresAt) > clock(), canReconcile: !!operation.connectorRunId && operation.status !== 'running', automaticRetry: false };
   };
   function binding(operation) { return { type: 'supplier-publication', subject: operation.scope.subject, workspaceId: operation.scope.workspaceId, conversationId: operation.scope.conversationId, serviceId: operation.scope.serviceId, operationId: operation.id, scopeHash: operation.scopeHash }; }
-  const executionInput = operation => ({ action: `supplier.shopify.${operation.action}`, resource: `shopify:${operation.scope.shopDomain}:${operation.scope.productId || operation.scope.handle}:${operation.scope.publicationId || 'draft'}`, payload: clone(operation.scope) });
+  const executionInput = operation => ({ action: target.actionName(operation.action), resource: `${target.resourcePrefix}:${operation.scope.shopDomain}:${operation.scope.productId || operation.scope.handle}:${operation.scope.publicationId || 'draft'}`, payload: clone(operation.scope) });
   return {
     get connectorId() { return connectorId; }, ensureConnector,
     status() { return { ...adapter.status(), connectorId, connectorStatus: connector().status, reviewRequired: true, deliveryChannel: 'original_conversation', externalNotifications: 'not_configured' }; },
@@ -119,7 +130,7 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
         async reviewPublication(cid, sid, body) {
           assertCaller(store.read());
           supplierRequest(body, ['expectedRevision', 'expectedPreviewHash', 'action', 'publicationId', 'draftOperationId', 'expectedRemoteContentHash', 'approveObservedMedia', 'confirmed']);
-          if (body.confirmed !== true || !['draft', 'publish', 'repair_draft'].includes(body.action) || !sha(body.expectedPreviewHash) || body.action === 'publish' && !gid('Publication', body.publicationId) || body.action !== 'publish' && body.publicationId !== undefined || body.action === 'repair_draft' && (typeof body.draftOperationId !== 'string' || !sha(body.expectedRemoteContentHash) || body.approveObservedMedia !== undefined && typeof body.approveObservedMedia !== 'boolean') || body.action !== 'repair_draft' && ['draftOperationId', 'expectedRemoteContentHash', 'approveObservedMedia'].some(field => body[field] !== undefined)) supplierFail(400, 'SUPPLIER_PUBLICATION_REVIEW_INVALID', 'Explicitly review a draft, one publication, or the exact reconciled missing-step repair.');
+          if (body.confirmed !== true || !['draft', 'publish', 'repair_draft'].includes(body.action) || !sha(body.expectedPreviewHash) || body.action === 'publish' && !target.isPublicationId(body.publicationId) || body.action !== 'publish' && body.publicationId !== undefined || body.action === 'repair_draft' && (typeof body.draftOperationId !== 'string' || !sha(body.expectedRemoteContentHash) || body.approveObservedMedia !== undefined && typeof body.approveObservedMedia !== 'boolean') || body.action !== 'repair_draft' && ['draftOperationId', 'expectedRemoteContentHash', 'approveObservedMedia'].some(field => body[field] !== undefined)) supplierFail(400, 'SUPPLIER_PUBLICATION_REVIEW_INVALID', 'Explicitly review a draft, one publication, or the exact reconciled missing-step repair.');
           const before = supplierFind(store.read(), actor, cid, sid), prior = replay(store.read(), actor, sid, 'publication_review', body).previous;
           assertSupplierProductSource(store.read(), before);
           if (prior) { await ensureApproval(cid, sid, prior.result.operationId); return response(cid, sid, prior.result.operationId, { duplicate: true }); }
@@ -127,17 +138,17 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
           const readiness = adapter.status();
           if (readiness.enabled && readiness.configured) await ensureConnector();
           const selectedConnector = connector();
-          if (!readiness.configured || !shopify.status().configured || !readiness.enabled || selectedConnector.status !== 'ready') return { service: getService(cid, sid), operation: null, approval: null, status: 'blocked', error: { code: !readiness.configured || !shopify.status().configured ? 'SHOPIFY_SETUP_REQUIRED' : 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', message: 'Configure and explicitly enable the existing host Shopify connector before preparing a write approval.' } };
-          if (!selectedConnector.capabilities.includes(`supplier.shopify.${body.action}`)) return { service: getService(cid, sid), operation: null, approval: null, status: 'blocked', error: { code: body.action === 'repair_draft' ? 'SUPPLIER_REPAIR_CONNECTOR_REVIEW_REQUIRED' : 'SUPPLIER_PUBLICATION_CAPABILITY_REQUIRED', message: 'The existing Connector does not declare this separately reviewed action. Its capabilities were not expanded automatically.' } };
-          const verified = await shopify.verify();
-          if (!verified.scopes.includes('write_products') || body.action === 'publish' && !verified.scopes.includes('write_publications')) supplierFail(409, 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', 'The existing shop grant does not allow this exact operation.');
-          if (verified.shop.currency !== before.preview.market.currency) supplierFail(409, 'SHOPIFY_CURRENCY_MISMATCH', 'Consumer price currency must match the actual shop; no implicit conversion is performed.');
+          if (!readiness.configured || !target.clientConfigured({ commerce, shopify, adapter }) || !readiness.enabled || selectedConnector.status !== 'ready') return { service: getService(cid, sid), operation: null, approval: null, status: 'blocked', error: { code: !readiness.configured || !target.clientConfigured({ commerce, shopify, adapter }) ? 'SHOPIFY_SETUP_REQUIRED' : 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', message: 'Configure and explicitly enable the existing host Shopify connector before preparing a write approval.' } };
+          if (!selectedConnector.capabilities.includes(target.actionName(body.action))) return { service: getService(cid, sid), operation: null, approval: null, status: 'blocked', error: { code: body.action === 'repair_draft' ? 'SUPPLIER_REPAIR_CONNECTOR_REVIEW_REQUIRED' : 'SUPPLIER_PUBLICATION_CAPABILITY_REQUIRED', message: 'The existing Connector does not declare this separately reviewed action. Its capabilities were not expanded automatically.' } };
+          const verified = await target.verify({ commerce, shopify, adapter });
+          if (!target.allowsAction(verified, body.action)) supplierFail(409, 'SHOPIFY_PRODUCT_WRITE_NOT_AUTHORIZED', 'The existing shop grant does not allow this exact operation.');
+          if (target.consumerCurrency(verified) !== before.preview.market.currency) supplierFail(409, 'SHOPIFY_CURRENCY_MISMATCH', 'Consumer price currency must match the actual shop; no implicit conversion is performed.');
           let originalDraft = null, draftReceipt = null, repair = null;
           if (body.action === 'publish') {
             originalDraft = [...(before.publicationOperations || [])].reverse().find(item => item.action === 'draft' && item.scope.previewHash === before.preview.previewHash && ['succeeded', 'partial'].includes(item.status) && receiptValid(item.receipt, item));
             if (!originalDraft) supplierFail(409, 'SHOPIFY_DRAFT_REQUIRED', 'Create and verify the exact reviewed Shopify draft before preparing publication.');
             draftReceipt = await adapter.reconcile(originalDraft.scope);
-            if (!draftReceipt.complete || draftReceipt.status !== 'shopify_draft') supplierFail(409, 'SHOPIFY_DRAFT_CHANGED', 'The actual remote draft must match this exact preview and ready media.');
+            if (!draftReceipt.complete || draftReceipt.status !== target.draftStatus) supplierFail(409, 'SHOPIFY_DRAFT_CHANGED', 'The actual remote draft must match this exact preview and ready media.');
           }
           if (body.action === 'repair_draft') {
             originalDraft = before.publicationOperations?.find(item => item.id === body.draftOperationId && item.action === 'draft' && item.scope.previewHash === before.preview.previewHash);
@@ -163,13 +174,13 @@ export async function createSupplierPublication({ store, capabilities, shopify, 
             if (outstanding) { if (outstanding.scope.previewHash !== row.preview.previewHash) supplierFail(409, 'SUPPLIER_PUBLICATION_PENDING', 'Resolve the previous original publication review before preparing another version.'); remember(state, actor, sid, 'publication_review', body, { operationId: outstanding.id }); return { operationId: outstanding.id }; }
             if (body.action === 'draft' && operations.some(item => item.action === 'draft' && item.receipt?.found)) supplierFail(409, 'SUPPLIER_EXISTING_REMOTE_PRODUCT', 'The original remote draft already exists. Reconcile it; creating another product is not an update.');
             if (repair && (!row.publicationOperations.some(item => item.id === originalDraft.id && item.status === 'partial' && item.receipt?.remoteContentHash === body.expectedRemoteContentHash) || row.publicationOperations.some(item => item.action === 'publish' && item.connectorRunId && item.scope.productId === draftReceipt.productId))) supplierFail(409, 'SHOPIFY_REPAIR_STALE', 'The original draft or publication changed during preparation.');
-            const id = randomUUID(), scope = { schema: 'workspace.supplier-publication-scope.v1', operationId: id, action: body.action, subject: actor.subject, actorRole: actor.role, workspaceId: actor.workspaceId, conversationId: cid, serviceId: sid, serviceRevision: row.revision, previewHash: row.preview.previewHash, previewSnapshotHash: supplierHash(row.preview), preview: clone(row.preview), shopDomain: verified.shop.domain, shopId: verified.shop.id, configFingerprint: adapter.fingerprint, publicationId: body.publicationId || null, handle: originalDraft?.scope.handle || `cnsub-${supplierHash([actor.workspaceId, actor.subject, sid, id]).slice(0,32)}`, productId: draftReceipt?.productId || null, variantIds: draftReceipt?.variantIds || [], remoteContentHash: draftReceipt?.remoteContentHash || null, draftOperationId: originalDraft?.id || null, draftScopeHash: originalDraft?.scopeHash || null, draftScope: originalDraft ? clone(originalDraft.scope) : null, ...(repair ? { repair: clone(repair) } : {}), budget: { modelCalls: 0, paidServiceCalls: 0, source: 'original_business_service' }, transfer: { images: row.preview.images.map(image => image.kind === 'artifact' ? { kind: image.kind, asset: clone(image.asset), sourceNote: image.sourceNote } : { kind: image.kind, url: image.url, sourceNote: image.sourceNote }), approvedPublicFields: clone(row.preview.publicFields) } };
+            const id = randomUUID(), scope = { schema: 'workspace.supplier-publication-scope.v1', operationId: id, action: body.action, subject: actor.subject, actorRole: actor.role, workspaceId: actor.workspaceId, conversationId: cid, serviceId: sid, serviceRevision: row.revision, previewHash: row.preview.previewHash, previewSnapshotHash: supplierHash(row.preview), preview: clone(row.preview), ...target.scopeFields(verified, body), configFingerprint: adapter.fingerprint, handle: originalDraft?.scope.handle || `cnsub-${supplierHash([actor.workspaceId, actor.subject, sid, id]).slice(0,32)}`, productId: draftReceipt?.productId || null, variantIds: draftReceipt?.variantIds || [], remoteContentHash: draftReceipt?.remoteContentHash || null, draftOperationId: originalDraft?.id || null, draftScopeHash: originalDraft?.scopeHash || null, draftScope: originalDraft ? clone(originalDraft.scope) : null, ...(repair ? { repair: clone(repair) } : {}), budget: { modelCalls: 0, paidServiceCalls: 0, source: 'original_business_service' }, transfer: { images: row.preview.images.map(image => image.kind === 'artifact' ? { kind: image.kind, asset: clone(image.asset), sourceNote: image.sourceNote } : { kind: image.kind, url: image.url, sourceNote: image.sourceNote }), approvedPublicFields: clone(row.preview.publicFields) } };
             const operation = { id, action: body.action, status: 'preparing', scope, scopeHash: supplierHash(scope), approvalId: null, connectorId, connectorRunId: null, createdAt: at(), updatedAt: at(), receipt: null, error: null, steps: [] };
             operations.push(operation); remember(state, actor, sid, 'publication_review', body, { operationId: id }); return { operationId: id };
           });
           await ensureApproval(cid, sid, admitted.operationId);
           const operation = locate(store.read(), actor, cid, sid, admitted.operationId).operation;
-          return response(cid, sid, operation.id, { review: { title: body.action === 'draft' ? '创建已审阅的 Shopify 草稿' : body.action === 'repair_draft' ? '修复已对账的原 Shopify 草稿缺失步骤' : '正式发布已审阅的 Shopify 商品', scopeHash: operation.scopeHash, scope: clone(operation.scope), createsDraftOnly: body.action === 'draft', publishes: body.action === 'publish', ...(body.action === 'repair_draft' ? { repairsExistingDraft: true, createsProduct: false, uploadsMedia: false, repairSteps: clone(operation.scope.repair.steps), approveObservedMedia: operation.scope.repair.approveObservedMedia } : {}), automaticRetry: false } });
+          return response(cid, sid, operation.id, { review: { title: body.action === 'draft' ? '鍒涘缓宸插闃呯殑 Shopify 鑽夌' : body.action === 'repair_draft' ? '淇宸插璐︾殑鍘?Shopify 鑽夌缂哄け姝ラ' : '姝ｅ紡鍙戝竷宸插闃呯殑 Shopify 鍟嗗搧', scopeHash: operation.scopeHash, scope: clone(operation.scope), createsDraftOnly: body.action === 'draft', publishes: body.action === 'publish', ...(body.action === 'repair_draft' ? { repairsExistingDraft: true, createsProduct: false, uploadsMedia: false, repairSteps: clone(operation.scope.repair.steps), approveObservedMedia: operation.scope.repair.approveObservedMedia } : {}), automaticRetry: false } });
         },
         async decidePublication(cid, sid, body) {
           const found = checked(cid, sid, body, ['decision']);

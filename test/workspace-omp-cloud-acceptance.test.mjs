@@ -6,6 +6,7 @@ import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {workspaceOmpPaths} from '../server/workspace-omp-runtime.mjs';
 import {projectPlugins} from '../server/workspace-plugin-config.mjs';
+import {supplyReviewedFreeTradePeer} from './fixtures/reviewed-free-trade-peer.mjs';
 const expectedPluginIds = Object.freeze([
   "workspace-enterprise-context",
   "workspace-erpnext-enterprise",
@@ -93,6 +94,7 @@ test('fixed plugin inventory includes ERPNext and retains local-only defaults',a
 });
 test('each fixed plugin compiles, registers, disables and physically uninstalls with the original native loader',{timeout:30000},async t=>{
   const root=await fs.mkdtemp('/tmp/omp-cloud-lifecycle-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  await supplyReviewedFreeTradePeer(root);
   const result=await start('plugins',root).done;assert.equal(result.passed,true);
   assert.deepEqual(result.plugins.map(plugin=>plugin.id).sort(),expectedPluginIds);
   console.log(JSON.stringify(result));

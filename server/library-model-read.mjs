@@ -3,6 +3,7 @@ import { createFactoryMaterialsRead, validateFactoryMaterialsPolicy } from './fa
 import { looksLikeCredential } from './security.mjs';
 import { COMPANY_MODEL_FIELDS, PRODUCT_MODEL_FIELDS, libraryReadHash, normalizeLibraryRecipient } from './library-model-read-contract.mjs';
 import { asset as ingestionAsset } from '../plugins/workspace-factory-ingestion/src/contract.mjs';
+import { validateNativeMedusaPolicy } from './medusa-native-model-read.mjs';
 
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
 const fail = (status, code, message) => { throw new ApiError(status, code, message); };
@@ -14,10 +15,12 @@ const fields = (value, allowed) => Array.isArray(value) && value.length > 0 && n
 // projection policy after user approval. Default requests read no library data.
 export function createLibraryModelRead({ library, artifacts, access, policy = null, clock = Date.now }) {
   let scope = null;
+  validateNativeMedusaPolicy(policy?.nativeMedusa);
+  if(policy?.nativeMedusa?.enabled&&policy.enabled!==true)throw new TypeError('Native Medusa disclosure requires the original enabled Library policy.');
   if (policy !== null && (!policy || typeof policy !== 'object' || Array.isArray(policy) || typeof policy.enabled !== 'boolean'))
     throw new TypeError('Library model-read policy must be explicitly enabled or disabled.');
   if (policy?.enabled === true) {
-    if (access.mode !== 'enterprise' || !exact(policy, ['enabled', 'reviewed', 'workspaceId', 'subject', 'expiresAt', 'recipient', 'company', 'products', 'productFields', 'factoryMaterials', 'factoryIngestion'])
+    if (access.mode !== 'enterprise' || !exact(policy, ['enabled', 'reviewed', 'workspaceId', 'subject', 'expiresAt', 'recipient', 'company', 'products', 'productFields', 'factoryMaterials', 'factoryIngestion','nativeMedusa'])
       || policy.reviewed !== true || typeof policy.workspaceId !== 'string' || !policy.workspaceId || typeof policy.subject !== 'string' || !policy.subject
       || typeof policy.expiresAt !== 'string' || !Number.isFinite(Date.parse(policy.expiresAt))
       || policy.company !== null && (!exact(policy.company, ['revision', 'fields']) || !Number.isSafeInteger(policy.company.revision) || policy.company.revision < 1 || !fields(policy.company.fields, COMPANY_MODEL_FIELDS))
@@ -40,7 +43,8 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
     }
     scope = structuredClone({ workspaceId: policy.workspaceId, subject: policy.subject, expiresAt: policy.expiresAt,
       recipient: normalizeLibraryRecipient(policy.recipient), company: policy.company, products: policy.products, productFields: policy.productFields,
-      ...(policy.factoryMaterials === undefined ? {} : { factoryMaterials: policy.factoryMaterials }), ...(policy.factoryIngestion === undefined ? {} : { factoryIngestion: policy.factoryIngestion }) });
+      ...(policy.factoryMaterials === undefined ? {} : { factoryMaterials: policy.factoryMaterials }), ...(policy.factoryIngestion === undefined ? {} : { factoryIngestion: policy.factoryIngestion }),
+      ...(policy.nativeMedusa?.enabled?{nativeMedusa:policy.nativeMedusa}:{}) });
   }
   const authorization = scope && { scopeFingerprint: libraryReadHash(scope), recipient: scope.recipient,
     workspaceId: scope.workspaceId, subject: scope.subject, expiresAt: scope.expiresAt };
@@ -60,6 +64,19 @@ export function createLibraryModelRead({ library, artifacts, access, policy = nu
       projectionSha256: libraryReadHash(value), api: '/api/library/model-read/' + (kind === 'company' ? 'company' : 'products/' + record.id) } };
   }
   return {
+    nativeMedusaForSession({identity,recipientHash,signal}){
+      if(!scope?.nativeMedusa)return null;
+      const selected={workspaceId:scope.workspaceId,subject:scope.subject,expiresAt:scope.expiresAt,recipient:scope.recipient,nativeMedusa:scope.nativeMedusa};
+      const scopeHash=libraryReadHash(selected);
+      const assertCurrent=()=>{
+        signal?.throwIfAborted();const live=access.nativeSessionById(identity?.sessionId);
+        if(!live||live.subject!==identity.subject||live.workspaceId!==identity.workspaceId||live.role!==identity.role)fail(403,'LIBRARY_SESSION_SCOPE_REQUIRED','The original Session changed.');
+        authorize({...live,session:live},recipientHash,true);
+        if(policy.enabled!==true||policy.reviewed!==true||libraryReadHash({workspaceId:policy.workspaceId,subject:policy.subject,expiresAt:policy.expiresAt,recipient:normalizeLibraryRecipient(policy.recipient),nativeMedusa:policy.nativeMedusa})!==scopeHash)
+          fail(403,'MEDUSA_SOURCE_CHANGED','The native model disclosure contract changed or was revoked.');
+      };
+      assertCurrent();return {scope:structuredClone(selected),scopeHash,assertCurrent};
+    },
     // Same original document/Session authority, without running an extractor.
     // A service adapter can narrow this scope but cannot create a grant.
     factoryDocumentForSession({identity,recipientHash,asset,signal}) {

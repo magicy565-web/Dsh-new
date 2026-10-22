@@ -23,7 +23,7 @@ function projection(row, binding) {
   if (!context || context.status !== 'approved' || !Number.isInteger(context.review_version) || context.review_version < 1 || context.review_version > 2147483647 || !HASH.test(context.source_hash) || !product || !ID.test(product.id) || context.product_id !== product.id || typeof product.title !== 'string' || !product.title.trim() || Buffer.byteLength(product.title) > 2000) fail('MEDUSA_APPROVED_SOURCE_INVALID');
   return { reference: { kind: 'medusa-product', id: product.id, revision: context.review_version, sourceId: binding.sourceId, sourceHash: context.source_hash }, title: product.title, referenceOnly: false };
 }
-export function createMedusaApprovedSource({ connection = null, authorizeOriginal, fetchImpl = globalThis.fetch } = {}) {
+function createReader({ connection = null, authorizeOriginal, fetchImpl = globalThis.fetch } = {}) {
   const config = configuration(connection, authorizeOriginal, fetchImpl);
   const binding = config ? Object.freeze({ sourceId: config.sourceId, workspaceId: config.workspaceId }) : null;
   function check(actor) {
@@ -57,6 +57,10 @@ export function createMedusaApprovedSource({ connection = null, authorizeOrigina
     if (json?.schema_version !== '1.0' || json.review_policy !== 'medusa-product-context-current-source-v1') fail('MEDUSA_APPROVED_SOURCE_INVALID');
     return json;
   }
+  return { binding, check, request };
+}
+export function createMedusaApprovedSource(options = {}) {
+  const { binding, check, request } = createReader(options);
   return Object.freeze({ binding, assertCurrent: check,
     async list(query, actor, signal) {
       const { q = '', offset = '0' } = query;
@@ -77,6 +81,29 @@ export function createMedusaApprovedSource({ connection = null, authorizeOrigina
       const result = projection(payload, binding);
       if (result.reference.id !== id) fail('MEDUSA_APPROVED_SOURCE_INVALID');
       check(actor); return result;
+    },
+  });
+}
+
+// Separate trusted Host composition. A Space reader never exposes this method.
+// The Host must supply its independent model-policy/recipient/Session checker;
+// the transport token, remote approval and requested fields confer no grant.
+export function createMedusaModelSource(options = {}) {
+  const { binding, check, request } = createReader(options);
+  return Object.freeze({ binding,
+    async read(id, fields, actor, signal) {
+      if (typeof id !== 'string' || !/^prod_[A-Za-z0-9_-]{1,123}$/u.test(id)
+        || !Array.isArray(fields) || !fields.length || new Set(fields).size !== fields.length
+        || fields.some(field => !['title','description','agent_summary'].includes(field))) fail('MEDUSA_APPROVED_SOURCE_INPUT');
+      const payload = await request('/agent/product-contexts/' + encodeURIComponent(id), actor, signal);
+      if (!payload) fail('MEDUSA_APPROVED_SOURCE_INVALID');
+      const { reference } = projection(payload, binding);
+      if (reference.id !== id) fail('MEDUSA_APPROVED_SOURCE_INVALID');
+      const value = Object.fromEntries(fields.map(field => [field, field === 'agent_summary' ? payload.context[field] : payload.product[field]]));
+      if (Object.values(value).some(text => typeof text !== 'string' || !text.trim() || Buffer.byteLength(text) > 8000
+        || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text))) fail('MEDUSA_APPROVED_SOURCE_INVALID');
+      check(actor); signal?.throwIfAborted();
+      return { reference, fields: value };
     },
   });
 }

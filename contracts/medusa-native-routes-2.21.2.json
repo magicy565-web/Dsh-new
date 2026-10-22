@@ -1,0 +1,778 @@
+{
+  "medusa_version": "2.21.2",
+  "evidence": "installed SDK source inventory, not running service verification",
+  "domains": {
+    "products": [
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/images/[image_id]/variants/batch"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/options/batch"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/products/[id]/options"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/products/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/products/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/variants/[variant_id]/images/batch"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/products/[id]/variants/[variant_id]/inventory-items/[inventory_item_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/variants/[variant_id]/inventory-items/[inventory_item_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/variants/[variant_id]/inventory-items"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/products/[id]/variants/[variant_id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/products/[id]/variants/[variant_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/variants/[variant_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/variants/batch"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/variants/inventory-items/batch"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/products/[id]/variants"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/[id]/variants"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/batch"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/export"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/import/[transaction_id]/confirm"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/import"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/imports/[transaction_id]/confirm"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products/imports"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/products"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/products"
+      }
+    ],
+    "product-variants": [
+      {
+        "method": "GET",
+        "path": "/admin/product-variants"
+      }
+    ],
+    "product-categories": [
+      {
+        "method": "POST",
+        "path": "/admin/product-categories/[id]/products"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/product-categories/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/product-categories/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/product-categories/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/product-categories"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/product-categories"
+      }
+    ],
+    "collections": [
+      {
+        "method": "POST",
+        "path": "/admin/collections/[id]/products"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/collections/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/collections/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/collections/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/collections"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/collections"
+      }
+    ],
+    "price-lists": [
+      {
+        "method": "POST",
+        "path": "/admin/price-lists/[id]/prices/batch"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/price-lists/[id]/prices"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/price-lists/[id]/products"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/price-lists/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/price-lists/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/price-lists/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/price-lists"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/price-lists"
+      }
+    ],
+    "inventory-items": [
+      {
+        "method": "DELETE",
+        "path": "/admin/inventory-items/[id]/location-levels/[location_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/inventory-items/[id]/location-levels/[location_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/inventory-items/[id]/location-levels/batch"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/inventory-items/[id]/location-levels"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/inventory-items/[id]/location-levels"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/inventory-items/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/inventory-items/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/inventory-items/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/inventory-items/export"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/inventory-items/location-levels/batch"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/inventory-items"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/inventory-items"
+      }
+    ],
+    "stock-locations": [
+      {
+        "method": "POST",
+        "path": "/admin/stock-locations/[id]/fulfillment-providers"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/stock-locations/[id]/fulfillment-sets"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/stock-locations/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/stock-locations/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/stock-locations/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/stock-locations/[id]/sales-channels"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/stock-locations"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/stock-locations"
+      }
+    ],
+    "reservations": [
+      {
+        "method": "DELETE",
+        "path": "/admin/reservations/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/reservations/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/reservations/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/reservations"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/reservations"
+      }
+    ],
+    "customers": [
+      {
+        "method": "DELETE",
+        "path": "/admin/customers/[id]/addresses/[address_id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/customers/[id]/addresses/[address_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/customers/[id]/addresses/[address_id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/customers/[id]/addresses"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/customers/[id]/addresses"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/customers/[id]/customer-groups"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/customers/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/customers/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/customers/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/customers"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/customers"
+      }
+    ],
+    "orders": [
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/archive"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/cancel"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/orders/[id]/changes"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/complete"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/credit-lines"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/fulfillments/[fulfillment_id]/cancel"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/fulfillments/[fulfillment_id]/mark-as-delivered"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/fulfillments/[fulfillment_id]/shipments"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/fulfillments"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/orders/[id]/line-items"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/payment-sessions/authorize"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/orders/[id]/preview"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/orders/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/orders/[id]/shipping-options"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/transfer/cancel"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/transfer/guest"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/[id]/transfer"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/orders/export"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/orders"
+      }
+    ],
+    "payments": [
+      {
+        "method": "POST",
+        "path": "/admin/payments/[id]/capture"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/payments/[id]/refund"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/payments/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/payments/payment-providers"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/payments"
+      }
+    ],
+    "payment-collections": [
+      {
+        "method": "POST",
+        "path": "/admin/payment-collections/[id]/mark-as-paid"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/payment-collections/[id]/payment-sessions"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/payment-collections/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/payment-collections"
+      }
+    ],
+    "returns": [
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/cancel"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/returns/[id]/dismiss-items/[action_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/dismiss-items/[action_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/dismiss-items"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/receive/confirm"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/returns/[id]/receive"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/receive"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/returns/[id]/receive-items/[action_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/receive-items/[action_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/receive-items"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/returns/[id]/request"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/request"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/returns/[id]/request-items/[action_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/request-items/[action_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/request-items"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/returns/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/returns/[id]/shipping-method/[action_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/shipping-method/[action_id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns/[id]/shipping-method"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/returns"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/returns"
+      }
+    ],
+    "fulfillments": [
+      {
+        "method": "POST",
+        "path": "/admin/fulfillments/[id]/cancel"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/fulfillments/[id]/shipment"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/fulfillments"
+      }
+    ],
+    "promotions": [
+      {
+        "method": "GET",
+        "path": "/admin/promotions/[id]/[rule_type]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/promotions/[id]/buy-rules/batch"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/promotions/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/promotions/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/promotions/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/promotions/[id]/rules/batch"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/promotions/[id]/target-rules/batch"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/promotions"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/promotions"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/promotions/rule-attribute-options/[rule_type]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/promotions/rule-value-options/[rule_type]/[rule_attribute_id]"
+      }
+    ],
+    "sales-channels": [
+      {
+        "method": "POST",
+        "path": "/admin/sales-channels/[id]/products"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/sales-channels/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/sales-channels/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/sales-channels/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/sales-channels"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/sales-channels"
+      }
+    ],
+    "users": [
+      {
+        "method": "GET",
+        "path": "/admin/users/[id]/auth-providers"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/users/[id]/reset-password"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/users/[id]/roles/[role_id]"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/users/[id]/roles"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/users/[id]/roles"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/users/[id]/roles"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/users/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/users/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/users/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/users/me"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/users"
+      }
+    ],
+    "rbac": [
+      {
+        "method": "GET",
+        "path": "/admin/rbac/me/permissions"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/policies/[id]/roles"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/rbac/policies/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/policies/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/rbac/policies/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/policies/assignable"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/policies"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/rbac/policies"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/rbac/roles/[id]/policies/[policy_id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/roles/[id]/policies"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/rbac/roles/[id]/policies"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/rbac/roles/[id]"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/roles/[id]"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/rbac/roles/[id]"
+      },
+      {
+        "method": "DELETE",
+        "path": "/admin/rbac/roles/[id]/users"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/roles/[id]/users"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/rbac/roles/[id]/users"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/roles/assignable"
+      },
+      {
+        "method": "GET",
+        "path": "/admin/rbac/roles"
+      },
+      {
+        "method": "POST",
+        "path": "/admin/rbac/roles"
+      }
+    ]
+  }
+}

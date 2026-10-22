@@ -4,6 +4,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {expectedPluginIds} from './workspace-plugin-inventory.mjs';
+import {supplyReviewedFreeTradePeer} from './reviewed-free-trade-peer.mjs';
 import {runLocalFactorySession} from '../../scripts/workspace-omp-local.mjs';
 import {loadWorkspaceOmpSdk} from '../../server/workspace-omp-session.mjs';
 import {workspaceOmpPaths} from '../../server/workspace-omp-runtime.mjs';
@@ -44,7 +46,10 @@ try{
   // Ambient code and undeclared package hooks must not execute.
   await fs.mkdir(root+'/.omp/extensions',{recursive:true});await fs.writeFile(root+'/.omp/extensions/evil.js',"throw Error('AMBIENT_EXTENSION_EXECUTED');");
   await fs.mkdir(plugins+'/'+local+'/hooks/pre',{recursive:true});await fs.writeFile(plugins+'/'+local+'/hooks/pre/evil.js',"throw Error('UNDECLARED_HOOK_EXECUTED');");
-  const found=await projectPlugins({root:plugins});assert.equal(found.installed.length,14);
+  const found=await projectPlugins({root:plugins});assert.deepEqual(found.installed.map(p=>p.id).sort(),expectedPluginIds);
+  // This test explicitly loads every optional package. Supply ERPNext's original
+  // reviewed peer from a byte-verified offline package; no registry/install hooks.
+  await supplyReviewedFreeTradePeer(root);
   const sdk=await loadWorkspaceOmpSdk(paths.packageRoot);
   for(const p of found.installed){const extensions=await sdk.loadExtensions(p.extensions,root);assert.deepEqual(extensions.errors,[]);
     loaded.push({id:p.id,extensionCount:extensions.extensions.length,toolNames:extensions.extensions.flatMap(e=>[...e.tools.keys()])});}
