@@ -28,8 +28,8 @@ GET  /api/access/sessions                 仅管理员
 
 - 登录**只接受 loopback 来源**；远程部署必须由反向代理（Caddy Basic Auth 等）承担外层认证；
 - 没有密码：这是“本机单操作员”模型，不是多租户身份系统；
-- 没有 CSRF token：依赖 `SameSite=Strict` + JSON 请求体（跨站表单无法发送 JSON）；
-- 没有登录页面：未登录访问 `/chat` 会看到 401 JSON，页面化是下一步。
+- 变更类请求必须带 `x-csrf-token`（登录与 `/api/access/session` 都会返回），缺失即按未登录处理；
+- 未登录的浏览器访问页面会被 302 到 `/login`；`/login` 是自包含页面（严格 CSP），输入成员标识即可进入。
 
 ## 验证
 

@@ -3,7 +3,7 @@
 // a session only proves which member is talking.
 import { randomBytes, randomUUID } from 'node:crypto';
 
-export const ACCESS_STATE_VERSION = 1;
+export const ACCESS_STATE_VERSION = 2;
 const STATE_KEY = 'harnessAccess';
 
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1_000;
@@ -39,7 +39,8 @@ function validateState(value) {
       || !['admin', 'operator', 'viewer'].includes(session.role)
       || !isIso(session.createdAt) || !isIso(session.expiresAt)
       || (session.revokedAt !== null && !isIso(session.revokedAt))
-      || !isIso(session.lastSeenAt))
+      || !isIso(session.lastSeenAt)
+      || typeof session.csrfToken !== 'string' || !/^[a-f0-9]{32}$/u.test(session.csrfToken))
       fail(500, 'ACCESS_INVALID', 'Stored session is invalid.');
     if (ids.has(session.id)) fail(500, 'ACCESS_INVALID', 'Duplicate session id.');
     ids.add(session.id);
@@ -57,7 +58,8 @@ export function createAccessService({ storage, workspaceId = 'local', resolveWor
       read() {
         const state = storage.read() ?? {};
         const value = state.workspaces?.[id]?.[STATE_KEY];
-        if (value === undefined) return defaultState();
+        // A version bump drops sessions rather than failing the whole surface.
+        if (value === undefined || !isPlain(value) || value.version !== ACCESS_STATE_VERSION) return defaultState();
         validateState(value);
         return value;
       },
@@ -65,7 +67,8 @@ export function createAccessService({ storage, workspaceId = 'local', resolveWor
         return storage.update(root => {
           const workspaces = (root.workspaces ??= {});
           const workspace = (workspaces[id] ??= {});
-          const current = workspace[STATE_KEY] === undefined ? defaultState() : workspace[STATE_KEY];
+          const raw = workspace[STATE_KEY];
+          const current = (raw === undefined || !isPlain(raw) || raw.version !== ACCESS_STATE_VERSION) ? defaultState() : raw;
           validateState(current);
           const draft = structuredClone(current);
           const result = mutator(draft);
@@ -103,20 +106,24 @@ export function createAccessService({ storage, workspaceId = 'local', resolveWor
       const store = partition(member.workspaceId);
       const session = {
         id: randomBytes(32).toString('hex'), workspaceId: member.workspaceId, subject: member.subject,
-        role: member.role, createdAt: at(), lastSeenAt: at(),
+        role: member.role, csrfToken: randomBytes(16).toString('hex'), createdAt: at(), lastSeenAt: at(),
         expiresAt: new Date(clock() + SESSION_TTL_MS).toISOString(), revokedAt: null,
       };
       await store.update(state => { state.sessions.push(session); return null; });
       return { session: { ...session }, ttlSeconds: Math.floor(SESSION_TTL_MS / 1_000) };
     },
 
-    /** Resolve a cookie value into the authoritative actor, or null. */
-    async resolveSession(sessionId) {
+    /**
+     * Resolve a cookie value into the authoritative actor, or null.
+     * Mutating requests must also present the session's CSRF token.
+     */
+    async resolveSession(sessionId, { mutating = false, csrfToken = null } = {}) {
       if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) return null;
       const store = partition(workspaceId);
       const state = store.read();
       const session = state.sessions.find(item => item.id === sessionId);
       if (!session || session.revokedAt !== null || Date.parse(session.expiresAt) <= clock()) return null;
+      if (mutating && (typeof csrfToken !== 'string' || csrfToken !== session.csrfToken)) return null;
       if (clock() - Date.parse(session.lastSeenAt) > 60_000) {
         await store.update(draft => {
           const current = draft.sessions.find(item => item.id === sessionId);
@@ -125,6 +132,18 @@ export function createAccessService({ storage, workspaceId = 'local', resolveWor
         }).catch(() => {});
       }
       return { workspaceId: session.workspaceId, subject: session.subject, role: session.role };
+    },
+
+    /** Session details for the current caller (never exposed for other sessions). */
+    sessionInfo(sessionId) {
+      if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) return null;
+      const state = partition(workspaceId).read();
+      const session = state.sessions.find(item => item.id === sessionId);
+      if (!session || session.revokedAt !== null || Date.parse(session.expiresAt) <= clock()) return null;
+      return {
+        actor: { workspaceId: session.workspaceId, subject: session.subject, role: session.role },
+        csrfToken: session.csrfToken,
+      };
     },
 
     async logout(sessionId) {

@@ -35,11 +35,19 @@ try {
   const page = await fetch(`${base}/chat`);
   check('even the page shell needs a session', page.status === 401, page.status);
 
+  const loginPage = await fetch(`${base}/login`);
+  check('the login page is public', loginPage.status === 200 && /text\/html/u.test(loginPage.headers.get('content-type') ?? ''), loginPage.status);
+  const redirect = await fetch(`${base}/chat`, { headers: { accept: 'text/html' }, redirect: 'manual' });
+  check('a browser is redirected to the login page', redirect.status === 302 && redirect.headers.get('location') === '/login', redirect.status);
+
   const login = await fetch(`${base}/api/access/login`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ subject: 'local-operator' }),
   });
   check('a workspace member can sign in', login.status === 200, login.status);
+  const loginData = await login.json();
+  const csrfToken = loginData.csrfToken;
+  check('sign-in returns a CSRF token', /^[a-f0-9]{32}$/u.test(csrfToken ?? ''), csrfToken?.slice(0, 8));
   const cookie = (login.headers.getSetCookie?.() ?? [login.headers.get('set-cookie')])[0] ?? '';
   const sessionCookie = cookie.split(';')[0];
   check('sign-in sets an HttpOnly session cookie', /dsh_session=[a-f0-9]{64}/u.test(sessionCookie), sessionCookie.slice(0, 20));
@@ -52,6 +60,18 @@ try {
 
   const session = await fetch(`${base}/api/access/session`, { headers: { cookie: sessionCookie } }).then(response => response.json());
   check('the role comes from the workspace seam', session.actor?.role === 'admin' && session.actor?.subject === 'local-operator', session.actor);
+  check('the session route returns the CSRF token', session.csrfToken === csrfToken);
+
+  const withoutCsrf = await fetch(`${base}/api/inbox/read-all`, {
+    method: 'POST', headers: { cookie: sessionCookie, 'content-type': 'application/json' }, body: '{}',
+  });
+  check('a mutating request without the CSRF token is refused', withoutCsrf.status === 401, withoutCsrf.status);
+  const withCsrf = await fetch(`${base}/api/inbox/read-all`, {
+    method: 'POST',
+    headers: { cookie: sessionCookie, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+    body: '{}',
+  });
+  check('the same request with the CSRF token succeeds', withCsrf.status === 200, withCsrf.status);
 
   const unknown = await fetch(`${base}/api/access/login`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
@@ -59,7 +79,9 @@ try {
   });
   check('a non-member cannot sign in', unknown.status === 403, unknown.status);
 
-  const logout = await fetch(`${base}/api/access/logout`, { method: 'POST', headers: { cookie: sessionCookie } });
+  const logout = await fetch(`${base}/api/access/logout`, {
+    method: 'POST', headers: { cookie: sessionCookie, 'x-csrf-token': csrfToken },
+  });
   check('sign-out succeeds', logout.status === 200, logout.status);
   const afterLogout = await fetch(`${base}/api/chat/status`, { headers: { cookie: sessionCookie } });
   check('a revoked session no longer works', afterLogout.status === 401, afterLogout.status);

@@ -11,11 +11,55 @@ export const PLUGIN_ID = 'workspace-access';
 const BASE = '/api/access';
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
+const LOGIN_PAGE = `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · 工作台</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 14px/1.6 ui-sans-serif, system-ui, "Segoe UI", "Microsoft YaHei", sans-serif; background: Canvas; color: CanvasText; }
+  form { width: min(360px, 90vw); display: flex; flex-direction: column; gap: 10px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p { margin: 0; opacity: .7; font-size: 13px; }
+  input { padding: 10px 12px; border: 1px solid GrayText; border-radius: 8px; background: Field; color: FieldText; font: inherit; }
+  button { padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; background: #2563eb; color: #fff; font: inherit; cursor: pointer; }
+  #msg { min-height: 20px; font-size: 13px; color: #b91c1c; }
+</style></head>
+<body>
+<form id="f">
+  <h1>登录工作台</h1>
+  <p>本机单操作员模式：输入成员标识即可进入（仅限 loopback）。</p>
+  <input id="subject" name="subject" autocomplete="username" placeholder="成员标识，例如 local-operator" required>
+  <button type="submit">进入</button>
+  <div id="msg"></div>
+</form>
+<script>
+(function () {
+  var form = document.getElementById('f');
+  var input = document.getElementById('subject');
+  var msg = document.getElementById('msg');
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    msg.textContent = '';
+    fetch('/api/access/login', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ subject: input.value.trim() }),
+    }).then(function (response) {
+      return response.json().then(function (body) { return { ok: response.ok, body: body }; });
+    }).then(function (result) {
+      if (!result.ok) throw new Error(result.body && result.body.error ? result.body.error.code : 'LOGIN_FAILED');
+      location.assign('/chat');
+    }).catch(function (error) { msg.textContent = '登录失败：' + error.message; });
+  });
+}());
+</script>
+</body></html>`;
+
 export const ROUTES = Object.freeze([
   ['POST', `${BASE}/login`],
   ['POST', `${BASE}/logout`],
   ['GET', `${BASE}/session`],
   ['GET', `${BASE}/sessions`],
+  ['GET', '/login'],
 ]);
 
 const missing = service => new HarnessError(ERROR.pluginMissingDependency, `${PLUGIN_ID} requires ctx.${service}.`);
@@ -66,13 +110,27 @@ export async function apply(ctx, config = {}) {
   };
 
   ctx.http.route({
+    method: 'GET', path: '/login', public: true,
+    handler: () => new Response(LOGIN_PAGE, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+      },
+    }),
+  });
+
+  ctx.http.route({
     method: 'POST', path: `${BASE}/login`, public: true,
     handler: async (request, _response, context) => {
       try {
         if (!isLoopback(request))
           throw Object.assign(new HarnessError('ACCESS_LOCAL_ONLY', 'Sign-in is only allowed from loopback.'), { status: 403 });
         const result = await service.login(context?.body ?? {});
-        return new Response(JSON.stringify({ actor: { subject: result.session.subject, role: result.session.role } }), {
+        return new Response(JSON.stringify({ actor: { subject: result.session.subject, role: result.session.role }, csrfToken: result.session.csrfToken }), {
           status: 200,
           headers: {
             'content-type': 'application/json; charset=utf-8',
@@ -104,7 +162,11 @@ export async function apply(ctx, config = {}) {
 
   ctx.http.route({
     method: 'GET', path: `${BASE}/session`,
-    handler: call(async context => ({ status: 200, body: { actor: { subject: context.actor?.subject, role: context.actor?.role } } })),
+    handler: async (request, _response, context) => {
+      const info = service.sessionInfo(cookieValue(request, SESSION_COOKIE));
+      if (!info) throw Object.assign(new HarnessError('HARNESS_UNAUTHENTICATED', 'Sign in to use this workspace.'), { status: 401 });
+      return { status: 200, body: { actor: { subject: info.actor.subject, role: info.actor.role }, csrfToken: info.csrfToken } };
+    },
   });
 
   ctx.http.route({
@@ -114,8 +176,17 @@ export async function apply(ctx, config = {}) {
 
   // From here on, the kernel asks this resolver instead of trusting headers.
   const disposeResolver = typeof ctx.http.setActorResolver === 'function'
-    ? ctx.http.setActorResolver(request => service.resolveSession(cookieValue(request, SESSION_COOKIE)))
+    ? ctx.http.setActorResolver(request => {
+      const method = String(request?.method ?? 'GET').toUpperCase();
+      const mutating = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+      const token = request?.headers?.['x-csrf-token'];
+      return service.resolveSession(cookieValue(request, SESSION_COOKIE), {
+        mutating,
+        csrfToken: typeof token === 'string' ? token : null,
+      });
+    })
     : null;
+  const disposeLoginPath = typeof ctx.http.setLoginPath === 'function' ? ctx.http.setLoginPath('/login') : null;
 
   if (ctx.health?.register) ctx.health.register('access', () => ({ status: 'ok', detail: { sessions: service.listSessions({ actor: { role: 'admin' } }).total } }));
 
@@ -124,6 +195,7 @@ export async function apply(ctx, config = {}) {
     if (disposed) return;
     disposed = true;
     if (typeof disposeResolver === 'function') await disposeResolver();
+    if (typeof disposeLoginPath === 'function') await disposeLoginPath();
   };
 }
 

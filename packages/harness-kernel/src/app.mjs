@@ -259,6 +259,7 @@ export async function createHarness({ compositionPath, composition: composed, pr
     health: (name, fn) => http.health(name, fn),
     list: () => http.routeList(),
     setActorResolver: resolver => http.setActorResolver(resolver),
+    setLoginPath: path => http.setLoginPath(path),
   };
   const healthService = {
     register: (name, fn) => http.health(name, fn),

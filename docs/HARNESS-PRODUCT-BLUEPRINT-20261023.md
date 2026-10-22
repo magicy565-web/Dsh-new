@@ -13,7 +13,7 @@
 
 | 域 | 能力 | 现在在哪 | 目标归属 | 状态 |
 | --- | --- | --- | --- | --- |
-| A 身份与访问 | 会话、CSRF、角色、企业签名入口 | `server/access*.mjs` | 插件 `workspace-access` + kernel 鉴权钩子 | 部分：会话 + actor 解析器 + 角色已迁移；CSRF/登录页/企业签名入口未迁 |
+| A 身份与访问 | 会话、CSRF、角色、企业签名入口 | `server/access*.mjs` | 插件 `workspace-access` + kernel 鉴权钩子 | 部分：会话 + 登录页 + CSRF + 角色已迁移；企业签名入口未迁 |
 | B 工作空间与成员 | 成员表、角色、workspace 解析 | harness workspace seam | 已就位 | ✅ |
 | C 会话与运行 | 会话、消息、run 状态机、事件流 | `server/index.mjs`、`server/runtime.mjs` | 插件 `workspace-chat` + kernel 流式 | 未迁（流式本次补齐） |
 | D 模型与预算 | provider、token 预算、取消、用量 | `pi-provider.mjs`、`workspace-llm-bridge` | 插件 `workspace-llm-bridge` + 预算插件 | ✅ provider + SSE 流 + run 循环 |

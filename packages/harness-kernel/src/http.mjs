@@ -159,6 +159,7 @@ export class HttpKernel {
     this._checks = new Map(); // health name → record
     this._scope = [];
     this._actorResolver = null;
+    this._loginPath = null;
     this._registerKernelRoutes();
   }
 
@@ -168,6 +169,14 @@ export class HttpKernel {
       throw new HarnessError(ERROR.pluginFailed ?? 'HARNESS_PLUGIN_FAILED', 'setActorResolver requires a function or null.');
     this._actorResolver = resolver;
     return () => { if (this._actorResolver === resolver) this._actorResolver = null; };
+  }
+
+  /** Where a browser without a session should be sent (sets the 302 target). */
+  setLoginPath(path) {
+    if (path !== null && (typeof path !== 'string' || !path.startsWith('/')))
+      throw new HarnessError('HARNESS_PLUGIN_FAILED', 'setLoginPath requires an absolute path or null.');
+    this._loginPath = path;
+    return () => { if (this._loginPath === path) this._loginPath = null; };
   }
 
   _registerKernelRoutes() {
@@ -479,6 +488,12 @@ export class HttpKernel {
       try { actor = await this._actorResolver(req); }
       catch { actor = null; }
       if (!actor && match.record.public !== true && match.record.kernel !== true) {
+        const wantsHtml = String(req.headers.accept ?? '').includes('text/html');
+        if (this._loginPath !== null && wantsHtml && method === 'GET') {
+          res.writeHead(302, { location: this._loginPath, 'cache-control': 'no-store' });
+          res.end();
+          return;
+        }
         this.sendJson(res, 401, {
           error: { code: 'HARNESS_UNAUTHENTICATED', message: 'Sign in to use this workspace.' },
         });

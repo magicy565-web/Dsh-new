@@ -103,7 +103,7 @@ const PAGE = `<!doctype html>
 <script>
 (function () {
   'use strict';
-  var state = { conversationId: null, runId: null, source: null, lastSeq: 0, assistant: null, retries: 0, files: [], goalId: null };
+  var state = { conversationId: null, runId: null, source: null, lastSeq: 0, assistant: null, retries: 0, files: [], goalId: null, csrfToken: null };
   var list = document.getElementById('list');
   var messages = document.getElementById('messages');
   var title = document.getElementById('title');
@@ -113,7 +113,9 @@ const PAGE = `<!doctype html>
   var send = document.getElementById('send');
 
   function api(path, options) {
-    return fetch(path, Object.assign({ cache: 'no-store' }, options || {})).then(function (response) {
+    var opts = Object.assign({ cache: 'no-store' }, options || {});
+    if (state.csrfToken) opts.headers = Object.assign({ 'x-csrf-token': state.csrfToken }, opts.headers || {});
+    return fetch(path, opts).then(function (response) {
       return response.text().then(function (text) {
         var body = null;
         try { body = text ? JSON.parse(text) : null; } catch (error) { body = null; }
@@ -459,6 +461,7 @@ const PAGE = `<!doctype html>
   });
 
   loadConversations().catch(function (error) { setState('加载失败：' + error.message, 'bad'); });
+  api('/api/access/session').then(function (data) { state.csrfToken = data.csrfToken; }).catch(function () {});
   loadGoals();
   document.getElementById('read-all').addEventListener('click', function () {
     api('/api/inbox/read-all', { method: 'POST' }).then(loadInbox).catch(function () {});

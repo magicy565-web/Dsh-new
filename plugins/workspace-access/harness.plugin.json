@@ -17,7 +17,8 @@
     "POST /api/access/login",
     "POST /api/access/logout",
     "GET /api/access/session",
-    "GET /api/access/sessions"
+    "GET /api/access/sessions",
+    "GET /login"
   ],
   "tools": []
 }
