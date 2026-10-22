@@ -1,0 +1,75 @@
+# workspace-chat
+
+会话、运行与事件流的 Harness 插件。它是聊天产品的底座：只持有**会话、消息、run、事件**，
+不调用模型、不执行工具、不审批任何东西。
+
+## 为什么先有它
+
+聊天产品的一切都挂在 run 上：上下文快照、审批票据、产物、恢复、取消。先把 run 的身份和
+状态机定下来，后续能力都只是往 run 上挂数据，而不是各自再存一份会话。
+
+## 数据
+
+| 集合 | 说明 |
+| --- | --- |
+| `conversations` | 一个会话：标题、状态（open/closed）、创建者、时间 |
+| `messages` | 一条消息：`user` / `assistant` / `system`，带 `runId` |
+| `runs` | 一次执行：状态、发起人、时间、`snapshot`、取消时间、错误、用量 |
+| `events` | 只追加的事件日志，`seq` 全局单调，供 SSE 重放与审计 |
+
+所有数据按 `state.workspaces.<workspaceId>.harnessChat` 分区；跨工作空间读写返回 404。
+
+## run 状态机
+
+```
+prepared ──► running ──► blocked ──► running ──► completed
+    │           │           │
+    └───────────┴───────────┴──► cancelled / failed
+```
+
+终态是 `completed` / `failed` / `cancelled`；任何越级转换返回 409 `CHAT_RUN_TRANSITION`。
+
+## HTTP
+
+```text
+GET  /api/chat/status
+POST /api/chat/conversations                 { requestId, title? }
+GET  /api/chat/conversations?status=&limit=
+GET  /api/chat/conversations/:id?messageLimit=
+POST /api/chat/conversations/:id/messages    { requestId, content }
+GET  /api/chat/runs/:id
+POST /api/chat/runs/:id/cancel               { reason? }
+GET  /api/chat/runs/:id/events?after=<seq>   text/event-stream
+```
+
+所有写操作要求 `requestId`：同 id 同内容重放原结果，不会重复建会话/消息/run。
+
+## 事件流
+
+- 帧格式：`id: <seq>` + `event: <type>` + `data: <json>`；
+- `?after=<seq>` 只重放更新的历史，客户端断线重连不会丢事件也不会重复；
+- 订阅先重放、再跟随；同一条事件即使重放与实时推送同时命中，也只发一次（按 `seq` 去重）；
+- 终态事件（`run.completed` / `run.failed` / `run.cancelled`）之后连接关闭；
+- 每 15 秒发一行 `: keep-alive` 注释帧，避免中间层掐断；
+- 客户端断开时停止订阅，不会泄漏监听器。
+
+## 与 runner 的关系
+
+runner（后续的 `workspace-runner`）通过插件提供的 `chat` 服务推进 run：
+
+```js
+chat.advance({ actor }, runId, 'running');
+chat.appendMessage({ actor }, runId, { content: '…' });
+chat.advance({ actor }, runId, 'completed', { usage: { outputTokens: 12 } });
+```
+
+这些方法不在 HTTP 面上暴露：外部调用者只能取消，不能假装一个 run 已经完成。
+
+## 验证
+
+```powershell
+node --test plugins/workspace-chat/test/domain.test.mjs plugins/workspace-chat/test/plugin.test.mjs
+node scripts/chat-smoke.mjs
+```
+
+覆盖：幂等创建、状态机、取消、跨工作空间隔离、损坏数据 fail closed、SSE 重放/跟随/重连/去重。

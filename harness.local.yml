@@ -51,4 +51,9 @@ plugins:
   - id: business-memory
     name: workspace-business-memory
     config: { workspaceId: local, productLibraryBaseURL: 'http://127.0.0.1:8790' }
+  # 会话与运行：聊天底座。只持有会话/消息/run/事件，不调用模型、不执行工具、不审批。
+  # run 由后续的 workspace-runner 推进；外部只能取消。
+  - id: chat
+    name: workspace-chat
+    config: { workspaceId: local }
 
