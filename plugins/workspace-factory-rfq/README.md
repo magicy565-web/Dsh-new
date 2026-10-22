@@ -33,3 +33,6 @@ node --test plugins/workspace-factory-rfq/test/factory-rfq.test.mjs
 
 **已知缺口**：还没有模型驱动的端到端冒烟（工具在组合里注册、doctor 通过，但尚未跑
 一次“模型调用该工具”的 run）。下一轮补一个 `factory-smoke.mjs`。
+
+端到端冒烟（已补）：`node scripts/factory-smoke.mjs` —— 离线 provider 让模型请求
+`factory_rfq_capture`，真实 tools seam 执行（只读、无票据），回答里带回草稿。
