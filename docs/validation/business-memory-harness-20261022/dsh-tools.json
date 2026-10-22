@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-22",
+  "runtime": "DeepSeek Harness desktop profile (local)",
+  "installedBundle": "@local/dsh-business-memory@0.1.0",
+  "installSource": "link:workspace-agent-memory/integrations/dsh-business-memory",
+  "harnessBaseURL": "http://127.0.0.1:8790",
+  "tools": [
+    "business_memory_status",
+    "business_memory_map",
+    "business_memory_brief",
+    "business_memory_recall",
+    "business_memory_read",
+    "business_memory_propose"
+  ],
+  "notExposedOnPurpose": ["business_memory_review", "business_memory_revoke"],
+  "liveCalls": [
+    {
+      "tool": "business_memory_status",
+      "result": {
+        "workspaceId": "local",
+        "records": 3,
+        "active": 1,
+        "proposed": 1,
+        "superseded": 1,
+        "humanReviewRequired": true
+      }
+    },
+    {
+      "tool": "business_memory_recall",
+      "arguments": { "q": "补货" },
+      "result": {
+        "total": 1,
+        "factKey": "reorder-window",
+        "revision": 2,
+        "attestation": "human-attested"
+      }
+    },
+    {
+      "tool": "business_memory_brief",
+      "result": {
+        "basedOn": { "records": 3, "active": 1, "proposed": 1 },
+        "items": 7,
+        "containsForecast": false
+      }
+    },
+    {
+      "tool": "business_memory_propose",
+      "arguments": {
+        "subjectType": "company",
+        "factKey": "growth-focus",
+        "kind": "decision",
+        "source": "conversation"
+      },
+      "result": {
+        "id": "e29a4336-75aa-4cbc-884f-3a7eea99d0c7",
+        "status": "proposed",
+        "lifecycle": "proposed",
+        "usable": false
+      }
+    }
+  ],
+  "note": "Recorded from this session against the local synthetic harness. The proposal is pending human review by design; no production model, Medusa or enterprise data was used."
+}
