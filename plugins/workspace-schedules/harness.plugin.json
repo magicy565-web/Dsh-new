@@ -19,7 +19,8 @@
     "POST /api/schedules",
     "GET /api/schedules",
     "GET /api/schedules/:id",
-    "POST /api/schedules/:id/status"
+    "POST /api/schedules/:id/status",
+    "GET /schedules"
   ],
   "tools": []
 }

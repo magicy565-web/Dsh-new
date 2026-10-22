@@ -1,5 +1,6 @@
 // Harness plugin: schedules that dispatch goals through the chat pipeline.
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
+import { SCHEDULES_PAGE } from './area.mjs';
 import { SCHEDULE_STATUSES, ScheduleError, createScheduleService } from './domain.mjs';
 
 export const PLUGIN_ID = 'workspace-schedules';
@@ -12,6 +13,7 @@ export const ROUTES = Object.freeze([
   ['GET', BASE],
   ['GET', `${BASE}/:id`],
   ['POST', `${BASE}/:id/status`],
+  ['GET', '/schedules'],
 ]);
 
 const manifestError = message => new HarnessError(ERROR.manifestInvalid, message);
@@ -65,6 +67,20 @@ export async function apply(ctx, config = {}) {
     try { return await handler(context ?? {}); }
     catch (error) { throw asHarnessError(error); }
   };
+
+  ctx.http.route({
+    method: 'GET', path: '/schedules',
+    handler: () => new Response(SCHEDULES_PAGE, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+      },
+    }),
+  });
 
   ctx.http.route({ method: 'GET', path: `${BASE}/status`, handler: call(context => ({ status: 200, body: service.status(context) })) });
 

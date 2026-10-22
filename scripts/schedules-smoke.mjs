@@ -48,6 +48,10 @@ try {
   }).then(response => response.json());
   check('a one-shot schedule is created disabled', schedule.schedule?.status === 'disabled', schedule.schedule?.status);
 
+  const page = await fetch(`${base}/schedules`);
+  const pageHtml = await page.text();
+  check('the schedules page renders', page.status === 200 && pageHtml.includes('新建计划'), page.status);
+
   await fetch(`${base}/api/schedules/${schedule.schedule.id}/status`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ status: 'enabled' }),

@@ -34,6 +34,11 @@ POST /api/schedules/:id/status  { status: enabled|disabled, note? }
 
 新计划默认 `disabled`，必须由人启用。`everySeconds` 最少 60 秒。
 
+## 页面
+
+`/schedules` 是自包含计划页（严格 CSP）：列表显示状态、周期/一次性、下次触发；
+一行内可启用/停用；点击某行看最近派发回执（到期时刻、派发时间、run）。右侧表单可
+新建计划（选择对话、可选目标、周期或一次性）。新计划默认停用。
 ## 验证
 
 ```powershell

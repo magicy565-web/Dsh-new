@@ -32,6 +32,8 @@ export const OPS_PAGE = `<!doctype html>
 <header>
   <h1>运维台</h1>
   <a href="/chat">对话</a>
+  <a href="/goals">目标</a>
+  <a href="/schedules">计划</a>
   <a href="/market">市场</a>
   <a href="/login">登录</a>
 </header>
