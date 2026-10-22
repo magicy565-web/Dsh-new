@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { openFixture, prepared, contextInput, decisionInput, model } from './fixtures/goal-brain-fixture.mjs';
 import { createBusinessBrain } from '../plugins/workspace-goal-intelligence/src/brain.mjs';
 import { createArtifactBrainRepository } from '../plugins/workspace-goal-intelligence/src/artifact-repository.mjs';
-import { INPUTS, validate, digest, sourceId } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
+import { INPUTS, validate, validateSources, digest, sourceId } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
 import { evaluateOption, cohortConversion, assessOutcome } from '../plugins/workspace-goal-intelligence/src/economics.mjs';
 import extension, { businessBrainExtension, BRAIN_TOOLS } from '../plugins/workspace-goal-intelligence/src/extension.mjs';
 const call = (brain, method, input = {}, signal) => brain[method](input, signal, model);
@@ -192,6 +192,17 @@ for(const [name,mutate] of [
   ['newline ID',x=>{x.requestId='safe\n';}],['blank ID',x=>{x.requestId=' ';}],['null context',x=>{x.businessModel=null;}],
   ['oversize text',x=>{x.unknowns=['x'.repeat(2000)];}],['unknown nested field',x=>{x.businessModel.approved=true;}],['sparse list',x=>{x.notes=new Array(2);}],
 ])test(`strict contract rejects ${name}`,()=>{const input=contextInput([]);mutate(input);assert.throws(()=>validate(INPUTS.contextSave,input));});
+// The optional pinned window must not loosen the closed source reference.
+test('source references stay closed around the optional pinned window', () => {
+  const base = { kind: 'metric', id: 'm', revision: '1', sha256: 'a'.repeat(64), fields: ['id'] };
+  assert.doesNotThrow(() => validateSources([base]));
+  assert.doesNotThrow(() => validateSources([{ ...base, windowStart: '2026-09-01T00:00:00.000Z', windowEnd: '2026-10-01T00:00:00.000Z' }]));
+  const invalid = (ref, code = 'BRAIN_INPUT_INVALID') => assert.throws(() => validateSources([ref]), e => e.code === code);
+  invalid({ ...base, extra: 'smuggled' });
+  invalid({ ...base, windowStart: '2026-09-01T00:00:00.000Z' });
+  invalid({ ...base, windowEnd: '2026-10-01T00:00:00.000Z' });
+  invalid({ ...base, windowStart: 'yesterday', windowEnd: '2026-10-01T00:00:00.000Z' });
+});
 test('missing reviewed host dependencies do not silently configure a brain',()=>{assert.throws(()=>createBusinessBrain());assert.throws(()=>createArtifactBrainRepository());});
 test('ordinary package install exposes only eight fail-closed tools and no ambient model/files/network',async()=>{const tools=[];extension({registerTool:t=>tools.push(t)});assert.equal(tools.length,8);assert.equal(tools.some(t=>/approve|dispatch|feedback|send/.test(t.name)),false);for(const tool of tools){const r=await tool.execute('t',{},undefined,undefined,{model});assert.equal(r.details.status,'unconfigured');assert.equal(r.isError,true);}});
 test('configured extension registers the original Host guard before any private tool can run',async t=>{const f=await fixture(t),{brain}=await prepared(f),tools=[];let guard;businessBrainExtension({brain,registerContextGuard:g=>{guard=g;return true;}})({registerTool:t=>tools.push(t)});assert.equal(guard.plugin,'workspace-goal-intelligence');const r=await tools.find(t=>t.name==='workspace_brain_context').execute('t',{},undefined,undefined,{model});assert.equal(r.details.status,'available');assert.equal(await guard.validateReceipt(r.details,undefined,model),true);});

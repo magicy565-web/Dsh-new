@@ -223,7 +223,14 @@ export function createBusinessBrain(options = {}) {
     const state = await decisionState(id, receiver, signal);
     const row = await load('review', id, receiver, signal);
     if (!row || row.value.payload.decisionRevision !== state.row.value.revision) fail('BRAIN_DECISION_CHANGED');
-    const refs = mergeSources(state.context.row.value.payload.sourceRefs, state.row.value.payload.sourceRefs, row.value.payload.sourceRefs);
+    // A review re-observes the metric it is reviewing on a later window. The
+    // decision keeps its own pinned observation, but the review's fresh one
+    // supersedes it here; otherwise two windows of the same KPI would collide.
+    const reviewed = row.value.payload.metricEvidenceId;
+    const refs = mergeSources(
+      state.context.row.value.payload.sourceRefs.filter(ref => sourceId(ref) !== reviewed),
+      state.row.value.payload.sourceRefs.filter(ref => sourceId(ref) !== reviewed),
+      row.value.payload.sourceRefs);
     const captured = await capture(refs, [state.row.value.payload.goalId], receiver, signal);
     const metric = captured.sources.find(s => s.evidenceId === row.value.payload.metricEvidenceId);
     if (!metric || metric.reference.kind !== 'metric') fail('BRAIN_METRIC_INVALID');
@@ -234,8 +241,13 @@ export function createBusinessBrain(options = {}) {
     const input = validate(INPUTS.reviewSave, raw);
     const state = await decisionState(input.decisionId, receiver, signal);
     if (input.decisionRevision !== state.row.value.revision) fail('BRAIN_DECISION_CHANGED');
-    const refs = mergeSources(state.context.row.value.payload.sourceRefs, state.row.value.payload.sourceRefs, input.sourceRefs);
     validateEvidence([input.metricEvidenceId], input.sourceRefs);
+    // The reviewed metric is superseded by the review's later observation; every
+    // other pinned evidence reference must still be reproducible.
+    const refs = mergeSources(
+      state.context.row.value.payload.sourceRefs.filter(ref => sourceId(ref) !== input.metricEvidenceId),
+      state.row.value.payload.sourceRefs.filter(ref => sourceId(ref) !== input.metricEvidenceId),
+      input.sourceRefs);
     const captured = await capture(refs, [state.row.value.payload.goalId], receiver, signal);
     const metric = captured.sources.find(s => s.evidenceId === input.metricEvidenceId);
     if (!metric || metric.reference.kind !== 'metric') fail('BRAIN_METRIC_INVALID');

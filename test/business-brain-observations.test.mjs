@@ -3,6 +3,7 @@ import test from 'node:test';
 import { analyzeBusinessSources } from '../plugins/workspace-goal-intelligence/src/diagnostics.mjs';
 import { extractBusinessSignals } from '../plugins/workspace-goal-intelligence/src/signals.mjs';
 import { createBusinessBrainSourceAdapter, composeBusinessBrainSourceAdapters } from '../server/business-brain-source-adapter.mjs';
+import { assessOutcome } from '../plugins/workspace-goal-intelligence/src/economics.mjs';
 import { createSupplierCommerceBrainSourceAdapter } from '../server/goal-brain-supplier-source.mjs';
 
 const now = Date.parse('2026-10-16T00:00:00.000Z');
@@ -55,7 +56,7 @@ test('source adapter exposes only bounded inquiry and product metrics', async ()
     meta: { sequence: 7 },
     supplyNetwork: {
       inquiries: [
-        { workspaceId: 'ws', createdAt: '2026-10-08T00:00:00.000Z', updatedAt: '2026-10-08T00:00:00.000Z', status: 'shared', replies: [] },
+        { workspaceId: 'ws', createdAt: '2026-09-20T00:00:00.000Z', updatedAt: '2026-09-20T00:00:00.000Z', status: 'shared', replies: [] },
         { workspaceId: 'ws', createdAt: '2026-10-10T00:00:00.000Z', updatedAt: '2026-10-10T00:00:00.000Z', status: 'replied', replies: [{ id: 'r1' }] }
       ]
     },
@@ -166,4 +167,140 @@ test('composed adapters namespace extra metric sources without changing the inne
   assert.equal(refs.some(ref => ref.id === 'fixture:sales'), true);
   const read = await composed.read({ identity: { workspaceId: 'ws' }, reference: refs.find(ref => ref.id === 'fixture:sales') });
   assert.equal(read.reference.id, 'fixture:sales');
+});
+
+// The observation window must be a property of the business data, not of the
+// wall clock: otherwise every saved context and decision goes stale at the next
+// UTC midnight even when nothing in the business changed.
+test('observation window and revision survive a UTC day boundary when data is unchanged', async () => {
+  const state = {
+    meta: { sequence: 1, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+    supplyNetwork: {
+      inquiries: [{ workspaceId: 'ws', createdAt: '2026-10-08T00:00:00.000Z', updatedAt: '2026-10-08T00:00:00.000Z', status: 'replied', replies: [{ id: 'r1' }] }]
+    },
+    businessLibrary: { products: [] }
+  };
+  let clock = Date.parse('2026-10-16T02:00:00.000Z');
+  const adapter = createBusinessBrainSourceAdapter({ store: { read: () => state }, workspaceId: 'ws', clock: () => clock });
+  const refs = await adapter.list({ identity: { workspaceId: 'ws' } });
+  const first = await adapter.read({ identity: { workspaceId: 'ws' }, reference: refs[0] });
+  clock = Date.parse('2026-10-17T23:00:00.000Z');
+  const next = await adapter.read({ identity: { workspaceId: 'ws' }, reference: refs[0] });
+  assert.deepEqual(next, first);
+  const current = adapter.current({ identity: { workspaceId: 'ws' }, reference: refs[0], expected: first });
+  assert.deepEqual(current, first);
+});
+
+// A reference pins the window it was taken over. Later business activity moves
+// the *current* catalog, but must not silently re-describe an earlier decision's
+// evidence: that is what used to make every saved decision stale.
+test('a pinned reference keeps its own window after new business activity', async () => {
+  const state = {
+    meta: { sequence: 1, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+    supplyNetwork: { inquiries: [] },
+    businessLibrary: { products: [] }
+  };
+  let clock = Date.parse('2026-10-16T02:00:00.000Z');
+  const adapter = createBusinessBrainSourceAdapter({ store: { read: () => state }, workspaceId: 'ws', clock: () => clock });
+  const refs = await adapter.list({ identity: { workspaceId: 'ws' } });
+  const first = await adapter.read({ identity: { workspaceId: 'ws' }, reference: refs[0] });
+  state.supplyNetwork.inquiries.push({ workspaceId: 'ws', createdAt: '2026-10-15T09:00:00.000Z', updatedAt: '2026-10-15T09:00:00.000Z', status: 'shared', replies: [] });
+  clock = Date.parse('2026-10-17T02:00:00.000Z');
+  const replay = await adapter.read({ identity: { workspaceId: 'ws' }, reference: refs[0] });
+  assert.deepEqual(replay, first);
+  assert.deepEqual(adapter.current({ identity: { workspaceId: 'ws' }, reference: refs[0], expected: first }), first);
+  const moved = (await adapter.list({ identity: { workspaceId: 'ws' } }))[0];
+  assert.ok(Date.parse(moved.windowEnd) > Date.parse(refs[0].windowEnd));
+  assert.notEqual(moved.revision, refs[0].revision);
+});
+
+test('a pinned window is refused once its own underlying data changes', async () => {
+  const state = {
+    meta: { sequence: 1, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+    supplyNetwork: { inquiries: [] },
+    businessLibrary: { products: [] }
+  };
+  let clock = Date.parse('2026-10-16T02:00:00.000Z');
+  const adapter = createBusinessBrainSourceAdapter({ store: { read: () => state }, workspaceId: 'ws', clock: () => clock });
+  const refs = await adapter.list({ identity: { workspaceId: 'ws' } });
+  const first = await adapter.read({ identity: { workspaceId: 'ws' }, reference: refs[0] });
+  // Backfill a row *inside* the pinned window: replaying it can no longer
+  // reproduce the bytes that were recorded over.
+  const inside = new Date((Date.parse(first.values.windowStart) + Date.parse(first.values.windowEnd)) / 2).toISOString();
+  state.supplyNetwork.inquiries.push({ workspaceId: 'ws', createdAt: inside, updatedAt: inside, status: 'replied', replies: [{ id: 'late' }] });
+  clock = Date.parse('2026-10-17T02:00:00.000Z');
+  await assert.rejects(() => adapter.read({ identity: { workspaceId: 'ws' }, reference: refs[0] }), /BRAIN_SOURCE_CHANGED/);
+});
+
+test('a reference without a pinned window, or with a window this adapter cannot emit, is refused', async () => {
+  const state = {
+    meta: { sequence: 1, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+    supplyNetwork: { inquiries: [] },
+    businessLibrary: { products: [] }
+  };
+  const clock = Date.parse('2026-10-16T02:00:00.000Z');
+  const adapter = createBusinessBrainSourceAdapter({ store: { read: () => state }, workspaceId: 'ws', clock: () => clock });
+  const identity = { workspaceId: 'ws' };
+  const [ref] = await adapter.list({ identity });
+  const { windowStart, windowEnd, ...unpinned } = ref;
+  await assert.rejects(() => adapter.read({ identity, reference: unpinned }), /BRAIN_SOURCE_CHANGED/);
+  const shifted = { ...ref, windowStart: new Date(Date.parse(windowStart) + 86400000).toISOString(), windowEnd: new Date(Date.parse(windowEnd) + 86400000).toISOString() };
+  await assert.rejects(() => adapter.read({ identity, reference: shifted }), /BRAIN_SOURCE_CHANGED/);
+  const shortened = { ...ref, windowStart: new Date(Date.parse(windowStart) + 86400000).toISOString() };
+  await assert.rejects(() => adapter.read({ identity, reference: shortened }), /BRAIN_SOURCE_CHANGED/);
+});
+
+// The decision layer rejects anything that is not a complete observation. These
+// assertions keep the adapter payload on that contract instead of drifting into
+// a shape that only test fixtures can satisfy.
+test('primary metrics carry the observation contract the decision layer verifies', async () => {
+  const now = Date.parse('2026-10-16T02:00:00.000Z');
+  const state = {
+    meta: { sequence: 1, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+    supplyNetwork: {
+      inquiries: [
+        { workspaceId: 'ws', createdAt: '2026-09-20T00:00:00.000Z', updatedAt: '2026-09-20T00:00:00.000Z', status: 'replied', replies: [{ id: 'r1' }] },
+        { workspaceId: 'ws', createdAt: '2026-09-21T00:00:00.000Z', updatedAt: '2026-09-21T00:00:00.000Z', status: 'replied', replies: [{ id: 'r2' }] }
+      ]
+    },
+    businessLibrary: { products: [] }
+  };
+  const adapter = createBusinessBrainSourceAdapter({ store: { read: () => state }, workspaceId: 'ws', clock: () => now });
+  const refs = await adapter.list({ identity: { workspaceId: 'ws' } });
+  const pipeline = await adapter.read({ identity: { workspaceId: 'ws' }, reference: refs.find(ref => ref.id === 'supply-inquiry-pipeline') });
+  assert.deepEqual(Object.keys(pipeline.values).sort(), [...refs.find(ref => ref.id === 'supply-inquiry-pipeline').fields].sort());
+  assert.equal(pipeline.values.id, 'supply-inquiry-pipeline');
+  assert.equal(pipeline.values.value, 2);
+  assert.equal(pipeline.values.unit, 'inquiries');
+  assert.equal(pipeline.values.coverageComplete, true);
+
+  const decisionAt = Date.parse(pipeline.values.windowStart) - 86400000;
+  const complete = assessOutcome(pipeline.values, { metricId: 'supply-inquiry-pipeline', observationDays: 7 }, decisionAt, now);
+  assert.equal(complete.status, 'observed-not-adjudicated');
+  assert.equal(complete.sufficientEvidence, true);
+  assert.equal(complete.businessGoalVerified, false);
+  assert.equal(complete.causalEffect, null);
+
+  // A pending cohort member is incomplete coverage, never a silent success.
+  state.supplyNetwork.inquiries.push({ workspaceId: 'ws', createdAt: '2026-09-22T00:00:00.000Z', updatedAt: '2026-09-22T00:00:00.000Z', status: 'shared', replies: [] });
+  const pendingRefs = await adapter.list({ identity: { workspaceId: 'ws' } });
+  const pending = await adapter.read({ identity: { workspaceId: 'ws' }, reference: pendingRefs.find(ref => ref.id === 'supply-inquiry-pipeline') });
+  const incomplete = assessOutcome(pending.values, { metricId: 'supply-inquiry-pipeline', observationDays: 7 }, decisionAt, now);
+  assert.equal(incomplete.status, 'insufficient-evidence');
+  assert.equal(incomplete.sufficientEvidence, false);
+});
+
+test('a point-in-time product snapshot never authorizes a supported outcome review', async () => {
+  const now = Date.parse('2026-10-16T02:00:00.000Z');
+  const state = {
+    meta: { sequence: 1, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' },
+    supplyNetwork: { inquiries: [] },
+    businessLibrary: { products: [{ status: 'draft', updatedAt: '2026-10-10T00:00:00.000Z' }] }
+  };
+  const adapter = createBusinessBrainSourceAdapter({ store: { read: () => state }, workspaceId: 'ws', clock: () => now });
+  const refs = await adapter.list({ identity: { workspaceId: 'ws' } });
+  const product = await adapter.read({ identity: { workspaceId: 'ws' }, reference: refs.find(ref => ref.id === 'library-product-completeness') });
+  const assessment = assessOutcome(product.values, { metricId: 'library-product-completeness', observationDays: 7 }, Date.parse(product.values.windowStart) - 86400000, now);
+  assert.equal(assessment.status, 'insufficient-evidence');
+  assert.equal(assessment.sufficientEvidence, false);
 });

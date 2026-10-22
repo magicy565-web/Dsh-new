@@ -1,13 +1,18 @@
-import { digest, fail, safeJson } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
+import { digest, fail, safeJson, same } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
 import { productSupplyMissing } from './brain-product-completeness.mjs';
 
 const DAY = 24 * 60 * 60 * 1000;
 const INQUIRY_WINDOW_DAYS = 30;
 const STALE_INQUIRY_DAYS = 7;
 
-const PIPELINE_FIELDS = Object.freeze(['metricType', 'windowStart', 'windowEnd', 'eligible', 'progressed', 'pending', 'unknown']);
-const AGING_FIELDS = Object.freeze(['metricType', 'windowStart', 'windowEnd', 'eligible', 'progressed', 'pending', 'stale', 'staleThresholdDays']);
-const PRODUCT_FIELDS = Object.freeze(['metricType', 'asOf', 'total', 'active', 'complete', 'incomplete', 'archived', 'missingImages', 'missingSkus', 'missingDocuments', 'missingSupply']);
+// Each metric is also a self-describing observation. `id` is the stable logical
+// metric id (independent of the window) so a decision can keep naming the same
+// KPI, while `value`/`unit`/`windowStart`/`windowEnd`/`coverageComplete` are the
+// fields the decision layer needs to assess a later outcome. An empty cohort is
+// never reported as complete coverage: zero rows is not sufficient evidence.
+const PIPELINE_FIELDS = Object.freeze(['id', 'metricType', 'windowStart', 'windowEnd', 'eligible', 'progressed', 'pending', 'unknown', 'value', 'unit', 'coverageComplete']);
+const AGING_FIELDS = Object.freeze(['id', 'metricType', 'windowStart', 'windowEnd', 'eligible', 'progressed', 'pending', 'stale', 'staleThresholdDays', 'value', 'unit', 'coverageComplete']);
+const PRODUCT_FIELDS = Object.freeze(['id', 'metricType', 'asOf', 'windowStart', 'windowEnd', 'total', 'active', 'complete', 'incomplete', 'archived', 'missingImages', 'missingSkus', 'missingDocuments', 'missingSupply', 'value', 'unit', 'coverageComplete']);
 
 const parseTime = value => {
   const time = Date.parse(value || '');
@@ -35,18 +40,43 @@ function latestInquiryActivity(rows, fallback) {
   return times.length ? Math.max(...times) : fallback;
 }
 
-function latestProductActivity(products, fallback) {
-  const times = products.map(product => parseTime(product?.updatedAt)).filter(time => time !== null);
-  return times.length ? Math.max(...times) : fallback;
+/**
+ * Anchor the observation window to the business data, not to the wall clock.
+ *
+ * Completed UTC days only: an observation never includes the day it is taken in.
+ * Anchoring on the latest recorded business activity (falling back to the
+ * durable store creation time) keeps the window, and therefore the source
+ * revision, identical across days while the data is unchanged. Previously the
+ * window ended at `dayStart(now)`, so every saved context and decision became
+ * BRAIN_SOURCE_STALE at the next UTC midnight even with no business change.
+ */
+function observationAnchor(state, workspaceId, now) {
+  const times = [];
+  const record = value => { const parsed = parseTime(value); if (parsed !== null) times.push(parsed); };
+  for (const row of state.supplyNetwork?.inquiries || []) {
+    if (row?.workspaceId !== workspaceId) continue;
+    for (const value of [row.createdAt, row.updatedAt, row.publishedAt, row.sentAt, row.share?.createdAt, row.share?.revokedAt]) record(value);
+    for (const reply of Array.isArray(row.replies) ? row.replies : []) for (const value of [reply?.createdAt, reply?.updatedAt]) record(value);
+  }
+  for (const product of Array.isArray(state.businessLibrary?.products) ? state.businessLibrary.products : []) record(product?.updatedAt);
+  record(state.meta?.createdAt);
+  const latest = times.length ? Math.max(...times) : now;
+  // Include the day the activity happened on, but never a day that is not yet
+  // complete: the window advances once, at the following UTC midnight, and then
+  // stays fixed until the business data moves again.
+  return Math.min(dayStart(Math.min(latest, now)) + DAY, dayStart(now));
 }
 
-function snapshot(state, workspaceId, clock) {
-  const now = clock();
-  // Use completed UTC days as the observation window. A moving "now" window
-  // would change the source revision every refresh even when the business data
-  // has not changed, which would make Brain context revalidation impossible.
-  const endTime = dayStart(now);
-  const startTime = endTime - INQUIRY_WINDOW_DAYS * DAY;
+/**
+ * Business metrics for one exact, already-decided observation window.
+ *
+ * Everything here is a pure function of the store and the window: the wall
+ * clock is never consulted, so replaying the same window reproduces the same
+ * bytes. That is what lets a saved reference stay verifiable after the
+ * "current" window has moved on. Aging is measured at the end of the observed
+ * window, not "now", for the same reason.
+ */
+function snapshotFor(state, workspaceId, startTime, endTime) {
   const start = iso(startTime);
   const end = iso(endTime);
 
@@ -62,7 +92,7 @@ function snapshot(state, workspaceId, clock) {
   const progressedRows = eligibleRows.filter(hasReply);
   const staleRows = pendingRows.filter(row => {
     const created = parseTime(row.createdAt);
-    return created !== null && now - created >= STALE_INQUIRY_DAYS * DAY;
+    return created !== null && endTime - created >= STALE_INQUIRY_DAYS * DAY;
   });
 
   const products = Array.isArray(state.businessLibrary?.products) ? state.businessLibrary.products : [];
@@ -82,15 +112,20 @@ function snapshot(state, workspaceId, clock) {
   const missingSupply = activeProducts.filter(productSupplyMissing).length;
 
   const pipeline = {
+    id: 'supply-inquiry-pipeline',
     metricType: 'inquiry-pipeline-v1',
     windowStart: start,
     windowEnd: end,
     eligible: eligibleRows.length,
     progressed: progressedRows.length,
     pending: pendingRows.length,
-    unknown: 0
+    unknown: 0,
+    value: progressedRows.length,
+    unit: 'inquiries',
+    coverageComplete: eligibleRows.length > 0 && pendingRows.length === 0
   };
   const aging = {
+    id: 'supply-inquiry-aging',
     metricType: 'inquiry-aging-v1',
     windowStart: start,
     windowEnd: end,
@@ -98,11 +133,17 @@ function snapshot(state, workspaceId, clock) {
     progressed: progressedRows.length,
     pending: pendingRows.length,
     stale: staleRows.length,
-    staleThresholdDays: STALE_INQUIRY_DAYS
+    staleThresholdDays: STALE_INQUIRY_DAYS,
+    value: staleRows.length,
+    unit: 'inquiries',
+    coverageComplete: eligibleRows.length > 0
   };
   const product = {
+    id: 'library-product-completeness',
     metricType: 'product-completeness-v1',
-    asOf: iso(dayStart(now)),
+    asOf: end,
+    windowStart: end,
+    windowEnd: end,
     total: products.length,
     active: activeProducts.length,
     complete: activeProducts.length - incomplete.length,
@@ -111,20 +152,32 @@ function snapshot(state, workspaceId, clock) {
     missingImages,
     missingSkus,
     missingDocuments,
-    missingSupply
+    missingSupply,
+    value: incomplete.length,
+    unit: 'products',
+    // A point-in-time library snapshot never spans an outcome window, so it can
+    // never on its own justify a "supported" outcome review.
+    coverageComplete: false
   };
 
   return {
     refs: [
       { id: 'supply-inquiry-pipeline', values: pipeline, fields: PIPELINE_FIELDS, observedAt: iso(latestInquiryActivity(rows, endTime)) },
       { id: 'supply-inquiry-aging', values: aging, fields: AGING_FIELDS, observedAt: iso(latestInquiryActivity(rows, endTime)) },
-      { id: 'library-product-completeness', values: product, fields: PRODUCT_FIELDS, observedAt: iso(latestProductActivity(products, dayStart(now))) }
+      { id: 'library-product-completeness', values: product, fields: PRODUCT_FIELDS, observedAt: end }
     ]
   };
 }
 
+function snapshot(state, workspaceId, clock) {
+  // Completed UTC days as the observation window: a constant window produces a
+  // constant revision, which is what makes Brain source revalidation possible.
+  const endTime = observationAnchor(state, workspaceId, clock());
+  return snapshotFor(state, workspaceId, endTime - INQUIRY_WINDOW_DAYS * DAY, endTime);
+}
+
 function authorize(identity, workspaceId) {
-  if (!identity?.workspaceId || identity.workspaceId !== workspaceId) throw new Error('BRAIN_SOURCE_SCOPE_MISMATCH');
+  if (!identity?.workspaceId || identity.workspaceId !== workspaceId) fail('BRAIN_SOURCE_SCOPE_MISMATCH');
 }
 
 function makeReference(id, values, fields) {
@@ -133,8 +186,30 @@ function makeReference(id, values, fields) {
     id,
     revision: digest({ source: id, values }),
     sha256: digest(values),
-    fields: [...fields]
+    fields: [...fields],
+    // The reference pins the exact window its own values were taken over.
+    // Without it a "re-read" could only mean "recompute against the current
+    // clock", which is what made every saved decision go stale as soon as time
+    // or the business data moved.
+    windowStart: values.windowStart,
+    windowEnd: values.windowEnd
   };
+}
+
+const POINT_IN_TIME_METRIC = 'library-product-completeness';
+
+/**
+ * Resolve the window a reference was actually taken over, and refuse anything
+ * this adapter could not have emitted itself. A caller therefore cannot ask for
+ * an arbitrary or not-yet-complete window to obtain different data.
+ */
+function referenceWindow(reference, latestCompleteDay) {
+  const start = parseTime(reference?.windowStart);
+  const end = parseTime(reference?.windowEnd);
+  if (start === null || end === null) fail('BRAIN_SOURCE_CHANGED');
+  if (reference?.id === POINT_IN_TIME_METRIC ? start !== end : end - start !== INQUIRY_WINDOW_DAYS * DAY) fail('BRAIN_SOURCE_CHANGED');
+  if (start % DAY !== 0 || end % DAY !== 0 || end > latestCompleteDay || start > end) fail('BRAIN_SOURCE_CHANGED');
+  return { startTime: start, endTime: end };
 }
 
 function buildSnapshot(state, workspaceId, clock) {
@@ -155,49 +230,32 @@ function buildSnapshot(state, workspaceId, clock) {
 export function createBusinessBrainSourceAdapter({ store, workspaceId = 'local', clock = Date.now } = {}) {
   if (!store?.read) throw new TypeError('Workspace store is required.');
 
-  function current(identity) {
+  function resolve(identity, reference) {
     authorize(identity, workspaceId);
-    return buildSnapshot(store.read(), workspaceId, clock);
+    if (reference?.kind !== 'metric' || typeof reference?.id !== 'string') fail('BRAIN_SOURCE_CHANGED');
+    const window = referenceWindow(reference, dayStart(clock()));
+    const snap = snapshotFor(store.read(), workspaceId, window.startTime, window.endTime);
+    const item = snap.refs.find(entry => entry.id === reference.id);
+    if (!item) fail('BRAIN_SOURCE_CHANGED');
+    const built = makeReference(item.id, item.values, item.fields);
+    if (!same(built, reference)) fail('BRAIN_SOURCE_CHANGED');
+    return { workspaceId, reference: built, observedAt: item.observedAt, validUntil: null, values: item.values };
   }
 
   return Object.freeze({
     async list({ identity } = {}) {
-      return current(identity).map(item => item.reference);
+      authorize(identity, workspaceId);
+      return buildSnapshot(store.read(), workspaceId, clock).map(item => item.reference);
     },
 
     async read({ identity, reference } = {}) {
-      const item = current(identity).find(entry =>
-        entry.reference.kind === reference?.kind &&
-        entry.reference.id === reference?.id
-      );
-      if (!item || item.reference.revision !== reference?.revision || item.reference.sha256 !== reference?.sha256) {
-        throw new Error('BRAIN_SOURCE_CHANGED');
-      }
-      return safeJson({
-        workspaceId,
-        reference: item.reference,
-        observedAt: item.observedAt,
-        validUntil: null,
-        values: item.values
-      }, 32 * 1024);
+      return safeJson(resolve(identity, reference), 32 * 1024);
     },
 
     current({ identity, reference, expected } = {}) {
-      const item = current(identity).find(entry =>
-        entry.reference.kind === reference?.kind &&
-        entry.reference.id === reference?.id
-      );
-      if (!item || !expected || expected.workspaceId !== workspaceId || JSON.stringify(item.reference) !== JSON.stringify(expected.reference)
-        || item.observedAt !== expected.observedAt || JSON.stringify(item.values) !== JSON.stringify(expected.values)) {
-        throw new Error('BRAIN_SOURCE_CHANGED');
-      }
-      return {
-        workspaceId,
-        reference: item.reference,
-        observedAt: item.observedAt,
-        validUntil: null,
-        values: item.values
-      };
+      const row = resolve(identity, reference);
+      if (!expected || !same(row, expected)) fail('BRAIN_SOURCE_CHANGED');
+      return row;
     }
   });
 }
