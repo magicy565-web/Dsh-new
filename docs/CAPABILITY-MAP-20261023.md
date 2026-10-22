@@ -1,8 +1,8 @@
 # 能力地图（自动生成）
 
-生成时间：2026-10-22T20:47:02.272Z
+生成时间：2026-10-22T20:50:48.840Z
 
-插件 **19** 个 · 路由 **110** 条 · 工具 **32** 个 · 有测试 **19** · 有冒烟 **16** · 有页面 **12**
+插件 **19** 个 · 路由 **110** 条 · 工具 **32** 个 · 有测试 **19** · 有冒烟 **17** · 有页面 **12**
 
 | 插件 | 路由 | 工具 | 测试 | 冒烟 | 页面 |
 | --- | --- | --- | --- | --- | --- |
@@ -12,7 +12,7 @@
 | `workspace-chat` | 12 | 0 | 2 | 9 | ✓ |
 | `workspace-factory-rfq` | 1 | 2 | 1 | 1 | — |
 | `workspace-goals` | 6 | 0 | 1 | 1 | ✓ |
-| `workspace-harness-review` | 1 | 0 | 1 | — | — |
+| `workspace-harness-review` | 1 | 0 | 1 | 1 | — |
 | `workspace-home` | 1 | 0 | 1 | 1 | ✓ |
 | `workspace-inbox` | 5 | 0 | 1 | 4 | ✓ |
 | `workspace-inquiry-recovery` | 13 | 3 | 1 | 1 | — |
@@ -32,7 +32,6 @@
 
 ## 没有冒烟引用的插件
 
-- `workspace-harness-review`
 - `workspace-llm-bridge`
 - `workspace-runner`
 
