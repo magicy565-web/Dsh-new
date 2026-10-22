@@ -1,0 +1,22 @@
+# Composition patch layer (DSH-style). Copy to e.g. harness.local.patch.yml and use:
+#   node harness.mjs --composition harness.dev.yml --patch harness.local.patch.yml
+#   wh plugins --composition harness.dev.yml --patch harness.local.patch.yml
+#
+# Semantics: `entries` targets an existing row by id and replaces the provided
+# fields wholesale (config is never deep-merged); `insert` appends new rows.
+# Unknown targets, duplicate inserts and renames fail closed.
+version: 1
+name: offline-readonly
+entries:
+  # Turn the inquiry plugin off without touching harness.dev.yml.
+  - id: inquiries
+    disabled: true
+  # Tighten the tools provider to a read-only subset for this run.
+  - id: tools
+    config:
+      allowedTools:
+        - inquiry_recovery_status
+# insert:
+#   - id: market
+#     name: workspace-market
+#     config: { demo: true }

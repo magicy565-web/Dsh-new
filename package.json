@@ -60,6 +60,7 @@
     "build:web": "tsc --noEmit && vite build",
     "build:omp": "node scripts/build-omp.mjs",
     "test:omp": "node --test test/workspace-omp-unified.test.mjs",
+    "test:market": "node --test plugins/workspace-market/test",
     "legacy:workspace": "node --env-file-if-exists=.env scripts/workspace-omp-legacy.mjs",
     "test:medusa-live": "node scripts/medusa-catalog-live-smoke.mjs"
   },
@@ -72,7 +73,9 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "@earendil-works/pi-coding-agent": "1.1.0",
-    "@earendil-works/pi-tui": "1.1.0"
+    "@earendil-works/pi-tui": "1.1.0",
+    "cordis": "4.0.0-rc.11",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/react": "18.3.31",

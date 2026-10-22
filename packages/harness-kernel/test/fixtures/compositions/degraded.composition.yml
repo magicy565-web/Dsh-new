@@ -1,0 +1,6 @@
+version: 1
+name: degraded
+server: { host: 127.0.0.1, port: 0 }
+plugins:
+  - id: degraded-health
+    name: ../plugins/degraded-health

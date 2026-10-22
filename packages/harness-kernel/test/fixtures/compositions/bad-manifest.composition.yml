@@ -1,0 +1,6 @@
+version: 1
+name: bad-manifest
+server: { host: 127.0.0.1, port: 0 }
+plugins:
+  - id: bad-manifest
+    name: ../plugins/bad-manifest

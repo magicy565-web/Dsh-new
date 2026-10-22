@@ -50,6 +50,8 @@ import { createShopifyClient } from './shopify.mjs';
 import { createCommerceService } from './commerce.mjs';
 import { createSupplyNetworkService } from './supply-network.mjs';
 import { supplyHttp } from './supply-http.mjs';
+import { createInquiryRecoveryService, inquiryRecoveryHttp } from './inquiry-recovery.mjs';
+import { createAiWorkService, aiWorksHttp, AiWorkError } from './ai-works.mjs';
 import {createEnterpriseDisclosurePolicy} from './enterprise-disclosure-policy.mjs';
 import {createEnterpriseMemoryLedger} from './enterprise-memory-ledger.mjs';
 import {createOpenFgaClient} from './enterprise-openfga.mjs';
@@ -114,7 +116,7 @@ async function staticResponse(req, res, pathname, staticDirectory) {
   res.end(req.method === 'HEAD' ? undefined : data);
 }
 
-export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, medusaFetch = fetch, backendPlugins = { disabled: [] }, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, enterpriseDisclosureOptions = null, goalBrainOptions = null, spaceOptions = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
+export async function createApp({ dataDirectory = path.join(root, '.data'), provider = createPiProvider(), staticDirectory = path.join(root, 'dist'), goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, connectorAdapters = {}, workerAdapters = {}, dotWorkerConfig = null, museWorkerConfig = null, museOriginalBinding = null, schedulerIntervalMs = 1000, capabilityEnvironment = process.env, shopifyFetch = fetch, medusaFetch = fetch, aiWorkSourceFetch = fetch, aiWorkOutreachFetch = fetch, backendPlugins = { disabled: [] }, supplierTrafficAdapter = null, supplierTrafficOptions = null, supplierOwnerMcpBinding = null, supplierNotificationOptions = {}, sourcingMcpConfig = null, agentConfig = null, libraryModelReadPolicy = null, businessAgentOptions = null, enterpriseDisclosureOptions = null, goalBrainOptions = null, spaceOptions = null, marketValidationOptions = {}, allowedOrigins = [], access: accessOptions = {}, accessClock = Date.now } = {}) {
   const instanceId = randomUUID(), startedAt = new Date().toISOString();
   const localVerification = await readLocalVerification();
   const accessConfig = validateAccessConfig(accessOptions, allowedOrigins);
@@ -124,7 +126,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   const backendSelection = backendPluginSelection(backendPlugins);
   const store = await openStore(dataDirectory);
   let medusaModule, pluginLibraryModule;
-  let runtime, artifacts, capabilities, access, recovery, goalBrain, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure,enterpriseMemory, shopify, commerce, supply, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent, medusaCatalog, spaceService;
+  let runtime, artifacts, capabilities, access, recovery, goalBrain, workerDesk, workerOpportunities, cloudExperts, dotBridge, dotAuth, museBridge, museHost, businessLibrary, libraryModelRead, enterpriseDisclosure,enterpriseMemory, shopify, commerce, supply, inquiryRecovery, aiWorks, sourcingMcpAuth, piMuse, museDrafts, supplierService, supplierMonitoring, marketValidationMonitoring, publicationAdapter, supplierPublication, supplierNotifications, builtinAgent, medusaCatalog, spaceService;
   try {
     if (businessAgent && Object.values(store.read().workspaceThreadHarness || {}).some(value => Array.isArray(value) && value.length))
       throw new Error('Existing alpha ThreadHarness records are retained. Review their archive/migration before enabling this adapter; no second executor or automatic state synchronization will adopt them.');
@@ -133,6 +135,11 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     access = await createAccessControl({ config: accessConfig, dataDirectory: store.directory, now: accessClock });
     artifacts = await createArtifactService({ store, directory: path.join(dataDirectory, 'artifacts') });
     businessLibrary = createBusinessLibraryService({ store, artifacts, clock: accessClock });
+    // Platform AI-works: the first published product is lead-discovery. Every
+    // development-plan delegation pins an exact enterprise product-library
+    // revision, so product facts come only from the original library service.
+    aiWorks = createAiWorkService({ store, artifacts, lookupProduct: id => businessLibrary.getProduct(id), sourceEnvironment: capabilityEnvironment, fetchImpl: aiWorkSourceFetch, outreachFetch: aiWorkOutreachFetch, clock: accessClock });
+    await aiWorks.initialize();
     if (spaceOptions !== null && (!spaceOptions || Object.getPrototypeOf(spaceOptions) !== Object.prototype || Object.keys(spaceOptions).some(key => !['enabled', 'medusaSource', 'medusaSourceFactory'].includes(key)) || typeof spaceOptions.enabled !== 'boolean')) throw new TypeError('Use an explicit reviewed Space enablement option.');
     if (spaceOptions?.enabled && accessConfig.mode !== 'enterprise') throw new Error('Space requires the original enterprise Host.');
     if (spaceOptions?.medusaSourceFactory && !backendSelection.enabled('workspace-medusa-catalog')) throw new Error('The reviewed Space Medusa source requires its original backend plugin to remain enabled.');
@@ -215,6 +222,9 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
     commerce = createCommerceService({ store, runtime, shopify, workerDesk, workerCatalog: () => workerDesk.catalog(), museConnection: () => museBridge?.info(), clock: accessClock });
     supply = createSupplyNetworkService({ store, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local',
       merchantMember: subject => accessConfig.mode === 'enterprise' ? ['admin', 'operator'].includes(accessConfig.members.get(subject)) : subject === 'local-operator' });
+    // Historical inquiry recovery runs on the original store and member session.
+    // It can import authorized history and produce unsent drafts; it never sends.
+    inquiryRecovery = createInquiryRecoveryService({ store, artifacts, clock: accessClock, workspaceId: accessConfig.workspaceId || 'local' });
     const workerDigests = [dotWorkerConfig?.tokenDigest, museWorkerConfig?.tokenDigest].filter(Boolean);
     const sourcingDigests = [sourcingMcpConfig?.tokenDigest, ...(sourcingMcpConfig?.principals || []).map(row => row.tokenDigest)].filter(Boolean);
     if (sourcingMcpConfig?.enabled && sourcingDigests.some(value => workerDigests.includes(value)))
@@ -394,6 +404,10 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         if (goalCommerce) return await respond(res, 200, commerce.forGoal(goalCommerce[1]));
         const supplyRead = await supplyHttp({ supply, method, pathname, query: Object.fromEntries(url.searchParams), actor: context });
         if (supplyRead) return await respond(res, supplyRead.status, supplyRead.body);
+        const inquiryRead = await inquiryRecoveryHttp({ recovery: inquiryRecovery, method, pathname, query: Object.fromEntries(url.searchParams), actor: context });
+        if (inquiryRead) return await respond(res, inquiryRead.status, inquiryRead.body);
+        const aiWorkRead = await aiWorksHttp({ service: aiWorks, method, pathname, actor: context });
+        if (aiWorkRead) return await respond(res, aiWorkRead.status, aiWorkRead.body);
         if (pathname === '/api/commerce-status') return await respond(res, 200, commerce.status());
         if (pathname === '/api/commerce-projects') return await respond(res, 200, commerce.list());
         const commerceRead = pathname.match(/^\/api\/commerce-projects\/([^/]+)$/);
@@ -511,6 +525,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (ownedFileMutation && musePrivacy.ownsArtifact(store.read().artifacts.find(item => item.id === ownedFileMutation[1]))) throw new ApiError(404, 'NOT_FOUND', 'Original Muse receipt files are immutable and use the original binding.');
       const supplyWrite = await supplyHttp({ supply, method, pathname, body, actor: context });
       if (supplyWrite) return await respond(res, supplyWrite.status, supplyWrite.body);
+      const inquiryWrite = await inquiryRecoveryHttp({ recovery: inquiryRecovery, method, pathname, body, actor: context });
+      if (inquiryWrite) return await respond(res, inquiryWrite.status, inquiryWrite.body);
       if (method === 'POST' && pathname === '/api/supply/shopify/observe') {
         if (context.role !== 'admin') throw new ApiError(403, 'ROLE_REQUIRED', 'Shopify product synchronization requires administrator access.');
         if (Object.keys(body).some(x => !['requestId', 'after'].includes(x)) || typeof body.requestId !== 'string' || body.after !== undefined && (typeof body.after !== 'string' || body.after.length > 2000)) throw new ApiError(400, 'INVALID_INPUT', 'Invalid Shopify catalog synchronization request.');
@@ -547,6 +563,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       if (method === 'PATCH' && reconfigureExpert) return await respond(res, 200, await cloudExperts.configure(reconfigureExpert[1], body, context.subject));
       const reconfigureTeam = pathname.match(/^\/api\/cloud-teams\/([^/]+)$/);
       if (method === 'PATCH' && reconfigureTeam) return await respond(res, 200, await cloudExperts.configureTeam(reconfigureTeam[1], body, context.subject));
+      const aiWorkWrite = await aiWorksHttp({ service: aiWorks, method, pathname, body, actor: context });
+      if (aiWorkWrite) return await respond(res, aiWorkWrite.status, aiWorkWrite.body);
       if (method === 'POST' && pathname === '/api/worker-orders') return await respond(res, 201, await workerDesk.create(body, context.subject));
       const promote = pathname.match(/^\/api\/worker-orders\/([^/]+)\/promote$/);
       if (promote && method === 'POST') {
@@ -623,7 +641,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       }
       throw new ApiError(404, 'NOT_FOUND', 'API route not found.');
     } catch (error) {
-      const safe = error instanceof SpaceError || error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof CloudExpertError || error instanceof DotWorkerError || error instanceof MuseWorkerError || error instanceof AccessError || error instanceof MuseDraftError || error instanceof SupplierServiceError;
+      const safe = error instanceof SpaceError || error instanceof ApiError || error instanceof CapabilityError || error instanceof WorkerDeskError || error instanceof WorkerOpportunityError || error instanceof CloudExpertError || error instanceof DotWorkerError || error instanceof MuseWorkerError || error instanceof AccessError || error instanceof MuseDraftError || error instanceof SupplierServiceError || error instanceof AiWorkError;
       try {
         if (!res.accessFinish) await access.recordDenial(error);
         if (!res.headersSent) await respond(res, safe ? error.status : 500, { error: { code: safe ? error.code : 'INTERNAL_ERROR', message: safe ? error.message : 'The server could not complete this action. Please retry.' } });
@@ -640,7 +658,7 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let closed = false;
   let closingPromise;
   return {
-    server, runtime, store, artifacts, businessLibrary, spaceService, enterpriseDisclosure,enterpriseMemory, businessAgent, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, marketValidationMonitoring, access, diagnostics,
+    server, runtime, store, artifacts, businessLibrary, aiWorks, spaceService, enterpriseDisclosure,enterpriseMemory, businessAgent, shopify, commerce, supply, capabilities, workerDesk, workerOpportunities, cloudExperts, dotBridge, museBridge, museHost, piMuse, museDrafts, builtinAgent, supplierService, supplierPublication, supplierNotifications, marketValidationMonitoring, access, diagnostics,
     // In-process integration only: no HTTP/model endpoint creates an ERP grant.
     // Reuse this actual instance's current Session client and private identity.
     async freeTradeSessionBinding(identity,options={}) {

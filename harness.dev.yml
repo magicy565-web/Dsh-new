@@ -1,0 +1,34 @@
+version: 1
+name: dev
+server: { host: 127.0.0.1, port: 8791 }
+plugins:
+  - id: storage
+    name: '@workspace-harness/seams/storage'
+    config: { directory: .harness-dev-data }
+  - id: artifacts
+    name: '@workspace-harness/seams/artifacts'
+  - id: audit
+    name: '@workspace-harness/seams/audit'
+  - id: workspace
+    name: '@workspace-harness/seams/workspace'
+    config:
+      defaultWorkspaceId: local
+      workspaces:
+        - id: local
+          name: 本地空间
+          members: [{ subject: local-operator, role: admin }]
+  - id: approval
+    name: '@workspace-harness/seams/approval'
+  - id: tools
+    name: '@workspace-harness/seams/tools'
+  - id: llm
+    name: '@workspace-harness/seams/llm'
+  - id: llm-bridge
+    name: workspace-llm-bridge
+    config: { enabled: false }
+  - id: skills
+    name: '@workspace-harness/seams/skills'
+    config: { scanOnMount: true }
+  - id: inquiries
+    name: workspace-inquiry-recovery
+    config: {}

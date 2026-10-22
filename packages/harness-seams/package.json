@@ -1,0 +1,13 @@
+{
+  "name": "@workspace-harness/seams",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mountable storage, approval and tools providers for the Workspace Harness",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./storage": "./src/storage.mjs",
+    "./approval": "./src/approval.mjs",
+    "./tools": "./src/tools.mjs"
+  }
+}

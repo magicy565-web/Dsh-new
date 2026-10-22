@@ -3,6 +3,7 @@ import type { Bootstrap, Goal } from '../types';
 import { api, ApiError } from '../api';
 import { Icon } from '../icons';
 import { BusinessBrainDecisionSheet } from './BusinessBrainDecisionSheet';
+import { PluginSlot } from '../harness/pluginHost';
 import './business-brain-home.css';
 
 export type DecisionDraft = {
@@ -54,7 +55,8 @@ export function BusinessBrainHome({
   onStartGoal,
   onOpenGoal,
   onContinueConversation,
-  onNavigate
+  onNavigate,
+  onOpenRecovery
 }: {
   data: Bootstrap | null;
   loading: boolean;
@@ -64,6 +66,7 @@ export function BusinessBrainHome({
   onOpenGoal: (goal: Goal) => void;
   onContinueConversation: (conversationId: string) => void;
   onNavigate: (page: 'goals' | 'library' | 'activity' | 'chat') => void;
+  onOpenRecovery?: () => void;
 }) {
   const [conversationId, setConversationId] = useState<string | undefined>(() => newestConversation(data)?.id);
   useEffect(() => { if (!conversationId) setConversationId(newestConversation(data)?.id); }, [conversationId, data?.conversations]);
@@ -136,6 +139,9 @@ export function BusinessBrainHome({
           <Icon name="chat" size={18} />
         </button>
       </header>
+
+      {/* Plugin-contributed home cards. The inquiry recovery entry is a client plugin now. */}
+      <PluginSlot name="home.cards" props={{ onOpenRecovery }} />
 
       <div className="brain-section-label">
         <span>{checking ? '正在刷新经营信号' : '当前最值得关注'}</span>

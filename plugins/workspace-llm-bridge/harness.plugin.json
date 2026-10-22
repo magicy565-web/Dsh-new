@@ -1,0 +1,25 @@
+{
+  "id": "workspace-llm-bridge",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "将仓库现有的 DeepSeek 运行时 provider 注册到 ctx.llm；默认禁用，凭据只从服务端环境变量读取，绝不写入配置或健康输出。",
+  "entry": "./src/index.mjs",
+  "requires": ["llm"],
+  "provides": [],
+  "env": ["DEEPSEEK_API_KEY"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "enabled": { "type": "boolean" },
+      "providerId": { "type": "string" },
+      "model": { "type": "string" },
+      "apiKeyEnv": { "type": "string" },
+      "label": { "type": "string" },
+      "maxTokens": { "type": "integer" },
+      "timeoutMs": { "type": "integer" }
+    },
+    "additionalProperties": false
+  },
+  "routes": [],
+  "tools": []
+}
