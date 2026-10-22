@@ -83,7 +83,10 @@ export function createWechatSubscriptionAdapter({ enabled = false, appId = '', t
       if (!object(summary) || typeof summary.endAt !== 'string' || !Number.isFinite(Date.parse(summary.endAt))
         || typeof summary.provisional !== 'boolean' || typeof beforeSend !== 'function')
         return result('blocked', 'NOTIFICATION_PAYLOAD_INVALID', { evidenceKind });
-      const values = { title: summary.phase === 'first_sample' ? '首次产品采样' : '七天经营总结', status: summary.provisional ? '待核实' : '已完成',
+      // A push is only a pointer: the template carries a title, a status and an
+      // end date. The card body is never sent, so it stays in-app.
+      const title = summary.phase === 'first_sample' ? '首次产品采样' : summary.phase === 'brain_brief' ? '经营观察更新' : '七天经营总结';
+      const values = { title, status: summary.provisional ? '待核实' : '已完成',
         endDate: new Date(summary.endAt).toISOString().slice(0, 10) };
       const data = Object.fromEntries(Object.entries(fields).map(([key, name]) => [key, { value: values[name] }]));
       // No metric amounts, supplier/customer data, full summary, arbitrary page/query or raw IDs are sent.

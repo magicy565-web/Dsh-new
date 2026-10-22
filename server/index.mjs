@@ -43,6 +43,8 @@ import { createArtifactService } from './artifacts.mjs';
 import { createGoalBrainHost } from './goal-brain-host.mjs';
 import { composeBusinessBrainSourceAdapters, createBusinessBrainSourceAdapter, businessBrainSourceFingerprint } from './business-brain-source-adapter.mjs';
 import { createObservationGate } from './brain-analysis.mjs';
+import { buildBrainNotification } from './brain-notification.mjs';
+import { createBrainNotificationHost } from './brain-notification-host.mjs';
 import { createSupplierCommerceBrainSourceAdapter } from './goal-brain-supplier-source.mjs';
 import { handleGoalBrainHttp } from './goal-brain-http.mjs';
 import { BrainError } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
@@ -295,11 +297,24 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
   let ticking = false;
   const capabilitySnapshot = () => { const snapshot = capabilities.bootstrap(); snapshot.scheduler = { ...snapshot.scheduler, automaticTimer: schedulerState.automaticTimer }; return snapshot; };
   const diagnostics = () => operationalDiagnostics({ instanceId, startedAt, runtime: runtime.status(), storage: store.diagnostics(), capabilities: capabilitySnapshot(), scheduler: schedulerState, recovery, access: access.health(), localVerification });
+  const brainNotifications = createBrainNotificationHost({ store, clock: accessClock });
+  // A scheduled analysis that actually started is announced in-app. A skipped
+  // occurrence means the observations did not move, so there is nothing new.
+  async function deliverBrainNotifications(runs = []) {
+    for (const run of Array.isArray(runs) ? runs : []) {
+      if (!run || run.status === 'skipped' || typeof run.analysisFingerprint !== 'string') continue;
+      try {
+        const notification = buildBrainNotification({ state: store.read(), workspaceId: accessConfig.workspaceId || 'local', clock: accessClock });
+        if (notification) await brainNotifications.deliver({ notification });
+      } catch { /* a notification failure must never break the scheduler tick */ }
+    }
+  }
   async function schedulerTick() {
     if (ticking || !schedulerState.automaticTimer) return;
     ticking = true; schedulerState.lastStartedAt = new Date().toISOString();
     try {
-      await capabilities.tick();
+      const tickResult = await capabilities.tick();
+      await deliverBrainNotifications(tickResult?.runs);
       schedulerState.lastCompletedAt = new Date().toISOString(); schedulerState.lastError = null;
       if (schedulerState.automaticTimer) schedulerState.state = 'healthy';
     } catch {
@@ -407,6 +422,12 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         musePrivacy.guardHttp(pathname, context, body); agentPrivacy.guardHttp(pathname, context, body);
         return body;
       } })) return;
+      if (method === 'GET' && pathname === '/api/brain/notifications') {
+        const since = url.searchParams.get('since');
+        const rawLimit = Number(url.searchParams.get('limit') ?? 20);
+        const limit = Number.isSafeInteger(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 20;
+        return await respond(res, 200, { notifications: brainNotifications.list({ since: since || null, limit }) });
+      }
       if (await libraryModelRead.handle({ req, res, pathname, query: url.searchParams, context, respond })) return;
       if (builtinAgent && await builtinAgent.handleUi(req, res, context)) return;
       if (await supplierOwnerMcpHttp({ req, res, pathname, context, access, readBody, guardBody: body => musePrivacy.guardHttp(pathname, context, body), filterResult: value => musePrivacy.filterResponse(value, context), service: supplierService, publication: supplierPublication, artifacts, store, binding: supplierOwnerMcpBinding, clock: accessClock })) return;
