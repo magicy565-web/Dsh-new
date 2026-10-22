@@ -1,4 +1,4 @@
-import { digest, fail, safeJson, same } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
+import { digest, fail, safeJson, same, sourceId } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
 import { productSupplyMissing } from './brain-product-completeness.mjs';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -276,6 +276,20 @@ export function businessBrainSourceFingerprint({ state, workspaceId = 'local', c
   ]);
   refs.sort((a, b) => `${a[0]}:${a[1]}`.localeCompare(`${b[0]}:${b[1]}`));
   return digest(refs);
+}
+
+/**
+ * Synchronous observation snapshot, in the same shape `capture()` produces for
+ * the Brain. Used where awaiting the adapter is not possible (scheduler
+ * preconditions) or where no model is involved at all (notification payloads).
+ */
+export function businessBrainSourceSnapshot({ state, workspaceId = 'local', clock = Date.now } = {}) {
+  if (!state) throw new TypeError('A store snapshot is required.');
+  return buildSnapshot(state, workspaceId, clock).map(item => ({
+    evidenceId: sourceId(item.reference),
+    ...item,
+    authority: 'source-observation-not-causal-proof'
+  }));
 }
 
 function prefixedReference(prefix, reference) {
