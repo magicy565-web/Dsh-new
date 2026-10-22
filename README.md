@@ -1,43 +1,91 @@
-# Workspace · 原生 OMP 单入口
+# Workspace Harness · 本地工作台
 
-默认应用是官方 OMP 18.10.4，运行于固定 Bun 1.3.14。npm start、npm run workspace、npm run dev 和桌面启动脚本都进入原生 TUI，不启动旧 Workspace HTTP 服务，不要求 WS_AGENT_URL/token。
+2026-10-23 发布线：`release/harness-20261023`。产品主入口是**本地 Harness**：
+一个 Node 进程 + 一组接缝 + 一组领域插件 + 自带页面，默认监听
+`http://127.0.0.1:8790`。旧的 React 应用（`server/` + `src/`，8787）和 OMP TUI
+保留为历史入口与迁移来源，不再是默认路径。
 
-## 当前可运行命令
+发布说明见 [本地 Harness 工作台发布线](docs/RELEASE-HARNESS-20261023.md)，
+验证入口见 [发布闸门](docs/RELEASE-GATE-20261023.md)。
 
-Linux x64 / Node 24：
+## 一键安装（Windows）
 
-```sh
-node scripts/setup-omp-runtime.mjs
-WORKSPACE_OMP_AUDITED_NPM_CACHE="$PWD/.cache/npm-omp" node scripts/workspace-omp-install.mjs
-npm run build:omp
-npm run test:omp
-npm run workspace -- --check
-npm start
+```text
+dist/Workspace-Harness-Setup-0.5.0-rc.2.exe
 ```
 
-这条原生路径只安装 support 中两份锁文件的 Bun/OMP 依赖，无需先装旧网页的 React/Vite/Pi 依赖。安装禁用生命周期脚本并排除可选模型组件。npm run build 与 build:omp 相同，验证插件打包闭包、Bun 编译和官方 OMP 独立发现/注册。
+- 每用户安装到 `%LOCALAPPDATA%\Programs\WorkspaceHarness`，不需要管理员权限；
+- 自带 Node 24 运行时，机器不必预装 Node；
+- 双击快捷方式后台启动，等端口就绪后打开 `http://127.0.0.1:8790/home`；
+- 可变数据在 `%LOCALAPPDATA%\WorkspaceHarness\data`（升级/卸载保留），
+  日志在 `%LOCALAPPDATA%\WorkspaceHarness\logs`；
+- 安装包只含本地 Harness 工作台，不含 `integrations/dsh/` 的 DSH 桌面插件，
+  也不读写 `~/.dsh`。
 
-默认 TUI 是明确的离线 no-model 预览：空的隔离 HOME、不读账号密钥、不调用模型、不保存会话、不执行 shell，加载 plugins/config.json 中显式启用的项目扩展。当前默认只启用 workspace-local-materials 的三个公开草稿工具；没有授予本地文件或企业资料访问。所有 14 个包可发现，不代表企业服务已经配置。模型与原生持久会话需另外验收。
+构建安装包：
 
-## 已有本地会话
-
-继续复用原有原生 Session、资料选择和权限边界：
-
-```sh
-npm run workspace -- --input /ABS/product.md --output-dir /ABS/existing-output "先看资料，问我缺项" --check
+```powershell
+powershell -ExecutionPolicy Bypass -File installer\build.ps1
 ```
 
-去掉 --check 的实际执行仍需原有显式模型、价格和预算配置。不得因为预览界面成功而推断真实模型或持久恢复已通过。本次云环境拒绝 OMP 原生持久文件锁，持久续聊/恢复回归尚未通过；未删除或替换锁安全机制。
+细节与验收命令见 [installer/README.md](installer/README.md)。
 
-默认 --check 的 offline-preview-ready 只表示固定运行时及插件清单通过；localSessionPrerequisites 单独报告原生锁、当前传入进程配置及阻塞项。锁预检使用同版官方 primitive 做取得、释放、重新取得、释放，不创建 Session 或调用模型。显式本地 --check 在锁不可用时返回 environment-unavailable、退出码 2；实际执行在创建 Session 或调用模型前停止。preflightReady 也不代表持久续聊、恢复、真实模型或预算已验收。已有 JSONL 只标为 exists，不标为已恢复。
+## 从源码运行
 
-## 插件与旧服务
+要求 Node.js 24+，生产依赖只有 `cordis` 与 `yaml`：
 
-- 原生插件唯一目录为 plugins/，沿用官方 manifest/extension/skill 加载，无新 AgentLoop、队列或数据库
-- 外部/Host 绑定业务默认禁用并标记 unconfigured。Mem0 继续关闭，Docling 原件传出继续要求既有精确授权
-- Shopify、工厂、询盘、客户、七天监测、免费贸易和企业资料插件复用基线，不重复 cherry-pick
-- Brain/Medusa 等未完成审查的候选未接入共享 Host/Artifact
-- 旧服务仅通过 npm run legacy:workspace -- --serve 显式启动；不属于默认原生入口，也不在此次云构建中启动
+```sh
+npm install          # 或 pnpm install
+node scripts/harness-serve.mjs
+```
 
-[本轮范围、命令与验收限制](docs/OMP-UNIFIED-BUILD.md) · [插件说明](plugins/README.md) · [原本地会话说明](docs/WORKSPACE-OMP-LOCAL.md)
+然后打开 `http://127.0.0.1:8790/home`。组合文件是 `harness.local.yml`，当前挂载
+24 个插件：首页、聊天/运行、目标、计划任务、收件箱、运维、市场、产品库、经营记忆、
+文件、报价、采购、审批、身份、技能与模型接缝。
 
+模型默认关闭（`llm-bridge.enabled: false`）。需要真实模型时显式配置 provider 与
+预算；安装器和默认组合都不创建凭据、不读取账号密钥。
+
+## 验证
+
+```powershell
+node scripts/release-check.mjs
+```
+
+自动发现全部 `*.test.mjs`，按顺序跑 12 个端到端冒烟（chat、runner、guarded、
+schedules、ops、access、factory、procurement、quotes、purchases、quote-tool、
+purchase-tool），最后跑 `wh doctor`。详细约束见发布闸门文档。
+
+## 目录
+
+| 路径 | 内容 |
+| --- | --- |
+| `packages/harness-kernel` | Cordis 引导、组合加载、HTTP、`wh` CLI |
+| `packages/harness-seams` | storage / approval / tools / artifacts / audit / skills / workspace / llm |
+| `plugins/` | 领域插件与各自的测试、页面、技能 |
+| `server/` | 旧应用与迁移来源；Harness 通过 `server/store.mjs` 复用单写者存储 |
+| `scripts/` | 启动、冒烟、迁移、发布闸门 |
+| `installer/` | 一键安装 exe 的 Inno Setup 脚本、启动器与构建脚本 |
+| `integrations/dsh/` | DeepSeek Harness 桌面宿主的三个业务插件源码（独立产品线） |
+
+## 边界
+
+- 单企业、单工作空间、单写者 JSON + 事件表；没有数据库。
+- 所有成员共享工作空间数据；写入必须经过明确的角色/审批边界。
+- 未挂载的业务插件（Medusa、ERPNext、Shopify 写操作等）不会在默认组合里运行，
+  也不宣称可用。
+- 本地服务只监听 `127.0.0.1`；没有鉴权时不要暴露到公网。
+- 应用不是官方 Muse 产品；真实模型、真实外部服务与生产部署都需要单独验收。
+
+## 历史入口：原生 OMP TUI
+
+以下内容描述 2026-10 早期的 OMP 18.10.4 / Bun 1.3.14 原生 TUI 路径，仅作历史记录，
+默认产品已切到上面的本地 Harness：
+
+- `npm run workspace` / `npm start` 仍保留旧的原生 TUI 入口与 `scripts/workspace-omp*.mjs`；
+- 默认 TUI 是离线 no-model 预览，不读账号密钥、不调用模型、不保存会话；
+- 原生持久会话、真实模型与预算、OMP 锁在云端曾被拒绝，均需单独验收；
+- 旧服务只能通过 `npm run legacy:workspace -- --serve` 显式启动。
+
+历史说明：[本轮范围](docs/OMP-UNIFIED-BUILD.md) ·
+[插件说明](plugins/README.md) · [原本地会话](docs/WORKSPACE-OMP-LOCAL.md)。
