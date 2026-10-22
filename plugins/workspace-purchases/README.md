@@ -41,3 +41,6 @@ node scripts/purchases-smoke.mjs
 ```
 
 冒烟：草稿 → 管理员批准（记录批准人）→ 跳过状态 409 → 下单 → 收货 → 页面 200。
+
+模型驱动冒烟：`node scripts/purchase-tool-smoke.mjs` —— 离线 provider 请求
+`purchase_order_create`，run 停在审批，批准后只执行一次，订单以**草稿**落库（11/11）。
