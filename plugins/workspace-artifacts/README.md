@@ -26,6 +26,13 @@ GET  /api/artifacts/:id/download    以附件下载文本（content-disposition�
 插件注册 `artifact_write` 工具（`approval: 'always'`）：模型产出文档时必须经过一次人工
 批准，工具才落库。runner 会把结果里的 artifact 固定到 `run.snapshot.outputs`，并发出
 `run.output_created`，页面上显示下载链接。
+## 二进制文件
+
+除了 UTF-8 文本，还支持按字节存储的二进制：上传时发送 `base64`（与 `content` 二选一），
+`mimeType` 必须在允许列表内（PNG / JPEG / PDF / XLSX / DOCX / octet-stream），上限 5 MiB；
+服务端会校验魔数。下载按原始字节返回，带正确的 `Content-Type` 与附件文件名。
+
+二进制**不会进入模型上下文**：它只被存储、显示和下载，模型最多看到文件名与元数据。
 ## 与 run 的关系
 
 上传只产生 artifact；把它挂到某次对话，是消息里的

@@ -9,7 +9,14 @@ import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/ind
 export const PLUGIN_ID = 'workspace-artifacts';
 const BASE = '/api/artifacts';
 const MAX_TEXT_BYTES = 512 * 1024;
+const MAX_BINARY_BYTES = 5 * 1024 * 1024;
 const TEXT_TYPES = Object.freeze(['text/plain', 'text/markdown', 'text/csv', 'application/json']);
+const BINARY_TYPES = Object.freeze([
+  'image/png', 'image/jpeg', 'application/pdf',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/octet-stream',
+]);
 
 export const ROUTES = Object.freeze([
   ['POST', BASE],
@@ -37,6 +44,35 @@ function asHarnessError(error) {
 function isPlain(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+}
+
+function uploadMeta(body) {
+  return {
+    filename: body.filename,
+    ...(body.title === undefined ? {} : { title: body.title }),
+    ...(body.description === undefined ? {} : { description: body.description }),
+    ...(body.requestId === undefined ? {} : { requestId: body.requestId }),
+  };
+}
+
+async function uploadText(ctx, body) {
+  if (typeof body.content !== 'string') throw invalid('content must be a string for a text upload.');
+  const bytes = Buffer.byteLength(body.content, 'utf8');
+  if (bytes > MAX_TEXT_BYTES) throw invalid(`The file exceeds ${MAX_TEXT_BYTES} bytes.`);
+  const mimeType = body.mimeType ?? 'text/plain';
+  if (!TEXT_TYPES.includes(mimeType)) throw invalid(`mimeType must be one of ${TEXT_TYPES.join(', ')}.`);
+  return ctx.artifacts.create({ ...uploadMeta(body), content: body.content, mimeType });
+}
+
+async function uploadBinary(ctx, body) {
+  if (typeof body.base64 !== 'string' || !body.base64) throw invalid('base64 must be non-empty text.');
+  let buffer;
+  try { buffer = Buffer.from(body.base64, 'base64'); } catch { throw invalid('base64 is not valid.'); }
+  if (buffer.length === 0) throw invalid('base64 decodes to an empty file.');
+  if (buffer.length > MAX_BINARY_BYTES) throw invalid(`The file exceeds ${MAX_BINARY_BYTES} bytes.`);
+  if (!BINARY_TYPES.includes(body.mimeType))
+    throw invalid(`mimeType must be one of ${BINARY_TYPES.join(', ')} for a binary upload.`);
+  return ctx.artifacts.create({ ...uploadMeta(body), base64: body.base64, mimeType: body.mimeType });
 }
 
 /**
@@ -84,25 +120,15 @@ export async function apply(ctx, config = {}) {
         const actor = writer(context ?? {});
         const body = context?.body ?? {};
         if (!isPlain(body)) throw invalid('An upload must be an object.');
-        if (Object.keys(body).some(key => !['filename', 'content', 'mimeType', 'title', 'description', 'requestId'].includes(key)))
+        if (Object.keys(body).some(key => !['filename', 'content', 'base64', 'mimeType', 'title', 'description', 'requestId'].includes(key)))
           throw invalid('An upload has an unsupported field.');
         if (typeof body.filename !== 'string' || !body.filename.trim() || body.filename.length > 200)
           throw invalid('filename must be non-empty text of at most 200 characters.');
-        if (typeof body.content !== 'string')
-          throw invalid('Only UTF-8 text uploads are supported by this surface.');
-        const bytes = Buffer.byteLength(body.content, 'utf8');
-        if (bytes > MAX_TEXT_BYTES) throw invalid(`The file exceeds ${MAX_TEXT_BYTES} bytes.`);
-        const mimeType = body.mimeType ?? 'text/plain';
-        if (!TEXT_TYPES.includes(mimeType))
-          throw invalid(`mimeType must be one of ${TEXT_TYPES.join(', ')}.`);
-        const created = await ctx.artifacts.create({
-          filename: body.filename,
-          content: body.content,
-          mimeType,
-          ...(body.title === undefined ? {} : { title: body.title }),
-          ...(body.description === undefined ? {} : { description: body.description }),
-          ...(body.requestId === undefined ? {} : { requestId: body.requestId }),
-        });
+        if (body.content !== undefined && body.base64 !== undefined)
+          throw invalid('Send either content or base64, not both.');
+        const created = body.base64 !== undefined
+          ? await uploadBinary(ctx, body)
+          : await uploadText(ctx, body);
         if (ctx.audit?.record) {
           await ctx.audit.record({ kind: 'artifacts', action: 'artifacts.upload', actor: actor.subject, ref: created.artifact.id })
             .catch(() => {});
@@ -155,17 +181,14 @@ export async function apply(ctx, config = {}) {
     handler: async (_request, _response, context) => {
       try {
         actorOf(context ?? {});
-        const result = await ctx.artifacts.read(context?.params?.id);
-        if (result?.encoding !== 'utf8' || typeof result?.content !== 'string') {
-          const error = new HarnessError('ARTIFACT_NOT_TEXT', 'Only text files can be downloaded here.');
-          error.status = 415;
-          throw error;
-        }
-        const filename = result.version?.filename ?? result.artifact?.filename ?? 'download.txt';
-        return new Response(result.content, {
+        const file = await ctx.artifacts.download(context?.params?.id);
+        const bytes = Buffer.isBuffer(file.bytes) ? file.bytes : Buffer.from(file.bytes ?? '');
+        const filename = file.filename ?? file.version?.filename ?? 'download.bin';
+        return new Response(bytes, {
           status: 200,
           headers: {
-            'content-type': `${result.version?.mimeType ?? 'text/plain'}; charset=utf-8`,
+            'content-type': file.mimeType ?? 'application/octet-stream',
+            'content-length': String(bytes.length),
             'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
             'cache-control': 'no-store',
             'x-content-type-options': 'nosniff',

@@ -7,18 +7,19 @@ function fakeArtifacts() {
   const record = body => {
     const id = crypto.randomUUID();
     const sha256 = 'a'.repeat(64);
+    const bytes = body.base64 === undefined ? Buffer.from(body.content ?? '', 'utf8') : Buffer.from(body.base64, 'base64');
     const artifact = {
       id,
       filename: body.filename,
       title: body.title ?? body.filename,
       mimeType: body.mimeType ?? 'text/plain',
-      size: Buffer.byteLength(body.content, 'utf8'),
+      size: bytes.length,
       sha256,
       currentVersion: 1,
-      versions: [{ version: 1, filename: body.filename, mimeType: body.mimeType ?? 'text/plain', sha256, size: Buffer.byteLength(body.content, 'utf8') }],
+      versions: [{ version: 1, filename: body.filename, mimeType: body.mimeType ?? 'text/plain', sha256, size: bytes.length }],
       createdAt: new Date().toISOString(),
     };
-    items.set(id, { artifact, content: body.content });
+    items.set(id, { artifact, content: body.content, bytes });
     return artifact;
   };
   const notFound = () => Object.assign(new Error('not found'), { code: 'ARTIFACT_NOT_FOUND', status: 404 });
@@ -32,6 +33,11 @@ function fakeArtifacts() {
       if (!item) throw notFound();
       const binary = item.artifact.mimeType === 'application/octet-stream';
       return { artifact: item.artifact, version: item.artifact.versions[0], encoding: binary ? 'base64' : 'utf8', content: binary ? 'AAAA' : item.content };
+    },
+    download: async id => {
+      const item = items.get(id);
+      if (!item) throw notFound();
+      return { artifact: item.artifact, version: item.artifact.versions[0], bytes: item.bytes, filename: item.artifact.filename, mimeType: item.artifact.mimeType };
     },
   };
 }
@@ -162,4 +168,41 @@ test('a text file can be downloaded as an attachment', async () => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-disposition'), /attachment; filename\*=UTF-8''/u);
   assert.equal(await response.text(), '# 报价');
+});
+const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+test('a binary file is stored and downloaded byte for byte', async () => {
+  const harness = await mounted();
+  const created = await harness.call('POST /api/artifacts', {
+    body: { filename: '像素.png', mimeType: 'image/png', base64: PNG_BASE64 },
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.artifact.mimeType, 'image/png');
+  assert.equal(created.body.artifact.size, Buffer.from(PNG_BASE64, 'base64').length);
+
+  const response = await harness.call('GET /api/artifacts/:id/download', { params: { id: created.body.artifact.id } });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'image/png');
+  const bytes = Buffer.from(await response.arrayBuffer());
+  assert.deepEqual(bytes, Buffer.from(PNG_BASE64, 'base64'));
+});
+
+test('a binary upload needs a supported type and exactly one payload', async () => {
+  const harness = await mounted();
+  await assert.rejects(
+    harness.call('POST /api/artifacts', { body: { filename: 'x.png', mimeType: 'image/png', base64: PNG_BASE64, content: 'x' } }),
+    error => error.status === 400,
+  );
+  await assert.rejects(
+    harness.call('POST /api/artifacts', { body: { filename: 'x.png', base64: PNG_BASE64 } }),
+    error => error.status === 400,
+  );
+  await assert.rejects(
+    harness.call('POST /api/artifacts', { body: { filename: 'x.png', mimeType: 'image/png', base64: '' } }),
+    error => error.status === 400,
+  );
+  await assert.rejects(
+    harness.call('POST /api/artifacts', { body: { filename: 'x.bin', mimeType: 'application/x-msdownload', base64: PNG_BASE64 } }),
+    error => error.status === 400,
+  );
 });

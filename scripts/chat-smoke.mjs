@@ -109,6 +109,19 @@ try {
   const replayFrames = reader(replay);
   check('a reconnect with after= replays nothing twice and ends', await replayFrames.end());
 
+  // Binary artifacts: stored as bytes, downloaded byte for byte.
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const uploaded = await fetch(`${base}/api/artifacts`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ filename: '像素.png', mimeType: 'image/png', base64: png }),
+  }).then(response => response.json());
+  check('a binary file is stored with its own type', uploaded.artifact?.mimeType === 'image/png', uploaded.artifact?.size);
+  const downloaded = await fetch(`${base}/api/artifacts/${uploaded.artifact.id}/download`);
+  const downloadedBytes = Buffer.from(await downloaded.arrayBuffer());
+  check('a binary file downloads byte for byte',
+    downloaded.headers.get('content-type') === 'image/png' && downloadedBytes.equals(Buffer.from(png, 'base64')),
+    downloadedBytes.length);
+
   // A goal groups runs without copying them.
   const goal = await fetch(`${base}/api/goals`, {
     method: 'POST', headers: { 'content-type': 'application/json' },

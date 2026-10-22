@@ -94,7 +94,7 @@ const PAGE = `<!doctype html>
     <div id="approvals"></div>
     <div id="chips"></div>
     <form id="composer">
-      <input id="file" type="file" accept=".txt,.md,.csv,.json" hidden>
+      <input id="file" type="file" accept=".txt,.md,.csv,.json,.png,.jpg,.jpeg,.pdf,.xlsx,.docx" hidden>
       <button id="attach" type="button" title="附加文本文件（≤512 KiB）">附文件</button>
       <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="2"></textarea>
       <button class="primary" id="send" type="submit">发送</button>
@@ -189,19 +189,28 @@ const PAGE = `<!doctype html>
   }
   function uploadFile(file) {
     if (!file) return;
-    if (file.size > 512 * 1024) { setState('文件超过 512 KiB', 'bad'); return; }
+    var type = file.type || '';
+    var name = String(file.name || '').toLowerCase();
+    var textLike = type.indexOf('text/') === 0 || type === 'application/json'
+      || name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.csv') || name.endsWith('.json');
+    var limit = textLike ? 512 * 1024 : 5 * 1024 * 1024;
+    if (file.size > limit) { setState('文件超过 ' + Math.round(limit / 1024) + ' KiB', 'bad'); return; }
     var reader = new FileReader();
     reader.onload = function () {
+      var payload = { filename: file.name, mimeType: file.type || (textLike ? 'text/plain' : 'application/octet-stream') };
+      if (textLike) payload.content = String(reader.result);
+      else payload.base64 = btoa(new Uint8Array(reader.result).reduce(function (text, byte) { return text + String.fromCharCode(byte); }, ''));
       api('/api/artifacts', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, content: String(reader.result), mimeType: file.type || 'text/plain' }),
+        body: JSON.stringify(payload),
       }).then(function (data) {
         state.files.push({ id: data.artifact.id, filename: data.artifact.filename });
         renderChips();
         setState('已附加 ' + data.artifact.filename, '');
       }).catch(function (error) { setState('上传失败：' + error.message, 'bad'); });
     };
-    reader.readAsText(file);
+    if (textLike) reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
   }
 
   function renderOutputs(items) {

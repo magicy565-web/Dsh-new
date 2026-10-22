@@ -19,7 +19,7 @@
 | D 模型与预算 | provider、token 预算、取消、用量 | `pi-provider.mjs`、`workspace-llm-bridge` | 插件 `workspace-llm-bridge` + 预算插件 | ✅ provider + SSE 流 + run 循环 |
 | E 上下文装配 | 文件、技能、记忆、企业事实 | `server/task-context.mjs` | 插件 `workspace-context` | 部分：技能 + 文本文件 + 记忆已装配并固定进 `run.snapshot`；上传/预览已通 |
 | F 工具与审批 | 工具注册、审批票据、连接器 | `workspace-bridge.mjs`、`capabilities.mjs`、approval/tools seams | 接缝已就位 + 插件 `workspace-approvals` | 部分 |
-| G 产物 | 生成文件、下载、发布 | `run-output.mjs`、artifacts seam | 接缝已就位 + 插件 | 部分：工具可写文件、固定到 run、页面可下载；发布未做 |
+| G 产物 | 生成文件、下载、发布 | `run-output.mjs`、artifacts seam | 接缝已就位 + 插件 | 部分：工具可写文件、二进制收发、固定到 run、页面可下载；发布未做 |
 | H 业务域 | 资料库、产品库、市场、采购、供应商、Medusa | `plugins/*` | 已在 harness | ✅ 大部分 |
 | I 目标与信号 | Goal、Brain、经营信号 | `server/goal-brain*.mjs` | 插件 `workspace-goals` | 部分：目标已迁移（run 聚合 + 状态机 + 页面）；Brain/信号未迁 |
 | J 自动化 | 计划任务、通知、Worker 派发 | `capabilities.mjs`、`worker-*` | 插件 `workspace-schedule` | 部分：计划任务 + 收件箱已迁移（确定性派发、回执、通知）；Worker 派发未迁 |
