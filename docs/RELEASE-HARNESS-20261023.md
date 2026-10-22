@@ -1,4 +1,4 @@
-# 发布线：本地 Harness 工作台（2026-10-23）
+﻿# 发布线：本地 Harness 工作台（2026-10-23）
 
 分支：`release/harness-20261023`
 
@@ -41,9 +41,21 @@ purchase-tool），最后跑 `wh doctor`。每一步继承 stdio，退出码 0 �
 
 本分支上的实测结果见第 5 节；失败项会原样保留，不写成“通过”。
 
-## 3. 一键安装包
+## 3. 一键安装包（两个版本）
 
-产物：`dist/Workspace-Harness-Setup-0.5.0-rc.2.exe`（24.9 MiB，单文件，双击安装）。
+| | 浏览器版 | 桌面版（完整） |
+| --- | --- | --- |
+| 产物 | `Workspace-Harness-Setup-0.5.0-rc.2.exe` | `Workspace-Harness-Desktop-Setup-0.5.0-rc.2.exe` |
+| 安装包 | 24.9 MiB | 约 111 MiB |
+| 安装后 | 约 100 MB | 约 368 MB |
+| 界面 | 系统浏览器标签页 | 独立 Electron 窗口 + 托盘 |
+| 自带内核 | Node 24（`runtime\node.exe`） | Electron 45（Chromium 156 + Node 24.22） |
+| 适合 | 最轻量、机器已有浏览器 | 需要和 DeepSeek Harness 同类的桌面应用体验 |
+
+两个版本共用同一个 `AppId`、安装目录和 `%LOCALAPPDATA%\WorkspaceHarness` 数据目录；
+安装桌面版会替换浏览器版的顶层文件，`data` / `logs` 保留。
+
+### 浏览器版
 
 安装器行为：
 
@@ -59,15 +71,27 @@ purchase-tool），最后跑 `wh doctor`。每一步继承 stdio，退出码 0 �
 | 日志 | `%LOCALAPPDATA%\WorkspaceHarness\logs\server.log`、`launcher.log` |
 | 组合 | 启动时按安装目录 `harness.local.yml` 生成用户组合，仅把 storage 指向数据目录 |
 
+### 桌面版（完整）
+
+| 项 | 值 |
+| --- | --- |
+| 界面 | Electron 45 独立窗口，默认 1440×920，自带 Chromium 156 |
+| 服务 | 同一个 Harness 跑在 Electron 内嵌 Node 24.22（`ELECTRON_RUN_AS_NODE`），不再附带第二份 Node |
+| 托盘 | 打开 / 浏览器打开 / 停止本地服务 / 退出；关窗只隐藏，不退出 |
+| 停止 | 托盘「停止本地服务」，或 `WorkspaceHarness.exe --stop` |
+| 数据 | 同浏览器版；Chromium 状态在 `%LOCALAPPDATA%\WorkspaceHarness\chromium` |
+| 卸载 | 先杀窗口进程，再按 `server.pid` 精确停服务，不会误杀其他 `node.exe` |
+
 构建：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File installer\build.ps1
+powershell -ExecutionPolicy Bypass -File installer\build.ps1          # 浏览器版
+powershell -ExecutionPolicy Bypass -File installer\build-desktop.ps1  # 桌面版
 ```
 
-脚本会缺什么补什么：Node 取本机 DSH 运行时（可用 `-NodeExe` 指定），pnpm 取 DSH
-运行时，Inno Setup 6 未安装时按当前用户静默安装。产物和 SHA-256 打印在最后，
-同时写 `dist/SHA256SUMS.txt`。
+脚本会缺什么补什么：Node/pnpm 取本机 DSH 运行时（可用参数覆盖），Electron 从官方
+release 或 npmmirror 镜像下载并缓存，Inno Setup 6 未安装时按当前用户静默安装。
+产物和 SHA-256 打印在最后，同时写 `dist\SHA256SUMS.txt` / `dist\SHA256SUMS-desktop.txt`。
 
 ## 4. 包含的能力（安装后可见）
 
@@ -82,7 +106,8 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 | `/market` | Worker 市场（demo 数据） | `workspace-market` |
 | `/product-library` | 产品空间（未配置 Medusa 时只读空态） | `workspace-product-library` |
 | `/business-memory` | 企业经营记忆：候选/审核/事实 | `workspace-business-memory` |
-| `/api/artifacts/*` | 文本与二进制文件、元数据、下载（面板入口在 `/chat` 附件里） | `workspace-artifacts` |
+| `/files` | 文件上传、列表、文本预览、二进制下载 | `workspace-artifacts` |
+| `/api/artifacts/*` | 文件元数据与下载接口（供页面和工具调用） | `workspace-artifacts` |
 | `/quotes`、`/purchases` | 报价与采购单，写操作必须人工审批 | `workspace-quotes`、`workspace-purchases` |
 | `/login` | 企业模式的会话入口（本地单用户模式返回 404） | `workspace-access` |
 | `/api/healthz` | 25 个插件健康检查 | kernel + seams |
@@ -99,9 +124,9 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 | 合并冲突 | `server/index.mjs` 1 处，已取并集并 `node --check` 通过 |
 | 经营大脑相关单测 | 7 个文件 127/127 通过（`workspace-brain-read-http-compat` 在本机因 `/tmp` 路径不可用而跳过，非合并回归） |
 | Harness kernel | 106/106 通过 |
-| 安装包构建 | 见 `dist/SHA256SUMS.txt` 与第 6 节 |
-| 静默安装 + 启动 | 待第 6 节验收记录 |
-| 发布闸门 | `scripts/release-check.mjs` 67/67 步通过（ok: true，约 140s：51 个测试文件 + 15 个冒烟 + doctor） |
+| 安装包构建 | 浏览器版 24.9 MiB、桌面版 111.3 MiB（见第 6 节） |
+| 静默安装 + 启动 | 两个版本均通过（见第 6 节） |
+| 发布闸门 | `scripts/release-check.mjs` 68/68 步通过（ok: true：51 个测试文件 + 16 个冒烟 + doctor） |
 
 ## 6. 安装验收记录
 
@@ -111,15 +136,31 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 | --- | --- |
 | 静默安装（`/VERYSILENT /DIR=%TEMP%\wh-install`） | 退出码 0；`WorkspaceHarness.exe`、`runtime\node.exe`、`plugins\workspace-inquiry-recovery` 均在 |
 | 首次启动（`--no-browser`） | 8790 就绪；数据写入 `%LOCALAPPDATA%\WorkspaceHarness\data` |
-| 页面 | `/home`、`/chat`、`/goals`、`/schedules`、`/inbox`、`/ops`、`/market`、`/business-memory`、`/quotes`、`/purchases` 全部 200 |
+| 页面 | `/home`、`/chat`、`/files`、`/goals`、`/schedules`、`/inbox`、`/ops`、`/market`、`/business-memory`、`/quotes`、`/purchases` 全部 200 |
 | 健康检查 | `/healthz` 200，25/25 插件 `ok` |
 | 二次启动 | 不新增进程（node 进程数 1 → 1），只复用已有服务 |
 | `--stop` | 退出码 0，端口关闭；再次启动可从陈旧锁恢复 |
 | 卸载 | 退出码 0，安装目录删除；`data` 与 `logs` 保留 |
-| 安装包大小 | 24.9 MiB，SHA-256 `BA8DC045CB71D60E73D6A860FD96AD8218D362B1035BBB7AC0518CD0A00A2492` |
+| 安装包大小 | 24.9 MiB，SHA-256 `CF7EFAA178832F731D09E8C5902C3DD13E9320CD7A7D5D52DBFDF1E2FFAB2B1A` |
 
 `/login` 在本地单用户模式下返回 404 属预期：它是企业模式入口。
 `/inquiry-recovery` 没有独立页面，能力是模型工具 + HTTP 路由。
+
+### 桌面版（Electron）
+
+2026-10-23 用 `dist/Workspace-Harness-Desktop-Setup-0.5.0-rc.2.exe` 实测：
+
+| 步骤 | 结果 |
+| --- | --- |
+| 静默安装（`/VERYSILENT /DIR=%TEMP%\wh-desktop`） | 退出码 0；367.8 MB / 1045 文件；`electron.exe` 已改名 `WorkspaceHarness.exe`，`resources\app\harness` 完整 |
+| `--smoke` | 退出码 0；`/healthz` 200，25/25 插件 `ok`，服务进程已回收 |
+| 正常启动 | 窗口标题「工作台」，`/home` 200；CDP 截图确认首页 8 张入口卡片 |
+| `--stop` | 退出码 0，8790 关闭；窗口进程仍在（按设计，停止服务不等于退出界面） |
+| 卸载 | 退出码 0，安装目录删除；`data` / `logs` / `chromium` 保留 |
+| 安装包大小 | 111.3 MiB，SHA-256 `2414F5F7A72FE6EBF3E79EDA5FA0D5ABA0E119B4B816A111744AC98F632A8111` |
+
+Electron 45 自带 Node 24.22，服务通过 `ELECTRON_RUN_AS_NODE` 跑在同一个可执行文件上，
+所以桌面版没有第二份 `node.exe`；这 111 MiB 主要就是 Chromium 本身。
 
 ## 7. 已知边界
 
