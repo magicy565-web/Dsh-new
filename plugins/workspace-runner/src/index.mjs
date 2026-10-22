@@ -47,6 +47,7 @@ export async function apply(ctx, config = {}) {
   const memory = config.memory === false ? null : (ctx.get?.('businessMemory', false) ?? null);
   const tools = config.tools === false ? null : (ctx.get?.('tools', false) ?? null);
   const approval = config.tools === false ? null : (ctx.get?.('approval', false) ?? null);
+  const skills = ctx.get?.('skills', false) ?? null;
 
   if (config.enabled === false) {
     if (ctx.health?.register) ctx.health.register('runner', () => ({ status: 'ok', detail: { enabled: false } }));
@@ -54,7 +55,7 @@ export async function apply(ctx, config = {}) {
   }
 
   const runner = createRunner({
-    chat, llm, memory, tools, approval, workspaceId,
+    chat, llm, memory, tools, approval, skills, workspaceId,
     model: config.model ?? null,
     systemPrompt: config.systemPrompt,
     timeoutMs: config.timeoutMs ?? 120_000,
@@ -65,7 +66,7 @@ export async function apply(ctx, config = {}) {
 
   const unsubscribe = chat.onPrepared(({ runId }) => { runner.enqueue(runId); });
   if (ctx.health?.register) {
-    ctx.health.register('runner', () => ({ status: 'ok', detail: { ...runner.stats(), memory: Boolean(memory), tools: Boolean(tools), approval: Boolean(approval) } }));
+    ctx.health.register('runner', () => ({ status: 'ok', detail: { ...runner.stats(), memory: Boolean(memory), tools: Boolean(tools), approval: Boolean(approval), skills: Boolean(skills) } }));
   }
   let disposeService = null;
   if (typeof ctx.provide === 'function') disposeService = ctx.provide('runner', runner);

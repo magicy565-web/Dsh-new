@@ -36,7 +36,7 @@ GET  /api/chat/status
 POST /api/chat/conversations                 { requestId, title? }
 GET  /api/chat/conversations?status=&limit=
 GET  /api/chat/conversations/:id?messageLimit=
-POST /api/chat/conversations/:id/messages    { requestId, content }
+POST /api/chat/conversations/:id/messages    { requestId, content, selection? }
 GET  /api/chat/runs/:id
 POST /api/chat/runs/:id/cancel               { reason? }
 GET  /api/chat/runs/:id/events?after=<seq>   text/event-stream

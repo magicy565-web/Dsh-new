@@ -33,6 +33,15 @@
 ```
 
 
+## 上下文装配
+
+消息可以带 `selection.skills`（最多 8 个）。runner 在模型调用前：
+
+1. 从 `ctx.skills` 逐个 `load()`；缺一个就整轮失败（`SKILL_UNAVAILABLE`），不静默丢；
+2. 用正文的 SHA-256 固定技能版本，总预算 24k 字符，超了报 `SKILL_TOO_LARGE`；
+3. 把技能正文放进 system，并声明“用户保存的指令从属于运行时权限”；
+4. 把 `{ skills: [{name, sha256, chars}], memory: {revision, ids}, contextChars }`
+   写进 `run.snapshot` 并发出 `run.context_ready`——这是“这个 run 到底看到了什么”的审计记录。
 ## 工具循环（guarded execution）
 
 装配了 `ctx.tools` 时，runner 会把工具交给模型，并按调用逐个处理：

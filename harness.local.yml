@@ -58,6 +58,10 @@ plugins:
   - id: chat
     name: workspace-chat
     config: { workspaceId: local }
+  # 技能：插件目录下的 skills/*（用户保存的指令）。消息可显式选择一个或多个。
+  - id: skills
+    name: '@workspace-harness/seams/skills'
+    config: { scanOnMount: true }
   # 模型接缝：provider 注册表。默认没有 provider，调用会明确失败而不是编造回答。
   - id: llm
     name: '@workspace-harness/seams/llm'

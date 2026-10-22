@@ -58,6 +58,27 @@ const defaultState = () => ({
   conversations: [], messages: [], runs: [], events: [], receipts: [], approvals: [],
 });
 
+const SKILL_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u;
+
+/** Bound what a single message may attach as run context. */
+function validateSelection(selection) {
+  if (selection === undefined) return { skills: [] };
+  if (!isPlain(selection)) fail(400, 'CHAT_INPUT', 'selection must be an object.');
+  if (Object.keys(selection).some(key => key !== 'skills'))
+    fail(400, 'CHAT_INPUT', 'selection has an unsupported field.');
+  const skills = selection.skills === undefined ? [] : selection.skills;
+  if (!Array.isArray(skills) || skills.length > 8)
+    fail(400, 'CHAT_INPUT', 'selection.skills must be an array of at most 8 names.');
+  const seen = new Set();
+  for (const name of skills) {
+    if (typeof name !== 'string' || !SKILL_NAME.test(name))
+      fail(400, 'CHAT_INPUT', 'A selected skill name is invalid.');
+    if (seen.has(name)) fail(400, 'CHAT_INPUT', 'A skill is selected more than once.');
+    seen.add(name);
+  }
+  return { skills: [...skills] };
+}
+
 function validateRun(run) {
   if (!isPlain(run) || !isId(run.id) || !isId(run.conversationId) || !isId(run.workspaceId)
     || !RUN_STATUSES.includes(run.status) || !isIso(run.createdAt) || typeof run.requestedBy !== 'string'
@@ -349,10 +370,11 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
     async postMessage(context, conversationId, body = {}) {
       const actor = resolveActor(context);
       if (!isPlain(body)) fail(400, 'CHAT_INPUT', 'A message must be an object.');
-      if (Object.keys(body).some(key => !['requestId', 'content'].includes(key)))
+      if (Object.keys(body).some(key => !['requestId', 'content', 'selection'].includes(key)))
         fail(400, 'CHAT_INPUT', 'A message has an unsupported field.');
       const requestId = isId(body.requestId) ? body.requestId : fail(400, 'CHAT_INPUT', 'requestId is required.');
       const content = text(body.content, CHAT_LIMITS.content, 'content');
+      const selection = validateSelection(body.selection);
       const store = partition(actor.workspaceId);
       let result = null;
       let emitted = null;
@@ -382,7 +404,8 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
           status: 'prepared', requestedBy: actor.subject,
           createdAt: now, startedAt: null, endedAt: null, cancelRequestedAt: null,
           error: null, usage: null, model: null,
-          snapshot: { messageId: message.id, memory: null, artifacts: [], skills: [] },
+          snapshot: { messageId: message.id, memory: null, artifacts: [], skills: selection.skills },
+          selection,
         };
         message.runId = run.id;
         state.messages.push(message);
@@ -454,6 +477,33 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
       });
       if (emitted) emit(emitted);
       return result;
+    },
+
+    /**
+     * Runner-only: pin exactly what the model received (skill names + body
+     * hashes, memory revision, artifact versions) onto the run. This is the
+     * audit record of the context, not a second copy of its content.
+     */
+    async recordContext(context, runId, patch = {}) {
+      if (context?.trustedService !== true)
+        fail(403, 'CHAT_CONTEXT_RUNNER_ONLY', 'Only the run executor may record run context.');
+      if (!isPlain(patch)) fail(400, 'CHAT_INPUT', 'A context record must be an object.');
+      if (Object.keys(patch).some(key => !['skills', 'memory', 'artifacts', 'contextChars', 'warnings'].includes(key)))
+        fail(400, 'CHAT_INPUT', 'A context record has an unsupported field.');
+      if (patch.skills !== undefined && (!Array.isArray(patch.skills) || patch.skills.length > 8
+        || patch.skills.some(item => !isPlain(item) || typeof item.name !== 'string' || !SKILL_NAME.test(item.name)
+          || typeof item.sha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(item.sha256))))
+        fail(400, 'CHAT_INPUT', 'context.skills must be pinned name + sha256 entries.');
+      const store = partition(workspaceId);
+      let emitted = null;
+      await store.update(state => {
+        const run = requireRun(state, { workspaceId, subject: 'service:runner', role: 'operator' }, runId);
+        run.snapshot = { ...run.snapshot, ...structuredClone(patch) };
+        emitted = appendEvent(state, run, 'run.context_ready', { skills: patch.skills?.length ?? 0 });
+        return null;
+      });
+      if (emitted) emit(emitted);
+      return structuredClone(emitted?.data ?? {});
     },
 
     /** Append an assistant/system message produced by a run. */

@@ -54,7 +54,7 @@ test('a prepared run is executed and the answer is stored on the conversation', 
   assert.equal(messages[1].content, '好的。');
 
   const events = harness.chat.readEvents(ADMIN, run.id, 0).events.map(event => event.type);
-  assert.deepEqual(events, ['run.prepared', 'run.running', 'run.completed']);
+  assert.deepEqual(events, ['run.prepared', 'run.running', 'run.context_ready', 'run.completed']);
 });
 
 test('the model request carries the system prompt, the history and the memory block', async () => {
@@ -86,7 +86,7 @@ test('memory failure is recorded as an event and the run still answers', async (
   await harness.runner.drain();
 
   const events = harness.chat.readEvents(ADMIN, run.id, 0).events;
-  assert.deepEqual(events.map(event => event.type), ['run.prepared', 'run.running', 'run.memory_unavailable', 'run.completed']);
+  assert.deepEqual(events.map(event => event.type), ['run.prepared', 'run.running', 'run.memory_unavailable', 'run.context_ready', 'run.completed']);
   assert.equal(events[2].data.code, 'MEMORY_CONTEXT_UNAVAILABLE');
   assert.equal(harness.chat.readRun(ADMIN, run.id).status, 'completed');
 });
@@ -115,9 +115,10 @@ test('cancelling a run while the model is running stores no answer', async () =>
   const { conversation, run } = await startRun(harness.chat);
 
   const until = Date.now() + 1000;
-  while (harness.chat.readRun(ADMIN, run.id).status !== 'running' && Date.now() < until) {
+  while (typeof release !== 'function' && Date.now() < until) {
     await new Promise(resolve => setTimeout(resolve, 5));
   }
+  assert.equal(typeof release, 'function', 'the provider call should be in flight');
   assert.equal(harness.chat.readRun(ADMIN, run.id).status, 'running');
 
   await harness.chat.cancelRun(ADMIN, run.id, { reason: 'operator stopped it' });

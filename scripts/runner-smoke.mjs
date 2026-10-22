@@ -95,6 +95,23 @@ try {
 
   const run = await fetch(`${base}/api/chat/runs/${posted.run.id}`).then(response => response.json());
   check('the run records the provider model', run.run.status === 'completed' && typeof run.run.model === 'string', run.run.model);
+
+  // Context assembly: a selected skill is resolved from the real skills seam,
+  // pinned by a body hash and recorded on the run.
+  const selected = await fetch(`${base}/api/chat/conversations/${created.conversation.id}/messages`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ requestId: randomUUID(), content: '带技能的问题', selection: { skills: ['enterprise-context'] } }),
+  }).then(response => response.json());
+  const skillStream = await fetch(`${base}/api/chat/runs/${selected.run.id}/events`, { headers: { accept: 'text/event-stream' } });
+  const skillFrames = reader(skillStream);
+  for (;;) {
+    const frame = await skillFrames.next();
+    if (frame === null || frame.event === 'run.completed' || frame.event === 'run.failed') break;
+  }
+  const withSkill = await fetch(`${base}/api/chat/runs/${selected.run.id}`).then(response => response.json());
+  const pinned = withSkill.run.snapshot?.skills ?? [];
+  check('the selected skill is pinned on the run', pinned.length === 1 && pinned[0].name === 'enterprise-context', withSkill.run.snapshot);
+  check('the pinned skill carries a body hash', /^[a-f0-9]{64}$/u.test(pinned[0]?.sha256 ?? ''), pinned[0]?.sha256);
 } finally {
   await harness.stop().catch(() => {});
   await unlink(compositionPath).catch(() => {});

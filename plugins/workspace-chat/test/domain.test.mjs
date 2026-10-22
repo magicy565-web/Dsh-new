@@ -263,3 +263,53 @@ test('a damaged approval fails validation closed', async () => {
   storage.update(draft => { Object.assign(draft, state); return null; });
   assert.throws(() => chat.status({ actor: ADMIN }), error => error.code === 'CHAT_INVALID');
 });
+test('a message may select up to eight skills and nothing else', async () => {
+  const chat = service();
+  const { conversation } = await chat.createConversation({ actor: ADMIN }, { requestId: requestId() });
+  const posted = await chat.postMessage({ actor: ADMIN }, conversation.id, {
+    requestId: requestId(), content: 'q', selection: { skills: ['trade-terms'] },
+  });
+  assert.deepEqual(chat.readRun({ actor: ADMIN }, posted.run.id).snapshot.skills, ['trade-terms']);
+  assert.deepEqual(chat.readRun({ actor: ADMIN }, posted.run.id).selection, { skills: ['trade-terms'] });
+
+  await assert.rejects(
+    chat.postMessage({ actor: ADMIN }, conversation.id, { requestId: requestId(), content: 'q', selection: { skills: Array.from({ length: 9 }, (_, index) => `s${index}`) } }),
+    error => error.code === 'CHAT_INPUT',
+  );
+  await assert.rejects(
+    chat.postMessage({ actor: ADMIN }, conversation.id, { requestId: requestId(), content: 'q', selection: { skills: ['bad name'] } }),
+    error => error.code === 'CHAT_INPUT',
+  );
+  await assert.rejects(
+    chat.postMessage({ actor: ADMIN }, conversation.id, { requestId: requestId(), content: 'q', selection: { files: [] } }),
+    error => error.code === 'CHAT_INPUT',
+  );
+});
+
+test('recordContext is runner-only and merges pinned context into the snapshot', async () => {
+  const chat = service();
+  const { conversation } = await chat.createConversation({ actor: ADMIN }, { requestId: requestId() });
+  const posted = await chat.postMessage({ actor: ADMIN }, conversation.id, { requestId: requestId(), content: 'q' });
+
+  await assert.rejects(
+    chat.recordContext({ actor: ADMIN }, posted.run.id, {}),
+    error => error.code === 'CHAT_CONTEXT_RUNNER_ONLY' && error.status === 403,
+  );
+
+  const sha = 'a'.repeat(64);
+  await chat.recordContext(runnerContext, posted.run.id, {
+    skills: [{ name: 'trade-terms', sha256: sha, chars: 12 }], contextChars: 12,
+  });
+  const stored = chat.readRun({ actor: ADMIN }, posted.run.id);
+  assert.equal(stored.snapshot.skills[0].sha256, sha);
+  assert.equal(stored.snapshot.contextChars, 12);
+
+  await assert.rejects(
+    chat.recordContext(runnerContext, posted.run.id, { bogus: true }),
+    error => error.code === 'CHAT_INPUT',
+  );
+  await assert.rejects(
+    chat.recordContext(runnerContext, posted.run.id, { skills: [{ name: 'x', sha256: 'nope' }] }),
+    error => error.code === 'CHAT_INPUT',
+  );
+});
