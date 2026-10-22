@@ -15,7 +15,7 @@ async function fixture(t, options = {}) {
   const calls = [];
   const provider = { configured: true, complete: async input => { calls.push(input); return options.complete ? options.complete(input) : { content: JSON.stringify({ done: true, content: `Fresh occurrence ${calls.length}` }), usage: { completionTokens: 40 } }; } };
   const boot = async () => {
-    capabilities = await createCapabilityService({ store, clock: () => time, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => { if (options.beforeDispatch) await options.beforeDispatch({ store, capabilities, scheduleClaim }); return runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }); } });
+    capabilities = await createCapabilityService({ store, clock: () => time, occurrencePrecondition: options.occurrencePrecondition, dispatchGoal: async ({ goalId, requestId, expectedGoalDefinitionHash, scheduleClaim }) => { if (options.beforeDispatch) await options.beforeDispatch({ store, capabilities, scheduleClaim }); return runtime.updateGoal(goalId, { action: 'resume', queued: true, requestId }, { expectedGoalDefinitionHash, scheduleClaim }); } });
     runtime = await createRuntime({ store, provider, capabilities });
   };
   await boot();
@@ -112,4 +112,37 @@ test('disable between claim and runtime admission blocks model work and does not
   assert.equal(f.store.read().goals.filter(goal => goal.scheduleOccurrence).length, 1);
   await f.restart(); f.advance(60000); await f.service.tick(); assert.equal(f.calls.length, 0);
   await assert.rejects(approve(f.service, schedule.id), code('PREVIOUS_OCCURRENCE_UNRESOLVED'));
+});
+
+test('a declining precondition skips the occurrence without spending the approved total or calling the model', async t => {
+  const f = await fixture(t, { occurrencePrecondition: () => ({ run: false, reason: 'OBSERVATION_UNCHANGED', fingerprint: 'f'.repeat(64) }) });
+  const schedule = await f.schedule(); await approve(f.service, schedule.id);
+  f.advance(60000);
+  const first = await f.service.tick();
+  assert.equal(first.runs[0].status, 'skipped');
+  assert.equal(first.runs[0].skipReason, 'OBSERVATION_UNCHANGED');
+  assert.equal(first.runs[0].goalId, null);
+  assert.equal(first.runs[0].analysisFingerprint, 'f'.repeat(64));
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.store.read().goals.filter(goal => goal.scheduleOccurrence).length, 0);
+  const saved = f.service.getSchedule(schedule.id);
+  assert.equal(saved.enabled, true);
+  assert.equal(saved.status, 'active');
+  assert.equal(saved.occurrenceCount ?? 0, 0);
+  // The next interval is still schedulable: a skip is not a consumed occurrence.
+  f.advance(60000);
+  const second = await f.service.tick();
+  assert.equal(second.runs[0].status, 'skipped');
+  assert.equal(f.calls.length, 0);
+});
+
+test('a throwing precondition still runs the bounded occurrence and records the fault', async t => {
+  const f = await fixture(t, { occurrencePrecondition: () => { throw new Error('synthetic gate failure'); } });
+  const schedule = await f.schedule(); await approve(f.service, schedule.id);
+  f.advance(60000);
+  const result = await f.service.tick(); await f.finished();
+  assert.equal(result.runs[0].status, 'queued');
+  assert.equal(result.runs[0].occurrencePreconditionError, true);
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.store.read().goals.filter(goal => goal.scheduleOccurrence).length, 1);
 });

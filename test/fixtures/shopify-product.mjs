@@ -1,6 +1,8 @@
 // Actual original app, Store, Library, artifacts and capabilities. The only
 // Shopify endpoint is a loopback synthetic fixture; all model choices are finite.
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { taskFixture, TOKEN_A } from './pi-task-helpers.mjs';
 import { fakeShopify } from './supplier-shopify-http.mjs';
@@ -22,7 +24,7 @@ export function multiDraft(f) {
 }
 export async function productFixture(t, { configured = true, policy: policyOption, host = false, nativeBusiness = false, pluginConfiguration = {}, appOptions = {}, onWorkerLifecycle, accessClock, skuCount = 0, brainGoal = false, beforeListen = null, wrapEngineAdapter = x=>x } = {}) {
   let fixtureTime = Date.now(); const clock = accessClock || (() => fixtureTime);
-  const directory = await fs.mkdtemp('/tmp/shopify-product-'), remote = await fakeShopify(t), actor = { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' };
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'shopify-product-')), remote = await fakeShopify(t), actor = { subject: 'member-a', workspaceId: 'pi-enterprise-test', role: 'admin' };
   const seed = await taskFixture(t, { directory, enterprise: true });
   const a = (await seed.app.artifacts.create({ requestId: randomUUID(), filename: 'synthetic-cup.png', base64: PNG, metadata: { businessLibrary: { visibility: 'internal' } } })).artifact;
   const asset = { artifactId: a.id, version: a.currentVersion, sha256: a.sha256 }, imageId = randomUUID();

@@ -119,9 +119,13 @@ function audit(state, kind, title, at, extra = {}) {
  * adapters and a local goal-enqueue callback explicitly. store.update must commit
  * serialized synchronous transactions before resolving; store.read returns a copy.
  */
-export async function createCapabilityService({ store, clock = () => Date.now(), dispatchGoal, adapters = {}, environment = process.env, adapterTimeoutMs = 60_000, dispatchTimeoutMs = 10_000, executionContext = {} } = {}) {
+export async function createCapabilityService({ store, clock = () => Date.now(), dispatchGoal, adapters = {}, environment = process.env, adapterTimeoutMs = 60_000, dispatchTimeoutMs = 10_000, executionContext = {}, occurrencePrecondition = null } = {}) {
   if (!store || typeof store.read !== 'function' || typeof store.update !== 'function') throw new TypeError('A durable store is required.');
   if (typeof clock !== 'function' || (dispatchGoal !== undefined && typeof dispatchGoal !== 'function')) throw new TypeError('Invalid capability service callbacks.');
+  // An optional synchronous precondition for recurring template occurrences. It
+  // runs inside the durable claim transaction, before any goal or model work is
+  // created, and may only decline to start an occurrence.
+  if (occurrencePrecondition !== null && typeof occurrencePrecondition !== 'function') throw new TypeError('occurrencePrecondition must be a function.');
   integer(adapterTimeoutMs, 'adapterTimeoutMs', 1, 300_000);
   integer(dispatchTimeoutMs, 'dispatchTimeoutMs', 1, 60_000);
   const contextSnapshot = json(executionContext);
@@ -432,8 +436,20 @@ export async function createCapabilityService({ store, clock = () => Date.now(),
           const run = { id: randomUUID(), scheduleId: schedule.id, scheduleRevision: schedule.revision, goalId: schedule.goalId, expectedGoalDefinitionHash: schedule.consent.definitionHash, requestId, dueAt, status: 'dispatching', startedAt: new Date(at).toISOString(), finishedAt: null };
           if (isTemplateSchedule(schedule)) {
             Object.assign(run, { goalMode: 'template', sourceGoalId: schedule.goalId, missedOccurrences: Math.floor((dueMs - target) / (schedule.everySeconds * 1000)) });
-            if (previous.status === 'busy') Object.assign(run, { goalId: null, previousGoalId: previous.goalId, status: 'skipped', finishedAt: new Date(at).toISOString(), skipReason: 'PREVIOUS_OCCURRENCE_RUNNING' });
-            else { const fresh = createTemplateOccurrence(state, schedule, run, definition, new Date(at).toISOString()); run.goalId = fresh.id; run.conversationId = fresh.conversationId; run.occurrenceOrdinal = fresh.scheduleOccurrence.ordinal; }
+            // A precondition may decline an occurrence, never authorize one: it
+            // runs after the goal/consent/approval checks and cannot touch the
+            // approved definition, budget or execution context. A precondition
+            // that throws is treated as absent (the bounded occurrence still
+            // runs) and is recorded, so a broken gate cannot silently stop work.
+            let gate = null;
+            if (typeof occurrencePrecondition === 'function') {
+              try { gate = occurrencePrecondition(schedule, state); }
+              catch { gate = null; run.occurrencePreconditionError = true; }
+            }
+            const gateFields = gate && typeof gate.fingerprint === 'string' ? { analysisFingerprint: gate.fingerprint } : {};
+            if (previous.status === 'busy') Object.assign(run, { goalId: null, previousGoalId: previous.goalId, status: 'skipped', finishedAt: new Date(at).toISOString(), skipReason: 'PREVIOUS_OCCURRENCE_RUNNING', ...gateFields });
+            else if (gate && gate.run === false) Object.assign(run, { goalId: null, status: 'skipped', finishedAt: new Date(at).toISOString(), skipReason: typeof gate.reason === 'string' && /^[A-Z0-9_]{1,80}$/.test(gate.reason) ? gate.reason : 'PRECONDITION_NOT_MET', ...gateFields });
+            else { const fresh = createTemplateOccurrence(state, schedule, run, definition, new Date(at).toISOString()); run.goalId = fresh.id; run.conversationId = fresh.conversationId; run.occurrenceOrdinal = fresh.scheduleOccurrence.ordinal; Object.assign(run, gateFields); }
           }
           state.capabilities.scheduleRuns.push(run); runs.push(run);
           schedule.lastRunId = run.id; schedule.updatedAt = new Date(at).toISOString();

@@ -3,6 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import {generateKeyPairSync,randomUUID} from 'node:crypto';
 import {createApp} from '../server/index.mjs';
 import {createWorkspaceOmpBusinessOptions} from '../server/workspace-omp-host.mjs';
@@ -11,7 +13,7 @@ import {signWorkspaceRequest} from '../server/auth-ingress.mjs';
 import {request} from './agent-service.helpers.mjs';
 test('actual index keeps ordinary viewer-owned Brain GET without business/model binding or write role',async t=>{
  for(const pluginConfiguration of [{root:'/tmp'},{configuration:'config.json'},{none:true},{disabled:['workspace-goal-intelligence']},{disabled:['workspace_skill']},{disabled:['unknown-plugin']}]) assert.throws(()=>createWorkspaceOmpBusinessOptions({environment:{WORKSPACE_OMP_PROFILE:'business'},pluginConfiguration}),/only original optional-plugin disables/);
- const directory=await fs.mkdtemp('/tmp/brain-read-compat-'),keys=generateKeyPairSync('ed25519');let bindings=0;
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),'brain-read-compat-')),keys=generateKeyPairSync('ed25519');let bindings=0;
  const model={provider:'workspace-deepseek',id:'deepseek-flash',baseUrl:'https://api.deepseek.com'},recipient={kind:'pi-coding-agent',provider:model.provider,model:model.id,destination:model.baseUrl};
  const access={mode:'enterprise',publicOrigin:'https://workspace.example',workspaceId:'read-compat',issuer:'synthetic-read',keyId:'synthetic-read-key',publicKey:keys.publicKey.export({type:'spki',format:'pem'}),members:[{subject:'admin',role:'admin'},{subject:'reader',role:'viewer'}]};
  const app=await createApp({dataDirectory:directory,capabilityEnvironment:{},access,provider:createPiProvider({apiKey:''}),

@@ -15,6 +15,10 @@ export const digest = value => createHash('sha256').update(canonical(value)).dig
 export const bytesHash = bytes => createHash('sha256').update(bytes).digest('hex');
 export const same = (a, b) => canonical(a) === canonical(b);
 const object = properties => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false });
+// A closed object where some properties may be absent. Absent properties are
+// never validated, and unknown properties are still rejected, so this cannot be
+// used to smuggle extra fields past the contract.
+const objectWithOptional = (required, optional) => ({ type: 'object', properties: { ...required, ...optional }, required: Object.keys(required), additionalProperties: false });
 const text = (maxLength = 1200) => ({ type: 'string', minLength: 1, maxLength });
 const enumeration = values => ({ type: 'string', enum: values });
 const list = (items, maxItems = 24, minItems = 0) => ({ type: 'array', items, minItems, maxItems });
@@ -22,9 +26,15 @@ const int = (minimum = 0) => ({ type: 'integer', minimum, maximum: Number.MAX_SA
 const nullable = schema => ({ anyOf: [schema, { type: 'null' }] });
 const id = { ...text(128), pattern: '^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$' };
 const sha = { ...text(64), pattern: '^[a-f0-9]{64}$' };
-export const SOURCE_SCHEMA = object({
+export const SOURCE_SCHEMA = objectWithOptional({
   kind: enumeration(['company', 'product', 'inquiry', 'metric', 'policy', 'artifact', 'market-observation', 'memory-fact']),
   id, revision: text(128), sha256: sha, fields: list(text(128), 24, 1),
+}, {
+  // A metric observation pins the exact window it was taken over, so it can be
+  // re-read later even after the business data and the "current" window moved.
+  // References that are not windowed observations simply omit both fields.
+  windowStart: { ...text(40), pattern: '^\\d{4}-\\d{2}-\\d{2}T[0-9:.]+(?:Z|[+-]\\d{2}:\\d{2})$' },
+  windowEnd: { ...text(40), pattern: '^\\d{4}-\\d{2}-\\d{2}T[0-9:.]+(?:Z|[+-]\\d{2}:\\d{2})$' },
 });
 export const SOURCE_LIST_SCHEMA = list(SOURCE_SCHEMA, 24);
 const strings = () => list(text());
@@ -98,7 +108,10 @@ function check(value, schema, depth = 0) {
     if (value === null || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))
       || Object.keys(value).some(k => !Object.hasOwn(schema.properties, k))
       || schema.required.some(k => !Object.hasOwn(value, k))) fail('BRAIN_INPUT_INVALID');
-    for (const k of Object.keys(schema.properties)) check(value[k], schema.properties[k], depth + 1);
+    for (const k of Object.keys(schema.properties)) {
+      if (!Object.hasOwn(value, k)) continue;
+      check(value[k], schema.properties[k], depth + 1);
+    }
   } else fail('BRAIN_INPUT_INVALID');
 }
 export function validate(schema, value) {
@@ -110,7 +123,13 @@ export const sourceId = ref => `${ref.kind}:${ref.id}`;
 export function unique(values) { if (new Set(values).size !== values.length) fail('BRAIN_DUPLICATE_REFERENCE'); }
 export function validateSources(refs) {
   validate(SOURCE_LIST_SCHEMA, refs); unique(refs.map(sourceId));
-  refs.forEach(ref => unique(ref.fields)); return refs;
+  refs.forEach(ref => {
+    unique(ref.fields);
+    // A pinned observation window is all-or-nothing: half a window cannot be
+    // resolved and would have to be guessed, which is what pinning prevents.
+    if (Object.hasOwn(ref, 'windowStart') !== Object.hasOwn(ref, 'windowEnd')) fail('BRAIN_INPUT_INVALID');
+  });
+  return refs;
 }
 export function validateEvidence(ids, sources) {
   unique(ids); const available = new Set(sources.map(sourceId));
