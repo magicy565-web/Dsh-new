@@ -55,6 +55,7 @@ export async function apply(ctx, config = {}) {
     label: config.label,
     maxTokens: config.maxTokens,
     complete: request => runtime.complete(request),
+    stream: request => runtime.stream(request),
   });
   const unregister = ctx.llm.register(provider);
   report({ configured: true, provider: provider.id, model, env: apiKeyEnv });

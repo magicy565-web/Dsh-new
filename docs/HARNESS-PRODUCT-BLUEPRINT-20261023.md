@@ -16,7 +16,7 @@
 | A 身份与访问 | 会话、CSRF、角色、企业签名入口 | `server/access*.mjs` | 插件 `workspace-access` + kernel 鉴权钩子 | 未迁 |
 | B 工作空间与成员 | 成员表、角色、workspace 解析 | harness workspace seam | 已就位 | ✅ |
 | C 会话与运行 | 会话、消息、run 状态机、事件流 | `server/index.mjs`、`server/runtime.mjs` | 插件 `workspace-chat` + kernel 流式 | 未迁（流式本次补齐） |
-| D 模型与预算 | provider、token 预算、取消、用量 | `pi-provider.mjs`、`workspace-llm-bridge` | 插件 `workspace-llm-bridge` + 预算插件 | 部分（provider 有，循环没有） |
+| D 模型与预算 | provider、token 预算、取消、用量 | `pi-provider.mjs`、`workspace-llm-bridge` | 插件 `workspace-llm-bridge` + 预算插件 | ✅ provider + SSE 流 + run 循环 |
 | E 上下文装配 | 文件、技能、记忆、企业事实 | `server/task-context.mjs` | 插件 `workspace-context` | 记忆已属 harness，其余未迁 |
 | F 工具与审批 | 工具注册、审批票据、连接器 | `workspace-bridge.mjs`、`capabilities.mjs`、approval/tools seams | 接缝已就位 + 插件 `workspace-approvals` | 部分 |
 | G 产物 | 生成文件、下载、发布 | `run-output.mjs`、artifacts seam | 接缝已就位 + 插件 | 部分 |
