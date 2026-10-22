@@ -1,8 +1,48 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { attachCoverage, buildReport, collectPlugins, collectSmokes, routeKeys } from './capability-report.mjs';
+import { attachCoverage, buildReport, classify, collectPlugins, collectSmokes, parseComposition, routeKeys } from './capability-report.mjs';
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/u, '$1');
+
+test('composition parsing maps package names and notices enabled: false', () => {
+  const text = [
+    'plugins:',
+    '  - id: quotes',
+    '    name: workspace-quotes',
+    '    config: { workspaceId: local }',
+    '  - id: bridge',
+    '    name: workspace-llm-bridge',
+    '    config: { enabled: false }',
+    '  - id: storage',
+    '    name: @workspace-harness/seams/storage',
+  ].join('\n');
+  const rows = parseComposition(text);
+  assert.equal(rows.get('workspace-quotes').enabled, true);
+  assert.equal(rows.get('workspace-quotes').rowId, 'quotes');
+  assert.equal(rows.get('workspace-llm-bridge').enabled, false);
+  assert.equal(rows.has('@workspace-harness/seams/storage'), false);
+});
+
+test('classification separates gaps from documented exceptions', () => {
+  const composition = new Map([
+    ['workspace-covered', { rowId: 'c', enabled: true }],
+    ['workspace-gap', { rowId: 'g', enabled: true }],
+    ['workspace-off', { rowId: 'o', enabled: false }],
+  ]);
+  const plugins = [
+    { id: 'workspace-covered', directory: 'p', routes: [], tools: [], tests: [], hasPage: false, smokes: ['s.mjs'] },
+    { id: 'workspace-gap', directory: 'q', routes: [], tools: [], tests: [], hasPage: false, smokes: [] },
+    { id: 'workspace-off', directory: 'r', routes: [], tools: [], tests: [], hasPage: false, smokes: [] },
+    { id: 'workspace-runner', directory: 's', routes: [], tools: [], tests: [], hasPage: false, smokes: [] },
+    { id: 'workspace-unmounted', directory: 't', routes: [], tools: [], tests: [], hasPage: false, smokes: [] },
+  ];
+  const byId = Object.fromEntries(classify(plugins, composition).map(plugin => [plugin.id, plugin]));
+  assert.equal(byId['workspace-covered'].bucket, 'covered');
+  assert.equal(byId['workspace-gap'].bucket, 'gap');
+  assert.equal(byId['workspace-off'].bucket, 'disabled');
+  assert.equal(byId['workspace-runner'].bucket, 'indirect');
+  assert.equal(byId['workspace-unmounted'].bucket, 'unmounted');
+});
 
 test('route keys keep api prefixes and plain page routes', () => {
   const keys = routeKeys({
