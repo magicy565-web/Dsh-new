@@ -45,6 +45,9 @@ plugins:
   # 企业经营记忆：每个企业一套独立、来源固定、人工审核的业务记忆。
   # 模型只能召回和提出候选；管理员在 /business-memory 区域审核后才成为事实。
   # productLibraryBaseURL 配置后，product-page 来源会按产品库的精确版本与 SHA 核对。
+  # serviceTokenFile 配置后，另一个进程（应用侧）可以用专用令牌读取任务上下文；
+  # 不配置时服务通道保持 503 关闭。令牌文件须为绝对路径且仅本人可读。
+  #   serviceTokenFile: 'C:\Users\<you>\.workspace-secrets\business-memory.token'
   - id: business-memory
     name: workspace-business-memory
     config: { workspaceId: local, productLibraryBaseURL: 'http://127.0.0.1:8790' }

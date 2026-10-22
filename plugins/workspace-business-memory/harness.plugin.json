@@ -13,6 +13,7 @@
       "productLibraryBaseURL": { "type": "string" },
       "allowLoopbackHTTP": { "type": "boolean" },
       "allowConversationSources": { "type": "boolean" },
+      "serviceTokenFile": { "type": "string" },
       "timeoutMs": { "type": "integer", "minimum": 50, "maximum": 10000 }
     },
     "additionalProperties": false
@@ -22,6 +23,8 @@
     "GET /api/business-memory/map",
     "GET /api/business-memory/brief",
     "POST /api/business-memory/context",
+    "POST /api/business-memory/service/context",
+    "POST /api/business-memory/service/verify",
     "GET /api/business-memory/injections",
     "GET /api/business-memory/records",
     "GET /api/business-memory/records/:id",

@@ -441,6 +441,14 @@ export function createBusinessMemoryService({
     const input = context?.actor ?? { subject: 'local-operator', role: 'admin', workspaceId };
     if (!isPlain(input) || typeof input.subject !== 'string' || !input.subject || !['admin', 'operator', 'viewer'].includes(input.role))
       fail(401, 'BUSINESS_MEMORY_SESSION_REQUIRED', 'A current harness actor is required.');
+    // A service bridge has already been authenticated by its own service token
+    // and is bound to this composition's workspace. It must never borrow the
+    // member table: no human is acting, so there is nothing to resolve.
+    if (context?.trustedService === true) {
+      if (input.workspaceId !== workspaceId)
+        fail(403, 'BUSINESS_MEMORY_FORBIDDEN', 'This service token is bound to another workspace.');
+      return { workspaceId, subject: input.subject, role: input.role };
+    }
     if (resolveWorkspace) {
       const resolved = resolveWorkspace(input);
       if (!isPlain(resolved) || typeof resolved.workspaceId !== 'string' || !resolved.workspaceId)
@@ -996,6 +1004,32 @@ export function createBusinessMemoryService({
           '这里不会创建 Goal、审批、Worker 派单或外部写操作。',
         ],
       };
+    },
+
+    /**
+     * Prove that a compiled task context is still usable right before dispatch.
+     *
+     * Deliberately cheap: it re-reads one workspace partition and checks only
+     * the exact ids that were disclosed. It never recompiles, never writes a
+     * second injection receipt and never widens the set. A fact that was
+     * superseded, revoked or expired since the compile is reported as changed.
+     */
+    assertFacts(context, body = {}) {
+      const actor = resolveActor(context);
+      if (!isPlain(body)) fail(400, 'BUSINESS_MEMORY_INPUT', 'A memory assertion must be an object.');
+      const input = body;
+      if (Object.keys(input).some(key => !['ids'].includes(key)))
+        fail(400, 'BUSINESS_MEMORY_INPUT', 'A memory assertion has an unsupported field.');
+      if (!Array.isArray(input.ids) || input.ids.length > 50 || input.ids.some(id => !UUID.test(id)))
+        fail(400, 'BUSINESS_MEMORY_INPUT', 'ids must be an array of up to 50 memory ids.');
+      const now = clock();
+      const state = partition(actor.workspaceId).read();
+      const changed = [];
+      for (const id of input.ids) {
+        const record = state.records.find(item => item.id === id);
+        if (!record || record.status !== 'active' || (record.expiresAt !== null && Date.parse(record.expiresAt) <= now)) changed.push(id);
+      }
+      return { workspaceId: actor.workspaceId, revision: state.revision, current: changed.length === 0, changed };
     },
 
     /** Test/診断 helper: verify one pinned source without writing memory. */

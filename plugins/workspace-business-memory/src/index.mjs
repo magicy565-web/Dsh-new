@@ -6,11 +6,13 @@
 // becomes active. Verified upstream sources are read through a reviewed HTTP
 // adapter (the Workspace Product Library is the first configured one).
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
+import { isAbsolute } from 'node:path';
 import {
   BusinessMemoryError, CONFIDENCE, KINDS, SOURCE_KINDS, SUBJECT_LABELS, SUBJECT_TYPES,
   createBusinessMemoryService,
 } from './domain.mjs';
 import { AREA_PATH, renderAreaPage } from './area.mjs';
+import { authorizeService } from './service-auth.mjs';
 
 export const PLUGIN_ID = 'workspace-business-memory';
 const BASE = '/api/business-memory';
@@ -19,6 +21,8 @@ export const ROUTES = Object.freeze([
   ['GET', `${BASE}/map`],
   ['GET', `${BASE}/brief`],
   ['POST', `${BASE}/context`],
+  ['POST', `${BASE}/service/context`],
+  ['POST', `${BASE}/service/verify`],
   ['GET', `${BASE}/injections`],
   ['GET', `${BASE}/records`],
   ['GET', `${BASE}/records/:id`],
@@ -32,7 +36,7 @@ export const TOOL_NAMES = Object.freeze([
   'business_memory_map', 'business_memory_brief', 'business_memory_propose',
   'business_memory_review', 'business_memory_revoke',
 ]);
-const CONFIG_KEYS = Object.freeze(['workspaceId', 'productLibraryBaseURL', 'allowLoopbackHTTP', 'allowConversationSources', 'timeoutMs']);
+const CONFIG_KEYS = Object.freeze(['workspaceId', 'productLibraryBaseURL', 'allowLoopbackHTTP', 'allowConversationSources', 'serviceTokenFile', 'timeoutMs']);
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 
 const manifestError = message => new HarnessError(ERROR.manifestInvalid, message);
@@ -67,6 +71,9 @@ function validateConfig(config) {
     throw manifestError('config.allowLoopbackHTTP must be a boolean.');
   if (config.allowConversationSources !== undefined && typeof config.allowConversationSources !== 'boolean')
     throw manifestError('config.allowConversationSources must be a boolean.');
+  if (config.serviceTokenFile !== undefined
+    && (typeof config.serviceTokenFile !== 'string' || !isAbsolute(config.serviceTokenFile)))
+    throw manifestError('config.serviceTokenFile must be an absolute path to a private token file.');
   if (config.timeoutMs !== undefined && (!Number.isInteger(config.timeoutMs) || config.timeoutMs < 50 || config.timeoutMs > 10000))
     throw manifestError('config.timeoutMs must be an integer between 50 and 10000.');
   return config;
@@ -164,11 +171,11 @@ export async function apply(ctx, config = {}) {
     allowConversationSources: checked.allowConversationSources !== false,
     audit: ctx.audit ?? null,
   });
-  return applyService(ctx, service);
+  return applyService(ctx, service, { workspaceId, serviceTokenFile: checked.serviceTokenFile ?? null });
 }
 
 /** Mount with a test/embedder-supplied service; exported for verification. */
-export async function applyService(ctx, service) {
+export async function applyService(ctx, service, options = {}) {
   if (!ctx?.http?.route) throw missing('http');
   if (!ctx?.tools?.register) throw missing('tools');
   if (!service || typeof service.recall !== 'function' || typeof service.propose !== 'function')
@@ -219,6 +226,32 @@ export async function applyService(ctx, service) {
       try {
         service.status(context ?? {}); // Fail closed for callers outside the workspace before serving the area.
         return renderAreaPage();
+      } catch (error) { throw asHarnessError(error); }
+    },
+  });
+
+  // Service bridge: the only path a separate host process may use. It is
+  // authenticated by a dedicated token (never by the actor headers the kernel
+  // derives from x-harness-*), and it is bound to this composition's workspace.
+  const serviceOptions = {
+    tokenFile: options.serviceTokenFile ?? null,
+    workspaceId: options.workspaceId ?? 'local',
+  };
+  ctx.http.route({
+    method: 'POST', path: `${BASE}/service/context`,
+    handler: async (request, _res, context) => {
+      try {
+        const actor = await authorizeService(request, serviceOptions);
+        return { status: 200, body: await service.compileContext({ actor, trustedService: true }, context?.body ?? {}) };
+      } catch (error) { throw asHarnessError(error); }
+    },
+  });
+  ctx.http.route({
+    method: 'POST', path: `${BASE}/service/verify`,
+    handler: async (request, _res, context) => {
+      try {
+        const actor = await authorizeService(request, serviceOptions);
+        return { status: 200, body: service.assertFacts({ actor, trustedService: true }, context?.body ?? {}) };
       } catch (error) { throw asHarnessError(error); }
     },
   });
