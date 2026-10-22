@@ -36,6 +36,9 @@ Harness 覆盖、还差什么才能下线。**
    （`plugins/*/skills/*`）全部进入 Harness——当前 17 个技能包，`GET /api/chat/skills` 可列，
    聊天页可勾选后随消息发送。未迁移的是它们的**运行模块**（`src/*.mjs`）与页面。
 2. **React 前端的专有页面**：报价单、采购单等手工交互页面没有迁移到新页面体系。
+   **进展**：工厂询盘的领域逻辑已按新契约重写为只读工具（`workspace-factory-rfq`，
+   `factory_rfq_capture` / `factory_match_prepare`），但原 `src/*.mjs` 仍依赖旧运行时，
+   页面与写操作尚未迁移。
 3. **数据迁移**：老应用的数据文件与 `.harness-data` 是两套结构，没有迁移脚本。
 4. **二进制历史文件**：老应用存储里的附件没有导入。
 

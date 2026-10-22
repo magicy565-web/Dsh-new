@@ -1,0 +1,16 @@
+{
+  "id": "workspace-factory-rfq",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "工厂询盘准备：把客户 RFQ 与工厂报价字段整理成草稿，明确标注缺失与不可验证项；只读、不落库、不构成报价或承诺。",
+  "entry": "./src/index.mjs",
+  "requires": ["tools", "workspace"],
+  "provides": ["factoryRfq"],
+  "configSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "routes": ["GET /api/factory/capabilities"],
+  "tools": ["factory_rfq_capture", "factory_match_prepare"]
+}

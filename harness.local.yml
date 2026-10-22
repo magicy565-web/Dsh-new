@@ -81,6 +81,9 @@ plugins:
   - id: files
     name: workspace-artifacts
     config: { workspaceId: local }
+  # 工厂询盘准备：只读草稿工具，不落库、不构成报价或承诺。
+  - id: factory-rfq
+    name: workspace-factory-rfq
   # 技能：插件目录下的 skills/*（用户保存的指令）。消息可显式选择一个或多个。
   - id: skills
     name: '@workspace-harness/seams/skills'
