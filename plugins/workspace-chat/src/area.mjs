@@ -81,6 +81,10 @@ const PAGE = `<!doctype html>
       <div class="goals-head"><strong>目标</strong><button id="new-goal" title="新建目标">+ 新建</button></div>
       <div id="goals"></div>
     </div>
+    <div class="goals">
+      <div class="goals-head"><strong>收件箱 <span id="unread"></span></strong><button id="read-all" title="全部已读">全部已读</button></div>
+      <div id="inbox"></div>
+    </div>
   </aside>
   <main>
     <header><div id="title">未选择会话</div><div id="state"></div><button id="stop" hidden>停止</button></header>
@@ -230,6 +234,30 @@ const PAGE = `<!doctype html>
       .then(function (data) { renderGoals(data.items || []); })
       .catch(function () { goalsEl.textContent = ''; });
   }
+  var inboxEl = document.getElementById('inbox');
+  var unreadEl = document.getElementById('unread');
+  function renderInbox(data) {
+    unreadEl.textContent = data.unread ? '（' + data.unread + '）' : '';
+    inboxEl.textContent = '';
+    var items = data.items || [];
+    if (!items.length) { var empty = el('div', 'goal', '没有新通知'); empty.style.cursor = 'default'; inboxEl.appendChild(empty); return; }
+    items.forEach(function (item) {
+      var row = el('div', 'goal' + (item.status === 'unread' ? ' active' : ''));
+      row.appendChild(el('span', '', item.title));
+      row.title = item.body || item.kind;
+      row.addEventListener('click', function () {
+        api('/api/inbox/' + encodeURIComponent(item.id) + '/read', { method: 'POST' })
+          .then(loadInbox)
+          .catch(function () {});
+      });
+      inboxEl.appendChild(row);
+    });
+  }
+  function loadInbox() {
+    return api('/api/inbox?status=unread&limit=20')
+      .then(renderInbox)
+      .catch(function () { inboxEl.textContent = ''; });
+  }
   function renderConversations(items) {
     list.textContent = '';
     if (!items.length) { var empty = el('li', '', '还没有会话'); empty.style.cursor = 'default'; list.appendChild(empty); return; }
@@ -302,6 +330,7 @@ const PAGE = `<!doctype html>
       } else if (event.type === 'run.approval_requested') {
         setState('等待批准', 'run');
         loadApprovals();
+        loadInbox();
       } else if (event.type === 'run.approval_decided') {
         loadApprovals();
         setState(data.data && data.data.approved ? '已批准，继续执行…' : '已拒绝', data.data && data.data.approved ? 'run' : 'bad');
@@ -431,6 +460,10 @@ const PAGE = `<!doctype html>
 
   loadConversations().catch(function (error) { setState('加载失败：' + error.message, 'bad'); });
   loadGoals();
+  document.getElementById('read-all').addEventListener('click', function () {
+    api('/api/inbox/read-all', { method: 'POST' }).then(loadInbox).catch(function () {});
+  });
+  loadInbox();
 }());
 </script>
 </body>

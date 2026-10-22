@@ -109,7 +109,7 @@ test('the inline page script parses as JavaScript', async () => {
   const match = html.match(/<script>([\s\S]*)<\/script>/u);
   assert.ok(match, 'the page must ship its script inline');
   assert.doesNotThrow(() => new Function(match[1]), 'the inline script must be syntactically valid');
-  for (const id of ['list', 'messages', 'composer', 'input', 'send', 'stop', 'new', 'approvals', 'chips', 'file', 'attach', 'goals', 'new-goal']) {
+  for (const id of ['list', 'messages', 'composer', 'input', 'send', 'stop', 'new', 'approvals', 'chips', 'file', 'attach', 'goals', 'new-goal', 'inbox', 'unread', 'read-all']) {
     assert.match(html, new RegExp(`id="${id}"`, 'u'), `the page needs #${id}`);
   }
 });
