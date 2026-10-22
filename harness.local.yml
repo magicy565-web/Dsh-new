@@ -81,6 +81,9 @@ plugins:
   - id: files
     name: workspace-artifacts
     config: { workspaceId: local }
+  # 供应商报价对齐：只比对显式提供的字段；不排名、不换算、不核验。
+  - id: procurement-compare
+    name: workspace-procurement-compare
   # 工厂询盘准备：只读草稿工具，不落库、不构成报价或承诺。
   - id: factory-rfq
     name: workspace-factory-rfq

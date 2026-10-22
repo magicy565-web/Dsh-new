@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 
 const MEMORY_MARKER = '记住：';
 const RFQ_MARKER = '询盘：';
+const QUOTE_MARKER = '报价：';
 
 function lastUser(messages) {
   return [...messages].reverse().find(message => message.role === 'user');
@@ -46,10 +47,25 @@ async function complete(request) {
     if (text.startsWith(MEMORY_MARKER)) {
       return { text: '已提交经营记忆候选，等待人工审核。', toolCalls: [], usage: { outputTokens: 12 } };
     }
-    return { text: `草稿已生成：${toolText(tools[tools.length - 1]).slice(0, 800)}`, toolCalls: [], usage: { outputTokens: 12 } };
+    return { text: `草稿已生成：${toolText(tools[tools.length - 1]).slice(0, 1600)}`, toolCalls: [], usage: { outputTokens: 12 } };
   }
   if (text.startsWith(MEMORY_MARKER)) {
     return { text: '', toolCalls: [{ name: 'business_memory_propose', arguments: proposalFor(text) }], usage: {} };
+  }
+  if (text.startsWith(QUOTE_MARKER)) {
+    return {
+      text: '',
+      toolCalls: [{
+        name: 'procurement_compare',
+        arguments: {
+          quotes: [
+            { supplier: '甲公司', spec: 'DN50', currency: 'CNY', trade_term: 'FOB', unit_price: 12.5 },
+            { supplier: '乙公司', spec: 'DN50', currency: 'CNY', trade_term: 'FOB', unit_price: 13 },
+          ],
+        },
+      }],
+      usage: {},
+    };
   }
   if (text.startsWith(RFQ_MARKER)) {
     return { text: '', toolCalls: [{ name: 'factory_rfq_capture', arguments: rfqFor(text) }], usage: {} };
