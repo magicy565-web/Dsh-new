@@ -28,6 +28,11 @@ POST /api/inbox/:id/read
 
 `GET /api/inbox` 返回 `{ total, unread, items }`，`unread` 是全部未读数（不受 `status` 过滤影响）。
 
+## 页面
+
+`/inbox` 是自包含收件箱页（严格 CSP）：未读/全部切换、未读计数、逐条「标记已读」、
+「全部已读」；显示通知类型、时间、正文与引用（approvalId/runId/scheduleId 缩写）。
+首页 `/home` 也有入口。
 ## 验证
 
 ```powershell

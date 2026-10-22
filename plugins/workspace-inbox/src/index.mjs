@@ -1,5 +1,6 @@
 // Harness plugin: the workspace inbox.
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
+import { INBOX_PAGE } from './area.mjs';
 import { INBOX_STATUSES, InboxError, createInboxService } from './domain.mjs';
 
 export const PLUGIN_ID = 'workspace-inbox';
@@ -10,6 +11,7 @@ export const ROUTES = Object.freeze([
   ['GET', BASE],
   ['POST', `${BASE}/read-all`],
   ['POST', `${BASE}/:id/read`],
+  ['GET', '/inbox'],
 ]);
 
 const manifestError = message => new HarnessError(ERROR.manifestInvalid, message);
@@ -47,6 +49,20 @@ export async function apply(ctx, config = {}) {
     try { return await handler(context ?? {}); }
     catch (error) { throw asHarnessError(error); }
   };
+
+  ctx.http.route({
+    method: 'GET', path: '/inbox',
+    handler: () => new Response(INBOX_PAGE, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+      },
+    }),
+  });
 
   ctx.http.route({ method: 'GET', path: `${BASE}/status`, handler: call(context => ({ status: 200, body: service.status(context) })) });
 

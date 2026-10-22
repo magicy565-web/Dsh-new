@@ -145,6 +145,10 @@ try {
   const skillLibrary = await fetch(`${base}/api/chat/skills`).then(response => response.json());
   const skillNames = (skillLibrary.items || []).map(item => item.name);
   check('the business skill library is available', skillNames.includes('workspace-procurement') && skillNames.length >= 15, skillNames.length);
+
+  const inboxPage = await fetch(`${base}/inbox`);
+  const inboxHtml = await inboxPage.text();
+  check('the inbox page renders', inboxPage.status === 200 && inboxHtml.includes('收件箱'), inboxPage.status);
 } finally {
   await harness.stop().catch(() => {});
 }

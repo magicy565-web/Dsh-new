@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInboxService } from '../src/domain.mjs';
+import { apply, ROUTES } from '../src/index.mjs';
 
 function fakeStorage() {
   let state = {};
@@ -86,4 +87,23 @@ test('a damaged inbox fails closed', async () => {
   state.workspaces.local.harnessInbox.items[0].status = 'unknown';
   storage.update(draft => { Object.assign(draft, state); return null; });
   assert.throws(() => inbox.status({ actor: ADMIN }), error => error.code === 'INBOX_INVALID');
+});
+
+test('the inbox page is self-contained and its script parses', async () => {
+  const routes = new Map();
+  await apply({
+    storage: fakeStorage(),
+    http: { route: definition => { routes.set(`${definition.method} ${definition.path}`, definition); } },
+    health: { register: () => {} },
+    provide: () => () => {},
+  }, {});
+  assert.equal(routes.size, ROUTES.length);
+  const response = await routes.get('GET /inbox').handler({}, {}, {});
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/html/u);
+  const html = await response.text();
+  assert.match(html, /收件箱/u);
+  assert.match(html, /id="read-all"/u);
+  const script = html.match(/<script>([\s\S]*?)<\/script>/u)[1];
+  assert.doesNotThrow(() => new Function(script), 'the inline page script parses');
 });

@@ -17,7 +17,8 @@
     "GET /api/inbox/status",
     "GET /api/inbox",
     "POST /api/inbox/read-all",
-    "POST /api/inbox/:id/read"
+    "POST /api/inbox/:id/read",
+    "GET /inbox"
   ],
   "tools": []
 }
