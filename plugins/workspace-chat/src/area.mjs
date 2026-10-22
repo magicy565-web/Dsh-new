@@ -50,6 +50,13 @@ const PAGE = `<!doctype html>
   textarea { flex: 1; resize: none; min-height: 44px; max-height: 160px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--bg); color: var(--ink); }
   textarea:focus { outline: 2px solid color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: 1px; }
   .hint { padding: 0 18px 12px; font-size: 12px; color: var(--muted); }
+  #approvals { display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 0; }
+  .approval { border: 1px solid color-mix(in oklab, var(--warn) 45%, var(--line)); background: color-mix(in oklab, var(--warn) 8%, var(--panel)); border-radius: 10px; padding: 10px 12px; }
+  .approval .head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .approval .action { font-weight: 600; }
+  .approval .resource { color: var(--muted); font-size: 12px; word-break: break-all; }
+  .approval pre { margin: 8px 0; padding: 8px; background: var(--bg); border-radius: 8px; overflow: auto; max-height: 140px; font-size: 12px; }
+  .approval .actions { display: flex; gap: 8px; }
 </style>
 </head>
 <body>
@@ -61,6 +68,7 @@ const PAGE = `<!doctype html>
   <main>
     <header><div id="title">未选择会话</div><div id="state"></div><button id="stop" hidden>停止</button></header>
     <div id="messages"><div class="empty">左侧新建或选择一个会话开始。</div></div>
+    <div id="approvals"></div>
     <form id="composer">
       <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="2"></textarea>
       <button class="primary" id="send" type="submit">发送</button>
@@ -97,6 +105,43 @@ const PAGE = `<!doctype html>
   function el(tag, cls, text) { var node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = text; return node; }
   function scroll() { messages.scrollTop = messages.scrollHeight; }
   function setBusy(busy) { send.disabled = busy; input.disabled = busy; }
+
+  var approvalsEl = document.getElementById('approvals');
+  function renderApprovals(items) {
+    approvalsEl.textContent = '';
+    items.forEach(function (item) {
+      var card = el('div', 'approval');
+      var head = el('div', 'head');
+      head.appendChild(el('span', 'action', item.action));
+      head.appendChild(el('span', 'resource', item.resource));
+      card.appendChild(head);
+      card.appendChild(el('pre', '', JSON.stringify(item.payload || {}, null, 2)));
+      var actions = el('div', 'actions');
+      var ok = el('button', 'primary', '批准');
+      var no = el('button', '', '拒绝');
+      ok.addEventListener('click', function () { decide(item.id, 'approve'); });
+      no.addEventListener('click', function () { decide(item.id, 'deny'); });
+      actions.appendChild(ok);
+      actions.appendChild(no);
+      card.appendChild(actions);
+      approvalsEl.appendChild(card);
+    });
+  }
+  function loadApprovals() {
+    if (!state.conversationId) { approvalsEl.textContent = ''; return Promise.resolve(); }
+    return api('/api/chat/conversations/' + encodeURIComponent(state.conversationId) + '/approvals?status=pending')
+      .then(function (data) { renderApprovals(data.items || []); })
+      .catch(function () { approvalsEl.textContent = ''; });
+  }
+  function decide(id, decision) {
+    api('/api/chat/approvals/' + encodeURIComponent(id), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ decision: decision }),
+    }).then(function () {
+      setState(decision === 'approve' ? '已批准，继续执行…' : '已拒绝', decision === 'approve' ? 'run' : 'bad');
+      return loadApprovals();
+    }).catch(function (error) { setState('审批失败：' + error.message, 'bad'); });
+  }
 
   function renderConversations(items) {
     list.textContent = '';
@@ -165,6 +210,12 @@ const PAGE = `<!doctype html>
         scroll();
       } else if (event.type === 'run.memory_unavailable') {
         document.getElementById('hint').textContent = '记忆读取失败，本次回答未使用企业记忆。';
+      } else if (event.type === 'run.approval_requested') {
+        setState('等待批准', 'run');
+        loadApprovals();
+      } else if (event.type === 'run.approval_decided') {
+        loadApprovals();
+        setState(data.data && data.data.approved ? '已批准，继续执行…' : '已拒绝', data.data && data.data.approved ? 'run' : 'bad');
       } else if (event.type === 'run.completed') {
         finish('已完成', 'ok');
       } else if (event.type === 'run.failed') {
@@ -174,7 +225,7 @@ const PAGE = `<!doctype html>
       }
     }
 
-    ['run.prepared', 'run.running', 'run.delta', 'run.memory_unavailable', 'run.completed', 'run.failed', 'run.cancelled']
+    ['run.prepared', 'run.running', 'run.delta', 'run.memory_unavailable', 'run.approval_requested', 'run.approval_decided', 'run.completed', 'run.failed', 'run.cancelled']
       .forEach(function (name) { source.addEventListener(name, onEvent); });
 
     source.addEventListener('error', function () {
@@ -184,7 +235,7 @@ const PAGE = `<!doctype html>
       stopStream();
       var resume = new EventSource('/api/chat/runs/' + encodeURIComponent(runId) + '/events?after=' + state.lastSeq);
       state.source = resume;
-      ['run.prepared', 'run.running', 'run.delta', 'run.memory_unavailable', 'run.completed', 'run.failed', 'run.cancelled']
+      ['run.prepared', 'run.running', 'run.delta', 'run.memory_unavailable', 'run.approval_requested', 'run.approval_decided', 'run.completed', 'run.failed', 'run.cancelled']
         .forEach(function (name) { resume.addEventListener(name, onEvent); });
       resume.addEventListener('error', function () { if (state.retries >= 2) finish('连接中断', 'bad'); });
     });
@@ -202,6 +253,7 @@ const PAGE = `<!doctype html>
     return api('/api/chat/conversations/' + encodeURIComponent(id)).then(function (data) {
       title.textContent = data.conversation.title || '未命名';
       renderMessages(data.messages || []);
+      loadApprovals();
       if (data.conversation.lastRunId) {
         return api('/api/chat/runs/' + encodeURIComponent(data.conversation.lastRunId)).then(function (result) {
           if (result && result.run && !result.run.terminal) {

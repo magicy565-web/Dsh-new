@@ -162,3 +162,104 @@ test('a damaged store fails closed instead of being reset', async () => {
     error => error.code === 'CHAT_INVALID' && error.status === 500,
   );
 });
+
+const RUNNER = { subject: 'service:runner', role: 'operator', workspaceId: 'local' };
+const runnerContext = { actor: RUNNER, trustedService: true };
+
+async function runningRun(chat) {
+  const { conversation } = await chat.createConversation({ actor: ADMIN }, { requestId: requestId() });
+  const { run } = await chat.postMessage({ actor: ADMIN }, conversation.id, { requestId: requestId(), content: '需要你批准一步' });
+  await chat.advance({ actor: ADMIN }, run.id, 'running');
+  return { conversation, run };
+}
+
+test('an approval blocks the run and only the runner may request one', async () => {
+  const chat = service();
+  const { run } = await runningRun(chat);
+
+  await assert.rejects(
+    chat.requestApproval({ actor: ADMIN }, run.id, { action: 'send_message', resource: 'customer:1', payload: {} }),
+    error => error.code === 'CHAT_APPROVAL_RUNNER_ONLY' && error.status === 403,
+  );
+
+  const approval = await chat.requestApproval(runnerContext, run.id, {
+    action: 'business_memory_propose', resource: 'memory:customer-haiqi', payload: { factKey: 'moq' }, ticketId: 'ticket-1',
+  });
+  assert.equal(approval.status, 'pending');
+  assert.equal(chat.readRun({ actor: ADMIN }, run.id).status, 'blocked');
+  assert.equal(chat.listApprovals({ actor: ADMIN }).total, 1);
+
+  const events = chat.readEvents({ actor: ADMIN }, run.id, 0).events.map(event => event.type);
+  assert.deepEqual(events, ['run.prepared', 'run.running', 'run.approval_requested']);
+});
+
+test('approving resumes the run and denying fails it', async () => {
+  const chat = service();
+  const first = await runningRun(chat);
+  const approval = await chat.requestApproval(runnerContext, first.run.id, { action: 'a', resource: 'r', payload: {} });
+
+  const decided = await chat.decideApproval({ actor: ADMIN }, approval.id, { decision: 'approve', note: 'ok' });
+  assert.equal(decided.status, 'approved');
+  assert.equal(chat.readRun({ actor: ADMIN }, first.run.id).status, 'running');
+
+  const second = await runningRun(chat);
+  const denied = await chat.requestApproval(runnerContext, second.run.id, { action: 'a', resource: 'r', payload: {} });
+  await chat.decideApproval({ actor: ADMIN }, denied.id, { decision: 'deny' });
+  const run = chat.readRun({ actor: ADMIN }, second.run.id);
+  assert.equal(run.status, 'failed');
+  assert.equal(run.error.code, 'APPROVAL_DENIED');
+
+  await assert.rejects(
+    chat.decideApproval({ actor: ADMIN }, approval.id, { decision: 'approve' }),
+    error => error.code === 'CHAT_APPROVAL_CLOSED',
+  );
+});
+
+test('an expired approval cannot be approved later', async () => {
+  let now = Date.parse('2026-10-23T00:00:00.000Z');
+  const chat = createChatService({ storage: fakeStorage(), clock: () => now });
+  const { run } = await runningRun(chat);
+  const approval = await chat.requestApproval(runnerContext, run.id, { action: 'a', resource: 'r', payload: {}, ttlSeconds: 30 });
+
+  now += 31_000;
+  await assert.rejects(
+    chat.decideApproval({ actor: ADMIN }, approval.id, { decision: 'approve' }),
+    error => error.code === 'CHAT_APPROVAL_EXPIRED',
+  );
+  const listed = chat.listApprovals({ actor: ADMIN }, { status: 'expired' });
+  assert.equal(listed.total, 1);
+  assert.equal(listed.items[0].status, 'expired');
+  assert.equal(chat.readRun({ actor: ADMIN }, run.id).status, 'blocked');
+});
+
+test('a viewer cannot decide an approval', async () => {
+  const chat = service();
+  const { run } = await runningRun(chat);
+  const approval = await chat.requestApproval(runnerContext, run.id, { action: 'a', resource: 'r', payload: {} });
+  await assert.rejects(
+    chat.decideApproval({ actor: { subject: 'viewer-1', role: 'viewer', workspaceId: 'local' } }, approval.id, { decision: 'approve' }),
+    error => error.code === 'CHAT_APPROVAL_FORBIDDEN' && error.status === 403,
+  );
+});
+
+test('waitForApproval resolves when a human decides', async () => {
+  const chat = service();
+  const { run } = await runningRun(chat);
+  const approval = await chat.requestApproval(runnerContext, run.id, { action: 'a', resource: 'r', payload: {} });
+  const waiting = chat.waitForApproval(approval.id, { timeoutMs: 2_000 });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  await chat.decideApproval({ actor: ADMIN }, approval.id, { decision: 'approve' });
+  const decided = await waiting;
+  assert.equal(decided.status, 'approved');
+});
+
+test('a damaged approval fails validation closed', async () => {
+  const storage = fakeStorage();
+  const chat = createChatService({ storage });
+  const { run } = await runningRun(chat);
+  await chat.requestApproval(runnerContext, run.id, { action: 'a', resource: 'r', payload: {} });
+  const state = storage.snapshot();
+  state.workspaces.local.harnessChat.approvals[0].status = 'unknown';
+  storage.update(draft => { Object.assign(draft, state); return null; });
+  assert.throws(() => chat.status({ actor: ADMIN }), error => error.code === 'CHAT_INVALID');
+});

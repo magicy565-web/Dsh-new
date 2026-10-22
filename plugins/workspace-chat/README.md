@@ -74,6 +74,23 @@ chat.advance({ actor }, runId, 'completed', { usage: { outputTokens: 12 } });
 - 「停止」调用 cancel；断线用 `after=<lastSeq>` 重连，最多两次；
 - 未配置模型时提示设置 `DEEPSEEK_API_KEY` 并打开 `llm-bridge.enabled`。
 
+
+## 审批（guarded execution 的底座）
+
+模型要执行有副作用的动作时，run 不能自己继续：它会进入 `blocked`，把**确切的
+action / resource / payload** 交给一个人决定。
+
+- 只有 runner（`trustedService: true` 的进程内服务）能创建审批；HTTP 上没有任何
+  "请求批准"的入口，模型无法自己批准自己；
+- `GET /api/chat/conversations/:id/approvals` 列出待决审批；
+- `POST /api/chat/approvals/:id` `{ decision: 'approve' | 'deny' }`：批准把 run 从
+  `blocked` 恢复为 `running`，拒绝把 run 置为 `failed(APPROVAL_DENIED)`；
+- 审批有 TTL（30–3600 秒，默认 300）；过期后不能再批准，也不会悄悄放行；
+- 每次请求/决定都写事件（`run.approval_requested` / `run.approval_decided`）与 audit；
+- `/chat` 页面把待决审批渲染成卡片，显示动作、资源与完整参数，批准/拒绝即时生效。
+
+注意：审批票据目前只被测试与后续的工具执行器消费；**模型工具循环（toolCalls →
+审批 → 执行 → 回答）尚未接入**，下一轮补。
 ## 验证
 
 ```powershell

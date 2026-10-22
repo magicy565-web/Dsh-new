@@ -209,3 +209,42 @@ test('cancelling over HTTP ends the stream and is idempotent', async () => {
   const again = await harness.call('POST /api/chat/runs/:id/cancel', { params: { id: runId }, body: {} });
   assert.equal(again.body.replayed, true);
 });
+
+test('approvals are listed and decided over HTTP', async () => {
+  const harness = await mounted();
+  const created = await harness.call('POST /api/chat/conversations', { body: { requestId: crypto.randomUUID() } });
+  const posted = await harness.call('POST /api/chat/conversations/:id/messages', {
+    params: { id: created.body.conversation.id },
+    body: { requestId: crypto.randomUUID(), content: '需要批准的一步' },
+  });
+  const runId = posted.body.run.id;
+  await harness.service.advance({}, runId, 'running');
+
+  const runner = { actor: { subject: 'service:runner', role: 'operator', workspaceId: 'local' }, trustedService: true };
+  const approval = await harness.service.requestApproval(runner, runId, {
+    action: 'business_memory_propose', resource: 'memory:customer-haiqi', payload: { factKey: 'moq', value: 500 }, ticketId: 'ticket-1',
+  });
+  assert.equal(approval.status, 'pending');
+
+  const listed = await harness.call('GET /api/chat/conversations/:id/approvals', { params: { id: created.body.conversation.id } });
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.total, 1);
+  assert.equal(listed.body.items[0].action, 'business_memory_propose');
+  assert.deepEqual(listed.body.items[0].payload, { factKey: 'moq', value: 500 });
+
+  const runBlocked = await harness.call('GET /api/chat/runs/:id', { params: { id: runId } });
+  assert.equal(runBlocked.body.run.status, 'blocked');
+
+  const decided = await harness.call('POST /api/chat/approvals/:id', {
+    params: { id: approval.id }, body: { decision: 'approve', note: '确认' },
+  });
+  assert.equal(decided.status, 200);
+  assert.equal(decided.body.approval.status, 'approved');
+  assert.equal(decided.body.approval.decidedBy, 'local-operator');
+
+  const runResumed = await harness.call('GET /api/chat/runs/:id', { params: { id: runId } });
+  assert.equal(runResumed.body.run.status, 'running');
+
+  const after = await harness.call('GET /api/chat/conversations/:id/approvals', { params: { id: created.body.conversation.id } });
+  assert.equal(after.body.total, 0, 'a decided approval leaves the pending list');
+});

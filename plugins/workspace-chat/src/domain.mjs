@@ -13,6 +13,7 @@ const STATE_KEY = 'harnessChat';
 
 export const RUN_STATUSES = Object.freeze(['prepared', 'running', 'blocked', 'completed', 'failed', 'cancelled']);
 export const TERMINAL_STATUSES = Object.freeze(['completed', 'failed', 'cancelled']);
+export const APPROVAL_STATUSES = Object.freeze(['pending', 'approved', 'denied', 'expired']);
 const TERMINAL = new Set(TERMINAL_STATUSES);
 const TRANSITIONS = Object.freeze({
   prepared: Object.freeze(['running', 'cancelled']),
@@ -25,7 +26,7 @@ const TRANSITIONS = Object.freeze({
 
 export const CHAT_LIMITS = Object.freeze({
   conversations: 500, messages: 20_000, messagesPerConversation: 2_000,
-  runs: 5_000, events: 20_000, receipts: 10_000,
+  runs: 5_000, events: 20_000, receipts: 10_000, approvals: 2_000,
   title: 200, content: 20_000, id: 128, query: 200, limit: 100,
 });
 
@@ -54,7 +55,7 @@ function text(value, max, name, { empty = false } = {}) {
 
 const defaultState = () => ({
   version: STATE_VERSION, seq: 0,
-  conversations: [], messages: [], runs: [], events: [], receipts: [],
+  conversations: [], messages: [], runs: [], events: [], receipts: [], approvals: [],
 });
 
 function validateRun(run) {
@@ -72,12 +73,14 @@ function validateState(value) {
   if (!isPlain(value) || value.version !== STATE_VERSION
     || !Array.isArray(value.conversations) || !Array.isArray(value.messages)
     || !Array.isArray(value.runs) || !Array.isArray(value.events) || !Array.isArray(value.receipts)
+    || !Array.isArray(value.approvals)
     || !Number.isSafeInteger(value.seq) || value.seq < 0
     || value.conversations.length > CHAT_LIMITS.conversations
     || value.messages.length > CHAT_LIMITS.messages
     || value.runs.length > CHAT_LIMITS.runs
     || value.events.length > CHAT_LIMITS.events
-    || value.receipts.length > CHAT_LIMITS.receipts)
+    || value.receipts.length > CHAT_LIMITS.receipts
+    || value.approvals.length > CHAT_LIMITS.approvals)
     fail(500, 'CHAT_INVALID', 'Stored chat state is invalid or full.');
   const conversationIds = new Set(), messageIds = new Set(), runIds = new Set(), eventSeqs = new Set();
   for (const conversation of value.conversations) {
@@ -109,6 +112,23 @@ function validateState(value) {
     if (eventSeqs.has(event.seq)) fail(500, 'CHAT_INVALID', 'Duplicate chat event sequence.');
     eventSeqs.add(event.seq);
   }
+  const approvalIds = new Set();
+  for (const approval of value.approvals) {
+    if (!isPlain(approval) || !isId(approval.id) || !runIds.has(approval.runId)
+      || !conversationIds.has(approval.conversationId)
+      || typeof approval.action !== 'string' || !approval.action || approval.action.length > 120
+      || typeof approval.resource !== 'string' || approval.resource.length > 300
+      || !isPlain(approval.payload) || !APPROVAL_STATUSES.includes(approval.status)
+      || typeof approval.requestedBy !== 'string' || !isIso(approval.requestedAt)
+      || (approval.decidedBy !== null && typeof approval.decidedBy !== 'string')
+      || (approval.decidedAt !== null && !isIso(approval.decidedAt))
+      || (approval.note !== null && typeof approval.note !== 'string')
+      || (approval.expiresAt !== null && !isIso(approval.expiresAt))
+      || (approval.ticketId !== null && typeof approval.ticketId !== 'string'))
+      fail(500, 'CHAT_INVALID', 'Stored chat approval is invalid.');
+    if (approvalIds.has(approval.id)) fail(500, 'CHAT_INVALID', 'Duplicate chat approval id.');
+    approvalIds.add(approval.id);
+  }
   return true;
 }
 
@@ -118,11 +138,17 @@ function withDefaults(value) {
     ...value,
     seq: value.seq ?? 0,
     receipts: value.receipts ?? [],
+    approvals: value.approvals ?? [],
   };
 }
 
 function viewRun(run) {
   return { ...structuredClone(run), terminal: TERMINAL.has(run.status) };
+}
+
+function viewApproval(approval, now = Date.now()) {
+  const expired = approval.status === 'pending' && approval.expiresAt !== null && Date.parse(approval.expiresAt) <= now;
+  return { ...structuredClone(approval), status: expired ? 'expired' : approval.status, expired };
 }
 
 function conversationView(conversation, state) {
@@ -475,6 +501,146 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
       if (!emitted) return null;
       emit(emitted);
       return structuredClone(emitted);
+    },
+
+    /**
+     * Runner-only: block the run and ask a human to approve one exact action.
+     * The scope (action, resource, payload) is what the human sees; the run
+     * cannot continue until this approval is decided.
+     */
+    async requestApproval(context, runId, body = {}) {
+      const actor = resolveActor(context);
+      if (context?.trustedService !== true)
+        fail(403, 'CHAT_APPROVAL_RUNNER_ONLY', 'Only the run executor may request an approval.');
+      if (!isPlain(body)) fail(400, 'CHAT_INPUT', 'An approval request must be an object.');
+      if (Object.keys(body).some(key => !['action', 'resource', 'payload', 'ticketId', 'reason', 'ttlSeconds'].includes(key)))
+        fail(400, 'CHAT_INPUT', 'An approval request has an unsupported field.');
+      const action = text(body.action, 120, 'action');
+      const resource = text(body.resource, 300, 'resource');
+      if (!isPlain(body.payload)) fail(400, 'CHAT_INPUT', 'payload must be an object.');
+      if (JSON.stringify(body.payload).length > 8_000) fail(400, 'CHAT_INPUT', 'payload is too large.');
+      const ticketId = body.ticketId === undefined ? null : text(body.ticketId, 128, 'ticketId', { empty: true });
+      const reason = body.reason === undefined ? null : text(body.reason, 500, 'reason', { empty: true });
+      const ttlSeconds = body.ttlSeconds === undefined ? 300 : body.ttlSeconds;
+      if (!Number.isInteger(ttlSeconds) || ttlSeconds < 30 || ttlSeconds > 3_600)
+        fail(400, 'CHAT_INPUT', 'ttlSeconds must be an integer between 30 and 3600.');
+      const store = partition(actor.workspaceId);
+      let result = null;
+      let emitted = null;
+      const now = clock();
+      await store.update(state => {
+        const run = requireRun(state, actor, runId);
+        if (run.status !== 'running')
+          fail(409, 'CHAT_RUN_STATE', `A run in ${run.status} cannot request an approval.`);
+        if (state.approvals.length >= CHAT_LIMITS.approvals) fail(409, 'CHAT_FULL', 'This workspace has too many approvals.');
+        const approval = {
+          id: randomUUID(), runId, conversationId: run.conversationId, workspaceId: actor.workspaceId,
+          action, resource, payload: structuredClone(body.payload), ticketId, reason,
+          status: 'pending', requestedBy: actor.subject, requestedAt: at(),
+          decidedBy: null, decidedAt: null, note: null,
+          expiresAt: new Date(now + ttlSeconds * 1_000).toISOString(),
+        };
+        state.approvals.push(approval);
+        transition(state, run, 'blocked');
+        emitted = appendEvent(state, run, 'run.approval_requested', {
+          approvalId: approval.id, action, resource, expiresAt: approval.expiresAt,
+        });
+        result = viewApproval(approval, now);
+        return null;
+      });
+      if (emitted) emit(emitted);
+      if (audit?.record) await audit.record({ kind: 'chat.approval', action: 'chat.approval.request', actor: actor.subject, ref: result.id });
+      return result;
+    },
+
+    /** Human decision. Approving resumes the run; denying fails it. */
+    async decideApproval(context, approvalId, body = {}) {
+      const actor = resolveActor(context);
+      if (actor.role === 'viewer') fail(403, 'CHAT_APPROVAL_FORBIDDEN', 'A viewer cannot decide an approval.');
+      if (!isPlain(body)) fail(400, 'CHAT_INPUT', 'An approval decision must be an object.');
+      if (Object.keys(body).some(key => !['decision', 'note'].includes(key)))
+        fail(400, 'CHAT_INPUT', 'An approval decision has an unsupported field.');
+      if (!['approve', 'deny'].includes(body.decision))
+        fail(400, 'CHAT_INPUT', 'decision must be approve or deny.');
+      const note = body.note === undefined ? null : text(body.note, 500, 'note', { empty: true });
+      const store = partition(actor.workspaceId);
+      let result = null;
+      let emitted = null;
+      const now = clock();
+      await store.update(state => {
+        const approval = state.approvals.find(item => item.id === approvalId && item.workspaceId === actor.workspaceId);
+        if (!approval) fail(404, 'CHAT_APPROVAL_NOT_FOUND', 'No such approval in this workspace.');
+        if (approval.status !== 'pending') fail(409, 'CHAT_APPROVAL_CLOSED', 'This approval is already decided.');
+        if (approval.expiresAt !== null && Date.parse(approval.expiresAt) <= now) {
+          approval.status = 'expired';
+          fail(409, 'CHAT_APPROVAL_EXPIRED', 'This approval expired before a decision.');
+        }
+        const run = state.runs.find(item => item.id === approval.runId);
+        approval.status = body.decision === 'approve' ? 'approved' : 'denied';
+        approval.decidedBy = actor.subject;
+        approval.decidedAt = at();
+        approval.note = note;
+        if (body.decision === 'approve') {
+          if (run && run.status === 'blocked') transition(state, run, 'running');
+          emitted = appendEvent(state, run, 'run.approval_decided', { approvalId, approved: true });
+        } else {
+          if (run && run.status === 'blocked')
+            transition(state, run, 'failed', { error: { code: 'APPROVAL_DENIED', message: 'A required action was denied.' } });
+          emitted = appendEvent(state, run, 'run.approval_decided', { approvalId, approved: false });
+        }
+        result = viewApproval(approval, now);
+        return null;
+      });
+      if (emitted) emit(emitted);
+      if (audit?.record) await audit.record({ kind: 'chat.approval', action: 'chat.approval.decide', actor: actor.subject, ref: approvalId, ok: body.decision === 'approve' });
+      return result;
+    },
+
+    listApprovals(context, query = {}) {
+      const actor = resolveActor(context);
+      const status = query.status === undefined ? 'pending' : query.status;
+      if (!['pending', 'approved', 'denied', 'expired', 'all'].includes(status))
+        fail(400, 'CHAT_INPUT', 'status must be pending, approved, denied, expired or all.');
+      const limit = query.limit === undefined ? 50 : Number(query.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 200) fail(400, 'CHAT_INPUT', 'limit must be 1-200.');
+      const conversationId = query.conversationId === undefined ? null : text(query.conversationId, CHAT_LIMITS.id, 'conversationId');
+      const now = clock();
+      const state = partition(actor.workspaceId).read();
+      const items = state.approvals
+        .filter(item => item.workspaceId === actor.workspaceId)
+        .filter(item => conversationId === null || item.conversationId === conversationId)
+        .map(item => viewApproval(item, now))
+        .filter(item => status === 'all' || item.status === status)
+        .sort((a, b) => Date.parse(b.requestedAt) - Date.parse(a.requestedAt))
+        .slice(0, limit);
+      return { workspaceId: actor.workspaceId, status, total: items.length, items };
+    },
+
+    readApproval(context, id) {
+      const actor = resolveActor(context);
+      const state = partition(actor.workspaceId).read();
+      const approval = state.approvals.find(item => item.id === id && item.workspaceId === actor.workspaceId);
+      if (!approval) fail(404, 'CHAT_APPROVAL_NOT_FOUND', 'No such approval in this workspace.');
+      return viewApproval(approval, clock());
+    },
+
+    /**
+     * Runner-side wait. Resolves with the decided (or expired) approval; a run
+     * cancellation aborts the wait so the executor stops holding a slot.
+     */
+    async waitForApproval(approvalId, { timeoutMs = 300_000, signal = null } = {}) {
+      const store = partition(workspaceId);
+      const deadline = clock() + timeoutMs;
+      for (;;) {
+        if (signal?.aborted) fail(409, 'CHAT_APPROVAL_ABORTED', 'The run was stopped while waiting for a decision.');
+        const state = store.read();
+        const approval = state.approvals.find(item => item.id === approvalId);
+        if (!approval) fail(404, 'CHAT_APPROVAL_NOT_FOUND', 'No such approval in this workspace.');
+        const view = viewApproval(approval, clock());
+        if (view.status !== 'pending') return view;
+        if (clock() >= deadline) fail(409, 'CHAT_APPROVAL_TIMEOUT', 'The approval was not decided in time.');
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
     },
 
     /** Subscribe to live events for one run; returns an unsubscribe function. */

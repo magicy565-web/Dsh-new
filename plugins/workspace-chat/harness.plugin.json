@@ -22,6 +22,8 @@
     "GET /api/chat/runs/:id",
     "POST /api/chat/runs/:id/cancel",
     "GET /api/chat/runs/:id/events",
+    "GET /api/chat/conversations/:id/approvals",
+    "POST /api/chat/approvals/:id",
     "GET /chat"
   ],
   "tools": []

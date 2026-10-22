@@ -22,6 +22,8 @@ export const ROUTES = Object.freeze([
   ['GET', `${BASE}/runs/:id`],
   ['POST', `${BASE}/runs/:id/cancel`],
   ['GET', `${BASE}/runs/:id/events`],
+  ['GET', `${BASE}/conversations/:id/approvals`],
+  ['POST', `${BASE}/approvals/:id`],
   ['GET', AREA_PATH],
 ]);
 
@@ -172,6 +174,22 @@ export async function apply(ctx, config = {}) {
         },
       });
     },
+  });
+
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/conversations/:id/approvals`,
+    handler: call(context => ({
+      status: 200,
+      body: service.listApprovals(context, { ...(context.query ?? {}), conversationId: context.params?.id }),
+    })),
+  });
+
+  ctx.http.route({
+    method: 'POST', path: `${BASE}/approvals/:id`,
+    handler: call(async context => ({
+      status: 200,
+      body: { approval: await service.decideApproval(context, context.params?.id, context.body ?? {}) },
+    })),
   });
 
   ctx.http.route({
