@@ -59,6 +59,15 @@ try {
   const page = await fetch(`${base}/quotes`);
   const html = await page.text();
   check('the quotes page renders', page.status === 200 && html.includes('新建报价'), page.status);
+
+  const csv = await fetch(`${base}/api/quotes/${quote.id}/export.csv`);
+  const csvText = await csv.text();
+  check('the quote exports as CSV',
+    csv.status === 200 && /text\/csv/u.test(csv.headers.get('content-type') ?? '') && csvText.includes(quote.number), csv.status);
+
+  const print = await fetch(`${base}/api/quotes/${quote.id}/print`);
+  const printHtml = await print.text();
+  check('the quote renders a printable page', print.status === 200 && printHtml.includes(`报价单 ${quote.number}`), print.status);
 } finally {
   await harness.stop().catch(() => {});
   await unlink(compositionPath).catch(() => {});

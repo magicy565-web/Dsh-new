@@ -1,6 +1,7 @@
 // Harness plugin: quotes (报价单) over the storage seam.
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
 import { QUOTE_PAGE } from './area.mjs';
+import { quoteCsv, quotePrintPage } from './export.mjs';
 import { QUOTE_LIMITS, QUOTE_STATUSES, QuoteError, createQuoteService } from './domain.mjs';
 
 export const PLUGIN_ID = 'workspace-quotes';
@@ -12,6 +13,8 @@ export const ROUTES = Object.freeze([
   ['GET', BASE],
   ['GET', `${BASE}/:id`],
   ['POST', `${BASE}/:id/status`],
+  ['GET', `${BASE}/:id/export.csv`],
+  ['GET', `${BASE}/:id/print`],
   ['GET', '/quotes'],
 ]);
 export const TOOLS = Object.freeze(['quote_create', 'quote_list']);
@@ -90,6 +93,39 @@ export async function apply(ctx, config = {}) {
   ctx.http.route({
     method: 'POST', path: `${BASE}/:id/status`,
     handler: call(async context => ({ status: 200, body: await service.setStatus(context, context.params?.id, context.body ?? {}) })),
+  });
+
+  // Exports are read-only projections of a quote a member may already read.
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/:id/export.csv`,
+    handler: call(context => {
+      const { quote } = service.read(context, context.params?.id);
+      return new Response(quoteCsv(quote), {
+        status: 200,
+        headers: {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(`${quote.number}.csv`)}`,
+          'cache-control': 'no-store',
+          'x-content-type-options': 'nosniff',
+        },
+      });
+    }),
+  });
+
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/:id/print`,
+    handler: call(context => {
+      const { quote } = service.read(context, context.params?.id);
+      return new Response(quotePrintPage(quote), {
+        status: 200,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+          'x-content-type-options': 'nosniff',
+        },
+      });
+    }),
   });
 
   if (ctx.tools?.register) {

@@ -137,3 +137,16 @@ test('the internal lookup finds a quote without an actor', async () => {
   assert.equal(quotes.lookup('not-a-uuid'), null);
   assert.equal(quotes.lookup(crypto.randomUUID()), null);
 });
+test('CSV export escapes cells and defuses formulas', async () => {
+  const { quoteCsv } = await import('../src/export.mjs');
+  const csv = quoteCsv({
+    number: 'Q-1', customer: '=HYPERLINK("x")', currency: 'CNY', status: 'draft', createdAt: '2026-10-23T00:00:00.000Z',
+    total: '10.00', note: null,
+    lines: [{ description: '带,逗号"引号"', quantity: 1, unitPriceMinor: 1000, amount: '10.00' }],
+  });
+  assert.ok(csv.includes("'=HYPERLINK"), 'formula must be defused');
+  assert.ok(csv.includes('""引号""'), 'inner quotes must be doubled');
+  assert.ok(csv.includes('带,逗号'), 'commas stay inside the quoted cell');
+  assert.ok(csv.includes('Q-1'));
+  assert.ok(csv.endsWith('\r\n'));
+});

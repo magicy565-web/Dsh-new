@@ -19,6 +19,8 @@
     "GET /api/quotes",
     "GET /api/quotes/:id",
     "POST /api/quotes/:id/status",
+    "GET /api/quotes/:id/export.csv",
+    "GET /api/quotes/:id/print",
     "GET /quotes"
   ],
   "tools": ["quote_create", "quote_list"]

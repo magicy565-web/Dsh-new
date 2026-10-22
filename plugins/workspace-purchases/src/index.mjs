@@ -5,6 +5,7 @@
 // commit spending on its own.
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
 import { PURCHASES_PAGE } from './area.mjs';
+import { purchaseCsv, purchasePrintPage } from './export.mjs';
 import { PO_LIMITS, PO_STATUSES, PurchaseError, createPurchaseService } from './domain.mjs';
 
 export const PLUGIN_ID = 'workspace-purchases';
@@ -17,6 +18,8 @@ export const ROUTES = Object.freeze([
   ['GET', BASE],
   ['GET', `${BASE}/:id`],
   ['POST', `${BASE}/:id/status`],
+  ['GET', `${BASE}/:id/export.csv`],
+  ['GET', `${BASE}/:id/print`],
   ['GET', '/purchases'],
 ]);
 export const TOOLS = Object.freeze(['purchase_order_create', 'purchase_order_list']);
@@ -102,6 +105,38 @@ export async function apply(ctx, config = {}) {
   ctx.http.route({
     method: 'POST', path: `${BASE}/:id/status`,
     handler: call(async context => ({ status: 200, body: await service.setStatus(context, context.params?.id, context.body ?? {}) })),
+  });
+
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/:id/export.csv`,
+    handler: call(context => {
+      const { order } = service.read(context, context.params?.id);
+      return new Response(purchaseCsv(order), {
+        status: 200,
+        headers: {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(`${order.number}.csv`)}`,
+          'cache-control': 'no-store',
+          'x-content-type-options': 'nosniff',
+        },
+      });
+    }),
+  });
+
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/:id/print`,
+    handler: call(context => {
+      const { order } = service.read(context, context.params?.id);
+      return new Response(purchasePrintPage(order), {
+        status: 200,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+          'x-content-type-options': 'nosniff',
+        },
+      });
+    }),
   });
 
   if (ctx.tools?.register) {

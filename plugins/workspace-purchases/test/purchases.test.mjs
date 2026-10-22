@@ -139,3 +139,19 @@ test('only an accepted quote can be converted, and the service is required', asy
     error => error.code === 'PURCHASE_QUOTE_NOT_FOUND' && error.status === 404,
   );
 });
+test('CSV and printable export keep the order facts', async () => {
+  const { purchaseCsv, purchasePrintPage } = await import('../src/export.mjs');
+  const order = {
+    number: 'PO-1', supplier: '无锡法兰厂', currency: 'CNY', status: 'approved', approvedBy: 'local-operator',
+    createdAt: '2026-10-23T00:00:00.000Z', total: '6250.00', note: '来自报价 Q-9',
+    lines: [{ description: '法兰', quantity: 500, unitPriceMinor: 1250, amount: '6250.00' }],
+  };
+  const csv = purchaseCsv(order);
+  assert.ok(csv.includes('PO-1') && csv.includes('无锡法兰厂') && csv.includes('local-operator'));
+  assert.ok(csv.includes('6250.00'));
+  const print = purchasePrintPage(order);
+  assert.ok(print.includes('采购单 PO-1'));
+  assert.ok(print.includes('无锡法兰厂'));
+  assert.ok(print.includes('6250.00'));
+  assert.ok(!print.includes('<script'), 'the printable page carries no script');
+});

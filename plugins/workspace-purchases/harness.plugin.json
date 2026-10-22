@@ -20,6 +20,8 @@
     "GET /api/purchases",
     "GET /api/purchases/:id",
     "POST /api/purchases/:id/status",
+    "GET /api/purchases/:id/export.csv",
+    "GET /api/purchases/:id/print",
     "GET /purchases"
   ],
   "tools": ["purchase_order_create", "purchase_order_list"]
