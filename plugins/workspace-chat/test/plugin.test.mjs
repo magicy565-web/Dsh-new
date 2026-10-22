@@ -24,6 +24,9 @@ function fakeContext() {
     http: { route: definition => { routes.set(`${definition.method} ${definition.path}`, definition); } },
     health: { register: (name, fn) => health.set(name, fn) },
     provide: (name, value) => { if (name === 'chat') service = value; return () => { service = null; }; },
+    get: name => (name === 'skills'
+      ? { list: () => [{ name: 'workspace-procurement', description: '采购与工厂', pluginId: 'workspace-procurement', bytes: 120 }] }
+      : undefined),
   };
   const call = async (key, { params = {}, body = {}, query = {}, actor = { subject: 'local-operator', role: 'admin', workspaceId: 'local' } } = {}) => {
     const definition = routes.get(key);
@@ -78,6 +81,16 @@ async function mounted() {
   await apply(harness.ctx, {});
   return harness;
 }
+
+test('the skill library is listed without leaking bodies', async () => {
+  const harness = await mounted();
+  const listed = await harness.call('GET /api/chat/skills');
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.total, 1);
+  assert.equal(listed.body.items[0].name, 'workspace-procurement');
+  assert.equal(listed.body.items[0].pluginId, 'workspace-procurement');
+  assert.equal(listed.body.items[0].body, undefined, 'the body must not be exposed here');
+});
 
 test('the plugin registers every declared route and a health probe', async () => {
   const harness = await mounted();

@@ -15,6 +15,7 @@ const HEARTBEAT_MS = 15_000;
 
 export const ROUTES = Object.freeze([
   ['GET', `${BASE}/status`],
+  ['GET', `${BASE}/skills`],
   ['POST', `${BASE}/conversations`],
   ['GET', `${BASE}/conversations`],
   ['GET', `${BASE}/conversations/:id`],
@@ -85,6 +86,25 @@ export async function apply(ctx, config = {}) {
   };
 
   ctx.http.route({ method: 'GET', path: `${BASE}/status`, handler: call(context => ({ status: 200, body: service.status(context) })) });
+
+  // The skill library is owned by the skills seam; this route only exposes the
+  // summaries a person may attach to a message. Bodies never leave the server
+  // through this endpoint.
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/skills`,
+    handler: call(context => {
+      service.status(context); // authorisation only
+      let items = [];
+      try {
+        const skills = ctx.get('skills', false);
+        const listed = skills?.list ? skills.list() : [];
+        items = listed.map(skill => ({
+          name: skill.name, description: skill.description, pluginId: skill.pluginId ?? null, bytes: skill.bytes ?? 0,
+        }));
+      } catch { items = []; }
+      return { status: 200, body: { total: items.length, items } };
+    }),
+  });
 
   ctx.http.route({
     method: 'POST', path: `${BASE}/conversations`,

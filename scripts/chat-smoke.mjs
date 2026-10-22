@@ -141,6 +141,10 @@ try {
   const homePage = await fetch(`${base}/home`);
   const homeHtml = await homePage.text();
   check('the workbench home renders', homePage.status === 200 && homeHtml.includes('工作台'), homePage.status);
+
+  const skillLibrary = await fetch(`${base}/api/chat/skills`).then(response => response.json());
+  const skillNames = (skillLibrary.items || []).map(item => item.name);
+  check('the business skill library is available', skillNames.includes('workspace-procurement') && skillNames.length >= 15, skillNames.length);
 } finally {
   await harness.stop().catch(() => {});
 }

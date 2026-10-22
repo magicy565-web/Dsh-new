@@ -53,6 +53,9 @@ const PAGE = `<!doctype html>
   #chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 18px 8px; }
   .chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--muted); background: var(--panel); }
   .chip button { border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; }
+  #skills { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 8px 18px; border-top: 1px solid var(--line); max-height: 140px; overflow: auto; }
+  .skill { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .skill input { accent-color: var(--accent); }
   header .nav { margin-left: 8px; color: var(--muted); text-decoration: none; font-size: 13px; }
   header .nav:hover { color: var(--accent); }
   .goals { border-top: 1px solid var(--line); padding: 8px; max-height: 38%; overflow: auto; }
@@ -93,9 +96,11 @@ const PAGE = `<!doctype html>
     <div id="messages"><div class="empty">左侧新建或选择一个会话开始。</div></div>
     <div id="approvals"></div>
     <div id="chips"></div>
+    <div id="skills" hidden></div>
     <form id="composer">
       <input id="file" type="file" accept=".txt,.md,.csv,.json,.png,.jpg,.jpeg,.pdf,.xlsx,.docx" hidden>
-      <button id="attach" type="button" title="附加文本文件（≤512 KiB）">附文件</button>
+      <button id="attach" type="button" title="附加文件（文本 ≤512 KiB，二进制 ≤5 MiB）">附文件</button>
+      <button id="skills-toggle" type="button" title="选择技能">技能</button>
       <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="2"></textarea>
       <button class="primary" id="send" type="submit">发送</button>
     </form>
@@ -411,6 +416,12 @@ const PAGE = `<!doctype html>
     var content = text.trim();
     if (!content) return undefined;
     var attached = state.files.map(function (file) { return file.id; });
+    var chosen = [];
+    var boxes = document.querySelectorAll('#skills input:checked');
+    Array.prototype.forEach.call(boxes, function (box) { chosen.push(box.value); });
+    var selection = {};
+    if (attached.length) selection.artifacts = attached;
+    if (chosen.length) selection.skills = chosen;
     if (state.goalId) {
       api('/api/goals/' + encodeURIComponent(state.goalId) + '/status', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -425,7 +436,7 @@ const PAGE = `<!doctype html>
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify(Object.assign(
         { requestId: crypto.randomUUID(), content: content },
-        attached.length ? { selection: { artifacts: attached } } : {},
+        Object.keys(selection).length ? { selection: selection } : {},
         state.goalId ? { goalId: state.goalId } : {},
       )),
     }).then(function (data) {
@@ -451,6 +462,27 @@ const PAGE = `<!doctype html>
       setState('目标：' + data.goal.title, '');
       return loadGoals();
     }).catch(function (error) { setState('新建目标失败：' + error.message, 'bad'); });
+  });
+  var skillsEl = document.getElementById('skills');
+  function loadSkills() {
+    return api('/api/chat/skills').then(function (data) {
+      skillsEl.textContent = '';
+      (data.items || []).forEach(function (skill) {
+        var label = el('label', 'skill');
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.value = skill.name;
+        label.appendChild(box);
+        label.appendChild(el('span', '', skill.name));
+        if (skill.pluginId) label.title = skill.pluginId + ' · ' + (skill.description || '');
+        skillsEl.appendChild(label);
+      });
+      if (!(data.items || []).length) skillsEl.appendChild(el('span', 'hint', '没有可用技能'));
+    }).catch(function () { skillsEl.textContent = ''; });
+  }
+  document.getElementById('skills-toggle').addEventListener('click', function () {
+    skillsEl.hidden = !skillsEl.hidden;
+    if (!skillsEl.hidden) loadSkills();
   });
   document.getElementById('attach').addEventListener('click', function () { fileInput.value = ''; fileInput.click(); });
   fileInput.addEventListener('change', function () { uploadFile(fileInput.files && fileInput.files[0]); });

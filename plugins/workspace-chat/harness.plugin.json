@@ -15,6 +15,7 @@
   },
   "routes": [
     "GET /api/chat/status",
+    "GET /api/chat/skills",
     "POST /api/chat/conversations",
     "GET /api/chat/conversations",
     "GET /api/chat/conversations/:id",
