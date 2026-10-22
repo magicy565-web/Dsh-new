@@ -48,9 +48,10 @@
 
 - **P0 内核**（本次完成一半）：流式 ✅、取消、鉴权钩子。
   门槛：kernel 全量测试 + 新增流式/取消测试。
-- **P1 会话与运行最小闭环**：`workspace-chat` 插件——会话、消息、run 状态机、SSE 端点；
-  `workspace-llm-bridge` 打开后一次真实流式回答落库。
-  门槛：一个会话 → 一次 run → 流式事件顺序断言 → 重连可重放。
+- **P1 会话与运行最小闭环**：`workspace-chat`（会话、消息、run 状态机、SSE）+ `workspace-runner`
+  （历史 + 记忆块 → `ctx.llm` → 写回回答）。已完成，模型调用按 `complete()` 一次性返回；
+  provider 级流式增量（`run.delta`）待 llm seam 增加 `stream` 能力后接入。
+  门槛：一个会话 → 一次 run → 流式事件顺序断言 → 重连可重放（`scripts/chat-smoke.mjs`、`scripts/runner-smoke.mjs`）。
 - **P2 上下文装配**：把 `task-context` 的快照语义搬进 `workspace-context`：文件版本、
   技能版本、记忆注入（已有服务）、越权检查。
   门槛：快照过期/版本变化必须阻断；记忆 `verify` 在派发前复核。
@@ -81,6 +82,9 @@
 | 能力 | 命令 | 结果 |
 | --- | --- | --- |
 | kernel 流式/取消 | `node --test packages/harness-kernel/test/` | 102/102 |
+| 会话与运行 | `node --test plugins/workspace-chat/test/ plugins/workspace-runner/test/` | 20/20 |
+| 聊天 SSE 端到端 | `node scripts/chat-smoke.mjs` | 9/9 |
+| run 循环端到端 | `node scripts/runner-smoke.mjs` | 7/7 |
 | 记忆服务通道 | `node scripts/memory-bridge-smoke.mjs` | 11/11 |
 | 记忆全量 | `node --test plugins/workspace-business-memory/test/*.test.mjs test/business-memory-client.test.mjs` | 55/55 |
-| 组合完整性 | `node packages/harness-kernel/bin/wh.mjs doctor -c harness.local.yml` | exit 0 |
+| 组合完整性 | `node packages/harness-kernel/bin/wh.mjs doctor -c harness.local.yml` | exit 0（13 个插件） |

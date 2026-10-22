@@ -1,0 +1,24 @@
+{
+  "id": "workspace-runner",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "执行聊天 run：装配历史与已确认记忆，调用 ctx.llm，写回回答并记录用量。只允许本服务推进 run 状态。",
+  "entry": "./src/index.mjs",
+  "requires": ["chat", "llm"],
+  "provides": ["runner"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "workspaceId": { "type": "string", "minLength": 1 },
+      "enabled": { "type": "boolean" },
+      "model": { "type": "string" },
+      "systemPrompt": { "type": "string" },
+      "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 600000 },
+      "maxQueue": { "type": "integer", "minimum": 1, "maximum": 1000 },
+      "memory": { "type": "boolean" }
+    },
+    "additionalProperties": false
+  },
+  "routes": [],
+  "tools": []
+}

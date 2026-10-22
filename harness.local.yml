@@ -56,4 +56,15 @@ plugins:
   - id: chat
     name: workspace-chat
     config: { workspaceId: local }
+  # 模型接缝：provider 注册表。默认没有 provider，调用会明确失败而不是编造回答。
+  - id: llm
+    name: '@workspace-harness/seams/llm'
+  # 模型桥：默认关闭；enabled: true 且服务器环境存在 DEEPSEEK_API_KEY 时才注册真实 provider。
+  - id: llm-bridge
+    name: workspace-llm-bridge
+    config: { enabled: false }
+  # run 执行器：订阅 prepared run，装配历史 + 已确认记忆，调用 ctx.llm，写回回答。
+  - id: runner
+    name: workspace-runner
+    config: { workspaceId: local, memory: true }
 

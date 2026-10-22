@@ -54,6 +54,11 @@ function reader(response) {
 
 const composition = parse(await readFile(path.join(root, 'harness.local.yml'), 'utf8'));
 composition.server = { host: '127.0.0.1', port: 0 };
+// This smoke isolates the chat substrate: no model call, so the run stays
+// prepared until the test cancels it.
+composition.plugins = composition.plugins.map(row => row.id === 'runner'
+  ? { ...row, config: { ...row.config, enabled: false } }
+  : row);
 
 const harness = await createHarness({ composition, root, logger: { info() {}, warn() {}, error() {} } });
 let base;

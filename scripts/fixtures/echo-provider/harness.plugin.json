@@ -1,0 +1,9 @@
+{
+  "id": "echo-provider",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "Smoke fixture: registers the offline echo provider on the llm seam.",
+  "entry": "./src/index.mjs",
+  "requires": ["llm"],
+  "provides": []
+}

@@ -152,12 +152,20 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
 
   const at = () => new Date(clock()).toISOString();
   const listeners = new Map();
+  const preparedListeners = new Set();
 
   function resolveActor(context) {
     const input = context?.actor ?? { subject: 'local-operator', role: 'admin', workspaceId };
     if (!isPlain(input) || typeof input.subject !== 'string' || !input.subject
       || !['admin', 'operator', 'viewer'].includes(input.role))
       fail(401, 'CHAT_SESSION_REQUIRED', 'A current harness actor is required.');
+    // The runner is an in-process service authenticated by the plugin graph,
+    // not a user session. It is still bound to this exact workspace.
+    if (context?.trustedService === true) {
+      if (input.workspaceId !== workspaceId)
+        fail(403, 'CHAT_FORBIDDEN', 'This service is bound to another workspace.');
+      return { workspaceId, subject: input.subject, role: input.role };
+    }
     if (resolveWorkspace) {
       const resolved = resolveWorkspace(input);
       if (!isPlain(resolved) || typeof resolved.workspaceId !== 'string' || !resolved.workspaceId)
@@ -361,6 +369,9 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
         return null;
       });
       if (emitted) emit(emitted);
+      for (const listener of preparedListeners) {
+        try { listener({ runId: result.run.id, conversationId, messageId: result.message.id }); } catch { /* a runner must not fail the write */ }
+      }
       if (audit?.record) await audit.record({ kind: 'chat.message', action: 'chat.message.post', actor: actor.subject, ref: result.run.id, detail: { conversationId } });
       return result;
     },
@@ -447,6 +458,25 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
       return { run: viewRun(run), events: events.map(event => structuredClone(event)) };
     },
 
+    /** Append a runner-owned observation (a warning, a tool note) to the run log. */
+    async note(context, runId, type, data = {}) {
+      const actor = resolveActor(context);
+      if (typeof type !== 'string' || !/^run\.[a-z][a-z0-9_.-]{0,59}$/u.test(type))
+        fail(400, 'CHAT_INPUT', 'A run event type must look like run.<name>.');
+      if (!isPlain(data)) fail(400, 'CHAT_INPUT', 'Run event data must be an object.');
+      const store = partition(actor.workspaceId);
+      let emitted = null;
+      await store.update(state => {
+        const run = requireRun(state, actor, runId);
+        if (TERMINAL.has(run.status)) return null;
+        emitted = appendEvent(state, run, type, data);
+        return null;
+      });
+      if (!emitted) return null;
+      emit(emitted);
+      return structuredClone(emitted);
+    },
+
     /** Subscribe to live events for one run; returns an unsubscribe function. */
     subscribe(runId, listener) {
       if (!listeners.has(runId)) listeners.set(runId, new Set());
@@ -457,6 +487,16 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
         set.delete(listener);
         if (set.size === 0) listeners.delete(runId);
       };
+    },
+
+    /**
+     * In-process hook for the runner: every prepared run is announced once.
+     * The listener runs after the commit, so it can read the run immediately.
+     */
+    onPrepared(listener) {
+      if (typeof listener !== 'function') throw new TypeError('onPrepared requires a function.');
+      preparedListeners.add(listener);
+      return () => preparedListeners.delete(listener);
     },
   });
 }
