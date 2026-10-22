@@ -361,3 +361,23 @@ test('recordOutputs is runner-only and pins produced files on the run', async ()
     error => error.code === 'CHAT_INPUT',
   );
 });
+test('a message can be attached to a goal and runs are listable by goal', async () => {
+  const chat = service();
+  const { conversation } = await chat.createConversation({ actor: ADMIN }, { requestId: requestId() });
+  const goalId = crypto.randomUUID();
+  const posted = await chat.postMessage({ actor: ADMIN }, conversation.id, {
+    requestId: requestId(), content: '推进目标', goalId,
+  });
+  assert.equal(chat.readRun({ actor: ADMIN }, posted.run.id).goalId, goalId);
+  assert.equal(chat.readRun({ actor: ADMIN }, posted.run.id).snapshot.goalId, goalId);
+
+  const listed = chat.listRunsByGoal({ actor: ADMIN }, goalId);
+  assert.equal(listed.total, 1);
+  assert.equal(listed.items[0].id, posted.run.id);
+  assert.equal(chat.listRunsByGoal({ actor: ADMIN }, crypto.randomUUID()).total, 0);
+
+  await assert.rejects(
+    chat.postMessage({ actor: ADMIN }, conversation.id, { requestId: requestId(), content: 'q', goalId: 'not-a-goal' }),
+    error => error.code === 'CHAT_INPUT',
+  );
+});

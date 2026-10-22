@@ -381,11 +381,14 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
     async postMessage(context, conversationId, body = {}) {
       const actor = resolveActor(context);
       if (!isPlain(body)) fail(400, 'CHAT_INPUT', 'A message must be an object.');
-      if (Object.keys(body).some(key => !['requestId', 'content', 'selection'].includes(key)))
+      if (Object.keys(body).some(key => !['requestId', 'content', 'selection', 'goalId'].includes(key)))
         fail(400, 'CHAT_INPUT', 'A message has an unsupported field.');
       const requestId = isId(body.requestId) ? body.requestId : fail(400, 'CHAT_INPUT', 'requestId is required.');
       const content = text(body.content, CHAT_LIMITS.content, 'content');
       const selection = validateSelection(body.selection);
+      const goalId = body.goalId === undefined ? null : body.goalId;
+      if (goalId !== null && (typeof goalId !== 'string' || !UUID.test(goalId)))
+        fail(400, 'CHAT_INPUT', 'goalId must be a goal id.');
       const store = partition(actor.workspaceId);
       let result = null;
       let emitted = null;
@@ -412,10 +415,10 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
         };
         const run = {
           id: randomUUID(), conversationId, workspaceId: actor.workspaceId,
-          status: 'prepared', requestedBy: actor.subject,
+          status: 'prepared', requestedBy: actor.subject, goalId,
           createdAt: now, startedAt: null, endedAt: null, cancelRequestedAt: null,
           error: null, usage: null, model: null,
-          snapshot: { messageId: message.id, memory: null, artifacts: selection.artifacts, skills: selection.skills },
+          snapshot: { messageId: message.id, goalId, memory: null, artifacts: selection.artifacts, skills: selection.skills },
           selection,
         };
         message.runId = run.id;
@@ -437,6 +440,22 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
       return result;
     },
 
+    /** Runs that belong to one goal, newest first. */
+    listRunsByGoal(context, goalId, query = {}) {
+      const actor = resolveActor(context);
+      if (typeof goalId !== 'string' || !UUID.test(goalId))
+        fail(400, 'CHAT_INPUT', 'goalId must be a goal id.');
+      const limit = query.limit === undefined ? 50 : Number(query.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 200)
+        fail(400, 'CHAT_INPUT', 'limit must be 1-200.');
+      const state = partition(actor.workspaceId).read();
+      const items = state.runs
+        .filter(run => run.goalId === goalId && run.workspaceId === actor.workspaceId)
+        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+        .slice(0, limit)
+        .map(viewRun);
+      return { workspaceId: actor.workspaceId, goalId, total: items.length, items };
+    },
     readRun(context, id) {
       const actor = resolveActor(context);
       const state = partition(actor.workspaceId).read();

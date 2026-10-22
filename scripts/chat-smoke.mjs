@@ -108,6 +108,18 @@ try {
   const replay = await fetch(`${base}/api/chat/runs/${runId}/events?after=${prepared.id}`);
   const replayFrames = reader(replay);
   check('a reconnect with after= replays nothing twice and ends', await replayFrames.end());
+
+  // A goal groups runs without copying them.
+  const goal = await fetch(`${base}/api/goals`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ requestId: randomUUID(), title: '冒烟目标' }),
+  }).then(response => response.json());
+  const linked = await fetch(`${base}/api/chat/conversations/${conversationId}/messages`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ requestId: randomUUID(), content: '推进这个目标', goalId: goal.goal.id }),
+  }).then(response => response.json());
+  const goalDetail = await fetch(`${base}/api/goals/${goal.goal.id}`).then(response => response.json());
+  check('a goal lists the run attached to it', goalDetail.runs.total === 1 && goalDetail.runs.items[0].id === linked.run.id, goalDetail.runs);
 } finally {
   await harness.stop().catch(() => {});
 }

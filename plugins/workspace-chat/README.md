@@ -36,7 +36,7 @@ GET  /api/chat/status
 POST /api/chat/conversations                 { requestId, title? }
 GET  /api/chat/conversations?status=&limit=
 GET  /api/chat/conversations/:id?messageLimit=
-POST /api/chat/conversations/:id/messages    { requestId, content, selection? }
+POST /api/chat/conversations/:id/messages    { requestId, content, selection?, goalId? }
 GET  /api/chat/runs/:id
 POST /api/chat/runs/:id/cancel               { reason? }
 GET  /api/chat/runs/:id/events?after=<seq>   text/event-stream
@@ -102,6 +102,11 @@ runner 用人类角色换取一次性票据 → 工具执行 → 回答。`scrip
 选择随 run 保存；runner 解析成固定版本（技能正文哈希、文件版本 + SHA-256）后写进
 `run.snapshot`，缺一不可、不会静默降级。
 
+## 目标
+
+消息可带 `goalId`；run 会记录 `goalId` 与 `snapshot.goalId`，`GET /api/goals/:id`
+能列出该目标下的 run。`/chat` 侧栏有目标列表：点选即绑定，发送时自动带上，并把
+`open` 目标推进到 `active`。
 ## 验证
 
 ```powershell

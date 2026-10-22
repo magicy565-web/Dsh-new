@@ -1,0 +1,24 @@
+{
+  "id": "workspace-goals",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "可追踪的目标：把多次运行聚合成一个目标，状态显式推进并审计；不复制聊天数据。",
+  "entry": "./src/index.mjs",
+  "requires": ["storage", "workspace", "audit", "chat"],
+  "provides": ["goals"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "workspaceId": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false
+  },
+  "routes": [
+    "GET /api/goals/status",
+    "POST /api/goals",
+    "GET /api/goals",
+    "GET /api/goals/:id",
+    "POST /api/goals/:id/status"
+  ],
+  "tools": []
+}

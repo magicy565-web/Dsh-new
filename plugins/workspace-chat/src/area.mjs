@@ -53,6 +53,14 @@ const PAGE = `<!doctype html>
   #chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 18px 8px; }
   .chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--muted); background: var(--panel); }
   .chip button { border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; }
+  .goals { border-top: 1px solid var(--line); padding: 8px; max-height: 38%; overflow: auto; }
+  .goals-head { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
+  .goals-head strong { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+  .goals-head button { margin-left: auto; padding: 2px 9px; }
+  .goal { display: flex; gap: 6px; align-items: baseline; padding: 6px 8px; border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 13px; }
+  .goal:hover { background: color-mix(in oklab, var(--accent) 8%, transparent); }
+  .goal.active { background: color-mix(in oklab, var(--accent) 14%, transparent); color: var(--ink); }
+  .goal .status { margin-left: auto; font-size: 11px; opacity: .8; }
   .output { display: inline-flex; gap: 6px; align-items: center; margin: 2px 18px 6px auto; padding: 6px 10px; border: 1px solid color-mix(in oklab, var(--ok) 35%, var(--line)); background: color-mix(in oklab, var(--ok) 8%, var(--panel)); color: var(--ink); border-radius: 8px; text-decoration: none; font-size: 13px; }
   .output:hover { border-color: var(--ok); }
   #approvals { display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 0; }
@@ -69,6 +77,10 @@ const PAGE = `<!doctype html>
   <aside>
     <header><strong>对话</strong><button id="new" title="新建会话">新会话</button></header>
     <ul id="list"></ul>
+    <div class="goals">
+      <div class="goals-head"><strong>目标</strong><button id="new-goal" title="新建目标">+ 新建</button></div>
+      <div id="goals"></div>
+    </div>
   </aside>
   <main>
     <header><div id="title">未选择会话</div><div id="state"></div><button id="stop" hidden>停止</button></header>
@@ -87,7 +99,7 @@ const PAGE = `<!doctype html>
 <script>
 (function () {
   'use strict';
-  var state = { conversationId: null, runId: null, source: null, lastSeq: 0, assistant: null, retries: 0, files: [] };
+  var state = { conversationId: null, runId: null, source: null, lastSeq: 0, assistant: null, retries: 0, files: [], goalId: null };
   var list = document.getElementById('list');
   var messages = document.getElementById('messages');
   var title = document.getElementById('title');
@@ -196,6 +208,27 @@ const PAGE = `<!doctype html>
       messages.appendChild(row);
       scroll();
     });
+  }
+  var goalsEl = document.getElementById('goals');
+  function renderGoals(items) {
+    goalsEl.textContent = '';
+    if (!items.length) { var empty = el('div', 'goal', '还没有目标'); empty.style.cursor = 'default'; goalsEl.appendChild(empty); return; }
+    items.forEach(function (goal) {
+      var row = el('div', 'goal' + (goal.id === state.goalId ? ' active' : ''));
+      row.appendChild(el('span', '', goal.title));
+      row.appendChild(el('span', 'status', goal.status));
+      row.addEventListener('click', function () {
+        state.goalId = goal.id === state.goalId ? null : goal.id;
+        renderGoals(items);
+        setState(state.goalId ? '目标：' + goal.title : '', '');
+      });
+      goalsEl.appendChild(row);
+    });
+  }
+  function loadGoals() {
+    return api('/api/goals?status=all&limit=50')
+      .then(function (data) { renderGoals(data.items || []); })
+      .catch(function () { goalsEl.textContent = ''; });
   }
   function renderConversations(items) {
     list.textContent = '';
@@ -336,6 +369,12 @@ const PAGE = `<!doctype html>
     var content = text.trim();
     if (!content) return undefined;
     var attached = state.files.map(function (file) { return file.id; });
+    if (state.goalId) {
+      api('/api/goals/' + encodeURIComponent(state.goalId) + '/status', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'active' }),
+      }).catch(function () { /* already active, blocked or done */ });
+    }
     input.value = '';
     bubble('user', content);
     state.assistant = bubble('assistant', '');
@@ -345,6 +384,7 @@ const PAGE = `<!doctype html>
       body: JSON.stringify(Object.assign(
         { requestId: crypto.randomUUID(), content: content },
         attached.length ? { selection: { artifacts: attached } } : {},
+        state.goalId ? { goalId: state.goalId } : {},
       )),
     }).then(function (data) {
       state.files = [];
@@ -358,6 +398,18 @@ const PAGE = `<!doctype html>
     });
   }
 
+  document.getElementById('new-goal').addEventListener('click', function () {
+    var title = window.prompt('目标标题');
+    if (!title || !title.trim()) return;
+    api('/api/goals', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ requestId: crypto.randomUUID(), title: title.trim() }),
+    }).then(function (data) {
+      state.goalId = data.goal.id;
+      setState('目标：' + data.goal.title, '');
+      return loadGoals();
+    }).catch(function (error) { setState('新建目标失败：' + error.message, 'bad'); });
+  });
   document.getElementById('attach').addEventListener('click', function () { fileInput.value = ''; fileInput.click(); });
   fileInput.addEventListener('change', function () { uploadFile(fileInput.files && fileInput.files[0]); });
   document.getElementById('new').addEventListener('click', function () { create().catch(function (error) { setState('新建失败：' + error.message, 'bad'); }); });
@@ -378,6 +430,7 @@ const PAGE = `<!doctype html>
   });
 
   loadConversations().catch(function (error) { setState('加载失败：' + error.message, 'bad'); });
+  loadGoals();
 }());
 </script>
 </body>
