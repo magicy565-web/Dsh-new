@@ -81,6 +81,10 @@ plugins:
   - id: files
     name: workspace-artifacts
     config: { workspaceId: local }
+  # 采购单：批准是管理员专属动作（无对应工具），模型只能起草。
+  - id: purchases
+    name: workspace-purchases
+    config: { workspaceId: local }
   # 报价单：服务端按行计算总额，状态机显式推进；模型创建需人工批准。
   - id: quotes
     name: workspace-quotes

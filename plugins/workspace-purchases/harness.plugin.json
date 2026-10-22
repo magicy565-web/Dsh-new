@@ -1,0 +1,25 @@
+{
+  "id": "workspace-purchases",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "采购单：服务端按行计算总额；批准是管理员专属动作（没有对应工具），模型只能起草，不能自己批准采购。",
+  "entry": "./src/index.mjs",
+  "requires": ["storage", "workspace", "audit", "tools"],
+  "provides": ["purchases"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "workspaceId": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false
+  },
+  "routes": [
+    "GET /api/purchases/status",
+    "POST /api/purchases",
+    "GET /api/purchases",
+    "GET /api/purchases/:id",
+    "POST /api/purchases/:id/status",
+    "GET /purchases"
+  ],
+  "tools": ["purchase_order_create", "purchase_order_list"]
+}

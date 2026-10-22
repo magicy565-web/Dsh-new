@@ -27,6 +27,7 @@ export const HOME_PAGE = `<!doctype html>
     <a class="card" href="/schedules"><b>计划任务</b><span>到期自动派发；启用前默认停用</span></a>
     <a class="card" href="/products"><b>产品库</b><span>已审核的 Product Context；未配置源时明确提示</span></a>
     <a class="card" href="/quotes"><b>报价单</b><span>服务端算总额、状态可追踪；模型创建需人工批准</span></a>
+    <a class="card" href="/purchases"><b>采购单</b><span>批准仅限管理员；模型只能起草，不能自己批准</span></a>
     <a class="card" href="/inbox"><b>收件箱</b><span>计划触发与待批准，集中查看与标记已读</span></a>
     <a class="card" href="/ops"><b>运维台</b><span>状态、计数、备份与恢复（管理员）</span></a>
   </div>
