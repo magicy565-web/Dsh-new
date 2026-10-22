@@ -121,6 +121,7 @@ function validateState(value) {
       || !isPlain(approval.payload) || !APPROVAL_STATUSES.includes(approval.status)
       || typeof approval.requestedBy !== 'string' || !isIso(approval.requestedAt)
       || (approval.decidedBy !== null && typeof approval.decidedBy !== 'string')
+      || (approval.decidedByRole !== null && typeof approval.decidedByRole !== 'string')
       || (approval.decidedAt !== null && !isIso(approval.decidedAt))
       || (approval.note !== null && typeof approval.note !== 'string')
       || (approval.expiresAt !== null && !isIso(approval.expiresAt))
@@ -537,7 +538,7 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
           id: randomUUID(), runId, conversationId: run.conversationId, workspaceId: actor.workspaceId,
           action, resource, payload: structuredClone(body.payload), ticketId, reason,
           status: 'pending', requestedBy: actor.subject, requestedAt: at(),
-          decidedBy: null, decidedAt: null, note: null,
+          decidedBy: null, decidedByRole: null, decidedAt: null, note: null,
           expiresAt: new Date(now + ttlSeconds * 1_000).toISOString(),
         };
         state.approvals.push(approval);
@@ -578,6 +579,7 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
         const run = state.runs.find(item => item.id === approval.runId);
         approval.status = body.decision === 'approve' ? 'approved' : 'denied';
         approval.decidedBy = actor.subject;
+        approval.decidedByRole = actor.role;
         approval.decidedAt = at();
         approval.note = note;
         if (body.decision === 'approve') {

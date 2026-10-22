@@ -89,8 +89,9 @@ action / resource / payload** 交给一个人决定。
 - 每次请求/决定都写事件（`run.approval_requested` / `run.approval_decided`）与 audit；
 - `/chat` 页面把待决审批渲染成卡片，显示动作、资源与完整参数，批准/拒绝即时生效。
 
-注意：审批票据目前只被测试与后续的工具执行器消费；**模型工具循环（toolCalls →
-审批 → 执行 → 回答）尚未接入**，下一轮补。
+注意：审批由 `workspace-runner` 消费——模型请求工具 → run 阻塞 → 人在页面批准 →
+runner 用人类角色换取一次性票据 → 工具执行 → 回答。`scripts/guarded-smoke.mjs` 覆盖整条链路。
+
 ## 验证
 
 ```powershell

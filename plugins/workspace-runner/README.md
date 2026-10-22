@@ -32,6 +32,20 @@
     enabled: true
 ```
 
+
+## 工具循环（guarded execution）
+
+装配了 `ctx.tools` 时，runner 会把工具交给模型，并按调用逐个处理：
+
+1. `approval: 'never'` 的只读工具直接执行；
+2. 其余工具先向 `ctx.approval` 申请票据，再在 chat 里创建一条**人类可见**的审批
+   （动作 + 资源 + 完整参数 + TTL），run 进入 `blocked`；
+3. 批准后 runner 以**人类决策者的角色**确认票据，再用一次性票据执行工具；拒绝则
+   run 以 `APPROVAL_DENIED` 失败，工具不会执行；
+4. 工具结果回喂模型，最多 3 轮，最后写入一条 assistant 回答。
+
+限制：工具模式下没有流式增量（工具调用必须先于回答确定），流式只在无工具时启用。
+执行器以 `service:runner`（operator）身份运行，必须在 workspace 成员表里显式登记。
 ## 事件
 
 | 事件 | 含义 |

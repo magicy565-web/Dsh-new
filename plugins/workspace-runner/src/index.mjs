@@ -9,7 +9,7 @@ import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/ind
 import { createRunner } from './runner.mjs';
 
 export const PLUGIN_ID = 'workspace-runner';
-const CONFIG_KEYS = ['workspaceId', 'enabled', 'model', 'systemPrompt', 'timeoutMs', 'maxQueue', 'memory', 'deltaBatchChars', 'deltaBatchMs'];
+const CONFIG_KEYS = ['workspaceId', 'enabled', 'model', 'systemPrompt', 'timeoutMs', 'maxQueue', 'memory', 'deltaBatchChars', 'deltaBatchMs', 'tools'];
 
 const manifestError = message => new HarnessError(ERROR.manifestInvalid, message);
 
@@ -36,6 +36,8 @@ export async function apply(ctx, config = {}) {
     throw manifestError('config.deltaBatchChars must be an integer between 1 and 8000.');
   if (config.deltaBatchMs !== undefined && (!Number.isInteger(config.deltaBatchMs) || config.deltaBatchMs < 0 || config.deltaBatchMs > 5_000))
     throw manifestError('config.deltaBatchMs must be an integer between 0 and 5000.');
+  if (config.tools !== undefined && typeof config.tools !== 'boolean')
+    throw manifestError('config.tools must be a boolean.');
 
   const workspaceId = config.workspaceId ?? 'local';
   const chat = ctx.chat;
@@ -43,6 +45,8 @@ export async function apply(ctx, config = {}) {
   // Optional by design: a composition without business memory still chats, and
   // the run records that memory was unavailable rather than inventing facts.
   const memory = config.memory === false ? null : (ctx.get?.('businessMemory', false) ?? null);
+  const tools = config.tools === false ? null : (ctx.get?.('tools', false) ?? null);
+  const approval = config.tools === false ? null : (ctx.get?.('approval', false) ?? null);
 
   if (config.enabled === false) {
     if (ctx.health?.register) ctx.health.register('runner', () => ({ status: 'ok', detail: { enabled: false } }));
@@ -50,7 +54,7 @@ export async function apply(ctx, config = {}) {
   }
 
   const runner = createRunner({
-    chat, llm, memory, workspaceId,
+    chat, llm, memory, tools, approval, workspaceId,
     model: config.model ?? null,
     systemPrompt: config.systemPrompt,
     timeoutMs: config.timeoutMs ?? 120_000,
@@ -61,7 +65,7 @@ export async function apply(ctx, config = {}) {
 
   const unsubscribe = chat.onPrepared(({ runId }) => { runner.enqueue(runId); });
   if (ctx.health?.register) {
-    ctx.health.register('runner', () => ({ status: 'ok', detail: { ...runner.stats(), memory: Boolean(memory) } }));
+    ctx.health.register('runner', () => ({ status: 'ok', detail: { ...runner.stats(), memory: Boolean(memory), tools: Boolean(tools), approval: Boolean(approval) } }));
   }
   let disposeService = null;
   if (typeof ctx.provide === 'function') disposeService = ctx.provide('runner', runner);

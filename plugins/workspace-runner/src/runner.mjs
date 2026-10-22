@@ -17,6 +17,12 @@ const DEFAULT_SYSTEM = [
 
 const MAX_HISTORY_CHARS = 24_000;
 
+function codedError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
 function failure(error) {
   // Never persist a raw provider or memory message: it may contain prompt text
   // or credentials. Keep the bounded code and a fixed, honest description.
@@ -38,6 +44,7 @@ function failure(error) {
 export function createRunner({
   chat, llm, memory = null, workspaceId = 'local', systemPrompt = DEFAULT_SYSTEM,
   model = null, timeoutMs = 120_000, maxQueue = 100, deltaBatchChars = 160, deltaBatchMs = 120, clock = Date.now,
+  tools = null, approval = null,
 } = {}) {
   if (!chat || typeof chat.onPrepared !== 'function') throw new TypeError('The runner requires the chat service.');
   if (!llm || typeof llm.complete !== 'function') throw new TypeError('The runner requires the llm seam.');
@@ -92,6 +99,60 @@ export function createRunner({
     }
   }
 
+  /**
+   * Run one tool call. A gated tool needs two records: the enforcement ticket
+   * in ctx.approval (consumed by tools.execute) and the human-facing approval
+   * in chat (what the person actually read and decided).
+   */
+  async function executeToolCall(def, call, runId, signal) {
+    let approvalId = null;
+    if (def.approval !== 'never') {
+      if (!approval || typeof approval.request !== 'function')
+        throw codedError('APPROVAL_UNAVAILABLE', 'A gated tool needs the approval seam.');
+      const ticket = await approval.request({ actor: { ...actor }, tool: def.name, args: call.arguments ?? {}, reason: `run ${runId}` });
+      const request = await chat.requestApproval({ ...context }, runId, {
+        action: def.name,
+        resource: `tool:${def.name}`,
+        payload: call.arguments ?? {},
+        ticketId: ticket.id,
+        reason: `模型请求执行工具 ${def.name}`,
+      });
+      const decided = await chat.waitForApproval(request.id, { signal });
+      if (decided.status !== 'approved') throw codedError('APPROVAL_DENIED', 'A required tool call was denied.');
+      await approval.decide(ticket.id, 'approve', {
+        subject: decided.decidedBy ?? actor.subject,
+        role: decided.decidedByRole ?? 'admin',
+        workspaceId,
+      });
+      approvalId = ticket.id;
+    }
+    const args = approvalId ? { ...(call.arguments ?? {}), approvalId } : { ...(call.arguments ?? {}) };
+    return tools.execute(def.name, args, { actor: { ...actor }, signal });
+  }
+
+  /** Bounded tool loop: model -> tool calls -> approvals -> results -> answer. */
+  async function runWithTools({ runId, offered, system, messages, signal }) {
+    const offers = offered.map(def => ({
+      name: def.name, description: def.description, parameters: def.parameters,
+    }));
+    const transcript = [...messages];
+    for (let turn = 0; turn < 3; turn += 1) {
+      const request = { messages: [{ role: 'system', content: system }, ...transcript], tools: offers, signal };
+      if (model) request.model = model;
+      const result = await llm.complete(request, { actor: actor.subject });
+      const calls = Array.isArray(result?.toolCalls) ? result.toolCalls : [];
+      if (!calls.length) return typeof result?.text === 'string' ? result.text : '';
+      transcript.push({ role: 'assistant', content: result.text || `（调用 ${calls.map(call => call.name).join(', ')}）` });
+      for (const call of calls.slice(0, 4)) {
+        const def = offered.find(item => item.name === call.name);
+        if (!def) throw codedError('TOOL_UNKNOWN', 'The model asked for an unknown tool.');
+        const output = await executeToolCall(def, call, runId, signal);
+        transcript.push({ role: 'tool', content: JSON.stringify(output ?? null).slice(0, 4_000) });
+      }
+    }
+    return '';
+  }
+
   function history(run) {
     const { messages } = chat.readConversation({ ...context }, run.conversationId, { messageLimit: 40 });
     const trimmed = [];
@@ -131,7 +192,13 @@ export function createRunner({
       let answer = '';
       let usage = {};
       let usedModel = null;
-      if (typeof llm.stream === 'function') {
+      const offered = tools && typeof tools.list === 'function' ? tools.list() : [];
+      if (offered.length) {
+        // Tool mode: a tool call must be answered before the model can finish,
+        // so this path is turn-based (complete) rather than streamed text.
+        answer = await runWithTools({ runId, offered, system, messages, signal: controller.signal });
+        if (!answer.trim()) throw codedError('EMPTY_ANSWER', 'The model returned no answer.');
+      } else if (typeof llm.stream === 'function') {
         // Emit incremental text to the run log so an SSE client can render while
         // the model is still generating. Batched: one write per ~120 ms or 160 chars.
         let pending = '';

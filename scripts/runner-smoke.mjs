@@ -48,7 +48,7 @@ composition.server = { host: '127.0.0.1', port: 0 };
 composition.plugins = composition.plugins.map(row => {
   if (row.id === 'llm-bridge') return { id: 'echo-provider', name: './scripts/fixtures/echo-provider' };
   // Small batches so the smoke can observe several incremental frames.
-  if (row.id === 'runner') return { ...row, config: { ...row.config, deltaBatchChars: 4, deltaBatchMs: 0 } };
+  if (row.id === 'runner') return { ...row, config: { ...row.config, deltaBatchChars: 4, deltaBatchMs: 0, tools: false } };
   return row;
 });
 // Relative plugin rows resolve against the composition file, so write the
