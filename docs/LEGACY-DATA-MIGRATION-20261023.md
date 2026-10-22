@@ -46,6 +46,23 @@ node --test scripts/legacy-migration.test.mjs
 既有数据。要回滚：先用 `POST /api/ops/backups` 备份，再用
 `POST /api/ops/restore` 恢复即可；也可以直接恢复到迁移前的 `workspace.json`。
 
+## 附件导入
+
+```powershell
+# 预览
+node scripts/migrate-attachments.mjs --from C:\backup\attachments
+# 写入（走真实 artifacts 服务）
+node scripts/migrate-attachments.mjs --from C:\backup\attachments --to .harness-data --apply
+```
+
+- 通过**真实 artifacts seam** 写入（配额、sha256、状态结构都由服务负责，脚本不手写状态）；
+- `requestId` 由相对路径派生：同一目录重复导入只报 `duplicates`，不会生成重复文件；
+- 单文件 > 5 MiB 跳过（`TOO_LARGE`）；扩展名映射不到的类型按 `application/octet-stream` 存；
+- 目录遍历有界（深度 4、最多 500 个文件）；
+- 导入结束会释放 artifacts 写锁，因此可以连续多次运行。
+
+验证：`node --test scripts/attachments-migration.test.mjs`（含 dry-run 不写、字节级往返、
+二次运行全部 duplicate、超大文件跳过、目录遍历有界）。
 ## 尚未迁移
 
 - 老应用的 `activity` 集合与业务库；
