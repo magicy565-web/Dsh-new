@@ -517,6 +517,36 @@ export function createChatService({ storage, workspaceId = 'local', resolveWorks
       return structuredClone(emitted?.data ?? {});
     },
 
+    /**
+     * Runner-only: attach the files a run produced to the run, so the answer,
+     * the artifact and the download link stay one record.
+     */
+    async recordOutputs(context, runId, outputs) {
+      if (context?.trustedService !== true)
+        fail(403, 'CHAT_OUTPUT_RUNNER_ONLY', 'Only the run executor may record run outputs.');
+      if (!Array.isArray(outputs) || outputs.length === 0 || outputs.length > 10
+        || outputs.some(item => !isPlain(item) || typeof item.id !== 'string' || !UUID.test(item.id)
+          || typeof item.filename !== 'string' || !item.filename || item.filename.length > 200
+          || !Number.isSafeInteger(item.version) || item.version < 1
+          || typeof item.sha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(item.sha256)))
+        fail(400, 'CHAT_INPUT', 'outputs must be bounded artifact records (id, filename, version, sha256).');
+      const store = partition(workspaceId);
+      let emitted = null;
+      await store.update(state => {
+        const run = requireRun(state, { workspaceId, subject: 'service:runner', role: 'operator' }, runId);
+        const existing = Array.isArray(run.snapshot.outputs) ? run.snapshot.outputs : [];
+        const merged = [...existing];
+        for (const output of outputs) {
+          if (!merged.some(item => item.id === output.id)) merged.push(structuredClone(output));
+        }
+        run.snapshot = { ...run.snapshot, outputs: merged.slice(-10) };
+        emitted = appendEvent(state, run, 'run.output_created', { outputs: structuredClone(outputs) });
+        return null;
+      });
+      if (emitted) emit(emitted);
+      return structuredClone(emitted?.data ?? {});
+    },
+
     /** Append an assistant/system message produced by a run. */
     async appendMessage(context, runId, { role = 'assistant', content } = {}) {
       const actor = resolveActor(context);

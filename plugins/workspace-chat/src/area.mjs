@@ -53,6 +53,8 @@ const PAGE = `<!doctype html>
   #chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 18px 8px; }
   .chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--muted); background: var(--panel); }
   .chip button { border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; }
+  .output { display: inline-flex; gap: 6px; align-items: center; margin: 2px 18px 6px auto; padding: 6px 10px; border: 1px solid color-mix(in oklab, var(--ok) 35%, var(--line)); background: color-mix(in oklab, var(--ok) 8%, var(--panel)); color: var(--ink); border-radius: 8px; text-decoration: none; font-size: 13px; }
+  .output:hover { border-color: var(--ok); }
   #approvals { display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 0; }
   .approval { border: 1px solid color-mix(in oklab, var(--warn) 45%, var(--line)); background: color-mix(in oklab, var(--warn) 8%, var(--panel)); border-radius: 10px; padding: 10px 12px; }
   .approval .head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
@@ -182,6 +184,19 @@ const PAGE = `<!doctype html>
     reader.readAsText(file);
   }
 
+  function renderOutputs(items) {
+    (items || []).forEach(function (item) {
+      var row = el('div', 'row');
+      var link = document.createElement('a');
+      link.className = 'output';
+      link.href = '/api/artifacts/' + encodeURIComponent(item.id) + '/download';
+      link.setAttribute('download', item.filename);
+      link.textContent = '下载 ' + item.filename + '（v' + item.version + '）';
+      row.appendChild(link);
+      messages.appendChild(row);
+      scroll();
+    });
+  }
   function renderConversations(items) {
     list.textContent = '';
     if (!items.length) { var empty = el('li', '', '还没有会话'); empty.style.cursor = 'default'; list.appendChild(empty); return; }
@@ -247,6 +262,8 @@ const PAGE = `<!doctype html>
         if (!state.assistant) state.assistant = bubble('assistant', '');
         state.assistant.textContent += (data.data && data.data.text) || '';
         scroll();
+      } else if (event.type === 'run.output_created') {
+        renderOutputs(data.data && data.data.outputs);
       } else if (event.type === 'run.memory_unavailable') {
         document.getElementById('hint').textContent = '记忆读取失败，本次回答未使用企业记忆。';
       } else if (event.type === 'run.approval_requested') {
@@ -264,7 +281,7 @@ const PAGE = `<!doctype html>
       }
     }
 
-    ['run.prepared', 'run.running', 'run.delta', 'run.memory_unavailable', 'run.approval_requested', 'run.approval_decided', 'run.completed', 'run.failed', 'run.cancelled']
+    ['run.prepared', 'run.running', 'run.delta', 'run.memory_unavailable', 'run.output_created', 'run.approval_requested', 'run.approval_decided', 'run.completed', 'run.failed', 'run.cancelled']
       .forEach(function (name) { source.addEventListener(name, onEvent); });
 
     source.addEventListener('error', function () {
@@ -274,7 +291,7 @@ const PAGE = `<!doctype html>
       stopStream();
       var resume = new EventSource('/api/chat/runs/' + encodeURIComponent(runId) + '/events?after=' + state.lastSeq);
       state.source = resume;
-      ['run.prepared', 'run.running', 'run.delta', 'run.memory_unavailable', 'run.approval_requested', 'run.approval_decided', 'run.completed', 'run.failed', 'run.cancelled']
+      ['run.prepared', 'run.running', 'run.delta', 'run.memory_unavailable', 'run.output_created', 'run.approval_requested', 'run.approval_decided', 'run.completed', 'run.failed', 'run.cancelled']
         .forEach(function (name) { resume.addEventListener(name, onEvent); });
       resume.addEventListener('error', function () { if (state.retries >= 2) finish('连接中断', 'bad'); });
     });

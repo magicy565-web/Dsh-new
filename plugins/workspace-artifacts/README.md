@@ -9,6 +9,7 @@ POST /api/artifacts                 { filename, content, mimeType?, title?, desc
 GET  /api/artifacts?q=              列表（按文件名/标题/描述搜索）
 GET  /api/artifacts/:id             元数据与版本
 GET  /api/artifacts/:id/content     文本内容（二进制返回 415）
+GET  /api/artifacts/:id/download    以附件下载文本（content-disposition）
 ```
 
 ## 限制
@@ -19,6 +20,12 @@ GET  /api/artifacts/:id/content     文本内容（二进制返回 415）
 - 二进制文件可以存（走接缝直接创建），但**不能**挂到模型 run，runner 会以
   `ARTIFACT_UNSUPPORTED` 拒绝。
 
+
+## 模型写文件
+
+插件注册 `artifact_write` 工具（`approval: 'always'`）：模型产出文档时必须经过一次人工
+批准，工具才落库。runner 会把结果里的 artifact 固定到 `run.snapshot.outputs`，并发出
+`run.output_created`，页面上显示下载链接。
 ## 与 run 的关系
 
 上传只产生 artifact；把它挂到某次对话，是消息里的

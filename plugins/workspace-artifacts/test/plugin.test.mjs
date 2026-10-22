@@ -39,7 +39,9 @@ function fakeArtifacts() {
 function fakeContext() {
   const routes = new Map();
   const health = new Map();
+  const tools = new Map();
   const ctx = {
+    tools: { register: definition => { tools.set(definition.name, definition); return () => tools.delete(definition.name); } },
     artifacts: fakeArtifacts(),
     http: { route: definition => { routes.set(`${definition.method} ${definition.path}`, definition); } },
     health: { register: (name, fn) => health.set(name, fn) },
@@ -50,7 +52,7 @@ function fakeContext() {
     const [method, pathname] = key.split(' ');
     return definition.handler({}, {}, { method, pathname, params, body, query, actor });
   };
-  return { ctx, routes, health, call };
+  return { ctx, routes, health, tools, call };
 }
 
 async function mounted() {
@@ -126,4 +128,38 @@ test('a binary file cannot be previewed as text', async () => {
     harness.call('GET /api/artifacts/:id/content', { params: { id: binary.artifact.id } }),
     error => error.code === 'ARTIFACT_NOT_TEXT' && error.status === 415,
   );
+});
+
+test('the writer tool is approval-gated and stores a text document', async () => {
+  const harness = await mounted();
+  const tool = harness.tools.get('artifact_write');
+  assert.ok(tool, 'artifact_write must be registered');
+  assert.equal(tool.approval, 'always');
+  assert.equal(tool.readOnly, false);
+
+  const result = await tool.handler(
+    { filename: '报价单.md', content: '# 报价\nMOQ 500', mimeType: 'text/markdown' },
+    { actor: { subject: 'service:runner', role: 'operator' } },
+  );
+  assert.equal(result.artifact.filename, '报价单.md');
+  assert.equal(result.artifact.mimeType, 'text/markdown');
+
+  const listed = await harness.call('GET /api/artifacts');
+  assert.equal(listed.body.items.length, 1);
+});
+
+test('the writer tool refuses invalid documents', async () => {
+  const harness = await mounted();
+  const tool = harness.tools.get('artifact_write');
+  await assert.rejects(tool.handler({ filename: '', content: 'x' }, {}), error => error.code === 'ARTIFACT_INVALID');
+  await assert.rejects(tool.handler({ filename: 'x.txt', content: 'x'.repeat(512 * 1024 + 1) }, {}), error => error.code === 'ARTIFACT_INVALID');
+  await assert.rejects(tool.handler({ filename: 'x.pdf', content: 'x', mimeType: 'application/pdf' }, {}), error => error.code === 'ARTIFACT_INVALID');
+});
+test('a text file can be downloaded as an attachment', async () => {
+  const harness = await mounted();
+  const uploaded = await harness.call('POST /api/artifacts', { body: { filename: '报价单.md', content: '# 报价', mimeType: 'text/markdown' } });
+  const response = await harness.call('GET /api/artifacts/:id/download', { params: { id: uploaded.body.artifact.id } });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-disposition'), /attachment; filename\*=UTF-8''/u);
+  assert.equal(await response.text(), '# 报价');
 });

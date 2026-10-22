@@ -58,6 +58,9 @@ runner 在模型调用前：
    run 以 `APPROVAL_DENIED` 失败，工具不会执行；
 4. 工具结果回喂模型，最多 3 轮，最后写入一条 assistant 回答。
 
+工具返回的 { artifact } 会被固定到 un.snapshot.outputs 并发出 un.output_created；
+同一文件只记一次，页面上可以直接下载。
+
 限制：工具模式下没有流式增量（工具调用必须先于回答确定），流式只在无工具时启用。
 执行器以 `service:runner`（operator）身份运行，必须在 workspace 成员表里显式登记。
 ## 事件

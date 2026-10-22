@@ -16,6 +16,7 @@ export const ROUTES = Object.freeze([
   ['GET', BASE],
   ['GET', `${BASE}/:id`],
   ['GET', `${BASE}/:id/content`],
+  ['GET', `${BASE}/:id/download`],
 ]);
 
 const manifestError = message => new HarnessError(ERROR.manifestInvalid, message);
@@ -149,6 +150,67 @@ export async function apply(ctx, config = {}) {
     },
   });
 
+  ctx.http.route({
+    method: 'GET', path: `${BASE}/:id/download`,
+    handler: async (_request, _response, context) => {
+      try {
+        actorOf(context ?? {});
+        const result = await ctx.artifacts.read(context?.params?.id);
+        if (result?.encoding !== 'utf8' || typeof result?.content !== 'string') {
+          const error = new HarnessError('ARTIFACT_NOT_TEXT', 'Only text files can be downloaded here.');
+          error.status = 415;
+          throw error;
+        }
+        const filename = result.version?.filename ?? result.artifact?.filename ?? 'download.txt';
+        return new Response(result.content, {
+          status: 200,
+          headers: {
+            'content-type': `${result.version?.mimeType ?? 'text/plain'}; charset=utf-8`,
+            'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+            'cache-control': 'no-store',
+            'x-content-type-options': 'nosniff',
+          },
+        });
+      } catch (error) { throw asHarnessError(error); }
+    },
+  });
+  // A model-facing writer: the only way a run can produce a file. It is a
+  // side effect, so the tools seam requires a one-shot approval ticket before
+  // the handler runs; the runner then pins the artifact on the run.
+  if (ctx.tools?.register) {
+    ctx.tools.register({
+      name: 'artifact_write',
+      description: 'Save a UTF-8 text document (report, note, table, draft) as a workspace file the user can open and download later. Use it only when the user asked for a file, or when the result is a document rather than chat text.',
+      parameters: {
+        type: 'object',
+        properties: {
+          filename: { type: 'string', maxLength: 200, description: 'File name with extension, for example 报价单.md' },
+          content: { type: 'string', maxLength: MAX_TEXT_BYTES },
+          mimeType: { type: 'string', enum: [...TEXT_TYPES] },
+        },
+        required: ['filename', 'content'],
+        additionalProperties: false,
+      },
+      approval: 'always',
+      readOnly: false,
+      authority: 'workspace',
+      handler: async (args, execution) => {
+        const filename = args?.filename;
+        const content = args?.content;
+        if (typeof filename !== 'string' || !filename.trim() || filename.length > 200) throw invalid('filename must be non-empty text of at most 200 characters.');
+        if (typeof content !== 'string') throw invalid('content must be text.');
+        if (Buffer.byteLength(content, 'utf8') > MAX_TEXT_BYTES) throw invalid(`The file exceeds ${MAX_TEXT_BYTES} bytes.`);
+        const mimeType = args?.mimeType ?? 'text/plain';
+        if (!TEXT_TYPES.includes(mimeType)) throw invalid(`mimeType must be one of ${TEXT_TYPES.join(', ')}.`);
+        const created = await ctx.artifacts.create({ filename, content, mimeType });
+        if (ctx.audit?.record) {
+          const subject = typeof execution?.actor === 'string' ? execution.actor : execution?.actor?.subject;
+          await ctx.audit.record({ kind: 'artifacts', action: 'artifacts.write', actor: subject, ref: created.artifact.id }).catch(() => {});
+        }
+        return { artifact: created.artifact };
+      },
+    });
+  }
   if (ctx.health?.register) ctx.health.register('artifacts-api', () => ({ status: 'ok', detail: { routes: ROUTES.length } }));
   return async () => {};
 }

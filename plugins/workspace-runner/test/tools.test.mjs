@@ -154,3 +154,21 @@ test('an empty final answer is a failure, not a silent success', async () => {
   await runner.drain();
   assert.equal(chat.readRun({ actor: ADMIN }, run.id).error.code, 'EMPTY_ANSWER');
 });
+
+test('a tool that produces a file pins it on the run', async () => {
+  const artifact = { id: crypto.randomUUID(), filename: '报价单.md', currentVersion: 2, sha256: 'a'.repeat(64) };
+  const h = harness({ toolResult: { artifact } });
+  const { run } = await startRun(h.chat);
+  assert.ok(await waitFor(() => h.chat.listApprovals({ actor: ADMIN }).total === 1));
+  const pending = h.chat.listApprovals({ actor: ADMIN }).items[0];
+  await h.chat.decideApproval({ actor: ADMIN }, pending.id, { decision: 'approve' });
+  await h.runner.drain();
+
+  const stored = h.chat.readRun({ actor: ADMIN }, run.id);
+  assert.equal(stored.status, 'completed');
+  assert.deepEqual(stored.snapshot.outputs, [{
+    id: artifact.id, filename: '报价单.md', version: 2, sha256: 'a'.repeat(64),
+  }]);
+  const events = h.chat.readEvents({ actor: ADMIN }, run.id, 0).events.map(event => event.type);
+  assert.ok(events.includes('run.output_created'), events.join(','));
+});

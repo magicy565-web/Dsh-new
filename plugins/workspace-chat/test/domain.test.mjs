@@ -336,3 +336,28 @@ test('a message may select up to four files by id', async () => {
     error => error.code === 'CHAT_INPUT',
   );
 });
+test('recordOutputs is runner-only and pins produced files on the run', async () => {
+  const chat = service();
+  const { conversation } = await chat.createConversation({ actor: ADMIN }, { requestId: requestId() });
+  const posted = await chat.postMessage({ actor: ADMIN }, conversation.id, { requestId: requestId(), content: '写一份报价单' });
+
+  const output = { id: crypto.randomUUID(), filename: '报价单.md', version: 1, sha256: 'a'.repeat(64) };
+  await assert.rejects(
+    chat.recordOutputs({ actor: ADMIN }, posted.run.id, [output]),
+    error => error.code === 'CHAT_OUTPUT_RUNNER_ONLY' && error.status === 403,
+  );
+
+  await chat.recordOutputs(runnerContext, posted.run.id, [output]);
+  const stored = chat.readRun({ actor: ADMIN }, posted.run.id);
+  assert.deepEqual(stored.snapshot.outputs, [output]);
+  const events = chat.readEvents({ actor: ADMIN }, posted.run.id, 0).events.map(event => event.type);
+  assert.ok(events.includes('run.output_created'), events.join(','));
+
+  await chat.recordOutputs(runnerContext, posted.run.id, [output]);
+  assert.equal(chat.readRun({ actor: ADMIN }, posted.run.id).snapshot.outputs.length, 1, 'the same file is pinned once');
+
+  await assert.rejects(
+    chat.recordOutputs(runnerContext, posted.run.id, [{ id: 'nope', filename: 'x', version: 1, sha256: 'a'.repeat(64) }]),
+    error => error.code === 'CHAT_INPUT',
+  );
+});

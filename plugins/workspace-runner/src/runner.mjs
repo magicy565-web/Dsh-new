@@ -138,17 +138,27 @@ export function createRunner({
       name: def.name, description: def.description, parameters: def.parameters,
     }));
     const transcript = [...messages];
+    const outputs = [];
     for (let turn = 0; turn < 3; turn += 1) {
       const request = { messages: [{ role: 'system', content: system }, ...transcript], tools: offers, signal };
       if (model) request.model = model;
       const result = await llm.complete(request, { actor: actor.subject });
       const calls = Array.isArray(result?.toolCalls) ? result.toolCalls : [];
-      if (!calls.length) return typeof result?.text === 'string' ? result.text : '';
+      if (!calls.length) return { text: typeof result?.text === 'string' ? result.text : '', outputs };
       transcript.push({ role: 'assistant', content: result.text || `（调用 ${calls.map(call => call.name).join(', ')}）` });
       for (const call of calls.slice(0, 4)) {
         const def = offered.find(item => item.name === call.name);
         if (!def) throw codedError('TOOL_UNKNOWN', 'The model asked for an unknown tool.');
         const output = await executeToolCall(def, call, runId, signal);
+        const artifact = output?.artifact;
+        if (artifact && typeof artifact.id === 'string' && typeof artifact.sha256 === 'string') {
+          outputs.push({
+            id: artifact.id,
+            filename: typeof artifact.filename === 'string' ? artifact.filename : 'output.txt',
+            version: Number.isSafeInteger(artifact.currentVersion) ? artifact.currentVersion : 1,
+            sha256: artifact.sha256,
+          });
+        }
         transcript.push({ role: 'tool', content: JSON.stringify(output ?? null).slice(0, 4_000) });
       }
     }
@@ -254,7 +264,9 @@ export function createRunner({
       if (offered.length) {
         // Tool mode: a tool call must be answered before the model can finish,
         // so this path is turn-based (complete) rather than streamed text.
-        answer = await runWithTools({ runId, offered, system, messages, signal: controller.signal });
+        const toolRun = await runWithTools({ runId, offered, system, messages, signal: controller.signal });
+        answer = toolRun.text;
+        if (toolRun.outputs.length) await chat.recordOutputs({ ...context }, runId, toolRun.outputs);
         if (!answer.trim()) throw codedError('EMPTY_ANSWER', 'The model returned no answer.');
       } else if (typeof llm.stream === 'function') {
         // Emit incremental text to the run log so an SSE client can render while
