@@ -110,7 +110,7 @@ async function mounted(options = {}) {
 
 test('the plugin registers its routes, tools and health probe', async () => {
   const harness = await mounted();
-  assert.equal(harness.routes.size, 12);
+  assert.equal(harness.routes.size, 13);
   assert.deepEqual([...harness.tools.keys()].sort(), [
     'product_library_approve_page', 'product_library_comment', 'product_library_create_page',
     'product_library_list', 'product_library_open', 'product_library_read',
@@ -484,4 +484,17 @@ test('the product id guard is exact', () => {
   assert.equal(PRODUCT_ID.test('prod_'), false);
   assert.equal(PRODUCT_ID.test('prod_a b'), false);
   assert.equal(PRODUCT_ID.test('alpha'), false);
+});
+
+test('the product page is self-contained and its script parses', async () => {
+  const harness = fakeContext();
+  await apply(harness.ctx, {});
+  const response = await harness.call('GET /products');
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/html/u);
+  const html = await response.text();
+  assert.match(html, /产品库/u);
+  assert.match(html, /id="banner"/u);
+  const script = html.match(/<script>([\s\S]*?)<\/script>/u)[1];
+  assert.doesNotThrow(() => new Function(script), 'the inline page script parses');
 });

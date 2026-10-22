@@ -27,6 +27,7 @@
   },
   "routes": [
     "GET /api/product-library/status",
+    "GET /products",
     "GET /api/product-library/products",
     "GET /api/product-library/search",
     "GET /api/product-library/products/:productId",

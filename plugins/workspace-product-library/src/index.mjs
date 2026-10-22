@@ -6,6 +6,7 @@
 // review surface remains the only writer of product facts.
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
 import { createProductLibraryService, ProductLibraryError } from './library.mjs';
+import { PRODUCTS_PAGE } from './area.mjs';
 import { createSourceFromConfig, unconfiguredSource } from './source.mjs';
 
 export const PLUGIN_ID = 'workspace-product-library';
@@ -23,6 +24,7 @@ const ROUTES = Object.freeze([
   ['POST', `${BASE}/products/:productId/pages/:pageId/approve`],
   ['POST', `${BASE}/products/:productId/documents`],
   ['GET', `${BASE}/products/:productId/documents/:documentId`],
+  ['GET', '/products'],
 ]);
 const TOOL_NAMES = Object.freeze([
   'product_library_status', 'product_library_list', 'product_library_search', 'product_library_read',
@@ -104,6 +106,20 @@ export async function applyService(ctx, service) {
     try { return await handler(context ?? {}); }
     catch (error) { throw asHarnessError(error); }
   };
+
+  ctx.http.route({
+    method: 'GET', path: '/products',
+    handler: () => new Response(PRODUCTS_PAGE, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+      },
+    }),
+  });
 
   ctx.http.route({ method: 'GET', path: `${BASE}/status`, handler: call(async () => ({ status: 200, body: status() })) });
   ctx.http.route({ method: 'GET', path: `${BASE}/products`, handler: call(async context => ({ status: 200, body: await service.list(context, context.query ?? {}) })) });

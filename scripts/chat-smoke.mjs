@@ -149,6 +149,10 @@ try {
   const inboxPage = await fetch(`${base}/inbox`);
   const inboxHtml = await inboxPage.text();
   check('the inbox page renders', inboxPage.status === 200 && inboxHtml.includes('收件箱'), inboxPage.status);
+
+  const productsPage = await fetch(`${base}/products`);
+  const productsHtml = await productsPage.text();
+  check('the products page renders', productsPage.status === 200 && productsHtml.includes('产品库'), productsPage.status);
 } finally {
   await harness.stop().catch(() => {});
 }

@@ -25,6 +25,7 @@ export const HOME_PAGE = `<!doctype html>
     <a class="card" href="/chat"><b>对话</b><span>提问、附加文件、审批工具调用、接收产物</span></a>
     <a class="card" href="/goals"><b>目标</b><span>把多次运行聚合成一个可推进的目标</span></a>
     <a class="card" href="/schedules"><b>计划任务</b><span>到期自动派发；启用前默认停用</span></a>
+    <a class="card" href="/products"><b>产品库</b><span>已审核的 Product Context；未配置源时明确提示</span></a>
     <a class="card" href="/inbox"><b>收件箱</b><span>计划触发与待批准，集中查看与标记已读</span></a>
     <a class="card" href="/ops"><b>运维台</b><span>状态、计数、备份与恢复（管理员）</span></a>
   </div>

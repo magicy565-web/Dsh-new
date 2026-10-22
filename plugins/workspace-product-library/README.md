@@ -11,6 +11,13 @@
 - Agent 通过工具读写，写操作一律走 harness 审批票据；
 - 不写 Medusa、不发布商品、不改变 Product Context 审核状态、不授予模型披露权限。
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## ChatGPT Space 对标范围
 
 | ChatGPT Space 能力 | 本切片 |
@@ -24,6 +31,13 @@
 | 文件/附件 | 每个 room 可存 ≤512 KiB 的 PDF/图片/CSV/Markdown/文本，SHA-256 固定，可关联 Product Context evidence |
 | 幻灯片、任务、实时协作 | 本切片未做，不伪装 |
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## 事实来源
 
 只读用已有的 Product Context Agent 面：
@@ -38,6 +52,13 @@ GET {MEDUSA_ORIGIN}/agent/product-contexts/:productId
 过发布门、指纹匹配的 context。插件不读 Admin JWT / Secret API Key，不复制商品库，
 不建立第二条商品事实。
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## 组合行
 
 默认关闭；先准备专用读 token 文件（0600，绝对路径，只给本插件用）：
@@ -57,6 +78,13 @@ GET {MEDUSA_ORIGIN}/agent/product-contexts/:productId
 不配置 `source` 时插件仍可挂载：`status.configured=false`，只列已有 room，打开新商品
 返回 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED`，绝不伪造商品或上下文。
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## HTTP
 
 | 方法 | 路径 | 说明 |
@@ -76,6 +104,13 @@ GET {MEDUSA_ORIGIN}/agent/product-contexts/:productId
 
 写操作都要求 `requestId`；相同 requestId + 相同内容返回原结果，不同内容返回 409。
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## 工具
 
 只读：`product_library_status`、`product_library_list`、`product_library_search`、`product_library_read`。
@@ -83,6 +118,13 @@ GET {MEDUSA_ORIGIN}/agent/product-contexts/:productId
 `product_library_create_page`、`product_library_save_page`、`product_library_comment`、
 `product_library_approve_page`。
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## 引用语义
 
 保存页面时服务端按当前 pin 计算 `valueHash`。`sync` 更新 pin 后：
@@ -93,6 +135,13 @@ GET {MEDUSA_ORIGIN}/agent/product-contexts/:productId
 
 未知字段在保存时直接 400 `PRODUCT_LIBRARY_CITATION_UNKNOWN`，不落库。
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## 验证
 
 ```powershell
@@ -103,6 +152,13 @@ $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependenci
 测试用本地 synthetic source / 本地 HTTP server / 合成 artifacts，不连接真实
 Medusa。真实 Medusa Agent 面、PostgreSQL、token 轮换和生产 Host 仍属于未执行的验收项。
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## 附件边界
 
 - 只支持 artifact seam 已支持的扩展名：txt、md、csv、json、pdf、png、jpg、jpeg、webp；
@@ -111,6 +167,13 @@ Medusa。真实 Medusa Agent 面、PostgreSQL、token 轮换和生产 Host 仍�
 - 下载前重新校验字节 SHA-256，与文档记录不符时拒绝返回；
 - 文档可关联 Product Context 的 `evidence.id`，但不改变 evidence 的审核状态。
 
+## 页面
+
+`/products` 是自包含产品库页（严格 CSP）：
+
+- 未配置 `source` 时显示明确横幅「产品源未配置」，搜索按钮禁用，不会伪装成空列表；
+- 配置后可按标题搜索、查看列表与详情（产品字段 + 已审核 Product Context 的 status / review_version / source_hash 前缀）；
+- 读取失败时优先显示 `PRODUCT_LIBRARY_SOURCE_UNCONFIGURED` 的直白解释，而不是原始错误码。
 ## 未做（明确边界）
 
 - 页面正文是纯文本（Markdown 语义），不是动态块编辑器或幻灯片；
