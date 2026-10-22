@@ -1,4 +1,4 @@
-﻿# 发布线：本地 Harness 工作台（2026-10-23）
+# 发布线：本地 Harness 工作台（2026-10-23）
 
 分支：`release/harness-20261023`
 
@@ -108,7 +108,7 @@ release 或 npmmirror 镜像下载并缓存，Inno Setup 6 未安装时按当前
 | `/business-memory` | 企业经营记忆：候选/审核/事实 | `workspace-business-memory` |
 | `/files` | 文件上传、列表、文本预览、二进制下载 | `workspace-artifacts` |
 | `/api/artifacts/*` | 文件元数据与下载接口（供页面和工具调用） | `workspace-artifacts` |
-| `/quotes`、`/purchases` | 报价与采购单，写操作必须人工审批 | `workspace-quotes`、`workspace-purchases` |
+| `/quotes`、`/purchases` | 报价与采购单：CSV 导出、打印页、报价转采购；写操作必须人工审批 | `workspace-quotes`、`workspace-purchases` |
 | `/login` | 企业模式的会话入口（本地单用户模式返回 404） | `workspace-access` |
 | `/api/healthz` | 25 个插件健康检查 | kernel + seams |
 
@@ -126,7 +126,7 @@ release 或 npmmirror 镜像下载并缓存，Inno Setup 6 未安装时按当前
 | Harness kernel | 106/106 通过 |
 | 安装包构建 | 浏览器版 24.9 MiB、桌面版 111.3 MiB（见第 6 节） |
 | 静默安装 + 启动 | 两个版本均通过（见第 6 节） |
-| 发布闸门 | `scripts/release-check.mjs` 68/68 步通过（ok: true：51 个测试文件 + 16 个冒烟 + doctor） |
+| 发布闸门 | `scripts/release-check.mjs` 70/70 步通过（ok: true：52 个测试文件 + 17 个冒烟 + doctor） |
 
 ## 6. 安装验收记录
 
@@ -141,7 +141,7 @@ release 或 npmmirror 镜像下载并缓存，Inno Setup 6 未安装时按当前
 | 二次启动 | 不新增进程（node 进程数 1 → 1），只复用已有服务 |
 | `--stop` | 退出码 0，端口关闭；再次启动可从陈旧锁恢复 |
 | 卸载 | 退出码 0，安装目录删除；`data` 与 `logs` 保留 |
-| 安装包大小 | 24.9 MiB，SHA-256 `CF7EFAA178832F731D09E8C5902C3DD13E9320CD7A7D5D52DBFDF1E2FFAB2B1A` |
+| 安装包大小 | 24.9 MiB，SHA-256 `C840A53E193605922DEFFEFA9D213AC017C534F78489A9F28D875F53D0305336` |
 
 `/login` 在本地单用户模式下返回 404 属预期：它是企业模式入口。
 `/inquiry-recovery` 没有独立页面，能力是模型工具 + HTTP 路由。
@@ -157,7 +157,7 @@ release 或 npmmirror 镜像下载并缓存，Inno Setup 6 未安装时按当前
 | 正常启动 | 窗口标题「工作台」，`/home` 200；CDP 截图确认首页 8 张入口卡片 |
 | `--stop` | 退出码 0，8790 关闭；窗口进程仍在（按设计，停止服务不等于退出界面） |
 | 卸载 | 退出码 0，安装目录删除；`data` / `logs` / `chromium` 保留 |
-| 安装包大小 | 111.3 MiB，SHA-256 `2414F5F7A72FE6EBF3E79EDA5FA0D5ABA0E119B4B816A111744AC98F632A8111` |
+| 安装包大小 | 111.3 MiB，SHA-256 `B3D1DF0FFB161917CD8FD7161F96EFA3A902C7398DCB184948607E23BAE82428` |
 
 Electron 45 自带 Node 24.22，服务通过 `ELECTRON_RUN_AS_NODE` 跑在同一个可执行文件上，
 所以桌面版没有第二份 `node.exe`；这 111 MiB 主要就是 Chromium 本身。
@@ -173,4 +173,15 @@ Electron 45 自带 Node 24.22，服务通过 `ELECTRON_RUN_AS_NODE` 跑在同一
 - 本机单测受 Windows 路径与端口影响，个别测试（如 `/tmp` 用例）不适用于本机；
   以发布闸门的实际输出为准。
 - 安装器未做代码签名，Windows SmartScreen 可能提示“未知发布者”；SHA-256 见
-  `dist/SHA256SUMS.txt`。
+  `dist/SHA256SUMS.txt` 与 `dist/SHA256SUMS-desktop.txt`。
+
+## 8. 源码保存
+
+- 发布分支与开发分支都停在 `b027fd85`，已推送到 GitHub：
+  `release/harness-20261023` 和 `agent/harness-20261023`。
+- 全量源码快照：`dist/Workspace-Harness-Source-b027fd85.zip`（143 MiB，
+  `git archive HEAD`，含全部跟踪文件；不含 `node_modules` 与运行时）。
+  SHA-256 `8BED09C73CBC40B82525948DB61A362557841F941BFA5F050B5455BEDD4D8D7C`。
+- 另一个会话在 `wsa-dev` worktree 里的未提交工作（报价/采购的 CSV 导出与打印页）
+  已由本会话跑过 18 个单测、quotes 9/9、purchases 13/13 后提交并合入；
+  `wsa-dev` 当前工作树干净。
