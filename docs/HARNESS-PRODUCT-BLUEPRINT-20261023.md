@@ -22,7 +22,7 @@
 | G 产物 | 生成文件、下载、发布 | `run-output.mjs`、artifacts seam | 接缝已就位 + 插件 | 部分：工具可写文件、固定到 run、页面可下载；发布未做 |
 | H 业务域 | 资料库、产品库、市场、采购、供应商、Medusa | `plugins/*` | 已在 harness | ✅ 大部分 |
 | I 目标与信号 | Goal、Brain、经营信号 | `server/goal-brain*.mjs` | 插件 `workspace-goals` | 部分：目标已迁移（run 聚合 + 状态机 + 页面）；Brain/信号未迁 |
-| J 自动化 | 计划任务、通知、Worker 派发 | `capabilities.mjs`、`worker-*` | 插件 `workspace-schedule` | 未迁 |
+| J 自动化 | 计划任务、通知、Worker 派发 | `capabilities.mjs`、`worker-*` | 插件 `workspace-schedule` | 部分：at/every 计划任务已迁移（确定性派发 + 回执）；通知/Worker 未迁 |
 | K 运维 | 诊断、恢复、备份、部署、上线闸门 | 多个 `server/*`、`scripts/*` | 插件 `workspace-ops` | 未迁 |
 | L 界面 | 聊天壳、区域页面、管理控制台 | `src/` React | Harness 静态托管 + 每插件页面 | 部分：`/chat`、`/market`、`/business-memory` 已有；管理控制台未迁 |
 

@@ -58,6 +58,10 @@ plugins:
   - id: chat
     name: workspace-chat
     config: { workspaceId: local }
+  # 计划任务：到期把目标推进一步，走既有 chat → runner 管道；默认 15s tick。
+  - id: schedules
+    name: workspace-schedules
+    config: { workspaceId: local, tickMs: 15000 }
   # 目标：把多次运行聚合成一个可追踪的目标；状态显式推进并审计。
   - id: goals
     name: workspace-goals

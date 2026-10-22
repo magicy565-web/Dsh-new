@@ -1,0 +1,25 @@
+{
+  "id": "workspace-schedules",
+  "version": "0.1.0",
+  "kind": "plugin",
+  "description": "计划任务：到期把目标推进一次，走既有 chat → runner 管道；派发 ID 由（计划，到期时刻）确定性生成，重启不重复。",
+  "entry": "./src/index.mjs",
+  "requires": ["storage", "workspace", "audit", "chat"],
+  "provides": ["schedules"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "workspaceId": { "type": "string", "minLength": 1 },
+      "tickMs": { "type": "integer", "minimum": 1000, "maximum": 3600000 }
+    },
+    "additionalProperties": false
+  },
+  "routes": [
+    "GET /api/schedules/status",
+    "POST /api/schedules",
+    "GET /api/schedules",
+    "GET /api/schedules/:id",
+    "POST /api/schedules/:id/status"
+  ],
+  "tools": []
+}
