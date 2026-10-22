@@ -65,6 +65,32 @@ try {
   const page = await fetch(`${base}/purchases`);
   const html = await page.text();
   check('the purchases page renders', page.status === 200 && html.includes('新建采购单'), page.status);
+
+  // An accepted quote becomes a draft purchase order exactly once.
+  const quote = await fetch(`${base}/api/quotes`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      requestId: randomUUID(), customer: '海祺贸易', currency: 'CNY',
+      lines: [{ description: '不锈钢法兰 DN50', quantity: 500, unitPriceMinor: 1250 }],
+    }),
+  }).then(response => response.json());
+  for (const status of ['sent', 'accepted']) {
+    await fetch(`${base}/api/quotes/${quote.quote.id}/status`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }),
+    });
+  }
+  const converted = await fetch(`${base}/api/purchases/from-quote`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ requestId: randomUUID(), quoteId: quote.quote.id, supplier: '无锡法兰厂' }),
+  }).then(async response => ({ ok: response.ok, body: await response.json() }));
+  check('an accepted quote converts into a purchase order', converted.ok && converted.body.order.sourceQuoteId === quote.quote.id, converted.body.order?.status);
+  check('the converted order keeps the quote total', converted.body.order?.total === quote.quote.total, converted.body.order?.total);
+
+  const again = await fetch(`${base}/api/purchases/from-quote`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ requestId: randomUUID(), quoteId: quote.quote.id, supplier: '另一家' }),
+  });
+  check('a quote converts only once', again.status === 409, again.status);
 } finally {
   await Promise.race([harness.stop().catch(() => {}), new Promise(resolve => setTimeout(resolve, 3000))]);
   await unlink(compositionPath).catch(() => {});

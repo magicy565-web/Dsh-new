@@ -129,3 +129,11 @@ test('the HTTP surface creates, lists, reads and moves a quote, and the page par
   assert.equal(tools.get('quote_list').approval, 'never');
   assert.equal(tools.get('quote_list').readOnly, true);
 });
+
+test('the internal lookup finds a quote without an actor', async () => {
+  const quotes = service();
+  const { quote } = await quotes.create({ actor: ADMIN }, validQuote());
+  assert.equal(quotes.lookup(quote.id).id, quote.id);
+  assert.equal(quotes.lookup('not-a-uuid'), null);
+  assert.equal(quotes.lookup(crypto.randomUUID()), null);
+});

@@ -142,7 +142,11 @@ export async function apply(ctx, config = {}) {
       return { status: 'ok', detail: { total: status.total, byStatus: status.byStatus } };
     });
   }
-  return async () => {};
+  // Published for trusted plugins only (purchases converts an accepted quote);
+  // no HTTP route is added by this.
+  let disposeService = null;
+  if (typeof ctx.provide === 'function') disposeService = ctx.provide('quotes', service);
+  return async () => { if (typeof disposeService === 'function') await disposeService(); };
 }
 
 export { QUOTE_STATUSES, QuoteError, createQuoteService };

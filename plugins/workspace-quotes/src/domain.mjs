@@ -197,6 +197,17 @@ export function createQuoteService({ storage, workspaceId = 'local', resolveWork
       return { quote: view(quote) };
     },
 
+    /**
+     * Internal lookup for another trusted plugin. No HTTP route calls this, and
+     * the caller is a service inside the same process, never a request.
+     */
+    lookup(id) {
+      if (typeof id !== 'string' || !UUID.test(id)) return null;
+      const state = partition(workspaceId).read();
+      const quote = state.quotes.find(item => item.id === id);
+      return quote ? view(quote) : null;
+    },
+
     async setStatus(context, id, body = {}) {
       const actor = resolveActor(context);
       if (actor.role === 'viewer') fail(403, 'QUOTE_FORBIDDEN', 'A viewer cannot change a quote.');

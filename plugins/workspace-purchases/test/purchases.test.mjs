@@ -100,3 +100,42 @@ test('the plugin registers tools, routes and the page; no approve tool exists', 
   assert.match(html, /新建采购单/u);
   assert.doesNotThrow(() => new Function(html.match(/<script>([\s\S]*?)<\/script>/u)[1]), 'the inline page script parses');
 });
+
+test('an accepted quote converts into a draft purchase order once', async () => {
+  const purchases = service();
+  const quote = {
+    id: crypto.randomUUID(), number: 'Q-TEST-001', status: 'accepted', currency: 'CNY', total: '6250.00',
+    lines: [{ description: '不锈钢法兰 DN50', quantity: 500, unitPriceMinor: 1250, amountMinor: 625000 }],
+  };
+  const lookup = id => (id === quote.id ? quote : null);
+  const { order } = await purchases.createFromQuote({ actor: ADMIN },
+    { requestId: crypto.randomUUID(), quoteId: quote.id, supplier: '无锡法兰厂' }, lookup);
+  assert.equal(order.status, 'draft');
+  assert.equal(order.supplier, '无锡法兰厂');
+  assert.equal(order.currency, 'CNY');
+  assert.equal(order.totalMinor, 625000);
+  assert.equal(order.sourceQuoteId, quote.id);
+  assert.match(order.note, /Q-TEST-001/u);
+
+  await assert.rejects(
+    purchases.createFromQuote({ actor: ADMIN }, { requestId: crypto.randomUUID(), quoteId: quote.id, supplier: '另一家' }, lookup),
+    error => error.code === 'PURCHASE_QUOTE_CONVERTED' && error.status === 409,
+  );
+});
+
+test('only an accepted quote can be converted, and the service is required', async () => {
+  const purchases = service();
+  const draft = { id: crypto.randomUUID(), number: 'Q-DRAFT', status: 'sent', currency: 'CNY', lines: [] };
+  await assert.rejects(
+    purchases.createFromQuote({ actor: ADMIN }, { requestId: crypto.randomUUID(), quoteId: draft.id, supplier: 'x' }, () => draft),
+    error => error.code === 'PURCHASE_QUOTE_NOT_ACCEPTED',
+  );
+  await assert.rejects(
+    purchases.createFromQuote({ actor: ADMIN }, { requestId: crypto.randomUUID(), quoteId: draft.id, supplier: 'x' }, null),
+    error => error.code === 'PURCHASE_QUOTES_UNAVAILABLE' && error.status === 503,
+  );
+  await assert.rejects(
+    purchases.createFromQuote({ actor: ADMIN }, { requestId: crypto.randomUUID(), quoteId: draft.id, supplier: 'x' }, () => null),
+    error => error.code === 'PURCHASE_QUOTE_NOT_FOUND' && error.status === 404,
+  );
+});

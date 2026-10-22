@@ -16,6 +16,7 @@
   "routes": [
     "GET /api/purchases/status",
     "POST /api/purchases",
+    "POST /api/purchases/from-quote",
     "GET /api/purchases",
     "GET /api/purchases/:id",
     "POST /api/purchases/:id/status",

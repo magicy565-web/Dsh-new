@@ -13,6 +13,7 @@ const BASE = '/api/purchases';
 export const ROUTES = Object.freeze([
   ['GET', `${BASE}/status`],
   ['POST', BASE],
+  ['POST', `${BASE}/from-quote`],
   ['GET', BASE],
   ['GET', `${BASE}/:id`],
   ['POST', `${BASE}/:id/status`],
@@ -82,6 +83,13 @@ export async function apply(ctx, config = {}) {
   ctx.http.route({
     method: 'POST', path: BASE,
     handler: call(async context => ({ status: 201, body: await service.create(context, context.body ?? {}) })),
+  });
+  ctx.http.route({
+    method: 'POST', path: `${BASE}/from-quote`,
+    handler: call(async context => {
+      const quotes = typeof ctx.get === 'function' ? ctx.get('quotes', false) : null;
+      return { status: 201, body: await service.createFromQuote(context, context.body ?? {}, quotes?.lookup ?? null) };
+    }),
   });
   ctx.http.route({
     method: 'GET', path: BASE,

@@ -143,7 +143,7 @@ export function createPurchaseService({ storage, workspaceId = 'local', resolveW
       const actor = resolveActor(context);
       if (actor.role === 'viewer') fail(403, 'PURCHASE_FORBIDDEN', 'A viewer cannot create a purchase order.');
       if (!isPlain(body)) fail(400, 'PURCHASE_INPUT', 'A purchase order must be an object.');
-      if (Object.keys(body).some(key => !['requestId', 'supplier', 'currency', 'lines', 'note'].includes(key)))
+      if (Object.keys(body).some(key => !['requestId', 'supplier', 'currency', 'lines', 'note', 'sourceQuoteId'].includes(key)))
         fail(400, 'PURCHASE_INPUT', 'A purchase order has an unsupported field.');
       if (typeof body.requestId !== 'string' || !body.requestId || body.requestId.length > 128)
         fail(400, 'PURCHASE_INPUT', 'requestId is required.');
@@ -159,6 +159,9 @@ export function createPurchaseService({ storage, workspaceId = 'local', resolveW
       const lines = body.lines.map(lineOf);
       const totalMinor = lines.reduce((sum, line) => sum + line.amountMinor, 0);
       if (!Number.isSafeInteger(totalMinor)) fail(400, 'PURCHASE_INPUT', 'The order total is too large.');
+      const sourceQuoteId = body.sourceQuoteId === undefined || body.sourceQuoteId === null ? null : body.sourceQuoteId;
+      if (sourceQuoteId !== null && (typeof sourceQuoteId !== 'string' || !UUID.test(sourceQuoteId)))
+        fail(400, 'PURCHASE_INPUT', 'sourceQuoteId must be a quote id.');
 
       const store = partition(actor.workspaceId);
       let order = null;
@@ -166,12 +169,14 @@ export function createPurchaseService({ storage, workspaceId = 'local', resolveW
       await store.update(state => {
         const previous = state.orders.find(item => item.requestId === body.requestId);
         if (previous) { order = view(previous); replayed = true; return null; }
+        if (sourceQuoteId !== null && state.orders.some(item => item.sourceQuoteId === sourceQuoteId))
+          fail(409, 'PURCHASE_QUOTE_CONVERTED', 'This quote has already been converted into a purchase order.');
         if (state.orders.length >= PO_LIMITS.orders) fail(409, 'PURCHASE_FULL', 'This workspace has too many purchase orders.');
         const now = at();
         const created = {
           id: randomUUID(), workspaceId: actor.workspaceId, requestId: body.requestId,
           number: `PO-${new Date(clock()).toISOString().slice(0, 10).replace(/-/gu, '')}-${String(state.orders.length + 1).padStart(3, '0')}`,
-          supplier: body.supplier.trim(), currency: body.currency, lines, totalMinor, note,
+          supplier: body.supplier.trim(), currency: body.currency, lines, totalMinor, note, sourceQuoteId,
           status: 'draft', createdBy: actor.subject, createdAt: now, updatedAt: now,
           approvedBy: null, approvedAt: null,
         };
@@ -181,6 +186,40 @@ export function createPurchaseService({ storage, workspaceId = 'local', resolveW
       });
       if (audit?.record) await audit.record({ kind: 'purchases', action: 'purchases.create', actor: actor.subject, ref: order.id });
       return { order, replayed };
+    },
+
+    /**
+     * Convert an accepted quote into a draft purchase order.
+     * `lookupQuote(id)` is the quotes service's internal lookup (no actor).
+     */
+    async createFromQuote(context, body = {}, lookupQuote = null) {
+      const actor = resolveActor(context);
+      if (actor.role === 'viewer') fail(403, 'PURCHASE_FORBIDDEN', 'A viewer cannot create a purchase order.');
+      if (typeof lookupQuote !== 'function')
+        fail(503, 'PURCHASE_QUOTES_UNAVAILABLE', 'The quotes plugin is not available.');
+      if (!isPlain(body)) fail(400, 'PURCHASE_INPUT', 'A conversion must be an object.');
+      if (Object.keys(body).some(key => !['requestId', 'quoteId', 'supplier', 'note'].includes(key)))
+        fail(400, 'PURCHASE_INPUT', 'A conversion has an unsupported field.');
+      if (typeof body.requestId !== 'string' || !body.requestId || body.requestId.length > 128)
+        fail(400, 'PURCHASE_INPUT', 'requestId is required.');
+      if (typeof body.quoteId !== 'string' || !UUID.test(body.quoteId))
+        fail(400, 'PURCHASE_INPUT', 'quoteId must be a quote id.');
+      const quote = lookupQuote(body.quoteId);
+      if (!quote) fail(404, 'PURCHASE_QUOTE_NOT_FOUND', 'No such quote in this workspace.');
+      if (quote.status !== 'accepted')
+        fail(409, 'PURCHASE_QUOTE_NOT_ACCEPTED', 'Only an accepted quote can become a purchase order.');
+
+      const payload = {
+        requestId: body.requestId,
+        supplier: body.supplier,
+        currency: quote.currency,
+        lines: quote.lines.map(line => ({ description: line.description, quantity: line.quantity, unitPriceMinor: line.unitPriceMinor })),
+        note: body.note === undefined ? `来自报价 ${quote.number}` : body.note,
+        sourceQuoteId: quote.id,
+      };
+      const created = await this.create({ actor }, payload);
+      if (audit?.record) await audit.record({ kind: 'purchases', action: 'purchases.from-quote', actor: actor.subject, ref: created.order.id, detail: { quoteId: quote.id } });
+      return { order: created.order, replayed: created.replayed, quote: { id: quote.id, number: quote.number, total: quote.total, currency: quote.currency } };
     },
 
     list(context, query = {}) {
