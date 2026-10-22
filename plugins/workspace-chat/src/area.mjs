@@ -80,7 +80,7 @@ const PAGE = `<!doctype html>
 <body>
 <div class="app">
   <aside>
-    <header><a href="/home" title="首页">首页</a><strong>对话</strong><button id="new" title="新建会话">新会话</button><a class="nav" href="/ops" title="运维台">运维</a></header>
+    <header><a href="/home" title="首页">首页</a><strong>对话</strong><button id="new" title="新建会话">新会话</button><a class="nav" href="/files" title="文件">文件</a><a class="nav" href="/quotes" title="报价单">报价</a><a class="nav" href="/purchases" title="采购单">采购</a><a class="nav" href="/sessions" title="会话">会话</a><a class="nav" href="/ops" title="运维台">运维</a></header>
     <ul id="list"></ul>
     <div class="goals">
       <div class="goals-head"><strong><a href="/goals" title="打开目标页">目标</a></strong><button id="new-goal" title="新建目标">+ 新建</button></div>
