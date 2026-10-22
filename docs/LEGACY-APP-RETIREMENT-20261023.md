@@ -39,7 +39,8 @@ Harness 覆盖、还差什么才能下线。**
    **进展**：工厂询盘（`workspace-factory-rfq`）与供应商报价对齐（`workspace-procurement-compare`，
    迁移自 `workspace_procurement_compare`）已按新契约重写为只读工具，均带模型驱动的端到端冒烟；
    但原 `src/*.mjs` 仍依赖旧运行时，页面与写操作尚未迁移。
-3. **数据迁移**：老应用的数据文件与 `.harness-data` 是两套结构，没有迁移脚本。
+3. **数据迁移**：会话与消息已有迁移脚本（`scripts/migrate-legacy.mjs`，dry-run + 幂等，
+   见 `docs/LEGACY-DATA-MIGRATION-20261023.md`）；目标、活动、经营记忆、业务库与附件仍未迁。
 4. **二进制历史文件**：老应用存储里的附件没有导入。
 
 ## 过渡期建议
