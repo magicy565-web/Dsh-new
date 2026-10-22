@@ -153,6 +153,10 @@ try {
   const productsPage = await fetch(`${base}/products`);
   const productsHtml = await productsPage.text();
   check('the products page renders', productsPage.status === 200 && productsHtml.includes('产品库'), productsPage.status);
+
+  const filesPage = await fetch(`${base}/files`);
+  const filesHtml = await filesPage.text();
+  check('the files page renders', filesPage.status === 200 && filesHtml.includes('上传文件'), filesPage.status);
 } finally {
   await harness.stop().catch(() => {});
 }

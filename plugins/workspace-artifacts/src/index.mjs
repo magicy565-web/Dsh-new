@@ -5,6 +5,7 @@
 // Binary files are accepted for storage but cannot be attached to a model run,
 // which the runner enforces separately.
 import { ERROR, HarnessError } from '../../../packages/harness-contracts/src/index.mjs';
+import { FILES_PAGE } from './area.mjs';
 
 export const PLUGIN_ID = 'workspace-artifacts';
 const BASE = '/api/artifacts';
@@ -24,6 +25,7 @@ export const ROUTES = Object.freeze([
   ['GET', `${BASE}/:id`],
   ['GET', `${BASE}/:id/content`],
   ['GET', `${BASE}/:id/download`],
+  ['GET', '/files'],
 ]);
 
 const manifestError = message => new HarnessError(ERROR.manifestInvalid, message);
@@ -174,6 +176,20 @@ export async function apply(ctx, config = {}) {
         return { status: 200, body: { artifact: result.artifact, version: result.version, content: result.content } };
       } catch (error) { throw asHarnessError(error); }
     },
+  });
+
+  ctx.http.route({
+    method: 'GET', path: '/files',
+    handler: () => new Response(FILES_PAGE, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+      },
+    }),
   });
 
   ctx.http.route({

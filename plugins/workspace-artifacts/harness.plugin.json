@@ -18,7 +18,8 @@
     "GET /api/artifacts",
     "GET /api/artifacts/:id",
     "GET /api/artifacts/:id/content",
-    "GET /api/artifacts/:id/download"
+    "GET /api/artifacts/:id/download",
+    "GET /files"
   ],
   "tools": ["artifact_write"]
 }

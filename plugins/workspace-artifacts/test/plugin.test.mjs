@@ -206,3 +206,14 @@ test('a binary upload needs a supported type and exactly one payload', async () 
     error => error.status === 400,
   );
 });
+test('the files page is self-contained and its script parses', async () => {
+  const harness = await mounted();
+  const response = await harness.call('GET /files');
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/html/u);
+  const html = await response.text();
+  assert.match(html, /上传文件/u);
+  assert.match(html, /id="list"/u);
+  const script = html.match(/<script>([\s\S]*?)<\/script>/u)[1];
+  assert.doesNotThrow(() => new Function(script), 'the inline page script parses');
+});
