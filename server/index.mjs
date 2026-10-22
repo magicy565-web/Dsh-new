@@ -41,7 +41,8 @@ import { createPiMuseBinding } from './pi-muse-binding.mjs';
 import { ApiError, createRuntime } from './runtime.mjs';
 import { createArtifactService } from './artifacts.mjs';
 import { createGoalBrainHost } from './goal-brain-host.mjs';
-import { composeBusinessBrainSourceAdapters, createBusinessBrainSourceAdapter } from './business-brain-source-adapter.mjs';
+import { composeBusinessBrainSourceAdapters, createBusinessBrainSourceAdapter, businessBrainSourceFingerprint } from './business-brain-source-adapter.mjs';
+import { createObservationGate } from './brain-analysis.mjs';
 import { createSupplierCommerceBrainSourceAdapter } from './goal-brain-supplier-source.mjs';
 import { handleGoalBrainHttp } from './goal-brain-http.mjs';
 import { BrainError } from '../plugins/workspace-goal-intelligence/src/contracts.mjs';
@@ -202,7 +203,8 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
       ? createMedusaPublicationAdapter({ environment: capabilityEnvironment, fetchImpl: medusaFetch, clock: accessClock })
       : createShopifyPublicationAdapter({ store, environment: capabilityEnvironment, fetchImpl: shopifyFetch, clock: accessClock,
         readImage: (scope, ref) => supplierService.forActor({ subject: scope.subject, workspaceId: scope.workspaceId, role: scope.actorRole }).readImage(scope.conversationId, scope.serviceId, ref) });
-    capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [publicationAdapter.target.adapter]: publicationAdapter, [SUPPLIER_MONITOR_NOTIFICATION_ADAPTER]: supplierNotifications.adapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'market-validation-monitor' ? marketValidationMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
+    let brainObservationGate = null;
+    capabilities = await createCapabilityService({ store, clock: accessClock, adapters: { ...connectorAdapters, [publicationAdapter.target.adapter]: publicationAdapter, [SUPPLIER_MONITOR_NOTIFICATION_ADAPTER]: supplierNotifications.adapter, [WORKSPACE_LIBRARY_ADAPTER]: createWorkspaceLibraryAdapter({ artifacts, store }) }, environment: capabilityEnvironment, executionContext: { kind: provider.kind || 'deepseek-api', model: provider.model || null, permissionFingerprint: provider.permissionFingerprint || null }, occurrencePrecondition: (schedule, state) => brainObservationGate ? brainObservationGate(schedule, state) : { run: true, reason: 'NOT_ANALYSIS_SCHEDULE' }, dispatchGoal: async args => store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'supplier-monitor' ? supplierMonitoring.dispatch(args) : store.read().goals.find(goal => goal.id === args.goalId)?.serviceTask?.kind === 'market-validation-monitor' ? marketValidationMonitoring.dispatch(args) : runtime.updateGoal(args.goalId, { action: 'resume', queued: true, requestId: args.requestId }, { expectedGoalDefinitionHash: args.expectedGoalDefinitionHash, scheduleClaim: args.scheduleClaim }) });
     runtime = await createRuntime({ store, provider, goalTimeoutMs, maxConcurrentRuns, maxQueuedRuns, artifacts, capabilities, saveOutput: createRunOutputService({ store, artifacts }), autoStart: false, validateMemory: content => capabilities.assertSafeMemory(content) });
     bindSpaceSafeBootstrap(runtime);
     museDrafts = piMuse ? createMuseDraftService({ store, runtime, piMuse, artifacts, provider }) : null;
@@ -228,6 +230,15 @@ export async function createApp({ dataDirectory = path.join(root, '.data'), prov
         extras: [{ prefix: 'supplier:', adapter: supplierSourceAdapter }]
       });
       goalBrain = createGoalBrainHost({ store, artifacts, access, libraryModelRead, ...goalBrainOptions, sourceAdapter, clock: accessClock });
+      // Scheduled analysis only starts an occurrence when the observations it
+      // would analyse actually moved. Opt-in: an operator names the reviewed
+      // analysis goal explicitly, nothing is guessed from a title.
+      const analysisGoalId = capabilityEnvironment.WORKSPACE_BRAIN_ANALYSIS_GOAL_ID;
+      if (typeof analysisGoalId === 'string' && analysisGoalId.trim())
+        brainObservationGate = createObservationGate({
+          goalId: analysisGoalId,
+          readFingerprint: state => businessBrainSourceFingerprint({ state, workspaceId: accessConfig.workspaceId || 'local', clock: accessClock })
+        });
     }
     supplierPublication = await createSupplierPublication({ store, capabilities, shopify, commerce: publicationCommerce ?? shopify, adapter: publicationAdapter, clock: accessClock });
     await supplierNotifications.initialize();

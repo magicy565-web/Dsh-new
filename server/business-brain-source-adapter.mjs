@@ -260,6 +260,24 @@ export function createBusinessBrainSourceAdapter({ store, workspaceId = 'local',
   });
 }
 
+/**
+ * Synchronous fingerprint of the current observation set.
+ *
+ * Used by scheduler preconditions, which run inside a synchronous store
+ * transaction and therefore cannot await an adapter. A new observation, or a
+ * moved window, changes the fingerprint; re-reading the same observations on a
+ * later day does not.
+ */
+export function businessBrainSourceFingerprint({ state, workspaceId = 'local', clock = Date.now } = {}) {
+  if (!state) throw new TypeError('A store snapshot is required.');
+  const refs = buildSnapshot(state, workspaceId, clock).map(item => [
+    item.reference.kind, item.reference.id, item.reference.revision, item.reference.sha256,
+    item.reference.windowStart ?? null, item.reference.windowEnd ?? null
+  ]);
+  refs.sort((a, b) => `${a[0]}:${a[1]}`.localeCompare(`${b[0]}:${b[1]}`));
+  return digest(refs);
+}
+
 function prefixedReference(prefix, reference) {
   return { ...reference, id: prefix + reference.id };
 }
