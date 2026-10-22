@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>示例：折叠收纳箱 · 德国供货 · Sourcing</title>
+<style>
+:root{color-scheme:light dark;--bg:#faf7f2;--fg:#1f1a16;--muted:#7a6f66;--line:#e6ddd2;--accent:#c2410c;--ok:#15803d;--bad:#b91c1c;--card:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#171310;--fg:#f2e9df;--muted:#a5968a;--line:#332a24;--card:#201a16}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "Segoe UI",system-ui,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 24px 64px}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px;letter-spacing:.02em}
+.meta{color:var(--muted);font-size:13px;margin-bottom:24px}
+.rail{list-style:none;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:0 0 24px;padding:0}
+.rail li{display:flex;gap:8px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.rail .dot{width:8px;height:8px;border-radius:50%;background:var(--line);margin-top:6px;flex:none}
+.rail li.done .dot{background:var(--ok)}.rail li.current .dot{background:var(--accent)}.rail li.current{border-color:var(--accent)}
+.rail small{display:block;color:var(--muted);font-size:11px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+td.ok{color:var(--ok);font-weight:700}td.bad{color:var(--bad);font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stats div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+.stats b{display:block;font-size:22px}.stats span{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.banner{padding:10px 14px;border-radius:10px;margin-bottom:16px;font-size:13px}
+.banner.ok{background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok)}
+.banner.bad{background:color-mix(in srgb,var(--bad) 10%,transparent);color:var(--bad)}
+</style></head><body><main>
+<h1>示例：折叠收纳箱 · 德国供货</h1>
+<div class="meta">b2b · USD · revision 1 · 更新 2026-10-22 19:14</div>
+<ol class="rail"><li class="done"><span class="dot"></span><div><strong>立项</strong><small>已通过</small></div></li><li class="done"><span class="dot"></span><div><strong>市场选择</strong><small>已通过</small></div></li><li class="done"><span class="dot"></span><div><strong>供给与对象</strong><small>已通过</small></div></li><li class="done"><span class="dot"></span><div><strong>单位经济</strong><small>已通过</small></div></li><li class="done"><span class="dot"></span><div><strong>资产生产</strong><small>已通过</small></div></li><li class="done"><span class="dot"></span><div><strong>交接</strong><small>已通过</small></div></li></ol>
+<section><h2>当前阶段闸门</h2><div class="banner ok">闸门通过，可进入下一阶段</div>
+<table><thead><tr><th></th><th>检查项</th><th>现状</th></tr></thead><tbody><tr><td class="ok">✓</td><td>项目已完成</td><td>6 道闸门已通过</td></tr></tbody></table></section>
+<section><h2>线索漏斗</h2><div class="stats"><div><b>22</b><span>线索</span></div><div><b>9</b><span>A 级</span></div><div><b>16</b><span>已核实</span></div><div><b>0</b><span>有回应</span></div></div></section>
+<section><h2>单位经济</h2><table><tbody><tr><th>FOB 成本</th><td>13.00</td></tr><tr><th>单件毛利</th><td>3.50</td></tr><tr><th>毛利率</th><td>21.2%</td></tr><tr><th>加价率</th><td>26.9%</td></tr></tbody></table></section>
+<section><h2>产出物</h2><table><thead><tr><th>类型</th><th>文件</th><th>大小</th></tr></thead><tbody><tr><td>brief</td><td>00-brief.md</td><td>691 B</td></tr><tr><td>market</td><td>01-market.md</td><td>1156 B</td></tr><tr><td>buyers</td><td>02-buyers.csv</td><td>6331 B</td></tr><tr><td>brand</td><td>02-brand.md</td><td>559 B</td></tr><tr><td>economics</td><td>03-economics.md</td><td>381 B</td></tr><tr><td>unitEconomics</td><td>03-unit-economics.csv</td><td>228 B</td></tr><tr><td>outreach</td><td>04-outreach.md</td><td>1787 B</td></tr><tr><td>launch</td><td>05-launch.md</td><td>922 B</td></tr><tr><td>handoff</td><td>handoff.md</td><td>1429 B</td></tr><tr><td>dashboard</td><td>dashboard.html</td><td>4961 B</td></tr><tr><td>data</td><td>data.json</td><td>27459 B</td></tr></tbody></table></section>
+<section><h2>目标</h2><p>90 天内拿到 3 个德国买家样品单，并在第 120 天前完成首单</p><p class="muted">数据文件：data.json · 由 Sourcing Agent 生成</p></section>
+</main></body></html>

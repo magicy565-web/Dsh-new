@@ -1,0 +1,126 @@
+# dsh-workspace-library
+
+把 `workspace-agent`（wsa-trunk）里的**产品库**与**企业资料库**完整搬进 DeepSeek
+Harness：一个 Harness 侧栏面板 + 一套模型工具 + 一份本地、可版本化的资料库。
+
+- 面板入口：左侧栏「资料库」（order 30），主面板 id `workspace-library`
+- 数据文件：`~/.dsh/data/workspace-library/library.json`（`config.dataDir` 可覆盖）
+- 文件对象：Harness 附件存储（内容寻址，`~/.dsh/attachments/v1`）
+- 插件行：`include:workspace-library`，bundle `dsh-workspace-library`（profile `desktop` 已安装）
+
+## 功能
+
+**产品库**
+
+- 新建 / 编辑 / 归档产品；名称、简介、分类、`draft|archived`
+- SKU：编码、单位、MOQ、交期、规格项、报价方式（未填 / 阶梯 / 按需询价）与多档价格
+- 供货条件：包装、样品、付款、运输、产能
+- **产品图片**：上传（PNG/JPEG/WebP/GIF，单张 ≤ 12 MiB）、说明、主图、上移/下移、移除
+- 关联企业资料的**确切版本**，并写明用途；新版本不会自动替换关联
+- 发布准备检查：企业名称、产品字段、SKU/报价、供货条件、关联资料的有效期与人工审核
+
+**企业资料库**
+
+- 企业档案：企业全称、展示名称、简介（修订冲突保护）
+- 资料 7 类：企业介绍、营业执照、资质证书、检测报告、产品规格、供货政策、其他
+- 每份资料有不可变版本链：**文件版本**（原字节 + SHA-256 + MIME + 文件名）或文字版本
+- 证书信息：编号、签发机构、范围、生效/失效日期、有效期类型、说明
+- 人工审核：通过/驳回绑定版本 SHA-256；证书类在有效期未知/过期/未生效时禁止通过
+- 资料信息编辑（标题、类别、标签）、归档/恢复、版本正文预览、文件打开/下载
+- 图片类资料在详情内直接预览
+
+**Agent 工具**与面板共用同一套 Host 服务方法：
+
+| 工具 | 能力 |
+| --- | --- |
+| `workspace_library_status` | 数据文件、附件可用性、上限、企业名、产品/资料计数 |
+| `workspace_library_company` | `read` / `save`（`save` 需 `expectedRevision`） |
+| `workspace_library_products` | `list` / `read` / `save`（含 SKU、供货、关联资料、图片元数据） |
+| `workspace_library_documents` | `list` / `read` / `add` / `add_version`（文字）；`add_file` / `add_file_version`（本机绝对路径，≤ 12 MiB） |
+| `workspace_library_search` | 企业档案、产品、资料标题/标签/文件名/正文的片段检索 |
+
+审核是用户授权动作，**不暴露为工具**；模型只能读取和起草版本。
+
+## 文件与图片
+
+- 文件按原字节写入 Harness 附件服务，`attachmentId` 即内容 SHA-256；资料版本与产品图片
+  只保存引用、文件名、MIME、字节数与 SHA-256。
+- 浏览器用同源接口取回字节：`<img>` 走 blob URL；其他文件走「打开 / 下载」。
+- 响应带 `X-Content-Type-Options: nosniff`、`Content-Security-Policy: sandbox`；
+  只有 PNG/JPEG/WebP/GIF 允许 `inline`，其余一律 `attachment` 下载。
+- 文本类资料上限 20 000 字符；单文件上限 12 MiB；每份资料最多 50 个版本。
+
+## 数据模型
+
+- `company`：`legalName` / `displayName` / `description` + `revision`
+- `product`：字段、SKU、供货、`images[]`、`documents[]`（固定版本）+ `revision`
+- `document`：`title`、`slotKey`、`tags`、`status`、`currentVersion`、`versions[]`、`reviews[]`
+- `version`：`fileName`、`mimeType`、`bytes`、`sha256`、`attachment`（或 `content`）、`certificate`
+- `review`：绑定版本 `sha256` 的 `verified|rejected` + 备注 + 审核人
+
+写入原子（临时文件 + rename），每次 `sequence + 1`，保留最多 200 条操作记录；
+更新必须带 `expectedRevision`，并发修改返回 `409 REVISION_CONFLICT`。
+
+## 界面
+
+- 两个页签：**产品库**、**企业资料**；对标 `workspace` 应用的资料库，采用
+  **列表页 → 详情页 → 编辑页** 的全页面布局（居中 768px、扁平列表、54×64 缩略图、
+  胶囊按钮），详情页隐藏页签并显示返回链接。
+- 只使用 Harness 主题 token（`--dsw-alias-*`），随明暗主题切换；文案全部走 Client
+  locale（`workspace-library`，zh/en 各 182 键，键集一致）。
+- 面板通过 `ctx.slots.inject('root')` 注册 `sidebar.panellist` 与 `main`，
+  不依赖 Harness Client 组件包。
+
+## HTTP 面
+
+`GET/POST/PATCH /workspace-library-api/...`（面板专用）：
+
+- 只接受 loopback（`config.allowRemote: true` 可显式放开）
+- **复用 Harness 浏览器会话认证**：路由调用 `ctx.connection.requestRejection()`，校验与
+  `index.html` 相同的签名 Cookie（`dsh-auth-*`）以及 Host/Origin 围栏；不引入第二套令牌
+- 写请求要求 `application/json`、校验 `Origin` / `Sec-Fetch-Site`，请求体上限 20 MiB
+- 文件：`GET /documents/:id/versions/:v/file`；图片：`GET /products/:id/images/:imageId`
+
+主要写接口：`POST /documents`、`POST /documents/:id/versions`、
+`POST /documents/:id/versions/:v/reviews`、`PATCH /documents/:id`、
+`POST /products`、`PATCH /products/:id`、`POST /products/:id/images`、
+`PATCH /products/:id/images/:imageId`、`POST /products/:id/images/:imageId/remove`。
+
+## 安装与验证
+
+```powershell
+# 已安装；更新时：plugin_manager install_bundle target=<绝对目录>
+$node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe"
+
+& $node --test test/library.test.mjs   # Host 领域 / 文件 / 图片 / HTTP（11 项）
+& $node dev/client-smoke.mjs           # 真实 React + jsdom 面板冒烟
+& $node dev/check-locales.mjs          # zh/en 字典一致性
+& $node dev/bundle-rev.mjs             # 当前 bundle 是否已被服务端图采用
+& $node --check index.js
+& $node --check client.js
+```
+
+新增功能的完整改法、开发循环、测试与发布清单见 **[DEVELOPMENT.md](DEVELOPMENT.md)**。
+
+本机已验证：
+
+- Host 测试 **11/11**：修订冲突、就绪度推进、版本/SHA 审核、文件存取与大小上限、
+  图片上传/主图/排序/移除、持久化、连接授权拒绝、HTTP 同源/文件/图片/base64 校验
+- jsdom 冒烟：真实组件挂载；产品列表/详情（含图片画廊、SKU/报价）、产品编辑器、
+  企业页、资料详情（文件下载按钮、名称）、资料信息编辑器均渲染
+- 实时 slot：`sidebar.panellist:workspace-library` 与 `main:workspace-library` 均 active
+- 实时 HTTP：无浏览器会话 `401 UNAUTHORIZED`（由 Connection 拒绝）
+- 服务端 client bundle rev 与磁盘一致，且包含图片/文件上传逻辑
+
+页面若在插件更新前已打开，浏览器持有旧 bundle；刷新一次页面即可。视觉与明暗主题排版仍需在页面上目视确认。
+
+`dev/client-smoke.mjs` 从 `../../wsa-trunk/node_modules` 借 React / react-dom / jsdom
+（`DSH_CLIENT_TEST_MODULES` 可指向别处），不随插件发布。
+
+## 边界
+
+- 没有成员/角色模型：本 profile 视作单一企业管理员（Harness 本身没有可复用成员表）。
+- 附件对象不可变：移除产品图片只解除引用，不删除附件对象；内容寻址对象可被其他引用共享。
+- 旧 `wsa-trunk/.harness-data/workspace.json` 的 `businessLibrary` 当前为空，未做一次性导入；
+  如需迁移，按 `index.js` 的数据模型导入后由面板维护。
+- 浏览器像素级视觉、真实 PDF/大图在页面内的显示效果未做截图验证（无浏览器控制）。

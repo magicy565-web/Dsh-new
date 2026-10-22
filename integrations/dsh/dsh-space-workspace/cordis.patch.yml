@@ -1,0 +1,4 @@
+- insert:
+    - id: space-workspace
+      name: dsh-space-workspace
+      config: {}

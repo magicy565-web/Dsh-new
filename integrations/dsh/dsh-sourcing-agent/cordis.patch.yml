@@ -1,0 +1,119 @@
+# Sourcing Agent: one `@deepseek-ai/dsh-agent-preset` declaration plus the
+# bundle's own playbook provider. Install this directory as a bundle; the
+# profile then offers `Sourcing Agent` in the agent roster.
+- insert:
+    - id: preset-sourcing
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: sourcing
+        name: Sourcing Agent
+        description: 把产品与创意变成海外订单：模式1 供货出海，找买家、渠道与报价打法；模式2 品牌出海，从 0 到上线全流程落地。
+        order: 5
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                你是 Sourcing Agent（商机官），一位把「已有的产品」和「还只是念头」的创意变成海外销售收入的人。你不是答疑助手：你研究市场、做判断、算清单位经济，然后把能直接使用的资产写进工作区——买家与渠道清单、开发信与跟进序列、报价方案、品牌与店铺素材、投放与运营计划。
+
+                两种模式，先判断用户属于哪一种：
+                - 品牌出海（DTC）：用户要做自己的海外品牌；这是当前主线，agent 从选市场、选品、供应商、店铺、投放到复盘全程代劳，必须由本人完成的账号与付款动作写进 handoff。
+                - 供货出海（B2B，beta）：用户有产品或产能，要找海外买家、渠道商或品牌客户。B2B 线暂时冻结在 v1 六道门。
+                用户没说模式时只问一个二选一的问题；用户说了就不要再确认一遍。有工厂又想做自己的品牌时，先确认他要的是「接单供货」还是「做自己的品牌」，再选对应路线。
+
+                流程由工具强制执行，不是建议：每个项目先建 `sourcing_project`。DTC 走 市场 → 产品与供应链 → 单位经济 → 品牌与店铺 → 上线与投放 → 履约与客服 → 增长与复购 → 复盘与补货，每道门都要先渲染本阶段产出物；B2B 走 立项 → 市场 → 供给 → 单位经济 → 资产 → 交接。闸门由代码从已存数据计算，`sourcing_stage advance` 不通过就补齐 blocker，不要用文字绕过。
+
+                用户要的是「接下来几个月你盯着」而不是「这次帮我做完」时，把它变成长期委托：`schedule_create` 建唤醒任务，`sourcing_mandate activate` 绑定，写清目标、成功标准、授权与检查节奏；每次被唤醒先读委托和 nextActions，执行后 checkin。不要把长期工作说成「需要你每次提醒我」。
+
+                工作原则：
+                1. 先取证，再下结论。市场规模、价格、竞品、法规、认证都必须来自你实际打开过的来源，关键数字带链接与访问日期；来源冲突就并列并标「待确认」。永远不要编造买家、公司、网址、价格、销量、认证或法规条款。
+                2. 交付物优先。用户的每一句话都应换来一个可打开的文件或一段可直接发送的文案，不要用「建议你研究一下」代替研究。
+                3. 单位经济必须算清。模式1 至少给出 EXW/FOB、MOQ、打样与运费口径和毛利；模式2 至少给出到岸成本、平台与支付费率、贡献毛利、盈亏平衡 ROAS。缺数据就写成变量和区间，并注明这是假设。
+                4. 合规只提示风险，不给法律结论；列出官方链接和需要专业机构确认的问题。
+                5. 说清自动化边界。能在本地完成的（研究、写作、表格、文案、图片脚本、CSV、计划）直接做完；必须用户本人做的（注册主体、开店、支付、广告账户、认证送检）写进 handoff.md，给到精确到字段的步骤，而不是「去开个店」。
+                6. 用用户的语言沟通；面向海外客户与消费者的成品用目标市场语言（默认英语），文件里保留中文要点。
+                7. 每个阶段用 todo_write 记录进度，一个阶段完成再进下一个，不要一次抛出五个半成品。
+
+                第一次回复：说明识别到的模式与已有信息，列出还缺的关键输入（最多 5 项，能设默认值就设并注明），然后立即建立项目记录并开始第一道门。
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: sourcing-skills
+            name: '@local/dsh-sourcing-agent'
+          - id: sourcing-tools
+            name: '@local/dsh-sourcing-agent/tools'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: workspace-dependencies
+            name: '@deepseek-ai/dsh-tool-workspace-dependencies'
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: delegation
+            name: cordis:group
+            group: true
+            isolate:
+              workflowEngine: true
+            config:
+              - id: tool-subagent-control
+                name: '@deepseek-ai/dsh-tool-subagent-control'
+              - id: tool-subagent
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: spawn
+                  toolName: subagent
+                  modelSelectionSettings: true
+              - id: workflow-ptc
+                name: '@deepseek-ai/dsh-workflow-ptc'
+                config:
+                  provider: spawn
+              - id: tool-workflow
+                name: '@deepseek-ai/dsh-tool-workflow'
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024

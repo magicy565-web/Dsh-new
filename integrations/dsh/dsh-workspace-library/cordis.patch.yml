@@ -1,0 +1,4 @@
+- insert:
+    - id: workspace-library
+      name: dsh-workspace-library
+      config: {}
