@@ -94,6 +94,10 @@ runner 用人类角色换取一次性票据 → 工具执行 → 回答。`scrip
 
 ## 消息选择
 
+页面上的「附文件」按钮会把文本文件上传到 `/api/artifacts`，并以 chip 显示；发送时
+自动带上 `selection.artifacts`。附文件上限 512 KiB，只支持 UTF-8 文本。
+## 消息选择
+
 `selection: { skills: [name], artifacts: [fileId] }`：最多 8 个技能、4 个文本文件。
 选择随 run 保存；runner 解析成固定版本（技能正文哈希、文件版本 + SHA-256）后写进
 `run.snapshot`，缺一不可、不会静默降级。

@@ -112,6 +112,30 @@ try {
   const pinned = withSkill.run.snapshot?.skills ?? [];
   check('the selected skill is pinned on the run', pinned.length === 1 && pinned[0].name === 'enterprise-context', withSkill.run.snapshot);
   check('the pinned skill carries a body hash', /^[a-f0-9]{64}$/u.test(pinned[0]?.sha256 ?? ''), pinned[0]?.sha256);
+
+  // A file uploaded through the artifacts surface can be attached to a message
+  // and is pinned by version + hash on the run.
+  const uploaded = await fetch(`${base}/api/artifacts`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ filename: '客户需求.md', content: 'MOQ 500，交期 30 天。', mimeType: 'text/markdown' }),
+  }).then(response => response.json());
+  check('a text file can be uploaded', Boolean(uploaded.artifact?.id), uploaded.artifact?.filename);
+
+  const withFile = await fetch(`${base}/api/chat/conversations/${created.conversation.id}/messages`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ requestId: randomUUID(), content: '看看这个文件', selection: { artifacts: [uploaded.artifact.id] } }),
+  }).then(response => response.json());
+  const fileStream = await fetch(`${base}/api/chat/runs/${withFile.run.id}/events`, { headers: { accept: 'text/event-stream' } });
+  const fileFrames = reader(fileStream);
+  for (;;) {
+    const frame = await fileFrames.next();
+    if (frame === null || frame.event === 'run.completed' || frame.event === 'run.failed') break;
+  }
+  const storedFile = await fetch(`${base}/api/chat/runs/${withFile.run.id}`).then(response => response.json());
+  const pinnedFile = storedFile.run.snapshot?.artifacts?.[0];
+  check('the uploaded file is pinned on the run', pinnedFile?.id === uploaded.artifact.id, pinnedFile);
+  check('the pinned file keeps its version and hash',
+    pinnedFile?.version === 1 && pinnedFile?.sha256 === uploaded.artifact.sha256, pinnedFile?.sha256);
 } finally {
   await harness.stop().catch(() => {});
   await unlink(compositionPath).catch(() => {});

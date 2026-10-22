@@ -58,6 +58,10 @@ plugins:
   - id: chat
     name: workspace-chat
     config: { workspaceId: local }
+  # 文件面：上传 UTF-8 文本、列表、元数据与预览；二进制只存不挂到模型。
+  - id: files
+    name: workspace-artifacts
+    config: { workspaceId: local }
   # 技能：插件目录下的 skills/*（用户保存的指令）。消息可显式选择一个或多个。
   - id: skills
     name: '@workspace-harness/seams/skills'

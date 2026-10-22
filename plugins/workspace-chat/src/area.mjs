@@ -50,6 +50,9 @@ const PAGE = `<!doctype html>
   textarea { flex: 1; resize: none; min-height: 44px; max-height: 160px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--bg); color: var(--ink); }
   textarea:focus { outline: 2px solid color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: 1px; }
   .hint { padding: 0 18px 12px; font-size: 12px; color: var(--muted); }
+  #chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 18px 8px; }
+  .chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--muted); background: var(--panel); }
+  .chip button { border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; }
   #approvals { display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 0; }
   .approval { border: 1px solid color-mix(in oklab, var(--warn) 45%, var(--line)); background: color-mix(in oklab, var(--warn) 8%, var(--panel)); border-radius: 10px; padding: 10px 12px; }
   .approval .head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
@@ -69,7 +72,10 @@ const PAGE = `<!doctype html>
     <header><div id="title">未选择会话</div><div id="state"></div><button id="stop" hidden>停止</button></header>
     <div id="messages"><div class="empty">左侧新建或选择一个会话开始。</div></div>
     <div id="approvals"></div>
+    <div id="chips"></div>
     <form id="composer">
+      <input id="file" type="file" accept=".txt,.md,.csv,.json" hidden>
+      <button id="attach" type="button" title="附加文本文件（≤512 KiB）">附文件</button>
       <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="2"></textarea>
       <button class="primary" id="send" type="submit">发送</button>
     </form>
@@ -79,7 +85,7 @@ const PAGE = `<!doctype html>
 <script>
 (function () {
   'use strict';
-  var state = { conversationId: null, runId: null, source: null, lastSeq: 0, assistant: null, retries: 0 };
+  var state = { conversationId: null, runId: null, source: null, lastSeq: 0, assistant: null, retries: 0, files: [] };
   var list = document.getElementById('list');
   var messages = document.getElementById('messages');
   var title = document.getElementById('title');
@@ -141,6 +147,39 @@ const PAGE = `<!doctype html>
       setState(decision === 'approve' ? '已批准，继续执行…' : '已拒绝', decision === 'approve' ? 'run' : 'bad');
       return loadApprovals();
     }).catch(function (error) { setState('审批失败：' + error.message, 'bad'); });
+  }
+
+  var chipsEl = document.getElementById('chips');
+  var fileInput = document.getElementById('file');
+  function renderChips() {
+    chipsEl.textContent = '';
+    state.files.forEach(function (file) {
+      var chip = el('span', 'chip');
+      chip.appendChild(el('span', '', file.filename));
+      var remove = el('button', '', '×');
+      remove.addEventListener('click', function () {
+        state.files = state.files.filter(function (item) { return item.id !== file.id; });
+        renderChips();
+      });
+      chip.appendChild(remove);
+      chipsEl.appendChild(chip);
+    });
+  }
+  function uploadFile(file) {
+    if (!file) return;
+    if (file.size > 512 * 1024) { setState('文件超过 512 KiB', 'bad'); return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      api('/api/artifacts', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, content: String(reader.result), mimeType: file.type || 'text/plain' }),
+      }).then(function (data) {
+        state.files.push({ id: data.artifact.id, filename: data.artifact.filename });
+        renderChips();
+        setState('已附加 ' + data.artifact.filename, '');
+      }).catch(function (error) { setState('上传失败：' + error.message, 'bad'); });
+    };
+    reader.readAsText(file);
   }
 
   function renderConversations(items) {
@@ -279,14 +318,20 @@ const PAGE = `<!doctype html>
     if (!state.conversationId) return create().then(function () { return sendMessage(text); });
     var content = text.trim();
     if (!content) return undefined;
+    var attached = state.files.map(function (file) { return file.id; });
     input.value = '';
     bubble('user', content);
     state.assistant = bubble('assistant', '');
     state.assistant.classList.add('pending');
     return api('/api/chat/conversations/' + encodeURIComponent(state.conversationId) + '/messages', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ requestId: crypto.randomUUID(), content: content }),
+      body: JSON.stringify(Object.assign(
+        { requestId: crypto.randomUUID(), content: content },
+        attached.length ? { selection: { artifacts: attached } } : {},
+      )),
     }).then(function (data) {
+      state.files = [];
+      renderChips();
       follow(data.run.id);
       return loadConversations();
     }).catch(function (error) {
@@ -296,6 +341,8 @@ const PAGE = `<!doctype html>
     });
   }
 
+  document.getElementById('attach').addEventListener('click', function () { fileInput.value = ''; fileInput.click(); });
+  fileInput.addEventListener('change', function () { uploadFile(fileInput.files && fileInput.files[0]); });
   document.getElementById('new').addEventListener('click', function () { create().catch(function (error) { setState('新建失败：' + error.message, 'bad'); }); });
   document.getElementById('composer').addEventListener('submit', function (event) {
     event.preventDefault();
