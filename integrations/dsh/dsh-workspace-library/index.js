@@ -897,6 +897,18 @@ export function createLibraryService(store, { attachments = null } = {}) {
       return checkReferences(await read(), references);
     },
 
+    // Metadata-only native consumer boundary: validate all selected pins against one state read.
+    // Byte-reading tools and the composer keep their existing 1–8 reference limit.
+    async checkReferenceSet(references) {
+      if (!Array.isArray(references) || references.length < 1 || references.length > 50)
+        throw new LibraryError('INVALID_INPUT', 'Select 1–50 source pins.');
+      const state = await read();
+      const resolved = [];
+      for (let index = 0; index < references.length; index += 8)
+        resolved.push(...checkReferences(state, references.slice(index, index + 8)).references);
+      return { references: resolved };
+    },
+
     async readReferences(references, { signal } = {}) {
       return readReferences({ readState: read, attachments, references, signal });
     },
@@ -1593,6 +1605,8 @@ export const inject = ['tools', 'attachments'];
 export function apply(ctx, config = {}) {
   const store = new LibraryStore({ dir: resolveDataDirectory(config) });
   const service = createLibraryService(store, { attachments: ctx.attachments });
+  // Optional native consumers share the same authoritative service and immutable source reader.
+  if (ctx.reflect?.provide) ctx.effect(() => ctx.reflect.provide('workspaceLibrary', service), 'workspace-library: service');
   for (const definition of toolDefinitions(service)) {
     ctx.effect(() => ctx.tools.register({ ...definition, output: TOOL_OUTPUT }), `workspace-library: ${definition.name}`);
   }

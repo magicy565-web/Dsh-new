@@ -1,0 +1,4 @@
+- insert:
+    - id: workspace-memory
+      name: dsh-workspace-memory
+      config: {}

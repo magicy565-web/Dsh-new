@@ -24,7 +24,7 @@
 
 ## 已实测
 
-- 三个 bundle 均 installed／enabled，原生 Loader 对应行均 active。
+- 四个 bundle 均 installed／enabled，原生 Loader 对应行均 active。
 - 资料库和 Space：认证请求 200，无会话请求 401。
 - 两个插件的真实 Client 资源由宿主提供。
 - 真实 Chromium 中两个 Client 面板正常挂载；已修复等待 slot 声明的启动顺序问题。
@@ -35,6 +35,8 @@
 - 两个 Client DOM 冒烟通过，使用合成 Host 响应；存在 React act 测试警告。
 - 官方 Cordis／ToolRuntime／LocalAttachmentStore 中，固定旧版 CSV 的字节、SHA、
   工具渲染输出、哈希错误与取消检查通过，使用临时目录，无模型调用。
+- `dsh-workspace-memory` 使用官方 storageDomain / JSON；工具／持久化冒烟通过。
+  Chromium 隔离 profile 中，候选、人工审核、跨工作区隔离、来源归档、撤销、刷新后历史通过。
 - 没有运行真实模型任务；浏览器验收仅覆盖实际操作，不代表完整视觉／主题验收。
 
 Sourcing 的 `workspace-dependencies` 是可选桌面运行时工具。配置遵循官方 SDK
@@ -53,6 +55,10 @@ profile 的方式：仅在 `DSH_PRIMARY_RUNTIME` 或 `DSH_BUNDLED_PRIMARY_RUNTIM
 发送前只校验版本元数据，正文由 `workspace_library_references` 通过原生附件服务读取。
 原生输入框负责芯片、草稿恢复、序列化和取消；插件不另存一套会话或运行循环。
 下一步是在已配置模型的 profile 中验收实际资料使用及原生会话日志。
+
+经营记忆的本地安装需要先在 checkout 根目录 `npm ci --ignore-scripts`，由 npm workspaces
+连接 `@workspace/domain-business-memory`；然后安装 `integrations/dsh/dsh-workspace-memory`。
+该 native bundle 的业务状态保存在宿主存储 domain 中，不创建独立 JSON 后端或服务。
 
 官方参考：[CLI](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/cli/README.md)、
 [插件管理](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/packages/boot/plugin-manager/README.md)。

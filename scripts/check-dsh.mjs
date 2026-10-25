@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
-for (const name of ['dsh-workspace-library', 'dsh-space-workspace', 'dsh-sourcing-agent']) {
+for (const name of ['dsh-workspace-library', 'dsh-space-workspace', 'dsh-sourcing-agent', 'dsh-workspace-memory']) {
   const directory = new URL(`integrations/dsh/${name}/`, root);
   const manifest = JSON.parse(await readFile(new URL('package.json', directory), 'utf8'));
   if (manifest.type !== 'module' || !manifest.dsh?.bundle?.patch) {

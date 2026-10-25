@@ -3,6 +3,10 @@
   "version": "0.5.0-rc.2",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/domain-business-memory",
+    "integrations/dsh/dsh-workspace-memory"
+  ],
   "description": "Native workspace plugins for DeepSeek Harness and host-independent business domains",
   "engines": {
     "node": ">=24"
@@ -13,7 +17,7 @@
     "build": "node scripts/check-dsh.mjs",
     "test": "node scripts/test-dsh.mjs",
     "check": "npm run build && npm test",
-    "test:client": "node integrations/dsh/dsh-workspace-library/dev/client-smoke.mjs && node integrations/dsh/dsh-space-workspace/dev/client-smoke.mjs"
+    "test:client": "node integrations/dsh/dsh-workspace-library/dev/client-smoke.mjs && node integrations/dsh/dsh-space-workspace/dev/client-smoke.mjs && node integrations/dsh/dsh-workspace-memory/dev/client-smoke.mjs"
   },
   "devDependencies": {
     "react": "18.3.1",

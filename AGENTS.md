@@ -8,11 +8,11 @@ servers, installers or historical release archives in the current tree.
 
 Reuse native DSH sessions, model execution, tools, permissions and attachments.
 Business workflow gates belong in optional plugins, not the general substrate.
-The three packages/domain-* packages contain reusable domain rules only; none
-is a mounted DSH tool or running service. Preserve their source/version/review
-boundaries and existing state keys when connecting them to the native host.
+The packages/domain-* packages contain reusable domain rules only. The native
+dsh-workspace-memory bundle adapts the business-memory domain to DSH; the other
+two domains await integration. Preserve source/version/review boundaries and state keys.
 
-Run npm run check (Node 24+, no dependency installation needed). Optional Client
+Run npm ci --ignore-scripts on first setup (Node 24+), then npm run check. Optional Client
 DOM tests use the root devDependencies: npm run test:client. Neither establishes
 live host/model/browser acceptance. Never put user data, credentials, native
 sessions or generated release archives in Git.
