@@ -3,8 +3,9 @@ import { createBusinessMemoryService, validateMemoryState, STATE_KEY, BusinessMe
 const UUID = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/u;
 export const fail = (code, message, status = 400) => { throw new BusinessMemoryError(status, code, message); };
 export const assertKeys = (value, keys) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !keys.includes(key)))
-    fail('MEMORY_INPUT', 'The request contains unsupported fields.');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('MEMORY_INPUT', 'Expected a request object.');
+  const unexpected = Object.keys(value).filter(key => !keys.includes(key));
+  if (unexpected.length) fail('MEMORY_INPUT', `Unsupported fields: ${unexpected.slice(0, 8).map(key => key.slice(0, 80)).join(', ')}.`);
 };
 const check = signal => { if (signal?.aborted) fail('MEMORY_CANCELLED', 'Memory operation cancelled.', 409); };
 
@@ -102,7 +103,10 @@ export function createMemoryService({ storage, registry, getLibrary = () => null
     assertKeys(body, proposalKeys); // activate, actor, role, workspaceId and proof flags are never accepted.
     let source = body.source;
     if (execution && (!source || source.kind === 'conversation')) {
-      if (source) assertKeys(source, ['kind']);
+      if (source) {
+        assertKeys(source, ['kind', 'label']);
+        if (source.label !== undefined && (typeof source.label !== 'string' || source.label.length > 200)) fail('MEMORY_SOURCE_INVALID', 'Source label must be bounded text.');
+      }
       if (typeof execution.callId !== 'string' || execution.callId.length > 150) fail('MEMORY_SOURCE_INVALID', 'A native tool-call identity is required.');
       source = { kind: 'conversation', ref: `${context.sessionId}#tool:${execution.callId}`, label: 'DSH conversation / tool call' };
     } else {
@@ -211,8 +215,10 @@ export function createMemoryService({ storage, registry, getLibrary = () => null
         // A replacement/revocation landing during a later source read invalidates earlier selections too.
         const current = service.assertFacts(context, { ids: items.map(item => item.id) });
         if (!current.current) fail('MEMORY_CHANGED', 'Memory changed during recall. Read it again.', 409);
+        const status = service.status(context);
+        const population = Object.fromEntries(['records', 'active', 'proposed', 'rejected', 'superseded', 'revoked', 'expired'].map(key => [key, status[key]]));
         return { workspaceId: context.actor.workspaceId, revision: current.revision, items, matching: matches.total, scanned: matches.items.length,
-          omitted: matches.total - items.length, excluded, contentRole: 'reference-data' };
+          omitted: matches.total - items.length, excluded, searchScope: 'approved-active-only', population, contentRole: 'reference-data' };
       }, execution?.signal);
     },
     async close() { lifetime.abort(); await Promise.allSettled([...pending]); await storage.drain?.(); },

@@ -20,8 +20,10 @@ const properties = {
   expiresAt: { type: 'string', description: 'Optional exact UTC ISO timestamp, e.g. 2026-12-31T00:00:00.000Z.' },
   supersedesId: { type: 'string', format: 'uuid' },
   source: {
-    type: 'object', additionalProperties: false, required: ['kind'],
-    properties: { kind: { type: 'string', enum: ['conversation', 'document'] }, documentId: string, version: { type: 'integer', minimum: 1 }, sha256: { type: 'string', pattern: '^[a-f0-9]{64}$' }, label: string },
+    oneOf: [
+      { type: 'object', additionalProperties: false, required: ['kind'], properties: { kind: { type: 'string', const: 'conversation' }, label: { type: 'string', maxLength: 200 } } },
+      { type: 'object', additionalProperties: false, required: ['kind', 'documentId', 'version', 'sha256'], properties: { kind: { type: 'string', const: 'document' }, documentId: string, version: { type: 'integer', minimum: 1 }, sha256: { type: 'string', pattern: '^[a-f0-9]{64}$' }, label: { type: 'string', maxLength: 200 } } },
+    ],
     description: 'Omit for a pointer to this native session/tool call (not independently verified), or pin a library doc_ id, version and SHA. You cannot supply actor, review or proof flags.',
   },
 };
@@ -34,9 +36,9 @@ export function registerTools(ctx, service) {
   }), 'workspace-memory: propose');
   ctx.effect(() => ctx.tools.register({
     name: 'business_memory_recall', output,
-    description: 'Recall human-approved, unexpired business memories from the CURRENT native DSH workspace. Rechecks pinned document bytes/SHA and availability. Excludes unavailable, revoked and superseded facts. Returns a bounded result with omissions and exact provenance; cite memory id and revision. Human approval is not independent proof; a conversation pointer is not source verification. No automatic context injection or model execution.',
+    description: 'Recall human-approved, unexpired business memories from the CURRENT native DSH workspace. Rechecks pinned document bytes/SHA and availability. Excludes unavailable, revoked and superseded facts. Returns a bounded result with omissions and exact provenance; cite memory id and revision. Empty items means no usable matches, not an empty workspace or absence of pending candidates: population provides stored lifecycle counts without disclosing pending content. Human approval is not independent proof; a conversation pointer is not source verification. No automatic context injection or model execution.',
     parameters: { type: 'object', additionalProperties: false, properties: {
-      q: { type: 'string', maxLength: 200 }, subjectType: properties.subjectType, subjectId: string, factKey: string, kind: properties.kind,
+      q: { type: 'string', maxLength: 200, description: 'Literal substring search, not an OR keyword query. Use one short phrase or omit q to inspect the bounded current workspace set.' }, subjectType: properties.subjectType, subjectId: string, factKey: string, kind: properties.kind,
       limit: { type: 'integer', minimum: 1, maximum: 50 },
     } }, execute: (args, execution) => service.recall(args, execution),
   }), 'workspace-memory: recall');

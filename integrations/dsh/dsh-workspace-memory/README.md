@@ -30,6 +30,10 @@
 | `business_memory_propose` | 仅提出候选；作用域从当前 Agent 的原生会话归属解析，不能传入工作区／角色／审核标志 |
 | `business_memory_recall` | 当前工作区内的有界召回；最多检查 50 条，默认 20 条，记录 JSON 总计最多 24 KB，返回未返回数量与排除原因 |
 
+召回的 `q` 是字面子串；可省略以读取当前工作区的有界结果。
+`searchScope` 为 `approved-active-only`，`population` 返回各生命周期的数量，不返回待审核内容。
+空 `items` 表示没有可用匹配，不表示工作区没有候选。
+
 没有审核、批准、撤销的模型工具。HTTP 面只面向已认证的 DSH Web 管理员。
 当前 DSH profile 视为单一管理员：他可以在面板中选择 registry 中的各工作区；
 工作区分区是数据组织和 Agent 作用域，不是成员／企业租户隔离承诺。
@@ -81,3 +85,4 @@ DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-workspace-memor
 Client 冒烟使用真实 React / jsdom 与本地 HTTP、合成 storage / registry。
 可选 native smoke 使用官方 Cordis、Tools、StorageDomain / JSON，Agent identity 是测试夹具；
 它验证审批、召回和重启恢复，不验证真实模型任务。
+指定场景的真实模型验收与离线证据检查见 [LIVE-ACCEPTANCE.md](../../../docs/LIVE-ACCEPTANCE.md)。

@@ -28,6 +28,7 @@ function metadata(document, version) {
     documentId: document.id, version: version.version, sha256: version.sha256,
     title: document.title, fileName: version.fileName, mimeType: version.mimeType,
     bytes: version.bytes, currentVersion: document.currentVersion,
+    isCurrentVersion: version.version === document.currentVersion,
     reviewState: review?.decision ?? 'unreviewed', certificate: version.certificate,
   };
 }

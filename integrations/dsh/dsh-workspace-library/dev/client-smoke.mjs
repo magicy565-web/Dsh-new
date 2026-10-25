@@ -117,6 +117,7 @@ if (!exportsModule) throw new Error('client module did not register');
 const registrations = new Map();
 const ctx = {
   inputTriggers: { registerSource() { return () => {}; } },
+  uiSession: { provide() { return () => {}; } },
   effect(callback) {
     return callback();
   },

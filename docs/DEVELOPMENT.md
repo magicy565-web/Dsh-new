@@ -26,7 +26,8 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 由用户在 DSH 的 `plugin_manager` 中安装插件。源码更新后按插件 README 重载 Host／刷新界面。
 仓库中的安装位置、配置模板和历史测试记录不代表本机插件已加载。
 本云环境已安装官方 DSH 0.2.1-rc.2 Web 宿主，四个原生插件已实际挂载；
-运行目录、接口与浏览器验收范围见 [DSH-HOST.md](DSH-HOST.md)。尚未验证桌面或真实模型任务。
+运行目录、接口与浏览器验收范围见 [DSH-HOST.md](DSH-HOST.md)。
+隔离 profile 中的三个真实模型场景见 [LIVE-ACCEPTANCE.md](LIVE-ACCEPTANCE.md)；尚未验证桌面宿主。
 
 经营记忆已通过 `dsh-workspace-memory` 接入原生 storageDomain / 工作区 / 会话和工具。
 产品资料库、询盘恢复两个领域包仍是待接入资产。
@@ -38,8 +39,8 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 `workspace_library_references` 工具读取确切版本，附件字节由 DSH 原生存储提供。
 经营记忆面板提供候选、审核、替换、撤销和来源可用性，模型工具只提供候选／有界召回。
 原生对话指针由当前工具执行上下文构建；文档来源复用资料库读取器再次验证。
-下一步应在有模型配置的开发 profile 中验收真实任务的资料／记忆使用与原生会话记录，
-再接产品领域包或询盘恢复；业务阶段继续留在可选插件中。
+资料／记忆的三个真实模型场景已通过原生会话记录验收。
+后续可接产品领域包或询盘恢复；业务阶段继续留在可选插件中。
 
 ## 不进入源码树的内容
 

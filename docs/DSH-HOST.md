@@ -25,19 +25,22 @@
 ## 已实测
 
 - 四个 bundle 均 installed／enabled，原生 Loader 对应行均 active。
-- 资料库和 Space：认证请求 200，无会话请求 401。
-- 两个插件的真实 Client 资源由宿主提供。
-- 真实 Chromium 中两个 Client 面板正常挂载；已修复等待 slot 声明的启动顺序问题。
+- 资料库、Space 和经营记忆：认证请求 200，无会话请求 401。
+- 三个插件的真实 Client 资源由宿主提供，Chromium 面板正常挂载。
+  资料库和 Space 已修复等待 slot 声明的启动顺序问题。
 - 隔离 profile 中，原生引用按钮、旧版本芯片、刷新恢复及归档后的发送拦截通过；
   失败发送保留草稿，无模型 prompt 请求。测试数据没有写入开发 profile。
 - 资料库与 Space 数据目录遵循原生 `DSH_HOME`；显式 `config.dataDir` 仍优先。
 - 原生 Agent preset 列表包含 `sourcing`，没有 broken 诊断。
-- 两个 Client DOM 冒烟通过，使用合成 Host 响应；存在 React act 测试警告。
+- 三个 Client DOM 冒烟通过；资料库和 Space 使用合成 Host 响应，
+  记忆使用本地 HTTP 与合成 registry / storage。前两个存在 React act 测试警告。
 - 官方 Cordis／ToolRuntime／LocalAttachmentStore 中，固定旧版 CSV 的字节、SHA、
   工具渲染输出、哈希错误与取消检查通过，使用临时目录，无模型调用。
 - `dsh-workspace-memory` 使用官方 storageDomain / JSON；工具／持久化冒烟通过。
   Chromium 隔离 profile 中，候选、人工审核、跨工作区隔离、来源归档、撤销、刷新后历史通过。
-- 没有运行真实模型任务；浏览器验收仅覆盖实际操作，不代表完整视觉／主题验收。
+- 隔离 profile 中三个真实模型场景通过：历史文件读取、批准偏好跨会话召回、归档／撤销后停止引用。
+  使用合成数据；依据、修复和边界见 [LIVE-ACCEPTANCE.md](LIVE-ACCEPTANCE.md)。
+- 浏览器验收不代表完整视觉／主题验收；尚未验证桌面宿主。
 
 Sourcing 的 `workspace-dependencies` 是可选桌面运行时工具。配置遵循官方 SDK
 profile 的方式：仅在 `DSH_PRIMARY_RUNTIME` 或 `DSH_BUNDLED_PRIMARY_RUNTIME`
@@ -51,10 +54,10 @@ profile 的方式：仅在 `DSH_PRIMARY_RUNTIME` 或 `DSH_BUNDLED_PRIMARY_RUNTIM
 4. 修改 Host 代码后重载／重启相应插件；修改 Client 后刷新页面并核查资源版本。
 5. 运行核心／DOM 回归，再通过原生插件管理器、认证接口及预设列表验收挂载。
 
-资料引用使用原生 `inputTriggers` 和 `conversation.input.left`，按钮在新对话和已有对话中共用。
+资料引用使用原生 `inputTriggers`、`uiSession` 和 `conversation.input.left`，按钮在新对话和已有对话中共用。
 发送前只校验版本元数据，正文由 `workspace_library_references` 通过原生附件服务读取。
 原生输入框负责芯片、草稿恢复、序列化和取消；插件不另存一套会话或运行循环。
-下一步是在已配置模型的 profile 中验收实际资料使用及原生会话日志。
+真实模型验收通过原生会话记录核实使用情况；开发启动不因此启用模型调用。
 
 经营记忆的本地安装需要先在 checkout 根目录 `npm ci --ignore-scripts`，由 npm workspaces
 连接 `@workspace/domain-business-memory`；然后安装 `integrations/dsh/dsh-workspace-memory`。

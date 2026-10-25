@@ -62,6 +62,8 @@ test('discovery is metadata-only and old pins keep their own content and review 
   assert.equal(result.items[0].content, 'MOQ 300');
   assert.equal(result.items[0].source.reviewState, 'verified');
   assert.equal(result.items[0].source.currentVersion, 2);
+  assert.equal(result.items[0].source.isCurrentVersion, false);
+  assert.equal(choices.items[0].isCurrentVersion, true);
   assert.equal((await service.checkReferences([pin(first)])).references[0].version, 1);
 });
 
@@ -71,6 +73,13 @@ test('native text attachments are verified by bytes and hash, including UTF-8 va
   const doc = await service.addDocument({ title: '价格资料', fileName: 'prices.csv', mimeType: 'text/csv', data: Buffer.from('SKU,价格\nA,10\n') });
   const result = await service.readReferences([pin(doc)]);
   assert.match(result.items[0].content, /SKU,价格/u);
+  const before = (await service.documents()).items[0];
+  assert.equal(before.hasContent, true);
+  assert.equal(before.hasFile, true);
+  assert.equal(before.hasInlineText, false);
+  await service.updateDocument(doc.id, { expectedRevision: 1, changes: { status: 'archived' } });
+  assert.equal((await service.documents({ status: 'archived' })).items[0].hasContent, true, 'archiving does not turn a stored file into empty content');
+  await service.updateDocument(doc.id, { expectedRevision: 2, changes: { status: 'active' } });
   attachments.blobs.set(doc.versions[0].attachment.attachmentId, Buffer.from('tampered'));
   await assert.rejects(() => service.readReferences([pin(doc)]), { code: 'REFERENCE_CHANGED' });
   const bad = await service.addDocument({ title: '坏编码', fileName: 'bad.txt', mimeType: 'text/plain', data: Buffer.from([0xc3, 0x28]) });

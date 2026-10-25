@@ -39,7 +39,16 @@ test('Agent proposals stay pending, are scoped from native sessions and cannot c
   assert.equal(record.source.kind, 'conversation');
   assert.equal(record.source.verified, false);
   assert.match(record.source.ref, /conversation:session-alpha#tool:call-native-1/u);
-  assert.equal((await service.recall({}, execution())).items.length, 0);
+  const labelled = (await service.toolPropose(proposal({ source: { kind: 'conversation', label: '用户确认的偏好' } }), execution())).record;
+  assert.equal(labelled.source.kind, 'conversation');
+  assert.equal(labelled.source.verified, false);
+  assert.equal(labelled.source.label, 'DSH conversation / tool call', 'native host owns the stored label and pointer');
+  const recalled = await service.recall({}, execution());
+  assert.equal(recalled.items.length, 0);
+  assert.equal(recalled.searchScope, 'approved-active-only');
+  assert.equal(recalled.population.proposed, 2);
+  assert.equal(recalled.population.active, 0);
+  assert.equal(JSON.stringify(recalled).includes(record.statement), false, 'population counts never reveal pending statements');
   assert.equal((await service.state(beta)).items.length, 0);
   for (const field of ['activate', 'actor', 'role', 'workspaceId', 'reviewedBy']) {
     await assert.rejects(() => service.toolPropose({ ...proposal(), [field]: true }, execution()), { code: 'MEMORY_INPUT' });

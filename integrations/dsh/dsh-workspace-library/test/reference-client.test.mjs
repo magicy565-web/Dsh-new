@@ -56,6 +56,7 @@ test('both client panels wait for the slot they contribute to, regardless of hos
       effect: fn => fn(),
       locale: { register: () => () => {}, bind: () => key => key },
       inputTriggers: { registerSource: () => () => {} },
+      uiSession: { provide: () => () => {} },
       slots: {
         inject(name, fn) { owner = name; const dispose = fn(); owner = undefined; return dispose; },
         register(options) {
@@ -80,15 +81,20 @@ test('stale pins block native submission instead of falling back to clipboard te
   await assert.rejects(() => cancelled.codec.serialize(JSON.stringify(pin), abort.signal), { name: 'AbortError' });
 });
 
-test('native source and composer action are disposed with the client plugin and preserve revision-guarded edits', () => {
+test('native source launcher preserves the guarded selection without injecting a literal @ or moving the caret', () => {
   const module = load(async () => json({ items: [] }));
   const registered = new Map();
-  let source, disposed = false;
+  let source, provider, disposed = false, providerDisposed = false;
+  const launches = [], binding = { ctx: {} };
   const effects = [];
   const ctx = {
     effect: fn => { const dispose = fn(); effects.push(dispose); return dispose; },
     locale: { register: () => () => {}, bind: () => key => key },
-    inputTriggers: { registerSource(value) { source = value; return () => { disposed = true; }; } },
+    inputTriggers: {
+      registerSource(value) { source = value; return () => { disposed = true; }; },
+      sessionOf(scope) { assert.equal(scope, binding.ctx); return { toggleSource: (name, hit) => launches.push({ name, hit }) }; },
+    },
+    uiSession: { provide(value) { provider = value; return () => { providerDisposed = true; }; } },
     slots: {
       inject: (_name, fn) => fn(),
       register(options, component) { registered.set(`${options.name}:${options.id ?? options.key}`, component); return () => {}; },
@@ -97,17 +103,19 @@ test('native source and composer action are disposed with the client plugin and 
   module.apply(ctx);
   assert.equal(source.name, 'workspace-library');
   const Button = registered.get('conversation.input.left:workspace-library');
-  const edits = [];
   const span = { start: 3, end: 3, draftRev: 7 };
   const button = Button({ t: key => key, useInput: fn => fn({ draft: 'abc', phase: 'plain' }), inputActions: {
     captureInsertion: () => span,
-    insertText: (text, value) => { edits.push({ text, value }); return false; },
-  } });
+    insertText: () => { throw new Error('The menu launcher must not mutate the draft.'); },
+  }, ...provider.resolve(binding).props });
   assert.equal(button.props.disabled, false);
   button.props.onClick();
-  assert.equal(edits[0].text, ' @');
-  assert.equal(edits[0].value, span);
+  assert.equal(launches[0].name, 'workspace-library');
+  assert.equal(launches[0].hit.span, span);
+  assert.equal(launches[0].hit.position, 'inline');
+  assert.equal(launches[0].hit.trigger, '@');
   assert.equal(Button({ t: key => key, useInput: fn => fn({ phase: 'submitting' }) }).props.disabled, true);
   effects.reverse().forEach(dispose => dispose?.());
   assert.equal(disposed, true);
+  assert.equal(providerDisposed, true);
 });

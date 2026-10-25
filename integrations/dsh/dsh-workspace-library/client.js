@@ -2335,7 +2335,7 @@ window.__ModuleLoader__.load({
     // ---------------------------------------------------------------------
     // Plugin
 
-    const inject = ['slots', 'locale', 'inputTriggers'];
+    const inject = ['slots', 'locale', 'inputTriggers', 'uiSession'];
 
     // The native composer owns chips, draft persistence, cancellation and final user-message logging.
     function createReferenceSource(t) {
@@ -2374,7 +2374,7 @@ window.__ModuleLoader__.load({
       };
     }
 
-    function ReferenceButton({ t, inputActions, useInput }) {
+    function ReferenceButton({ t, inputActions, useInput, openLibraryReferences }) {
       const input = useInput(value => value);
       return h('button', {
         type: 'button', title: t('reference.hint'),
@@ -2382,8 +2382,7 @@ window.__ModuleLoader__.load({
         onMouseDown: event => event.preventDefault(),
         onClick: () => {
           const span = inputActions.captureInsertion();
-          const prefix = span.start && !/\s/u.test(input.draft[span.start - 1]) ? ' ' : '';
-          inputActions.insertText(`${prefix}@`, span);
+          openLibraryReferences({ span, position: input.draft.slice(0, span.start).trim() === '' ? 'leading' : 'inline' });
         },
         style: { background: 'transparent', color: 'var(--dsw-alias-label-secondary)', border: '1px solid var(--dsw-alias-border-main)', borderRadius: '8px', padding: '3px 8px', fontSize: '12px', cursor: 'pointer' },
       }, t('reference.insert'));
@@ -2393,6 +2392,14 @@ window.__ModuleLoader__.load({
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'workspace-library: dictionaries');
       const t = ctx.locale.bind(NS);
       ctx.effect(() => ctx.inputTriggers.registerSource(createReferenceSource(t)), 'workspace-library: native document references');
+      ctx.effect(() => ctx.uiSession.provide({
+        props: ['openLibraryReferences'],
+        resolve: binding => ({ props: {
+          openLibraryReferences: ({ span, position }) => ctx.inputTriggers.sessionOf(binding.ctx).toggleSource('workspace-library', {
+            trigger: '@', query: '', quoted: false, position, span,
+          }),
+        } }),
+      }), 'workspace-library: native reference launcher');
       ctx.effect(() => ctx.slots.inject('conversation.input.left', () =>
         ctx.slots.register({ name: 'conversation.input.left', id: 'workspace-library', order: -10, locale: NS }, ReferenceButton)),
       'workspace-library: composer reference action');
