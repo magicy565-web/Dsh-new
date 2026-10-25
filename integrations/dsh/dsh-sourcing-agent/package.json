@@ -2,28 +2,20 @@
   "name": "@local/dsh-sourcing-agent",
   "version": "1.0.0",
   "private": true,
-  "description": "Sourcing Agent: a built-in business agent that turns products and ideas into overseas sales opportunities, in B2B supplier-growth and DTC brand-launch modes",
+  "description": "Optional sourcing skills and templates for native DSH sessions; no business stage engine",
   "type": "module",
   "exports": {
     ".": "./index.js",
-    "./tools": "./tools.js",
-    "./workflow": "./workflow.js",
-    "./policies/*.json": "./policies/*.json",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
   "files": [
     "index.js",
-    "tools.js",
-    "workflow.js",
-    "policies/*.json",
     "cordis.patch.yml",
     "icon.svg",
     "locale/*.json",
     "skills/**",
-    "examples/**",
-    "docs/**",
     "README.md"
   ],
   "dsh": {

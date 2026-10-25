@@ -5,7 +5,7 @@ Agent 执行、模型、会话、工具循环和取消由 DSH 宿主负责。
 
 当前正在收敛为 DSH 宿主与少量按需插件，暂停扩展业务面板和阶段流程。
 下方是现有实现清单，不代表通用底座需要全部安装。保留／移出核心／删除的判断见
-[收敛清单](docs/SCOPE-REDUCTION.md)；本轮审查尚未删除这些实现。
+[收敛清单](docs/SCOPE-REDUCTION.md)；Sourcing 已完成 skill 化试点，其余实现尚待收敛。
 
 ## 目录
 
@@ -22,7 +22,7 @@ licenses/          第三方许可
 | --- | --- |
 | [dsh-workspace-library](integrations/dsh/dsh-workspace-library/README.md) | 企业／产品资料、版本审核、产品上下文与缺口、原生对话引用和确切版本读取 |
 | [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
-| [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 可选的获客业务方法、规则和交付物 |
+| [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill 与模板 |
 | [dsh-workspace-memory](integrations/dsh/dsh-workspace-memory/README.md) | 经营记忆、人工审核、来源核验，以及跨已有资料／记忆／询盘的只读检索 |
 | [dsh-inquiry-recovery](integrations/dsh/dsh-inquiry-recovery/README.md) | 可选历史询盘：原文件核验、人工身份判断、Agent 撰写的未发送草稿 |
 
@@ -58,7 +58,7 @@ DOM 冒烟与本地 Host 测试均不能替代真实 DSH 挂载和浏览器验�
 
 经营记忆与询盘恢复已通过原生插件接入，复用 DSH 的 storageDomain、工作区、会话、附件和工具服务；
 Medusa 产品领域包仍待接入，本地产品上下文已由资料库提供。没有自动读取或迁移旧工作台数据。
-Sourcing 的业务阶段只属于可选业务插件，不是通用 Agent 的强制流程。
+Sourcing 已移除自建业务阶段引擎；保留的 skill 可按任务独立使用。
 
 开发入口见 [开发约定](docs/DEVELOPMENT.md)，原生安装与接入见 [DSH 宿主](docs/DSH-HOST.md)，
 验证边界见 [VALIDATION](VALIDATION.md)，指定场景的真实模型验收见 [验收记录](docs/LIVE-ACCEPTANCE.md)。

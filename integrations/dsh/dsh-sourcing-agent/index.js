@@ -70,6 +70,7 @@ export function loadSkills(root, log) {
     }
     loaded.push({
       name: parsed.fields.name,
+      source: 'bundled',
       description: parsed.fields.description,
       ...(parsed.fields.whenToUse === undefined ? {} : { whenToUse: parsed.fields.whenToUse }),
       content: parsed.content,

@@ -32,6 +32,8 @@
   失败发送保留草稿，无模型 prompt 请求。测试数据没有写入开发 profile。
 - 资料库与 Space 数据目录遵循原生 `DSH_HOME`；显式 `config.dataDir` 仍优先。
 - 原生 Agent preset 列表包含 `sourcing`，没有 broken 诊断。
+- Sourcing 已移除自建阶段引擎；六份方法经官方 skill registry 实测注册、按需读取和卸载，
+  也可由原生文件发现独立加载。修复注册时缺失 `source` 字段导致目录可见而正文读取失败的问题。
 - 四个 Client DOM 冒烟通过；资料库和 Space 使用合成 Host 响应，
   记忆和询盘使用本地 HTTP 与合成 registry / storage。前两个存在 React act 测试警告。
 - 官方 Cordis／ToolRuntime／LocalAttachmentStore 中，固定旧版 CSV 的字节、SHA、
@@ -44,6 +46,8 @@
   模型原答复仍有文字偏差，见 [PRODUCT-CONTEXT.md](PRODUCT-CONTEXT.md)。
 - 询盘恢复的实际 Chromium 文件导入、身份审核、隔离、草稿附件和来源会话跳转通过；
   两个真实模型会话验证自己撰写候选和新修订退订后停止，详见 [插件说明](../integrations/dsh/dsh-inquiry-recovery/README.md)。
+- Sourcing skill 化后，隔离真实模型会话只加载 export-supplier 和回复模板即可完成单封草稿，
+  工作目录为空，无阶段或业务写入。首次答复曾把未知认证写成否定，修改方法及模板后独立复验保留待确认。
 - 浏览器验收不代表完整视觉／主题验收；尚未验证桌面宿主。
 
 Sourcing 的 `workspace-dependencies` 是可选桌面运行时工具。配置遵循官方 SDK

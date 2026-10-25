@@ -1,22 +1,26 @@
 # DeepSeek Harness 原生插件
 
-DSH 是当前唯一的后续 Agent 执行宿主。这里的四个插件由 DSH 的
+DSH 是当前唯一的后续 Agent 执行宿主。这里的五个既有 bundle 由 DSH 的
 `plugin_manager` / profile bundle 装载，不再需要独立 Workspace Harness 服务。
 
 | 目录 | 包名 | 版本 | 作用 |
 | --- | --- | --- | --- |
 | `dsh-workspace-library` | `dsh-workspace-library` | 1.2.0 | 企业／产品资料、文件、图片、版本审核 |
 | `dsh-space-workspace` | `dsh-space-workspace` | 1.1.0 | Space 页面、分享、评论及任务设置记录 |
-| `dsh-sourcing-agent` | `@local/dsh-sourcing-agent` | 1.0.0 | 可选 DTC／B2B 业务方法、阶段规则与交付物 |
+| `dsh-sourcing-agent` | `@local/dsh-sourcing-agent` | 1.0.0 | 按需业务 skill 与模板，无自建阶段引擎 |
 | `dsh-workspace-memory` | `dsh-workspace-memory` | 0.1.0 | 经营记忆候选、人工审核、原生工作区隔离与来源召回 |
+| `dsh-inquiry-recovery` | `dsh-inquiry-recovery` | 0.1.0 | 可选询盘来源、身份及未发送草稿 |
 
-在 DSH 内分别执行：
+这些既有实现不是通用底座的默认必备范围，收敛方向见 [清单](../../docs/SCOPE-REDUCTION.md)。
+
+按需在 DSH 内安装：
 
 ```text
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-workspace-library
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-space-workspace
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-sourcing-agent
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-workspace-memory
+plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-inquiry-recovery
 ```
 
 Host 代码改动后按插件文档禁用／启用或重启 DSH，页面强刷。根目录 `npm start`

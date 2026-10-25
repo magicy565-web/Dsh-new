@@ -1,14 +1,16 @@
 # 验证状态
 
-2026-10-26，DSH 原生经营记忆、产品上下文、询盘恢复与真实模型场景验收后：
+2026-10-26，DSH 原生插件验收及 Sourcing skill 化试点后：
 
 | 检查 | 结果 |
 | --- | --- |
 | `npm run build` | 五个原生 bundle 入口、JavaScript 语法、资料库中英文字典通过；记忆／询盘字典与原生合约由核心测试验证 |
-| `npm test` | 129/129 项通过，零跳过：五个原生插件及三个领域包 |
+| `npm test` | 107/107 项通过，零跳过；删除旧阶段引擎的 25 项测试，新增 3 项 skill 注册／模板／安装契约检查（原 129 项） |
 | 本地文档链接／JS 相对导入 | 未发现缺失目标 |
 | 根目录 npm 锁文件 | 本地领域包／记忆插件 workspace 链接、锁定 zod 和 Client 测试依赖一致 |
 | 原生 DSH 0.2.1-rc.2 | 五个 bundle 已挂载；四个面板的认证接口与 Client 资源通过，Sourcing 预设无 broken 诊断 |
+| Sourcing 官方 skill 加载 | 六份方法均可原生注册、按需读取、卸载；标准文件发现也可独立加载，无需自建业务工具或专用预设 |
+| Sourcing 真实模型 | 隔离原生会话完成单封询盘草稿，只调用 skill 与模板 read，工作目录为空，无项目／阶段或写入；初次将未知认证写成否定，补强方法及模板后独立复验保留待确认。仅验证该小任务 |
 | 官方工具／附件存储 | 固定旧版本 CSV 原字节与 SHA、工具渲染结果、哈希不符、取消均通过；临时数据，无模型调用 |
 | Chromium 原生 Client | 隔离 profile：两面板挂载、引用按钮、旧版本芯片、刷新恢复、归档后发送 409 且保留草稿通过；模型 prompt 请求为 0 |
 | 经营记忆原生存储／工具 | 官方 ToolRuntime、StorageDomain / JSON、附件存储的候选排除、人工审核、召回、旧来源 SHA、归档排除、重启持久化通过；Agent identity 为测试夹具 |
@@ -38,3 +40,6 @@
 询盘插件的规则属于可选业务能力，不驱动通用宿主或自动发送；详细边界见 [插件说明](integrations/dsh/dsh-inquiry-recovery/README.md)。
 旧 HTTP 桥接的自动记忆注入已移除，当前使用原生工具按需召回。
 旧运行层的测试、截图和历史交付记录不作为当前版本的验收依据。
+
+Sourcing 原生 skill 冒烟可重复运行：
+`DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-sourcing-agent/dev/native-smoke.mjs`。

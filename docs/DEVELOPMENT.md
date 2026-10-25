@@ -2,6 +2,7 @@
 
 当前优先级是范围收敛，依据 [收敛清单](SCOPE-REDUCTION.md) 做减法。
 暂停新增业务模块、面板和审批链；既有功能及五插件环境记录不是继续扩建的要求。
+Sourcing 试点已删除自建阶段引擎，六份方法改为可独立加载的 skill；资料读取工具与其他模块本轮保留。
 
 本仓库的执行宿主是 DeepSeek Harness。原生插件在 `integrations/dsh/`，
 通用领域逻辑在 `packages/domain-*`，不另建 Agent Loop、模型网关、权限系统或工作台服务。

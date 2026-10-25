@@ -1,42 +1,23 @@
-# 询盘回复模板
+> 可选结构：只保留本次任务需要的部分，删除占位符或标为待确认。模板不授权发送，不设回复时限。
 
-24 小时内回复；先确认需求，再报价，最后给下一步。
+# 询盘回复
 
-```
-Subject: Quotation — <product> / <quantity> / <destination>
+```text
+Subject: Your enquiry — <product>
 
-Hi <First name>,
+Hi <name>,
 
-Thank you for your inquiry. To make sure the quote matches your market, I've
-confirmed the following:
+Thank you for your enquiry about <confirmed product, quantity and destination>.
+Could you share <specifications needed to answer this enquiry>?
 
-- Model: <model>
-- Quantity: <qty> pcs
-- Destination: <country / port>
-- Application: <use case>
+<Only if relevant: Price, MOQ, lead time and certification status are pending
+confirmation.>
 
-Quotation (valid until <date>):
-
-| Item | Spec | MOQ | Unit price | Incoterm | Lead time |
-|---|---|---|---|---|---|
-| <model> | <key specs> | <qty> | <currency> <price> | FOB <port> | <days> |
-
-Included: <packaging>, <documents on file: CE / RoHS / test report>
-Not included: <freight, duties, destination charges>
-
-Sample: <fee> + freight collect, refundable against an order above <qty>.
-Payment: 30% T/T deposit, 70% against B/L copy (negotiable for repeat orders).
-
-Next step: confirm the quantity and destination port and I will send the formal
-quotation and packing details today.
-
-<Name>, <Title>
+Best regards,
+<sender>
 ```
 
-## 被压价时的三个方案
-
-1. 降价换配置：`We can reach <price> with <smaller pack / simpler packaging / lower grade>.`
-2. 加量换价：`At <volume> the unit price drops to <price>.`
-3. 换条款：`Same price, but 50% deposit and <shorter lead time>.`
-
-不要一次让到底；每次让步都换一个条件。
+只把用户已提供或来源已核实的内容写成事实。“待确认”不等于“没有”：认证未知时不声称已有或没有证书。
+如已有报价依据，可增加实际规格、币种、价格、贸易术语、费用范围和有效期；没有依据就不填报价表。
+付款、样品费、退款、库存和交期按实际政策表达，不从模板生成承诺。
+需要协商时，可讨论配置、数量或条款的替代方案；价格变化与付款比例均须有实际依据。
