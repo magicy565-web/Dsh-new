@@ -44,13 +44,16 @@ try {
   assert.equal(draft.isError, false, JSON.stringify(draft)); assert.equal(draft.value.draft.sent, false);
   assert.equal(draft.value.attachmentBytesVerified, true); assert.equal(draft.value.nativeOrigin.sessionId, workspace.sessionIds[0]);
   const file = await service.draftFile(workspace.id, draft.value.id); assert.equal(file.data.toString(), command.content);
+  await service.reviewDraft(workspace.id, draft.value.id, { requestId: randomUUID(), expectedReviewRevision: 0, draftSha256: draft.value.draft.sha256, sourceHash: command.sourceHash, decision: 'approved', note: 'Operator reviewed synthetic content.' });
   await ctx.fiber.dispose(); ctx = await boot(); service = ctx.get('inquiryRecovery');
   assert.equal(service.drafts(workspace.id).items[0].id, draft.value.id);
+  assert.equal(service.drafts(workspace.id).items[0].contentReview.state, 'approved');
   await service.import(workspace.id, { requestId: randomUUID(), sourceName: 'updated.csv', format: 'csv', authorized: true, dataBase64: Buffer.from(toCsv([row({ revision: 2, status: 'opted_out' })])).toString('base64') });
   read = await execute('inquiry_recovery_read', { action: 'read', leadId: 'linen-buyer' });
   assert.equal(read.value.card.decision, 'hold'); assert.equal(read.value.identity.status, 'unknown');
   assert.equal((await execute('inquiry_recovery_propose_draft', command)).isError, true);
   assert.equal(service.drafts(workspace.id).items[0].sourceRevisionMatches, false);
+  assert.equal(service.drafts(workspace.id).items[0].contentReview.state, 'stale');
   assert.equal(ctx.tools.get('inquiry_recovery_send'), undefined); assert.equal(ctx.tools.get('inquiry_recovery_review'), undefined);
   console.log('OK: official ToolRuntime + StorageDomain/JSON + native attachments; source bytes, operator review, proposed text, unsent draft, restart and updated opt-out. Fixture Agent identity; no model calls.');
 } finally { await ctx?.fiber.dispose(); await rm(root, { recursive: true, force: true }); }

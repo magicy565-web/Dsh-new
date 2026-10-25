@@ -16,7 +16,13 @@ plugin_manager install_bundle target=<checkout>/integrations/dsh/dsh-inquiry-rec
 1. 选择原生工作区，选择有权使用的 UTF-8 CSV / JSON 文件并导入。每次最多 64 KiB、50 行。
 2. 查看询盘、原始联系记录和逐字片段；人工核对身份并记录依据。判断绑定确切来源哈希和审核修订。
 3. 在原生对话中要求 Agent 根据当前资料提出草稿。Agent 自主读取询盘、产品或记忆，不指定工具顺序。
-4. 草稿保存在原生附件中，可从面板查看、下载或打开来源对话。它始终未审核、未发送。
+4. 草稿保存在原生附件中，可从面板查看、下载或打开来源对话。
+5. 管理员填写审阅说明，记录「内容审阅通过」或「需要修改」。审阅绑定草稿 SHA、询盘来源和身份审核修订，不授权发送。
+
+原始候选的 `draft.humanReviewed: false` 保留创建时状态；当前人工内容判断另存于 `contentReview` 和 `contentReviews` 历史。
+来源或身份审核变化后，已通过的内容审阅标为 `stale`。批准前重新读取原文件和草稿附件核验字节；
+需要修改的记录可以针对已失效候选保存。每份草稿最多保留 100 次审阅，修订冲突返回 409。
+没有注册模型内容审批工具，所有草稿仍为未发送。
 
 搜索可按公司、产品或询盘标识缩小范围。列表默认返回 20 条，工具最多 50 条。
 面板显示最近 10 份草稿；领域保留窗口更大，历史列表不代表全部记录。
@@ -47,7 +53,7 @@ JSON 沿用 `historical-inquiry.input.v1` 和显式授权数据标记的既有�
 
 模型不能传入身份、工作区、批准或发送标志。工具作用域从当前 Agent 的原生会话归属解析，返回前再次检查归属。
 导入、身份判断仅在同源认证的管理员界面提供，不注册为模型工具。
-本插件没有发送、草稿批准或任务启用工具。
+模型工具不提供发送、内容审批或任务启用能力。
 
 `follow_up` / `need_evidence` / `nurture` / `hold` 来自可选业务规则，默认以 7 天未联系作为候选阈值
 （`config.staleDays` 可设置为 1–365）。这些判断不是发送许可或通用 Agent 的强制流程。
@@ -72,6 +78,7 @@ JSON 沿用 `historical-inquiry.input.v1` 和显式授权数据标记的既有�
 - `POST /workspaces/:id/import`：原文件 base64、格式、名称、requestId 和授权确认。
 - `POST /workspaces/:id/leads/:leadId/identity`：来源哈希、审核修订、判断和依据。
 - `GET /workspaces/:id/drafts`、`GET /workspaces/:id/drafts/:draftId/file`。
+- `POST /workspaces/:id/drafts/:draftId/review`：稳定 requestId、审阅修订、草稿 SHA、询盘来源哈希、决定及说明；仅管理员界面使用。
 - `GET /workspaces/:id/imports/:importId/file`：已校验的原文件。
 
 写入使用稳定 UUID requestId。相同命令重试复用它，改动对象或内容必须换新 UUID。

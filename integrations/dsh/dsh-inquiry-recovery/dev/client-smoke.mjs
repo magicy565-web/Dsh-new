@@ -63,6 +63,10 @@ try {
   await wait(() => document.querySelector('.ir .draft'));
   assert.ok(document.body.textContent.includes(t('unreviewed')));
   assert.ok(document.querySelector(`a[href$="/drafts/${draft.id}/file"]`));
+  await change(document.querySelector(`textarea[aria-label="${t('reviewNote')}"]`), 'Operator checked the synthetic text against the exact source.');
+  await click(t('approved'));
+  await wait(() => service.drafts(alpha).items[0].contentReview.state === 'approved' && !document.querySelector('.ir button:disabled')?.textContent.includes(t('loading')));
+  assert.equal(service.drafts(alpha).items[0].authorizationToSend, false);
   await change(document.querySelector(`select[aria-label="${t('workspace')}"]`), beta);
   await wait(() => document.body.textContent.includes(t('empty')));
   assert.equal(document.body.textContent.includes('Unsent DOM fixture'), false);
@@ -71,6 +75,7 @@ try {
   await wait(() => document.querySelector('.ir .draft'));
   await service.import(alpha, { requestId: randomUUID(), sourceName: 'new-revision.csv', format: 'csv', authorized: true, dataBase64: Buffer.from(toCsv([row({ revision: 2, status: 'opted_out' })])).toString('base64') });
   await click(t('refresh')); await wait(() => document.body.textContent.includes(t('sourceChanged')));
+  assert.equal(service.drafts(alpha).items[0].contentReview.state, 'stale');
   await act(async () => document.querySelector('.ir .row').click());
   await wait(() => document.body.textContent.includes(t('hold')) && document.querySelector('textarea'));
   assert.equal(document.querySelector(`select[aria-label="${t('identity')}"]`).value, 'unknown');

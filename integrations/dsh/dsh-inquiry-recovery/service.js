@@ -27,6 +27,13 @@ export function validateRoot(root) {
     if (!db) continue;
     for (const entry of db.imports) sourceShape(entry.nativeSource);
     for (const item of db.selections) {
+      if (item.contentReviews !== undefined && (!Array.isArray(item.contentReviews) || item.contentReviews.length > 100)) fail('INQUIRY_STORE_INVALID', 'Invalid draft review history.', 500);
+      for (const [index, review] of (item.contentReviews ?? []).entries()) {
+        if (review.revision !== index + 1 || !UUID.test(review.requestId ?? '') || !['approved', 'needs_changes'].includes(review.decision)
+          || review.actor !== 'dsh-browser-admin' || review.draftSha256 !== item.draft?.sha256 || review.sourceHash !== item.leadSourceHash
+          || typeof review.note !== 'string' || review.note.length > 2000)
+          fail('INQUIRY_STORE_INVALID', 'Invalid draft review record.', 500);
+      }
       if (!item.draft || item.draft.sent !== false || item.draft.humanReviewed !== false || item.draft.humanReviewRequired !== true
         || item.draft.sha256 !== digest(Buffer.from(item.draft.content ?? '', 'utf8'))
         || item.goalDraft?.enabled !== false || item.goalDraft?.notWritten !== true)
@@ -176,7 +183,13 @@ export function createRecoveryService({ storage, registry, attachments, clock = 
   function draftView(id, item, actor) {
     const current = core(id).lead(item.leadId, actor).card;
     const { goalDraft, artifact, ...draft } = item;
-    return { ...draft, sourceRevisionMatches: current.revision === item.leadRevision && current.sourceHash === item.leadSourceHash,
+    const latest = item.contentReviews?.at(-1);
+    const identity = core(id).lead(item.leadId, actor).identity;
+    const reviewCurrent = current.revision === item.leadRevision && current.sourceHash === item.leadSourceHash
+      && current.decision === 'follow_up' && latest?.identityReviewRevision === (identity.reviewRevision ?? 0);
+    return { ...draft, contentReview: { revision: item.contentReviews?.length ?? 0, latest: latest ?? null,
+      state: !latest ? 'pending' : latest.decision === 'approved' && !reviewCurrent ? 'stale' : latest.decision }, authorizationToSend: false,
+      sourceRevisionMatches: current.revision === item.leadRevision && current.sourceHash === item.leadSourceHash,
       ruleEligibleNow: current.decision === 'follow_up',
       verification: { originalSourceBytes: 'not-rechecked-by-history-list', draftAttachmentBytes: 'not-rechecked-by-history-list' }, contentRole: 'unreviewed-draft' };
   }
@@ -201,6 +214,43 @@ export function createRecoveryService({ storage, registry, attachments, clock = 
     },
     read(id, leadId, signal) { const actor = browser(id); return run(combined => read(id, leadId, actor, combined), signal); },
     drafts(id) { return drafts(workspace(id), browser(id)); },
+    reviewDraft(id, draftId, body, signal) {
+      const actor = browser(id);
+      keys(body, ['requestId', 'expectedReviewRevision', 'draftSha256', 'sourceHash', 'decision', 'note']);
+      if (!UUID.test(body.requestId ?? '') || !['approved', 'needs_changes'].includes(body.decision)
+        || typeof body.note !== 'string' || !body.note.trim() || body.note.length > 2000)
+        fail('INQUIRY_INPUT', 'Provide a review decision, note and stable UUID.');
+      return mutate(async combined => {
+        const item = partition(id).inquiryRecovery?.selections.find(row => row.id === draftId);
+        if (!item) fail('INQUIRY_NOT_FOUND', 'Draft not found.', 404);
+        if (body.draftSha256 !== item.draft.sha256 || body.sourceHash !== item.leadSourceHash) fail('INQUIRY_SOURCE_CHANGED', 'The selected draft/source does not match.', 409);
+        const prior = item.contentReviews?.find(row => row.requestId === body.requestId);
+        if (prior) {
+          if (prior.decision !== body.decision || prior.note !== body.note || prior.revision !== body.expectedReviewRevision + 1)
+            fail('INQUIRY_IDEMPOTENCY_CONFLICT', 'This review request was already used with different content.', 409);
+          return draftView(id, item, actor);
+        }
+        if (body.expectedReviewRevision !== (item.contentReviews?.length ?? 0)) fail('INQUIRY_REVIEW_CHANGED', 'Draft review changed. Reload before reviewing.', 409);
+        if ((item.contentReviews?.length ?? 0) >= 100) fail('INQUIRY_CAPACITY_LIMIT', 'This draft has reached its 100-review history limit.', 409);
+        const current = core(id).lead(item.leadId, actor);
+        if (body.decision === 'approved') {
+          await read(id, item.leadId, actor, combined);
+          if (current.card.sourceHash !== item.leadSourceHash || current.card.revision !== item.leadRevision || current.card.decision !== 'follow_up')
+            fail('INQUIRY_NOT_ELIGIBLE', 'The current source, identity or business conditions no longer support this draft.', 409);
+          if (!item.nativeAttachment) fail('INQUIRY_SOURCE_UNAVAILABLE', 'The draft attachment is unavailable.', 409);
+          await fileBytes(item.nativeAttachment, item.draft.sha256, Buffer.byteLength(item.draft.content), combined);
+        }
+        await storage.update(root => {
+          check(combined); workspace(id);
+          const stored = root.workspaces[id].inquiryRecovery.selections.find(row => row.id === draftId);
+          stored.contentReviews ??= [];
+          stored.contentReviews.push({ revision: stored.contentReviews.length + 1, requestId: body.requestId, decision: body.decision, note: body.note,
+            draftSha256: body.draftSha256, sourceHash: body.sourceHash, identityReviewRevision: current.identity.reviewRevision ?? 0,
+            actor: actor.subject, at: new Date(clock()).toISOString() });
+        });
+        return draftView(id, partition(id).inquiryRecovery.selections.find(row => row.id === draftId), actor);
+      }, signal);
+    },
     import(id, body, signal) {
       const actor = browser(id); keys(body, ['requestId', 'format', 'sourceName', 'dataBase64', 'authorized']);
       if (body.authorized !== true) fail('INQUIRY_IMPORT_AUTHORITY', 'Confirm that you may import this file.');

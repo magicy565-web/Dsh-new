@@ -16,8 +16,10 @@ window.__ModuleLoader__.load({
       carried: '本修订沿用了旧版本字段。请重新导入完整记录后再提出草稿。',
       follow_up: '建议跟进', need_evidence: '待补依据', nurture: '近期联系', hold: '暂停', reasons: '规则判断依据',
       drafts: '未发送草稿', noDrafts: '尚无草稿。可在原生对话中要求 Agent 根据已核对询盘提出草稿。',
-      unreviewed: '未审核 · 未发送', sourceChanged: '来源或当前跟进条件已变化，请重新核查', downloadDraft: '下载草稿', conversation: '查看草稿来源对话',
+      unreviewed: '候选原文 · 未发送', sourceChanged: '来源或当前跟进条件已变化，请重新核查', downloadDraft: '下载草稿', conversation: '查看草稿来源对话',
       error: '操作失败：', saved: '已保存。', revision: '修订', recordHash: '导入行 SHA-256', fileHash: '原文件 SHA-256',
+      reviewDraft: '草稿内容审阅', reviewNote: '审阅说明', approved: '内容审阅通过', needs_changes: '需要修改', pending: '待内容审阅', stale: '审阅依据已变化',
+      reviewScope: '只记录这份草稿的内容审阅，不授权发送。来源或身份判断变化后需重新审阅。',
     };
     const en = {
       panel: 'Inquiry recovery', intro: 'Check the imported evidence before proposing a follow-up draft.',
@@ -32,8 +34,10 @@ window.__ModuleLoader__.load({
       carried: 'This revision carries older fields. Reimport a complete record before proposing a draft.',
       follow_up: 'Follow-up candidate', need_evidence: 'Needs evidence', nurture: 'Recent contact', hold: 'On hold', reasons: 'Rule assessment reasons',
       drafts: 'Unsent drafts', noDrafts: 'No drafts yet. Ask the Agent in a native conversation to propose one from a reviewed inquiry.',
-      unreviewed: 'Unreviewed · unsent', sourceChanged: 'Source or current eligibility changed; recheck before use', downloadDraft: 'Download draft', conversation: 'View source conversation',
+      unreviewed: 'Original candidate · unsent', sourceChanged: 'Source or current eligibility changed; recheck before use', downloadDraft: 'Download draft', conversation: 'View source conversation',
       error: 'Operation failed: ', saved: 'Saved.', revision: 'Revision', recordHash: 'Imported row SHA-256', fileHash: 'Original file SHA-256',
+      reviewDraft: 'Draft content review', reviewNote: 'Review note', approved: 'Content approved', needs_changes: 'Needs changes', pending: 'Pending content review', stale: 'Review basis changed',
+      reviewScope: 'Records content review for this draft only, without authorizing sending. Re-review after source or identity changes.',
     };
     async function request(path, { body, signal } = {}) {
       const response = await fetch(API + path, { signal, ...(body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}) });
@@ -43,6 +47,16 @@ window.__ModuleLoader__.load({
     }
     const css = `.ir{height:100%;overflow:auto;padding:32px;max-width:1100px;margin:auto;color:var(--dsw-alias-label-primary);font:14px/1.65 system-ui,sans-serif;box-sizing:border-box}.ir *{box-sizing:border-box}.ir h1{font-size:26px;margin:0}.ir h2{font-size:19px;margin:24px 0 12px}.ir h3{font-size:15px}.ir .muted{color:var(--dsw-alias-label-tertiary)}.ir .actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:16px 0}.ir button,.ir input,.ir select,.ir textarea{font:inherit;padding:8px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-base);color:inherit;max-width:100%}.ir button{cursor:pointer}.ir button:disabled{opacity:.45;cursor:default}.ir label{display:block;margin:12px 0}.ir label:not(.check)>input,.ir label>select,.ir textarea{display:block;width:100%;margin-top:6px}.ir textarea{min-height:96px;resize:vertical}.ir .row{display:block;width:100%;padding:16px 0;border:0;border-bottom:1px solid var(--dsw-alias-border-l1);border-radius:0;text-align:left}.ir .box{padding:16px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;margin:12px 0;overflow-wrap:anywhere}.ir .box p,.ir pre{white-space:pre-wrap;overflow-wrap:anywhere}.ir pre{font:inherit;margin:8px 0}.ir .meta{font-size:12px;overflow-wrap:anywhere}.ir .error{color:#b83232;white-space:pre-wrap}.ir a{color:var(--dsw-alias-label-link,#1677ff)}@media(max-width:700px){.ir{padding:24px 16px}}`;
     function Icon({ size = 18 }) { return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, 'aria-hidden': true }, h('path', { d: 'M4 4h16v12H9l-5 4V4ZM8 8h8M8 12h5' })); }
+    function DraftReview({ row, t, busy, submit }) {
+      const [note, setNote] = useState('');
+      return h('div', null, h('h3', null, t('reviewDraft')), h('p', null, t(row.contentReview?.state ?? 'pending')),
+        h('p', { className: 'muted' }, t('reviewScope')),
+        row.contentReview?.latest ? h('p', { className: 'meta' }, `${row.contentReview.latest.actor} · ${row.contentReview.latest.at} · ${row.contentReview.latest.note}`) : null,
+        h('label', null, t('reviewNote'), h('textarea', { 'aria-label': t('reviewNote'), value: note, maxLength: 2000, onChange: event => setNote(event.target.value) })),
+        h('div', { className: 'actions' }, ['approved', 'needs_changes'].map(decision => h('button', { key: decision, type: 'button',
+          disabled: busy || !note.trim() || decision === 'approved' && (!row.sourceRevisionMatches || !row.ruleEligibleNow),
+          onClick: () => submit(decision, note) }, t(decision)))));
+    }
     function Panel({ t, openConversation }) {
       const [workspaces, setWorkspaces] = useState(null), [workspace, setWorkspace] = useState('');
       const [list, setList] = useState(null), [drafts, setDrafts] = useState([]), [detail, setDetail] = useState(null);
@@ -119,6 +133,10 @@ window.__ModuleLoader__.load({
             list ? h('div', { className: 'list' }, list.items.length ? list.items.map(row => h('button', { className: 'row', type: 'button', disabled: busy, key: row.leadId, onClick: () => perform(signal => open(row, signal)) },
               h('strong', null, row.company.name || row.leadId), h('span', null, ` · ${t(row.decision)} · ${t(row.identity.status)}`), h('div', { className: 'muted' }, `${row.request.product || ''} · ${row.leadId} · ${t('revision')} ${row.revision}`))) : h('p', null, t('empty'))) : h('p', null, t('loading')),
             h('h2', null, t('drafts')), drafts.length ? drafts.map(row => h('div', { className: 'box draft', key: row.id }, h('strong', null, `${row.leadId} · ${t('unreviewed')}`), !row.sourceRevisionMatches || !row.ruleEligibleNow ? h('p', { className: 'error' }, t('sourceChanged')) : null,
+              h(DraftReview, { row, t, busy, submit: (decision, note) => perform(async signal => {
+                await command(`/drafts/${row.id}/review`, { expectedReviewRevision: row.contentReview?.revision ?? 0, draftSha256: row.draft.sha256, sourceHash: row.leadSourceHash, decision, note }, signal);
+                if (!signal.aborted && current.current === workspace) { identities.current.clear(); setNotice(t('saved')); }
+              }) }),
               h('pre', null, row.draft.content), h('div', { className: 'actions' }, row.nativeAttachment ? h('a', { href: API + base + `/drafts/${row.id}/file` }, t('downloadDraft')) : null,
                 row.nativeOrigin?.sessionId && openConversation ? button(t('conversation'), () => openConversation(row.nativeOrigin.sessionId)) : null))) : h('p', { className: 'muted' }, t('noDrafts'))) : h(React.Fragment, null,
               button(t('back'), () => { setDetail(null); setError(''); }), h('h2', null, detail.card.company.name || detail.card.leadId), h('p', null, `${t(detail.card.decision)} · ${t(detail.identity.status)}`),

@@ -63,6 +63,7 @@ export function createHttpHandler(service, { authorize = () => 401 } = {}) {
         else if ((file = /^drafts\/([^/]+)\/file$/u.exec(path))) file = await service.draftFile(id, decodeURIComponent(file[1]), abort.signal);
       } else if (req.method === 'POST') {
         if (path === 'import') value = await service.import(id, await jsonBody(req), abort.signal);
+        else if ((lead = /^drafts\/([^/]+)\/review$/u.exec(path))) value = await service.reviewDraft(id, decodeURIComponent(lead[1]), await jsonBody(req), abort.signal);
         else if ((lead = /^leads\/([^/]+)\/identity$/u.exec(path))) value = await service.review(id, decodeURIComponent(lead[1]), await jsonBody(req), abort.signal);
       }
       if (file) {

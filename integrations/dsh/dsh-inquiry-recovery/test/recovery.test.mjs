@@ -177,3 +177,43 @@ test('HTTP and tools preserve native authentication, strict inputs and user-only
   const module = { value: null }; vm.runInNewContext(await readFile(new URL('../client.js', import.meta.url), 'utf8'), { window: { __ModuleLoader__: { load({ factory }) { module.value = factory(() => ({})); } } } });
   assert.deepEqual(Object.keys(module.value.dictionaries.zh).sort(), Object.keys(module.value.dictionaries.en).sort());
 });
+
+test('content reviews bind exact text/source, preserve unsent candidates, and become stale after identity changes', async t => {
+  const f = fixture(t); await f.importRows([row()]); await f.approve();
+  const context = await f.service.read(f.alpha, 'alpha');
+  const draft = await f.service.proposeDraft(f.proposal(context), f.execution());
+  const input = { requestId: randomUUID(), expectedReviewRevision: 0, draftSha256: draft.draft.sha256, sourceHash: draft.leadSourceHash, decision: 'approved', note: 'Operator reviewed this exact text.' };
+  const reviewed = await f.service.reviewDraft(f.alpha, draft.id, input);
+  assert.equal(reviewed.contentReview.state, 'approved'); assert.equal(reviewed.authorizationToSend, false);
+  assert.deepEqual(reviewed.draft, draft.draft); assert.deepEqual(reviewed.nativeAttachment, draft.nativeAttachment);
+  assert.equal(reviewed.contentReview.latest.actor, 'dsh-browser-admin');
+  assert.equal((await f.service.reviewDraft(f.alpha, draft.id, input)).contentReview.revision, 1);
+  await assert.rejects(() => f.service.reviewDraft(f.alpha, draft.id, { ...input, note: 'changed' }), { code: 'INQUIRY_IDEMPOTENCY_CONFLICT' });
+  await assert.rejects(() => f.service.reviewDraft(f.alpha, draft.id, { ...input, requestId: randomUUID() }), { code: 'INQUIRY_REVIEW_CHANGED' });
+  await assert.rejects(() => f.service.reviewDraft(f.alpha, draft.id, { ...input, draftSha256: 'a'.repeat(64) }), { code: 'INQUIRY_SOURCE_CHANGED' });
+  await assert.rejects(() => f.service.reviewDraft(f.beta, draft.id, input), { code: 'INQUIRY_NOT_FOUND' });
+  await f.approve('alpha', f.alpha, { status: 'conflicting' });
+  assert.equal(f.service.drafts(f.alpha).items[0].contentReview.state, 'stale');
+  await assert.rejects(() => f.service.reviewDraft(f.alpha, draft.id, { ...input, requestId: randomUUID(), expectedReviewRevision: 1 }), { code: 'INQUIRY_NOT_ELIGIBLE' });
+  const rejected = await f.service.reviewDraft(f.alpha, draft.id, { ...input, requestId: randomUUID(), expectedReviewRevision: 1, decision: 'needs_changes', note: 'Recheck identity before revising.' });
+  assert.equal(rejected.contentReview.state, 'needs_changes'); assert.equal(rejected.contentReviews.length, 2);
+  const restarted = createRecoveryService({ ...f.options, storage: createStorageAdapter(f.global) }); t.after(() => restarted.close());
+  assert.equal(restarted.drafts(f.alpha).items[0].contentReview.state, 'needs_changes');
+  assert.throws(() => f.service.proposeDraft({ ...f.proposal(context), decision: 'approved' }, f.execution()), { code: 'INQUIRY_INPUT' });
+});
+
+test('approval rechecks source and draft bytes, retains failed commits, and invalidates on new imports', async t => {
+  const f = fixture(t); await f.importRows([row()]); await f.approve();
+  const draft = await f.service.proposeDraft(f.proposal(await f.service.read(f.alpha, 'alpha')), f.execution());
+  const input = { requestId: randomUUID(), expectedReviewRevision: 0, draftSha256: draft.draft.sha256, sourceHash: draft.leadSourceHash, decision: 'approved', note: 'Checked content.' };
+  const original = f.blobs.get(draft.nativeAttachment.attachmentId);
+  f.blobs.set(draft.nativeAttachment.attachmentId, Buffer.from('corrupt'));
+  await assert.rejects(() => f.service.reviewDraft(f.alpha, draft.id, input), { code: 'INQUIRY_SOURCE_CHANGED' });
+  f.blobs.set(draft.nativeAttachment.attachmentId, original);
+  f.failCommit(true); await assert.rejects(() => f.service.reviewDraft(f.alpha, draft.id, input), /commit failure/u);
+  assert.equal(f.service.drafts(f.alpha).items[0].contentReview.state, 'pending');
+  f.failCommit(false); await f.service.reviewDraft(f.alpha, draft.id, input);
+  await f.importRows([row({ revision: 2, status: 'opted_out' })]);
+  assert.equal(f.service.drafts(f.alpha).items[0].contentReview.state, 'stale');
+  assert.equal((await f.service.reviewDraft(f.alpha, draft.id, input)).contentReview.state, 'stale', 'replay never restores an obsolete approval');
+});
