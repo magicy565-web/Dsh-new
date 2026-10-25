@@ -24,16 +24,16 @@
 
 ## 已实测
 
-- 四个 bundle 均 installed／enabled，原生 Loader 对应行均 active。
-- 资料库、Space 和经营记忆：认证请求 200，无会话请求 401。
-- 三个插件的真实 Client 资源由宿主提供，Chromium 面板正常挂载。
+- 五个 bundle 均 installed／enabled，原生 Loader 对应行均 active。
+- 资料库、Space、经营记忆和询盘恢复：认证请求 200，无会话请求 401。
+- 四个插件的真实 Client 资源由宿主提供，Chromium 面板正常挂载。
   资料库和 Space 已修复等待 slot 声明的启动顺序问题。
 - 隔离 profile 中，原生引用按钮、旧版本芯片、刷新恢复及归档后的发送拦截通过；
   失败发送保留草稿，无模型 prompt 请求。测试数据没有写入开发 profile。
 - 资料库与 Space 数据目录遵循原生 `DSH_HOME`；显式 `config.dataDir` 仍优先。
 - 原生 Agent preset 列表包含 `sourcing`，没有 broken 诊断。
-- 三个 Client DOM 冒烟通过；资料库和 Space 使用合成 Host 响应，
-  记忆使用本地 HTTP 与合成 registry / storage。前两个存在 React act 测试警告。
+- 四个 Client DOM 冒烟通过；资料库和 Space 使用合成 Host 响应，
+  记忆和询盘使用本地 HTTP 与合成 registry / storage。前两个存在 React act 测试警告。
 - 官方 Cordis／ToolRuntime／LocalAttachmentStore 中，固定旧版 CSV 的字节、SHA、
   工具渲染输出、哈希错误与取消检查通过，使用临时目录，无模型调用。
 - `dsh-workspace-memory` 使用官方 storageDomain / JSON；工具／持久化冒烟通过。
@@ -42,6 +42,8 @@
   使用合成数据；依据、修复和边界见 [LIVE-ACCEPTANCE.md](LIVE-ACCEPTANCE.md)。
 - 产品上下文的官方工具／附件／Web 检查通过；另两个真实模型会话验证单产品历史取材与归档缺口，
   模型原答复仍有文字偏差，见 [PRODUCT-CONTEXT.md](PRODUCT-CONTEXT.md)。
+- 询盘恢复的实际 Chromium 文件导入、身份审核、隔离、草稿附件和来源会话跳转通过；
+  两个真实模型会话验证自己撰写候选和新修订退订后停止，详见 [插件说明](../integrations/dsh/dsh-inquiry-recovery/README.md)。
 - 浏览器验收不代表完整视觉／主题验收；尚未验证桌面宿主。
 
 Sourcing 的 `workspace-dependencies` 是可选桌面运行时工具。配置遵循官方 SDK

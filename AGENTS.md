@@ -9,8 +9,9 @@ servers, installers or historical release archives in the current tree.
 Reuse native DSH sessions, model execution, tools, permissions and attachments.
 Business workflow gates belong in optional plugins, not the general substrate.
 The packages/domain-* packages contain reusable domain rules only. The native
-dsh-workspace-memory bundle adapts the business-memory domain to DSH; the other
-two domains await integration. Preserve source/version/review boundaries and state keys.
+dsh-workspace-memory and dsh-inquiry-recovery bundles adapt their domains to DSH.
+The Medusa product domain awaits integration; the native local product library
+already supplies product context. Preserve source/version/review boundaries and state keys.
 
 Run npm ci --ignore-scripts on first setup (Node 24+), then npm run check. Optional Client
 DOM tests use the root devDependencies: npm run test:client. Neither establishes

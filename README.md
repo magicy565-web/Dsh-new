@@ -6,7 +6,7 @@ Agent 执行、模型、会话、工具循环和取消由 DSH 宿主负责。
 ## 目录
 
 ```text
-integrations/dsh/   四个可安装的原生插件
+integrations/dsh/   五个可安装的原生插件
 packages/          三个宿主无关的领域包
 scripts/           安装位置提示、静态检查、回归测试
 .github/           DSH 检查工作流
@@ -20,9 +20,10 @@ licenses/          第三方许可
 | [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
 | [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 可选的获客业务方法、规则和交付物 |
 | [dsh-workspace-memory](integrations/dsh/dsh-workspace-memory/README.md) | 按原生工作区隔离的经营记忆、人工审核、来源核验和召回 |
+| [dsh-inquiry-recovery](integrations/dsh/dsh-inquiry-recovery/README.md) | 可选历史询盘：原文件核验、人工身份判断、Agent 撰写的未发送草稿 |
 
 在 DSH 中执行 `plugin_manager install_bundle target=<插件绝对目录>` 安装。
-`npm start` 只显示当前 checkout 的四个安装位置，不启动服务或修改 profile。
+`npm start` 只显示当前 checkout 的五个安装位置，不启动服务或修改 profile。
 
 ## 验证
 
@@ -51,8 +52,8 @@ DOM 冒烟与本地 Host 测试均不能替代真实 DSH 挂载和浏览器验�
 | [domain-product-library](packages/domain-product-library/README.md) | 产品上下文、引用、版本、Medusa 只读来源 |
 | [domain-inquiry-recovery](packages/domain-inquiry-recovery/README.md) | 历史询盘的来源校验、人工判断和未发送草稿 |
 
-经营记忆已通过原生插件接入，复用 DSH 的 storageDomain、工作区、会话和工具服务；
-另外两个领域包仍待接入。没有自动读取或迁移旧工作台数据。
+经营记忆与询盘恢复已通过原生插件接入，复用 DSH 的 storageDomain、工作区、会话、附件和工具服务；
+Medusa 产品领域包仍待接入，本地产品上下文已由资料库提供。没有自动读取或迁移旧工作台数据。
 Sourcing 的业务阶段只属于可选业务插件，不是通用 Agent 的强制流程。
 
 开发入口见 [开发约定](docs/DEVELOPMENT.md)，原生安装与接入见 [DSH 宿主](docs/DSH-HOST.md)，

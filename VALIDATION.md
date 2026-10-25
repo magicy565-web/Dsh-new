@@ -1,14 +1,14 @@
 # 验证状态
 
-2026-10-26，DSH 原生经营记忆、产品上下文与真实模型场景验收后：
+2026-10-26，DSH 原生经营记忆、产品上下文、询盘恢复与真实模型场景验收后：
 
 | 检查 | 结果 |
 | --- | --- |
-| `npm run build` | 四个原生 bundle 入口、JavaScript 语法、资料库中英文字典通过；记忆字典／slot 合约由核心测试验证 |
-| `npm test` | 113/113 项通过，零跳过：四个原生插件及三个领域包 |
+| `npm run build` | 五个原生 bundle 入口、JavaScript 语法、资料库中英文字典通过；记忆／询盘字典与原生合约由核心测试验证 |
+| `npm test` | 122/122 项通过，零跳过：五个原生插件及三个领域包 |
 | 本地文档链接／JS 相对导入 | 未发现缺失目标 |
 | 根目录 npm 锁文件 | 本地领域包／记忆插件 workspace 链接、锁定 zod 和 Client 测试依赖一致 |
-| 原生 DSH 0.2.1-rc.2 | 四个 bundle 已挂载；三个面板的认证接口与 Client 资源通过，Sourcing 预设无 broken 诊断 |
+| 原生 DSH 0.2.1-rc.2 | 五个 bundle 已挂载；四个面板的认证接口与 Client 资源通过，Sourcing 预设无 broken 诊断 |
 | 官方工具／附件存储 | 固定旧版本 CSV 原字节与 SHA、工具渲染结果、哈希不符、取消均通过；临时数据，无模型调用 |
 | Chromium 原生 Client | 隔离 profile：两面板挂载、引用按钮、旧版本芯片、刷新恢复、归档后发送 409 且保留草稿通过；模型 prompt 请求为 0 |
 | 经营记忆原生存储／工具 | 官方 ToolRuntime、StorageDomain / JSON、附件存储的候选排除、人工审核、召回、旧来源 SHA、归档排除、重启持久化通过；Agent identity 为测试夹具 |
@@ -16,16 +16,22 @@
 | 真实 DeepSeek 模型 | 三个独立原生会话、21 次有结果的工具调用；固定历史文件、批准偏好跨会话、归档／撤销后停止引用通过。使用合成数据，浏览器验收操作者批准候选；详见 [验收记录](docs/LIVE-ACCEPTANCE.md) |
 | 产品上下文原生工具／Web | 官方 ToolRuntime、原生附件的确切版本读取、归档拒绝、修订保护和取消通过；实际 Web 未认证 401／旧修订拒绝通过 |
 | 产品上下文真实模型 | 两个最终独立会话、5 次有结果的只读工具调用；按单产品和历史附件取材、归档后报告缺口。原始答复有个别文字偏差；详见 [范围与结果](docs/PRODUCT-CONTEXT.md) |
+| 询盘恢复原生工具／存储 | 官方 ToolRuntime、StorageDomain / JSON、原生附件的原文件／规范化行校验、人工身份边界、Agent 文本候选、重启持久化与退订排除通过；Agent 身份为夹具 |
+| 询盘恢复 Chromium | 实际原生面板文件导入、管理员身份判断、工作区隔离、刷新、草稿下载 SHA、原生来源对话跳转和新修订提示通过；合成数据由验收操作者核对，导入／审核阶段模型 prompt 为 0 |
+| 询盘恢复真实模型 | 两个独立原生会话、7 次有结果的工具调用；核对询盘及产品后保存模型自己撰写的未发送候选，新修订退订后停止新候选并保留旧历史。工具数据验证通过，文字解释偏差保留在 Git 外验收报告 |
 
 首次设置运行 `npm ci --ignore-scripts`。`npm run check` 顺序运行静态检查与核心测试。
 领域测试使用临时存储、本地合成 HTTP 来源及模拟工具／附件，非真实业务数据。
 
-`npm run test:client` 三个 DOM 冒烟通过；资料库／Space 使用合成 Host 响应，
-记忆使用本地真实 HTTP 与合成 registry / storage；前两个测试仍存在 React act 警告。
+`npm run test:client` 四个 DOM 冒烟通过；资料库／Space 使用合成 Host 响应，
+记忆／询盘使用本地真实 HTTP 与合成 registry / storage；前两个测试仍存在 React act 警告。
 可用 `DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-workspace-library/dev/native-reference-smoke.mjs`
 重复官方工具／附件存储验收；它不验证模型实际引用或会话持久记录。
 当前原生 Web 宿主已经实际安装并验证挂载；未验证桌面宿主、完整视觉／主题或生产部署。
 `DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-workspace-memory/dev/native-smoke.mjs`
-可重复原生记忆工具／存储验收。记忆领域已通过原生适配接入，另外两个领域包仍待接入。
+可重复原生记忆工具／存储验收。
+`DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-inquiry-recovery/dev/native-smoke.mjs`
+可重复原生询盘工具／存储验收。记忆与询盘领域已接入，Medusa 产品领域仍待接入。
+询盘插件的规则属于可选业务能力，不驱动通用宿主或自动发送；详细边界见 [插件说明](integrations/dsh/dsh-inquiry-recovery/README.md)。
 旧 HTTP 桥接的自动记忆注入已移除，当前使用原生工具按需召回。
 旧运行层的测试、截图和历史交付记录不作为当前版本的验收依据。

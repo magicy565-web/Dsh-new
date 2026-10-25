@@ -12,9 +12,9 @@
 ## 日常命令
 
 - `npm ci --ignore-scripts`：首次设置的依赖安装和本地 workspace 链接。
-- `npm start`：显示四个插件的真实安装目录，不启动另一套应用。
+- `npm start`：显示五个插件的真实安装目录，不启动另一套应用。
 - `npm run build`：原生 bundle 入口、JS 语法、中英文字典。
-- `npm test`：四个原生插件与三个领域包的回归。
+- `npm test`：五个原生插件与三个领域包的回归。
 - `npm run check`：顺序运行上述静态检查与回归，无模型调用。
 - `npm run test:client`：可选 DOM 冒烟，需要先安装根目录锁定的开发依赖。
 
@@ -25,12 +25,12 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 
 由用户在 DSH 的 `plugin_manager` 中安装插件。源码更新后按插件 README 重载 Host／刷新界面。
 仓库中的安装位置、配置模板和历史测试记录不代表本机插件已加载。
-本云环境已安装官方 DSH 0.2.1-rc.2 Web 宿主，四个原生插件已实际挂载；
+本云环境已安装官方 DSH 0.2.1-rc.2 Web 宿主，五个原生插件已实际挂载；
 运行目录、接口与浏览器验收范围见 [DSH-HOST.md](DSH-HOST.md)。
 隔离 profile 中的三个真实模型场景见 [LIVE-ACCEPTANCE.md](LIVE-ACCEPTANCE.md)；尚未验证桌面宿主。
 
 经营记忆已通过 `dsh-workspace-memory` 接入原生 storageDomain / 工作区 / 会话和工具。
-产品资料库、询盘恢复两个领域包仍是待接入资产。
+询盘恢复通过独立可选 bundle 接入同样的原生服务。Medusa 产品领域包仍是待接入资产。
 存储、身份、附件、来源审核必须从 DSH 实际接口接入；保留数据键和来源证明，
 不把 model 的建议当人工审核。产品资料库仅保留 Medusa 只读适配器，
 不再在此仓库维护另一套电商应用。
@@ -42,7 +42,10 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 资料／记忆的三个真实模型场景已通过原生会话记录验收。
 本地产品上下文已扩展现有资料库，返回 SKU、供货、固定版本与缺口；
 正文仍复用已有原生读取器，见 [PRODUCT-CONTEXT.md](PRODUCT-CONTEXT.md)。
-这与保留的 Medusa 产品领域包接入是两件事。后续可接询盘恢复；业务阶段继续留在可选插件中。
+这与保留的 Medusa 产品领域包接入是两件事。
+询盘恢复读取原始 CSV／JSON 和确切导入行，身份审核在原生面板进行，Agent 工具只读取和保存自己的未发送草稿。
+来源更新会重置身份判断，退订、暂停及不完整证据不能创建新草稿；业务规则只属于此可选插件，
+不改变 DSH 的通用执行方式。接口与验证见 [插件说明](../integrations/dsh/dsh-inquiry-recovery/README.md)。
 
 ## 不进入源码树的内容
 

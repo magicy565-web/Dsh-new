@@ -162,6 +162,27 @@ function normalizeRow(source, label = 'row') {
 }
 
 const sourceHash = record => hash(record);
+/** Host adapters can bind a normalized imported row to its original file bytes. */
+export const inquiryRowSourceHash = row => sourceHash(normalizeRow(row));
+export { normalizeRow as normalizeInquiryRow };
+
+export function validateInquiryRecoveryState(state, workspaceId) {
+  if (state.inquiryRecovery === undefined) return null;
+  const db = state.inquiryRecovery;
+  if (!db || db.version !== VERSION || db.workspaceId !== workspaceId)
+    fail(409, 'INQUIRY_WORKSPACE_CHANGED', 'This recovery store belongs to its original enterprise.');
+  for (const key of ['leads', 'imports', 'conflicts', 'selections', 'commands', 'events'])
+    if (!Array.isArray(db[key])) fail(409, 'INQUIRY_STORE_INVALID', 'The recovery store needs review; no data was overwritten.');
+  for (const lead of db.leads) {
+    if (!lead || typeof lead !== 'object' || typeof lead.leadId !== 'string' || !lead.leadId
+      || typeof lead.sourceId !== 'string' || !Number.isSafeInteger(lead.revision)
+      || typeof lead.sourceHash !== 'string' || !/^[a-f0-9]{64}$/u.test(lead.sourceHash)
+      || !STATUSES.has(lead.status) || !Array.isArray(lead.facts) || !Array.isArray(lead.history)
+      || !lead.identity || !IDENTITY_STATES.has(lead.identity.status))
+      fail(409, 'INQUIRY_STORE_INVALID', 'The recovery store needs review; no data was overwritten.');
+  }
+  return db;
+}
 
 const decisionRank = { follow_up: 0, need_evidence: 1, nurture: 2, hold: 3 };
 
@@ -285,22 +306,7 @@ export function createInquiryRecoveryService({ store, artifacts = null, clock = 
   const fresh = () => ({ version: VERSION, workspaceId, leads: [], imports: [], conflicts: [], selections: [], commands: [], events: [] });
 
   function database(state) {
-    if (!state.inquiryRecovery) return null;
-    const db = state.inquiryRecovery;
-    if (db.version !== VERSION || db.workspaceId !== workspaceId) fail(409, 'INQUIRY_WORKSPACE_CHANGED', 'This recovery store belongs to its original enterprise.');
-    for (const key of ['leads', 'imports', 'conflicts', 'selections', 'commands', 'events'])
-      if (!Array.isArray(db[key])) fail(409, 'INQUIRY_STORE_INVALID', 'The recovery store needs review; no data was overwritten.');
-    // A damaged section must fail closed instead of feeding decisionFor a
-    // half-shaped lead (which used to surface as a TypeError/500).
-    for (const lead of db.leads) {
-      if (!lead || typeof lead !== 'object' || typeof lead.leadId !== 'string' || !lead.leadId
-        || typeof lead.sourceId !== 'string' || !Number.isSafeInteger(lead.revision)
-        || typeof lead.sourceHash !== 'string' || !/^[a-f0-9]{64}$/u.test(lead.sourceHash)
-        || !STATUSES.has(lead.status) || !Array.isArray(lead.facts) || !Array.isArray(lead.history)
-        || !lead.identity || !IDENTITY_STATES.has(lead.identity.status))
-        fail(409, 'INQUIRY_STORE_INVALID', 'The recovery store needs review; no data was overwritten.');
-    }
-    return db;
+    return validateInquiryRecoveryState(state, workspaceId);
   }
 
   const snapshot = () => database(store.read()) ?? fresh();
@@ -408,7 +414,10 @@ export function createInquiryRecoveryService({ store, artifacts = null, clock = 
     if (!Number.isFinite(asOfMs)) fail(400, 'INQUIRY_ASOF_INVALID', 'asOf must be YYYY-MM-DD.');
     const decision = decisionFor(lead, asOfMs, staleDays);
     if (decision.decision !== 'follow_up') fail(409, 'INQUIRY_NOT_ELIGIBLE', `Only stale, evidence-complete leads can produce a follow-up draft (current: ${decision.decision}).`);
-    const draft = draftFor(lead, decision, new Date(asOfMs).toISOString().slice(0, 10));
+    const draft = body.draftContent === undefined ? draftFor(lead, decision, new Date(asOfMs).toISOString().slice(0, 10)) : (() => {
+      const content = text(body.draftContent, 'draftContent', MAX_BODY);
+      return { filename: `followup-${lead.leadId}.md`, content, sha256: hash(content), generation: 'proposed-text' };
+    })();
     return { lead, decision, draft, asOfMs };
   }
 

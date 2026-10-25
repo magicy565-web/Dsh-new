@@ -69,7 +69,15 @@ is thrown synchronously or rejects an async method, is re-thrown as
 `error.rejected` on `INQUIRY_IMPORT_REJECTED`). `instanceof ApiError` therefore
 keeps working for hosts whose HTTP layer serializes only that class.
 
-The DSH integration must explicitly supply its store, actor and artifact capabilities; this package is not a mounted native tool.
+The native [dsh-inquiry-recovery](../../integrations/dsh/dsh-inquiry-recovery/README.md)
+bundle supplies workspace-scoped storage, native identity and attachment capabilities.
+This domain does not register tools or run an Agent loop itself.
+
+`selectLead` accepts optional `draftContent` (up to 4000 characters). Native callers
+supply Agent-written text and retain the existing unsent/unreviewed flags; callers
+that omit it retain the historical template behavior. The native bundle requires
+explicit proposed text. `validateInquiryRecoveryState`, `normalizeInquiryRow` and
+`inquiryRowSourceHash` support native load validation and original-file matching.
 
 ## Behavioural invariants (preserved from the historical module)
 

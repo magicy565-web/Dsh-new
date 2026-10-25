@@ -1,0 +1,14 @@
+{
+  "name": "dsh-inquiry-recovery",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional native DSH historical inquiry evidence and unsent draft proposals",
+  "exports": { ".": "./index.js", "./client": "./client.js", "./icon": "./icon.svg" },
+  "files": ["index.js", "service.js", "client.js", "cordis.patch.yml", "icon.svg", "README.md"],
+  "dependencies": { "@workspace/domain-inquiry-recovery": "0.1.0", "zod": "4.6.7" },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web", "immediately": true, "inject": ["@deepseek-ai/dsh-client-ui-layout", "@deepseek-ai/dsh-client-ui-sidebar"] }
+  }
+}
