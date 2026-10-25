@@ -16,7 +16,7 @@ licenses/          第三方许可
 
 | 插件 | 能力 |
 | --- | --- |
-| [dsh-workspace-library](integrations/dsh/dsh-workspace-library/README.md) | 企业／产品资料、文件、图片、版本和人工审核 |
+| [dsh-workspace-library](integrations/dsh/dsh-workspace-library/README.md) | 企业／产品资料、版本审核、原生对话引用和确切版本读取 |
 | [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
 | [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 可选的获客业务方法、规则和交付物 |
 

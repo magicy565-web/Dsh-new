@@ -726,7 +726,10 @@ export function createHttpHandler(service, { allowRemote = false, authorize = nu
 export function resolveDataDirectory(config = {}) {
   if (typeof config.dataDir === 'string' && config.dataDir.trim()) return resolve(config.dataDir.trim());
   const profile = process.env.DSH_PROFILE_DIR;
-  const home = profile ? resolve(profile, '..', '..') : join(homedir(), '.dsh');
+  const configuredHome = process.env.DSH_HOME;
+  const expandedHome = configuredHome === '~' ? homedir()
+    : configuredHome?.startsWith('~/') || configuredHome?.startsWith('~\\') ? join(homedir(), configuredHome.slice(2)) : configuredHome;
+  const home = configuredHome?.trim() ? resolve(expandedHome) : profile ? resolve(profile, '..', '..') : join(homedir(), '.dsh');
   return join(home, 'data', 'space-workspace');
 }
 

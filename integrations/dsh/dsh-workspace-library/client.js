@@ -35,6 +35,9 @@ window.__ModuleLoader__.load({
 
     const zh = {
       'panel': '资料库',
+      'reference.group': '企业资料 · 固定版本',
+      'reference.insert': '引用资料',
+      'reference.hint': '选择 TXT、Markdown、CSV 或 JSON 的确切版本',
       'eyebrow': '企业的知识与底气',
       'title': '资料库',
       'subtitle': '每一份资料，都为下一步做好准备。',
@@ -219,6 +222,9 @@ window.__ModuleLoader__.load({
     };
     const en = {
       'panel': 'Library',
+      'reference.group': 'Enterprise documents · pinned versions',
+      'reference.insert': 'Reference document',
+      'reference.hint': 'Choose an exact TXT, Markdown, CSV or JSON version',
       'eyebrow': 'The knowledge behind the business',
       'title': 'Library',
       'subtitle': 'Every record is one more step ready for what comes next.',
@@ -2329,43 +2335,76 @@ window.__ModuleLoader__.load({
     // ---------------------------------------------------------------------
     // Plugin
 
-    const inject = ['slots', 'locale'];
+    const inject = ['slots', 'locale', 'inputTriggers'];
+
+    // The native composer owns chips, draft persistence, cancellation and final user-message logging.
+    function createReferenceSource(t) {
+      const pinOf = value => {
+        const row = typeof value === 'string' ? JSON.parse(value) : value;
+        if (!row || typeof row.documentId !== 'string' || !/^doc_[a-f0-9-]{36}$/u.test(row.documentId)
+          || !Number.isSafeInteger(row.version) || row.version < 1 || typeof row.sha256 !== 'string'
+          || !/^[a-f0-9]{64}$/u.test(row.sha256)) throw new Error(t('error.generic'));
+        return { documentId: row.documentId, version: row.version, sha256: row.sha256 };
+      };
+      return {
+        trigger: '@', name: 'workspace-library', order: -10, showGroupTitle: false,
+        async candidates(_session, { query, signal }) {
+          const result = await request(`/references${queryString({ q: query, limit: 50 })}`, { signal });
+          return result.items.map(item => ({
+            name: `${item.title} v${item.version}`, label: `${item.title} · v${item.version}`,
+            description: `${item.fileName} · ${t(`document.review.${item.reviewState}`)}`,
+            section: t('reference.group'), icon: 'file',
+            value: JSON.stringify({ pin: pinOf(item), label: `${item.title} · v${item.version}` }),
+          }));
+        },
+        onPick({ candidate }) {
+          const selected = JSON.parse(candidate.value);
+          const pin = pinOf(selected.pin);
+          const ref = JSON.stringify(pin);
+          return { insert: { source: 'workspace-library', ref, label: selected.label, appearance: 'file', clipboardText: `@library:${pin.documentId}:v${pin.version}` } };
+        },
+        codec: {
+          clipboardText(ref) { const pin = pinOf(ref); return `@library:${pin.documentId}:v${pin.version}`; },
+          async serialize(ref, signal) {
+            const pin = pinOf(ref);
+            await request('/references/check', { method: 'POST', body: JSON.stringify({ references: [pin] }), signal });
+            return `[workspace_library_reference ${JSON.stringify(pin)}; read with workspace_library_references before using its contents]`;
+          },
+        },
+      };
+    }
+
+    function ReferenceButton({ t, inputActions, useInput }) {
+      const input = useInput(value => value);
+      return h('button', {
+        type: 'button', title: t('reference.hint'),
+        disabled: input.phase !== 'plain',
+        onMouseDown: event => event.preventDefault(),
+        onClick: () => {
+          const span = inputActions.captureInsertion();
+          const prefix = span.start && !/\s/u.test(input.draft[span.start - 1]) ? ' ' : '';
+          inputActions.insertText(`${prefix}@`, span);
+        },
+        style: { background: 'transparent', color: 'var(--dsw-alias-label-secondary)', border: '1px solid var(--dsw-alias-border-main)', borderRadius: '8px', padding: '3px 8px', fontSize: '12px', cursor: 'pointer' },
+      }, t('reference.insert'));
+    }
 
     function apply(ctx) {
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'workspace-library: dictionaries');
       const t = ctx.locale.bind(NS);
+      ctx.effect(() => ctx.inputTriggers.registerSource(createReferenceSource(t)), 'workspace-library: native document references');
+      ctx.effect(() => ctx.slots.inject('conversation.input.left', () =>
+        ctx.slots.register({ name: 'conversation.input.left', id: 'workspace-library', order: -10, locale: NS }, ReferenceButton)),
+      'workspace-library: composer reference action');
 
-      const registerSlots = () => {
-        const disposers = [
-          ctx.slots.inject('root', () =>
-            ctx.slots.register({ name: 'sidebar.panellist', id: PANEL_ID, order: 30, locale: NS, label: () => t('panel') }, LibraryIcon),
-          ),
-          ctx.slots.inject('root', () => ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, LibraryPanel)),
-        ];
-        return () => {
-          for (const dispose of disposers) if (typeof dispose === 'function') dispose();
-        };
-      };
-
-      ctx.effect(() => {
-        let dispose = registerSlots();
-        // The sidebar caches its global-panel list from registration changes and
-        // does not replay entries registered before it subscribes. Replay the
-        // registration after boot so the entry is observed regardless of which
-        // module activated first; the later pass covers a lazily mounted shell.
-        const replays = [0, 1000].map(delay =>
-          setTimeout(() => {
-            dispose();
-            dispose = registerSlots();
-          }, delay),
-        );
-        return () => {
-          for (const timer of replays) clearTimeout(timer);
-          dispose();
-        };
-      }, 'workspace-library: slots');
+      ctx.effect(() => ctx.slots.inject('sidebar.panellist', () =>
+        ctx.slots.register({ name: 'sidebar.panellist', id: PANEL_ID, order: 30, locale: NS, label: () => t('panel') }, LibraryIcon)),
+      'workspace-library: sidebar');
+      ctx.effect(() => ctx.slots.inject('main', () =>
+        ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, LibraryPanel)),
+      'workspace-library: panel');
     }
 
-    return { apply, inject };
+    return { apply, inject, createReferenceSource };
   },
 });

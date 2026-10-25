@@ -2457,31 +2457,12 @@ window.__ModuleLoader__.load({
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'space-workspace: dictionaries');
       const t = ctx.locale.bind(NS);
 
-      const registerSlots = () => {
-        const disposers = [
-          ctx.slots.inject('root', () =>
-            ctx.slots.register({ name: 'sidebar.panellist', id: PANEL_ID, order: 20, locale: NS, label: () => t('panel') }, SpaceIcon),
-          ),
-          ctx.slots.inject('root', () => ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, SpacePanel)),
-        ];
-        return () => {
-          for (const dispose of disposers) if (typeof dispose === 'function') dispose();
-        };
-      };
-
-      ctx.effect(() => {
-        let dispose = registerSlots();
-        const replays = [0, 1000].map(delay =>
-          setTimeout(() => {
-            dispose();
-            dispose = registerSlots();
-          }, delay),
-        );
-        return () => {
-          for (const timer of replays) clearTimeout(timer);
-          dispose();
-        };
-      }, 'space-workspace: slots');
+      ctx.effect(() => ctx.slots.inject('sidebar.panellist', () =>
+        ctx.slots.register({ name: 'sidebar.panellist', id: PANEL_ID, order: 20, locale: NS, label: () => t('panel') }, SpaceIcon)),
+      'space-workspace: sidebar');
+      ctx.effect(() => ctx.slots.inject('main', () =>
+        ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, SpacePanel)),
+      'space-workspace: panel');
     }
 
     function SpaceIcon({ size = 18 }) {

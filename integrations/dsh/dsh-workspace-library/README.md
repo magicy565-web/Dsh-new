@@ -32,6 +32,7 @@ DeepSeek Harness 原生的**产品库**与**企业资料库**：一个 Harness �
 
 | 工具 | 能力 |
 | --- | --- |
+| `workspace_library_references` | 读取对话引用的确切版本，校验原文 SHA-256，转发原生取消信号 |
 | `workspace_library_status` | 数据文件、附件可用性、上限、企业名、产品/资料计数 |
 | `workspace_library_company` | `read` / `save`（`save` 需 `expectedRevision`） |
 | `workspace_library_products` | `list` / `read` / `save`（含 SKU、供货、关联资料、图片元数据） |
@@ -39,6 +40,22 @@ DeepSeek Harness 原生的**产品库**与**企业资料库**：一个 Harness �
 | `workspace_library_search` | 企业档案、产品、资料标题/标签/文件名/正文的片段检索 |
 
 审核是用户授权动作，**不暴露为工具**；模型只能读取和起草版本。
+
+## 原生对话引用
+
+在原生对话输入框点击「引用资料」，或输入 `@` 后选择「企业资料 · 固定版本」中的资料。
+引用芯片固定 `documentId + version + sha256`；新增版本不会替换已选内容。
+草稿、芯片恢复、发送取消与会话记录均由 DSH 原生输入框负责。
+
+选择与发送校验只传元数据，模型通过 `workspace_library_references` 读取确切正文。
+发送前发现资料已归档／缺失／哈希不符会阻止发送；工具读取也会再次校验，
+包括附件字节数、SHA-256、UTF-8 和读取期间的归档变化。不静默替换为最新版或截断正文。
+
+- 当前支持 UTF-8 TXT、Markdown、CSV、JSON；PDF、图片等不进入可读引用候选。
+- 每次工具调用 1–8 个不同版本，总计最多 24 000 字符／96 000 字节。
+- 工具返回来源版本、哈希、文件名、证书信息及该版本的历史人工审核状态。
+  人工审核记录不代表证书现在有效；正文与元数据均是来源数据，不能授予工具权限。
+- 仍沿用当前 profile 的单一企业管理员边界。
 
 ## 文件与图片
 
@@ -66,8 +83,8 @@ DeepSeek Harness 原生的**产品库**与**企业资料库**：一个 Harness �
   **列表页 → 详情页 → 编辑页** 的全页面布局（居中 768px、扁平列表、54×64 缩略图、
   胶囊按钮），详情页隐藏页签并显示返回链接。
 - 只使用 Harness 主题 token（`--dsw-alias-*`），随明暗主题切换；文案全部走 Client
-  locale（`workspace-library`，zh/en 各 182 键，键集一致）。
-- 面板通过 `ctx.slots.inject('root')` 注册 `sidebar.panellist` 与 `main`，
+  locale（`workspace-library`，zh/en 键集一致）。
+- 面板分别等待 `sidebar.panellist` 与 `main` 声明后注册，
   不依赖 Harness Client 组件包。
 
 ## HTTP 面
@@ -79,6 +96,7 @@ DeepSeek Harness 原生的**产品库**与**企业资料库**：一个 Harness �
   `index.html` 相同的签名 Cookie（`dsh-auth-*`）以及 Host/Origin 围栏；不引入第二套令牌
 - 写请求要求 `application/json`、校验 `Origin` / `Sec-Fetch-Site`，请求体上限 20 MiB
 - 文件：`GET /documents/:id/versions/:v/file`；图片：`GET /products/:id/images/:imageId`
+- 对话候选：`GET /references?q=...&limit=50`；发送前只校验元数据：`POST /references/check`
 
 主要写接口：`POST /documents`、`POST /documents/:id/versions`、
 `POST /documents/:id/versions/:v/reviews`、`PATCH /documents/:id`、
@@ -115,6 +133,14 @@ $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependenci
 
 `dev/client-smoke.mjs` 使用仓库根目录的开发依赖 React / React DOM / jsdom
 （`DSH_CLIENT_TEST_MODULES` 可指向其他已安装目录），不随插件发布。
+
+官方运行时的可选工具／附件验收（临时目录，无模型调用）：
+
+```sh
+DSH_RUNTIME_DIR=/workspace/dsh-runtime node dev/native-reference-smoke.mjs
+```
+
+当前云环境的核心、原生工具及浏览器验收记录见仓库根目录 [VALIDATION](../../../VALIDATION.md)。
 
 ## 边界
 

@@ -7,13 +7,17 @@
 ```
 dsh-workspace-library/
 ├─ index.js              Host：存储、领域校验、Service、HTTP、模型工具、插件装配
+├─ references.js         固定版本的候选、发送校验和有界 UTF-8／原生附件读取
 ├─ client.js             Client：中文/英文字典、样式、数据访问、面板与所有页面
 ├─ locale/*.json         Plugin Manager 里的标题/描述
 ├─ icon.svg              侧栏图标
 ├─ test/library.test.mjs Host 测试（领域 + HTTP + 文件/图片）
+├─ test/references.test.mjs 固定版本、附件完整性、取消、归档、HTTP 与工具
+├─ test/reference-client.test.mjs 原生引用源、序列化、slot 声明顺序与输入动作
 └─ dev/                  开发辅助（不随插件发布）
    ├─ client-smoke.mjs   真实 React + jsdom 冒烟
    ├─ check-locales.mjs  zh/en 字典一致性
+   ├─ native-reference-smoke.mjs 官方工具运行时与附件存储验收（需 DSH_RUNTIME_DIR）
    └─ bundle-rev.mjs     当前 client bundle 的 rev 与服务端是否一致
 ```
 
@@ -40,7 +44,7 @@ Client 里的顺序：
 | 传输 | `request` / `api` / `fetchStoredBlob` / `openStoredFile` / `useBlobUrl` / `fileToBase64` | 同源 JSON、blob 文件、上传编码 |
 | 面板 | `LibraryPanel` | 页签 + 路由状态机 `list / product / productNew / productEdit / document / documentNew / documentVersion` |
 | 页面 | `ProductPane` / `ProductDetail` / `ProductEditor` / `CompanyPane` / `CompanyCard` / `DocumentDetail` / `DocumentEditor` | 列表页 / 详情页 / 编辑页 |
-| 注册 | `apply(ctx)` | `sidebar.panellist` + `main`，含启动后的注册重放 |
+| 注册 | `apply(ctx)` | 等待各自 slot 声明，注册面板、原生输入引用源和输入栏按钮 |
 
 ### 一次操作，三个调用方
 
@@ -217,7 +221,8 @@ Client（`dev/client-smoke.mjs`）：
 ## 9. 常见坑
 
 - **改了看不到**：Host 没重载 / 页面没强刷 / bundle rev 没更新（用 `dev/bundle-rev.mjs` 查）
-- **侧栏没有图标**：`sidebar.panellist` 的订阅发生在侧栏激活时；`apply` 里 0ms/1s 的注册重放就是为此。**不要删**
+- **Client 启动失败／侧栏没有图标**：等待目标 slot 本身（`sidebar.panellist`／`main`）声明后再注册。
+  `root` 存在不代表侧栏已声明子 slot；当前 DSH 自带订阅的初始同步，不需要定时重放。
 - **保存 409**：没有带 `expectedRevision`，或图片/资料操作推进了修订。产品编辑器用
   `baseRevision`，图片操作后要更新它
 - **`assertKeys` 报错**：字段没进白名单（`PRODUCT_FIELDS` / `DOCUMENT_FIELDS` / `COMPANY_FIELDS`）
