@@ -40,6 +40,8 @@
   Chromium 隔离 profile 中，候选、人工审核、跨工作区隔离、来源归档、撤销、刷新后历史通过。
 - 隔离 profile 中三个真实模型场景通过：历史文件读取、批准偏好跨会话召回、归档／撤销后停止引用。
   使用合成数据；依据、修复和边界见 [LIVE-ACCEPTANCE.md](LIVE-ACCEPTANCE.md)。
+- 产品上下文的官方工具／附件／Web 检查通过；另两个真实模型会话验证单产品历史取材与归档缺口，
+  模型原答复仍有文字偏差，见 [PRODUCT-CONTEXT.md](PRODUCT-CONTEXT.md)。
 - 浏览器验收不代表完整视觉／主题验收；尚未验证桌面宿主。
 
 Sourcing 的 `workspace-dependencies` 是可选桌面运行时工具。配置遵循官方 SDK

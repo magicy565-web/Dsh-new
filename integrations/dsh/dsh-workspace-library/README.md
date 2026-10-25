@@ -32,6 +32,7 @@ DeepSeek Harness 原生的**产品库**与**企业资料库**：一个 Harness �
 
 | 工具 | 能力 |
 | --- | --- |
+| `workspace_library_product_context` | 只读单产品上下文：修订／快照 SHA、SKU／供货字段、关联确切版本元数据与缺口；正文由引用读取器另行校验 |
 | `workspace_library_references` | 读取对话引用的确切版本，校验原文 SHA-256，转发原生取消信号 |
 | `workspace_library_status` | 数据文件、附件可用性、上限、企业名、产品/资料计数 |
 | `workspace_library_company` | `read` / `save`（`save` 需 `expectedRevision`） |
@@ -42,6 +43,8 @@ DeepSeek Harness 原生的**产品库**与**企业资料库**：一个 Harness �
 审核是用户授权动作，**不暴露为工具**；模型只能读取和起草版本。
 
 ## 原生对话引用
+
+按产品读取的字段、关联版本、审核／有效期和缺口说明见 [产品上下文](../../../docs/PRODUCT-CONTEXT.md)。
 
 在原生对话输入框点击「引用资料」，或输入 `@` 后选择「企业资料 · 固定版本」中的资料。
 引用芯片固定 `documentId + version + sha256`；新增版本不会替换已选内容。
@@ -138,6 +141,7 @@ $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependenci
 
 ```sh
 DSH_RUNTIME_DIR=/workspace/dsh-runtime node dev/native-reference-smoke.mjs
+DSH_RUNTIME_DIR=/workspace/dsh-runtime node dev/native-product-context-smoke.mjs
 ```
 
 当前云环境的核心、原生工具及浏览器验收记录见仓库根目录 [VALIDATION](../../../VALIDATION.md)。

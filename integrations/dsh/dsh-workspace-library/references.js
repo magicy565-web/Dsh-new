@@ -1,9 +1,8 @@
 // Exact document versions for native DSH references. No separate state or session store.
 import { createHash } from 'node:crypto';
 
-const MAX_REFERENCES = 8;
-const MAX_CHARS = 24_000;
-const MAX_BYTES = 96_000;
+export const REFERENCE_LIMITS = Object.freeze({ maxReferences: 8, maxChars: 24_000, maxBytes: 96_000 });
+const { maxReferences: MAX_REFERENCES, maxChars: MAX_CHARS, maxBytes: MAX_BYTES } = REFERENCE_LIMITS;
 const SHA = /^[a-f0-9]{64}$/u;
 const TEXT_TYPES = new Set(['text/plain', 'text/markdown', 'text/csv', 'application/json']);
 
@@ -17,12 +16,12 @@ export class ReferenceError extends Error {
 
 const fail = (code, message, status) => { throw new ReferenceError(code, message, status); };
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
-const readable = version => TEXT_TYPES.has(String(version.mimeType).split(';', 1)[0].trim().toLowerCase());
+export const isReadableReference = version => TEXT_TYPES.has(String(version.mimeType).split(';', 1)[0].trim().toLowerCase());
 const checkSignal = signal => {
   if (signal?.aborted) fail('REFERENCE_CANCELLED', 'Reference reading was cancelled.', 409);
 };
 
-function metadata(document, version) {
+export function referenceMetadata(document, version) {
   const review = [...document.reviews].reverse().find(item => item.documentVersion === version.version && item.sha256 === version.sha256);
   return {
     documentId: document.id, version: version.version, sha256: version.sha256,
@@ -53,8 +52,8 @@ function resolve(state, references) {
     const version = document.versions.find(item => item.version === ref.version);
     if (!version) fail('REFERENCE_NOT_FOUND', 'The selected document version no longer exists.', 404);
     if (version.sha256 !== ref.sha256) fail('REFERENCE_CHANGED', 'The selected document version does not match its hash. Select it again.', 409);
-    if (!readable(version)) fail('REFERENCE_UNSUPPORTED', 'Only TXT, Markdown, CSV and JSON text references can be read.');
-    return { document, version, source: metadata(document, version) };
+    if (!isReadableReference(version)) fail('REFERENCE_UNSUPPORTED', 'Only TXT, Markdown, CSV and JSON text references can be read.');
+    return { document, version, source: referenceMetadata(document, version) };
   });
 }
 
@@ -67,8 +66,8 @@ export function listReferenceCandidates(state, { q = '', limit = 50 } = {}) {
   for (const document of [...state.documents].filter(item => item.status === 'active')
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id))) {
     for (const version of [...document.versions].sort((a, b) => b.version - a.version)) {
-      if (!readable(version) || !`${document.title}\n${version.fileName}`.toLowerCase().includes(needle)) continue;
-      items.push(metadata(document, version));
+      if (!isReadableReference(version) || !`${document.title}\n${version.fileName}`.toLowerCase().includes(needle)) continue;
+      items.push(referenceMetadata(document, version));
     }
   }
   return { items: items.slice(0, limit), total: items.length };

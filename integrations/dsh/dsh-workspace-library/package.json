@@ -13,6 +13,7 @@
   "files": [
     "index.js",
     "references.js",
+    "product-context.js",
     "client.js",
     "cordis.patch.yml",
     "locale/*.json",
