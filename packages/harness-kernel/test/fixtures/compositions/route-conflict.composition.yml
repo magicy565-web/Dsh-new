@@ -1,6 +1,0 @@
-version: 1
-name: route-conflict
-server: { host: 127.0.0.1, port: 0 }
-plugins:
-  - id: routes-conflict
-    name: ../plugins/routes-conflict

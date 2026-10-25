@@ -1,6 +1,0 @@
-version: 1
-name: param-conflict
-server: { host: 127.0.0.1, port: 0 }
-plugins:
-  - id: param-conflict
-    name: ../plugins/param-conflict

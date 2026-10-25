@@ -1,7 +1,0 @@
-{
-  "id": "bad-manifest",
-  "version": "not-a-version",
-  "kind": "plugin",
-  "description": "Fixture with an invalid manifest version.",
-  "entry": "./src/index.mjs"
-}

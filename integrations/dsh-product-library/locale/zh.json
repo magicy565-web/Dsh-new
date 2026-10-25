@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "产品资料库",
-    "description": "在 DSH 中读取 Workspace 产品资料库：Medusa 商品、已审核 Product Context、版本化页面与引用状态。只读，不写 Medusa。"
-  }
-}

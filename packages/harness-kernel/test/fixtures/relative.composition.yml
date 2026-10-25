@@ -1,8 +1,0 @@
-version: 1
-name: relative
-server: { host: 127.0.0.1, port: 0 }
-plugins:
-  # Rule 3: explicit relative path resolved against this composition file's directory.
-  - id: provider
-    name: ./plugins/trace-provider
-    config: { label: relative }

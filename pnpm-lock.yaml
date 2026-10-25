@@ -40,18 +40,12 @@ importers:
       '@earendil-works/pi-tui':
         specifier: 1.1.0
         version: 1.1.0
-      cordis:
-        specifier: 4.0.0-rc.11
-        version: 4.0.0-rc.11
       react:
         specifier: 18.3.1
         version: 18.3.1
       react-dom:
         specifier: 18.3.1
         version: 18.3.1(react@18.3.1)
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
     devDependencies:
       '@types/react':
         specifier: 18.3.31
@@ -1460,21 +1454,6 @@ packages:
   chalk@6.0.0:
     resolution: {integrity: sha512-2uNTXIuTTxk7ciZgAU1BQcgnchcG0xXnrs6jzkQfj9SsRa9M2s5zE8WT96hS6KmG4MzWHSrvH43DF1m4XRkrFg==}
     engines: {node: '>=22'}
-
-  cordis@4.0.0-rc.11:
-    resolution: {integrity: sha512-03PHbcYJzp84XRKnW7jd17g26bPvG5UvSyhyjxGIu/1VQs3bweNMACo3t1W0ikzoZ7q+wytHyk8jJsaIQOkPkA==}
-    hasBin: true
-    peerDependencies:
-      '@cordisjs/plugin-include': ^1.1.1
-      '@cordisjs/plugin-loader': ^1.0.0-rc.8
-    peerDependenciesMeta:
-      '@cordisjs/plugin-include':
-        optional: true
-      '@cordisjs/plugin-loader':
-        optional: true
-
-  cosmokit@1.8.1:
-    resolution: {integrity: sha512-PDBv4l90xZKrUsZ0vtoycgZpO/j4iFsqJXrAxsyBDsnQRI7ZMJXIjgDJsKNjd5L8jnVnnlrDCdhkFbTncgCVjQ==}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -3661,13 +3640,6 @@ snapshots:
   buffer-equal-constant-time@1.0.1: {}
 
   chalk@6.0.0: {}
-
-  cordis@4.0.0-rc.11:
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      cosmokit: 1.8.1
-
-  cosmokit@1.8.1: {}
 
   cross-spawn@7.0.6:
     dependencies:

@@ -1,7 +1,0 @@
-{
-  "id": "boom-import",
-  "version": "0.1.0",
-  "kind": "plugin",
-  "description": "Fixture plugin whose module throws on import; a disabled row must never import it.",
-  "entry": "./src/index.mjs"
-}

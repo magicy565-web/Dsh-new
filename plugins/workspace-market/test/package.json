@@ -1,7 +1,0 @@
-{
-  "name": "workspace-market-tests",
-  "private": true,
-  "type": "module",
-  "description": "Compatibility shim: `node --test plugins/workspace-market/test` runs the aggregate entry.",
-  "main": "../all-tests.mjs"
-}

@@ -3,24 +3,24 @@
   "version": "0.5.0-rc.2",
   "private": true,
   "type": "module",
-  "description": "A single-enterprise agent workspace release candidate with audited execution, guarded access and recovery",
+  "description": "DeepSeek Harness native workspace plugins and reusable business domains",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "dev": "node scripts/workspace-omp.mjs",
+    "dev": "node scripts/dsh-info.mjs",
     "dev:web": "vite --host 127.0.0.1",
     "dev:server": "node --env-file-if-exists=.env server/index.mjs",
-    "build": "node scripts/build-omp.mjs",
-    "start": "node scripts/workspace-omp.mjs",
+    "build": "node scripts/check-dsh.mjs",
+    "start": "node scripts/dsh-info.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/test-backend.mjs",
+    "test": "node scripts/test-dsh.mjs",
     "test:ui": "npm run build:web && node --test test/ui.dom.test.mjs",
     "test:browser": "npm run build:web && node test/ui.browser.mjs",
     "test:experts": "node --test test/cloud-experts.test.mjs test/cloud-experts.http.test.mjs test/expert-content.test.mjs test/cloud-team-staging.test.mjs test/cloud-team-staging.http.test.mjs",
     "test:experts:browser": "npm run build:web && node test/cloud-expert-experience.browser.mjs",
     "preview:offline": "npm run build:web && node scripts/export-preview.mjs",
-    "test:all": "npm test && npm run test:ui && npm run test:conversation:ui && npm run build:mini",
+    "test:all": "npm run test:legacy && npm run test:ui && npm run test:conversation:ui && npm run build:mini",
     "test:recovery": "node --test test/recovery.test.mjs test/recovery-control.test.mjs test/native-recovery.test.mjs test/store.test.mjs test/store-migration.test.mjs",
     "test:provider-live": "node scripts/acceptance-provider.mjs",
     "test:release": "npm run test:all && npm run package:pi",
@@ -60,11 +60,11 @@
     "build:web": "tsc --noEmit && vite build",
     "build:omp": "node scripts/build-omp.mjs",
     "test:omp": "node --test test/workspace-omp-unified.test.mjs",
-    "test:market": "node --test plugins/workspace-market/test",
-    "test:product-library": "node --test plugins/workspace-product-library/test/plugin.test.mjs integrations/dsh-product-library/test/index.test.mjs test/product-library-proxy.test.mjs",
-    "harness:serve": "node scripts/harness-serve.mjs",
+    "test:product-library": "node --test packages/domain-product-library/test/*.test.mjs",
     "legacy:workspace": "node --env-file-if-exists=.env scripts/workspace-omp-legacy.mjs",
-    "test:medusa-live": "node scripts/medusa-catalog-live-smoke.mjs"
+    "test:medusa-live": "node scripts/medusa-catalog-live-smoke.mjs",
+    "test:dsh": "node scripts/test-dsh.mjs",
+    "test:legacy": "node scripts/test-backend.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.28",
@@ -75,9 +75,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "@earendil-works/pi-coding-agent": "1.1.0",
-    "@earendil-works/pi-tui": "1.1.0",
-    "cordis": "4.0.0-rc.11",
-    "yaml": "^2.9.1"
+    "@earendil-works/pi-tui": "1.1.0"
   },
   "devDependencies": {
     "@types/react": "18.3.31",

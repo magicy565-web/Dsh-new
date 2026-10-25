@@ -1,6 +1,0 @@
-/* Presentation for plugin-contributed slot occupants.
-   Occupant visuals ship with the plugin itself; the host only owns layout/isolation. */
-.plugin-slot{display:grid;gap:10px;min-width:0}
-.plugin-slot-item{min-width:0;max-width:100%}
-/* A plugin that failed while rendering leaves an empty boundary wrapper; take it out of layout. */
-.plugin-slot-item:empty{display:none}

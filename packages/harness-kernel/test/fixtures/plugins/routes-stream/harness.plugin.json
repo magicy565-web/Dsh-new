@@ -1,8 +1,0 @@
-{
-  "id": "routes-stream",
-  "version": "0.1.0",
-  "kind": "plugin",
-  "description": "Fixture plugin: one SSE-shaped streaming route that holds its second chunk.",
-  "entry": "./src/index.mjs",
-  "routes": ["GET /api/fixture/stream"]
-}

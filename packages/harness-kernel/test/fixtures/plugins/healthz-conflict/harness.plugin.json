@@ -1,7 +1,0 @@
-{
-  "id": "healthz-conflict",
-  "version": "0.1.0",
-  "kind": "plugin",
-  "description": "Fixture plugin trying to override the kernel GET /healthz route.",
-  "entry": "./src/index.mjs"
-}

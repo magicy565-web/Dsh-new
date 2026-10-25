@@ -1,7 +1,0 @@
-{
-  "name": "@workspace-harness/kernel-tests",
-  "private": true,
-  "type": "module",
-  "description": "Compatibility shim: `node --test packages/harness-kernel/test` runs the aggregate entry. Node 24 treats positional --test arguments as glob patterns/files, not directories.",
-  "main": "../all-tests.mjs"
-}

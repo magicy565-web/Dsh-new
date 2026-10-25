@@ -1,7 +1,0 @@
-{
-  "id": "param-conflict",
-  "version": "0.1.0",
-  "kind": "plugin",
-  "description": "Fixture plugin registering two parameter patterns that match the same concrete path.",
-  "entry": "./src/index.mjs"
-}

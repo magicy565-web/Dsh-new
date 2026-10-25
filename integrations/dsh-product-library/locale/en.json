@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Product Library",
-    "description": "Read the Workspace Product Library from DSH: Medusa products, approved Product Context, versioned pages and citation status. Read-only; never writes Medusa."
-  }
-}

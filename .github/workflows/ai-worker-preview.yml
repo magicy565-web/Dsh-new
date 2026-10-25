@@ -27,7 +27,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Typecheck and build actual project
-        run: npm run build
+        run: npm run build:web
       - name: Worker API, A2A, storage tests
         run: node --test test/worker-desk.test.mjs test/worker-desk.http.test.mjs test/worker-a2a-adapter.test.mjs test/worker-a2a-host.test.mjs test/worker-delivery-artifact.test.mjs test/worker-a2a-network.test.mjs test/worker-opportunities.test.mjs test/worker-opportunities.http.test.mjs
       - name: Dot Pull Worker and actual MCP 2026/2025 protocol tests

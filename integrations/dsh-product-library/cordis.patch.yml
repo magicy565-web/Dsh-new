@@ -1,4 +1,0 @@
-- insert:
-    - id: product-library
-      name: '@local/dsh-product-library'
-      config: {}

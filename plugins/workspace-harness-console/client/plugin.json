@@ -1,6 +1,0 @@
-{
-  "version": 1,
-  "name": "harness-console",
-  "title": "Harness 平台",
-  "description": "在设置页展示客户端插件注册表与两个 harness 端点的真实可用性。"
-}

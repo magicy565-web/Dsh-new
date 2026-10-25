@@ -1,0 +1,26 @@
+name: DSH native plugins
+on:
+  push:
+    branches: [main, agent/harness-20261023, release/harness-20261023]
+  pull_request:
+    paths:
+      - 'integrations/dsh/**'
+      - 'packages/domain-business-memory/**'
+      - 'packages/domain-product-library/**'
+      - 'scripts/*dsh*.mjs'
+      - 'package.json'
+      - '.github/workflows/dsh-plugins.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-plugins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run build
+      - run: npm test

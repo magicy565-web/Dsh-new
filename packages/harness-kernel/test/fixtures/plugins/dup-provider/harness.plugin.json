@@ -1,8 +1,0 @@
-{
-  "id": "dup-provider",
-  "version": "0.1.0",
-  "kind": "provider",
-  "description": "Fixture provider: also provides alpha.",
-  "entry": "./src/index.mjs",
-  "provides": ["alpha"]
-}
