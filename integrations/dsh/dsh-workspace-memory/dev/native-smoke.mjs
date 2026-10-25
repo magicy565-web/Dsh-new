@@ -7,6 +7,8 @@ import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import Memory from '../index.js';
 import Library from '../../dsh-workspace-library/index.js';
+import Inquiry from '../../dsh-inquiry-recovery/index.js';
+import { row, toCsv } from '../../dsh-inquiry-recovery/dev/fixture.mjs';
 
 if (!process.env.DSH_RUNTIME_DIR) throw new Error('Set DSH_RUNTIME_DIR to the official runtime directory.');
 const require = createRequire(join(resolve(process.env.DSH_RUNTIME_DIR), 'package.json'));
@@ -32,6 +34,7 @@ async function boot() {
     await ctx.plugin(Library, { dataDir: join(root, 'library') });
     await ctx.plugin({ apply(scope) { scope.provide('workspaceRegistry', { get: id => id === workspace.id ? workspace : undefined, list: () => [workspace] }); } });
     await ctx.plugin(Memory);
+    await ctx.plugin(Inquiry);
     return ctx;
   } catch (error) { await ctx.fiber.dispose(); throw error; }
 }
@@ -65,11 +68,29 @@ try {
   const archived = await execute('business_memory_recall', {});
   assert.equal(archived.value.items.some(item => item.id === sourced.value.record.id), false);
   assert.equal(archived.value.excluded[0].code, 'REFERENCE_ARCHIVED');
+  await library.saveProduct({ name: 'Demo linen' });
+  const discoveryDoc = await library.addDocument({ title: 'Demo policy', content: 'Original policy must not enter discovery.' });
+  const inquiry = ctx.get('inquiryRecovery');
+  await inquiry.import(workspace.id, { requestId: randomUUID(), sourceName: 'demo.csv', format: 'csv', authorized: true,
+    dataBase64: Buffer.from(toCsv([row({ companyName: 'Demo buyer' })])).toString('base64') });
+  const found = await execute('workspace_context_search', { q: 'Demo' });
+  assert.equal(found.isError, false, JSON.stringify(found));
+  assert.equal(found.value.discoveryOnly, true);
+  assert.ok(found.value.groups.every(group => group.status === 'available'));
+  assert.equal(found.value.groups.find(group => group.name === 'memory').items.length, 1);
+  const hit = found.value.groups.find(group => group.name === 'library').items.find(item => item.id === discoveryDoc.id);
+  assert.equal(hit.reader.arguments.references[0].sha256, discoveryDoc.versions[0].sha256);
+  assert.equal(JSON.stringify(found.value).includes('Original policy must not enter'), false);
+  const inquiryHit = found.value.groups.find(group => group.name === 'inquiries').items[0];
+  const opened = await execute(inquiryHit.reader.name, inquiryHit.reader.arguments);
+  assert.equal(opened.value.source.rawBytesVerified, true);
+  const docRead = await execute(hit.reader.name, hit.reader.arguments);
+  assert.equal(docRead.value.items[0].content, 'Original policy must not enter discovery.');
   await ctx.fiber.dispose(); ctx = undefined;
   ctx = await boot();
   const reopened = await ctx.get('workspaceMemory').read(workspace.id, candidate.value.record.id);
   assert.equal(reopened.record.status, 'active');
   assert.equal(reopened.record.history.length, 2);
   assert.equal(ctx.tools.get('business_memory_review'), undefined);
-  console.log('OK: official ToolRuntime + StorageDomain/JSON + attachments; pending exclusion, human approval, scoped recall, old source SHA, archived-source exclusion and restart persistence. Agent identity is a fixture; no model calls.');
+  console.log('OK: official ToolRuntime + StorageDomain/JSON + attachments; scoped discovery across library, approved memory and inquiries, reader round trips, source exclusions and restart persistence. Agent identity is a fixture; no model calls.');
 } finally { await ctx?.fiber.dispose(); await rm(root, { recursive: true, force: true }); }

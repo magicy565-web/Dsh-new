@@ -29,6 +29,9 @@
 | --- | --- |
 | `business_memory_propose` | 仅提出候选；作用域从当前 Agent 的原生会话归属解析，不能传入工作区／角色／审核标志 |
 | `business_memory_recall` | 当前工作区内的有界召回；最多检查 50 条，默认 20 条，记录 JSON 总计最多 24 KB，返回未返回数量与排除原因 |
+| `workspace_context_search` | 跨现有产品／资料、已批准记忆、历史询盘的只读发现；返回范围、版本标识和后续读取入口 |
+
+直接在原生对话中要求查找已存信息即可使用，范围与限制见 [工作区检索](../../../docs/WORKSPACE-SEARCH.md)。
 
 召回的 `q` 是字面子串；可省略以读取当前工作区的有界结果。
 `searchScope` 为 `approved-active-only`，`population` 返回各生命周期的数量，不返回待审核内容。

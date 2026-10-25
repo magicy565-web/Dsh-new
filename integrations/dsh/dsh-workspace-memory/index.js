@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BusinessMemoryError, SUBJECT_TYPES, KINDS } from '@workspace/domain-business-memory';
 import { createMemoryService, createStorageAdapter, validateRoot, assertKeys, fail } from './service.js';
+import { createWorkspaceSearch, registerSearchTool } from './search.js';
 
 export const API_PREFIX = '/workspace-memory-api';
 export const domainSpec = {
@@ -105,6 +106,10 @@ export async function apply(ctx) {
   service = createMemoryService({ storage: createStorageAdapter(domain.global), registry: ctx.workspaceRegistry, getLibrary: () => ctx.get('workspaceLibrary') });
   ctx.effect(() => ctx.reflect.provide('workspaceMemory', service), 'workspace-memory: service');
   registerTools(ctx, service);
+  const search = createWorkspaceSearch({ registry: ctx.workspaceRegistry, memory: service,
+    getLibrary: () => ctx.get('workspaceLibrary'), getInquiries: () => ctx.get('inquiryRecovery') });
+  ctx.effect(() => () => search.close(), 'workspace-memory: search lifetime');
+  registerSearchTool(ctx, search);
   ctx.inject(['webServer', 'connection'], web => {
     web.effect(() => web.webServer.register({ kind: 'prefix', path: API_PREFIX, handler: createHttpHandler(service, { authorize: request => web.connection.requestRejection(request) }) }), 'workspace-memory: HTTP');
   });

@@ -47,6 +47,9 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 来源更新会重置身份判断，退订、暂停及不完整证据不能创建新草稿；业务规则只属于此可选插件，
 不改变 DSH 的通用执行方式。接口与验证见 [插件说明](../integrations/dsh/dsh-inquiry-recovery/README.md)。
 
+只读 `workspace_context_search` 在经营记忆 bundle 内复用已加载服务，提供分来源的查找入口。
+它不复制存储或调度任务；目录命中需要经现有读取器进一步核实，见 [工作区检索](WORKSPACE-SEARCH.md)。
+
 ## 不进入源码树的内容
 
 运行数据、真实附件／会话、凭据、构建包、历史截图及交付 ZIP 均留在 Git 外。
