@@ -72,6 +72,9 @@
             name: '@deepseek-ai/dsh-tool-skill'
           - id: workspace-dependencies
             name: '@deepseek-ai/dsh-tool-workspace-dependencies'
+            disabled: !!js "!(process.env.DSH_PRIMARY_RUNTIME ?? process.env.DSH_BUNDLED_PRIMARY_RUNTIME)"
+            config:
+              source: !!js "process.getBuiltinModule('node:path').resolve(process.env.DSH_PRIMARY_RUNTIME ?? process.env.DSH_BUNDLED_PRIMARY_RUNTIME ?? '')"
           - id: present
             name: '@deepseek-ai/dsh-tool-present'
           - id: tool-schedule

@@ -116,6 +116,10 @@ data.json              项目记录快照
 
 在 DSH 中通过 `plugin_manager install_bundle target=<本插件绝对目录>` 安装；实际 profile 与启用状态由宿主管理，本仓库不宣称当前机器已安装或在线。
 
+Web／npm 宿主未提供桌面工具运行时，`workspace-dependencies` 默认停用。需要这项工具时，
+由宿主提供实际的 `DSH_PRIMARY_RUNTIME` 或 `DSH_BUNDLED_PRIMARY_RUNTIME` 路径；
+其中应包含官方规定的 `runtime.json` 与 `dependencies/`。其余业务工具不依赖该工具。
+
 - 改技能、工具、引擎代码：链接目录，重启应用后生效（模块有缓存，热重载不保证换新版本）。
 - 改 `cordis.patch.yml`（增减 preset 子行）：关掉再打开 bundle，或重启。
 - 已经在跑的会话保留旧组合，新会话才用新组合。

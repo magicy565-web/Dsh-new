@@ -53,6 +53,7 @@ DOM 冒烟与本地 Host 测试均不能替代真实 DSH 挂载和浏览器验�
 领域包尚未装配为新的 DSH 工具或页面；由宿主明确注入存储、身份与附件能力。
 Sourcing 的业务阶段只属于可选业务插件，不是通用 Agent 的强制流程。
 
-开发入口见 [开发约定](docs/DEVELOPMENT.md)，验证边界见 [VALIDATION](VALIDATION.md)。
+开发入口见 [开发约定](docs/DEVELOPMENT.md)，原生安装与接入见 [DSH 宿主](docs/DSH-HOST.md)，
+验证边界见 [VALIDATION](VALIDATION.md)。
 旧应用、其他执行器、独立 Medusa 项目和历史发布包已移出当前源码树；
 需要旧实现时从 Git 历史查找，见 [清理记录](docs/DSH-MIGRATION-20261026.md)。
