@@ -1,9 +1,0 @@
-{
-  "mutation": "remove only unmount AbortController.abort from VerifiedFile effect cleanup",
-  "exitCode": 1,
-  "durationSeconds": 12.172688214999653,
-  "expectedFailure": "Timed out: failed authorization reread aborts pending attachment",
-  "productOriginalSha256": "3aef42881d5f8c74e56017ec0146a90dd76f98f2bfdff176ed2ff2b1d0f0e3ec",
-  "detectedMissingAbort": true,
-  "originalProductBytesRestored": true
-}

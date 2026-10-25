@@ -1,46 +1,58 @@
 # Workspace · DeepSeek Harness 插件
 
-本项目以 **DeepSeek Harness（DSH）为唯一的后续 Agent 执行宿主**。
-会话、模型、工具循环、取消和定时唤醒复用 DSH；本仓库维护工作空间与业务插件。
+本仓库只维护 **DeepSeek Harness（DSH）原生插件和可复用领域逻辑**。
+Agent 执行、模型、会话、工具循环和取消由 DSH 宿主负责。
 
-2026-10-26 已移除独立 Workspace Harness 工作台，包括自建内核、能力接缝、
-8790 服务、专属页面、安装器和依赖它的 HTTP 桥接。具体范围见
-[删除记录](docs/DSH-MIGRATION-20261026.md)。
+## 目录
 
-## 原生插件
-
-| 目录 | 功能 |
-| --- | --- |
-| `integrations/dsh/dsh-workspace-library` | 企业／产品资料、文件、图片、固定版本及人工审核 |
-| `integrations/dsh/dsh-space-workspace` | Space 页面、内容编辑、分享与评论记录 |
-| `integrations/dsh/dsh-sourcing-agent` | 可选的获客业务 Agent、业务规则和交付物 |
-
-在 DSH 中使用 `plugin_manager install_bundle target=<插件绝对目录>` 安装。
-运行 `npm start` 可显示当前 checkout 的三个安装位置；该命令不会启动另一套服务。
-原生宿主及其 profile 由 DSH 管理，不通过根目录的 npm 命令安装或修改。
-安装后的重载与界面刷新方式见各插件 README。
-
-## 本地验证
-
-需要 Node.js 24+；以下验证不安装依赖、不读取模型凭据、不调用收费模型：
-
-```sh
-npm run build   # 原生 bundle 入口、JS 语法、资料库中英文字典
-npm test        # 三个原生插件及保留的领域逻辑回归
+```text
+integrations/dsh/   三个可安装的原生插件
+packages/          三个宿主无关的领域包
+scripts/           安装位置提示、静态检查、回归测试
+.github/           DSH 检查工作流
+docs/              当前开发约定与清理记录
+licenses/          第三方许可
 ```
 
-插件的浏览器交互与真实 DSH 挂载需要单独验证；本地测试不能替代它们。
-Sourcing 的固定业务阶段只是可选业务插件，不是通用 Agent 的底座要求。
+| 插件 | 能力 |
+| --- | --- |
+| [dsh-workspace-library](integrations/dsh/dsh-workspace-library/README.md) | 企业／产品资料、文件、图片、版本和人工审核 |
+| [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
+| [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 可选的获客业务方法、规则和交付物 |
 
-## 可复用领域与历史代码
+在 DSH 中执行 `plugin_manager install_bundle target=<插件绝对目录>` 安装。
+`npm start` 只显示当前 checkout 的三个安装位置，不启动服务或修改 profile。
 
-- `packages/domain-business-memory`：记忆候选、人工审核、来源与上下文编译。
-- `packages/domain-product-library`：产品上下文固定、引用、版本与 Medusa 只读来源。
-- `packages/domain-inquiry-recovery`：已有询盘领域逻辑。
+## 验证
 
-前两个领域保留原数据键与回归测试，**尚未接成新的 DSH 工具或页面**。
-旧的经营记忆／产品库 HTTP 桥接已删除，不能继续依赖已退役的 8790 服务。
+Node.js 24+。核心检查仅使用 Node 内置模块，不需要安装依赖：
 
-`server/`、`src/`、`pi/`、`tui/`、其他既有业务插件和 Medusa 项目保留为既有代码及迁移来源，
-不作为新的默认 Agent 宿主。它们的历史验证与部署记录不代表当前 DSH 版本已验收。
-本次不删除用户的本机资料、会话、附件、已安装应用或服务器数据，也不改写 Git 历史。
+```sh
+npm run check
+```
+
+等价于 `npm run build`（入口／JS 语法／字典）和 `npm test`（原生插件及领域回归）。
+可选 Client DOM 冒烟需要根目录锁定的开发依赖：
+
+```sh
+npm ci --ignore-scripts
+npm run test:client
+```
+
+React、React DOM、jsdom 只用于开发测试；插件运行时复用 DSH 提供的 React。
+DOM 冒烟与本地 Host 测试均不能替代真实 DSH 挂载和浏览器验收。
+
+## 领域包
+
+| 包 | 当前用途 |
+| --- | --- |
+| [domain-business-memory](packages/domain-business-memory/README.md) | 记忆候选、人工审核、来源、召回与上下文 |
+| [domain-product-library](packages/domain-product-library/README.md) | 产品上下文、引用、版本、Medusa 只读来源 |
+| [domain-inquiry-recovery](packages/domain-inquiry-recovery/README.md) | 历史询盘的来源校验、人工判断和未发送草稿 |
+
+领域包尚未装配为新的 DSH 工具或页面；由宿主明确注入存储、身份与附件能力。
+Sourcing 的业务阶段只属于可选业务插件，不是通用 Agent 的强制流程。
+
+开发入口见 [开发约定](docs/DEVELOPMENT.md)，验证边界见 [VALIDATION](VALIDATION.md)。
+旧应用、其他执行器、独立 Medusa 项目和历史发布包已移出当前源码树；
+需要旧实现时从 Git 历史查找，见 [清理记录](docs/DSH-MIGRATION-20261026.md)。

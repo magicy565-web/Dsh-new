@@ -53,7 +53,7 @@ Client 里的顺序：
 
 ## 2. 本地开发循环
 
-本机 node 不在 PATH，先设一次：
+以下是使用 DSH 内置 Node 的可选 Windows 配置；Node.js 24+ 已在 PATH 时直接使用 node：
 
 ```powershell
 $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe"

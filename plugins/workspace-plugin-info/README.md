@@ -1,7 +1,0 @@
-# Plugin info probe
-
-`@workspace-agent/pi-plugin-info` is a second independent, side-effect-free native OMP package used to verify directory discovery and coexistence. It registers `workspace_plugin_info({})`, returning a static string. It reads/writes no files, uses no network, creates no credentials and needs no Workspace client. No business readiness is inferred.
-
-Native entry and business guidance are declared in package.json `pi.extensions` / `pi.skills`. Default project config discovers this package but explicitly disables it. Remove its `extension-module:workspace-plugin-info` disabled entry to enable; restore that entry to disable, even while its path remains listed in `extensions`. Restart applies changes. Remove its enabled entry or disable its directory ID before deleting its directory to uninstall; an enabled-but-missing entry is a useful error. `--disable-plugin workspace-plugin-info` has priority for an invocation. Standalone loading uses original OMP `-e /ABS/workspace-plugin-info`. No runtime dependency beyond OMP 18.10.4 and no install script.
-
-Tested through the real native file loader, including actual tool execution, disable/re-enable, coexistence with selected local files and uninstall. Models are finite mocks in these tests; no paid provider or business integration was exercised. Development memory is AGENTS.md; guidance is skills/plugin-info/SKILL.md. This package requires no runtime memory and must not write enterprise state to Git.

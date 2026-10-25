@@ -1,4 +1,0 @@
-{"name": "npm-ci-offline", "sourceCommit": "13b268edebbc3a26dd7e4197dfecb2dde37d3164", "sourceTree": "3b45b5e34c13ee9d6deba594240961a213ee526c", "command": ["npm", "ci", "--ignore-scripts", "--offline", "--no-audit", "--no-fund"], "cwd": "/tmp/workspace-launch-20261013/reconstruction-13b268e/source/Workspace-Agent", "environmentNames": ["HOME", "HTTPS_PROXY", "HTTP_PROXY", "LANG", "LC_ALL", "NODE_EXTRA_CA_CERTS", "NO_PROXY", "PATH", "REQUESTS_CA_BUNDLE", "SSL_CERT_FILE", "TERM", "http_proxy", "https_proxy", "no_proxy", "npm_config_cache", "npm_config_globalconfig", "npm_config_userconfig"], "startedAt": "2026-10-13T06:46:51.243555+00:00"}
-npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
-
-added 159 packages in 4s

@@ -7,8 +7,10 @@ on:
       - 'integrations/dsh/**'
       - 'packages/domain-business-memory/**'
       - 'packages/domain-product-library/**'
+      - 'packages/domain-inquiry-recovery/**'
       - 'scripts/*dsh*.mjs'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/dsh-plugins.yml'
   workflow_dispatch:
 permissions:

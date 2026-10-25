@@ -1,1 +1,0 @@
-{"originalComponent":true,"explicitFieldsVisible":["name","description","market","retailUnit","unitsPerPack","consumerPrice","sku","handlingDays","shippingDays"],"missingPeriodRemainsUnknown":true,"paragraphIndependent":true,"pageErrors":[],"liveSource":false}

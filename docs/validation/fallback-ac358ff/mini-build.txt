@@ -1,6 +1,0 @@
-npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
-
-> workspace-agent@0.5.0-rc.2 build:mini
-> node scripts/build-miniprogram.mjs
-
-Mini program client compiled with official API typings 5.2.3: /workspace/scratch/f716ab68d7ea/integration-recovery-20261012/repo/release/miniprogram. No upload/deploy/account action was run.

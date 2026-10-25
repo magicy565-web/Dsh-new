@@ -1,5 +1,5 @@
 {
-  "name": "@workspace-harness/domain-inquiry-recovery",
+  "name": "@workspace/domain-inquiry-recovery",
   "version": "0.1.0",
   "private": true,
   "type": "module",

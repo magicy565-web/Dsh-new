@@ -13,7 +13,7 @@ import {
   inquiryRecoveryHttp,
   parseCsv,
   InquiryError,
-} from '@workspace-harness/domain-inquiry-recovery';
+} from '@workspace/domain-inquiry-recovery';
 
 const AT = Date.parse('2026-10-21T00:00:00.000Z');
 const actor = { subject: 'owner-a', role: 'admin' };

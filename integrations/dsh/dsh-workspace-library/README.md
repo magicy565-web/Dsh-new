@@ -1,12 +1,11 @@
 # dsh-workspace-library
 
-把 `workspace-agent`（wsa-trunk）里的**产品库**与**企业资料库**完整搬进 DeepSeek
-Harness：一个 Harness 侧栏面板 + 一套模型工具 + 一份本地、可版本化的资料库。
+DeepSeek Harness 原生的**产品库**与**企业资料库**：一个 Harness 侧栏面板 + 一套模型工具 + 一份本地、可版本化的资料库。
 
 - 面板入口：左侧栏「资料库」（order 30），主面板 id `workspace-library`
 - 数据文件：`~/.dsh/data/workspace-library/library.json`（`config.dataDir` 可覆盖）
 - 文件对象：Harness 附件存储（内容寻址，`~/.dsh/attachments/v1`）
-- 插件行：`include:workspace-library`，bundle `dsh-workspace-library`（profile `desktop` 已安装）
+- 插件行：`include:workspace-library`，bundle `dsh-workspace-library`（实际安装状态由宿主管理）
 
 ## 功能
 
@@ -89,7 +88,7 @@ Harness：一个 Harness 侧栏面板 + 一套模型工具 + 一份本地、可�
 ## 安装与验证
 
 ```powershell
-# 已安装；更新时：plugin_manager install_bundle target=<绝对目录>
+# 在 DSH 中安装／更新：plugin_manager install_bundle target=<插件绝对目录>
 $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe"
 
 & $node --test test/library.test.mjs   # Host 领域 / 文件 / 图片 / HTTP（11 项）
@@ -102,7 +101,7 @@ $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependenci
 
 新增功能的完整改法、开发循环、测试与发布清单见 **[DEVELOPMENT.md](DEVELOPMENT.md)**。
 
-本机已验证：
+原开发环境记录（不是当前云环境的实时状态）：
 
 - Host 测试 **11/11**：修订冲突、就绪度推进、版本/SHA 审核、文件存取与大小上限、
   图片上传/主图/排序/移除、持久化、连接授权拒绝、HTTP 同源/文件/图片/base64 校验
@@ -114,13 +113,12 @@ $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependenci
 
 页面若在插件更新前已打开，浏览器持有旧 bundle；刷新一次页面即可。视觉与明暗主题排版仍需在页面上目视确认。
 
-`dev/client-smoke.mjs` 从 `../../wsa-trunk/node_modules` 借 React / react-dom / jsdom
-（`DSH_CLIENT_TEST_MODULES` 可指向别处），不随插件发布。
+`dev/client-smoke.mjs` 使用仓库根目录的开发依赖 React / React DOM / jsdom
+（`DSH_CLIENT_TEST_MODULES` 可指向其他已安装目录），不随插件发布。
 
 ## 边界
 
 - 没有成员/角色模型：本 profile 视作单一企业管理员（Harness 本身没有可复用成员表）。
 - 附件对象不可变：移除产品图片只解除引用，不删除附件对象；内容寻址对象可被其他引用共享。
-- 旧 `wsa-trunk/.harness-data/workspace.json` 的 `businessLibrary` 当前为空，未做一次性导入；
-  如需迁移，按 `index.js` 的数据模型导入后由面板维护。
+- 不自动导入任何旧应用数据；迁移需要明确的数据源与映射。
 - 浏览器像素级视觉、真实 PDF/大图在页面内的显示效果未做截图验证（无浏览器控制）。

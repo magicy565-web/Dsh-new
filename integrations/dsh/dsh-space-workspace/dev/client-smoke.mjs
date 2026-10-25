@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const modules = resolve(process.env.DSH_CLIENT_TEST_MODULES || join(here, '..', '..', 'wsa-trunk', 'node_modules'));
+const modules = resolve(process.env.DSH_CLIENT_TEST_MODULES || join(here, '..', '..', '..', '..', 'node_modules'));
 const load = async specifier => import(pathToFileURL(join(modules, specifier)).href);
 
 const ReactModule = await load('react/index.js');

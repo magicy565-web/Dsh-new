@@ -1,1 +1,0 @@
-Initial metadata-only probe assumed a shared directory; Git rejected this absent path before any proof was written. Corrected probe records shared absent in both source trees and verifies actual server/miniprogram trees. No npm/test/business command or source edit occurred in that failed probe.

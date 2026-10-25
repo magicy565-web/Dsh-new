@@ -10,6 +10,7 @@ const directories = [
   'integrations/dsh/dsh-sourcing-agent/test',
   'packages/domain-business-memory/test',
   'packages/domain-product-library/test',
+  'packages/domain-inquiry-recovery/test',
 ];
 const files = [];
 for (const directory of directories) {

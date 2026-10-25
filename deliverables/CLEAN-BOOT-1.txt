@@ -1,6 +1,0 @@
-
-> workspace-agent@0.5.0-rc.2 start
-> node --env-file-if-exists=.env server/index.mjs
-
-Workspace server: http://127.0.0.1:58603 (local access; pi; setup required)
-.env not found. Continuing without it.

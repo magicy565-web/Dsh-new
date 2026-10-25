@@ -1,1 +1,0 @@
-{"status":"runtime-and-package-ready","runtime":{"omp":"18.10.4","bun":"1.3.14","integrity":"verified"},"enabledPlugins":["workspace-enterprise-context"],"nativeHostRequired":true,"productionReady":false,"serviceConnection":"unconfigured-by-default","canonicalFacts":"Workspace Library","mem0":"disabled","modelRequests":0,"serviceRequests":0,"credentialRead":false}

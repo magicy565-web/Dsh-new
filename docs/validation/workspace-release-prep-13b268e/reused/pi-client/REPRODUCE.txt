@@ -1,9 +1,0 @@
-Exact-source Pi checkpoint migration reproduction
-
-Inputs: Node 24; current source 49d536007b18fa9f877ffcfe6280e28f2384c7d2; Git object 32c8ce98fe28cda1e22a16bf0d1088c768e081c8; root npm ci from the pinned lockfile. The migration source imports both actual server trees and the same real Pi 1.1.0 packages, using only the faux provider.
-
-The recorded command and original temporary locations are in SOURCE-CHECKS.json. Recreate pr59-source by extracting `git archive 32c8ce98fe28cda1e22a16bf0d1088c768e081c8 server vendor package.json` into a new temporary directory and link its node_modules to the locked current checkout node_modules. Place migration-test.mjs in that temporary PR59 source root. Update the new-source absolute imports and evidenceRoot constant to your current checkout and new temporary evidence directory. Run `node --test <temporary-pr59-root>/migration-test.mjs`. It creates synthetic checkpoint directories in that temporary evidence directory. Those runtime directories are deliberately excluded from this evidence package.
-
-Initial fixture correction: the public Runtime response intentionally omits piSubmissionId. The corrected assertion reads the original Runtime getRun state; no production code changed. Original failure and corrected passing logs are retained.
-
-These instructions and source reproduce local fixtures; they do not provide production Host source, credentials, live model calls, paid provider acceptance, or real Muse/Dot execution.

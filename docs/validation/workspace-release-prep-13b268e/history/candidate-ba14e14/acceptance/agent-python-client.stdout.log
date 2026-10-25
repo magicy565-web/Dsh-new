@@ -1,4 +1,0 @@
-
-> workspace-agent@0.5.0-rc.2 test:agent:client
-> python3 test/agent-client.test.py
-

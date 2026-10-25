@@ -2,9 +2,8 @@
 //
 // It mounts the real panel with React DOM in jsdom and a mocked Host surface,
 // then walks products, the company tab, a document and an editor. React,
-// react-dom and jsdom are borrowed from the sibling Workspace Agent checkout
-// (or the directory in DSH_CLIENT_TEST_MODULES); nothing here ships with the
-// plugin bundle.
+// react-dom and jsdom come from this repository's devDependencies (or the
+// directory in DSH_CLIENT_TEST_MODULES); none ship with the plugin bundle.
 import { pathToFileURL } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
 
 const here = dirname(fileURLToPath(import.meta.url));
-const modules = resolve(process.env.DSH_CLIENT_TEST_MODULES || join(here, '..', '..', 'wsa-trunk', 'node_modules'));
+const modules = resolve(process.env.DSH_CLIENT_TEST_MODULES || join(here, '..', '..', '..', '..', 'node_modules'));
 const load = async specifier => import(pathToFileURL(join(modules, specifier)).href);
 
 const ReactModule = await load('react/index.js');

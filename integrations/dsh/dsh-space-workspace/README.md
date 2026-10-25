@@ -63,7 +63,7 @@ HTTP：`GET /space-api/state`（`?trash=1` 取回收站）、`GET/POST/PATCH/DEL
 ## 安装与验证
 
 ```powershell
-# 已安装；更新时：plugin_manager install_bundle target=<绝对目录>
+# 在 DSH 中安装／更新：plugin_manager install_bundle target=<插件绝对目录>
 $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe"
 
 & $node --check index.js
@@ -72,7 +72,7 @@ $node = "C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependenci
 & $node dev/client-smoke.mjs
 ```
 
-本机已验证：Host 测试 7/7；jsdom 冒烟 37 次请求，走通 列表 → 块编辑/保存 → 插入块 → 收藏 → 分享 →
+原开发环境记录（非当前云环境实时状态）：Host 测试 7/7；jsdom 冒烟 37 次请求，走通 列表 → 块编辑/保存 → 插入块 → 收藏 → 分享 →
 评论 → 聊天 → 文件菜单 → 类型筛选 → 站点/站点菜单/分析 → 新建页面/站点 →
 删除到回收站/恢复 → 定时任务设置；
 实时 slot `space`（order 20）与 `main:space` active；无会话 HTTP 401；

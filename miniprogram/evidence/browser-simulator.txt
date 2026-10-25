@@ -1,1 +1,0 @@
-{"checks":5,"pageErrors":[],"browserVersion":"151.0.7922.173","mode":"source-driven Chromium simulation","destination":"/workspace/wechat-client/miniprogram/evidence/browser/"}

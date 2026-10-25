@@ -1,6 +1,13 @@
 # Third-party notices
 
-- React 18.3.1 and React DOM 18.3.1 are MIT-licensed. Their complete notices are retained in vendor/REACT-LICENSE and vendor/REACT-DOM-LICENSE
-- The bundled DeepSeek Harness SDK client/protocol comes from the supplied 0.2.0-rc.2 source tree. Its MIT notice is in vendor/harness-sdk/LICENSE
-- Other development dependencies retain their notices in their installed packages; they are not included in this source repository
-- Product artwork and interface code were created for Workspace. No Muse avatar, private reference conversation, credentials or proprietary media are included
+React 18.3.1 and React DOM 18.3.1 are MIT licensed. Their notices are retained in
+[React-LICENSE](licenses/React-LICENSE) and [React-DOM-LICENSE](licenses/React-DOM-LICENSE).
+They are root development dependencies for optional Client tests; the native
+plugin UI uses React supplied by the DeepSeek Harness host.
+
+jsdom and its transitive development dependencies retain their notices in the
+installed packages. No installed dependency bundle is committed here.
+
+DeepSeek Harness is an external execution host. Its runtime and the previously
+vendored SDK are not shipped by this source tree. Native plugin manifests refer
+to the host's own services and packages; references are not copies of that code.

@@ -1,4 +1,4 @@
-# @workspace-harness/domain-inquiry-recovery
+# @workspace/domain-inquiry-recovery
 
 Standalone domain package for **historical inquiry recovery**: authorized
 CSV/JSON import of historical inquiries, row normalization, evidence-bound
@@ -22,11 +22,10 @@ import {
   inquiryRecoveryHttp,          // framework-agnostic route mapper
   parseCsv,                     // exported RFC-4180 reader (throws InquiryError)
   InquiryError,                 // default domain error class
-} from '@workspace-harness/domain-inquiry-recovery';
+} from '@workspace/domain-inquiry-recovery';
 ```
 
-`InquiryError extends Error` with own `status` and `code` properties, matching
-the historical `server/runtime.mjs` `ApiError` shape. It is also the module's
+`InquiryError extends Error` with own `status` and `code` properties, using a host-injected error class when supplied. It is also the module's
 default export.
 
 ### `createInquiryRecoveryService({ store, artifacts, clock, workspaceId, staleDays, ApiError })`
@@ -58,7 +57,7 @@ errors (`INQUIRY_PATH_INVALID`).
 ## Injecting the host error class
 
 Internally the domain throws `InquiryError`. A host that already has an error
-class (for example the legacy `ApiError` from `server/runtime.mjs`) passes it:
+class passes it:
 
 ```js
 const recovery = createInquiryRecoveryService({ store, clock, workspaceId, ApiError });
@@ -70,8 +69,7 @@ is thrown synchronously or rejects an async method, is re-thrown as
 `error.rejected` on `INQUIRY_IMPORT_REJECTED`). `instanceof ApiError` therefore
 keeps working for hosts whose HTTP layer serializes only that class.
 
-`server/inquiry-recovery.mjs` is the compatibility shim that does exactly this
-with `runtime.mjs`'s `ApiError` for the original server and test callers.
+The DSH integration must explicitly supply its store, actor and artifact capabilities; this package is not a mounted native tool.
 
 ## Behavioural invariants (preserved from the historical module)
 

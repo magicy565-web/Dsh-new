@@ -114,7 +114,7 @@ data.json              项目记录快照
 
 ## 安装与更新
 
-本机 `desktop` profile 已安装（`link:` 到本目录），bundle 列表末尾是 `@local/dsh-sourcing-agent`，插件行 `include:preset-sourcing` 为 enabled / active。
+在 DSH 中通过 `plugin_manager install_bundle target=<本插件绝对目录>` 安装；实际 profile 与启用状态由宿主管理，本仓库不宣称当前机器已安装或在线。
 
 - 改技能、工具、引擎代码：链接目录，重启应用后生效（模块有缓存，热重载不保证换新版本）。
 - 改 `cordis.patch.yml`（增减 preset 子行）：关掉再打开 bundle，或重启。

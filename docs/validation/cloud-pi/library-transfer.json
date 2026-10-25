@@ -1,7 +1,0 @@
-{
-  "result": "blocked_before_prepare",
-  "library_file_ids": [],
-  "evidence": "library upload failed: hosted apps tools/list request failed: network",
-  "mutationObserved": false,
-  "fallback": "fixed private GitHub development branch files; no local path claimed as user download"
-}

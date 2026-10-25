@@ -1,4 +1,0 @@
-{
-  "extensions": ["./workspace-local-materials", "./workspace-plugin-info"],
-  "disabledExtensions": ["extension-module:workspace-plugin-info"]
-}
