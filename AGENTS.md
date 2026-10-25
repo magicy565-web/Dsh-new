@@ -1,5 +1,13 @@
 # DSH development boundary
 
+Scope correction: the user rejected building a broad business platform. Follow
+docs/SCOPE-REDUCTION.md. Treat "continue" as continuing the agreed scope, not as
+permission to invent the next business module, panel, approval chain or stage
+engine. Audit and remove duplication first; use native DSH capabilities and
+on-demand skills. Existing business bundles are not the required core. The
+current five-bundle development profile is historical implementation state,
+not the target architecture. Preserve data during any subsequent code removal.
+
 The user selected DeepSeek Harness as the sole execution host and explicitly
 requested removal of the standalone Workspace Harness and remaining legacy
 implementations on 2026-10-26. Develop native bundles under integrations/dsh.

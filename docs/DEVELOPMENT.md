@@ -1,5 +1,8 @@
 # 开发约定
 
+当前优先级是范围收敛，依据 [收敛清单](SCOPE-REDUCTION.md) 做减法。
+暂停新增业务模块、面板和审批链；既有功能及五插件环境记录不是继续扩建的要求。
+
 本仓库的执行宿主是 DeepSeek Harness。原生插件在 `integrations/dsh/`，
 通用领域逻辑在 `packages/domain-*`，不另建 Agent Loop、模型网关、权限系统或工作台服务。
 
