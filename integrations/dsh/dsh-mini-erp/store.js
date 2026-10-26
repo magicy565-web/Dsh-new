@@ -104,6 +104,23 @@ export class ErpStore {
       expiresAt: new Date(o.expires_at).toISOString(), createdAt: new Date(o.created_at).toISOString(),
       updatedAt: new Date(o.updated_at).toISOString(), paymentStatus: 'not_tracked' };
   }
+  overview(workspace) {
+    id(workspace, 'workspace'); this.db.exec('BEGIN');
+    try {
+      const now = this.now();
+      const counts = this.db.prepare(`SELECT COUNT(*) AS total,
+        COALESCE(SUM(status='confirmed'),0) AS confirmed,
+        COALESCE(SUM(status='reserved' AND expires_at>?),0) AS reserved,
+        COALESCE(SUM(status='cancelled'),0) AS cancelled,
+        COALESCE(SUM(status='expired' OR (status='reserved' AND expires_at<=?)),0) AS expired
+        FROM orders WHERE workspace=?`).get(now, now, workspace);
+      const customers = this.db.prepare('SELECT COUNT(*) AS n FROM buyers WHERE workspace=?').get(workspace).n;
+      const allocations = this.db.prepare('SELECT COUNT(*) AS n FROM products WHERE workspace=?').get(workspace).n;
+      this.db.exec('COMMIT');
+      return { workspaceId: workspace, asOf: new Date(now).toISOString(), customers, allocations, orders: counts,
+        payments: 'not_connected', fulfillment: 'not_connected' };
+    } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+  }
   buyer(workspace, buyerId) {
     const b = this.row('buyers', workspace, buyerId);
     return { id: b.id, name: b.name, email: b.email, phone: b.phone, note: b.note, revision: b.revision,
@@ -111,7 +128,7 @@ export class ErpStore {
   }
   read(workspace, input) {
     id(workspace, 'workspace');
-    fields(input, ['entity', 'id', 'limit', 'afterId', 'offerId', 'productId', 'buyerId']);
+    fields(input, ['entity', 'id', 'limit', 'afterId', 'offerId', 'productId', 'buyerId', 'q']);
     const tables = { product: 'products', buyer: 'buyers', offer: 'offers', order: 'orders' };
     if (!Object.hasOwn(tables, input.entity) && input.entity !== 'supply') fail('INPUT', 'entity: product, buyer, offer, order or supply');
     if (input.entity === 'supply') {
@@ -127,6 +144,8 @@ export class ErpStore {
       if (input.entity !== 'order' || input.id !== undefined) fail('INPUT', 'buyerId only filters order lists');
       id(input.buyerId, 'buyerId');
     }
+    if (input.q !== undefined && (input.id !== undefined || !['buyer', 'order'].includes(input.entity))) fail('INPUT', 'q only searches customer or order lists');
+    const query = input.q === undefined ? '' : optionalText(input.q, 'q', 200);
     let now;
     const get = key => this[input.entity](workspace, key, now);
     // All quantities and related rows in a read come from one SQLite snapshot.
@@ -143,10 +162,15 @@ export class ErpStore {
       const limit = integer(input.limit ?? 50, 'limit', 1, 100);
       if (input.productId !== undefined) this.row('products', workspace, input.productId);
       if (input.buyerId !== undefined) this.row('buyers', workspace, input.buyerId);
-      const rows = input.id ? [] : input.productId !== undefined
-        ? this.db.prepare('SELECT id FROM offers WHERE workspace=? AND product_id=? AND id>? ORDER BY id LIMIT ?').all(workspace, input.productId, input.afterId ?? '', limit + 1)
-        : input.buyerId !== undefined ? this.db.prepare('SELECT id FROM orders WHERE workspace=? AND buyer_id=? AND id>? ORDER BY id LIMIT ?').all(workspace, input.buyerId, input.afterId ?? '', limit + 1)
-        : this.db.prepare(`SELECT id FROM ${tables[input.entity]} WHERE workspace=? AND id>? ORDER BY id LIMIT ?`).all(workspace, input.afterId ?? '', limit + 1);
+      const conditions = ['workspace=?', 'id>?'], params = [workspace, input.afterId ?? ''];
+      if (input.productId !== undefined) { conditions.push('product_id=?'); params.push(input.productId); }
+      if (input.buyerId !== undefined) { conditions.push('buyer_id=?'); params.push(input.buyerId); }
+      if (query) {
+        const columns = input.entity === 'buyer' ? ['name', 'email', 'phone', 'contact', 'id'] : ['id', 'buyer_id'];
+        conditions.push('(' + columns.map(column => `instr(lower(${column}),lower(?))>0`).join(' OR ') + ')');
+        params.push(...columns.map(() => query));
+      }
+      const rows = input.id ? [] : this.db.prepare(`SELECT id FROM ${tables[input.entity]} WHERE ${conditions.join(' AND ')} ORDER BY id LIMIT ?`).all(...params, limit + 1);
       const result = input.id ? get(input.id) : {
         items: rows.slice(0, limit).map(r => get(r.id)),
         hasMore: rows.length > limit, nextCursor: rows.length > limit ? rows[limit - 1].id : null,

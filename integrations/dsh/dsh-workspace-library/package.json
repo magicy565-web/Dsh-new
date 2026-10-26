@@ -1,6 +1,6 @@
 {
   "name": "dsh-workspace-library",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Product library and enterprise library for DeepSeek Harness, with files, images and versioned reviews",
   "type": "module",

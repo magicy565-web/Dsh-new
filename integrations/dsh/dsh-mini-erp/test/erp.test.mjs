@@ -210,3 +210,30 @@ test('v2 customer schema upgrade preserves old contacts, receipts, orders and su
     } finally { upgraded.close(); }
   }
 });
+
+test('admin overview counts real workspace records and expired holds without fabricating payments', async t => {
+  const f = await fixture(t, 10, 2);
+  const first = f.write(f.reserve({ quantity: 1 }));
+  f.write({ action: 'confirm', requestId: 'confirm', orderId: first.id });
+  const second = f.reserve({ requestId: 'short', buyerId: 'buyer-b', holdMinutes: 1 }); delete second.offerId; f.write(second);
+  const beforeEvents = f.store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n;
+  f.advance(60000);
+  const counts = f.store.overview('workspace-a');
+  assert.deepEqual({ ...counts.orders }, { total: 2, confirmed: 1, reserved: 0, cancelled: 0, expired: 1 });
+  assert.equal(counts.customers, 2); assert.equal(counts.allocations, 1); assert.equal(counts.payments, 'not_connected');
+  assert.equal(f.store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n, beforeEvents);
+  assert.equal(f.store.overview('workspace-b').orders.total, 0);
+});
+
+test('admin search uses literal terms, filters before pagination and stays within the workspace', async t => {
+  const f = await fixture(t);
+  for (const key of ['one', 'two']) f.write({ action: 'add_buyer', requestId: key, id: key, name: `Match % ${key}`, email: `${key}@example.test` });
+  const first = f.store.read('workspace-a', { entity: 'buyer', q: '%', limit: 1 });
+  assert.equal(first.items[0].id, 'one'); assert.equal(first.hasMore, true);
+  assert.equal(f.store.read('workspace-a', { entity: 'buyer', q: '%', limit: 1, afterId: first.nextCursor }).items[0].id, 'two');
+  assert.equal(f.store.read('workspace-b', { entity: 'buyer', q: 'Match' }).items.length, 0);
+  assert.equal(f.store.read('workspace-a', { entity: 'buyer', q: "' OR 1=1 --" }).items.length, 0);
+  const order = f.write(f.reserve());
+  assert.equal(f.store.read('workspace-a', { entity: 'order', q: order.id.slice(0, 8) }).items[0].id, order.id);
+  assert.throws(() => f.store.read('workspace-a', { entity: 'buyer', id: 'one', q: 'Match' }), { code: 'INPUT' });
+});

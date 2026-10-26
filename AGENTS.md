@@ -23,7 +23,10 @@ does not prohibit an ERP operator UI. Do not migrate existing records implicitly
 The user confirmed that the ERP UI remains inside DSH. Follow
 docs/ERP-ADMIN-DESIGN.md for the Shopify-style resource index/detail layouts;
 reuse the original library editor component rather than a second CRUD implementation.
-The latest scope is Shopify Admin capabilities only, implemented incrementally.
+The latest user request authorizes a complete Shopify Admin-style navigation and
+page UI/UX package inside DSH, wired to existing capabilities. This supersedes the
+earlier incremental-page restriction. External/unimplemented services have honest
+unconnected states; full backend parity is not authorized or claimed.
 Use standard products, customers, orders and files; do not add magazine-specific
 supply-rights navigation or checkout choices. Legacy rights and reservations
 remain readable/replayable without reclassifying them as Shopify draft orders.

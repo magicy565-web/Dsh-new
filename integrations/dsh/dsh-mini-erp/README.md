@@ -1,6 +1,6 @@
 # Mini ERP
 
-微刊业务的第一版交易记录核心，作为可选 DSH 原生插件安装。三个 Agent 工具与 DSH 内的 ERP 经营后台共用同一服务；复用现有产品库和资料库，不另建独立应用。
+Shopify Admin 风格的 DSH 经营后台与本地交易记录插件。三个 Agent 工具与 DSH 内的 ERP 经营后台共用同一服务；复用现有产品库和资料库，不另建独立应用。
 
 ## 已支持
 
@@ -28,7 +28,7 @@ plugin_manager install_bundle target=<checkout>/integrations/dsh/dsh-mini-erp
 
 工作区由 DSH 会话归属决定，不接受模型传入另一个 workspaceId。所有写入都要求 requestId；发生不确定结果时用原 requestId 和完全相同的参数重试。返回的 receipt 是历史操作回执，current 才是当前状态，过期回执不会重新预留名额。
 
-列表默认每页 50 条，最多 100 条。hasMore 表示后续仍有记录，将 nextCursor 作为下一次 afterId 继续读取；不把第一页当作全部数据。offer 列表可传 productId，只读取当前工作区指定商品的名额；过滤先于分页。order 列表可用 buyerId 读取该工作区客户的订单。
+列表默认每页 50 条，最多 100 条。hasMore 表示后续仍有记录，将 nextCursor 作为下一次 afterId 继续读取；不把第一页当作全部数据。offer 列表可传 productId，只读取当前工作区指定商品的名额；过滤先于分页。order 列表可用 buyerId 读取该工作区客户的订单。buyer／order 列表支持 q（最多 200 字符），按字面文本搜索后分页。后台 GET /workspaces/:id/overview 返回同一 SQLite 快照中的实际记录数量，不返回虚构销售额。
 
 这些是经营者使用的工具，不是买手公开 API。创建微刊和读取资料本身不授权创建订单或供应权益；写入需要当前用户已有的经营操作授权。原生 DSH 权限机制继续有效。本插件不验证供应合同的法律效力，也不把登记来源自动当作事实审计。
 
@@ -52,9 +52,9 @@ Agent 可读取 product 和 offer，将价格及带 asOf 的可用名额快照�
 
 buyer-magazine 的 `scripts/from-erp.mjs` 可将该快照转换成明确选中的 product / procurement / exclusive 模块。内部 source 只保留在转换结果的 provenance，公开块引用 ERP 编号、修订和读取时间；只有 blocks 进入 HTML。ERP 登记权益使用 recorded 状态，不能自动当成原始供应方材料已核验。其余模块仍需对应的实际资料。
 
-经营者从 DSH 侧栏 ERP 进入订单、商品、客户和文件。商品编辑复用原产品库组件。客户表单可创建和编辑姓名、邮箱、电话与内部备注；详情显示该客户的分页订单，可进入订单详情。订单创建只选择客户、商品、数量与预留时长，不再选择供货名额；详情可确认／取消预留。既有预留没有被重命名为 Shopify 草稿订单，付款／履约和真正的库存模型仍待实现。
+经营者从 DSH 侧栏 ERP 进入完整后台导航与 43 个页面入口。首页、商品、客户、订单、库存、文件和店铺设置接通已有能力；其他页面明确显示未接入。详见 [插件包](../../../docs/ERP-ADMIN-PACKAGE.md)。商品编辑复用原产品库组件。客户表单可创建和编辑姓名、邮箱、电话与内部备注；详情显示该客户的分页订单，可进入订单详情。订单创建只选择客户、商品、数量与预留时长，不再选择供货名额；详情可确认／取消预留。既有预留没有被重命名为 Shopify 草稿订单，付款／履约和真正的库存模型仍待实现。
 
-客户 API 保留 entity=buyer、add_buyer、buyerId；update_buyer 必须携带 expectedRevision。省略字段保留原值，空字符串清除可选字段；邮箱、电话分别校验，note 最多 2000 字符。原 contact 文本在 legacyContact 中保留，兼容 contact 优先返回 email、phone，再回退原文本；不会自动猜测拆分旧值。备注只作内部数据，不表示营销授权。列表提供本页搜索／筛选／排序，没有全库检索或批量操作。详见 [复用设计](../../../docs/ERP-REUSE.md)。
+客户 API 保留 entity=buyer、add_buyer、buyerId；update_buyer 必须携带 expectedRevision。省略字段保留原值，空字符串清除可选字段；邮箱、电话分别校验，note 最多 2000 字符。原 contact 文本在 legacyContact 中保留，兼容 contact 优先返回 email、phone，再回退原文本；不会自动猜测拆分旧值。备注只作内部数据，不表示营销授权。客户／订单支持当前工作区全量文字搜索后分页；其状态筛选／排序仍作用于当前结果页。商品／文件支持原库全量搜索、筛选、排序和分页，以及当前页所选记录 CSV 导出；库存搜索仅限当前页。详见 [复用设计](../../../docs/ERP-REUSE.md)。
 
 已获授权的名额预留通过 mini_erp_order 完成，返回订单 ID、状态和到期时间。当前没有买手登录、交易网页或公开 URL，因此不要为微刊 actionUrl 编造 ERP 链接；经营者可通过工具或后台创建预留，后台可确认／取消已有预留。
 
@@ -77,6 +77,7 @@ buyer-magazine 的 `scripts/from-erp.mjs` 可将该快照转换成明确选中�
 ```sh
 node --test integrations/dsh/dsh-mini-erp/test/*.test.mjs
 node integrations/dsh/dsh-mini-erp/dev/client-smoke.mjs
+node integrations/dsh/dsh-mini-erp/dev/admin-smoke.mjs
 DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-mini-erp/dev/native-smoke.mjs
 ```
 

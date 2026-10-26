@@ -152,3 +152,9 @@ DSH_RUNTIME_DIR=/workspace/dsh-runtime node dev/native-product-context-smoke.mjs
 - 附件对象不可变：移除产品图片只解除引用，不删除附件对象；内容寻址对象可被其他引用共享。
 - 不自动导入任何旧应用数据；迁移需要明确的数据源与映射。
 - 浏览器像素级视觉、真实 PDF/大图在页面内的显示效果未做截图验证（无浏览器控制）。
+
+## ERP Admin 复用（1.3.0）
+
+ERP 直接复用 ProductEditorSurface、FileSurface、CompanySettingsSurface；不维护第二份商品、文件或企业资料。原生资料库界面继续保留自己的版本审核能力；ERP 文件页隐藏自定义审核控件。
+
+商品／文件 HTTP 列表增加 offset 和 sort（updated / name_asc / name_desc），过滤、排序先于分页，返回 matched / offset / hasMore / nextOffset；total 仍是全部原记录数。默认读取兼容原调用。原 Agent 工具参数没有因此增加分页选项。安装与能力边界见 [ERP 插件包](../../../docs/ERP-ADMIN-PACKAGE.md)。

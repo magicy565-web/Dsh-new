@@ -59,7 +59,10 @@ const change = async (element, value) => {
 };
 try {
   await act(async () => root.render(React.createElement(module.Panel, { openLibrary: (...args) => navigations.push(args) })));
-  await wait(() => text().includes('把你的商品带到这里'));
+  await wait(() => text().includes('准备好开展业务'));
+  await click('商品'); await wait(() => document.querySelector('[data-catalog-record]'));
+  assert.equal(document.querySelector('[data-catalog-record]').textContent, p.name, 'unbound source products are visible');
+  await click('库存'); await wait(() => text().includes('还没有关联的库存分配'));
   await click('关联已有 SKU'); await wait(() => text().includes('关联产品库 SKU'));
   await change(document.querySelector('form select'), p.id);
   await change(document.querySelectorAll('form select')[1], 'red');
@@ -79,7 +82,8 @@ try {
   await click('保存商品'); await wait(() => !document.querySelector('.wl-admin-editor'));
   assert.equal((await library.product(p.id)).product.name, 'Updated original product');
   assert.equal((await service.read('a', { entity: 'product', id: ledger.id })).name, 'Updated original product');
-  await wait(() => document.querySelector('[data-record-id]')?.textContent === 'Updated original product');
+  await wait(() => document.querySelector('[data-catalog-record]')?.textContent === 'Updated original product');
+  await click('库存'); await wait(() => document.querySelector('[data-record-id]')?.textContent === 'Updated original product');
   await click('可供货'); assert.ok(text().includes('本页没有匹配的记录'));
   await click('全部'); assert.ok(text().includes('Updated original product'));
   await act(async () => Simulate.change(document.querySelector('input[type=search]'), { target: { value: 'no-match' } }));
@@ -117,7 +121,7 @@ try {
   // Re-mount simulates a page reload while retaining this tab's recovery record.
   await act(async () => root.render(null));
   await act(async () => root.render(React.createElement(module.Panel, { openLibrary: (...args) => navigations.push(args) })));
-  await wait(() => document.querySelector('[data-record-id]')); await click('订单'); await click('创建订单');
+  await wait(() => document.querySelector('.me-heading')); await click('订单'); await click('创建订单');
   await wait(() => text().includes('上次提交的结果尚未确认'));
   assert.equal(document.querySelector('[name=quantity]').value, '3');
   denyReservationRetry = true; await click('重试同一次提交'); await wait(() => text().includes('Use an authenticated DSH page'));
@@ -145,7 +149,7 @@ try {
   window.sessionStorage.setItem('mini-erp:pending:a:reserve', JSON.stringify({ workspace: 'a', body: legacy }));
   await act(async () => root.render(null));
   await act(async () => root.render(React.createElement(module.Panel, { openLibrary: (...args) => navigations.push(args) })));
-  await wait(() => document.querySelector('[data-record-id]')); await click('订单'); await click('创建订单');
+  await wait(() => document.querySelector('.me-heading')); await click('订单'); await click('创建订单');
   await wait(() => text().includes('上次提交包含旧供货名额 rights'));
   await click('重试同一次提交'); await wait(() => text().includes('已核对上次提交'));
   assert.equal((await service.read('a', { entity: 'order' })).items.length, 2);
@@ -153,7 +157,7 @@ try {
   await click('取消预留'); await wait(() => document.querySelector('tbody .me-badge-cancelled'));
   assert.equal((await service.read('a', { entity: 'offer', id: 'rights' })).availableSlots, 1);
   await change(document.querySelector('header select'), 'b'); await wait(() => text().includes('订单会从这里开始'));
-  await click('文件'); assert.deepEqual(navigations.at(-1), ['documents']);
+  await click('内容'); await click('文件'); await wait(() => text().includes('让文件井井有条')); assert.deepEqual(navigations, [], 'files stay inside ERP');
   console.log('OK: ERP DOM + real HTTP/SQLite/library binding, live quote, embedded original product editor/save, filters/search, customer create/edit/history, live tier/MOQ/stock checks, stale-source rejection, new orders without rights, old-rights recovery, dropped-reply recovery after remount, confirmation and workspace isolation. Synthetic temporary data only.');
 } finally {
   await act(async () => root.unmount()); dom.window.close(); globalThis.fetch = nativeFetch;

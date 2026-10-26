@@ -25,7 +25,7 @@ licenses/          第三方许可
 | [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill，以及十种可组合的买手微刊模块 |
 | [dsh-workspace-memory](integrations/dsh/dsh-workspace-memory/README.md) | 经营记忆、人工审核、来源核验，以及跨已有资料／记忆／询盘的只读检索 |
 | [dsh-workspace-brand](integrations/dsh/dsh-workspace-brand/README.md) | 可选原生品牌：侧栏／首页标识与双模式黑白灰主题，保留官方会话与布局 |
-| [dsh-mini-erp](integrations/dsh/dsh-mini-erp/README.md) | 简易 ERP：复用原库商品/SKU/资料，原生经营后台与工具共用交易账本 |
+| [dsh-mini-erp](integrations/dsh/dsh-mini-erp/README.md) | ERP Admin：完整后台 UI／UX，复用原库与交易账本；[安装与截图](docs/ERP-ADMIN-PACKAGE.md) |
 | [dsh-inquiry-recovery](integrations/dsh/dsh-inquiry-recovery/README.md) | 可选历史询盘：原文件核验、人工身份判断、Agent 撰写的未发送草稿 |
 
 在 DSH 中执行 `plugin_manager install_bundle target=<插件绝对目录>` 安装。

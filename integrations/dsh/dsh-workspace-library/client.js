@@ -1372,13 +1372,14 @@ window.__ModuleLoader__.load({
       };
     }
 
-    function ProductEditor({ t, product, documents, onCancel, onSaved, admin = false, onDirtyChange }) {
+    function ProductEditor({ t, product, documents, onCancel, onSaved, admin = false, onDirtyChange, onBusy }) {
       const [draft, setDraft] = useState(() => toDraft(product));
       const [busy, setBusy] = useState(false);
       const [imageBusy, setImageBusy] = useState(false);
       const [baseRevision, setBaseRevision] = useState(product?.revision ?? null);
       const [error, setError] = useState(null);
       const patch = changes => setDraft(current => ({ ...current, ...changes }));
+      useEffect(() => { onBusy?.(busy || imageBusy); return () => onBusy?.(false); }, [busy, imageBusy]);
       const dirty = JSON.stringify({ ...draft, images: [] }) !== JSON.stringify({ ...toDraft(product), images: [] });
       useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
       useEffect(() => {
@@ -1892,7 +1893,7 @@ window.__ModuleLoader__.load({
       );
     }
 
-    function CompanyCard({ t, company, onSaved }) {
+    function CompanyCard({ t, company, onSaved, onDirtyChange, onBusy }) {
       const [draft, setDraft] = useState(() => ({
         legalName: company?.legalName || '',
         displayName: company?.displayName || '',
@@ -1901,6 +1902,9 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = useState(false);
       const [error, setError] = useState(null);
 
+      const dirty = ['legalName', 'displayName', 'description'].some(key => draft[key] !== (company?.[key] || ''));
+      useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty]);
+      useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy]);
       useEffect(() => {
         setDraft({
           legalName: company?.legalName || '',
@@ -1953,11 +1957,14 @@ window.__ModuleLoader__.load({
       return null;
     }
 
-    function DocumentMetaEditor({ t, document, onCancel, onSaved }) {
+    function DocumentMetaEditor({ t, document, onCancel, onSaved, onDirtyChange, onBusy }) {
       const [draft, setDraft] = useState({ title: document.title, slotKey: document.slotKey, tags: (document.tags || []).join(', ') });
       const [busy, setBusy] = useState(false);
       const [error, setError] = useState(null);
 
+      const dirty = draft.title !== document.title || draft.slotKey !== document.slotKey || draft.tags !== (document.tags || []).join(', ');
+      useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty]);
+      useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy]);
       async function submit(event) {
         event.preventDefault();
         if (busy) return;
@@ -2014,7 +2021,7 @@ window.__ModuleLoader__.load({
       );
     }
 
-    function DocumentDetail({ t, id, onAddVersion, onChanged }) {
+    function DocumentDetail({ t, id, onAddVersion, onChanged, onDirtyChange, onBusy, admin = false }) {
       const resource = useAsync(() => api.document(id), [id]);
       const [openVersion, setOpenVersion] = useState(null);
       const [editingInfo, setEditingInfo] = useState(false);
@@ -2022,6 +2029,7 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = useState(false);
       const [error, setError] = useState(null);
 
+      useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy]);
       if (resource.phase === 'loading') return h(Loading, { label: t('state.loading') });
       if (resource.phase === 'error') return h('div', null, h(ErrorNote, { error: resource.error, onRetry: resource.reload, t }));
 
@@ -2032,7 +2040,8 @@ window.__ModuleLoader__.load({
         return h(DocumentMetaEditor, {
           t,
           document,
-          onCancel: () => setEditingInfo(false),
+          onDirtyChange, onBusy,
+          onCancel: () => { if (!onDirtyChange || window.confirm('放弃尚未保存的修改？')) setEditingInfo(false); },
           onSaved: async () => {
             setEditingInfo(false);
             await onChanged();
@@ -2085,7 +2094,7 @@ window.__ModuleLoader__.load({
               'div',
               { className: 'wl-inline' },
               h('span', { className: 'wl-tag' }, document.slotKey === 'other' ? t('document.slot.all') : SLOTS.find(([key]) => key === document.slotKey)?.[1] || document.slotKey),
-              reviewTag(reviewState, t),
+              !admin ? reviewTag(reviewState, t) : null,
               document.status === 'archived' ? h('span', { className: 'wl-tag idle' }, t('document.status.archived')) : null,
             ),
             h('h2', { className: 'wl-detail-title' }, document.title),
@@ -2100,7 +2109,7 @@ window.__ModuleLoader__.load({
           ),
         ),
         document.tags?.length ? h('div', { className: 'wl-inline', style: { marginTop: '6px' } }, document.tags.map(tag => h('span', { key: tag, className: 'wl-tag' }, tag))) : null,
-        h(
+        !admin ? h(
           'div',
           { className: 'wl-card' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('document.review')), reviewTag(reviewState, t)),
@@ -2118,7 +2127,7 @@ window.__ModuleLoader__.load({
             h('button', { type: 'button', className: 'wl-btn danger', disabled: busy, onClick: () => void review('rejected') }, t('document.reject')),
           ),
           h(ErrorNote, { error, t }),
-        ),
+        ) : h(ErrorNote, { error, t }),
         h(
           'div',
           { className: 'wl-card' },
@@ -2153,7 +2162,7 @@ window.__ModuleLoader__.load({
                       openVersion === version.version ? t('document.hidePreview') : t('document.preview'),
                     ),
               ),
-              h('div', { className: 'wl-version-meta' }, h('span', null, formatDate(version.createdAt)), h('span', { className: 'wl-sha' }, `sha256 ${version.sha256.slice(0, 16)}…`)),
+              h('div', { className: 'wl-version-meta' }, h('span', null, formatDate(version.createdAt)), !admin ? h('span', { className: 'wl-sha' }, `sha256 ${version.sha256.slice(0, 16)}…`) : null),
               version.certificate && version.certificate.expiryMode !== 'unknown'
                 ? h('p', { className: 'wl-help' }, `${version.certificate.number || '—'} · ${version.certificate.issuer || '—'} · ${version.certificate.expiryMode === 'no_expiry' ? t('cert.no_expiry') : `${version.certificate.validFrom || ''} → ${version.certificate.validUntil || ''}`}`)
                 : null,
@@ -2168,9 +2177,9 @@ window.__ModuleLoader__.load({
               openVersion === version.version ? h('pre', { className: 'wl-pre' }, version.content) : null,
             ),
           ),
-          h('div', { className: 'wl-version-meta', style: { marginTop: '10px' } }, h('span', { className: 'wl-sha' }, `sha256 ${current ? current.sha256 : ''}`)),
+          !admin ? h('div', { className: 'wl-version-meta', style: { marginTop: '10px' } }, h('span', { className: 'wl-sha' }, `sha256 ${current ? current.sha256 : ''}`)) : null,
         ),
-        h(
+        !admin ? h(
           'div',
           { className: 'wl-card' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('document.reviews')), h('span', { className: 'wl-tag' }, `${document.reviews.length}`)),
@@ -2190,11 +2199,11 @@ window.__ModuleLoader__.load({
                 ),
               )
             : h('p', { className: 'wl-help' }, t('document.noReviews')),
-        ),
+        ) : null,
       );
     }
 
-    function DocumentEditor({ t, document, versionMode, onCancel, onSaved }) {
+    function DocumentEditor({ t, document, versionMode, onCancel, onSaved, onDirtyChange, onBusy }) {
       const creating = !document;
       const certificateSlot = CERT_SLOTS.includes(document?.slotKey || 'other');
       const [draft, setDraft] = useState(() => ({
@@ -2209,6 +2218,10 @@ window.__ModuleLoader__.load({
       const [mode, setMode] = useState('file');
       const [file, setFile] = useState(null);
       const [error, setError] = useState(null);
+      const initialDraft = useRef(JSON.stringify(draft));
+      const dirty = !!file || JSON.stringify(draft) !== initialDraft.current;
+      useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty]);
+      useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy]);
       const patch = changes => setDraft(current => ({ ...current, ...changes }));
       const showCertificate = creating ? CERT_SLOTS.includes(draft.slotKey) : certificateSlot;
 
@@ -2382,7 +2395,7 @@ window.__ModuleLoader__.load({
       );
     }
 
-    function ProductEditorSurface({ productId, onClose, onSaved, onDirtyChange }) {
+    function ProductEditorSurface({ productId, onClose, onSaved, onDirtyChange, onBusy }) {
       const [data, setData] = useState(null), [error, setError] = useState(null);
       useEffect(() => {
         let active = true;
@@ -2396,7 +2409,26 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'wl-admin-surface', style: { '--wl-accent': '#303030', '--wl-accent-ink': '#fff' } },
         h('style', null, styles),
         error ? h(ErrorNote, { error, t }) : data ? h(ProductEditor, { key: productId || 'new', t, product: data.product,
-          documents: data.documents, admin: true, onCancel: onClose, onSaved, onDirtyChange }) : h('p', { role: 'status' }, '正在读取商品资料…'));
+          documents: data.documents, admin: true, onCancel: onClose, onSaved, onDirtyChange, onBusy }) : h('p', { role: 'status' }, '正在读取商品资料…'));
+    }
+
+    function FileSurface({ documentId, creating = false, onClose, onSaved, onDirtyChange, onBusy }) {
+      const [versionDocument, setVersionDocument] = useState(null), [revision, refresh] = useState(0);
+      const t = key => zh[key] || key;
+      return h('div', { className: 'wl-admin-surface wl-admin-file' }, h('style', null, styles),
+        creating || versionDocument ? h(DocumentEditor, { t, document: versionDocument, versionMode: !!versionDocument,
+          onDirtyChange, onBusy, onCancel: () => { if (versionDocument) { if (window.confirm('放弃尚未保存的修改？')) setVersionDocument(null); } else onClose(); },
+          onSaved: async id => { setVersionDocument(null); refresh(v => v + 1); onDirtyChange?.(false); onSaved?.(id); } })
+          : h(DocumentDetail, { key: `${documentId}:${revision}`, t, id: documentId, onDirtyChange, onBusy, admin: true,
+            onAddVersion: document => setVersionDocument(document), onChanged: async () => { refresh(v => v + 1); onSaved?.(documentId); } }));
+    }
+    function CompanySettingsSurface({ onDirtyChange, onBusy, onSaved }) {
+      const resource = useAsync(() => api.company(), []), t = key => zh[key] || key;
+      return h('div', { className: 'wl-admin-surface wl-admin-company' }, h('style', null, styles),
+        resource.phase === 'loading' ? h(Loading, { label: '正在读取店铺信息…' })
+          : resource.phase === 'error' ? h(ErrorNote, { error: resource.error, onRetry: resource.reload, t })
+          : h(CompanyCard, { t, company: resource.value, onDirtyChange, onBusy,
+            onSaved: async () => { onDirtyChange?.(false); await resource.reload(); onSaved?.(); } }));
     }
 
     // ---------------------------------------------------------------------
@@ -2479,6 +2511,6 @@ window.__ModuleLoader__.load({
       'workspace-library: panel');
     }
 
-    return { apply, inject, createReferenceSource, ProductEditorSurface };
+    return { apply, inject, createReferenceSource, ProductEditorSurface, FileSurface, CompanySettingsSurface };
   },
 });

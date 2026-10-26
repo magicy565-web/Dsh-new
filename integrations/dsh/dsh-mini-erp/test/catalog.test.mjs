@@ -110,6 +110,9 @@ test('native admin HTTP requires authentication, same-origin writes, known works
   const base = `http://127.0.0.1:${server.address().port}`;
   const call = (path, body, headers = {}) => fetch(base + '/mini-erp-api' + path, { headers: { cookie: 'test=1', origin: base, 'content-type': 'application/json', ...headers }, ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}) });
   assert.equal((await call('/catalog', null, { cookie: '' })).status, 401);
+  assert.equal((await call('/workspaces/a/overview', null, { cookie: '' })).status, 401);
+  assert.equal((await call('/workspaces/unknown/overview')).status, 409);
+  assert.equal((await (await call('/workspaces/a/overview')).json()).data.customers, 1);
   assert.equal((await call('/workspaces/a/command', f.link(), { origin: 'https://foreign.invalid' })).status, 403);
   assert.equal((await call('/workspaces/a/command', f.link())).status, 200);
   assert.equal((await (await call('/workspaces/a/read?entity=product&id=ledger&quantity=10')).json()).data.unitPriceMinor, 1000);

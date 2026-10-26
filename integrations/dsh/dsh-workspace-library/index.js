@@ -414,25 +414,29 @@ function matchDocument(document, query) {
   return haystack.includes(query);
 }
 
-export function listProducts(state, { q = '', status = '', limit = 100 } = {}) {
-  const query = String(q || '').trim().toLowerCase();
-  const items = state.products
-    .filter(product => (!status || product.status === status) && matchProduct(product, query))
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id))
-    .slice(0, limit)
-    .map(product => ({ ...productSummary(product), readiness: readinessOf(state, product).overall }));
-  return { items, total: state.products.length, sequence: state.sequence };
+function pageRows(rows, { offset = 0, limit, sort = 'updated' }, title) {
+  const start = Number(offset);
+  if (!Number.isSafeInteger(start) || start < 0) fail('INVALID_INPUT', 'offset 必须是非负整数。');
+  if (!['updated', 'name_asc', 'name_desc'].includes(sort)) fail('INVALID_INPUT', '未知排序。');
+  rows.sort((left, right) => sort === 'updated'
+    ? right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id)
+    : left[title].localeCompare(right[title], 'zh-CN') * (sort === 'name_desc' ? -1 : 1) || left.id.localeCompare(right.id));
+  return { rows: rows.slice(start, start + limit), matched: rows.length, offset: start,
+    hasMore: start + limit < rows.length, nextOffset: start + limit < rows.length ? start + limit : null };
 }
 
-export function listDocuments(state, { q = '', slotKey = '', status = '', limit = 200 } = {}) {
+export function listProducts(state, { q = '', status = '', limit = 100, offset = 0, sort = 'updated' } = {}) {
   const query = String(q || '').trim().toLowerCase();
-  const items = state.documents
-    .filter(document => (!slotKey || document.slotKey === slotKey) && (!status || document.status === status) && matchDocument(document, query))
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id))
-    .slice(0, limit)
-    .map(documentSummary);
+  const { rows, ...page } = pageRows(state.products.filter(product => (!status || product.status === status) && matchProduct(product, query)), { offset, limit, sort }, 'name');
+  return { items: rows.map(product => ({ ...productSummary(product), readiness: readinessOf(state, product).overall })),
+    total: state.products.length, sequence: state.sequence, ...page };
+}
+
+export function listDocuments(state, { q = '', slotKey = '', status = '', limit = 200, offset = 0, sort = 'updated' } = {}) {
+  const query = String(q || '').trim().toLowerCase();
+  const { rows, ...page } = pageRows(state.documents.filter(document => (!slotKey || document.slotKey === slotKey) && (!status || document.status === status) && matchDocument(document, query)), { offset, limit, sort }, 'title');
   const counts = Object.fromEntries(SLOT_KEYS.map(key => [key, state.documents.filter(document => document.slotKey === key).length]));
-  return { items, total: state.documents.length, slotCounts: counts, sequence: state.sequence };
+  return { items: rows.map(documentSummary), total: state.documents.length, slotCounts: counts, sequence: state.sequence, ...page };
 }
 
 // ---------------------------------------------------------------------------
@@ -957,7 +961,7 @@ export function createLibraryService(store, { attachments = null } = {}) {
 
     async products(query = {}) {
       const state = await read();
-      return listProducts(state, { q: query.q, status: query.status, limit: clampLimit(query.limit, 100) });
+      return listProducts(state, { q: query.q, status: query.status, limit: clampLimit(query.limit, 100), offset: query.offset, sort: query.sort });
     },
 
     async product(id) {
@@ -1012,7 +1016,7 @@ export function createLibraryService(store, { attachments = null } = {}) {
     async documents(query = {}) {
       const state = await read();
       if (query.slotKey) choice(query.slotKey, 'slotKey', SLOT_KEYS);
-      return listDocuments(state, { q: query.q, slotKey: query.slotKey, status: query.status, limit: clampLimit(query.limit, 200) });
+      return listDocuments(state, { q: query.q, slotKey: query.slotKey, status: query.status, limit: clampLimit(query.limit, 200), offset: query.offset, sort: query.sort });
     },
 
     async document(id) {

@@ -416,3 +416,22 @@ test('http surface serves JSON, uploaded files and images behind browser authent
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('admin product and file indexes paginate after filtering with stable full-result sorting', async () => {
+  await withStore(async service => {
+    for (const name of ['Zeta', 'Alpha', 'Beta', 'Outside']) {
+      await service.saveProduct({ changes: { name, category: name === 'Outside' ? 'other' : 'matching' } });
+      await service.addDocument({ title: name, slotKey: 'other', fileName: `${name}.txt`, content: name === 'Outside' ? 'Other content' : 'Matching content' });
+    }
+    const products = await service.products({ q: 'matching', sort: 'name_asc', limit: 2 });
+    assert.deepEqual(products.items.map(p => p.name), ['Alpha', 'Beta']); assert.equal(products.matched, 3); assert.equal(products.total, 4); assert.equal(products.nextOffset, 2);
+    const next = await service.products({ q: 'matching', sort: 'name_asc', limit: 2, offset: products.nextOffset });
+    assert.deepEqual(next.items.map(p => p.name), ['Zeta']); assert.equal(next.hasMore, false);
+    const documents = await service.documents({ q: 'Matching', sort: 'name_desc', limit: 1, offset: '1' });
+    assert.equal(documents.items[0].title, 'Beta'); assert.equal(documents.matched, 3); assert.equal(documents.total, 4);
+    assert.equal((await service.products({ offset: 100 })).items.length, 0);
+    await assert.rejects(service.products({ offset: -1 }), { code: 'INVALID_INPUT' });
+    await assert.rejects(service.documents({ offset: '1.5' }), { code: 'INVALID_INPUT' });
+    await assert.rejects(service.products({ sort: 'unknown' }), { code: 'INVALID_INPUT' });
+  });
+});

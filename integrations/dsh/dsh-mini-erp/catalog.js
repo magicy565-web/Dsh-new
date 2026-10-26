@@ -66,6 +66,7 @@ export function createErpService(store, { library, registry }) {
   }
   return {
     workspaces: () => registry.list().map(({ id, title }) => ({ id, title })),
+    overview(w) { workspace(w); return store.overview(w); },
     async catalog() {
       return withProducts(products => ({ items: products.filter(p => p.status !== 'archived').map(p => ({ id: p.id, name: p.name, revision: p.revision, category: p.category,
         skus: p.skus.map(s => ({ id: s.id, code: s.code, unit: s.unit, pricingMode: s.pricingMode })) })) }));

@@ -1,6 +1,6 @@
 {
   "name": "dsh-mini-erp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Small workspace ERP: products, buyers, orders and atomic supply reservations",

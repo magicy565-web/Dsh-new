@@ -11,10 +11,11 @@ export function createHttpHandler(service, { authorize = () => 401 } = {}) {
       if (req.method === 'GET' && route === '/workspaces') result = { items: service.workspaces() };
       else if (req.method === 'GET' && route === '/catalog') result = await service.catalog();
       else {
-        const match = /^\/workspaces\/([^/]+)\/(read|command)$/.exec(route);
+        const match = /^\/workspaces\/([^/]+)\/(read|command|overview)$/.exec(route);
         if (!match) return send(404, { ok: false });
         const workspace = decodeURIComponent(match[1]);
-        if (req.method === 'GET' && match[2] === 'read') {
+        if (req.method === 'GET' && match[2] === 'overview') result = service.overview(workspace);
+        else if (req.method === 'GET' && match[2] === 'read') {
           const input = Object.fromEntries(url.searchParams);
           for (const key of ['quantity', 'limit']) if (input[key] !== undefined) input[key] = Number(input[key]);
           result = await service.read(workspace, input);
