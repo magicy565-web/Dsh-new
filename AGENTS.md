@@ -20,6 +20,9 @@ The user now wants a Shopify Admin-style operator ERP. Follow docs/ERP-REUSE.md:
 reuse the native library's product/SKU/media/document capabilities and unify
 master data before building duplicate CRUD. Conversation-only magazine creation
 does not prohibit an ERP operator UI. Do not migrate existing records implicitly.
+The user confirmed that the ERP UI remains inside DSH. Follow
+docs/ERP-ADMIN-DESIGN.md for the Shopify-style resource index/detail layouts;
+reuse the original library editor component rather than a second CRUD implementation.
 
 The user selected DeepSeek Harness as the sole execution host and explicitly
 requested removal of the standalone Workspace Harness and remaining legacy

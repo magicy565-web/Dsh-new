@@ -874,11 +874,11 @@ window.__ModuleLoader__.load({
 
       useEffect(() => {
         const navigate = target => {
-          if (!target || !['documents', 'productNew', 'product'].includes(target.page)) return;
+          if (!target || !['documents', 'products', 'productNew', 'product'].includes(target.page)) return;
           if (target.page === 'product' && typeof target.id !== 'string') return;
           setTab(target.page === 'documents' ? 'company' : 'products');
           setQuery(''); setNotice(null);
-          setRoute(target.page === 'documents' ? { page: 'list' } : { page: target.page, id: target.id });
+          setRoute(['documents', 'products'].includes(target.page) ? { page: 'list' } : { page: target.page, id: target.id });
           window.sessionStorage.removeItem('workspace-library-navigation');
         };
         const receive = event => navigate(event.detail);
@@ -1372,13 +1372,21 @@ window.__ModuleLoader__.load({
       };
     }
 
-    function ProductEditor({ t, product, documents, onCancel, onSaved }) {
+    function ProductEditor({ t, product, documents, onCancel, onSaved, admin = false, onDirtyChange }) {
       const [draft, setDraft] = useState(() => toDraft(product));
       const [busy, setBusy] = useState(false);
       const [imageBusy, setImageBusy] = useState(false);
       const [baseRevision, setBaseRevision] = useState(product?.revision ?? null);
       const [error, setError] = useState(null);
       const patch = changes => setDraft(current => ({ ...current, ...changes }));
+      const dirty = JSON.stringify({ ...draft, images: [] }) !== JSON.stringify({ ...toDraft(product), images: [] });
+      useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+      useEffect(() => {
+        if (!dirty) return;
+        const warn = event => { event.preventDefault(); event.returnValue = ''; };
+        window.addEventListener('beforeunload', warn);
+        return () => window.removeEventListener('beforeunload', warn);
+      }, [dirty]);
 
       async function uploadImage(file) {
         if (!product || imageBusy) return;
@@ -1493,19 +1501,19 @@ window.__ModuleLoader__.load({
 
       const availableDocuments = documents || [];
 
-      return h(
+      const editor = h(
         'form',
-        { className: 'wl-form wl-editor', onSubmit: submit },
-        h('div', { className: 'wl-detail-head' }, h('h2', { className: 'wl-detail-title' }, product ? t('editor.editProduct') : t('editor.newProduct'))),
+        { className: `wl-form wl-editor${admin ? ' wl-admin-editor' : ''}`, onSubmit: submit },
+        admin ? null : h('div', { className: 'wl-detail-head' }, h('h2', { className: 'wl-detail-title' }, product ? t('editor.editProduct') : t('editor.newProduct'))),
         h(
           'div',
-          { className: 'wl-card' },
+          { className: 'wl-card wl-product-identity' },
           h(
             'div',
             { className: 'wl-form' },
             h('div', { className: 'wl-field' }, h('label', null, t('product.name')), h('input', { required: true, maxLength: 200, value: draft.name, onChange: event => patch({ name: event.target.value }) })),
             h('div', { className: 'wl-field' }, h('label', null, t('product.description')), h('textarea', { rows: 4, maxLength: 8000, value: draft.description, onChange: event => patch({ description: event.target.value }) })),
-            h(
+            admin ? null : h(
               'div',
               { className: 'wl-field-row' },
               h('div', { className: 'wl-field' }, h('label', null, t('product.category')), h('input', { maxLength: 200, value: draft.category, onChange: event => patch({ category: event.target.value }) })),
@@ -1525,7 +1533,7 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'wl-card' },
+          { className: 'wl-card wl-product-variants' },
           h(
             'div',
             { className: 'wl-card-head' },
@@ -1604,7 +1612,7 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'wl-card' },
+          { className: 'wl-card wl-product-supply' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('supply.title'))),
           h(
             'div',
@@ -1621,7 +1629,7 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'wl-card' },
+          { className: 'wl-card wl-product-media' },
           h(
             'div',
             { className: 'wl-card-head' },
@@ -1670,7 +1678,7 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'wl-card' },
+          { className: 'wl-card wl-product-documents' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('documents.title'))),
           h('p', { className: 'wl-help' }, t('documents.hint')),
           draft.documents.length
@@ -1704,14 +1712,41 @@ window.__ModuleLoader__.load({
             disabled: draft.documents.length >= 50,
           }),
         ),
+        admin ? h('div', { className: 'wl-card wl-product-organization' },
+          h('div', { className: 'wl-card-head' }, h('h3', null, '商品组织与状态')),
+            h(
+              'div',
+              { className: 'wl-field-row' },
+              h('div', { className: 'wl-field' }, h('label', null, t('product.category')), h('input', { maxLength: 200, value: draft.category, onChange: event => patch({ category: event.target.value }) })),
+              h(
+                'div',
+                { className: 'wl-field' },
+                h('label', null, t('product.status')),
+                h(
+                  'select',
+                  { value: draft.status, onChange: event => patch({ status: event.target.value }) },
+                  h('option', { value: 'draft' }, t('product.status.draft')),
+                  h('option', { value: 'archived' }, t('product.status.archived')),
+                ),
+              ),
+            )
+        ) : null,
         h(ErrorNote, { error, t }),
         h(
           'div',
           { className: 'wl-form-actions' },
+          admin ? h('span', { className: 'wl-save-state', role: 'status' }, busy ? '正在保存…' : dirty ? '有未保存的更改' : product ? '商品资料已保存' : '新商品') : null,
           h('button', { type: 'button', className: 'wl-btn', onClick: onCancel }, t('action.cancel')),
-          h('button', { type: 'submit', className: 'wl-btn primary', disabled: busy || !draft.name.trim() }, busy ? t('editor.saving') : t('editor.saveProduct')),
+          h('button', { type: 'submit', className: 'wl-btn primary', disabled: busy || imageBusy || !draft.name.trim() || (admin && product && !dirty) }, busy ? t('editor.saving') : t('editor.saveProduct')),
         ),
       );
+      if (!admin) return editor;
+      const children = React.Children.toArray(editor.props.children);
+      const card = name => children.find(child => child.props?.className === `wl-card wl-product-${name}`);
+      const other = children.filter(child => !child.props?.className?.startsWith('wl-card wl-product-'));
+      return React.cloneElement(editor, {}, h('div', { className: 'wl-admin-grid' },
+        h('div', { className: 'wl-admin-primary' }, card('identity'), card('media'), card('variants')),
+        h('aside', { className: 'wl-admin-secondary', 'aria-label': '商品状态与供货资料' }, card('organization'), card('supply'), card('documents'))), ...other);
     }
 
     function DocumentPicker({ t, documents, onAdd, disabled }) {
@@ -2347,6 +2382,23 @@ window.__ModuleLoader__.load({
       );
     }
 
+    function ProductEditorSurface({ productId, onClose, onSaved, onDirtyChange }) {
+      const [data, setData] = useState(null), [error, setError] = useState(null);
+      useEffect(() => {
+        let active = true;
+        Promise.all([productId ? api.product(productId) : Promise.resolve(null), api.documents({ limit: 200 })])
+          .then(([result, documents]) => { if (active) setData({ product: result?.product, documents: documents.items }); })
+          .catch(cause => { if (active) setError(cause); });
+        return () => { active = false; };
+      }, [productId]);
+      const terms = { 'product.name': '商品名称', 'product.description': '商品描述', 'image.title': '商品图片', 'image.saveFirst': '先保存商品，再上传图片。', 'editor.saveProduct': '保存商品' };
+      const t = key => terms[key] || zh[key] || key;
+      return h('div', { className: 'wl-admin-surface', style: { '--wl-accent': '#303030', '--wl-accent-ink': '#fff' } },
+        h('style', null, styles),
+        error ? h(ErrorNote, { error, t }) : data ? h(ProductEditor, { key: productId || 'new', t, product: data.product,
+          documents: data.documents, admin: true, onCancel: onClose, onSaved, onDirtyChange }) : h('p', { role: 'status' }, '正在读取商品资料…'));
+    }
+
     // ---------------------------------------------------------------------
     // Plugin
 
@@ -2427,6 +2479,6 @@ window.__ModuleLoader__.load({
       'workspace-library: panel');
     }
 
-    return { apply, inject, createReferenceSource };
+    return { apply, inject, createReferenceSource, ProductEditorSurface };
   },
 });

@@ -1,0 +1,38 @@
+# ERP 页面与 Shopify Admin 的对应关系
+
+2026-10-27，用户明确选择：ERP 仍在 DSH 内，页面严格对标 Shopify Admin。DSH 继续提供认证、执行宿主和原生附件；ERP 不另起一个应用或服务器。
+
+## 核对依据
+
+已阅读 Shopify 官方 Polaris 仓库的页面规范，并查看其中的商品列表和详情示例图：
+
+- [Resource index layout](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/resource-index-layout/variants/default.mdx)：页面标题与整页操作、筛选与排序、资源表格的层级。
+- [Resource details layout](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/resource-details-layout/variants/default.mdx)：通栏页头、约 2:1 的主辅栏、按任务分组的卡片。
+
+这个官方 React 仓库已归档；它作为页面结构参考，不作为当前 Shopify Admin 完整版本或 2026 年逐像素一致的证明。当前环境访问 Shopify 帮助站受网络策略限制。本项目未引入 Polaris 包，也未复制其组件源码、品牌或示例图片。
+
+## 本轮实现
+
+| 页面位置 | ERP 的对应实现 |
+| --- | --- |
+| 宿主与经营导航 | 保留 DSH。ERP 内使用顶部工具栏和左侧业务菜单，提供原生 DSH 导航折叠按钮；窄屏经营菜单可展开、关闭 |
+| 商品页标题 | 左侧资源名称，右侧创建商品及关联已有 SKU；不放没有实现的导入、发布等操作 |
+| 资源列表 | 紧凑的缩略图／名称、状态、数量、报价、起订量列；提供本页状态筛选、搜索和排序，分页范围明确 |
+| 创建与编辑 | 原产品库 ProductEditor 作为同一个组件嵌入 ERP，沿用原 HTTP、修订校验及保存逻辑 |
+| 详情主栏 | 名称、说明、图片、SKU 与规格；不再跳到另一套编辑页面 |
+| 详情辅栏 | 分类、草稿／归档状态、供货条件、确切资料版本关联 |
+| 保存 | 固定可见的保存／取消区域、未保存提示、ERP 内切换页面时的丢弃确认；图片沿用原库即时保存机制 |
+| 数量与订单 | 继续使用既有分配账本及订单价格快照；样式重做不改变交易语义 |
+
+筛选与排序仅作用于读取的当前页，未实现全库搜索或批量经营动作。经营者可以先创建原库商品；为工作区分配供货数量仍需显式关联 SKU。资料与媒体入口仍使用原生资料库。
+
+## 验证与截图
+
+核心回归 131 项通过，五组 Client 检查通过。ERP 界面检查使用临时 SQLite、原资料库和真实 HTTP，验证关联、原编辑器内修改并保存、即时读取更新、状态筛选、搜索、订单确认和工作区切换。
+
+真实 DSH Web / Chromium 验证商品页、嵌入编辑器在 1440 / 390px 下无页面或内容容器横向溢出。开发 profile 没有业务记录；下列截图是实际空列表与未保存的新建表单，没有填入展示用商品：
+
+- [商品列表](screenshots/erp-admin.png)
+- [商品创建／编辑布局](screenshots/erp-product-editor.png)
+
+本轮未验证完整主题覆盖、桌面宿主或真实买手业务。
