@@ -1,0 +1,1565 @@
+<!doctype html>
+<html lang="zh-CN" data-composition="web-card" data-theme="atelier"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="三双经典鞋，两种天然材料，与一组以 kg CO₂e 计的碳数字。"><title>Allbirds · 2026年10月26日</title><style>
+:root {
+  --paper: #f4f1ea; --surface: #fffdf8; --ink: #202820; --muted: #65675e;
+  --accent: #a83f2c; --forest: #263c33; --rule: #c8c5b8; --sage: #dfe5d7;
+  --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --sans: 'Manrope', Arial, 'Noto Sans', sans-serif;
+  --space-section: 80px; --page: 1280px;
+}
+/* Selected module composition shares the Studio palette, shell and type system. */
+.module-intro { padding:48px 0 36px; max-width:850px; }
+.module-intro h1 { font:400 clamp(32px,6vw,72px)/1.2 var(--serif); letter-spacing:-.035em; margin:16px 0; overflow-wrap:anywhere; }
+.module-intro p { color:var(--muted); }
+.magazine-module { background:var(--surface); border:1px solid var(--rule); padding:clamp(20px,4vw,44px); margin-bottom:28px; min-width:0; scroll-margin-top:24px; }
+.magazine-module h2 { font:400 clamp(24px,3vw,38px)/1.3 var(--serif); margin:12px 0 24px; }
+.magazine-module h3 { font-size:15px; margin:22px 0 10px; }
+.magazine-module p,.magazine-module li,.magazine-module td,.magazine-module th { overflow-wrap:anywhere; }
+.magazine-module img { max-height:440px; object-fit:contain; margin:20px auto; }
+.magazine-module .table-wrap { overflow-x:auto; margin:20px 0; }
+.magazine-module table { width:100%; border-collapse:collapse; font-size:14px; }
+.magazine-module td,.magazine-module th { padding:12px; border-bottom:1px solid var(--rule); text-align:left; vertical-align:top; min-width:100px; }
+.magazine-module th { color:var(--muted); background:var(--paper); }
+.magazine-module .metric { font:400 36px/1.3 var(--serif); color:var(--accent); margin:22px 0; }
+.magazine-module .metric small { display:block; font:13px/1.6 var(--sans); margin-top:8px; }
+.magazine-module .action { display:inline-block; padding:10px 18px; margin:14px 0; border:1px solid var(--accent); color:var(--accent); text-decoration:none; }
+.magazine-module .muted,.magazine-module details { font-size:13px; color:var(--muted); }
+.magazine-module details { border-top:1px solid var(--rule); margin-top:24px; padding-top:18px; }
+.magazine-module summary { cursor:pointer; }
+.magazine-module .comparable + .comparable { border-top:1px solid var(--rule); margin-top:24px; padding-top:16px; }
+.module-intro ~ .magazine-module:last-child { margin-bottom:48px; }
+.issue-nav { flex-wrap:wrap; }
+@media print { .magazine-module { break-inside:avoid; } }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 32px; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+body:has(dialog[open]) { overflow: hidden; }
+button,input,select { font: inherit; }
+button,a { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; text-underline-offset: 4px; }
+button { cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible,a:focus-visible,select:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+button { color: inherit; }
+img,svg { display: block; max-width: 100%; }
+h1,h2,h3,p,figure { margin: 0; }
+button[hidden],[hidden] { display: none !important; }
+::selection { background: #d9e0ce; }
+.skip-link { position: fixed; z-index: 100; top: 8px; left: 12px; transform: translateY(-150%); background: var(--surface); padding: 12px 18px; }
+.skip-link:focus { transform: none; }
+.reading-progress { height: 3px; width: 100%; position: fixed; inset: 0 0 auto; z-index: 30; pointer-events: none; }
+.reading-progress i { display: block; height: 100%; background: var(--accent); width: 0; }
+.page-shell { width: min(var(--page), calc(100% - 112px)); margin: 0 auto; }
+.demo-notice { background: var(--forest); color: #f4f1ea; font-size: 10px; letter-spacing: 1.4px; line-height: 1.5; text-align: center; padding: 8px 16px; text-transform: uppercase; }
+.masthead-top { display: flex; justify-content: space-between; align-items: center; padding: 25px 0 18px; gap: 20px; }
+.eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.8px; line-height: 1.5; text-transform: uppercase; }
+.masthead-date { color: var(--muted); font-size: 11px; letter-spacing: .6px; }
+.masthead { padding: 10px 0 22px; display: flex; justify-content: space-between; align-items: end; border-bottom: 2px solid var(--ink); gap: 32px; }
+.wordmark { font-family: var(--serif); font-size: clamp(40px, 5vw, 66px); font-weight: 450; letter-spacing: -3px; line-height: .95; text-decoration: none; }
+.wordmark span { color: var(--accent); }
+.masthead-tagline { color: var(--muted); font-size: 12px; line-height: 1.6; max-width: 210px; text-align: right; }
+.issue-nav { display: flex; gap: 28px; align-items: center; min-height: 60px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.issue-nav a,.issue-nav button { font-size: 11px; font-weight: 650; letter-spacing: .2px; text-decoration: none; border: 0; background: none; padding: 8px 0; }
+.issue-nav a:hover,.issue-nav button:hover { color: var(--accent); }
+.issue-nav .nav-save { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.nav-save .counter { display: inline-flex; width: 23px; height: 23px; border: 1px solid var(--rule); border-radius: 50%; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; font-size: 10px; }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 9px; }
+.hero { padding: 48px 0 46px; display: grid; grid-template-columns: 1fr 1fr; gap: 7%; align-items: center; }
+.hero-copy { padding: 10px 0; }
+.hero .eyebrow { color: var(--accent); margin-bottom: 28px; }
+.hero h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(50px, 7.6vw, 104px); line-height: 1.01; letter-spacing: -.058em; font-variation-settings: 'opsz' 72, 'SOFT' 30, 'WONK' 1; max-width: 640px; overflow-wrap: break-word; text-wrap: balance; }
+.hero-dek { font-size: 16px; color: var(--muted); line-height: 1.8; max-width: 380px; margin-top: 28px; }
+.hero-bottom { display: flex; align-items: center; gap: 18px; margin-top: 34px; }
+.pill-link,.pill-button { background: var(--forest); color: var(--surface); border: 1px solid var(--forest); text-decoration: none; padding: 13px 20px; font-size: 11px; font-weight: 650; display: inline-flex; justify-content: center; align-items: center; gap: 18px; border-radius: 2px; min-height: 44px; }
+.pill-link:hover,.pill-button:hover { background: #3b5042; }
+.quiet-button { border: 1px solid var(--rule); background: transparent; padding: 10px 14px; font-size: 11px; font-weight: 600; min-height: 42px; }
+.quiet-button:hover { border-color: var(--ink); }
+.reading-time { font-size: 10px; color: var(--muted); letter-spacing: .4px; }
+.hero-art { position: relative; }
+.hero-art .image-wrap { aspect-ratio: 14/15; overflow: hidden; background: var(--sage); }
+.hero-art img { width: 100%; height: 100%; object-fit: cover; }
+.hero-art figcaption { display: flex; justify-content: space-between; gap: 16px; font-size: 9px; color: var(--muted); margin-top: 11px; letter-spacing: .2px; }
+.art-label { position: absolute; left: 22px; top: 22px; color: #31422d; border: 1px solid #819077; background: #eef1e8bb; padding: 8px 10px; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; }
+.image-placeholder { display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); background: var(--sage); height: 100%; min-height: 230px; font-family: var(--serif); font-size: 28px; line-height: 1.3; }
+.quick-signals { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 25px 0; margin-bottom: 54px; }
+.signal { padding: 0 27px; border-left: 1px solid var(--rule); display: grid; grid-template-columns: 24px 1fr; gap: 14px; }
+.signal:first-child { padding-left: 0; border-left: 0; }
+.signal:last-child { padding-right: 0; }
+.signal-number { font-family: var(--serif); color: var(--accent); font-size: 20px; line-height: 1.2; }
+.signal strong { display: block; font-size: 11px; margin-bottom: 6px; }
+.signal p { color: var(--muted); font-size: 11px; line-height: 1.7; }
+.editor-note { display: grid; grid-template-columns: 1fr 3fr; gap: 50px; max-width: 940px; margin: 0 auto 66px; }
+.editor-note .eyebrow { padding-top: 5px; color: var(--accent); }
+.editor-note p.eyebrow { font-family: var(--sans); font-size: 10px; line-height: 1.5; letter-spacing: 1.8px; }
+.editor-note p { font-family: var(--serif); font-size: 23px; line-height: 1.55; letter-spacing: -.35px; }
+.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding-top: 22px; border-top: 2px solid var(--ink); margin-bottom: 28px; }
+.section-heading h2 { font-family: var(--serif); font-size: 43px; font-weight: 400; letter-spacing: -1.7px; line-height: 1.15; }
+.section-heading .eyebrow { margin-bottom: 10px; color: var(--muted); }
+.section-meta { color: var(--muted); font-size: 11px; text-align: right; }
+.filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 0 30px; }
+.filter-bar button { border: 1px solid var(--rule); background: transparent; padding: 8px 14px; font-size: 10px; font-weight: 600; min-height: 36px; border-radius: 20px; }
+.filter-bar button[aria-pressed=true] { border-color: var(--forest); background: var(--forest); color: var(--surface); }
+.product-feature { border-top: 1px solid var(--rule); display: grid; grid-template-columns: 1fr 1fr; column-gap: 7%; padding: 40px 0; }
+.product-feature:nth-of-type(even) .product-visual { order: 2; }
+.product-feature:nth-of-type(even) .product-content { order: 1; }
+.product-visual .product-image { aspect-ratio: 1.1; overflow: hidden; background: #e6e4d9; }
+.product-visual img { height: 100%; width: 100%; object-fit: cover; }
+.product-visual figcaption { padding-top: 9px; color: var(--muted); font-size: 9px; line-height: 1.6; }
+.product-index { color: var(--accent); font-family: var(--serif); font-size: 17px; padding-right: 11px; }
+.product-kicker { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 17px; }
+.product-content h3 { font-family: var(--serif); font-size: clamp(30px,3.2vw,43px); font-weight: 400; letter-spacing: -1.5px; line-height: 1.14; text-wrap: balance; }
+.supplier-line { font-size: 10px; color: var(--muted); margin-top: 11px; }
+.product-summary { font-size: 13px; line-height: 1.8; margin-top: 22px; max-width: 500px; }
+.buyer-fit { padding: 18px 0; margin: 18px 0 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); font-size: 11px; line-height: 1.75; }
+.buyer-fit strong { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 6px; }
+.procurement-facts { display: grid; grid-template-columns: 1fr 1fr; margin: 19px 0 15px; gap: 17px 22px; }
+.fact { min-width: 0; }
+.fact dt { font-size: 9px; color: var(--muted); margin-bottom: 4px; }
+.fact dd { margin: 0; font-size: 12px; line-height: 1.5; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fact .status { display: block; font-size: 8px; font-weight: 400; color: var(--muted); letter-spacing: .3px; margin-top: 2px; }
+.additional-facts { margin: 0 0 17px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.additional-facts summary { cursor: pointer; font-size: 10px; font-weight: 600; color: var(--muted); padding: 4px 0; }
+.additional-facts summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+.fact .unknown { font-weight: 400; color: var(--muted); }
+.evidence-chip { border: 0; border-bottom: 1px dotted var(--muted); padding: 1px 2px; background: transparent; font-size: 9px; margin-left: 5px; line-height: 1.2; }
+.watchout { display: flex; align-items: start; gap: 8px; font-size: 10px; color: var(--muted); padding: 12px 14px; background: #e8e6db; line-height: 1.65; }
+.watchout strong { color: var(--ink); }
+.watchout-icon { font-size: 14px; line-height: 1.4; }
+.product-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 22px; }
+.text-link { display: inline-flex; align-items: center; gap: 18px; font-size: 11px; text-decoration: none; font-weight: 650; border-bottom: 1px solid var(--ink); padding: 8px 0; background: transparent; border-top: 0; border-left: 0; border-right: 0; }
+.text-link:hover { color: var(--accent); border-color: var(--accent); }
+.save-button { display: inline-flex; gap: 8px; align-items: center; background: transparent; border: 1px solid var(--rule); padding: 10px 13px; min-height: 42px; font-size: 10px; }
+.save-button[aria-pressed=true] { background: var(--forest); color: var(--surface); border-color: var(--forest); }
+.sponsored { display: inline-block; padding: 3px 8px; font-size: 9px; color: var(--accent); border: 1px solid var(--accent); margin-bottom: 12px; }
+.comparison-section { margin-top: 38px; padding: 36px; background: var(--forest); color: var(--surface); display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+.comparison-section h2 { font-family: var(--serif); font-size: 32px; font-weight: 400; letter-spacing: -.8px; line-height: 1.2; }
+.comparison-section p { max-width: 480px; font-size: 12px; color: #d5dccf; margin-top: 10px; }
+.comparison-section .quiet-button { color: var(--surface); border-color: #b0bba7; min-width: 190px; }
+.notes-section { margin: var(--space-section) 0 60px; }
+.notes-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 36px; }
+.note { border-top: 1px solid var(--rule); padding-top: 18px; }
+.note .eyebrow { font-size: 9px; color: var(--accent); margin-bottom: 14px; }
+.note h3 { font-family: var(--serif); font-size: 24px; line-height: 1.2; font-weight: 400; margin-bottom: 13px; letter-spacing: -.6px; }
+.note p { color: var(--muted); font-size: 11px; line-height: 1.8; }
+.issue-footer { border-top: 2px solid var(--ink); padding: 28px 0 32px; display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 40px; margin-bottom: 90px; }
+.footer-wordmark { font-family: var(--serif); font-size: 30px; letter-spacing: -1.3px; line-height: 1; margin-bottom: 13px; }
+.issue-footer p { font-size: 10px; color: var(--muted); line-height: 1.8; }
+.issue-footer .eyebrow { color: var(--ink); margin-bottom: 10px; font-size: 9px; }
+.issue-footer button { background: none; border: 0; padding: 0; border-bottom: 1px solid var(--muted); font-size: 10px; }
+.data-notes { margin: 16px 0 0; padding-left: 16px; font-size: 10px; color: var(--muted); }
+.shortlist-dock { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 25; width: min(580px,calc(100% - 32px)); background: var(--surface); border: 1px solid var(--rule); padding: 12px 14px 12px 20px; box-shadow: 0 5px 30px #2530201a; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.shortlist-dock p { font-size: 11px; font-weight: 600; }
+.shortlist-dock small { display: block; font-size: 9px; color: var(--muted); font-weight: 400; }
+.dock-actions { display: flex; gap: 8px; }
+.dock-actions button { min-height: 39px; padding: 8px 12px; font-size: 10px; }
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 60; padding: 12px 18px; background: var(--ink); color: var(--surface); font-size: 11px; max-width: calc(100% - 32px); width: max-content; box-shadow: 0 2px 14px #0002; }
+.toast:empty { display: none; }
+dialog { border: 1px solid var(--rule); color: var(--ink); background: var(--paper); padding: 0; max-width: calc(100% - 32px); max-height: calc(100dvh - 40px); }
+dialog::backdrop { background: #20282070; backdrop-filter: blur(3px); }
+.sources-dialog { margin: 0 0 0 auto; width: min(600px,92vw); height: 100dvh; max-height: 100dvh; border-top: 0; border-bottom: 0; border-right: 0; }
+.modal-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 26px 30px; border-bottom: 1px solid var(--rule); position: sticky; top: 0; background: var(--paper); z-index: 1; }
+.modal-top h2 { font-family: var(--serif); font-weight: 400; font-size: 30px; line-height: 1.1; letter-spacing: -.7px; }
+.close-button { border: 1px solid var(--rule); width: 36px; height: 36px; background: transparent; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+.modal-content { padding: 24px 30px 38px; }
+.source-intro { color: var(--muted); font-size: 12px; line-height: 1.8; margin-bottom: 30px; }
+.source-record { border-top: 1px solid var(--rule); padding: 20px 0; scroll-margin-top: 100px; }
+.source-record h3 { font-family: var(--serif); font-weight: 400; font-size: 23px; letter-spacing: -.5px; }
+.source-record h3 span { color: var(--accent); padding-right: 8px; font-size: 16px; }
+.source-record p { color: var(--muted); font-size: 11px; margin-top: 10px; line-height: 1.75; }
+.source-record a { display: inline-block; margin-top: 12px; font-size: 10px; overflow-wrap: anywhere; }
+.source-record .source-meta { font-size: 9px; color: var(--muted); letter-spacing: .4px; }
+.source-record[data-highlight=true] { background: #e0e6d7; outline: 8px solid #e0e6d7; }
+.comparison-dialog { width: min(1000px,calc(100% - 32px)); }
+.table-scroll { max-width: 100%; overflow: auto; }
+.comparison-table { border-collapse: collapse; width: 100%; font-size: 12px; line-height: 1.55; min-width: 520px; }
+.comparison-table caption { text-align: left; font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+.comparison-table th,.comparison-table td { padding: 16px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; text-align: left; max-width: 240px; overflow-wrap: anywhere; }
+.comparison-table thead th { font-family: var(--serif); font-weight: 400; font-size: 23px; line-height: 1.2; }
+.comparison-table thead th:first-child { font: 10px var(--sans); color: var(--muted); }
+.comparison-table tbody th { font-size: 10px; color: var(--muted); font-weight: 500; min-width: 115px; }
+.compare-bottom { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-top: 24px; }
+.compare-bottom p { font-size: 10px; color: var(--muted); max-width: 410px; }
+.empty-filter { padding: 30px 0; font-family: var(--serif); font-size: 24px; }
+.noscript-note { padding: 12px 16px; background: #e8e6db; font-size: 11px; }
+.print-source-list { display: none; }
+@media (min-width: 1500px) { .hero h1 { font-size: 110px; } }
+@media (max-width: 1050px) {
+  .page-shell { width: calc(100% - 64px); }
+  .hero { gap: 5%; }
+  .hero h1 { font-size: 73px; }
+  .hero-dek { font-size: 14px; }
+  .hero .eyebrow { margin-bottom: 22px; }
+  .product-feature { gap: 5%; }
+  .product-content h3 { font-size: 34px; }
+  .product-summary { font-size: 12px; margin-top: 16px; }
+  .buyer-fit { padding: 14px 0; margin-top: 15px; }
+  .product-actions { gap: 8px; }
+  .signal { padding: 0 20px; gap: 10px; }
+  .notes-grid { gap: 24px; }
+}
+@media (max-width: 780px) {
+  :root { --space-section: 56px; }
+  .page-shell { width: calc(100% - 40px); }
+  .masthead-top { padding: 22px 0 19px; }
+  .masthead-date { font-size: 9px; }
+  .masthead-top .eyebrow { font-size: 9px; letter-spacing: 1.2px; }
+  .wordmark { font-size: 48px; letter-spacing: -2.7px; }
+  .masthead-tagline { max-width: 160px; font-size: 10px; }
+  .issue-nav { gap: 22px; min-height: 56px; }
+  .hero { padding: 36px 0 32px; gap: 4%; }
+  .hero h1 { font-size: 60px; }
+  .hero-dek { font-size: 12px; margin-top: 20px; }
+  .hero-bottom { gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+  .hero .eyebrow { font-size: 9px; letter-spacing: 1.2px; margin-bottom: 18px; }
+  .hero-art .image-wrap { aspect-ratio: 10/14; }
+  .hero-art img { object-position: 55% 50%; }
+  .art-label { top: 14px; left: 14px; font-size: 8px; padding: 6px 8px; }
+  .quick-signals { margin-bottom: 38px; padding: 22px 0; }
+  .signal { grid-template-columns: 1fr; gap: 8px; padding: 0 15px; }
+  .signal-number { font-size: 17px; }
+  .signal strong { font-size: 10px; }
+  .signal p { font-size: 10px; }
+  .editor-note { gap: 26px; margin-bottom: 48px; }
+  .editor-note p { font-size: 20px; }
+  .section-heading h2 { font-size: 38px; }
+  .product-feature { gap: 30px; padding: 30px 0; grid-template-columns: 1fr 1.05fr; }
+  .product-visual .product-image { aspect-ratio: 7/9; }
+  .product-content h3 { font-size: 30px; }
+  .product-kicker { font-size: 8px; gap: 5px; margin-bottom: 12px; flex-wrap: wrap; }
+  .product-summary { margin-top: 15px; font-size: 11px; }
+  .buyer-fit { font-size: 10px; padding: 12px 0; }
+  .procurement-facts { gap: 12px 14px; }
+  .fact dd { font-size: 11px; }
+  .product-actions { flex-wrap: wrap; padding-top: 16px; }
+  .watchout { padding: 10px; font-size: 9px; }
+  .notes-grid { gap: 20px; }
+  .note h3 { font-size: 22px; }
+  .note p { font-size: 10px; }
+  .comparison-section { padding: 28px; align-items: start; }
+  .comparison-section h2 { font-size: 28px; }
+  .comparison-section p { font-size: 11px; }
+  .comparison-section .quiet-button { min-width: 160px; }
+  .issue-footer { gap: 25px; }
+}
+@media (max-width: 560px) {
+  .demo-notice { font-size: 8px; letter-spacing: 1px; padding: 8px 12px; }
+  .masthead-top { padding: 18px 0 17px; }
+  .masthead-top .eyebrow { font-size: 8px; letter-spacing: 1px; }
+  .masthead-date { font-size: 8px; }
+  .masthead { display: block; padding: 6px 0 19px; }
+  .wordmark { display: inline-block; font-size: 44px; letter-spacing: -2.5px; white-space: nowrap; }
+  .masthead-tagline { max-width: 300px; text-align: left; margin-top: 11px; font-size: 9px; line-height: 1.55; }
+  .issue-nav { gap: 18px; min-height: 52px; padding: 9px 0; }
+  .issue-nav a,.issue-nav button { font-size: 9px; }
+  .issue-nav .nav-save { gap: 5px; }
+  .nav-save .counter { width: 21px; height: 21px; }
+  .hero { grid-template-columns: 1fr; gap: 28px; padding: 32px 0 28px; }
+  .hero-copy { padding: 0; }
+  .hero h1 { font-size: clamp(53px,14.8vw,76px); line-height: 1.02; max-width: 460px; letter-spacing: -.05em; }
+  .hero .eyebrow { margin-bottom: 22px; }
+  .hero-dek { max-width: 330px; font-size: 13px; line-height: 1.8; margin-top: 20px; }
+  .hero-bottom { margin-top: 24px; gap: 18px; }
+  .hero-art .image-wrap { aspect-ratio: 1.18; }
+  .hero-art img { object-position: 50% 59%; }
+  .hero-art figcaption { font-size: 8px; }
+  .art-label { font-size: 8px; left: 17px; top: 17px; }
+  .quick-signals { grid-template-columns: 1fr; gap: 20px; padding: 22px 0; margin-bottom: 34px; }
+  .signal,.signal:first-child,.signal:last-child { grid-template-columns: 24px 1fr; gap: 12px; padding: 0; border-left: 0; }
+  .signal strong { font-size: 11px; margin-bottom: 3px; }
+  .signal p { font-size: 10px; max-width: 320px; }
+  .editor-note { grid-template-columns: 1fr; gap: 14px; margin-bottom: 40px; }
+  .editor-note .eyebrow { font-size: 9px; }
+  .editor-note p { font-size: 22px; line-height: 1.5; }
+  .section-heading { padding-top: 20px; margin-bottom: 24px; gap: 15px; }
+  .section-heading h2 { font-size: 36px; }
+  .section-heading .eyebrow { font-size: 8px; }
+  .section-meta { font-size: 9px; max-width: 100px; }
+  .filter-bar { gap: 7px; padding-bottom: 24px; }
+  .filter-bar button { font-size: 9px; padding: 8px 12px; }
+  .product-feature { grid-template-columns: 1fr; padding: 28px 0 32px; gap: 24px; }
+  .product-feature:nth-of-type(even) .product-visual,.product-feature:nth-of-type(even) .product-content { order: initial; }
+  .product-visual .product-image { aspect-ratio: 1.14; }
+  .product-visual img { object-position: center 54%; }
+  .product-content h3 { font-size: 35px; max-width: 340px; letter-spacing: -1.2px; }
+  .product-kicker { font-size: 9px; gap: 8px; margin-bottom: 15px; }
+  .supplier-line { font-size: 10px; }
+  .product-summary { font-size: 12px; line-height: 1.85; margin-top: 18px; }
+  .buyer-fit { margin-top: 18px; padding: 15px 0; font-size: 11px; }
+  .procurement-facts { gap: 18px 20px; margin: 20px 0 19px; }
+  .fact dd { font-size: 12px; }
+  .fact dt { font-size: 10px; }
+  .fact .status { font-size: 9px; }
+  .watchout { font-size: 10px; padding: 13px 14px; }
+  .product-actions { padding-top: 22px; }
+  .save-button { font-size: 10px; padding: 10px 12px; }
+  .comparison-section { margin-top: 20px; padding: 27px 23px; flex-direction: column; gap: 22px; }
+  .comparison-section h2 { font-size: 31px; }
+  .comparison-section p { font-size: 11px; }
+  .comparison-section .quiet-button { min-width: 0; }
+  .notes-section { margin-top: 48px; margin-bottom: 42px; }
+  .notes-grid { grid-template-columns: 1fr; gap: 26px; }
+  .note .eyebrow { margin-bottom: 11px; }
+  .note h3 { font-size: 25px; }
+  .note p { font-size: 11px; }
+  .issue-footer { grid-template-columns: 1fr 1fr; gap: 25px; padding-top: 25px; }
+  .issue-footer>div:first-child { grid-column: 1/-1; }
+  .footer-wordmark { font-size: 36px; }
+  .issue-footer>div:first-child p { max-width: 290px; }
+  .shortlist-dock { bottom: 12px; padding: 10px 12px; width: calc(100% - 24px); gap: 8px; }
+  .shortlist-dock p { font-size: 10px; }
+  .shortlist-dock small { font-size: 8px; }
+  .dock-actions { gap: 6px; }
+  .dock-actions button { font-size: 9px; min-height: 38px; padding: 8px 10px; }
+  .toast { bottom: 87px; font-size: 10px; }
+  .modal-top { padding: 22px 20px; }
+  .modal-top h2 { font-size: 27px; }
+  .modal-content { padding: 22px 20px 30px; }
+  .compare-bottom { flex-direction: column; align-items: start; gap: 20px; }
+  .comparison-table th,.comparison-table td { padding: 12px 10px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+@media print {
+  @page { size: A4; margin: 14mm; }
+  :root { --paper: #fff; --surface: #fff; }
+  body { background: #fff; font-size: 10pt; color: #202820; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page-shell { width: 100%; max-width: none; }
+  .reading-progress,.issue-nav,.hero-bottom,.filter-bar,.shortlist-dock,.toast,dialog,.product-actions,.comparison-section,.noscript-note,.skip-link { display: none !important; }
+  .demo-notice { font-size: 7pt; padding: 6pt; }
+  .masthead-top { padding: 8pt 0 12pt; }
+  .masthead { padding: 6pt 0 14pt; }
+  .wordmark { font-size: 34pt; }
+  .masthead-tagline { font-size: 8pt; }
+  .hero { gap: 24pt; padding: 28pt 0 24pt; }
+  .hero h1 { font-size: 44pt; }
+  .hero-dek { font-size: 10pt; margin-top: 16pt; }
+  .hero-art .image-wrap { aspect-ratio: 14/15; }
+  .quick-signals { margin-bottom: 20pt; padding: 16pt 0; }
+  .signal { padding: 0 12pt; }
+  .signal p { font-size: 8pt; }
+  .editor-note { margin: 0 0 24pt; }
+  .editor-note p { font-size: 14pt; }
+  .section-heading h2 { font-size: 26pt; }
+  #today { break-before: page; page-break-before: always; }
+  #today .section-heading { padding-top: 12pt; margin-bottom: 12pt; }
+  .product-feature { break-inside: avoid; page-break-inside: avoid; grid-template-columns: 29% 1fr; gap: 18pt; padding: 14pt 0; }
+  .product-feature[hidden] { display: grid !important; }
+  .product-feature:nth-of-type(even) .product-visual,.product-feature:nth-of-type(even) .product-content { order: initial; }
+  .product-visual .product-image { aspect-ratio: .8; }
+  .product-visual figcaption { font-size: 6pt; padding-top: 6pt; }
+  .product-kicker { margin-bottom: 6pt; font-size: 6pt; }
+  .product-index { font-size: 10pt; }
+  .product-content h3 { font-size: 19pt; }
+  .supplier-line { font-size: 6pt; margin-top: 5pt; }
+  .product-summary { font-size: 8pt; line-height: 1.5; margin-top: 8pt; }
+  .buyer-fit { font-size: 7pt; line-height: 1.5; padding: 7pt 0; margin-top: 8pt; }
+  .buyer-fit strong { font-size: 6pt; margin-bottom: 3pt; }
+  .procurement-facts { grid-template-columns: repeat(3,1fr); gap: 6pt 10pt; margin: 8pt 0; }
+  .fact dd { font-size: 8pt; }
+  .fact dt,.fact .status { font-size: 6pt; }
+  .fact dt { margin-bottom: 2pt; }
+  .additional-facts>dl { display: grid !important; }
+  .additional-facts summary { display: none; }
+  .watchout { font-size: 7pt; line-height: 1.5; padding: 7pt 9pt; }
+  .evidence-chip { border: 0; font-size: 7pt; }
+  .notes-section { margin: 18pt 0; break-inside: avoid; }
+  .note h3 { font-size: 17pt; }
+  .note p { font-size: 8pt; }
+  .issue-footer { display: none; }
+  .print-source-list { display: block; border-top: 1px solid var(--rule); padding-top: 12pt; font-size: 7pt; }
+  .print-source-list h2 { font-family: var(--serif); font-size: 16pt; font-weight: 400; }
+  .print-source-list li { margin: 6pt 0; overflow-wrap: anywhere; }
+  a { text-decoration: none; }
+}
+
+/* ==========================================================================
+   V1.3 / EDITORIAL ATLAS — four industry-specific art directions.
+   This layer intentionally leaves evidence, compare and output contracts intact.
+   ========================================================================== */
+html[data-theme='atelier'] {
+  --paper:#f7f1ed; --surface:#fffbf8; --ink:#32272b; --muted:#78686e;
+  --accent:#9d395b; --forest:#522b3b; --rule:#d8c4c5; --sage:#eadce0;
+  --serif:'Iowan Old Style','Baskerville','Palatino Linotype',Georgia,serif;
+}
+html[data-theme='foundry'] {
+  --paper:#e9ece7; --surface:#fcfcf6; --ink:#183331; --muted:#576864;
+  --accent:#a34627; --forest:#173a39; --rule:#bbc7c0; --sage:#c7d1c6;
+  --serif:'Arial Narrow','Helvetica Neue',Arial,sans-serif;
+}
+html[data-theme='fieldnotes'] {
+  --paper:#f3eee4; --surface:#fffcf4; --ink:#303d31; --muted:#647164;
+  --accent:#a15c35; --forest:#314739; --rule:#c7c9bb; --sage:#e3e4d6;
+  --serif:'Iowan Old Style','Baskerville',Georgia,serif;
+}
+html[data-theme='porcelain'] { --cover-accent:#d8dbcc; }
+html[data-theme='atelier'] { --cover-accent:#ead5df; }
+html[data-theme='foundry'] { --cover-accent:#c3cec3; }
+html[data-theme='fieldnotes'] { --cover-accent:#e1decf; }
+
+.page-shell { width:min(1350px,calc(100% - 108px)); }
+.masthead-top { padding-bottom:14px; }
+.masthead { padding-bottom:19px; }
+.wordmark { letter-spacing:-.07em; }
+.masthead-right { display:flex; align-items:center; gap:22px; }
+.masthead-stamp { display:grid; place-items:center; width:40px; height:40px; border:1px solid var(--rule); border-radius:50%; font:25px/1 var(--serif); color:var(--accent); }
+.masthead-right .masthead-tagline { max-width:300px; }
+.issue-nav { gap:24px; }
+.issue-nav a,.issue-nav button { font-size:10px; font-weight:700; letter-spacing:.03em; }
+.issue-nav a:hover { text-decoration:underline; text-decoration-color:var(--accent); }
+.issue-nav [data-sources] { margin-left:auto; }
+.issue-nav .nav-save { margin-left:0; }
+
+/* Grand cover — controlled typographic rhythm, with graceful no-image plates. */
+.hero { padding:28px 0 16px; grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr); gap:22px; align-items:stretch; }
+.hero-copy { padding:42px 40px 28px 38px; border:1px solid var(--rule); min-height:570px; display:flex; flex-direction:column; align-items:flex-start; position:relative; overflow:hidden; }
+.cover-topline { display:flex; justify-content:space-between; gap:12px; align-self:stretch; border-bottom:1px solid var(--rule); padding-bottom:17px; color:var(--muted); font:700 9px/1.4 var(--sans); letter-spacing:.16em; }
+.hero .eyebrow { margin:47px 0 22px; letter-spacing:.16em; }
+.hero h1 { font-size:clamp(64px,6.8vw,104px); line-height:.99; max-width:560px; letter-spacing:-.065em; word-spacing:-.01em; overflow-wrap:normal; }
+.hero-dek { margin-top:22px; max-width:485px; font-size:14px; line-height:1.85; color:var(--muted); }
+.hero-bottom { margin-top:auto; padding-top:35px; flex-wrap:wrap; }
+.hero-bottom .reading-time { text-align:left; font-size:10px; line-height:1.6; }
+.cover-issue-folio { display:flex; justify-content:space-between; gap:20px; align-self:stretch; width:100%; border-top:1px solid var(--rule); margin-top:27px; padding-top:12px; font:700 9px var(--sans); letter-spacing:.16em; color:var(--muted); }
+.hero-art { display:flex; flex-direction:column; min-width:0; }
+.hero-art .image-wrap { min-height:570px; flex:1; aspect-ratio:unset; border:1px solid var(--rule); position:relative; background:var(--cover-accent,var(--sage)); }
+.hero-art img { object-position:center center; }
+.art-label { top:22px; left:22px; font-size:9px; font-weight:700; padding:9px 14px; background:var(--surface); border-color:var(--rule); color:var(--ink); }
+.hero-art figcaption { color:var(--muted); margin-top:10px; font-size:10px; gap:12px; }
+.cover-plate { position:absolute; right:24px; top:28px; z-index:2; writing-mode:vertical-rl; font:700 9px var(--sans); letter-spacing:.15em; color:var(--ink); }
+.cover-visual-overlay { position:absolute; bottom:24px; left:26px; right:26px; padding:14px 17px; color:var(--ink); background:rgba(250,248,240,.84); display:flex; justify-content:space-between; gap:12px; align-items:end; backdrop-filter:blur(7px); }
+.cover-visual-overlay small { font-size:9px; font-weight:800; letter-spacing:.17em; }
+.cover-visual-overlay span { font:italic 20px/1.1 var(--serif); text-align:right; }
+.no-cover-image { isolation:isolate; color:var(--ink); background:linear-gradient(140deg,var(--sage),var(--paper)); }
+.dossier-grid { position:absolute; inset:0; background-image:linear-gradient(to right,rgba(22,42,40,.1) 1px,transparent 1px),linear-gradient(to bottom,rgba(22,42,40,.1) 1px,transparent 1px); background-size:46px 46px; opacity:.45; }
+.dossier-sup { position:absolute; top:58px; right:24px; font:700 10px var(--sans); letter-spacing:.18em; }
+.dossier-figure { position:absolute; height:50%; width:76%; left:12%; top:21%; border:1px solid rgba(20,50,48,.25); border-radius:50% 50% 7% 7%; transform:rotate(-13deg); opacity:.6; }
+.dossier-figure i { position:absolute; border:1px solid currentColor; border-radius:50% 50% 4% 4%; inset:12%; opacity:.55; }
+.dossier-figure i:nth-child(2) { inset:23%; }
+.dossier-figure i:nth-child(3) { inset:36%; }
+.no-image-wordmark { position:absolute; left:9%; right:8%; bottom:11%; z-index:1; }
+.no-image-wordmark small { display:block; font:700 9px var(--sans); letter-spacing:.22em; margin-bottom:8px; }
+.no-image-wordmark strong { font:700 clamp(58px,7.4vw,117px)/.82 var(--serif); letter-spacing:-.09em; display:block; }
+.no-image-wordmark p { margin:20px 0 0; font-size:12px; max-width:300px; }
+.dossier-bottom { display:none; }
+
+/* Cover may change its entire structural identity by industry. */
+html[data-theme='foundry'] .hero-copy { background:#183532; color:#f1f4e9; border-color:#183532; }
+html[data-theme='foundry'] .hero h1 { font-family:'Arial Narrow','Helvetica Neue',Arial,sans-serif; font-size:clamp(68px,7vw,117px); text-transform:uppercase; font-weight:900; letter-spacing:-.07em; line-height:.92; }
+html[data-theme='foundry'] .hero-dek { color:#c9d6cf; }
+html[data-theme='foundry'] .hero .eyebrow { color:#def0a0; }
+html[data-theme='foundry'] .cover-topline, html[data-theme='foundry'] .cover-issue-folio { border-color:rgba(238,246,231,.26); color:#bfcfc5; }
+html[data-theme='foundry'] .hero .pill-link { background:#e0e8a4; color:#13352f; border-color:#e0e8a4; }
+html[data-theme='foundry'] .hero-art .image-wrap { background:#c5cdc7; }
+html[data-theme='foundry'] .art-label { background:#deeba2; color:#203e37; border:0; }
+html[data-theme='foundry'] .product-content h3, html[data-theme='foundry'] .section-heading h2, html[data-theme='foundry'] .index-heading h2, html[data-theme='foundry'] .buyer-desk h2, html[data-theme='foundry'] .evidence-ledger h2 { text-transform:uppercase; font-family:'Arial Narrow','Helvetica Neue',Arial,sans-serif; font-weight:900; letter-spacing:-.065em; }
+html[data-theme='atelier'] .hero-copy { background:#fcf6f2; border-color:#d8c4c5; }
+html[data-theme='atelier'] .hero-art .image-wrap { background:#ead6dd; }
+html[data-theme='atelier'] .hero h1 { font-weight:400; letter-spacing:-.07em; }
+html[data-theme='atelier'] .masthead-stamp { font-size:19px; }
+html[data-theme='atelier'] .product-image, html[data-theme='atelier'] .hero-art .image-wrap { box-shadow:inset 0 0 60px rgba(121,33,61,.08); }
+html[data-theme='fieldnotes'] .hero-copy { background:#fbf9f1; }
+html[data-theme='fieldnotes'] .hero-art .image-wrap { background:#d8ddcc; }
+html[data-theme='fieldnotes'] .hero h1 { letter-spacing:-.07em; }
+
+.issue-ribbon { display:flex; align-items:center; justify-content:space-between; gap:20px; margin:17px 0 55px; padding:13px 3px 15px; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); font:700 9px var(--sans); letter-spacing:.18em; color:var(--muted); }
+.buyer-desk { display:grid; grid-template-columns:1fr 1.15fr; gap:8%; align-items:center; padding:40px 0 65px; border-bottom:1px solid var(--rule); margin-bottom:39px; }
+.buyer-desk-intro .eyebrow { color:var(--accent); font-size:10px; margin-bottom:24px; }
+.buyer-desk h2,.evidence-ledger h2 { font:400 clamp(41px,4.3vw,66px)/1.05 var(--serif); letter-spacing:-.06em; }
+.buyer-desk h2 em,.evidence-ledger h2 em { color:var(--accent); font-weight:400; }
+.buyer-desk-intro>p:last-child { font-size:12px; max-width:375px; color:var(--muted); line-height:1.85; margin-top:20px; }
+.buyer-desk-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border:1px solid var(--rule); }
+.desk-stat { min-height:163px; padding:25px 19px 17px; border-right:1px solid var(--rule); display:flex; justify-content:space-between; flex-direction:column; gap:16px; }
+.desk-stat:nth-child(3) { border:0; }
+.desk-stat strong { font:400 clamp(44px,5vw,78px)/1 var(--serif); letter-spacing:-.07em; font-variant-numeric:tabular-nums; }
+.desk-stat strong small { font-size:.39em; color:var(--muted); }
+.desk-stat span { font:700 10px/1.5 var(--sans); letter-spacing:.03em; }
+.desk-note { grid-column:1/-1; background:var(--sage); padding:17px 22px; display:flex; align-items:center; gap:15px; }
+.desk-note-mark { border:1px solid var(--ink); border-radius:50%; flex:0 0 23px; width:23px; height:23px; display:grid; place-items:center; font:800 12px var(--sans); }
+.desk-note p { font-size:11px; line-height:1.6; }
+
+/* Procurement ledger — disclosure first, editorial judgement second. */
+.sourcing-index { padding:50px 0 76px; }
+.index-heading { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:31px; }
+.index-heading .eyebrow { color:var(--accent); margin-bottom:11px; }
+.index-heading h2 { font:400 clamp(40px,4.5vw,68px)/1.05 var(--serif); letter-spacing:-.06em; }
+.index-heading>p { max-width:260px; text-align:right; color:var(--muted); font-size:11px; line-height:1.8; }
+.index-table-scroll { overflow:auto; max-width:100%; border-top:2px solid var(--ink); }
+.sourcing-table { border-collapse:collapse; min-width:850px; width:100%; }
+.sourcing-table caption { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+.sourcing-table thead th { font:700 9px var(--sans); letter-spacing:.15em; text-transform:uppercase; text-align:left; color:var(--muted); border-bottom:1px solid var(--rule); padding:17px 12px; }
+.sourcing-table tbody th,.sourcing-table tbody td { font-size:11px; text-align:left; vertical-align:middle; border-bottom:1px solid var(--rule); padding:21px 12px; }
+.sourcing-table tbody th { position:relative; min-width:240px; }
+.sourcing-table tbody th .table-index { display:inline-block; font:italic 19px var(--serif); color:var(--accent); margin-right:12px; }
+.sourcing-table tbody th strong { font:400 21px/1.18 var(--serif); letter-spacing:-.035em; display:inline-block; }
+.sourcing-table tbody th small { display:block; margin-left:39px; margin-top:7px; font-size:9px; color:var(--muted); font-weight:500; }
+.sourcing-table .td-unknown { color:var(--muted); font-style:italic; }
+.table-go { display:inline-block; text-decoration:none; color:var(--accent); border-bottom:1px solid currentColor; font:700 11px var(--sans); padding:4px 0; white-space:nowrap; }
+.index-footnote { margin-top:15px; font-size:10px; line-height:1.7; color:var(--muted); }
+
+/* Product features get article-level character without hiding commercial reality. */
+.product-feature { column-gap:6%; padding:58px 0 64px; scroll-margin-top:24px; }
+.product-content { padding:8px 0; }
+.product-eyeline { font:700 9px var(--sans); letter-spacing:.17em; text-transform:uppercase; margin:0 0 13px; color:var(--accent); }
+.product-content h3 { font-size:clamp(40px,4vw,61px); line-height:1.04; letter-spacing:-.06em; }
+.product-visual .product-image { position:relative; aspect-ratio:1/1.04; border:1px solid var(--rule); }
+.product-image-index { position:absolute; left:14px; bottom:15px; background:var(--surface); color:var(--ink); font:700 9px var(--sans); padding:8px 11px; text-transform:uppercase; letter-spacing:.12em; }
+.product-summary { margin-top:18px; }
+.facts-header { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:13px 0 10px; border-bottom:2px solid var(--ink); margin-top:16px; }
+.facts-header span { font:700 10px var(--sans); letter-spacing:.09em; text-transform:uppercase; }
+.facts-header small { font-size:8px; text-align:right; line-height:1.4; color:var(--muted); }
+.fact dt { text-transform:uppercase; letter-spacing:.1em; }
+.fact[data-fact-status='verified'] dd:before { content:'●'; font-size:7px; margin-right:5px; color:#2c7652; }
+.fact[data-fact-status='supplier-stated'] dd:before { content:'◐'; font-size:9px; margin-right:5px; color:var(--accent); }
+.fact[data-fact-status='unknown'] dd:before { content:'—'; font-size:9px; margin-right:5px; }
+
+/* Endpaper: the evidence gets a visual spread, not a footnote. */
+.evidence-ledger { padding:50px 0 55px; margin:40px 0 48px; border-top:2px solid var(--ink); border-bottom:1px solid var(--rule); display:grid; grid-template-columns:1fr 1fr; gap:9%; }
+.evidence-ledger .eyebrow { color:var(--accent); margin-bottom:22px; }
+.evidence-ledger>div>p:last-child { color:var(--muted); font-size:12px; max-width:380px; margin-top:24px; line-height:1.9; }
+.ledger-list { border-top:1px solid var(--rule); }
+.ledger-source { width:100%; background:transparent; display:grid; grid-template-columns:27px 1fr 18px; gap:11px; align-items:start; text-align:left; border:0; border-bottom:1px solid var(--rule); padding:20px 5px; }
+.ledger-source:hover { background:var(--sage); }
+.ledger-index { font:italic 20px var(--serif); color:var(--accent); }
+.ledger-source strong { display:block; font:500 17px/1.3 var(--serif); }
+.ledger-source small { display:block; font-size:10px; color:var(--muted); margin-top:8px; line-height:1.5; }
+.ledger-more { border:0; background:transparent; font:700 11px var(--sans); text-decoration:underline; padding:18px 4px; }
+html[data-theme='foundry'] .desk-stat strong { font-weight:900; }
+html[data-theme='foundry'] .evidence-ledger h2 em,html[data-theme='foundry'] .buyer-desk h2 em { font-style:normal; }
+
+@media(max-width:1050px) {
+ .page-shell { width:calc(100% - 60px); }
+ .hero-copy { padding:32px 27px 26px; min-height:520px; }
+ .hero-art .image-wrap { min-height:520px; }
+ .hero h1 { font-size:clamp(49px,6.5vw,86px); }
+ html[data-theme='foundry'] .hero h1 { font-size:clamp(52px,7vw,92px); }
+ .masthead-right { gap:10px; }
+ .buyer-desk { gap:5%; }
+ .desk-stat { min-height:138px; padding:18px 12px; }
+ .desk-stat strong { font-size:52px; }
+ .product-content h3 { font-size:43px; }
+}
+@media(max-width:780px) {
+ .page-shell { width:calc(100% - 40px); }
+ .masthead-stamp { display:none; }
+ .issue-nav { gap:15px; }
+ .issue-nav a,.issue-nav button { font-size:10px; }
+ .hero { gap:15px; }
+ .hero-copy { min-height:440px; padding:22px 20px; }
+ .hero-art .image-wrap { min-height:440px; }
+ .hero .eyebrow { margin:25px 0 17px; }
+ .hero h1 { font-size:clamp(42px,6.5vw,63px); }
+ html[data-theme='foundry'] .hero h1 { font-size:clamp(42px,6.5vw,66px); }
+ .hero-dek { font-size:12px; }
+ .cover-topline { font-size:7px; }
+ .cover-issue-folio { font-size:8px; }
+ .cover-visual-overlay { display:none; }
+ .buyer-desk { grid-template-columns:1fr; gap:30px; }
+ .buyer-desk h2 { font-size:48px; }
+ .desk-stat { min-height:144px; }
+ .sourcing-index { padding:35px 0 55px; }
+ .index-heading h2 { font-size:48px; }
+ .product-feature { gap:25px; padding:40px 0; }
+ .product-content h3 { font-size:36px; }
+ .evidence-ledger { gap:35px; }
+}
+@media(max-width:560px) {
+ .page-shell { width:calc(100% - 28px); }
+ .masthead-top { padding:15px 0; }
+ .masthead-top .eyebrow { max-width:230px; line-height:1.65; font-size:7px; }
+ .masthead-date { text-align:right; font-size:8px; }
+ .wordmark { font-size:42px; }
+ .masthead-tagline { font-size:9px; }
+ .issue-nav { gap:14px; overflow-x:auto; scrollbar-width:none; white-space:nowrap; }
+ .issue-nav a,.issue-nav button { font-size:9px; flex:0 0 auto; }
+ .issue-nav [data-sources] { margin-left:0; }
+ .issue-nav .nav-save { margin-left:auto; }
+ .hero { grid-template-columns:1fr; gap:0; padding:21px 0 13px; }
+ .hero-copy { min-height:0; padding:20px 22px 26px; }
+ .cover-topline { font-size:7px; }
+ .hero .eyebrow { margin:32px 0 14px; font-size:9px; }
+ .hero h1 { font-size:clamp(53px,13.2vw,76px); line-height:.96; }
+ html[data-theme='foundry'] .hero h1 { font-size:clamp(49px,12vw,70px); }
+ .hero-dek { max-width:400px; font-size:12px; margin-top:20px; line-height:1.8; }
+ .hero-bottom { margin-top:22px; padding-top:0; }
+ .cover-issue-folio { margin-top:27px; font-size:8px; }
+ .hero-art .image-wrap { min-height:0; aspect-ratio:1.18; border-top:0; }
+ .hero-art figcaption { font-size:8px; }
+ .hero-art .art-label { top:12px; left:12px; padding:6px 8px; font-size:8px; }
+ .no-image-wordmark strong { font-size:clamp(50px,15vw,80px); }
+ .no-image-wordmark { bottom:7%; }
+ .dossier-figure { top:13%; height:55%; }
+ .no-image-wordmark p { font-size:10px; margin-top:9px; }
+ .issue-ribbon { margin:13px 0 32px; padding:12px 0; gap:10px; font-size:8px; }
+ .issue-ribbon span:nth-child(2) { display:none; }
+ .buyer-desk { padding:18px 0 33px; gap:23px; margin-bottom:24px; }
+ .buyer-desk h2 { font-size:43px; }
+ .buyer-desk-intro .eyebrow { margin-bottom:14px; }
+ .buyer-desk-intro>p:last-child { margin-top:14px; font-size:11px; }
+ .desk-stat { padding:17px 10px 14px; min-height:115px; }
+ .desk-stat strong { font-size:clamp(39px,11vw,53px); }
+ .desk-stat span { font-size:9px; }
+ .desk-note { padding:13px 15px; }
+ .desk-note p { font-size:10px; }
+ .sourcing-index { padding:34px 0 48px; }
+ .index-heading { flex-direction:column; align-items:flex-start; gap:11px; }
+ .index-heading h2 { font-size:46px; }
+ .index-heading>p { text-align:left; font-size:10px; }
+ .index-table-scroll { margin-right:-14px; padding-right:14px; }
+ .sourcing-table tbody th,.sourcing-table tbody td { padding:14px 10px; }
+ .product-feature { padding:40px 0; }
+ .product-visual .product-image { aspect-ratio:1.18; }
+ .product-content h3 { font-size:42px; }
+ .product-eyeline { font-size:8px; }
+ .facts-header { flex-direction:column; align-items:flex-start; gap:5px; }
+ .facts-header small { text-align:left; }
+ .evidence-ledger { margin:28px 0; grid-template-columns:1fr; padding:35px 0; gap:26px; }
+ .evidence-ledger h2 { font-size:45px; }
+}
+@media(prefers-reduced-motion:reduce) { .hero,.hero-art { animation:none; } }
+@media print {
+ .hero-copy { min-height:0; padding:20px; }
+ .hero-art .image-wrap { min-height:0; aspect-ratio:1; }
+ .issue-ribbon { margin-bottom:16px; }
+ .buyer-desk { padding:12px 0; margin-bottom:12px; }
+ .desk-stat { min-height:0; padding:10px; }
+ .desk-note { padding:8px; }
+ .buyer-desk h2 { font-size:28px; }
+ .sourcing-index { padding:12px 0 16px; }
+ .index-table-scroll { overflow:visible; }
+ .sourcing-table { min-width:0; }
+ .sourcing-table tbody th,.sourcing-table tbody td { padding:6px; font-size:8px; }
+ .sourcing-table thead th { font-size:7px; padding:5px; }
+ .sourcing-table tbody th strong { font-size:10px; }
+ .product-image-index { display:none; }
+ .evidence-ledger { break-inside:avoid; margin:10px 0; padding:15px 0; }
+}
+/* V1.3 browser-review corrections: dark hero contrast and reachable mobile tools. */
+html[data-theme='foundry'] .hero-bottom .reading-time { color:#d4e5db; }
+html[data-theme='foundry'] .cover-issue-folio { color:#d4e5db; }
+@media(max-width:560px) {
+  .issue-nav a[href='#today'] { display:none; }
+  .issue-nav { overflow-x:visible; }
+  .issue-nav a,.issue-nav button { font-size:9px; }
+}
+.mobile-index-cards { display:none; }
+/* Long mixed-language issue titles must wrap inside a narrow preview pane. */
+.masthead { flex-wrap:wrap; }
+.masthead > * { min-width:0; max-width:100%; }
+.wordmark { white-space:normal; overflow-wrap:anywhere; }
+@media (max-width:560px) {
+ .index-table-scroll { display:none; }
+ .mobile-index-cards { display:grid; gap:10px; }
+ .mobile-index-card { border:1px solid var(--rule); background:var(--surface); padding:16px; }
+ .mobile-index-card header { display:grid; grid-template-columns:27px 1fr; align-items:start; gap:8px; border-bottom:1px solid var(--rule); padding-bottom:14px; }
+ .mobile-index-card header>span { font:italic 19px var(--serif); color:var(--accent); }
+ .mobile-index-card header strong { font:400 23px/1.13 var(--serif); letter-spacing:-.05em; display:block; }
+ .mobile-index-card header small { display:block; margin-top:5px; color:var(--muted); font:500 9px/1.5 var(--sans); }
+ .mobile-index-card dl { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0; }
+ .mobile-index-card dl div { min-width:0; }
+ .mobile-index-card dl div:last-child { grid-column:1/-1; }
+ .mobile-index-card dt { font:700 8px/1.5 var(--sans); letter-spacing:.13em; text-transform:uppercase; color:var(--muted); }
+ .mobile-index-card dd { font:600 11px/1.4 var(--sans); margin:4px 0 0; }
+ .mobile-index-card a { display:block; border-top:1px solid var(--rule); padding-top:13px; color:var(--accent); font-size:10px; font-weight:800; text-decoration:none; }
+}
+@media print { .mobile-index-cards { display:none!important; } }
+
+/* Chinese editorial typography: readable line height and real CJK fallbacks. */
+html[lang="zh-CN"] { --sans: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif; --serif: "Noto Serif CJK SC", "Songti SC", "SimSun", serif; }
+html[lang="zh-CN"] .hero h1 { line-height:1.18; letter-spacing:-.025em; }
+html[lang="zh-CN"] .eyebrow,html[lang="zh-CN"] .demo-notice { letter-spacing:.08em; }
+.product-image img { object-fit:contain; }
+@media print { .product-feature { break-before:page; } .product-image { max-height:100mm; } .hero h1 { font-size:36pt; } }
+
+/* Editorial card composition, sharing the same palette/type tokens and compiler. */
+html[data-composition="web-card"] .page-shell{max-width:1200px}
+html[data-composition="web-card"] .masthead{justify-content:center;padding:20px 0 28px}
+html[data-composition="web-card"] .wordmark{font-size:clamp(48px,8vw,112px);letter-spacing:-.045em;text-align:center;line-height:1.12}
+html[data-composition="web-card"] .masthead-right{display:none}
+html[data-composition="web-card"] .issue-nav{justify-content:center;gap:40px}
+.card-cover{display:grid;grid-template-columns:1.15fr 1fr;gap:7%;padding:56px 0 64px;border-bottom:1px solid var(--rule)}
+.card-story{padding-top:16px}.card-story .eyebrow{color:var(--accent);margin-bottom:26px}
+.card-cover h1{font:500 clamp(36px,4.5vw,68px)/1.14 var(--serif);letter-spacing:-.04em;text-wrap:balance;overflow-wrap:anywhere}
+.card-deck{font-size:19px;line-height:1.7;margin-top:26px;color:var(--ink)}
+.card-lead{font-size:15px;line-height:1.95;margin-top:24px;color:var(--muted)}
+.card-lead:first-letter{float:left;font:500 3.5em/.95 var(--serif);padding:8px 10px 0 0;color:var(--ink)}
+.card-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;border-top:1px solid var(--rule);margin-top:32px;padding-top:24px}
+.card-metrics strong{display:block;font:500 clamp(22px,2.7vw,36px)/1.25 var(--serif);overflow-wrap:anywhere}
+.card-metrics span{display:block;font-size:11px;color:var(--muted);line-height:1.6;margin-top:8px}
+.card-hero>div{aspect-ratio:4/5;background:var(--surface);overflow:hidden}
+.card-hero img{width:100%;height:100%;transition:transform .5s ease}.card-hero figcaption{font-size:10px;color:var(--muted);margin-top:10px;line-height:1.7}
+.card-hero blockquote{margin:24px 0 0;padding-left:18px;border-left:2px solid var(--accent);font:400 20px/1.65 var(--serif)}
+.card-hero cite{display:block;font:11px/1.6 var(--sans);color:var(--muted);margin-top:8px}
+.card-archive{padding:52px 0 62px;border-bottom:1px solid var(--rule)}
+.card-section-heading{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:32px}.card-section-heading h2{font:400 30px/1.3 var(--serif)}.card-section-heading>span{font-size:11px;color:var(--muted)}
+.card-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px}
+.card-gallery .card-showcase{display:block;margin:0;padding:0;border:0;min-width:0;background:none}
+.card-showcase>figure{margin:0 0 20px}.card-showcase>figure>img{width:100%;height:auto;aspect-ratio:3/4;object-fit:contain;background:var(--surface);transition:transform .4s ease}
+.card-showcase>figure>figcaption{font-size:10px;line-height:1.5;color:var(--muted);margin-top:8px}
+.card-showcase:hover>figure>img{transform:scale(1.015)}
+.card-item-meta{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:15px;font-size:10px;color:var(--muted)}
+.card-showcase h3{font:500 23px/1.45 var(--serif);letter-spacing:-.02em;margin-bottom:15px}
+.card-showcase>p{font-size:13px;line-height:1.9;color:var(--muted)}.card-showcase .card-fit{margin-top:12px}
+.card-specs{font-size:11px;margin:20px 0}.card-specs>div{padding:9px 0;border-bottom:1px solid var(--rule)}.card-specs dt{color:var(--muted)}.card-specs dd{margin:4px 0 0}.card-source{display:inline-block;font-size:12px;font-weight:600;margin-top:10px}
+.card-notes{padding:40px 0;display:grid;grid-template-columns:1fr 1fr;gap:30px}.card-notes>.eyebrow{grid-column:1/-1}.card-notes h2{font:500 24px/1.4 var(--serif);margin-bottom:12px}.card-notes p{font-size:14px;line-height:1.9}
+.card-contact{background:var(--ink);color:var(--paper);padding:clamp(26px,5vw,64px);margin:24px 0 40px;display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:center}
+.card-contact h2{font:400 clamp(28px,3.5vw,46px)/1.2 var(--serif);margin:18px 0}.card-contact p{font-size:14px;line-height:1.8;opacity:.85}
+.card-action{display:block;background:var(--paper);color:var(--ink);padding:18px 22px;border:1px solid var(--paper);text-decoration:none;text-align:center;font-size:13px;font-weight:600;line-height:1.6}
+.card-contact form{display:grid;gap:15px}.card-contact label{font-size:12px;display:grid;gap:7px}.card-contact input,.card-contact textarea{border:1px solid #888;background:transparent;color:inherit;padding:11px;width:100%;font:inherit;border-radius:0}.card-contact textarea{min-height:80px;resize:vertical}.card-contact .card-form-note{font-size:11px}
+.card-evidence{border-bottom:1px solid var(--rule);padding-bottom:26px}.card-evidence button{border:0;background:none;padding:0;font-size:12px;text-decoration:underline}.card-evidence p{font-size:11px;line-height:1.8;color:var(--muted);margin-top:8px}
+html[data-composition="web-card"] .issue-footer{display:block;padding:28px 0;font-size:11px}
+[data-card-tone="Vogue/High-Fashion"] .card-cover h1{font-style:italic;font-size:clamp(42px,5.5vw,82px)}
+[data-card-tone="Architectural-Digest"] .card-hero>div{aspect-ratio:1/1}
+[data-card-tone="Kinfolk/Minimalist"] .card-cover{gap:10%;padding-top:80px}
+@media(max-width:767px){.card-cover{grid-template-columns:1fr;gap:32px;padding:30px 0}.card-cover h1{font-size:40px}.card-story{padding-top:0}.card-hero>div{aspect-ratio:5/4}.card-deck{font-size:17px}.card-gallery{grid-template-columns:1fr;gap:38px}.card-showcase>figure>img{aspect-ratio:5/4}.card-section-heading{display:block}.card-section-heading>span{display:block;margin-top:10px}.card-notes,.card-contact{grid-template-columns:1fr}.card-contact{gap:24px}.card-metrics{gap:12px}.card-metrics strong{font-size:23px}html[data-composition="web-card"] .issue-nav{gap:24px}.card-gallery .card-showcase{break-inside:avoid}}
+@media(prefers-reduced-motion:reduce){.card-hero img,.card-showcase>figure>img{transition:none}.card-showcase:hover>figure>img{transform:none}}
+@media print{.card-cover{padding:20px 0;gap:30px;break-inside:avoid}.card-cover h1{font-size:28pt}.card-deck{font-size:12pt}.card-lead{font-size:10pt}.card-hero>div{max-height:100mm}.card-archive{padding:24px 0;break-before:page}.card-gallery{gap:18px}.card-gallery .card-showcase{break-before:auto;break-inside:avoid}.card-showcase h3{font-size:14pt}.card-showcase>p{font-size:9pt}.card-contact{break-inside:avoid;padding:24px}.card-contact form{display:none}.card-source{font-size:9pt}.card-evidence{break-inside:avoid}}
+/* Five-spread system adapted from the supplied four-Skill package. */
+.editorial-web-card{--paper-primary:var(--paper);--paper-secondary:var(--sage);--paper-darkroom:#171a17;--ink-primary:var(--ink);--ink-spot:var(--accent);--font-display:var(--serif);--font-display-didone:var(--serif);--font-editorial-prose:var(--serif);--font-cjk-song:"Noto Serif CJK SC",serif;--font-mono-archive:ui-monospace,"Noto Sans Mono",monospace;--font-grotesque:var(--sans);padding-bottom:70px}
+.card-spread{position:relative;scroll-margin-top:24px;min-width:0}
+.card-cover .typo-staircase{line-height:1.2;letter-spacing:0}.lockup-line{display:block}.lockup-line:nth-child(2){padding-left:12%;color:var(--accent)}.lockup-line:nth-child(3){padding-left:22%}.lockup-italic{font-style:italic}.lockup-sans{font-family:var(--sans);font-size:.82em}.lockup-line.ot-cjk-halt{font-style:normal;letter-spacing:.025em}
+.card-quiet{display:grid;grid-template-columns:1fr 1fr;gap:9%;padding:110px 0;align-items:center;min-height:740px}.card-quiet>div{position:relative;padding:60px 20px 60px 30px}.card-quiet .editorial-running-vertical{position:absolute;left:6px;top:0}.card-quiet h2{font:400 clamp(30px,4vw,56px)/1.45 var(--serif);position:relative;margin:28px 0}.card-quiet .quiet-numeral{position:absolute;font-size:180px;opacity:.07;left:-25px;top:-100px}.card-quiet p{max-width:42ch;line-height:1.95}.card-quiet figure{position:relative}.card-quiet figure img{width:100%;height:auto;aspect-ratio:4/5;object-fit:contain;background:var(--surface)}.card-quiet figcaption{font-size:11px;margin:12px 0;color:var(--muted)}.card-zoom-label{font-size:11px;display:flex;align-items:center;gap:16px}.card-zoom-label input{accent-color:var(--accent);max-width:180px}
+.card-darkroom{display:grid;grid-template-columns:1fr 1fr;background:var(--paper-darkroom);color:var(--paper);padding:64px;gap:9%;margin:24px 0;min-height:700px;align-items:center}.darkroom-plate{position:relative}.darkroom-plate>span{position:absolute;font-size:160px;line-height:1;left:-38px;top:-55px;z-index:2}.darkroom-plate figure{transform:rotate(-3deg);background:var(--surface);padding:14px}.darkroom-plate img{width:100%;height:auto;aspect-ratio:3/4;object-fit:contain}.darkroom-plate button{color:inherit;background:none;border:1px solid #888;padding:10px 16px;margin-top:24px;font-size:11px}.darkroom-plate .vellum-tracing-overlay{position:absolute;inset:0 0 60px;color:var(--ink);padding:24px;overflow:auto;z-index:3}.vellum-tracing-overlay p{font-size:12px;margin-bottom:20px}.darkroom-story h2{font:400 clamp(28px,3vw,46px)/1.4 var(--serif);margin:24px 0}.darkroom-story h2 em{display:block;color:#b9c4ad;font-style:normal}.darkroom-story>p{font-size:14px;line-height:1.95;max-width:45ch}.craft-stages{margin-top:24px}.craft-stages details{border-top:1px solid #596056;padding:14px 0}.craft-stages summary{cursor:pointer;font-size:13px}.craft-stages summary>span{font:11px var(--font-mono-archive);margin-right:18px;opacity:.6}.craft-stages p{font-size:12px;line-height:1.8;margin:14px 0 0 32px}.card-darkroom .evidence-chip{color:inherit;border-color:#77806f}
+.card-apparatus{display:grid;grid-template-columns:1fr 1fr;gap:10%;align-items:center;padding:100px 0;min-height:600px}.card-apparatus h2{font:400 clamp(38px,5vw,72px)/1.2 var(--serif);margin:28px 0}.card-apparatus h2 em{display:block;padding-left:16%;font-style:normal;color:var(--accent)}.card-apparatus p{max-width:42ch;font-size:15px;line-height:1.9}.material-apparatus{padding:30px;border-top:2px solid var(--ink);border-bottom:1px solid var(--rule)}.material-apparatus label{font:11px var(--font-mono-archive);display:grid;gap:15px}.material-apparatus select{padding:13px 8px;width:100%;background:var(--surface);color:var(--ink);border:1px solid var(--rule);border-radius:0}.material-apparatus dl{font-size:13px;line-height:1.8;margin:24px 0}.material-apparatus dt{color:var(--muted);font-size:11px;margin-top:14px}.material-apparatus dd{margin:0}.material-apparatus>.eyebrow{font-size:9px}
+.card-archive .card-gallery{align-items:start}.card-archive .card-showcase:nth-child(2){padding-top:60px}.card-archive .card-showcase:nth-child(3){padding-top:22px}.card-vcard{padding:12px 0;background:none;border:0;text-decoration:underline;font-size:12px}.card-contact.tear-out-postcard{transform:rotate(-.5deg);box-shadow:0 12px 35px #0002;background:var(--paper-darkroom)}
+.card-mode-switch{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;z-index:100;background:var(--surface);border:1px solid var(--rule);box-shadow:0 3px 16px #0001;padding:6px}.card-mode-switch button{border:0;background:none;padding:8px 10px;font-size:11px;white-space:nowrap}.card-mode-switch button[aria-pressed=true]{background:var(--ink);color:var(--paper)}.card-mode-switch output{font:10px var(--font-mono-archive);white-space:nowrap;padding:0 4px}
+[data-card-mode="flip"]>.card-spread{display:none}[data-card-mode="flip"]>.card-spread[data-active="true"]{display:grid;min-height:82vh;max-height:none;box-shadow:0 10px 30px #0001;padding:40px;margin:30px 0}[data-card-mode="flip"]>.card-archive[data-active="true"]{display:block}[data-card-mode="flip"]>.card-spread::after{content:"";position:absolute;inset:0 auto 0 50%;width:28px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,#0001,transparent);pointer-events:none}
+[data-archetype="kinfolk"] .card-cover,[data-archetype="kinfolk"] .card-archive,[data-archetype="kinfolk"] .card-section-heading{border:0}[data-archetype="loewe"] .card-cover h1{position:relative;z-index:2;margin-right:-55px}[data-archetype="archive032c"] .eyebrow{font-family:var(--font-mono-archive);color:var(--accent)}
+@media(max-width:767px){.card-quiet,.card-darkroom,.card-apparatus{grid-template-columns:1fr;gap:30px;padding:50px 0;min-height:0}.card-darkroom{padding:40px 24px;margin-left:-12px;margin-right:-12px}.card-quiet>div{padding:20px 0 20px 25px}.card-quiet h2{font-size:30px}.card-quiet .quiet-numeral{font-size:100px;top:-50px}.darkroom-plate>span{font-size:100px;left:-8px;top:-25px}.card-quiet figure img{aspect-ratio:5/4}.darkroom-plate img{aspect-ratio:5/4}.card-archive .card-showcase:nth-child(n){padding-top:0}.card-apparatus h2{font-size:42px}.material-apparatus{padding:22px 10px}[data-card-mode="flip"]>.card-spread[data-active=true]{display:block;padding:22px 10px;min-height:0}[data-card-mode="flip"]>.card-spread::after{display:none}.card-mode-switch{bottom:8px;max-width:calc(100% - 16px)}.card-mode-switch button{padding:8px}.lockup-line:nth-child(2){padding-left:6%}[data-archetype="loewe"] .card-cover h1{margin-right:0}.card-contact.tear-out-postcard{transform:none}.card-hero img{min-height:0}}
+@media(prefers-reduced-motion:reduce){.editorial-web-card *{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+@media print{.card-mode-switch,.editorial-paper-grain,.card-zoom-label,.card-vcard{display:none!important}.editorial-web-card>.card-spread{display:block!important;break-before:page;min-height:0;max-height:none;margin:0;padding:20px 0;box-shadow:none}.card-spread::after{display:none!important}.card-cover.card-spread{display:grid!important;break-before:auto}.card-quiet figure img,.darkroom-plate img{max-height:100mm;width:auto;margin:auto}.card-darkroom{padding:24px!important}.card-archive .card-showcase:nth-child(n){padding-top:0}.card-contact.tear-out-postcard{transform:none}.editorial-web-card{padding-bottom:0}}
+
+/* On narrow screens keep the lead photograph ahead of the longer editor's note. */
+@media screen and (max-width:767px){
+ [data-card-tone] .card-cover{padding-top:32px;gap:24px}
+ .card-cover .card-story{display:contents}
+ .card-cover .card-story>.eyebrow{order:0;margin:0}
+ .card-cover h1{order:1;margin:0}
+ .card-cover .card-deck{order:2;margin:0}
+ .card-cover .card-hero{order:3}
+ .card-cover .card-lead{order:4;margin:0}
+ .card-cover .card-metrics{order:5;margin:0}
+ .editorial-web-card[data-card-mode="flip"]>.card-cover[data-active=true]{display:grid}
+}
+@media print{
+ .darkroom-plate>button{display:none}
+ .craft-stages summary{list-style:none}
+ .craft-stages details{break-inside:avoid}
+ .card-darkroom .darkroom-story{margin-top:18px}
+}
+
+.card-print-sources{display:none}
+@media print{
+ .card-darkroom .darkroom-plate img{max-height:65mm}
+ .card-darkroom .darkroom-story h2{font-size:23pt;margin:12px 0}
+ .card-darkroom .darkroom-story>p{font-size:10pt;line-height:1.65;max-width:none}
+ .card-darkroom .craft-stages{margin-top:14px}
+ .card-darkroom .craft-stages details{padding:9px 0}
+ .card-darkroom .craft-stages p{margin-top:7px;line-height:1.6}
+ .card-print-sources{display:block;padding-left:22px;font-size:8pt;line-height:1.6;overflow-wrap:anywhere}
+ .card-print-sources li{margin:10px 0;break-inside:avoid}
+ .card-evidence>button{display:none}
+}
+
+.card-print-only{display:none}
+@media print{.material-apparatus .card-screen-only,.material-apparatus select{display:none}.card-print-only{display:inline}}
+/* A three-column archive has no center fold; keep the plate and type unobstructed. */
+[data-card-mode="flip"]>.card-archive::after{display:none}
+
+/* ==========================================================================
+   UNIVERSAL EDITORIAL MAGAZINE & LOOKBOOK CSS PRIMITIVES
+   Reusable layout, texture, and tactile print classes for web applications
+   ========================================================================== */
+
+/* 1. Global SVG Paper Grain Overlay */
+.editorial-paper-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.036;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* 2. Dual-Mode Magazine Spread Sheet & 3D Book Spine Gutter */
+.magazine-sheet {
+  position: relative;
+  background-color: var(--paper-primary, #F4F0EA);
+  color: var(--ink-primary, #141312);
+  box-shadow:
+    0 30px 90px -20px rgba(12, 11, 10, 0.22),
+    0 2px 6px rgba(12, 11, 10, 0.06),
+    4px 0 0 -1px #EAE4D9,
+    8px 0 0 -2px #DFD8CA,
+    12px 0 0 -3px #D2C9B8;
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 1024px) {
+  .book-spine-gutter::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 64px;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 35;
+    background: linear-gradient(
+      90deg,
+      rgba(20, 19, 18, 0) 0%,
+      rgba(20, 19, 18, 0.03) 35%,
+      rgba(20, 19, 18, 0.13) 48%,
+      rgba(255, 255, 255, 0.28) 50%,
+      rgba(20, 19, 18, 0.10) 52%,
+      rgba(20, 19, 18, 0.02) 65%,
+      rgba(20, 19, 18, 0) 100%
+    );
+  }
+}
+
+/* 3. Z-Axis Typographic Overlap & Hollow Outline Numerals */
+.editorial-overlap-left {
+  position: relative;
+  z-index: 30;
+}
+
+@media (min-width: 1024px) {
+  .editorial-overlap-left {
+    margin-left: -4.5rem;
+  }
+}
+
+.editorial-stroke-numeral {
+  font-family: var(--font-display, serif);
+  font-style: italic;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(20, 19, 18, 0.22);
+  user-select: none;
+  pointer-events: none;
+}
+
+.editorial-stroke-numeral-light {
+  font-family: var(--font-display, serif);
+  font-style: italic;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(244, 240, 234, 0.24);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 4. Editorial Three-Line Drop Cap & Vertical Running Head */
+.editorial-dropcap::first-letter {
+  float: left;
+  font-family: var(--font-display, serif);
+  font-size: 3.7rem;
+  line-height: 0.78;
+  padding-top: 4px;
+  padding-right: 14px;
+  padding-bottom: 2px;
+  color: var(--ink-primary, #141312);
+  font-weight: 400;
+}
+
+.editorial-running-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.28em;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+/* 5. Translucent Vellum Tracing Overlay (Blueprint / Anatomy Sheet) */
+.vellum-tracing-overlay {
+  background: rgba(246, 242, 233, 0.84);
+  backdrop-filter: blur(6px) saturate(110%);
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
+  background-image: radial-gradient(rgba(20, 19, 18, 0.12) 1px, transparent 1px);
+  background-size: 18px 18px;
+  box-shadow: inset 0 0 40px rgba(210, 198, 178, 0.45);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vellum-tracing-overlay.is-peeled {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-16px) rotate(-1.5deg) scale(0.98);
+}
+
+/* 6. Slow Gallery Image Zoom & Optical Macro Loupe */
+.editorial-photo-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.editorial-photo-frame img {
+  transition: transform 1.6s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.9s ease;
+}
+
+.editorial-photo-frame:hover img {
+  transform: scale(1.035);
+}
+
+.optical-macro-loupe {
+  width: 176px;
+  height: 176px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 24px 54px rgba(0, 0, 0, 0.48),
+    inset 0 0 18px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  background-repeat: no-repeat;
+  transition: opacity 0.25s ease;
+}
+
+/* 7. Tear-Out Postcard Insert & 3D Cinnabar Wax Seal */
+.tear-out-postcard {
+  background: #FBF8F3;
+  box-shadow:
+    0 24px 60px -15px rgba(20, 19, 18, 0.22),
+    0 2px 8px rgba(20, 19, 18, 0.08);
+  transform: rotate(-1.15deg);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tear-out-postcard:hover {
+  transform: rotate(0deg) translateY(-3px);
+  box-shadow:
+    0 32px 72px -15px rgba(20, 19, 18, 0.28),
+    0 4px 12px rgba(20, 19, 18, 0.10);
+}
+
+.perforated-edge-top {
+  background-image: radial-gradient(circle, var(--paper-primary, #F4F0EA) 4px, transparent 4.5px);
+  background-size: 16px 16px;
+  background-position: center -8px;
+  background-repeat: repeat-x;
+}
+
+.cinnabar-wax-seal {
+  background: radial-gradient(circle at 32% 30%, #C83E31 0%, #9E2318 62%, #6B140C 100%);
+  box-shadow:
+    0 8px 22px rgba(158, 35, 24, 0.45),
+    inset 0 2px 5px rgba(255, 190, 180, 0.42),
+    inset 0 -3px 6px rgba(60, 8, 4, 0.72);
+}
+
+/* ==========================================================================
+   EDITORIAL TYPOGRAPHY SYSTEM - PRODUCTION CSS PRIMITIVES
+   Multi-voice headlines, OpenType tables, architectural numerals & ink filters
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. OPENTYPE MICRO-TYPOGRAPHY ENGINE
+   -------------------------------------------------------------------------- */
+.ot-display {
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  font-feature-settings: "kern" 1, "liga" 1, "dlig" 1, "calt" 1, "swsh" 1;
+  text-wrap: balance;
+}
+
+.ot-prose {
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  font-feature-settings: "kern" 1, "liga" 1, "onum" 1, "pnum" 1;
+  text-wrap: pretty;
+  hanging-punctuation: first allow-end last;
+}
+
+.ot-tabular {
+  font-variant-numeric: lining-nums tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1;
+}
+
+.ot-smallcaps {
+  font-variant-caps: all-small-caps;
+  font-feature-settings: "smcp" 1, "c2sc" 1;
+  letter-spacing: var(--tracking-smallcaps, 0.14em);
+}
+
+.ot-cjk-halt {
+  font-feature-settings: "halt" 1, "palt" 1;
+  font-style: normal !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. MULTI-VOICE HEADLINE CHOREOGRAPHY & STAIRCASE LOCKUPS
+   -------------------------------------------------------------------------- */
+.typo-staircase {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--leading-display, 0.88);
+  letter-spacing: var(--tracking-display, -0.028em);
+}
+
+.typo-staircase-line-1 {
+  align-self: flex-start;
+}
+
+.typo-staircase-line-2 {
+  align-self: flex-start;
+  padding-left: clamp(1.5rem, 7vw, 5.5rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.typo-staircase-line-3 {
+  align-self: flex-end;
+  text-align: right;
+}
+
+/* Contrasting inline voices inside a single headline */
+.voice-didone-upright {
+  font-family: var(--font-display-didone, 'Bodoni Moda', serif);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.voice-serif-italic {
+  font-family: var(--font-editorial-prose, 'Cormorant Garamond', serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.08em;
+  letter-spacing: -0.015em;
+  padding-right: 0.06em;
+}
+
+.voice-grotesque-caps {
+  font-family: var(--font-grotesque, 'Syne', sans-serif);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.52em;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  vertical-align: middle;
+}
+
+.voice-cjk-song {
+  font-family: var(--font-cjk-song, 'Noto Serif SC', serif);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.86em;
+  letter-spacing: 0.05em;
+  vertical-align: 0.03em;
+}
+
+/* Inline Architectural Furniture inside Headlines */
+.typo-rule-bridge {
+  display: inline-block;
+  width: clamp(1.8rem, 4.5vw, 4.2rem);
+  height: 1px;
+  background-color: currentColor;
+  vertical-align: middle;
+  margin: 0 0.28em;
+  opacity: 0.65;
+  transform: translateY(-0.08em);
+}
+
+.typo-sup-index {
+  font-family: var(--font-mono-archive, 'JetBrains Mono', monospace);
+  font-size: 0.22em;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  vertical-align: top;
+  position: relative;
+  top: 0.35em;
+  margin-left: 0.25em;
+  color: var(--ink-spot, #C8281E);
+}
+
+.typo-circled-word {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  padding: 0.04em 0.42em 0.1em;
+  font-size: 0.76em;
+  line-height: 1;
+  vertical-align: 0.06em;
+}
+
+/* --------------------------------------------------------------------------
+   3. ARCHITECTURAL NUMERALS & COUTURE PRICE LOCKUPS
+   -------------------------------------------------------------------------- */
+.typo-price-couture {
+  display: inline-flex;
+  align-items: flex-start;
+  font-family: var(--font-display-didone, 'Bodoni Moda', serif);
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+}
+
+.typo-price-couture .price-currency {
+  font-size: 0.48em;
+  font-family: var(--font-mono-archive, monospace);
+  margin-right: 0.15em;
+  margin-top: 0.12em;
+  opacity: 0.75;
+}
+
+.typo-price-couture .price-integer {
+  font-size: 1em;
+  font-weight: 500;
+}
+
+.typo-price-couture .price-cents {
+  font-size: 0.44em;
+  font-family: var(--font-mono-archive, monospace);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  margin-left: 0.12em;
+  margin-top: 0.1em;
+}
+
+.typo-fraction-index {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-display-didone, serif);
+  font-variant-numeric: lining-nums;
+}
+
+.typo-fraction-index .frac-num {
+  font-size: 0.85em;
+  transform: translateY(-0.28em);
+}
+
+.typo-fraction-index .frac-slash {
+  font-size: 1.25em;
+  font-style: italic;
+  margin: 0 0.08em;
+  opacity: 0.45;
+  transform: rotate(12deg);
+}
+
+.typo-fraction-index .frac-den {
+  font-size: 0.65em;
+  font-family: var(--font-mono-archive, monospace);
+  transform: translateY(0.28em);
+  opacity: 0.7;
+}
+
+.typo-cropped-monolith {
+  font-family: var(--font-display-didone, serif);
+  font-size: var(--type-monolith, clamp(5rem, 12vw, 10rem));
+  line-height: 0.72;
+  letter-spacing: -0.05em;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   4. DROP CAPS, SMALL-CAPS LEAD-INS & CONTINUOUS PILCROW PROSE
+   -------------------------------------------------------------------------- */
+.typo-lead-smallcaps {
+  font-family: var(--font-grotesque, sans-serif);
+  font-size: 0.74em;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+  margin-right: 0.45em;
+}
+
+.initial-engraved-box::first-letter {
+  float: left;
+  font-family: var(--font-display-didone, serif);
+  font-size: 3.4rem;
+  line-height: 0.82;
+  padding: 0.28rem 0.62rem 0.22rem;
+  margin-right: 0.75rem;
+  margin-top: 0.18rem;
+  margin-bottom: 0.1rem;
+  border: 1px solid currentColor;
+  background-color: var(--paper-secondary, #ECE9E1);
+  color: var(--ink-primary, #0F0F0F);
+}
+
+/* Continuous New Yorker / 19th-Century Monograph Inline Paragraph Flow */
+.prose-continuous-pilcrow p {
+  display: inline;
+  margin: 0;
+}
+
+.prose-continuous-pilcrow p + p::before {
+  content: " ¶ ";
+  font-family: var(--font-display-didone, serif);
+  color: var(--ink-spot, #C8281E);
+  font-weight: 600;
+  padding: 0 0.45em;
+  font-size: 0.92em;
+}
+
+/* --------------------------------------------------------------------------
+   5. BILINGUAL INTERLINEAR GLOSS & VERTICAL CJK COLUMNS
+   -------------------------------------------------------------------------- */
+.typo-bilingual-stack {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: bottom;
+  line-height: 1;
+}
+
+.typo-bilingual-stack .gloss-en {
+  font-family: var(--font-mono-archive, monospace);
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.26em;
+  color: var(--ink-muted, #7D7A74);
+  margin-bottom: 0.35rem;
+}
+
+.typo-bilingual-stack .gloss-cjk {
+  font-family: var(--font-cjk-song, 'Noto Serif SC', serif);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.typo-vertical-cjk {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: var(--font-cjk-song, 'Noto Serif SC', serif);
+  letter-spacing: 0.22em;
+  line-height: 1.9;
+}
+
+/* Dotted Catalog Leader Line */
+.typo-dotted-leader {
+  flex: 1;
+  border-bottom: 1px dotted rgba(20, 19, 18, 0.28);
+  margin: 0 0.75rem;
+  transform: translateY(-0.28em);
+}
+
+html[data-theme]{--paper:#f2eee4;--surface:#f2eee4;--ink:#20261f;--accent:#9a5a3c;--forest:#20261f;--sage:#f2eee4}.masthead-tagline{max-width:280px}.hero h1{font-size:clamp(38px,5.1vw,76px);line-height:1.15;letter-spacing:-.035em}.hero-dek{max-width:520px}.hero-art img{object-fit:contain}@media(min-width:1000px){.product-feature:nth-of-type(even) .product-visual{order:2}.product-feature:nth-of-type(even) .product-content{order:1}}</style></head>
+<body><div class="demo-notice">审阅稿 · 未发送 · 不代表供应商资质或采购审批</div><a class="skip-link" href="#today">跳至商品内容</a><div class="reading-progress" aria-hidden="true"><i></i></div>
+
+<div class="page-shell">
+<header><div class="masthead-top"><p class="eyebrow"><span class="dot"></span>内部参考 · 材料档案 01</p><p class="masthead-date">allbirds.com · 2026 年 10 月</p></div><div class="masthead"><a class="wordmark" href="#">Allbirds<span>.</span></a><div class="masthead-right"><span class="masthead-stamp">✳</span><p class="masthead-tagline">Formula, finish and form<br>美国市场 · 官网在售</p></div></div><nav class="issue-nav" aria-label="本期导航"><a href="#story">封面故事</a><a href="#showcase">精选档案</a><a href="#contact">进一步了解</a><button type="button" data-sources="">资料来源 ↗</button></nav></header>
+<main>
+<div class="editorial-web-card" data-card-tone="Kinfolk/Minimalist" data-archetype="kinfolk" data-card-mode="scroll"><div class="editorial-paper-grain" aria-hidden="true"></div>
+    <section class="card-cover card-spread" data-spread="0" id="story" aria-labelledby="cover-title">
+      <div class="card-story"><p class="eyebrow">材料研究特刊 / 内部设计参考</p><h1 id="cover-title" class="typo-staircase ot-display" aria-label="一双鞋的自然账本"><span class="lockup-line lockup-roman ot-cjk-halt">一双鞋<sup class="typo-sup-index">01</sup></span><span class="lockup-line lockup-sans ot-cjk-halt"><i class="typo-rule-bridge" aria-hidden="true"></i>的自然</span><span class="lockup-line lockup-roman ot-cjk-halt">账本</span></h1><p class="card-deck">三双经典鞋，两种天然材料，与一组以 kg CO₂e 计的碳数字。</p><p class="card-lead">这不是一封绿色宣言。我们把三双在售的 Allbirds 放在同一张桌上：羊毛的 Wool Runner、桉树纤维的 Tree Runner、同属树纤维却更重的 Cruiser。它们共享克制的轮廓，却给出并不整齐的碳数字。我们保留品牌自己的说法，也标出页面没有回答的问题——材料从哪里来、认证是什么、批发与交期为何空白。读完之后，你至少知道下一步该问谁什么。</p>
+      <div class="card-metrics"><div><strong>7.07</strong><span>Wool Runner 碳足迹<button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button></span></div><div><strong>4.52</strong><span>Tree Runner 碳足迹<button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button></span></div><div><strong>11</strong><span>Cruiser 碳足迹<button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></span></div></div></div>
+      <figure class="card-hero"><div><img src="https://cdn.shopify.com/s/files/1/1104/4168/files/Allbirds_WL_RN_SF_PDP_Natural_Grey_LAT.png?v=1751143404" alt="Allbirds Men&#39;s Wool Runner 天然灰羊毛跑鞋的侧面商品图" fetchpriority="high" decoding="async" style="object-fit:contain;object-position:center" width="1400" height="1500"></div><figcaption>Allbirds 官方商品摄影 / allbirds.com · Men&#39;s Wool Runner - Natural Grey (Light Grey Sole)，侧面图<button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button></figcaption>
+      <blockquote><p>把材料摊开看，比把自然穿在身上更难。三双鞋，两种纤维，一本尚未写完的账。</p><cite>编辑视角</cite></blockquote></figure>
+    </section>
+    <section class="card-spread card-quiet" data-spread="1" id="quiet"><div><span class="editorial-running-vertical">内部参考 · 材料档案 01</span><p class="eyebrow">01 / 留白之间</p><h2 class="ot-display"><span class="quiet-numeral" aria-hidden="true">I</span>把材料摊开看，比把自然穿在身上更难。三双鞋，两种纤维，一本尚未写完的账。</h2><p class="ot-prose">暖气候、长时间步行与轻装出行；对透气性敏感的人。需确认清洁方式、耐久表现与桉树纤维的认证来源。</p></div><figure class="editorial-photo-frame"><img src="https://cdn.shopify.com/s/files/1/1104/4168/files/TR3MMST080_SHOE_LEFT_GLOBAL_MENS_TREE_RUNNER_MIST_WHITE_9959c126-77c8-42fc-aef3-7d6093c605bf.png?v=1751166590" alt="Allbirds Men&#39;s Tree Runner Mist 浅灰树纤维跑鞋的侧面商品图" loading="lazy" decoding="async" style="object-fit:contain;object-position:center" width="1100" height="1000"><figcaption>Allbirds 官方商品摄影 / allbirds.com · Men&#39;s Tree Runner - Mist (White Sole)</figcaption><label class="card-zoom-label">观察细节 <input type="range" data-card-zoom min="1" max="2.5" step="0.1" value="1" aria-label="图片放大倍数"></label></figure></section>
+    <section class="card-spread card-darkroom" data-spread="2" id="atelier"><div class="darkroom-plate"><span class="editorial-stroke-numeral-light" aria-hidden="true">II</span><figure class="editorial-photo-frame"><img src="https://cdn.shopify.com/s/files/1/1104/4168/files/A11740_25Q3_Cruiser_Natural_Black_Blizzard_PDP_LEFT-2000x2000_9d5a79d4-3db9-4428-8c32-87e4272c0440.png?v=1751900902" alt="Allbirds Men&#39;s Cruiser Natural Black 黑色树纤维板鞋的侧面商品图" loading="lazy" decoding="async" style="object-fit:contain;object-position:center" width="1100" height="1000"></figure><div class="vellum-tracing-overlay" data-card-vellum hidden><p><strong>鞋面材料</strong><br>tree（树纤维） <button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></p><p><strong>品牌碳足迹</strong><br>11 kg CO₂e / 双<button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></p><p><strong>官网零售价</strong><br>US$105 <button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></p><p><strong>官网尺码</strong><br>US 8–15 <button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></p></div><button type="button" data-card-vellum-toggle aria-expanded="false">展开材料注记 +</button></div><div class="darkroom-story"><p class="eyebrow">02 / 材料暗房</p><h2 class="ot-display">日常板鞋<em>细节之下</em></h2><p>从经典球场鞋借来轮廓，鞋面同属树纤维，却有着三双中最高的碳足迹 11。轻、软、日常，是它被记住的方式；数字为何更高，页面没有解释。</p><div class="craft-stages"><details open><summary><span>01</span>羊毛 / 鞋面</summary><p>Wool Runner 以羊毛为鞋面材料，官方描述强调柔软、可机洗与可赤脚穿着。<button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button></p></details><details><summary><span>02</span>桉树 / 透气</summary><p>Tree Runner 的鞋面来自官方所称“负责任采购的桉树纤维”，描述强调透气与凉爽。<button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button></p></details><details><summary><span>03</span>同树不同账</summary><p>Cruiser 同属树纤维，商品页碳足迹 11，高于 Tree Runner 的 4.52；页面没有解释差异来源。<button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button><button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button></p></details><details><summary><span>04</span>价格 / 参考</summary><p>三款官网零售价为 US$100–110，公开页面没有 MOQ、批发价或交期。<button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button><button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button><button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></p></details></div></div></section>
+    <section class="card-spread card-apparatus" data-spread="3" id="apparatus"><div><p class="eyebrow">03 / 材料研究台</p><h2 class="ot-display">换一个<em>视角。</em></h2><p>切换样本，对照实际记录的材料与使用场景。</p></div><div class="material-apparatus"><label><span class="card-screen-only">选择样本</span><span class="card-print-only">纸面样本 · <span data-card-print-specimen>Men&#39;s Wool Runner - Natural Grey (Light Grey Sole)</span></span><select data-card-material-select><option value="wool-runner">Men&#39;s Wool Runner - Natural Grey (Light Grey Sole)</option><option value="tree-runner">Men&#39;s Tree Runner - Mist (White Sole)</option><option value="cruiser">Men&#39;s Cruiser - Natural Black (Blizzard Sole)</option></select></label><div data-card-material-result aria-live="polite"></div><p class="eyebrow">据来源记录 / 未模拟收益</p></div></section>
+    <section class="card-archive card-spread" data-spread="4" id="showcase" aria-labelledby="edit-title"><div class="card-section-heading"><h2 id="edit-title">04 / 精选档案</h2><span>从细节认识品牌</span></div>
+      <div class="card-gallery"><article class="product-feature card-showcase" id="product-wool-runner" data-product-id="wool-runner"><figure><img src="https://cdn.shopify.com/s/files/1/1104/4168/files/Allbirds_WL_RN_SF_PDP_Natural_Grey_LAT.png?v=1751143404" alt="Allbirds Men&#39;s Wool Runner 天然灰羊毛跑鞋的侧面商品图" loading="lazy" decoding="async" style="object-fit:contain;object-position:center" width="1100" height="1000"><figcaption>Allbirds 官方商品摄影 / allbirds.com<button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button></figcaption></figure>
+        <div class="card-item-meta"><span>图 01</span><span>羊毛跑鞋</span></div><h3>Men&#39;s Wool Runner - Natural Grey (Light Grey Sole)</h3><p>Allbirds 的起点：一双以羊毛为鞋面的跑鞋。官方描述称其柔软、可机洗、可赤脚穿着，适合步行与凉季日常。我们把它放上封面，因为它最早把“自然材料”变成了可穿的产品语言。</p><p class="card-fit">日常通勤与凉季步行；重视可机洗与即穿舒适的人。采购方应追问羊毛认证与鞋底配方。</p>
+        <dl class="card-specs"><div><dt>鞋面材料</dt><dd>wool（羊毛） <button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button></dd></div><div><dt>品牌碳足迹</dt><dd>7.07 kg CO₂e / 双<button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button></dd></div></dl>
+        <a class="card-source" href="https://www.allbirds.com/products/mens-wool-runners" target="_blank" rel="noopener noreferrer">查看 Wool Runner 官方页面 ↗</a>
+      </article><article class="product-feature card-showcase" id="product-tree-runner" data-product-id="tree-runner"><figure><img src="https://cdn.shopify.com/s/files/1/1104/4168/files/TR3MMST080_SHOE_LEFT_GLOBAL_MENS_TREE_RUNNER_MIST_WHITE_9959c126-77c8-42fc-aef3-7d6093c605bf.png?v=1751166590" alt="Allbirds Men&#39;s Tree Runner Mist 浅灰树纤维跑鞋的侧面商品图" loading="lazy" decoding="async" style="object-fit:contain;object-position:center" width="1100" height="1000"><figcaption>Allbirds 官方商品摄影 / allbirds.com<button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button></figcaption></figure>
+        <div class="card-item-meta"><span>图 02</span><span>树纤维跑鞋</span></div><h3>Men&#39;s Tree Runner - Mist (White Sole)</h3><p>为温暖天气准备的轻量跑鞋。鞋面来自官方所称“负责任采购的桉树纤维”，触感凉爽、强调透气。它的碳足迹是本期三双中最低的 4.52。</p><p class="card-fit">暖气候、长时间步行与轻装出行；对透气性敏感的人。需确认清洁方式、耐久表现与桉树纤维的认证来源。</p>
+        <dl class="card-specs"><div><dt>鞋面材料</dt><dd>tree fiber（桉树纤维） <button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button></dd></div><div><dt>品牌碳足迹</dt><dd>4.52 kg CO₂e / 双<button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button></dd></div></dl>
+        <a class="card-source" href="https://www.allbirds.com/products/mens-tree-runners-mist" target="_blank" rel="noopener noreferrer">查看 Tree Runner 官方页面 ↗</a>
+      </article><article class="product-feature card-showcase" id="product-cruiser" data-product-id="cruiser"><figure><img src="https://cdn.shopify.com/s/files/1/1104/4168/files/A11740_25Q3_Cruiser_Natural_Black_Blizzard_PDP_LEFT-2000x2000_9d5a79d4-3db9-4428-8c32-87e4272c0440.png?v=1751900902" alt="Allbirds Men&#39;s Cruiser Natural Black 黑色树纤维板鞋的侧面商品图" loading="lazy" decoding="async" style="object-fit:contain;object-position:center" width="1100" height="1000"><figcaption>Allbirds 官方商品摄影 / allbirds.com<button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></figcaption></figure>
+        <div class="card-item-meta"><span>图 03</span><span>日常板鞋</span></div><h3>Men&#39;s Cruiser - Natural Black (Blizzard Sole)</h3><p>从经典球场鞋借来轮廓，鞋面同属树纤维，却有着三双中最高的碳足迹 11。轻、软、日常，是它被记住的方式；数字为何更高，页面没有解释。</p><p class="card-fit">城市日常与偏正式休闲；看重轮廓与柔软度的人。若在意碳数据，先问清结构差异。</p>
+        <dl class="card-specs"><div><dt>鞋面材料</dt><dd>tree（树纤维） <button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></dd></div><div><dt>品牌碳足迹</dt><dd>11 kg CO₂e / 双<button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></dd></div></dl>
+        <a class="card-source" href="https://www.allbirds.com/products/mens-cruiser-natural-black-blizzard" target="_blank" rel="noopener noreferrer">查看 Cruiser 官方页面 ↗</a>
+      </article></div>
+    <section class="notes-section card-notes"><p class="eyebrow">页边手记</p><div><h2>同一材料，不同账本</h2><p>Tree Runner 的碳足迹是 4.52，Cruiser 同属树纤维却是 11，羊毛的 Wool Runner 为 7.07。数值来自品牌商品页，材料类别并不能单独解释差距；结构、鞋底与生产批次都可能是变量。<button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button><button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button><button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button></p></div><div><h2>没有披露的，也是一种信息</h2><p>三款都只有零售价，没有 MOQ、批发价或交期；材料认证编号也未出现。对采购者而言，这些空白比任何口号都更值得写进第一封询问邮件。<button class="evidence-chip" type="button" data-sources="allbirds-wool" aria-label="查看来源 2">[2]</button><button class="evidence-chip" type="button" data-sources="allbirds-tree" aria-label="查看来源 3">[3]</button><button class="evidence-chip" type="button" data-sources="allbirds-cruiser" aria-label="查看来源 4">[4]</button></p></div></section>
+    <section class="card-contact tear-out-postcard perforated-edge-top" id="contact" aria-labelledby="contact-title"><div><p class="eyebrow">让交流继续</p><h2 id="contact-title">把问题带到源头</h2><p>直接查看官方商品与材料说明；合作、批发或媒体事宜，请走品牌官方联系页。</p></div>
+      <a class="card-action" href="https://www.allbirds.com/pages/contact-us" target="_blank" rel="noopener noreferrer">前往 Allbirds 官方联系页 ↗</a>
+    </section>
+    <button type="button" class="card-vcard" data-card-vcard>保存品牌名片（.vcf） ↓</button></section>
+    <nav class="card-mode-switch" aria-label="阅读模式"><button type="button" data-card-mode-select="scroll" aria-pressed="true">滚动阅读</button><button type="button" data-card-mode-select="flip" aria-pressed="false">跨页翻阅</button><button type="button" data-card-prev aria-label="上一跨页">←</button><output data-card-page>01 / 05</output><button type="button" data-card-next aria-label="下一跨页">→</button></nav>
+    <section class="card-evidence"><button type="button" data-sources="">资料与图片来源 (5) ↗</button><p>采集时间 2026-10-26（UTC）。价格、尺码与库存来自 allbirds.com 公开商品数据，可能随时变动。</p><p>碳足迹取自商品页 carbon-score 标签，为品牌自报的每双估算值；本期未独立核验，不构成比较性环境声明。</p><p>MOQ、批发价与交期未公开，故保持“未披露”；官网零售价不是批发报价。</p><p>商品图来自 allbirds.com 官方摄影，仅按 editorial-reference / internal-reference 用于本次内部设计验收，不主张商用授权。</p><p>Allbirds 为测试方选择的第三方品牌；本刊为独立设计稿，非品牌官方出版物。</p><ol class="card-print-sources"><li><strong>Allbirds: Comfortable, Sustainable Shoes &amp; Apparel</strong> · Allbirds<br><a href="https://www.allbirds.com/">https://www.allbirds.com/</a><br>读取时间 2026-10-26T21:15:00Z</li><li><strong>Men&#39;s Wool Runner - Natural Grey (Light Grey Sole)</strong> · Allbirds<br><a href="https://www.allbirds.com/products/mens-wool-runners">https://www.allbirds.com/products/mens-wool-runners</a><br>读取时间 2026-10-26T21:15:00Z</li><li><strong>Men&#39;s Tree Runner - Mist (White Sole)</strong> · Allbirds<br><a href="https://www.allbirds.com/products/mens-tree-runners-mist">https://www.allbirds.com/products/mens-tree-runners-mist</a><br>读取时间 2026-10-26T21:15:00Z</li><li><strong>Men&#39;s Cruiser - Natural Black (Blizzard Sole)</strong> · Allbirds<br><a href="https://www.allbirds.com/products/mens-cruiser-natural-black-blizzard">https://www.allbirds.com/products/mens-cruiser-natural-black-blizzard</a><br>读取时间 2026-10-26T21:15:00Z</li><li><strong>Contact</strong> · Allbirds<br><a href="https://www.allbirds.com/pages/contact-us">https://www.allbirds.com/pages/contact-us</a><br>读取时间 2026-10-26T21:15:00Z</li></ol></section>
+  </div>
+</main>
+<footer class="issue-footer">Allbirds · 2026年10月26日 · 独立编辑特刊</footer>
+</div>
+<aside id="shortlist-dock" class="shortlist-dock" aria-label="本地收藏" hidden><p><span data-count>0</span> products saved<small data-storage-note>仅保存在此浏览器 · 最多三款</small></p><div class="dock-actions"><button class="quiet-button" type="button" data-compare disabled>对比</button><button class="pill-button" type="button" data-download-request>询问清单 ↓</button></div></aside>
+<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<dialog id="sources-dialog" class="sources-dialog" aria-labelledby="sources-title"><div class="modal-top"><h2 id="sources-title">本期资料来源。</h2><button class="close-button" type="button" data-close aria-label="关闭来源记录">×</button></div><div class="modal-content"><p class="source-intro">每条引用均可追溯到本期使用的原始资料。品牌声明不等于独立认证；采购前仍须确认商业条款。</p><section class="source-record" data-source-record="allbirds-home"><p class="source-meta">supplier · accessed 2026年10月26日</p><h3><span>01</span>Allbirds: Comfortable, Sustainable Shoes &amp; Apparel</h3><p>Allbirds</p><p>Comfortable, Sustainable Shoes &amp; Apparel</p><a href="https://www.allbirds.com/" target="_blank" rel="noopener noreferrer">https://www.allbirds.com/ ↗</a></section><section class="source-record" data-source-record="allbirds-wool"><p class="source-meta">supplier · accessed 2026年10月26日</p><h3><span>02</span>Men&#39;s Wool Runner - Natural Grey (Light Grey Sole)</h3><p>Allbirds</p><p>The Allbirds Wool Runner is the orginal wool sneaker that started it all. Called the world&#39;s most comfortable shoe, it&#39;s flexible, supportive, astonishingly soft, and machine washable.</p><a href="https://www.allbirds.com/products/mens-wool-runners" target="_blank" rel="noopener noreferrer">https://www.allbirds.com/products/mens-wool-runners ↗</a></section><section class="source-record" data-source-record="allbirds-tree"><p class="source-meta">supplier · accessed 2026年10月26日</p><h3><span>03</span>Men&#39;s Tree Runner - Mist (White Sole)</h3><p>Allbirds</p><p>The Allbirds Tree Runner is a breathable and lightweight sneaker made with responsibly sourced eucalyptus tree fiber that feels silky smooth and cool on your skin.</p><a href="https://www.allbirds.com/products/mens-tree-runners-mist" target="_blank" rel="noopener noreferrer">https://www.allbirds.com/products/mens-tree-runners-mist ↗</a></section><section class="source-record" data-source-record="allbirds-cruiser"><p class="source-meta">supplier · accessed 2026年10月26日</p><h3><span>04</span>Men&#39;s Cruiser - Natural Black (Blizzard Sole)</h3><p>Allbirds</p><p>Inspired by a classic court style, this signature shoe delivers the right balance of style and comfort. Its lightweight build and supple softness make this your new pick for life on the go.</p><a href="https://www.allbirds.com/products/mens-cruiser-natural-black-blizzard" target="_blank" rel="noopener noreferrer">https://www.allbirds.com/products/mens-cruiser-natural-black-blizzard ↗</a></section><section class="source-record" data-source-record="allbirds-contact"><p class="source-meta">supplier · accessed 2026年10月26日</p><h3><span>05</span>Contact</h3><p>Allbirds</p><p>Contact</p><a href="https://www.allbirds.com/pages/contact-us" target="_blank" rel="noopener noreferrer">https://www.allbirds.com/pages/contact-us ↗</a></section></div></dialog><dialog id="comparison-dialog" class="comparison-dialog" aria-labelledby="comparison-title"><div class="modal-top"><h2 id="comparison-title">已收藏商品对比。</h2><button class="close-button" type="button" data-close aria-label="关闭商品对比">×</button></div><div class="modal-content"><div class="table-scroll" tabindex="0" aria-label="商品对比，窄屏可横向滚动"><table class="comparison-table" id="comparison-table"></table></div><div class="compare-bottom"><p>公开零售价仅供参考，不代表批发报价。标注“未披露”的条款仍需向品牌方确认。</p><button class="pill-button" type="button" data-download-request>下载询问清单 <span aria-hidden="true">↓</span></button></div></div></dialog><script id="issue-data" type="application/json">{"brand":"Allbirds","website":"https://www.allbirds.com/","id":"allbirds-material-ledger","title":"Allbirds","date":"2026-10-26","demo":false,"locale":"zh-CN","products":[{"id":"wool-runner","name":"Men's Wool Runner - Natural Grey (Light Grey Sole)","category":"羊毛跑鞋","supplier":"Allbirds","buyerFit":"日常通勤与凉季步行；重视可机洗与即穿舒适的人。采购方应追问羊毛认证与鞋底配方。","watchout":"页面只写材料类别，未给羊毛产地、认证编号或鞋底完整配方。","price":{"kind":"retail","amount":110,"currency":"USD","unit":"双","basis":"allbirds.com 官网零售价，2026-10-26","sourceIds":["allbirds-wool"],"status":"supplier-stated"},"moq":{"value":"未披露","status":"unknown","sourceIds":[]},"leadTime":{"value":"未披露","status":"unknown","sourceIds":[]},"specs":[{"key":"material","label":"鞋面材料","value":"wool（羊毛）","status":"supplier-stated","sourceIds":["allbirds-wool"],"visibility":"public"},{"key":"carbon","label":"品牌碳足迹","value":"7.07","unit":"kg CO₂e / 双","status":"supplier-stated","sourceIds":["allbirds-wool"],"visibility":"public"},{"key":"price","label":"官网零售价","value":"US$110","status":"supplier-stated","sourceIds":["allbirds-wool"],"visibility":"public"},{"key":"sizes","label":"官网尺码","value":"US 8–14","status":"supplier-stated","sourceIds":["allbirds-wool"],"visibility":"public"},{"key":"care","label":"护理说明","value":"可机洗（官方描述）","status":"supplier-stated","sourceIds":["allbirds-wool"],"visibility":"public"}],"sourceIds":["allbirds-wool","allbirds-home"]},{"id":"tree-runner","name":"Men's Tree Runner - Mist (White Sole)","category":"树纤维跑鞋","supplier":"Allbirds","buyerFit":"暖气候、长时间步行与轻装出行；对透气性敏感的人。需确认清洁方式、耐久表现与桉树纤维的认证来源。","watchout":"“负责任采购”没有对应认证编号；碳值低不等于整条供应链更优。","price":{"kind":"retail","amount":100,"currency":"USD","unit":"双","basis":"allbirds.com 官网零售价，2026-10-26","sourceIds":["allbirds-tree"],"status":"supplier-stated"},"moq":{"value":"未披露","status":"unknown","sourceIds":[]},"leadTime":{"value":"未披露","status":"unknown","sourceIds":[]},"specs":[{"key":"material","label":"鞋面材料","value":"tree fiber（桉树纤维）","status":"supplier-stated","sourceIds":["allbirds-tree"],"visibility":"public"},{"key":"carbon","label":"品牌碳足迹","value":"4.52","unit":"kg CO₂e / 双","status":"supplier-stated","sourceIds":["allbirds-tree"],"visibility":"public"},{"key":"price","label":"官网零售价","value":"US$100","status":"supplier-stated","sourceIds":["allbirds-tree"],"visibility":"public"},{"key":"sizes","label":"官网尺码","value":"US 8–14","status":"supplier-stated","sourceIds":["allbirds-tree"],"visibility":"public"},{"key":"breath","label":"穿着描述","value":"强调透气与凉爽（官方描述）","status":"supplier-stated","sourceIds":["allbirds-tree"],"visibility":"public"}],"sourceIds":["allbirds-tree","allbirds-home"]},{"id":"cruiser","name":"Men's Cruiser - Natural Black (Blizzard Sole)","category":"日常板鞋","supplier":"Allbirds","buyerFit":"城市日常与偏正式休闲；看重轮廓与柔软度的人。若在意碳数据，先问清结构差异。","watchout":"同属树纤维，碳足迹却明显更高；差异来源未披露，需向品牌求证。","price":{"kind":"retail","amount":105,"currency":"USD","unit":"双","basis":"allbirds.com 官网零售价，2026-10-26","sourceIds":["allbirds-cruiser"],"status":"supplier-stated"},"moq":{"value":"未披露","status":"unknown","sourceIds":[]},"leadTime":{"value":"未披露","status":"unknown","sourceIds":[]},"specs":[{"key":"material","label":"鞋面材料","value":"tree（树纤维）","status":"supplier-stated","sourceIds":["allbirds-cruiser"],"visibility":"public"},{"key":"carbon","label":"品牌碳足迹","value":"11","unit":"kg CO₂e / 双","status":"supplier-stated","sourceIds":["allbirds-cruiser"],"visibility":"public"},{"key":"price","label":"官网零售价","value":"US$105","status":"supplier-stated","sourceIds":["allbirds-cruiser"],"visibility":"public"},{"key":"sizes","label":"官网尺码","value":"US 8–15","status":"supplier-stated","sourceIds":["allbirds-cruiser"],"visibility":"public"},{"key":"feel","label":"穿着描述","value":"轻量、柔软（官方描述）","status":"supplier-stated","sourceIds":["allbirds-cruiser"],"visibility":"public"}],"sourceIds":["allbirds-cruiser","allbirds-home"]}],"sources":[{"id":"allbirds-home","url":"https://www.allbirds.com/","accessedAt":"2026-10-26T21:15:00Z"},{"id":"allbirds-wool","url":"https://www.allbirds.com/products/mens-wool-runners","accessedAt":"2026-10-26T21:15:00Z"},{"id":"allbirds-tree","url":"https://www.allbirds.com/products/mens-tree-runners-mist","accessedAt":"2026-10-26T21:15:00Z"},{"id":"allbirds-cruiser","url":"https://www.allbirds.com/products/mens-cruiser-natural-black-blizzard","accessedAt":"2026-10-26T21:15:00Z"},{"id":"allbirds-contact","url":"https://www.allbirds.com/pages/contact-us","accessedAt":"2026-10-26T21:15:00Z"}]}</script><script>(function () {
+  'use strict';
+  const node = document.getElementById('issue-data');
+  if (!node) return;
+  let issue;
+  try { issue = JSON.parse(node.textContent); } catch { return; }
+  const translations = {"Buyer's desk":"阅读导引","Compare the edit":"商品总览","Product stories":"商品特写","Evidence":"资料来源","Saved":"已收藏","INDEPENDENT SUPPLIER EDITORIAL":"独立选品观察","Start the edit":"开始阅读","About five minutes to decide":"约五分钟读完","READ THIS FIRST / BUYER'S DESK":"先读这里 / 选品导引","A clear view,":"看清差异，","before a call.":"再作判断。","These counts describe what this issue documents, not a factory audit. Use them to decide what needs to be asked next.":"以下数字说明本期收录的资料范围，帮助确定下一步需要核实的问题。","Product leads":"入选商品","Linked source records":"关联来源","Commercial fields disclosed":"已披露商业信息","THE BUYER'S INDEX / 01":"选品总览 / 01","At a glance.":"一览本期。","Read the evidence, then the opportunity.":"先看事实，再看机会。","Unknown terms are questions, not zeroes.":"未披露的信息需要确认，不能当作零。","Lead / supplier":"商品 / 品牌","Product focus":"商品类别","MOQ":"起订量","Lead time":"交期","Quote status":"价格信息","Read dossier":"详情","Explore ↗":"查看 ↗","Quotation":"价格","Open product dossier ↗":"查看商品详情 ↗","All numbers and terms come from the attributed records in this issue. Supplier claims are identified; independently verified evidence must be reviewed separately.":"本期数字与条款均保留来源。品牌自述与独立核验结论分别标注。","A note for the buyer":"编辑手记","Less searching. Better questions.":"减少搜索，聚焦关键。","The considered edit.":"本期选品。","All products":"全部商品","No products in this category.":"此类别没有商品。","Where it fits":"适用场景","Technical & commercial record":"材料与商业信息","Source-stated ≠ independently verified":"品牌自述不等于独立核验","Minimum order":"起订量","Production lead time":"生产交期","Retail reference · not wholesale":"零售价参考 · 非批发报价","Wholesale quote":"批发报价","Not disclosed":"未披露","Not confirmed":"待确认","Supplier-stated":"品牌自述","Verified against cited evidence":"已对照所引证据核验","Before you commit.":"决定之前。","Shortlist":"收藏","Read source notes":"查看来源","View product source":"查看原站商品","Request a project quote":"需另行询价","Good finds become better questions.":"把发现变成清晰的判断。","Save up to three products, compare the disclosed facts, and take a focused sourcing request into your next conversation.":"最多收藏三款商品，对照已披露的信息，整理需要进一步确认的问题。","Build a request brief":"整理询问清单","Before the next conversation":"下一步之前","The buyer’s margin.":"买手旁注。","Keep these questions close.":"保留这些关键问题。","Editorial interpretation":"编辑判断","Source observation":"来源观察","THE EDITOR'S LEDGER / 04":"证据记录 / 04","What we know.":"已知的，","What we don't.":"仍待确认的。","Behind the edit.":"本期资料来源。","Your sourcing shortlist.":"已收藏商品对比。","Every citation points back to the material used for this issue. Supplier statements are attributed claims; they are not independent certification. Confirm commercial terms before ordering.":"每条引用均可追溯到本期使用的原始资料。品牌声明不等于独立认证；采购前仍须确认商业条款。","A public retail price is a reference, not a wholesale offer. Terms marked “Not disclosed” remain questions for your supplier.":"公开零售价仅供参考，不代表批发报价。标注“未披露”的条款仍需向品牌方确认。","Download request brief":"下载询问清单","The evidence standard":"证据说明","Your next move":"下一步","A little less noise. A little more perspective.":"少一点噪声，多一点判断。","Sourcing, with the details that matter.":"把选品落实到关键细节。","Facts retain their sources. Unknown terms stay unknown. Retail prices do not imply wholesale offers.":"事实保留来源，未知项保留未知，零售价不代表批发报价。","Shortlist locally. Review the facts.":"收藏商品，核对事实。","Confirm terms with your supplier.":"向品牌方确认条款。","Print / save as PDF ↗":"打印 / 保存 PDF ↗","Source notes":"来源记录","Compare":"对比","Request brief ↓":"询问清单 ↓","Only in this browser · up to 3":"仅保存在此浏览器 · 最多三款","THE SOURCING MORNING READ.":"选品阅读","THE 05' EDIT":"五分钟选读","THE SUPPLY FILE":"本期主角","Product image not supplied":"未提供商品图片","Product image unavailable for reuse":"图片使用范围待确认","Source product image · see linked evidence":"品牌商品图 · 来源见引证","Editorial image · see linked evidence":"编辑配图 · 来源见引证","AI-generated editorial illustration · not product evidence":"AI 编辑插画 · 非商品实拍证据","Original illustration · not a product photograph":"原创插画 · 非商品实拍","Product image":"商品图片","awaiting permission":"等待素材确认","SUPPLIER / FILE":"资料稿","Product photography pending reuse permission.":"商品摄影素材尚未确认。","This illustration is an editorial device, not product evidence.":"此图形仅作编辑示意，不代表实物。","Skip to the product edit":"跳至商品内容","Issue navigation":"本期导航","Close source notes":"关闭来源记录","Close comparison":"关闭商品对比","Filter products by category":"按类别筛选商品","Your local shortlist":"本地收藏","Product comparison, scroll horizontally on a narrow screen":"商品对比，窄屏可横向滚动","Product sourcing summary table, horizontally scrollable":"选品总览，可横向滚动","Product leads and publicly documented purchasing terms":"商品与公开披露的购买信息","Compact mobile sourcing summary":"手机版商品总览","Issue facts":"本期信息","In this issue":"本期重点","From the editor":"编辑手记","Print source records":"打印来源记录","Compare disclosed facts. Unknown terms require supplier confirmation.":"对比已披露事实；未知条款需进一步确认。","Buying decision":"选择依据","Supplier":"品牌","Buyer fit":"适用场景","Price context":"价格口径","Confirm before ordering":"购买前确认","Assess against your assortment":"结合你的选品需求判断","Request brief downloaded. Nothing has been sent.":"询问清单已下载，尚未发送。","This session only · download before closing":"仅本次会话 · 关闭前请下载"};
+  const translate = value => issue.locale === 'zh-CN' ? (translations[value] || value.replace(/retail reference only/g, '仅作零售价参考').replace(/^(.*) removed from your shortlist\.$/, '$1 已移出收藏。').replace(/^(.*) saved\. Your shortlist stays in this browser\.$/, '$1 已收藏，仅保存在此浏览器。')) : value;
+  const products = Array.isArray(issue.products) ? issue.products : [];
+  const byId = new Map(products.map(p => [p.id, p]));
+  const storageKey = 'buyer-magazine:shortlist:v1:' + issue.id;
+  let selected = new Set();
+  let storageAvailable = true;
+  try {
+    const previous = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    if (Array.isArray(previous)) selected = new Set(previous.filter(id => byId.has(id)).slice(0, 3));
+  } catch { storageAvailable = false; }
+  const toast = document.getElementById('toast');
+  let toastTimer;
+  function announce(message) {
+    if (!toast) return;
+    clearTimeout(toastTimer);
+    toast.textContent = translate(message);
+    toastTimer = setTimeout(() => { toast.textContent = ''; }, 4400);
+  }
+  function updateSaved() {
+    document.querySelectorAll('[data-save]').forEach(button => {
+      const active = selected.has(button.dataset.save);
+      button.setAttribute('aria-pressed', String(active));
+      const label = button.querySelector('[data-save-label]');
+      if (label) label.textContent = active ? translate('Saved') : translate('Shortlist');
+      const mark = button.querySelector('[data-save-mark]');
+      if (mark) mark.textContent = active ? '✓' : '+';
+    });
+    document.querySelectorAll('[data-count]').forEach(el => { el.textContent = String(selected.size); });
+    document.querySelectorAll('[data-compare]').forEach(el => { el.disabled = selected.size < 2; });
+    const dock = document.getElementById('shortlist-dock');
+    if (dock) dock.hidden = selected.size === 0;
+    if (storageAvailable) { try { localStorage.setItem(storageKey, JSON.stringify([...selected])); } catch { storageAvailable = false; } }
+    document.querySelectorAll('[data-storage-note]').forEach(el => { el.textContent = storageAvailable ? translate('Only in this browser · up to 3') : translate('This session only · download before closing'); });
+  }
+  document.querySelectorAll('[data-save]').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = button.dataset.save;
+      if (!byId.has(id)) return;
+      if (selected.has(id)) {
+        selected.delete(id);
+        announce(byId.get(id).name + ' removed from your shortlist.');
+      } else if (selected.size === 3) {
+        announce('Your comparison holds three products. Remove one before adding another.');
+        return;
+      } else {
+        selected.add(id);
+        announce(byId.get(id).name + ' saved. Your shortlist stays in this browser.');
+      }
+      updateSaved();
+      if (!storageAvailable && selected.has(id)) announce('Saved for this session only. Download your request brief before closing.');
+    });
+  });
+  document.querySelectorAll('[data-filter]').forEach(button => {
+    button.addEventListener('click', () => {
+      const category = button.dataset.filter;
+      document.querySelectorAll('[data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      let count = 0;
+      document.querySelectorAll('[data-product-category]').forEach(el => {
+        const show = category === '*' || el.dataset.productCategory === category;
+        el.hidden = !show;
+        if (show) count++;
+      });
+      const empty = document.getElementById('empty-filter');
+      if (empty) empty.hidden = count !== 0;
+      const output = document.getElementById('filter-result');
+      if (output) output.textContent = issue.locale === 'zh-CN' ? '本期共 ' + count + ' 款商品' : count + (count === 1 ? ' product' : ' products') + ' in this edit';
+    });
+  });
+  const focusOwners = new WeakMap();
+  function openDialog(dialog, trigger) {
+    if (!dialog) return;
+    focusOwners.set(dialog, trigger || document.activeElement);
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else { dialog.setAttribute('open', ''); dialog.setAttribute('role', 'dialog'); }
+    const close = dialog.querySelector('[data-close]');
+    if (close) close.focus();
+  }
+  function closeDialog(dialog) {
+    if (!dialog) return;
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+    const previous = focusOwners.get(dialog);
+    if (previous && typeof previous.focus === 'function') previous.focus();
+  }
+  document.querySelectorAll('dialog').forEach(dialog => {
+    dialog.addEventListener('click', event => { if (event.target === dialog) closeDialog(dialog); });
+    dialog.addEventListener('cancel', event => { event.preventDefault(); closeDialog(dialog); });
+    dialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeDialog(dialog)));
+    dialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); closeDialog(dialog); return; }
+      if (event.key !== 'Tab') return;
+      const items = [...dialog.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),[tabindex="0"]')].filter(el => !el.hidden && el.getClientRects().length);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
+  });
+  document.querySelectorAll('[data-sources]').forEach(button => {
+    button.addEventListener('click', () => {
+      const dialog = document.getElementById('sources-dialog');
+      if (!dialog) return;
+      const sourceId = button.dataset.sources;
+      dialog.querySelectorAll('[data-source-record]').forEach(el => {
+        el.dataset.highlight = String(Boolean(sourceId) && el.dataset.sourceRecord === sourceId);
+      });
+      openDialog(dialog, button);
+      const target = [...dialog.querySelectorAll('[data-source-record]')].find(el => el.dataset.sourceRecord === sourceId);
+      if (target) target.scrollIntoView({ block: 'nearest' });
+    });
+  });
+  const flat = value => String(value ?? '').replace(/[\r\n\t]+/g, ' ').trim();
+  function fieldText(field) {
+    if (!field || field.status === 'unknown' || field.value === undefined || field.value === null || field.value === '') return translate('Not disclosed');
+    return flat(field.value) + (field.unit ? ' ' + flat(field.unit) : '');
+  }
+  function priceText(price) {
+    if (!price || price.status === 'unknown' || price.kind === 'unknown' || price.kind === 'request-quote' || price.amount == null) return translate('Request a project quote');
+    let label;
+    // Source text can be a range or qualified quote, not a number to coerce.
+    if (typeof price.amount === 'string') label = flat(price.amount) + (price.currency ? ' ' + flat(price.currency) : '');
+    else {
+      try { label = new Intl.NumberFormat(issue.locale || 'en', { style: 'currency', currency: price.currency || 'USD' }).format(price.amount); }
+      catch { label = flat(price.currency) + ' ' + String(price.amount); }
+    }
+    const context = price.kind === 'retail' ? translate('retail reference only') : 'wholesale, ' + flat(price.basis || 'basis not provided')
+      + (price.minQty != null ? ' · quote quantity basis: ' + flat(price.minQty) + ' units' : '');
+    return label + (price.unit ? ' / ' + flat(price.unit) : '') + ' · ' + context;
+  }
+  function renderComparison() {
+    const table = document.getElementById('comparison-table');
+    if (!table) return;
+    table.replaceChildren();
+    const chosen = [...selected].map(id => byId.get(id));
+    const caption = document.createElement('caption');
+    caption.textContent = translate('Compare disclosed facts. Unknown terms require supplier confirmation.');
+    table.append(caption);
+    const thead = document.createElement('thead');
+    const tr = document.createElement('tr');
+    const topLeft = document.createElement('th'); topLeft.scope = 'col'; topLeft.textContent = translate('Buying decision'); tr.append(topLeft);
+    chosen.forEach(p => { const th = document.createElement('th'); th.scope = 'col'; th.textContent = p.name; tr.append(th); });
+    thead.append(tr); table.append(thead);
+    const rows = [
+      ['Supplier', p => p.supplier || 'Not disclosed'],
+      ['Buyer fit', p => p.buyerFit || 'Assess against your assortment'],
+      ['Price context', p => priceText(p.price)],
+      ['MOQ', p => fieldText(p.moq)],
+      ['Lead time', p => fieldText(p.leadTime)],
+    ];
+    const specKeys = [];
+    chosen.forEach(p => (p.specs || []).filter(s => s.visibility !== 'restricted').forEach(s => { if (!specKeys.includes(s.key)) specKeys.push(s.key); }));
+    specKeys.slice(0, 8).forEach(key => {
+      const spec = chosen.flatMap(p => p.specs || []).find(s => s.key === key);
+      rows.push([spec.label || key, p => fieldText((p.specs || []).find(s => s.key === key && s.visibility !== 'restricted'))]);
+    });
+    rows.push(['Confirm before ordering', p => p.watchout || 'Confirm final specification, terms and availability.']);
+    const body = document.createElement('tbody');
+    rows.forEach(([label, value]) => {
+      const row = document.createElement('tr');
+      const th = document.createElement('th'); th.scope = 'row'; th.textContent = translate(label); row.append(th);
+      chosen.forEach(p => { const td = document.createElement('td'); td.textContent = translate(value(p)); row.append(td); });
+      body.append(row);
+    });
+    table.append(body);
+  }
+  document.querySelectorAll('[data-compare]').forEach(button => {
+    button.addEventListener('click', () => {
+      if (selected.size < 2) { announce('Shortlist at least two products to compare.'); return; }
+      renderComparison(); openDialog(document.getElementById('comparison-dialog'), button);
+    });
+  });
+  document.querySelectorAll('[data-show-shortlist]').forEach(button => {
+    button.addEventListener('click', () => {
+      if (!selected.size) { announce('Use Shortlist beside a product to save it here.'); return; }
+      if (selected.size >= 2) { renderComparison(); openDialog(document.getElementById('comparison-dialog'), button); }
+      else {
+        const id = [...selected][0];
+        const target = [...document.querySelectorAll('[data-product-id]')].find(el => el.dataset.productId === id);
+        const all = document.querySelector('[data-filter="*"]'); if (all) all.click();
+        if (target) target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+      }
+    });
+  });
+  function requestSourceIds(product) {
+    // Carry the evidence for each exported field, not only the product summary.
+    const fields = [product.price, product.moq, product.leadTime, ...(product.specs || [])]
+      .filter(field => field && field.visibility !== 'restricted');
+    return [...new Set([...(product.sourceIds || []), ...fields.flatMap(field => field.sourceIds || [])])];
+  }
+  function downloadRequest() {
+    const chosen = selected.size ? [...selected].map(id => byId.get(id)) : products;
+    const text = [
+      '# Sourcing request brief',
+      '',
+      flat(issue.title) + ' · ' + flat(issue.date),
+      issue.demo ? 'DEMONSTRATION — fictional supplier data. Do not send as a real supplier request.' : 'Draft for your review. This file has not been sent.',
+      '',
+      '## Buyer details to complete',
+      '- Company / website:', '- Destination market:', '- Target quantity:', '- Target delivery date:', '- Customisation required:',
+      '',
+      ...chosen.flatMap(p => [
+        '## ' + flat(p.name),
+        '- Supplier: ' + flat(p.supplier || 'Not disclosed'),
+        '- Category: ' + flat(p.category || 'Not disclosed'),
+        '- Published price context: ' + priceText(p.price),
+        '- Published MOQ: ' + fieldText(p.moq),
+        '- Published lead time: ' + fieldText(p.leadTime),
+        ...(p.specs || []).filter(s => s.visibility !== 'restricted').map(s => '- ' + flat(s.label || s.key) + ': ' + fieldText(s)),
+        '- Please confirm: ' + flat(p.watchout || 'Final specification, sample availability, quotation basis and delivery terms.'),
+        '- Questions: quote for the requested quantity; sample cost; production lead time; packaging; product-specific compliance evidence.',
+        ...(requestSourceIds(p).map(id => (issue.sources || []).find(s => s.id === id)).filter(Boolean).map(s => '- Source: ' + flat(s.url) + ' (accessed ' + flat(s.accessedAt) + ')')),
+        ''
+      ]),
+      '## Next step',
+      'Review and add your requirements before sharing with a supplier. No messages have been sent by this magazine.',
+      ''
+    ].join('\n');
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a'); anchor.href = url;
+    anchor.download = 'sourcing-request-' + String(issue.id || 'brief').replace(/[^a-z0-9_-]/gi, '-') + '.md';
+    document.body.append(anchor); anchor.click(); anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    announce('Request brief downloaded. Nothing has been sent.');
+  }
+  document.querySelectorAll('[data-download-request]').forEach(b => b.addEventListener('click', downloadRequest));
+  document.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', () => window.print()));
+  let scrollQueued = false;
+  function progress() {
+    const available = document.documentElement.scrollHeight - innerHeight;
+    const value = available > 0 ? Math.min(100, Math.max(0, scrollY / available * 100)) : 100;
+    const bar = document.querySelector('.reading-progress i'); if (bar) bar.style.width = value + '%';
+    scrollQueued = false;
+  }
+  addEventListener('scroll', () => { if (!scrollQueued) { scrollQueued = true; requestAnimationFrame(progress); } }, { passive: true });
+  addEventListener('resize', progress, { passive: true });
+  const cardRoot=document.querySelector('.editorial-web-card');
+  if(cardRoot){
+    const spreads=[...cardRoot.querySelectorAll(':scope > [data-spread]')];let active=0;
+    const show=(index)=>{active=Math.max(0,Math.min(spreads.length-1,index));spreads.forEach((el,i)=>el.dataset.active=String(i===active));cardRoot.querySelector('[data-card-page]').textContent=String(active+1).padStart(2,'0')+' / '+String(spreads.length).padStart(2,'0');cardRoot.querySelector('[data-card-prev]').disabled=active===0;cardRoot.querySelector('[data-card-next]').disabled=active===spreads.length-1;};
+    cardRoot.querySelectorAll('[data-card-mode-select]').forEach(button=>button.addEventListener('click',()=>{cardRoot.dataset.cardMode=button.dataset.cardModeSelect;cardRoot.querySelectorAll('[data-card-mode-select]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));show(active);spreads[active]?.scrollIntoView({behavior:'instant',block:'start'});}));
+    const move=delta=>{show(active+delta);spreads[active]?.scrollIntoView({behavior:'instant',block:'start'});};
+    cardRoot.querySelector('[data-card-prev]').addEventListener('click',()=>move(-1));cardRoot.querySelector('[data-card-next]').addEventListener('click',()=>move(1));
+    document.addEventListener('keydown',event=>{if(cardRoot.dataset.cardMode!=='flip'||event.target.closest('input,textarea,select,dialog'))return;if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();move(event.key==='ArrowRight'?1:-1);}});
+    document.querySelectorAll('a[href^="#"]').forEach(link=>link.addEventListener('click',()=>{const target=document.getElementById(link.getAttribute('href').slice(1))?.closest('[data-spread]');if(target)show(spreads.indexOf(target));}));
+    cardRoot.querySelector('[data-card-zoom]')?.addEventListener('input',event=>{event.target.closest('figure').querySelector('img').style.transform='scale('+Number(event.target.value)+')';});
+    cardRoot.querySelector('[data-card-vellum-toggle]')?.addEventListener('click',event=>{const overlay=cardRoot.querySelector('[data-card-vellum]');overlay.hidden=!overlay.hidden;event.currentTarget.setAttribute('aria-expanded',String(!overlay.hidden));});
+    const selection=cardRoot.querySelector('[data-card-material-select]');
+    const updateMaterial=()=>{const product=byId.get(selection.value),result=cardRoot.querySelector('[data-card-material-result]');if(!product)return;const printed=cardRoot.querySelector('[data-card-print-specimen]');if(printed)printed.textContent=product.name;const dl=document.createElement('dl');for(const [label,value]of [[issue.locale==='zh-CN'?'适用场景':'Use',product.buyerFit],...(product.specs||[]).slice(0,4).map(spec=>[spec.label,fieldText(spec)])]){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;dl.append(dt,dd);}result.replaceChildren(dl);};
+    selection?.addEventListener('change',updateMaterial);if(selection)updateMaterial();
+    cardRoot.querySelector('[data-card-vcard]')?.addEventListener('click',()=>{const escapeV=value=>String(value||'').replace(/\\/g,'\\\\').replace(/\n|\r/g,' ').replace(/[,;]/g,c=>'\\'+c);const text=['BEGIN:VCARD','VERSION:3.0','FN:'+escapeV(issue.brand),'ORG:'+escapeV(issue.brand),'URL:'+escapeV(issue.website),'END:VCARD'].join('\r\n');const url=URL.createObjectURL(new Blob([text],{type:'text/vcard;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='brand-'+issue.id+'.vcf';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);});
+    show(0);
+  }
+  document.querySelectorAll('[data-card-form]').forEach(form => form.addEventListener('submit', event => {
+    event.preventDefault();
+    if(!form.reportValidity())return;
+    const values=new FormData(form);
+    const lines=[issue.title,issue.date,'',...['company','email','request'].map(key=>key+': '+String(values.get(key)||'')),'',issue.locale==='zh-CN'?'本文件由你填写后下载，没有向任何服务器提交。':'Downloaded locally; no information was submitted.'];
+    const url=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}));
+    const anchor=document.createElement('a');anchor.href=url;anchor.download='brand-enquiry-'+issue.id+'.txt';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+    form.querySelector('[data-card-status]').textContent=issue.locale==='zh-CN'?'需求卡片已下载，可核对后自行发送。':'Brief downloaded. Review before sharing.';
+  }));
+  updateSaved(); progress();
+})();
+
+// Print the content of disclosures; restore the reader's state afterward.
+{
+  let printDetails=[];
+  window.addEventListener('beforeprint',()=>{
+    printDetails=[...document.querySelectorAll('.craft-stages details')].map(el=>[el,el.open]);
+    printDetails.forEach(([el])=>{el.open=true;});
+  });
+  window.addEventListener('afterprint',()=>{printDetails.forEach(([el,open])=>{el.open=open;});printDetails=[];});
+}
+</script></body></html>

@@ -17,7 +17,7 @@ test('both former input paths use the same canonical compiler, themes and native
     assert.deepEqual(a, b);
     assert.equal(a.data.toString(), renderIssue(legacy));
     assert.match(a.data.toString(), new RegExp(`data-theme="${theme}"`));
-    assert.match(a.data.toString(), /DRAFT FOR REVIEW/);
+    assert.match(a.data.toString(), /DRAFT FOR REVIEW|审阅稿/);
     assert.equal(a.externalImageCount, 0);
   }
   assert.equal(validateIssueJson(JSON.stringify(issueFixture()), { now }).valid, true);
@@ -49,7 +49,7 @@ test('missing metadata stays unknown and adapters reject accidentally included i
 
 test('standalone bundle owns its preset, Skill, tools and assets without business-plugin dependencies', async () => {
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
-  assert.equal(manifest.dependencies, undefined);
+  assert.deepEqual(Object.keys(manifest.dependencies), ['playwright-core']);
   const patch = await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8');
   assert.match(patch, /name: 网站转杂志/); assert.match(patch, /name: dsh-buyer-magazine/);
   assert.match(patch, /customSkillDirs:/); assert.match(patch, /dsh-tool-web/); assert.match(patch, /dsh-tool-present/);

@@ -63,7 +63,7 @@ export async function generateInSession(ctx, issueJson, exec) {
     if (reused) ctx.emit('fs/observed', target, { kind: 'present', version: stable.version }, exec);
     return { path: fs.processPath(target), name: draft.name, bytes: draft.data.length, sha256: draft.sha256,
       status: 'generated', presentation: 'pending-official-present', reused, draftOnly: true,
-      externalImageCount: draft.externalImageCount, warningCount: draft.warningCount };
+      externalImageCount: draft.externalImageCount, warningCount: draft.warningCount, readiness: draft.readiness };
   } catch (error) {
     checkpoint(exec.signal);
     if (failure(error).code !== 'MAGAZINE_FAILED') throw error;

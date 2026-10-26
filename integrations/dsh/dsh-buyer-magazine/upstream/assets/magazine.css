@@ -658,3 +658,10 @@ html[data-theme='foundry'] .cover-issue-folio { color:#d4e5db; }
  .mobile-index-card a { display:block; border-top:1px solid var(--rule); padding-top:13px; color:var(--accent); font-size:10px; font-weight:800; text-decoration:none; }
 }
 @media print { .mobile-index-cards { display:none!important; } }
+
+/* Chinese editorial typography: readable line height and real CJK fallbacks. */
+html[lang="zh-CN"] { --sans: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif; --serif: "Noto Serif CJK SC", "Songti SC", "SimSun", serif; }
+html[lang="zh-CN"] .hero h1 { line-height:1.18; letter-spacing:-.025em; }
+html[lang="zh-CN"] .eyebrow,html[lang="zh-CN"] .demo-notice { letter-spacing:.08em; }
+.product-image img { object-fit:contain; }
+@media print { .product-feature { break-before:page; } .product-image { max-height:100mm; } .hero h1 { font-size:36pt; } }

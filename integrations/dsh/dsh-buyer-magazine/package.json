@@ -1,6 +1,6 @@
 {
   "name": "dsh-buyer-magazine",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Independent native DSH website-to-magazine Agent, editorial Skill and shared Studio compiler with module/ERP adapters",
@@ -22,7 +22,8 @@
     "README.md",
     "docs/",
     "adapters.js",
-    "cli.js"
+    "cli.js",
+    "skill-pack.json"
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
@@ -59,5 +60,8 @@
     "@deepseek-ai/dsh-sandbox-policy": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "playwright-core": "1.61.1"
   }
 }

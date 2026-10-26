@@ -27,10 +27,15 @@ local ERP: integrations/dsh/dsh-mini-erp is the single transaction ledger for
 this pilot. It has no buyer portal or work-order integration. Keep further
 ERP development scoped to the user request; no parallel transaction state.
 The user explicitly required a standalone website-to-magazine plugin and removal
-of duplicate rendering. dsh-buyer-magazine owns the single magazine Skill,
+of duplicate rendering. dsh-buyer-magazine owns the magazine skill pack,
 schema/theme/compiler and native generation entry. Sourcing reuses it; modules
 and ERP are input adapters. Keep it independently installable without Sourcing
 or ERP, and do not create a second renderer or execution host.
+The user supplied luxury_ecommerce_skills_package.zip: preserve its four skills
+and source resources, with explicit native DSH integration contracts. The target
+is five editorial spreads with scroll/flip modes, real source imagery, typography,
+working interactions and actual screenshot/PDF review. Unconfigured external
+Apify/FastAI/VIP/lead services must not be described as working capabilities.
 The earlier Shopify Admin-style operator ERP work follows docs/ERP-REUSE.md:
 reuse the native library's product/SKU/media/document capabilities and unify
 master data before building duplicate CRUD. Conversation-only magazine creation

@@ -4,6 +4,8 @@
   if (!node) return;
   let issue;
   try { issue = JSON.parse(node.textContent); } catch { return; }
+  const translations = /* CHROME_TRANSLATIONS */ {};
+  const translate = value => issue.locale === 'zh-CN' ? (translations[value] || value.replace(/retail reference only/g, '仅作零售价参考').replace(/^(.*) removed from your shortlist\.$/, '$1 已移出收藏。').replace(/^(.*) saved\. Your shortlist stays in this browser\.$/, '$1 已收藏，仅保存在此浏览器。')) : value;
   const products = Array.isArray(issue.products) ? issue.products : [];
   const byId = new Map(products.map(p => [p.id, p]));
   const storageKey = 'buyer-magazine:shortlist:v1:' + issue.id;
@@ -18,7 +20,7 @@
   function announce(message) {
     if (!toast) return;
     clearTimeout(toastTimer);
-    toast.textContent = message;
+    toast.textContent = translate(message);
     toastTimer = setTimeout(() => { toast.textContent = ''; }, 4400);
   }
   function updateSaved() {
@@ -26,7 +28,7 @@
       const active = selected.has(button.dataset.save);
       button.setAttribute('aria-pressed', String(active));
       const label = button.querySelector('[data-save-label]');
-      if (label) label.textContent = active ? 'Saved' : 'Shortlist';
+      if (label) label.textContent = active ? translate('Saved') : translate('Shortlist');
       const mark = button.querySelector('[data-save-mark]');
       if (mark) mark.textContent = active ? '✓' : '+';
     });
@@ -35,7 +37,7 @@
     const dock = document.getElementById('shortlist-dock');
     if (dock) dock.hidden = selected.size === 0;
     if (storageAvailable) { try { localStorage.setItem(storageKey, JSON.stringify([...selected])); } catch { storageAvailable = false; } }
-    document.querySelectorAll('[data-storage-note]').forEach(el => { el.textContent = storageAvailable ? 'Only in this browser · up to 3' : 'This session only · download before closing'; });
+    document.querySelectorAll('[data-storage-note]').forEach(el => { el.textContent = storageAvailable ? translate('Only in this browser · up to 3') : translate('This session only · download before closing'); });
   }
   document.querySelectorAll('[data-save]').forEach(button => {
     button.addEventListener('click', () => {
@@ -68,7 +70,7 @@
       const empty = document.getElementById('empty-filter');
       if (empty) empty.hidden = count !== 0;
       const output = document.getElementById('filter-result');
-      if (output) output.textContent = count + (count === 1 ? ' product' : ' products') + ' in this edit';
+      if (output) output.textContent = issue.locale === 'zh-CN' ? '本期共 ' + count + ' 款商品' : count + (count === 1 ? ' product' : ' products') + ' in this edit';
     });
   });
   const focusOwners = new WeakMap();
@@ -116,11 +118,11 @@
   });
   const flat = value => String(value ?? '').replace(/[\r\n\t]+/g, ' ').trim();
   function fieldText(field) {
-    if (!field || field.status === 'unknown' || field.value === undefined || field.value === null || field.value === '') return 'Not disclosed';
+    if (!field || field.status === 'unknown' || field.value === undefined || field.value === null || field.value === '') return translate('Not disclosed');
     return flat(field.value) + (field.unit ? ' ' + flat(field.unit) : '');
   }
   function priceText(price) {
-    if (!price || price.status === 'unknown' || price.kind === 'unknown' || price.kind === 'request-quote' || price.amount == null) return 'Request a project quote';
+    if (!price || price.status === 'unknown' || price.kind === 'unknown' || price.kind === 'request-quote' || price.amount == null) return translate('Request a project quote');
     let label;
     // Source text can be a range or qualified quote, not a number to coerce.
     if (typeof price.amount === 'string') label = flat(price.amount) + (price.currency ? ' ' + flat(price.currency) : '');
@@ -128,7 +130,7 @@
       try { label = new Intl.NumberFormat(issue.locale || 'en', { style: 'currency', currency: price.currency || 'USD' }).format(price.amount); }
       catch { label = flat(price.currency) + ' ' + String(price.amount); }
     }
-    const context = price.kind === 'retail' ? 'retail reference only' : 'wholesale, ' + flat(price.basis || 'basis not provided')
+    const context = price.kind === 'retail' ? translate('retail reference only') : 'wholesale, ' + flat(price.basis || 'basis not provided')
       + (price.minQty != null ? ' · quote quantity basis: ' + flat(price.minQty) + ' units' : '');
     return label + (price.unit ? ' / ' + flat(price.unit) : '') + ' · ' + context;
   }
@@ -138,11 +140,11 @@
     table.replaceChildren();
     const chosen = [...selected].map(id => byId.get(id));
     const caption = document.createElement('caption');
-    caption.textContent = 'Compare disclosed facts. Unknown terms require supplier confirmation.';
+    caption.textContent = translate('Compare disclosed facts. Unknown terms require supplier confirmation.');
     table.append(caption);
     const thead = document.createElement('thead');
     const tr = document.createElement('tr');
-    const topLeft = document.createElement('th'); topLeft.scope = 'col'; topLeft.textContent = 'Buying decision'; tr.append(topLeft);
+    const topLeft = document.createElement('th'); topLeft.scope = 'col'; topLeft.textContent = translate('Buying decision'); tr.append(topLeft);
     chosen.forEach(p => { const th = document.createElement('th'); th.scope = 'col'; th.textContent = p.name; tr.append(th); });
     thead.append(tr); table.append(thead);
     const rows = [
@@ -162,8 +164,8 @@
     const body = document.createElement('tbody');
     rows.forEach(([label, value]) => {
       const row = document.createElement('tr');
-      const th = document.createElement('th'); th.scope = 'row'; th.textContent = label; row.append(th);
-      chosen.forEach(p => { const td = document.createElement('td'); td.textContent = value(p); row.append(td); });
+      const th = document.createElement('th'); th.scope = 'row'; th.textContent = translate(label); row.append(th);
+      chosen.forEach(p => { const td = document.createElement('td'); td.textContent = translate(value(p)); row.append(td); });
       body.append(row);
     });
     table.append(body);
@@ -239,5 +241,41 @@
   }
   addEventListener('scroll', () => { if (!scrollQueued) { scrollQueued = true; requestAnimationFrame(progress); } }, { passive: true });
   addEventListener('resize', progress, { passive: true });
+  const cardRoot=document.querySelector('.editorial-web-card');
+  if(cardRoot){
+    const spreads=[...cardRoot.querySelectorAll(':scope > [data-spread]')];let active=0;
+    const show=(index)=>{active=Math.max(0,Math.min(spreads.length-1,index));spreads.forEach((el,i)=>el.dataset.active=String(i===active));cardRoot.querySelector('[data-card-page]').textContent=String(active+1).padStart(2,'0')+' / '+String(spreads.length).padStart(2,'0');cardRoot.querySelector('[data-card-prev]').disabled=active===0;cardRoot.querySelector('[data-card-next]').disabled=active===spreads.length-1;};
+    cardRoot.querySelectorAll('[data-card-mode-select]').forEach(button=>button.addEventListener('click',()=>{cardRoot.dataset.cardMode=button.dataset.cardModeSelect;cardRoot.querySelectorAll('[data-card-mode-select]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));show(active);spreads[active]?.scrollIntoView({behavior:'instant',block:'start'});}));
+    const move=delta=>{show(active+delta);spreads[active]?.scrollIntoView({behavior:'instant',block:'start'});};
+    cardRoot.querySelector('[data-card-prev]').addEventListener('click',()=>move(-1));cardRoot.querySelector('[data-card-next]').addEventListener('click',()=>move(1));
+    document.addEventListener('keydown',event=>{if(cardRoot.dataset.cardMode!=='flip'||event.target.closest('input,textarea,select,dialog'))return;if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();move(event.key==='ArrowRight'?1:-1);}});
+    document.querySelectorAll('a[href^="#"]').forEach(link=>link.addEventListener('click',()=>{const target=document.getElementById(link.getAttribute('href').slice(1))?.closest('[data-spread]');if(target)show(spreads.indexOf(target));}));
+    cardRoot.querySelector('[data-card-zoom]')?.addEventListener('input',event=>{event.target.closest('figure').querySelector('img').style.transform='scale('+Number(event.target.value)+')';});
+    cardRoot.querySelector('[data-card-vellum-toggle]')?.addEventListener('click',event=>{const overlay=cardRoot.querySelector('[data-card-vellum]');overlay.hidden=!overlay.hidden;event.currentTarget.setAttribute('aria-expanded',String(!overlay.hidden));});
+    const selection=cardRoot.querySelector('[data-card-material-select]');
+    const updateMaterial=()=>{const product=byId.get(selection.value),result=cardRoot.querySelector('[data-card-material-result]');if(!product)return;const printed=cardRoot.querySelector('[data-card-print-specimen]');if(printed)printed.textContent=product.name;const dl=document.createElement('dl');for(const [label,value]of [[issue.locale==='zh-CN'?'适用场景':'Use',product.buyerFit],...(product.specs||[]).slice(0,4).map(spec=>[spec.label,fieldText(spec)])]){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;dl.append(dt,dd);}result.replaceChildren(dl);};
+    selection?.addEventListener('change',updateMaterial);if(selection)updateMaterial();
+    cardRoot.querySelector('[data-card-vcard]')?.addEventListener('click',()=>{const escapeV=value=>String(value||'').replace(/\\/g,'\\\\').replace(/\n|\r/g,' ').replace(/[,;]/g,c=>'\\'+c);const text=['BEGIN:VCARD','VERSION:3.0','FN:'+escapeV(issue.brand),'ORG:'+escapeV(issue.brand),'URL:'+escapeV(issue.website),'END:VCARD'].join('\r\n');const url=URL.createObjectURL(new Blob([text],{type:'text/vcard;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='brand-'+issue.id+'.vcf';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);});
+    show(0);
+  }
+  document.querySelectorAll('[data-card-form]').forEach(form => form.addEventListener('submit', event => {
+    event.preventDefault();
+    if(!form.reportValidity())return;
+    const values=new FormData(form);
+    const lines=[issue.title,issue.date,'',...['company','email','request'].map(key=>key+': '+String(values.get(key)||'')),'',issue.locale==='zh-CN'?'本文件由你填写后下载，没有向任何服务器提交。':'Downloaded locally; no information was submitted.'];
+    const url=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}));
+    const anchor=document.createElement('a');anchor.href=url;anchor.download='brand-enquiry-'+issue.id+'.txt';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+    form.querySelector('[data-card-status]').textContent=issue.locale==='zh-CN'?'需求卡片已下载，可核对后自行发送。':'Brief downloaded. Review before sharing.';
+  }));
   updateSaved(); progress();
 })();
+
+// Print the content of disclosures; restore the reader's state afterward.
+{
+  let printDetails=[];
+  window.addEventListener('beforeprint',()=>{
+    printDetails=[...document.querySelectorAll('.craft-stages details')].map(el=>[el,el.open]);
+    printDetails.forEach(([el])=>{el.open=true;});
+  });
+  window.addEventListener('afterprint',()=>{printDetails.forEach(([el,open])=>{el.open=open;});printDetails=[];});
+}

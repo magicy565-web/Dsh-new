@@ -1,3 +1,5 @@
+> 新版四技能五跨页样刊见 [最新验收产物](../allbirds-editorial-20261026/README.md)。本目录保留旧版工作稿，不代表新版视觉验收。
+
 # Allbirds 中文选品杂志
 
 真实输入：https://www.allbirds.com/ 。由独立插件 `dsh-buyer-magazine@0.2.0` 在原生 DeepSeek Harness 中读取网站、编排内容、校验、生成 HTML 并通过文件卡片交付。2026-10-26 实测产物；经用户明确授权上传本目录。

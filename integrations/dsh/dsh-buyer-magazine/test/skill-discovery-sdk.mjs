@@ -35,8 +35,8 @@ try {
     { invalidate: () => assert.fail('No watchers'), signal: controller.signal },
     { providerName: 'standalone-audit', watch: false, includeDefaultRoots: false, customSkillDirs: [skillRoot] });
   const entries = await provider.list({ cwd: root });
-  assert.deepEqual(entries.map(e => e.name), ['buyer-magazine']);
-  const loaded = await provider.get(entries[0], { signal: controller.signal });
+  assert.deepEqual(entries.map(e => e.name).sort(), ['buyer-magazine', ...JSON.parse(await readFile(join(installed,'skill-pack.json'),'utf8')).skills.map(s=>s.name)].sort());
+  const loaded = await provider.get(entries.find(e=>e.name==='buyer-magazine'), { signal: controller.signal });
   assert.equal(loaded.resourceBase.path, join(skillRoot, 'buyer-magazine'));
   assert.match(loaded.content, /standalone native DSH plugin/);
   assert.match(loaded.content, /buyer_magazine_generate/);

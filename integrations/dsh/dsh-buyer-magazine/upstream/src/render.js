@@ -1,11 +1,15 @@
+import { webCardSections } from '../../src/web-card.js';
+import { designCss } from '../../src/production.js';
+import { localizeChrome, zh } from '../../src/localize.js';
 import { moduleById } from '../../src/modules/catalog.js';
 import { renderModuleBlocks } from '../../src/modules/render.js';
 import { resolveArchetype, sourcingSignals } from './presentation.js';
 import { readFileSync } from 'node:fs';
 
 const asset = name => new URL(`../assets/${name}`, import.meta.url);
-const css = readFileSync(asset('magazine.css'), 'utf8');
-const client = readFileSync(asset('magazine.js'), 'utf8');
+const css = readFileSync(asset('magazine.css'), 'utf8') + '\n' + readFileSync(asset('web-card.css'), 'utf8');
+const suppliedCss = ['editorial-magazine-design/resources/spread-primitives.css','editorial-typography-system/resources/typographic-primitives.css'].map(path=>readFileSync(new URL('../../skills/'+path,import.meta.url),'utf8')).join('\n');
+const client = readFileSync(asset('magazine.js'), 'utf8').replace('/* CHROME_TRANSLATIONS */ {}', JSON.stringify(zh));
 // Font binaries are not distributed; visitors use their own installed faces or
 // reliable system serif/sans fallback stacks.
 const fontFaces = '';
@@ -39,12 +43,13 @@ function safeImage(value) {
   return safeHref(value, false);
 }
 function permittedImage(image) {
-  if (!image || !['owned', 'licensed', 'permission'].includes(image.rights)) return '';
+  if (!image || !['owned', 'licensed', 'permission', 'editorial-reference'].includes(image.rights)) return '';
   if (image.role === 'product' && image.generated) return '';
   return safeImage(image.src);
 }
 function imageLabel(image, demo) {
   if (!image) return 'Product image not supplied';
+  if (image.rights === 'editorial-reference') return `${image.credit} · ${image.caption}`;
   if (image?.generated) return 'AI-generated editorial illustration · not product evidence';
   if (image?.role === 'illustration' || demo) return 'Original illustration · not a product photograph';
   if (!permittedImage(image)) return 'Product image unavailable for reuse';
@@ -53,7 +58,7 @@ function imageLabel(image, demo) {
 function imageMarkup(image, options = {}) {
   const src = permittedImage(image);
   if (!src) return '<div class="image-placeholder"><span>Product image<br>awaiting permission</span></div>';
-  return `<img src="${esc(src)}" alt="${esc(image.alt || 'Product image')}" ${options.hero ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" width="${options.hero ? '1400' : '1100'}" height="${options.hero ? '1500' : '1000'}">`;
+  return `<img src="${esc(src)}" alt="${esc(image.alt || 'Product image')}" ${options.hero ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" style="object-fit:${esc(image.fit || 'contain')};object-position:${esc(image.position || 'center')}" width="${options.hero ? '1400' : '1100'}" height="${options.hero ? '1500' : '1000'}">`;
 }
 function dateLabel(date, locale = 'en') {
   try {
@@ -129,7 +134,7 @@ function comparisonDialog() {
 }
 function clientData(issue) {
   return {
-    id: text(issue.id), title: text(issue.title), date: text(issue.date), demo: !!issue.demo, locale: text(issue.locale || 'en'),
+    brand:text(issue.design?.brand||issue.title),website:safeHref(issue.sources?.[0]?.url,false),id: text(issue.id), title: text(issue.title), date: text(issue.date), demo: !!issue.demo, locale: text(issue.locale || 'en'),
     products: arr(issue.products).map(p => ({
       id: p.id, name: p.name, category: p.category, supplier: p.supplier, buyerFit: p.buyerFit, watchout: p.watchout,
       price: p.price?.visibility === 'restricted' ? undefined : p.price,
@@ -178,10 +183,11 @@ export function renderMagazine(issue, options = {}) {
   const signals = sourcingSignals(issue);
   const firstProduct = products[0];
   const modular = issue.composition === 'modules';
+  const card = issue.composition === 'web-card';
   const en = issue.locale === 'en';
   const moduleTitle = b => b.title ?? moduleById.get(b.type)[en ? 'en' : 'name'];
-  const navigation = modular ? issue.blocks.map(b => `<a href="#${esc(b.id)}">${esc(moduleTitle(b))}</a>`).join('') : `<a href="#buyer-desk-title">Buyer's desk</a><a href="#procurement-index">Compare the edit</a><a href="#today">Product stories</a><button type="button" data-sources="">Evidence <span aria-hidden="true">↗</span></button><button class="nav-save" type="button" data-show-shortlist>Saved <span class="counter" data-count>0</span></button>`;
-  const content = modular ? `<div class="module-intro"><p class="eyebrow">${en ? 'SELECTED CONTENT / BUYER EDITION' : '本期选编 · 买手微刊'}</p><h1>${esc(issue.title)}</h1><p>${esc(issue.subtitle)}</p></div>${renderModuleBlocks(issue)}` : `<section class="hero" aria-labelledby="cover-title"><div class="hero-copy"><div class="cover-topline"><span>INDEPENDENT SUPPLIER EDITORIAL</span><span>Nº ${esc(edition)}</span></div><p class="eyebrow">${esc(cover.kicker || archetype.label)}</p><h1 id="cover-title">${esc(headline)}</h1><p class="hero-dek">${esc(cover.dek || issue.subtitle)}</p><div class="hero-bottom"><a class="pill-link" href="#buyer-desk-title">Start the edit <span aria-hidden="true">↘</span></a><span class="reading-time">${signals.products} product ${signals.products===1?'story':'stories'}<br>About five minutes to decide</span></div><div class="cover-issue-folio"><span>${esc(archetype.desk)}</span><span>THE 05' EDIT</span></div></div><figure class="hero-art">${coverVisual(firstImage,issue,firstProduct)}<span class="art-label">${esc(archetype.label)}</span><figcaption><span>${esc(imageLabel(firstImage,issue.demo))}</span><span>VOL. ${esc(edition)}</span></figcaption></figure></section>
+  const navigation = card ? `<a href="#story">${en?'Cover story':'封面故事'}</a><a href="#showcase">${en?'Curated archive':'精选档案'}</a><a href="#contact">${en?'Next step':'进一步了解'}</a><button type="button" data-sources="">${en?'Sources':'资料来源'} ↗</button>` : modular ? issue.blocks.map(b => `<a href="#${esc(b.id)}">${esc(moduleTitle(b))}</a>`).join('') : `<a href="#buyer-desk-title">Buyer's desk</a><a href="#procurement-index">Compare the edit</a><a href="#today">Product stories</a><button type="button" data-sources="">Evidence <span aria-hidden="true">↗</span></button><button class="nav-save" type="button" data-show-shortlist>Saved <span class="counter" data-count>0</span></button>`;
+  const content = card ? webCardSections(issue, {imageMarkup,evidenceChip}) : modular ? `<div class="module-intro"><p class="eyebrow">${en ? 'SELECTED CONTENT / BUYER EDITION' : '本期选编 · 买手微刊'}</p><h1>${esc(issue.title)}</h1><p>${esc(issue.subtitle)}</p></div>${renderModuleBlocks(issue)}` : `<section class="hero" aria-labelledby="cover-title"><div class="hero-copy"><div class="cover-topline"><span>INDEPENDENT SUPPLIER EDITORIAL</span><span>Nº ${esc(edition)}</span></div><p class="eyebrow">${esc(cover.kicker || archetype.label)}</p><h1 id="cover-title">${esc(headline)}</h1><p class="hero-dek">${esc(cover.dek || issue.subtitle)}</p><div class="hero-bottom"><a class="pill-link" href="#buyer-desk-title">Start the edit <span aria-hidden="true">↘</span></a><span class="reading-time">${signals.products} product ${signals.products===1?'story':'stories'}<br>About five minutes to decide</span></div><div class="cover-issue-folio"><span>${esc(archetype.desk)}</span><span>THE 05' EDIT</span></div></div><figure class="hero-art">${coverVisual(firstImage,issue,firstProduct)}<span class="art-label">${esc(archetype.label)}</span><figcaption><span>${esc(imageLabel(firstImage,issue.demo))}</span><span>VOL. ${esc(edition)}</span></figcaption></figure></section>
 <section class="issue-ribbon" aria-label="Issue facts"><span>ISSUE ${esc(edition)} / ${esc(date)}</span><span>${esc(archetype.signature)}</span><span>${signals.products} LEADS · ${signals.cited} SOURCE LINKS</span></section>
 ${buyerDesk(issue,signals)}
 ${highlights.length ? `<section class="quick-signals" aria-label="In this issue">${highlights.map((h, i) => `<div class="signal"><span class="signal-number">${String(i + 1).padStart(2, '0')}</span><div><strong>${esc(h.label)}</strong><p>${esc(h.text)}</p></div></div>`).join('')}</section>` : ''}
@@ -192,21 +198,21 @@ ${procurementIndex(issue)}
 <section class="notes-section" id="buyer-notes" aria-labelledby="notes-title"><div class="section-heading"><div><p class="eyebrow">Before the next conversation</p><h2 id="notes-title">The buyer’s margin.</h2></div><p class="section-meta">Keep these questions close.</p></div><div class="notes-grid">${arr(issue.insights).map(insight => `<article class="note"><p class="eyebrow">${insight.kind === 'inference' ? 'Editorial interpretation' : 'Source observation'}${evidenceChip(insight.sourceIds, sources)}</p><h3>${esc(insight.title)}</h3><p>${esc(insight.body)}</p></article>`).join('')}</div>${arr(issue.dataNotes).length ? `<ul class="data-notes">${issue.dataNotes.map(note => `<li>${esc(note)}</li>`).join('')}</ul>` : ''}</section>
 ${evidenceLedger(issue,signals)}
 <noscript><p class="noscript-note">The complete issue and source list remain readable. Enable JavaScript for shortlisting, comparison and request-brief downloads.</p><ol>${sources.map(s => `<li><a href="${esc(safeHref(s.url, false))}">${esc(s.title)}</a> · ${esc(s.accessedAt)}</li>`).join('')}</ol></noscript>`;
-  return `<!doctype html>
-<html lang="${esc(issue.locale || 'en')}" data-theme="${esc(issue.theme || 'porcelain')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="${esc(cover.dek || issue.subtitle || '')}"><title>${esc(wordmark)} · ${esc(date)}</title><style>${options.embedFonts === false ? '' : fontFaces}\n${css}</style></head>
+  return localizeChrome(`<!doctype html>
+<html lang="${esc(issue.locale || 'en')}" data-composition="${esc(issue.composition || 'studio')}" data-theme="${esc(issue.theme || 'porcelain')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="${esc(cover.dek || issue.subtitle || '')}"><title>${esc(wordmark)} · ${esc(date)}</title><style>${options.embedFonts === false ? '' : fontFaces}\n${css}\n${card?suppliedCss:''}\n${designCss(issue)}</style></head>
 <body><a class="skip-link" href="${modular ? '#'+esc(issue.blocks[0].id) : '#today'}">${modular ? (en ? 'Skip to selected content' : '跳至本期内容') : 'Skip to the product edit'}</a><div class="reading-progress" aria-hidden="true"><i></i></div>
 ${issue.demo ? '<div class="demo-notice">DEMONSTRATION · fictional supplier data</div>' : ''}
 <div class="page-shell">
-<header><div class="masthead-top"><p class="eyebrow"><span class="dot"></span>THE SOURCING MORNING READ. &nbsp; / &nbsp; ${esc(archetype.desk)}</p><p class="masthead-date">${esc(date)} &nbsp; / &nbsp; VOL. ${esc(edition)}</p></div><div class="masthead"><a class="wordmark" href="#">${esc(wordmark)}<span>.</span></a><div class="masthead-right"><span class="masthead-stamp">${esc(archetype.mark)}</span><p class="masthead-tagline">${esc(archetype.signature)}<br>${esc(issue.market || 'Independent buyer edition')}</p></div></div><nav class="issue-nav" aria-label="Issue navigation">${navigation}</nav></header>
+<header><div class="masthead-top"><p class="eyebrow"><span class="dot"></span>${card ? esc(issue.webCard.issueTag) : 'THE SOURCING MORNING READ. &nbsp; / &nbsp; '+esc(archetype.desk)}</p><p class="masthead-date">${card ? esc(issue.webCard.locationStamp) : esc(date)+' &nbsp; / &nbsp; VOL. '+esc(edition)}</p></div><div class="masthead"><a class="wordmark" href="#">${esc(wordmark)}<span>.</span></a><div class="masthead-right"><span class="masthead-stamp">${esc(archetype.mark)}</span><p class="masthead-tagline">${esc(archetype.signature)}<br>${esc(issue.market || 'Independent buyer edition')}</p></div></div><nav class="issue-nav" aria-label="Issue navigation">${navigation}</nav></header>
 <main>
 ${content}
 </main>
-${modular ? `<footer class="issue-footer"><p>${en ? 'Prepared for the stated audience. Sources and assumptions accompany the selected sections. Working draft; not sent or published.' : '按本期读者与选定模块编排；相关依据和假设随内容展示。工作稿，尚未发送或发布。'}</p></footer>` : `<footer class="issue-footer"><div><p class="footer-wordmark">${esc(wordmark)}.</p><p>A little less noise. A little more perspective.<br>Sourcing, with the details that matter.</p></div><div><p class="eyebrow">The evidence standard</p><p>${issue.demo ? 'Demonstration content. All supplier data in this issue is fictional.' : 'Facts retain their sources. Unknown terms stay unknown. Retail prices do not imply wholesale offers.'}</p><button type="button" data-sources="">Read all ${sources.length} source records ↗</button></div><div><p class="eyebrow">Your next move</p><p>Shortlist locally. Review the facts.<br>Confirm terms with your supplier.</p><button type="button" data-print>Print / save as PDF ↗</button></div></footer>
+${card ? `<footer class="issue-footer">${esc(issue.design.brand)} · ${esc(date)} · ${en?'Independent editorial edition':'独立编辑特刊'}</footer>` : modular ? `<footer class="issue-footer"><p>${en ? 'Prepared for the stated audience. Sources and assumptions accompany the selected sections. Working draft; not sent or published.' : '按本期读者与选定模块编排；相关依据和假设随内容展示。工作稿，尚未发送或发布。'}</p></footer>` : `<footer class="issue-footer"><div><p class="footer-wordmark">${esc(wordmark)}.</p><p>A little less noise. A little more perspective.<br>Sourcing, with the details that matter.</p></div><div><p class="eyebrow">The evidence standard</p><p>${issue.demo ? 'Demonstration content. All supplier data in this issue is fictional.' : 'Facts retain their sources. Unknown terms stay unknown. Retail prices do not imply wholesale offers.'}</p><button type="button" data-sources="">Read all ${sources.length} source records ↗</button></div><div><p class="eyebrow">Your next move</p><p>Shortlist locally. Review the facts.<br>Confirm terms with your supplier.</p><button type="button" data-print>Print / save as PDF ↗</button></div></footer>
 <section class="print-source-list" aria-label="Print source records"><h2>Source notes</h2><ol>${sources.map(s => `<li><strong>${esc(s.title)}</strong> — ${esc(s.publisher)}<br>${esc(s.url)} · Accessed: ${esc(s.accessedAt)}</li>`).join('')}</ol></section>`}
 </div>
 ${modular ? '' : `<aside id="shortlist-dock" class="shortlist-dock" aria-label="Your local shortlist" hidden><p><span data-count>0</span> products saved<small data-storage-note>Only in this browser · up to 3</small></p><div class="dock-actions"><button class="quiet-button" type="button" data-compare disabled>Compare</button><button class="pill-button" type="button" data-download-request>Request brief ↓</button></div></aside>
 <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-`}${modular ? '' : `${sourceDrawer(issue)}${comparisonDialog()}<script id="issue-data" type="application/json">${json}</script><script>${client}</script>`}</body></html>`;
+`}${modular ? '' : `${sourceDrawer(issue)}${comparisonDialog()}<script id="issue-data" type="application/json">${json}</script><script>${client}</script>`}</body></html>`, issue.locale);
 }
 
 /** Generate a script-free, inline-styled email digest. Publication/send is owned by the caller. */
@@ -225,7 +231,7 @@ export function renderEmail(issue, options = {}) {
     // Local image references are unsuitable for email; include only public HTTPS assets explicitly cleared for reuse.
     return href.startsWith('https://') ? `<img src="${esc(href)}" alt="${esc(image.alt || '')}" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;">` : '';
   }
-  return `<!doctype html><html lang="${esc(issue.locale || 'en')}" data-theme="${esc(issue.theme || 'porcelain')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(issue.title || 'Supply Notes')} · ${esc(date)}</title></head><body style="margin:0;padding:0;background:#f4f1ea;color:#202820;">
+  return `<!doctype html><html lang="${esc(issue.locale || 'en')}" data-composition="${esc(issue.composition || 'studio')}" data-theme="${esc(issue.theme || 'porcelain')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(issue.title || 'Supply Notes')} · ${esc(date)}</title></head><body style="margin:0;padding:0;background:#f4f1ea;color:#202820;">
 <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${esc(cover.dek || issue.subtitle || 'Your five-minute sourcing edit.')}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f1ea;"><tr><td align="center" style="padding:24px 12px;"><table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;">
 ${issue.demo ? '<tr><td style="padding:10px 18px;background:#263c33;color:#fffdf8;text-align:center;font-family:Arial,sans-serif;font-size:10px;letter-spacing:1px;">DEMONSTRATION · fictional supplier data</td></tr>' : ''}
