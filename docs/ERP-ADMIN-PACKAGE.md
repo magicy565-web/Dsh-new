@@ -1,6 +1,6 @@
 # ERP Admin 插件包交付
 
-两个原生 DSH bundle：`dsh-mini-erp@0.4.0` 与 `dsh-workspace-library@1.4.0`。采用 Radix Themes + Lucide，默认中性深色与紫色重点，已保存的外观偏好继续保留。后台留在 DSH 内，共用宿主登录、工作区、附件、工具和权限，不启动独立网页应用或业务服务器。
+两个原生 DSH bundle：`dsh-mini-erp@0.4.1` 与 `dsh-workspace-library@1.4.0`。采用 Radix Themes + Lucide，默认中性深色与紫色重点，已保存的外观偏好继续保留。后台留在 DSH 内，共用宿主登录、工作区、附件、工具和权限，不启动独立网页应用或业务服务器。
 
 ## 安装
 
@@ -28,7 +28,7 @@ node scripts/package-erp-admin.mjs /absolute/path/erp-admin-package
 生成：
 
 - `dsh-workspace-library-1.4.0.tgz`
-- `dsh-mini-erp-0.4.0.tgz`
+- `dsh-mini-erp-0.4.1.tgz`
 - `manifest.json`：版本、大小和 SHA-256
 - `INSTALL.md`：安装说明
 
@@ -36,7 +36,7 @@ node scripts/package-erp-admin.mjs /absolute/path/erp-admin-package
 
 ## 实际截图
 
-来自真实 DSH Web 空数据 profile，已更新为 Radix Themes 版本；无演示商品或虚构交易。
+来自真实 DSH Web 空数据 profile，已更新为 0.4.1 圆角与柔和边界版本；无演示商品或虚构交易。
 
 | 页面 | 桌面 | 手机 |
 | --- | --- | --- |

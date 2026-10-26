@@ -406,10 +406,10 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
       h(PageHeading, { title: '首页', subtitle: title ? `欢迎回到 ${title}` : '从这里开始管理你的业务', actions: h(React.Fragment, null, button('店铺设置', () => navigate('store_details'), { icon: 'settings' }), button('添加商品', onCreateProduct, { icon: 'plus', className: 'me-button-primary' })) }),
       h(ResourceState, { resource }, value ? h(React.Fragment, null,
         h('div', { className: 'me-overview-caption' }, h('h2', null, '业务概览'), h('small', null, value.ledger ? `更新于 ${clock(value.ledger.asOf)}` : '当前资料库')),
-        h('div', { className: 'me-overview-grid' }, [
+        h(Surface, { as: 'div', className: 'me-overview-grid' }, [
           ['商品', value.catalog.total, '产品库中的商品', 'products', 'product'], ['客户', value.ledger?.customers ?? '—', '当前工作区', 'customers', 'buyer'],
           ['订单记录', value.ledger?.orders.total ?? '—', '预留与历史订单', 'orders', 'order'], ['待确认预留', value.ledger?.orders.reserved ?? '—', '尚未到期', 'orders', 'activity'],
-        ].map(([label, count, hint, page, icon]) => h(Surface, { as: 'button', key: label, className: 'me-metric', onClick: () => navigate(page) },
+        ].map(([label, count, hint, page, icon]) => h('button', { type: 'button', key: label, className: 'me-metric', onClick: () => navigate(page) },
           h('span', null, label, h(Icon, { name: icon, size: 17 })), h('strong', null, count), h('small', null, hint, h(Icon, { name: 'arrow', size: 13 }))))),
         h('div', { className: 'me-home-grid' },
           h(Surface, { className: 'me-card me-setup-card' },
@@ -761,7 +761,7 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
         children.length ? button(null, () => setExpanded(value => ({ ...value, [id]: !open })), { icon: 'down', className: 'me-nav-expand', 'aria-label': `${open ? '折叠' : '展开'}${pages[id][0]}`, 'aria-expanded': open, 'aria-controls': `me-nav-${id}`, disabled: busy }) : null),
         children.length && open ? h('div', { id: `me-nav-${id}`, className: 'me-nav-children' }, children.map(child => button(pages[child][0], () => navigate(child), { key: child, disabled: busy, 'aria-current': section === child ? 'page' : undefined, 'data-admin-page': child }))) : null);
     };
-    return h(ERPTheme, { appearance, accentColor: 'violet', grayColor: 'gray', radius: 'medium', scaling: '100%', className: 'me', 'data-appearance': appearance, 'data-density': density, onKeyDown: e => { if (e.key === 'Escape' && menuOpen) { e.stopPropagation(); closeMenu(); } } }, h('style', { 'data-erp-styles': true }, radixStyles + fontStyles + styles),
+    return h(ERPTheme, { appearance, accentColor: 'violet', grayColor: 'gray', radius: 'large', scaling: '100%', className: 'me', 'data-appearance': appearance, 'data-density': density, onKeyDown: e => { if (e.key === 'Escape' && menuOpen) { e.stopPropagation(); closeMenu(); } } }, h('style', { 'data-erp-styles': true }, radixStyles + fontStyles + styles),
       h('header', { className: 'me-topbar', inert: searchOpen ? '' : undefined },
         h('div', { className: 'me-brand' }, button(null, () => setMenuOpen(v => !v), { className: 'me-icon-button me-mobile-menu', icon: 'menu', 'aria-label': '经营菜单', 'aria-expanded': menuOpen, 'aria-controls': 'me-business-nav' }), h('span', { className: 'me-brand-mark' }, h(Icon, { name: 'store', size: 18 })), h('span', { className: 'me-brand-name' }, 'Workspace'), h('small', null, 'ADMIN')),
         h('button', { className: 'me-global-search', onClick: openSearch, disabled: busy, 'aria-label': '搜索后台', 'aria-haspopup': 'dialog' }, h(Icon, { name: 'search', size: 16 }), h('span', null, '搜索'), h('kbd', null, /Mac|iPhone|iPad/.test(window.navigator.platform) ? '⌘ K' : 'Ctrl K')),

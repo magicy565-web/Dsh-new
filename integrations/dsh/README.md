@@ -9,7 +9,7 @@ DSH 是当前唯一的后续 Agent 执行宿主。这里的可选 bundle 由 DSH
 | `dsh-space-workspace` | `dsh-space-workspace` | 1.1.0 | Space 页面、分享、评论及任务设置记录 |
 | `dsh-sourcing-agent` | `@local/dsh-sourcing-agent` | 1.0.0 | 按需业务 skill 与模板，无自建阶段引擎 |
 | `dsh-workspace-memory` | `dsh-workspace-memory` | 0.1.0 | 经营记忆候选、人工审核、原生工作区隔离与来源召回 |
-| `dsh-mini-erp` | `dsh-mini-erp` | 0.4.0 | 完整 Admin 导航／页面，接通原库与现有账本；其他服务明确未接入 |
+| `dsh-mini-erp` | `dsh-mini-erp` | 0.4.1 | 完整 Admin 导航／页面，接通原库与现有账本；其他服务明确未接入 |
 | `dsh-inquiry-recovery` | `dsh-inquiry-recovery` | 0.1.0 | 可选询盘来源、身份及未发送草稿 |
 | `dsh-buyer-magazine` | `dsh-buyer-magazine` | 0.2.0 | 独立网站转杂志 Agent、完整 Skill、统一编译器与可选模块／ERP 适配 |
 

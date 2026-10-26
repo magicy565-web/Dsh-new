@@ -6,7 +6,7 @@
 
 采用 Shopify Admin 的资源导航、页头操作、筛选列表、主辅栏详情和分栏设置结构。参考官方归档 Polaris 文档：[资源列表](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/resource-index-layout/variants/default.mdx)、[资源详情](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/resource-details-layout/variants/default.mdx)、[应用设置](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/app-settings-layout/variants/default.mdx)。
 
-官方 React 仓库已归档，当前环境访问 Shopify 帮助站受限。这里交付既定范围的导航与页面结构，不声称与 2026 年 Shopify 每项功能或像素完全一致。未复制 Polaris 组件源码、商标或示例图片。当前界面使用 Radix Themes 3.3.0 与 Lucide React 1.61.0，应用 CSS 负责布局和少量密度调整；英文与数字内置 Inter 可变字体，中文使用本地系统字体栈。下方 0.3.x 为历史迭代记录，现行视觉以 0.4.0 为准。
+官方 React 仓库已归档，当前环境访问 Shopify 帮助站受限。这里交付既定范围的导航与页面结构，不声称与 2026 年 Shopify 每项功能或像素完全一致。未复制 Polaris 组件源码、商标或示例图片。当前界面使用 Radix Themes 3.3.0 与 Lucide React 1.61.0，应用 CSS 负责布局和少量密度调整；英文与数字内置 Inter 可变字体，中文使用本地系统字体栈。下方 0.3.x 为历史迭代记录，现行视觉以 0.4.1 为准。
 
 ## 页面与能力
 
@@ -82,3 +82,13 @@ Inter Latin variable 原始 WOFF2 子集来自 `@fontsource-variable/inter@5.3.0
 许可见插件内 `THIRD-PARTY-NOTICES.txt` 与 `INTER-OFL.txt`。生成产物保留在仓库，修改应落在 src，避免手改产物后被构建覆盖。
 
 本轮验收：223 项核心检查及六组 Client DOM 检查通过；真实 DSH Web 检查 43 页在 1440／768／390／375px 的布局，随后复查最终首页、商品／客户／订单／文件表单、设置、搜索和手机菜单。未发现页面横向溢出或运行异常。浅色／跟随 DSH 深色／深色及刷新后的偏好保留通过；对宿主的 HTML、body 与六个原生按钮，启用／禁用 ERP 样式前后的颜色、字体、圆角与颜色变量一致。仅代表抽查结果，不是完整无障碍认证。两个新版本原生包在干净临时目录离线安装，通过官方 Cordis／ToolRuntime／附件服务检查，无模型调用。截图来自真实空数据 profile。
+
+## 0.4.1 圆角与柔和边界
+
+按用户要求，核对 Shopify 官方归档 Polaris 的 [Card](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris-react/src/components/Card/Card.tsx)、[Button](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris-react/src/components/Button/Button.module.css) 与 [shadow tokens](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris-tokens/src/themes/base/shadow.ts)。其卡片默认使用 12px 圆角及 ShadowBevel，按钮使用 8px 圆角与轻微内缘高光。采用这种层次处理，并按用户要求加大本项目的圆润程度：卡片 16px、输入框／按钮 10px、搜索窗口 20px；不声称是 Shopify 的逐像素复制。
+
+修复上一轮组件 CSS 裁剪遗漏 `.radix-themes` 基础阴影变量的问题，确保保留共享样式定义。卡片本体、内部背景与边缘层共用同一圆角参数，避免外层圆角而内层仍呈小方角。卡片使用低对比度内缘高光和向外衰减的多层浅阴影；按钮有轻微高光与按下反馈。文字和数据区域不应用模糊滤镜。
+
+首页四个指标合并为一个圆角面板，内部分隔线两端淡出；设置任务改为内缩的圆角悬停区域。原库表单、内容卡片、列表、搜索及保存栏同步调整。保存栏仅对背景使用柔和渐变与背景模糊，保证内容清晰；键盘焦点和减少动态效果的系统偏好继续生效。没有新增业务逻辑、依赖或数据。
+
+本轮验收：核心检查 223/223、现有 Admin DOM 检查通过；真实 DSH Web／Chromium 检查 43 页在 1440／768／390／375px 下的布局，最终样式另复查 7 个页面和四类创建表单的桌面／手机布局，以及键盘搜索与手机菜单。浅色／跟随宿主／深色、刷新后的偏好保留和宿主样式隔离抽查通过。计算样式确认基础阴影变量保留、卡片外层 16px／内层 15px（内缩 1px）、按钮 10px；375px 无页面横向溢出，减少动态效果时过渡为 0s。两个原生包在干净目录离线安装并通过官方运行时检查。截图来自真实空数据 profile。

@@ -15,7 +15,9 @@ const themeDir = dirname(cssPath);
 const components = postcss.parse(await readFile(join(themeDir,'components.css'),'utf8'));
 components.walkRules(rule => {
   if (rule.parent.type === 'atrule' && /keyframes$/.test(rule.parent.name)) return;
-  if (!/\.rt-(?:reset|BaseButton|BaseCard|Button|Card|Badge|TextField|TextArea|Table|ScrollArea|Progress|Spinner|Flex|Tooltip)/.test(rule.selector)) rule.remove();
+  // Component-level theme rules define shared shadow/outline variables too.
+  // Dropping them leaves valid-looking controls with missing visual layers.
+  if (!/\.radix-themes|\.rt-(?:reset|BaseButton|BaseCard|Button|Card|Badge|TextField|TextArea|Table|ScrollArea|Progress|Spinner|Flex|Tooltip)/.test(rule.selector)) rule.remove();
 });
 const sheet = postcss.parse(await readFile(join(themeDir,'tokens.css'),'utf8') + '\n' + components.toString());
 // Theme colors must never change the host's :root or another plugin's .dark.

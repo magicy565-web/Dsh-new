@@ -1,5 +1,7 @@
 # 验证状态
 
+2026-10-27（Asia/Shanghai）：ERP 0.4.1 参考 Polaris 的圆角、内缘高光和浅阴影，统一卡片 16px、控件 10px，首页指标合并为一个面板；修复 Radix 基础阴影变量漏打包。223 项核心检查、Admin DOM、43 页四种宽度布局检查通过；最终样式另复查桌面／手机页面和表单，主题持久化、宿主样式隔离、圆角与阴影、减少动态效果及离线包安装通过。未新增业务数据或能力。范围和截图见 [ERP Admin 设计](docs/ERP-ADMIN-DESIGN.md)。
+
 2026-10-27（Asia/Shanghai）：ERP 0.4.0 实际接入 Radix Themes 3.3.0 与 Lucide 1.61.0，资料库 1.4.0 通过可选控件适配器复用原编辑器。223 项核心检查与六组 Client DOM 通过；真实 Chromium 43 页四种宽度、搜索／菜单／表单、主题持久化、宿主样式隔离抽查及两个原生包的干净目录离线安装通过。没有新增业务数据、交易模型或服务进程。当前视觉与构建方式见 [ERP Admin 设计](docs/ERP-ADMIN-DESIGN.md)。
 
 2026-10-27（Asia/Shanghai）：ERP Admin 0.3.3 统一标题、正文、说明和数字字号，随包内置 Inter Latin 可变字体。核心检查 223/223、现有 Admin DOM、原生包离线安装通过；真实 Chromium 对 43 页在 1440／768／390／375px 下无页面横向溢出或运行异常，字体审计确认内置 Inter 和中文粗体／常规体实际生效。范围与截图见 [ERP Admin 设计](docs/ERP-ADMIN-DESIGN.md)。
