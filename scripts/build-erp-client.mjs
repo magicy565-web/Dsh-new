@@ -58,7 +58,7 @@ for(const name of [...packages].sort()) {
   for(const filename of ['LICENSE','LICENSE.md','LICENSE.txt','license']) {license = await readFile(join(dir,filename),'utf8').catch(()=>null);if(license)break;}
   if(!license)license = await readFile(join(plugin,'licenses',name.replaceAll('/','-')+'-LICENSE'),'utf8').catch(()=>null);
   if(!license)throw new Error(`Missing license for bundled dependency ${name}`);
-  notices.push(`${name}@${pkg.version}\n${license}`);
+  notices.push(`${name}@${pkg.version}\n${license.replace(/\r\n/g,'\n').trimEnd()}`);
 }
 await changed(join(plugin,'THIRD-PARTY-NOTICES.txt'),notices.join('\n\n---\n\n')+'\n');
 console.log(`ERP Client: Radix Themes + Lucide, ${Math.round(Buffer.byteLength(output)/1024)} KiB, host React external, scoped inline CSS.`);
