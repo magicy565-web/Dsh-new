@@ -9,13 +9,14 @@ DSH 是当前唯一的后续 Agent 执行宿主。这里的六个当前 bundle �
 | `dsh-space-workspace` | `dsh-space-workspace` | 1.1.0 | Space 页面、分享、评论及任务设置记录 |
 | `dsh-sourcing-agent` | `@local/dsh-sourcing-agent` | 1.0.0 | 按需业务 skill 与模板，无自建阶段引擎 |
 | `dsh-workspace-memory` | `dsh-workspace-memory` | 0.1.0 | 经营记忆候选、人工审核、原生工作区隔离与来源召回 |
-| `dsh-mini-erp` | `dsh-mini-erp` | 0.1.0 | 简易本机 ERP，商品／买手／订单／供应名额 |
-| `dsh-inquiry-recovery` | `dsh-mini-erp` | `dsh-mini-erp` | 0.1.0 | 简易本机 ERP，商品／买手／订单／供应名额 |
-| `dsh-inquiry-recovery` | 0.1.0 | 可选询盘来源、身份及未发送草稿 |
+| `dsh-mini-erp` | `dsh-mini-erp` | 0.2.0 | 简易本机 ERP，商品／买手／订单／供应名额 |
+| `dsh-inquiry-recovery` | `dsh-inquiry-recovery` | 0.1.0 | 可选询盘来源、身份及未发送草稿 |
 
 这些既有实现不是通用底座的默认必备范围，收敛方向见 [清单](../../docs/SCOPE-REDUCTION.md)。
 
 可选的 [dsh-workspace-brand](dsh-workspace-brand/README.md) 通过原生主题与品牌槽位定制外观，不增加业务面板或执行宿主。它须单独安装；本轮独立预览 profile 的验证见 [原生品牌验收](../../docs/DSH-NATIVE-BRAND.md)。
+
+六个业务插件与品牌插件共同加载后的原生界面见 [完整插件预览](../../docs/DSH-PLUGIN-PREVIEW.md)。其中五个业务插件提供侧栏面板，Sourcing Agent 通过原生模式选择器提供预设与七个按需 Skill。
 
 按需在 DSH 内安装：
 
