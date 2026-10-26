@@ -22,3 +22,13 @@ Each product has `id`, `name`, `supplier`, `category`, `region`, `summary`, `buy
 For optional selected-content editions see MODULES.md. `composition:'modules'` is the normalized representation inside this same schema; it supports ordered blocks without inventing supplier dossiers or source URLs. The adapters preserve the documented legacy module JSON input. Both representations run through the same native validation and renderer.
 
 Call `buyer_magazine_validate_issue`, correct the actual input when invalid, then `buyer_magazine_generate`. The second tool returns a create-only workspace path. Call native `present({files:[{path:result.path,description:'买手杂志工作稿'}]})` separately and report its actual result. Never claim published, sent, or final-ready from generation alone.
+
+## Production design (0.3)
+
+For a finished website edition include the `design` object described in
+[design-production.md](references/design-production.md). Legacy drafts without
+it still compile but return `DESIGN_BRIEF_MISSING`, never production completion.
+Image objects additionally support fit and position. `editorial-reference` is
+restricted to attributed, non-generated source images with internal-reference
+distribution; it is not a publication license. Use user-declared permission for
+a user-provided owned/authorized site, and retain the declaration in the record.

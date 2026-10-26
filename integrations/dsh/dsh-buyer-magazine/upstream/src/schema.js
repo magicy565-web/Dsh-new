@@ -18,8 +18,9 @@ const date=s(10,10,v=>/^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(v+'T00:00:00Z').
 const timestamp=s(60,1,v=>Number.isFinite(Date.parse(v)));
 const filename=s(2048,1,v=>safePublicUrl(v)||/^assets\/[a-zA-Z0-9_./-]+$/.test(v)&&!v.split('/').includes('..'));
 const ident=s(120,1,v=>/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(v));
+const color=s(7,7,v=>/^#[a-fA-F0-9]{6}$/.test(v));
 const term=obj({value:choice(s(300),num()),unit:opt(s(80)),status:stat,sourceIds:ref});
-const image=obj({src:filename,alt:s(240,1),role:oneOf('editorial','product','illustration'),generated:literal(true),rights:oneOf('owned','licensed','permission','link-only','unknown'),sourceId:opt(s(120,1)),credit:opt(s(300)),caption:opt(s(300))});
+const image=obj({src:filename,alt:s(240,1),role:oneOf('editorial','product','illustration'),generated:literal(true),rights:oneOf('owned','licensed','permission','editorial-reference','link-only','unknown'),sourceId:opt(s(120,1)),credit:opt(s(300)),caption:opt(s(300)),fit:opt(oneOf('contain','cover')),position:opt(oneOf('center','top','bottom','left','right'))});
 // Generated can be true/false, never an inferred string truthiness.
 image.fields.generated={type:'boolean'};
 const cta=obj({label:s(120,1),type:oneOf('source','inquiry','sample'),url:https});
@@ -30,9 +31,9 @@ const product=obj({
   moq:term,leadTime:term,sourceIds:ref,cta,sponsored:opt(obj({label:s(80,1),sponsor:s(160,1)})),
 });
 const shape=obj({
-  schemaVersion:literal('1.0'),composition:opt(oneOf('studio','modules')),blocks:opt(arr({type:'module-block'},60,1)),id:ident,edition:s(80,1),title:s(160,1),subtitle:s(240),date:choice(date,literal('')),
+  schemaVersion:literal('1.0'),design:opt(obj({brand:s(100,1),reader:s(200,1),editorialGoal:s(400,1),visualConcept:s(600,1),brandSourceIds:ref,imageTreatment:oneOf('photographic','text-led'),distribution:oneOf('internal-reference','licensed-publication'),textLedRequested:{type:'boolean'},fontStyle:oneOf('editorial','modern'),palette:obj({paper:color,surface:color,ink:color,accent:color})})),composition:opt(oneOf('studio','modules','web-card')),webCard:opt(obj({tone:oneOf('Vogue/High-Fashion','Kinfolk/Minimalist','Monocle/B2B-Craft','Architectural-Digest','Loewe/Monograph','032c/Technical-Archive'),archetype:opt(oneOf('kinfolk','loewe','monocle','archive032c')),craftStages:opt(arr(obj({title:s(120,1),body:s(500,1),sourceIds:ref}),5,1)),issueTag:s(120,1),locationStamp:s(160),pullQuote:obj({text:s(360,1),kind:oneOf('editorial','source'),sourceIds:ref}),metrics:arr(obj({value:s(60,1),label:s(100,1),sourceIds:ref}),3),cta:obj({title:s(180,1),body:s(500,1),label:s(100,1),mode:oneOf('contact-link','download-brief'),url:opt(https),sourceIds:ref})})),blocks:opt(arr({type:'module-block'},60,1)),id:ident,edition:s(80,1),title:s(160,1),subtitle:s(240),date:choice(date,literal('')),
   locale:oneOf('en','zh-CN'),market:s(120,1),theme:oneOf('porcelain','atelier','foundry','fieldnotes'),demo:{type:'boolean'},
-  cover:obj({kicker:s(120,1),headline:s(180,1),dek:s(700,1),image:opt(nul(image))}),
+  cover:obj({kicker:s(120,1),headline:s(180,1),headlineLines:opt(arr(obj({text:s(180,1),voice:oneOf('roman','italic','sans')}),3,2)),dek:s(700,1),image:opt(nul(image))}),
   editorNote:s(1600),highlights:arr(obj({label:s(100,1),text:s(400,1)}),4),products:arr(product,6),
   sources:arr(obj({id:s(120,1),url:https,title:s(240,1),publisher:s(160,1),accessedAt:timestamp,kind:oneOf('supplier','retailer','third-party','internal'),excerpt:opt(s(1600)),contentHash:opt(s(128))}),60),
   insights:arr(obj({title:s(160,1),body:s(1200,1),kind:oneOf('observation','inference'),sourceIds:ref}),5),
@@ -120,10 +121,23 @@ export function validateIssue(input,{now=new Date(),throwOnError=false}={}) {
       if(!im)return;
       if(['unknown','link-only'].includes(im.rights))errors.push({path,message:'Image reuse permission is unresolved; omit image and link to the source'});
       if(im.role==='product'&&im.generated)errors.push({path,message:'Generated images cannot serve as product evidence; use editorial or illustration role'});
+      if(im.rights==='editorial-reference' && (issue.design?.distribution!=='internal-reference' || im.generated || !im.sourceId || !im.credit || !im.caption))errors.push({path,message:'Editorial reference images require internal-reference distribution, original source, attribution and caption; this does not grant reuse permission'});
       if(im.sourceId)checkRefs([im.sourceId],path+'.sourceId');
       if(!issue.demo && im.role==='product' && !im.sourceId)errors.push({path,message:'Product images need a source record'});
     };
     checkImage(issue.cover.image,'cover.image');
+    if(issue.design)checkRefs(issue.design.brandSourceIds,'design.brandSourceIds',true);
+    if(issue.composition==='web-card'){
+      if(!issue.webCard||!issue.design||issue.products.length>3)errors.push({path:'webCard',message:'Web card requires a design brief, card content and 1–3 curated showcases'});
+      if(issue.webCard){
+        if(issue.cover.headlineLines && issue.cover.headlineLines.map(x=>x.text).join('').replace(/\s/g,'')!==issue.cover.headline.replace(/\s/g,''))errors.push({path:'cover.headlineLines',message:'Headline lockup must preserve the exact headline wording'});
+        issue.webCard.craftStages?.forEach((step,i)=>checkRefs(step.sourceIds,`webCard.craftStages.${i}.sourceIds`,true));
+        checkRefs(issue.webCard.pullQuote.sourceIds,'webCard.pullQuote.sourceIds',issue.webCard.pullQuote.kind==='source');
+        issue.webCard.metrics.forEach((m,i)=>checkRefs(m.sourceIds,`webCard.metrics.${i}.sourceIds`,true));
+        checkRefs(issue.webCard.cta.sourceIds,'webCard.cta.sourceIds',issue.webCard.cta.mode==='contact-link');
+        if(issue.webCard.cta.mode==='contact-link'&&!issue.webCard.cta.url)errors.push({path:'webCard.cta.url',message:'A contact action requires an actual URL'});
+      }
+    }else if(issue.webCard)errors.push({path:'webCard',message:'Card content requires web-card composition'});
     issue.products.forEach((p,i)=>{
       const path=`products.${i}`;
       if(productIds.has(p.id))errors.push({path:path+'.id',message:'Duplicate product id'});productIds.add(p.id);

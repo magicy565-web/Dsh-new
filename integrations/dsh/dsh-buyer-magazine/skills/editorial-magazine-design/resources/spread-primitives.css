@@ -1,0 +1,184 @@
+/* ==========================================================================
+   UNIVERSAL EDITORIAL MAGAZINE & LOOKBOOK CSS PRIMITIVES
+   Reusable layout, texture, and tactile print classes for web applications
+   ========================================================================== */
+
+/* 1. Global SVG Paper Grain Overlay */
+.editorial-paper-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.036;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* 2. Dual-Mode Magazine Spread Sheet & 3D Book Spine Gutter */
+.magazine-sheet {
+  position: relative;
+  background-color: var(--paper-primary, #F4F0EA);
+  color: var(--ink-primary, #141312);
+  box-shadow:
+    0 30px 90px -20px rgba(12, 11, 10, 0.22),
+    0 2px 6px rgba(12, 11, 10, 0.06),
+    4px 0 0 -1px #EAE4D9,
+    8px 0 0 -2px #DFD8CA,
+    12px 0 0 -3px #D2C9B8;
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 1024px) {
+  .book-spine-gutter::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 64px;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 35;
+    background: linear-gradient(
+      90deg,
+      rgba(20, 19, 18, 0) 0%,
+      rgba(20, 19, 18, 0.03) 35%,
+      rgba(20, 19, 18, 0.13) 48%,
+      rgba(255, 255, 255, 0.28) 50%,
+      rgba(20, 19, 18, 0.10) 52%,
+      rgba(20, 19, 18, 0.02) 65%,
+      rgba(20, 19, 18, 0) 100%
+    );
+  }
+}
+
+/* 3. Z-Axis Typographic Overlap & Hollow Outline Numerals */
+.editorial-overlap-left {
+  position: relative;
+  z-index: 30;
+}
+
+@media (min-width: 1024px) {
+  .editorial-overlap-left {
+    margin-left: -4.5rem;
+  }
+}
+
+.editorial-stroke-numeral {
+  font-family: var(--font-display, serif);
+  font-style: italic;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(20, 19, 18, 0.22);
+  user-select: none;
+  pointer-events: none;
+}
+
+.editorial-stroke-numeral-light {
+  font-family: var(--font-display, serif);
+  font-style: italic;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(244, 240, 234, 0.24);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 4. Editorial Three-Line Drop Cap & Vertical Running Head */
+.editorial-dropcap::first-letter {
+  float: left;
+  font-family: var(--font-display, serif);
+  font-size: 3.7rem;
+  line-height: 0.78;
+  padding-top: 4px;
+  padding-right: 14px;
+  padding-bottom: 2px;
+  color: var(--ink-primary, #141312);
+  font-weight: 400;
+}
+
+.editorial-running-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.28em;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+/* 5. Translucent Vellum Tracing Overlay (Blueprint / Anatomy Sheet) */
+.vellum-tracing-overlay {
+  background: rgba(246, 242, 233, 0.84);
+  backdrop-filter: blur(6px) saturate(110%);
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
+  background-image: radial-gradient(rgba(20, 19, 18, 0.12) 1px, transparent 1px);
+  background-size: 18px 18px;
+  box-shadow: inset 0 0 40px rgba(210, 198, 178, 0.45);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vellum-tracing-overlay.is-peeled {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-16px) rotate(-1.5deg) scale(0.98);
+}
+
+/* 6. Slow Gallery Image Zoom & Optical Macro Loupe */
+.editorial-photo-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.editorial-photo-frame img {
+  transition: transform 1.6s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.9s ease;
+}
+
+.editorial-photo-frame:hover img {
+  transform: scale(1.035);
+}
+
+.optical-macro-loupe {
+  width: 176px;
+  height: 176px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 24px 54px rgba(0, 0, 0, 0.48),
+    inset 0 0 18px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  background-repeat: no-repeat;
+  transition: opacity 0.25s ease;
+}
+
+/* 7. Tear-Out Postcard Insert & 3D Cinnabar Wax Seal */
+.tear-out-postcard {
+  background: #FBF8F3;
+  box-shadow:
+    0 24px 60px -15px rgba(20, 19, 18, 0.22),
+    0 2px 8px rgba(20, 19, 18, 0.08);
+  transform: rotate(-1.15deg);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tear-out-postcard:hover {
+  transform: rotate(0deg) translateY(-3px);
+  box-shadow:
+    0 32px 72px -15px rgba(20, 19, 18, 0.28),
+    0 4px 12px rgba(20, 19, 18, 0.10);
+}
+
+.perforated-edge-top {
+  background-image: radial-gradient(circle, var(--paper-primary, #F4F0EA) 4px, transparent 4.5px);
+  background-size: 16px 16px;
+  background-position: center -8px;
+  background-repeat: repeat-x;
+}
+
+.cinnabar-wax-seal {
+  background: radial-gradient(circle at 32% 30%, #C83E31 0%, #9E2318 62%, #6B140C 100%);
+  box-shadow:
+    0 8px 22px rgba(158, 35, 24, 0.45),
+    inset 0 2px 5px rgba(255, 190, 180, 0.42),
+    inset 0 -3px 6px rgba(60, 8, 4, 0.72);
+}

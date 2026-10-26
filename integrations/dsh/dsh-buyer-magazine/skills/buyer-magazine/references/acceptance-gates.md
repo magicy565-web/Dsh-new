@@ -38,7 +38,7 @@ restricted procurement data.
 ### 2. Image and art-direction gate
 
 - A documentary photograph identifies the correct SKU/variant and has a recorded
-  reuse basis. Inspect originals and final crops; generated art must be visibly
+  authorization statement or an explicitly internal, attributed reference scope. Inspect originals and final crops; generated art must be visibly
   labelled and must not substitute for evidence.
 - Inspect the first screen at thumbnail and reading sizes: product/category and
   editorial angle must be recognizable. A large `THE RECORD` fallback means
@@ -92,3 +92,12 @@ Stop when the requested surface's gates are observed and delivery status is know
 or when a specific missing input/authorization/tool blocks progress. Report the
 exact action, target and reason plus completed work; do not repeatedly re-run an
 unavailable operation or invent unrelated infrastructure.
+
+## 0.3 production correction
+
+These gates are mandatory for the requested finished publication. A draft preview
+may be shared while repairing, but does not terminate the task. Use the built-in
+buyer_magazine_review screenshots; inspect their pixels through the native image
+route. Mechanical status `observed` is not a visual approval. Record concrete
+observations and repairs for the same HTML SHA. The default requested deliverable
+uses the user's own/authorized source images; do not substitute a no-image draft.

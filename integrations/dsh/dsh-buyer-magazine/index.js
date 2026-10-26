@@ -4,8 +4,8 @@ import { failure } from './src/core.js';
 
 export const name = 'dsh-buyer-magazine';
 export const inject = ['tools', 'fs', 'workingDirectory', 'sandboxPolicy'];
-export function apply(ctx) {
-  for (const tool of magazineTools(ctx)) {
+export function apply(ctx, config = {}) {
+  for (const tool of magazineTools(ctx, config)) {
     ctx.tools.register({
       ...tool,
       async execute(args, exec) {

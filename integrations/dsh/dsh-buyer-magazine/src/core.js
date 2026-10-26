@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { validateIssue, safePublicUrl } from '../upstream/src/schema.js';
 import { renderMagazine } from '../upstream/src/render.js';
+import { productionReadiness } from './production.js';
 import { normalizeIssue } from './adapters/module-issue.js';
 
 export const MAX_INPUT_BYTES = 256 * 1024;
@@ -25,7 +26,7 @@ export function failure(error) {
   return { code: 'MAGAZINE_FAILED', message: FAILURES.MAGAZINE_FAILED };
 }
 function checkpoint(signal) { if (signal?.aborted) fail('MAGAZINE_CANCELLED'); }
-const publicFields = new Set(('schemaVersion composition blocks id edition title subtitle date locale market theme demo cover kicker headline dek image editorNote highlights label text products sources insights dataNotes provenance mode collectedAt provider name supplier category region summary buyerFit watchout specs key value unit status sourceIds visibility asOf price kind amount currency basis minQty moq leadTime cta type url sponsored sponsor src alt role generated rights sourceId credit caption publisher accessedAt excerpt contentHash body data evidence product features imageUrl imageAlt imageRights imageGenerated productUrl buyerContext reasons unknowns signals interpretation uncertainties timing availability comparables period channel revenue measurement source comparability salePrice purchaseCost freight duty otherCost channelFeeRate assumptions columns rows caveats terms actionUrl territory term conditions slots').split(' '));
+const publicFields = new Set(('headlineLines voice text archetype craftStages webCard tone issueTag locationStamp pullQuote metrics title body label mode design brand reader editorialGoal visualConcept brandSourceIds imageTreatment distribution textLedRequested fontStyle palette paper surface ink accent fit position schemaVersion composition blocks id edition title subtitle date locale market theme demo cover kicker headline dek image editorNote highlights label text products sources insights dataNotes provenance mode collectedAt provider name supplier category region summary buyerFit watchout specs key value unit status sourceIds visibility asOf price kind amount currency basis minQty moq leadTime cta type url sponsored sponsor src alt role generated rights sourceId credit caption publisher accessedAt excerpt contentHash body data evidence product features imageUrl imageAlt imageRights imageGenerated productUrl buyerContext reasons unknowns signals interpretation uncertainties timing availability comparables period channel revenue measurement source comparability salePrice purchaseCost freight duty otherCost channelFeeRate assumptions columns rows caveats terms actionUrl territory term conditions slots').split(' '));
 function publicIssue(error) {
   const parts = String(error.path).split('.');
   const path = parts.every(part => publicFields.has(part) || /^\d{1,3}$/.test(part)) ? parts.join('.') : 'issue';
@@ -63,7 +64,8 @@ export function compileDraft(issueJson, { now = new Date(), signal } = {}) {
   const issue = report.issue;
   // Preserve the attributed Studio template plus documented price-text patches;
   // the compiler itself adds only the explicit draft banner.
-  const html = renderMagazine(issue).replace('<body>', '<body><div class="demo-notice">DRAFT FOR REVIEW · Not sent · Not supplier qualification or purchase approval</div>');
+  const banner = issue.locale === 'zh-CN' ? '审阅稿 · 未发送 · 不代表供应商资质或采购审批' : 'DRAFT FOR REVIEW · Not sent · Not supplier qualification or purchase approval';
+  const html = renderMagazine(issue).replace('<body>', `<body><div class="demo-notice">${banner}</div>`);
   const data = Buffer.from(html, 'utf8');
   if (data.byteLength > MAX_HTML_BYTES) fail('MAGAZINE_OUTPUT_TOO_LARGE');
   checkpoint(signal);
@@ -72,6 +74,6 @@ export function compileDraft(issueJson, { now = new Date(), signal } = {}) {
   const name = `buyer-magazine-${id}-${sha256.slice(0, 12)}.html`;
   const imageCount = [issue.cover.image, ...issue.products.map(product => product.image), ...(issue.blocks ?? []).map(b => b.data.imageUrl)].filter(Boolean).length;
   return { data, name, sha256, productCount: issue.products.length, sourceCount: issue.sources.length,
-    externalImageCount: imageCount, warningCount: report.warningCount, draftOnly: true };
+    externalImageCount: imageCount, warningCount: report.warningCount, draftOnly: true, readiness: productionReadiness(issue) };
 }
 

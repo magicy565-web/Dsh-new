@@ -1,0 +1,38 @@
+{
+  "name": "Luxury Editorial Web-Card Skill Pack",
+  "version": "0.3.0",
+  "entry": "ai-media-kinetic-commerce",
+  "compatibilityEntry": "buyer-magazine",
+  "defaultComposition": "web-card",
+  "skills": [
+    {
+      "name": "editorial-magazine-design",
+      "path": "skills/editorial-magazine-design/SKILL.md"
+    },
+    {
+      "name": "editorial-typography-system",
+      "path": "skills/editorial-typography-system/SKILL.md"
+    },
+    {
+      "name": "apify-ecommerce-intelligence",
+      "path": "skills/apify-ecommerce-intelligence/SKILL.md"
+    },
+    {
+      "name": "ai-media-kinetic-commerce",
+      "path": "skills/ai-media-kinetic-commerce/SKILL.md"
+    }
+  ],
+  "tools": [
+    "buyer_magazine_validate_issue",
+    "buyer_magazine_generate",
+    "buyer_magazine_review"
+  ],
+  "source": "User supplied luxury_ecommerce_skills_package.zip",
+  "runtime": "DeepSeek Harness; one compiler; no separate Agent host",
+  "externalIntegrations": {
+    "apify": "requires configured native provider; native web_fetch available",
+    "fastai": "reference only until configured host image tool",
+    "video": "request-only, no automatic generation",
+    "leadSubmission": "actual contact link or local brief; no fake webhook"
+  }
+}

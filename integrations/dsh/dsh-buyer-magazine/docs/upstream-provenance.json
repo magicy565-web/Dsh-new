@@ -9,17 +9,24 @@
       "bytes": 12980,
       "sha256": "94fe3f8e20dd8d9f76bdf92a030ac53281501b0dd573aa805b4bd875ba89816e",
       "patch": {
-        "id": "shared-composition-20261027",
-        "bytes": 14429,
-        "sha256": "992282607436f8e92e338d05908069933cb57aafc051e6767c460287df459adf",
-        "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer.",
-        "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions.",
+        "id": "designed-production-0.3",
+        "bytes": 17346,
+        "sha256": "bbca6030ec134b0a9d4d24ada91a26b0523cecab96cf4023bdd5bbfea4bb38a5",
+        "reason": "Preserve existing price/source rules; one canonical renderer with branded design, Chinese chrome, user-supplied four-Skill resource integration and five-spread interactive web-card composition.",
+        "acceptance": "test/production.test.mjs, native SDK and browser review",
         "previousPatch": {
-          "id": "price-status-20261026",
-          "bytes": 13175,
-          "sha256": "b3c2841c7b528ddc71ce713ad1d10e7273be183a77e50f36f883e23dc572c6c0",
-          "reason": "Require unknown/request-quote price kinds to retain unknown status; reject unsupported verified or supplier-stated price labels.",
-          "acceptance": "test/price-evidence-status.test.mjs; synthetic pure Node, not source authenticity or live Host acceptance."
+          "id": "shared-composition-20261027",
+          "bytes": 14429,
+          "sha256": "992282607436f8e92e338d05908069933cb57aafc051e6767c460287df459adf",
+          "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer.",
+          "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions.",
+          "previousPatch": {
+            "id": "price-status-20261026",
+            "bytes": 13175,
+            "sha256": "b3c2841c7b528ddc71ce713ad1d10e7273be183a77e50f36f883e23dc572c6c0",
+            "reason": "Require unknown/request-quote price kinds to retain unknown status; reject unsupported verified or supplier-stated price labels.",
+            "acceptance": "test/price-evidence-status.test.mjs; synthetic pure Node, not source authenticity or live Host acceptance."
+          }
         }
       }
     },
@@ -29,17 +36,24 @@
       "bytes": 32131,
       "sha256": "efefe87bb0980b192a2e034e50dbbae880be50d71a5bf442b7c7c288adc19bf1",
       "patch": {
-        "id": "shared-composition-20261027",
-        "bytes": 33753,
-        "sha256": "74475ac1b860fcc8b32019589ba6a473ae77e34811d0850bcc0c038ae2601d41",
-        "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer.",
-        "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions.",
+        "id": "designed-production-0.3",
+        "bytes": 35387,
+        "sha256": "3310799a330a3958883189e9c9ac44d0c959138fb3072e0462dbb1c2cc40792f",
+        "reason": "Preserve existing price/source rules; one canonical renderer with branded design, Chinese chrome, user-supplied four-Skill resource integration and five-spread interactive web-card composition.",
+        "acceptance": "test/production.test.mjs, native SDK and browser review",
         "previousPatch": {
-          "id": "price-context-20261026",
-          "bytes": 32582,
-          "sha256": "429e877795b6639795d31f20ebd20c2c528d1586fc95963e2e5e145d2c10263c",
-          "reason": "Preserve source-text price amounts without numeric coercion; retain retail-only or complete wholesale price basis and quote quantity conditions in every price summary.",
-          "acceptance": "test/price-text.test.mjs and optional dev/artifact-interactions.mjs; DOM simulation, not browser or Host acceptance."
+          "id": "shared-composition-20261027",
+          "bytes": 33753,
+          "sha256": "74475ac1b860fcc8b32019589ba6a473ae77e34811d0850bcc0c038ae2601d41",
+          "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer.",
+          "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions.",
+          "previousPatch": {
+            "id": "price-context-20261026",
+            "bytes": 32582,
+            "sha256": "429e877795b6639795d31f20ebd20c2c528d1586fc95963e2e5e145d2c10263c",
+            "reason": "Preserve source-text price amounts without numeric coercion; retain retail-only or complete wholesale price basis and quote quantity conditions in every price summary.",
+            "acceptance": "test/price-text.test.mjs and optional dev/artifact-interactions.mjs; DOM simulation, not browser or Host acceptance."
+          }
         }
       }
     },
@@ -55,11 +69,18 @@
       "bytes": 47683,
       "sha256": "f86c2fb61d389c3374a3611ca8bc687234746d2d583f39adb07462331205a922",
       "patch": {
-        "id": "shared-composition-20261027",
-        "bytes": 49933,
-        "sha256": "ff4f49f543df6e12e8f6775239fc18be73e0fd305e9c6fb87f3fa19c1048b86b",
-        "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer. Responsive wordmarks wrap long mixed-language issue titles instead of overflowing a narrow preview.",
-        "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions."
+        "id": "designed-production-0.3",
+        "bytes": 50498,
+        "sha256": "f6e3fec6d20f12756135d96621015a5a048aadb219c3d4a9c6efcd6ab69353c1",
+        "reason": "Preserve existing price/source rules. Shared design fields, image framing, attributed internal-reference scope, Chinese chrome and print typography; original evidence and native draft boundaries retained.",
+        "acceptance": "test/production.test.mjs and actual native browser review",
+        "previousPatch": {
+          "id": "shared-composition-20261027",
+          "bytes": 49933,
+          "sha256": "ff4f49f543df6e12e8f6775239fc18be73e0fd305e9c6fb87f3fa19c1048b86b",
+          "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer. Responsive wordmarks wrap long mixed-language issue titles instead of overflowing a narrow preview.",
+          "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions."
+        }
       }
     },
     {
@@ -68,11 +89,18 @@
       "bytes": 13144,
       "sha256": "18b2318d2297b21738a940f4ea23217facfaf8b063cb886b0b09df8abc93d620",
       "patch": {
-        "id": "price-context-and-request-sources-20261026",
-        "bytes": 13855,
-        "sha256": "9e595ae87585281467dc1a19d998bb7d410af9741a851d219e9559961ac1847e",
-        "reason": "Preserve source-text price amounts without numeric coercion; retain retail-only or complete wholesale price basis and quote quantity conditions in every price summary. Preserve stable deduplicated product and exported-field evidence references in downloaded request briefs.",
-        "acceptance": "test/price-text.test.mjs and optional dev/artifact-interactions.mjs; DOM simulation, not browser or Host acceptance."
+        "id": "designed-production-0.3",
+        "bytes": 19357,
+        "sha256": "5ce4392ecdfec0cff67893ffe6b1d2d155e7c394600907b0642b2559b90c7b0e",
+        "reason": "Preserve existing price/source rules; one canonical renderer with branded design, Chinese chrome, user-supplied four-Skill resource integration and five-spread interactive web-card composition.",
+        "acceptance": "test/production.test.mjs, native SDK and browser review",
+        "previousPatch": {
+          "id": "price-context-and-request-sources-20261026",
+          "bytes": 13855,
+          "sha256": "9e595ae87585281467dc1a19d998bb7d410af9741a851d219e9559961ac1847e",
+          "reason": "Preserve source-text price amounts without numeric coercion; retain retail-only or complete wholesale price basis and quote quantity conditions in every price summary. Preserve stable deduplicated product and exported-field evidence references in downloaded request briefs.",
+          "acceptance": "test/price-text.test.mjs and optional dev/artifact-interactions.mjs; DOM simulation, not browser or Host acceptance."
+        }
       }
     },
     {

@@ -1,0 +1,97 @@
+{
+  "source": "user-upload: luxury_ecommerce_skills_package.zip",
+  "sourceSha256": "e25905a5de0cf9ec27f6639bbce772ef9f17b1dc3e67a8c9254096d4be97d53b",
+  "files": [
+    {
+      "archivePath": "luxury_ecommerce_skills_package/README.md",
+      "target": "docs/user-skill-pack-README.md",
+      "bytes": 1736,
+      "sha256": "b10056b8f596a5be073f0edcb16812e25d73af06944c12a68f7f42666d12b886"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-magazine-design/SKILL.md",
+      "target": "skills/editorial-magazine-design/upstream/SKILL.original.md",
+      "bytes": 9533,
+      "sha256": "a4aa1ffa25d2c2ad945eba3a1e79db8a89bc3949c5b955b805a97b6a5bdf402c"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-magazine-design/resources/archetypes-tokens.md",
+      "target": "skills/editorial-magazine-design/resources/archetypes-tokens.md",
+      "bytes": 6127,
+      "sha256": "78170d679cba09e4a7c3686434e1f8a98d4b299afe85e174af135c07e42fef58"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-magazine-design/resources/editorial-commerce.md",
+      "target": "skills/editorial-magazine-design/resources/editorial-commerce.md",
+      "bytes": 3981,
+      "sha256": "a64cef77f2d98ba3e6ad3573d99fbe958295f2b88288dd1be157ae76b294c072"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-magazine-design/resources/spread-primitives.css",
+      "target": "skills/editorial-magazine-design/resources/spread-primitives.css",
+      "bytes": 5279,
+      "sha256": "21a3dfaf514bf97abda021337cb5355deb178654f43fe3aaa3ed39ba3dc0a08e"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-typography-system/SKILL.md",
+      "target": "skills/editorial-typography-system/upstream/SKILL.original.md",
+      "bytes": 9362,
+      "sha256": "ede2c08df4799bbed4eb7cbf22e98f6412dddeb515a9c49094e69a1d7c991f26"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-typography-system/resources/font-pairings-and-scales.md",
+      "target": "skills/editorial-typography-system/resources/font-pairings-and-scales.md",
+      "bytes": 5222,
+      "sha256": "7783a8c8de5f13c5e1ec7d7f7b5eb8761696273ce8d66990d7757cdfd5e4aa39"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-typography-system/resources/font-pairings-cjk.md",
+      "target": "skills/editorial-typography-system/resources/font-pairings-cjk.md",
+      "bytes": 4609,
+      "sha256": "e709aee778bb6aaa6f77446503d5959f1d077ca61f2493ba849f270a045d8e33"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-typography-system/resources/html-lockup-patterns.md",
+      "target": "skills/editorial-typography-system/resources/html-lockup-patterns.md",
+      "bytes": 3083,
+      "sha256": "a916c457d60855ed27ba1e2ce317263edca4ea63a936566f8e36e372e8c225a8"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-typography-system/resources/lockup-patterns.md",
+      "target": "skills/editorial-typography-system/resources/lockup-patterns.md",
+      "bytes": 4979,
+      "sha256": "75bdbfa0bd6a01af2117658cc66118e66022994ee820ee83d0a0cce667367118"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/editorial-typography-system/resources/typographic-primitives.css",
+      "target": "skills/editorial-typography-system/resources/typographic-primitives.css",
+      "bytes": 7550,
+      "sha256": "dbfb042dc44f47efc26e140ff1d6a24510d7d08c392866a1cd0f4b028d09f35a"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/ai-media-kinetic-commerce/SKILL.md",
+      "target": "skills/ai-media-kinetic-commerce/upstream/SKILL.original.md",
+      "bytes": 2497,
+      "sha256": "7f07908a0f495bdda43fe87bd4b262a078cfa127f0c8986941015e0db37b0ec0"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/ai-media-kinetic-commerce/scripts/fastai_image_relay.py",
+      "target": "skills/ai-media-kinetic-commerce/scripts/fastai_image_relay.py",
+      "bytes": 825,
+      "sha256": "040a55f8667e9852e24d5e4f1cf0414b78bc48511a91c823d9cd56ef79171755"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/apify-ecommerce-intelligence/SKILL.md",
+      "target": "skills/apify-ecommerce-intelligence/upstream/SKILL.original.md",
+      "bytes": 1476,
+      "sha256": "7094f51eee86ab6f9a2a8aa60143a169ffb50062d24cf5a84d7e230b07a4270e"
+    },
+    {
+      "archivePath": "luxury_ecommerce_skills_package/apify-ecommerce-intelligence/scripts/apify_rotation_scraper.py",
+      "target": "skills/apify-ecommerce-intelligence/scripts/apify_rotation_scraper.py",
+      "bytes": 1234,
+      "sha256": "c32ff708515f6743f687b9cd1321ae7a7056c8e87ea64c03c22b2c74ee189456"
+    }
+  ],
+  "integration": "Original source preserved; DSH wrappers are separate and explicitly adapt unavailable external services."
+}

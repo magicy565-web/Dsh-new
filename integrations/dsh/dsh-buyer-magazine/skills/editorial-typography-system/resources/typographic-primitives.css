@@ -1,0 +1,289 @@
+/* ==========================================================================
+   EDITORIAL TYPOGRAPHY SYSTEM - PRODUCTION CSS PRIMITIVES
+   Multi-voice headlines, OpenType tables, architectural numerals & ink filters
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. OPENTYPE MICRO-TYPOGRAPHY ENGINE
+   -------------------------------------------------------------------------- */
+.ot-display {
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  font-feature-settings: "kern" 1, "liga" 1, "dlig" 1, "calt" 1, "swsh" 1;
+  text-wrap: balance;
+}
+
+.ot-prose {
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  font-feature-settings: "kern" 1, "liga" 1, "onum" 1, "pnum" 1;
+  text-wrap: pretty;
+  hanging-punctuation: first allow-end last;
+}
+
+.ot-tabular {
+  font-variant-numeric: lining-nums tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1;
+}
+
+.ot-smallcaps {
+  font-variant-caps: all-small-caps;
+  font-feature-settings: "smcp" 1, "c2sc" 1;
+  letter-spacing: var(--tracking-smallcaps, 0.14em);
+}
+
+.ot-cjk-halt {
+  font-feature-settings: "halt" 1, "palt" 1;
+  font-style: normal !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. MULTI-VOICE HEADLINE CHOREOGRAPHY & STAIRCASE LOCKUPS
+   -------------------------------------------------------------------------- */
+.typo-staircase {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--leading-display, 0.88);
+  letter-spacing: var(--tracking-display, -0.028em);
+}
+
+.typo-staircase-line-1 {
+  align-self: flex-start;
+}
+
+.typo-staircase-line-2 {
+  align-self: flex-start;
+  padding-left: clamp(1.5rem, 7vw, 5.5rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.typo-staircase-line-3 {
+  align-self: flex-end;
+  text-align: right;
+}
+
+/* Contrasting inline voices inside a single headline */
+.voice-didone-upright {
+  font-family: var(--font-display-didone, 'Bodoni Moda', serif);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.voice-serif-italic {
+  font-family: var(--font-editorial-prose, 'Cormorant Garamond', serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.08em;
+  letter-spacing: -0.015em;
+  padding-right: 0.06em;
+}
+
+.voice-grotesque-caps {
+  font-family: var(--font-grotesque, 'Syne', sans-serif);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.52em;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  vertical-align: middle;
+}
+
+.voice-cjk-song {
+  font-family: var(--font-cjk-song, 'Noto Serif SC', serif);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.86em;
+  letter-spacing: 0.05em;
+  vertical-align: 0.03em;
+}
+
+/* Inline Architectural Furniture inside Headlines */
+.typo-rule-bridge {
+  display: inline-block;
+  width: clamp(1.8rem, 4.5vw, 4.2rem);
+  height: 1px;
+  background-color: currentColor;
+  vertical-align: middle;
+  margin: 0 0.28em;
+  opacity: 0.65;
+  transform: translateY(-0.08em);
+}
+
+.typo-sup-index {
+  font-family: var(--font-mono-archive, 'JetBrains Mono', monospace);
+  font-size: 0.22em;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  vertical-align: top;
+  position: relative;
+  top: 0.35em;
+  margin-left: 0.25em;
+  color: var(--ink-spot, #C8281E);
+}
+
+.typo-circled-word {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  padding: 0.04em 0.42em 0.1em;
+  font-size: 0.76em;
+  line-height: 1;
+  vertical-align: 0.06em;
+}
+
+/* --------------------------------------------------------------------------
+   3. ARCHITECTURAL NUMERALS & COUTURE PRICE LOCKUPS
+   -------------------------------------------------------------------------- */
+.typo-price-couture {
+  display: inline-flex;
+  align-items: flex-start;
+  font-family: var(--font-display-didone, 'Bodoni Moda', serif);
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+}
+
+.typo-price-couture .price-currency {
+  font-size: 0.48em;
+  font-family: var(--font-mono-archive, monospace);
+  margin-right: 0.15em;
+  margin-top: 0.12em;
+  opacity: 0.75;
+}
+
+.typo-price-couture .price-integer {
+  font-size: 1em;
+  font-weight: 500;
+}
+
+.typo-price-couture .price-cents {
+  font-size: 0.44em;
+  font-family: var(--font-mono-archive, monospace);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  margin-left: 0.12em;
+  margin-top: 0.1em;
+}
+
+.typo-fraction-index {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-display-didone, serif);
+  font-variant-numeric: lining-nums;
+}
+
+.typo-fraction-index .frac-num {
+  font-size: 0.85em;
+  transform: translateY(-0.28em);
+}
+
+.typo-fraction-index .frac-slash {
+  font-size: 1.25em;
+  font-style: italic;
+  margin: 0 0.08em;
+  opacity: 0.45;
+  transform: rotate(12deg);
+}
+
+.typo-fraction-index .frac-den {
+  font-size: 0.65em;
+  font-family: var(--font-mono-archive, monospace);
+  transform: translateY(0.28em);
+  opacity: 0.7;
+}
+
+.typo-cropped-monolith {
+  font-family: var(--font-display-didone, serif);
+  font-size: var(--type-monolith, clamp(5rem, 12vw, 10rem));
+  line-height: 0.72;
+  letter-spacing: -0.05em;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   4. DROP CAPS, SMALL-CAPS LEAD-INS & CONTINUOUS PILCROW PROSE
+   -------------------------------------------------------------------------- */
+.typo-lead-smallcaps {
+  font-family: var(--font-grotesque, sans-serif);
+  font-size: 0.74em;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+  margin-right: 0.45em;
+}
+
+.initial-engraved-box::first-letter {
+  float: left;
+  font-family: var(--font-display-didone, serif);
+  font-size: 3.4rem;
+  line-height: 0.82;
+  padding: 0.28rem 0.62rem 0.22rem;
+  margin-right: 0.75rem;
+  margin-top: 0.18rem;
+  margin-bottom: 0.1rem;
+  border: 1px solid currentColor;
+  background-color: var(--paper-secondary, #ECE9E1);
+  color: var(--ink-primary, #0F0F0F);
+}
+
+/* Continuous New Yorker / 19th-Century Monograph Inline Paragraph Flow */
+.prose-continuous-pilcrow p {
+  display: inline;
+  margin: 0;
+}
+
+.prose-continuous-pilcrow p + p::before {
+  content: " ¶ ";
+  font-family: var(--font-display-didone, serif);
+  color: var(--ink-spot, #C8281E);
+  font-weight: 600;
+  padding: 0 0.45em;
+  font-size: 0.92em;
+}
+
+/* --------------------------------------------------------------------------
+   5. BILINGUAL INTERLINEAR GLOSS & VERTICAL CJK COLUMNS
+   -------------------------------------------------------------------------- */
+.typo-bilingual-stack {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: bottom;
+  line-height: 1;
+}
+
+.typo-bilingual-stack .gloss-en {
+  font-family: var(--font-mono-archive, monospace);
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.26em;
+  color: var(--ink-muted, #7D7A74);
+  margin-bottom: 0.35rem;
+}
+
+.typo-bilingual-stack .gloss-cjk {
+  font-family: var(--font-cjk-song, 'Noto Serif SC', serif);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.typo-vertical-cjk {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: var(--font-cjk-song, 'Noto Serif SC', serif);
+  letter-spacing: 0.22em;
+  line-height: 1.9;
+}
+
+/* Dotted Catalog Leader Line */
+.typo-dotted-leader {
+  flex: 1;
+  border-bottom: 1px dotted rgba(20, 19, 18, 0.28);
+  margin: 0 0.75rem;
+  transform: translateY(-0.28em);
+}
