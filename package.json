@@ -7,7 +7,9 @@
     "packages/domain-business-memory",
     "integrations/dsh/dsh-workspace-memory",
     "packages/domain-inquiry-recovery",
-    "integrations/dsh/dsh-inquiry-recovery"
+    "integrations/dsh/dsh-inquiry-recovery",
+    "integrations/dsh/dsh-buyer-magazine",
+    "integrations/dsh/dsh-sourcing-agent"
   ],
   "description": "Native workspace plugins for DeepSeek Harness and host-independent business domains",
   "engines": {

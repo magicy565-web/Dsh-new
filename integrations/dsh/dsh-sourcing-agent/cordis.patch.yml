@@ -48,6 +48,8 @@
               searchTimeoutMs: 60000
           - id: skill-filesystem
             name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: magazine-tools
+            name: dsh-buyer-magazine
           - id: sourcing-skills
             name: '@local/dsh-sourcing-agent'
           - id: tool-skill

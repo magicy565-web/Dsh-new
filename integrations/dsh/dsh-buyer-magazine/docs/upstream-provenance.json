@@ -1,0 +1,92 @@
+{
+  "sourceArtifact": "Buyer-Magazine-Studio-v1.3.0-Source.zip",
+  "sourceSha256": "e8baf59b7f7c28b18cce4cb6fc93e787a1194548ae111e4d6e3cc66d8b096fde",
+  "sourceVersion": "1.3.0",
+  "files": [
+    {
+      "source": "buyer-magazine-studio/src/schema.js",
+      "target": "upstream/src/schema.js",
+      "bytes": 12980,
+      "sha256": "94fe3f8e20dd8d9f76bdf92a030ac53281501b0dd573aa805b4bd875ba89816e",
+      "patch": {
+        "id": "shared-composition-20261027",
+        "bytes": 14429,
+        "sha256": "992282607436f8e92e338d05908069933cb57aafc051e6767c460287df459adf",
+        "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer.",
+        "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions.",
+        "previousPatch": {
+          "id": "price-status-20261026",
+          "bytes": 13175,
+          "sha256": "b3c2841c7b528ddc71ce713ad1d10e7273be183a77e50f36f883e23dc572c6c0",
+          "reason": "Require unknown/request-quote price kinds to retain unknown status; reject unsupported verified or supplier-stated price labels.",
+          "acceptance": "test/price-evidence-status.test.mjs; synthetic pure Node, not source authenticity or live Host acceptance."
+        }
+      }
+    },
+    {
+      "source": "buyer-magazine-studio/src/render.js",
+      "target": "upstream/src/render.js",
+      "bytes": 32131,
+      "sha256": "efefe87bb0980b192a2e034e50dbbae880be50d71a5bf442b7c7c288adc19bf1",
+      "patch": {
+        "id": "shared-composition-20261027",
+        "bytes": 33753,
+        "sha256": "74475ac1b860fcc8b32019589ba6a473ae77e34811d0850bcc0c038ae2601d41",
+        "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer.",
+        "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions.",
+        "previousPatch": {
+          "id": "price-context-20261026",
+          "bytes": 32582,
+          "sha256": "429e877795b6639795d31f20ebd20c2c528d1586fc95963e2e5e145d2c10263c",
+          "reason": "Preserve source-text price amounts without numeric coercion; retain retail-only or complete wholesale price basis and quote quantity conditions in every price summary.",
+          "acceptance": "test/price-text.test.mjs and optional dev/artifact-interactions.mjs; DOM simulation, not browser or Host acceptance."
+        }
+      }
+    },
+    {
+      "source": "buyer-magazine-studio/src/presentation.js",
+      "target": "upstream/src/presentation.js",
+      "bytes": 2449,
+      "sha256": "3b80cafcb2235dd6bb08390c07894a902e1056771a228a213e87c0492f1d426f"
+    },
+    {
+      "source": "buyer-magazine-studio/assets/magazine.css",
+      "target": "upstream/assets/magazine.css",
+      "bytes": 47683,
+      "sha256": "f86c2fb61d389c3374a3611ca8bc687234746d2d583f39adb07462331205a922",
+      "patch": {
+        "id": "shared-composition-20261027",
+        "bytes": 49933,
+        "sha256": "ff4f49f543df6e12e8f6775239fc18be73e0fd305e9c6fb87f3fa19c1048b86b",
+        "reason": "Preserve existing price evidence rules; add selected module composition to the same Studio schema, renderer and theme tokens. No second document renderer. Responsive wordmarks wrap long mixed-language issue titles instead of overflowing a narrow preview.",
+        "acceptance": "test/unification.test.mjs and existing Studio/module/ERP regressions."
+      }
+    },
+    {
+      "source": "buyer-magazine-studio/assets/magazine.js",
+      "target": "upstream/assets/magazine.js",
+      "bytes": 13144,
+      "sha256": "18b2318d2297b21738a940f4ea23217facfaf8b063cb886b0b09df8abc93d620",
+      "patch": {
+        "id": "price-context-and-request-sources-20261026",
+        "bytes": 13855,
+        "sha256": "9e595ae87585281467dc1a19d998bb7d410af9741a851d219e9559961ac1847e",
+        "reason": "Preserve source-text price amounts without numeric coercion; retain retail-only or complete wholesale price basis and quote quantity conditions in every price summary. Preserve stable deduplicated product and exported-field evidence references in downloaded request briefs.",
+        "acceptance": "test/price-text.test.mjs and optional dev/artifact-interactions.mjs; DOM simulation, not browser or Host acceptance."
+      }
+    },
+    {
+      "source": "buyer-magazine-studio/LICENSE",
+      "target": "upstream/LICENSE",
+      "bytes": 321,
+      "sha256": "689d3195a8b6749069eda67038b131debc12a3c1d1dc7fcbca10310638c9a836"
+    },
+    {
+      "source": "buyer-magazine-studio/THIRD_PARTY.md",
+      "target": "upstream/THIRD_PARTY.md",
+      "bytes": 1974,
+      "sha256": "94a3145326808ed00e55b816a3870568217defd0c0fe7134da33fa74409f4d70"
+    }
+  ],
+  "localPatchPolicy": "Original bytes/sha256 identify the upstream source members. For explicitly patched targets only, patch.bytes/patch.sha256 identify shipped bytes; all other members remain identical to their original hashes."
+}

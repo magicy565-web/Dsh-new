@@ -10,7 +10,7 @@ Agent 执行、模型、会话、工具循环和取消由 DSH 宿主负责。
 ## 目录
 
 ```text
-integrations/dsh/   六个业务插件与一个可选品牌插件
+integrations/dsh/   八个可选原生插件，含独立网站转杂志与品牌插件
 packages/          三个宿主无关的领域包
 scripts/           安装位置提示、静态检查、回归测试
 .github/           DSH 检查工作流
@@ -22,14 +22,15 @@ licenses/          第三方许可
 | --- | --- |
 | [dsh-workspace-library](integrations/dsh/dsh-workspace-library/README.md) | 企业／产品资料、版本审核、产品上下文与缺口、原生对话引用和确切版本读取 |
 | [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
-| [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill，以及十种可组合的买手微刊模块 |
+| [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill；微刊复用独立杂志包 |
+| [dsh-buyer-magazine](integrations/dsh/dsh-buyer-magazine/README.md) | 独立网站转杂志 Agent：来源研究、编辑、四种主题、十模块与原生 HTML 交付 |
 | [dsh-workspace-memory](integrations/dsh/dsh-workspace-memory/README.md) | 经营记忆、人工审核、来源核验，以及跨已有资料／记忆／询盘的只读检索 |
 | [dsh-workspace-brand](integrations/dsh/dsh-workspace-brand/README.md) | 可选原生品牌：侧栏／首页标识与双模式黑白灰主题，保留官方会话与布局 |
 | [dsh-mini-erp](integrations/dsh/dsh-mini-erp/README.md) | ERP Admin：完整后台 UI／UX，复用原库与交易账本；[安装与截图](docs/ERP-ADMIN-PACKAGE.md) |
 | [dsh-inquiry-recovery](integrations/dsh/dsh-inquiry-recovery/README.md) | 可选历史询盘：原文件核验、人工身份判断、Agent 撰写的未发送草稿 |
 
 在 DSH 中执行 `plugin_manager install_bundle target=<插件绝对目录>` 安装。
-`npm start` 只显示当前 checkout 的七个安装位置，不启动服务或修改 profile。
+`npm start` 只显示当前 checkout 的八个安装位置，不启动服务或修改 profile。
 
 ## 验证
 

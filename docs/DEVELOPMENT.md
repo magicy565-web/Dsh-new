@@ -16,7 +16,7 @@ Sourcing 试点已删除自建阶段引擎，六份方法改为可独立加载�
 ## 日常命令
 
 - `npm ci --ignore-scripts`：首次设置的依赖安装和本地 workspace 链接。
-- `npm start`：显示七个候选插件的真实安装目录（含可选品牌插件），不启动另一套应用。
+- `npm start`：显示八个候选插件的真实安装目录（含独立网站转杂志与可选品牌），不启动另一套应用。
 - `npm run build`：原生 bundle 入口、JS 语法、中英文字典。
 - `npm test`：原生业务／品牌插件与三个领域包的回归。
 - `npm run check`：顺序运行上述静态检查与回归，无模型调用。
@@ -63,7 +63,7 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 
 后续开发遵循 [微刊架构边界](BUYER-MAGAZINE-ARCHITECTURE.md)：对话创建；读取用户实际可访问的工作区或工单上传资料；交易由 ERP 承担。无需可视化创建界面，用户随后授权开发本机 mini-erp；工单上传接口仍未接入。
 
-`dsh-sourcing-agent/skills/buyer-magazine` 提供本期可选择的十种内容模块；这是原生 Skill 的方法、数据格式和 HTML 文件渲染器，不是新宿主或业务管理平台。数组定义选择和顺序，同一类型可用于不同产品。来源读取仍由 Agent 按需使用原生工具完成。
+`dsh-buyer-magazine` 是可单独安装的网站转杂志插件，自带 Agent 预设、一个 Skill、四种主题和统一编译器。原十模块 JSON 归一化为同一 Studio schema 的 composition: modules；ERP 提供可选只读输入。Sourcing 复用该包，旧 scripts 路径只转调，重复 Skill 与文档渲染器已移除。数组定义模块选择和顺序，同一类型可用于不同产品。来源读取仍由 Agent 按需使用原生工具完成。见 [统一与独立验收](DSH-MAGAZINE-UNIFICATION.md)。
 
 `test/magazine.test.mjs` 覆盖独立与组合渲染、利润口径、销售来源绑定、权益入口边界、文本转义和重复输出保护。官方 skill 冒烟覆盖新增第七份 Skill。微刊本身不预留供应名额；可选 mini-erp 已提供本机预留和确认工具。外部数据服务和 WorkBuddy 客户端未接入。
 

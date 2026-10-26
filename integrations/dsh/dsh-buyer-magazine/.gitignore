@@ -1,0 +1,6 @@
+node_modules/
+output/
+runtime/
+*.zip
+*.log
+.env*

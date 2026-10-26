@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "1.0",
+  "purpose": "Editable editorial planning sidecar; not an issue input to the renderer.",
+  "provenance": "planning-template",
+  "reader": {
+    "role": "Category buyer",
+    "category": "Home accessories",
+    "market": "US",
+    "decision": "Choose which products deserve a sample inquiry"
+  },
+  "editorial": {
+    "question": "Which compact home products deserve closer review?",
+    "angle": "Compare useful product details and make missing trade terms explicit.",
+    "targetMinutes": 5,
+    "targetCoreWords": [
+      600,
+      950
+    ],
+    "selectedProductIds": [],
+    "selectionReasons": [],
+    "exclusions": []
+  },
+  "sequence": [
+    {
+      "beat": "orientation",
+      "component": "CoverStory",
+      "question": "What is today's useful sourcing angle?",
+      "wordBudget": 60
+    },
+    {
+      "beat": "signals",
+      "component": "QuickSignals",
+      "question": "Why should I keep reading?",
+      "wordBudget": 90
+    },
+    {
+      "beat": "opportunities",
+      "component": "ProductFeature",
+      "question": "What is each product, why might it fit, and what is unknown?",
+      "wordBudget": 450
+    },
+    {
+      "beat": "decision",
+      "component": "ComparisonTable",
+      "question": "Which differences affect procurement?",
+      "wordBudget": 110
+    },
+    {
+      "beat": "next-step",
+      "component": "RequestBriefDownload",
+      "question": "What should I ask before a sample order?",
+      "wordBudget": 40
+    }
+  ],
+  "artDirection": {
+    "recipe": "porcelain-editorial",
+    "displayFont": "Fraunces",
+    "bodyFont": "Manrope",
+    "imagePlan": [],
+    "documentaryAssetsOnlyForProductEvidence": true
+  },
+  "evidence": {
+    "requiredFields": [
+      "product identity",
+      "price basis",
+      "MOQ status",
+      "production lead-time status",
+      "source references"
+    ],
+    "unresolvedQuestions": [],
+    "conflicts": [],
+    "restrictedFieldsToExclude": []
+  },
+  "distribution": {
+    "web": true,
+    "emailExport": true,
+    "pdf": false,
+    "sendingAuthorized": false
+  },
+  "qa": {
+    "viewports": [
+      375,
+      768,
+      1440
+    ],
+    "keyboardFlow": true,
+    "reducedMotion": true,
+    "brokenImageCase": true,
+    "storageDeniedCase": true,
+    "printReview": false,
+    "externalProviderRuns": []
+  }
+}
+

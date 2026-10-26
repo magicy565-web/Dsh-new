@@ -1,5 +1,7 @@
 # 验证状态
 
+2026-10-27：新增独立 `dsh-buyer-magazine@0.2.0`，原网站与模块稿共用校验／主题／编译器，Sourcing 只保留复用与脚本兼容。独立 tar 包安装、唯一 Skill 发现、官方工具／文件／present 检查通过；真实 DSH Web / DeepSeek-V4.1-Flash 完成网址研究、生成与文件交付，最终独立预设无 Shell 调用与审批请求。整合同期 ERP Admin 更新后，`npm run check` 为 223/223、零跳过，六组 Client 冒烟通过。实际网站稿和模块稿的 1440／390px 检查无页面横向溢出，原生 HTML 侧栏可打开。详细范围、修订与截图见 [杂志统一验收](docs/DSH-MAGAZINE-UNIFICATION.md)；这不代表商业网站、图片授权或发布终审已经完成。
+
 2026-10-27（Asia/Shanghai），原生资料库与 ERP 统一后的累计验证状态：
 
 | 检查 | 结果 |

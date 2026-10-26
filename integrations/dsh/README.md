@@ -1,6 +1,6 @@
 # DeepSeek Harness 原生插件
 
-DSH 是当前唯一的后续 Agent 执行宿主。这里的六个当前 bundle 由 DSH 的
+DSH 是当前唯一的后续 Agent 执行宿主。这里的可选 bundle 由 DSH 的
 `plugin_manager` / profile bundle 装载，不再需要独立 Workspace Harness 服务。
 
 | 目录 | 包名 | 版本 | 作用 |
@@ -11,12 +11,15 @@ DSH 是当前唯一的后续 Agent 执行宿主。这里的六个当前 bundle �
 | `dsh-workspace-memory` | `dsh-workspace-memory` | 0.1.0 | 经营记忆候选、人工审核、原生工作区隔离与来源召回 |
 | `dsh-mini-erp` | `dsh-mini-erp` | 0.3.0 | 完整 Admin 导航／页面，接通原库与现有账本；其他服务明确未接入 |
 | `dsh-inquiry-recovery` | `dsh-inquiry-recovery` | 0.1.0 | 可选询盘来源、身份及未发送草稿 |
+| `dsh-buyer-magazine` | `dsh-buyer-magazine` | 0.2.0 | 独立网站转杂志 Agent、完整 Skill、统一编译器与可选模块／ERP 适配 |
 
 这些既有实现不是通用底座的默认必备范围，收敛方向见 [清单](../../docs/SCOPE-REDUCTION.md)。
 
 可选的 [dsh-workspace-brand](dsh-workspace-brand/README.md) 通过原生主题与品牌槽位定制外观，不增加业务面板或执行宿主。它须单独安装；本轮独立预览 profile 的验证见 [原生品牌验收](../../docs/DSH-NATIVE-BRAND.md)。
 
 六个业务插件与品牌插件共同加载后的原生界面见 [完整插件预览](../../docs/DSH-PLUGIN-PREVIEW.md)。其中五个业务插件提供侧栏面板，Sourcing Agent 通过原生模式选择器提供预设与七个按需 Skill。
+
+后续新增的独立 [网站转杂志](dsh-buyer-magazine/README.md) 自带原生 Agent 预设，无需 Sourcing 或 ERP。Sourcing 中的微刊入口复用它的同一份 Skill 和编译器。联合与独立安装检查见 [杂志统一记录](../../docs/DSH-MAGAZINE-UNIFICATION.md)。
 
 按需在 DSH 内安装：
 
@@ -27,6 +30,7 @@ plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-s
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-workspace-memory
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-inquiry-recovery
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-mini-erp
+plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-buyer-magazine
 ```
 
 Host 代码改动后按插件文档禁用／启用或重启 DSH，页面强刷。根目录 `npm start`

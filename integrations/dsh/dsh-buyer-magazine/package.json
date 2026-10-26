@@ -1,0 +1,63 @@
+{
+  "name": "dsh-buyer-magazine",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent native DSH website-to-magazine Agent, editorial Skill and shared Studio compiler with module/ERP adapters",
+  "exports": {
+    ".": "./index.js",
+    "./compiler": "./compiler.js",
+    "./package.json": "./package.json",
+    "./adapters": "./adapters.js",
+    "./modules": "./src/modules/catalog.js",
+    "./cli": "./cli.js"
+  },
+  "files": [
+    "index.js",
+    "compiler.js",
+    "src/",
+    "upstream/",
+    "skills/",
+    "cordis.patch.yml",
+    "README.md",
+    "docs/",
+    "adapters.js",
+    "cli.js"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:artifact-dom": "node dev/artifact-interactions.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-fs": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-working-directory": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-sandbox-policy": "0.2.1-rc.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-fs": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-working-directory": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox-policy": {
+      "optional": true
+    }
+  }
+}

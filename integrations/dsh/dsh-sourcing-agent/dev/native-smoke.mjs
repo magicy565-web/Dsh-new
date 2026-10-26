@@ -15,7 +15,7 @@ try {
   const catalog = await ctx.skills.list(); assert.equal(catalog.length, 7);
   const loaded = await ctx.skills.get('export-supplier'); assert.ok(loaded.content.includes('询盘')); assert.ok(loaded.resourceBase.path.endsWith('export-supplier'));
   await standard.plugin(Skills);
-  await standard.plugin(Filesystem, { includeDefaultRoots: false, customSkillDirs: [fileURLToPath(new URL('../skills/', import.meta.url))], watch: false });
+  await standard.plugin(Filesystem, { includeDefaultRoots: false, customSkillDirs: [fileURLToPath(new URL('../skills/', import.meta.url)), fileURLToPath(new URL('./skills/', import.meta.resolve('dsh-buyer-magazine/package.json')))], watch: false });
   assert.equal((await standard.skills.list()).length, 7);
   assert.ok((await standard.skills.get('market-evidence')).content.includes('来源'));
   assert.ok((await standard.skills.get('buyer-magazine')).content.includes('十个可选模块'));
