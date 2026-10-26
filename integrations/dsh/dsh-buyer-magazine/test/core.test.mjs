@@ -81,7 +81,7 @@ test('cancelled generation makes zero write calls', async () => {
   assert.equal(host.state.writes, 0);
 });
 test('native tool contract generates a file and leaves official present separate', async () => {
-  const host = memoryHost(); const [validate, generate] = magazineTools(host.ctx);
+  const host = memoryHost(); const [validate, generate] = magazineTools(host.ctx,{legacyCompiler:true});
   const result = await validate.execute({ issueJson: json(issueFixture()) }); assert.equal(result.valid, true);
   assert.deepEqual(Object.keys(result), ['valid', 'errorCount', 'warningCount', 'issues']);
   const generated = await generate.execute({ issueJson: json(issueFixture()) }, host.exec);

@@ -5,7 +5,21 @@ description: Universal luxury print magazine and editorial lookbook web design s
 
 ## Native DSH integration contract
 
-Use this supplied skill's actual archetype/tokens/resources as the design authority. Read all three resources below before composing. Render the five-spread publication through the single canonical `composition: web-card` renderer, not a second app/template. Map original A/B/C/D to kinfolk/loewe/monocle/archive032c; preserve deliberate whitespace, darkroom inversion, overlap, materiality and actual interaction. Record unsupported primitives as not implemented rather than claim them from a class name. Current renderer supports dual scroll/flip, keyboard navigation, source-backed gallery, material comparator, vellum overlay and a tear-out action. Never invent company metrics or manufacturing stages to populate the design. Small-screen readability takes priority over mechanically enforcing desktop scale ratios.
+Read all three supplied resources below. Apply their art-direction methods while
+authoring your own HTML and CSS with native file tools. Choose the archetype from
+the actual brand and editorial question, then design distinct compositions from
+the material. There is no required issue JSON, product count, class naming scheme
+or canonical web-card layout. Five spreads describes narrative rhythm; use the
+actual copy and images to decide how each spread works. Typography, photography,
+whitespace and interactive apparatus must serve the story. Decorative paper,
+spines, rules and seals do not establish editorial quality on their own.
+
+Use buyer_magazine_review_artifact for screenshots of your authored file and
+revise the file directly. Review all states on desktop, mobile and print; protect
+content from ornaments, clipping and unsupported interactions. Do not copy the
+rejected Allbirds implementation or use the legacy generator for design tasks.
+No extra host or app framework is required. Source facts and image attributions
+must remain traceable, while the finished publication's layout is your design.
 
 ## Preserved original design method
 

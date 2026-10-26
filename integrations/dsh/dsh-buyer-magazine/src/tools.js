@@ -1,3 +1,4 @@
+import {authoringTools} from './authoring-tools.js';
 import { reviewInSession } from './browser-review.js';
 import { compileDraft, inspectIssue, MAX_INPUT_BYTES } from './core.js';
 import { generateInSession } from './native-files.js';
@@ -9,6 +10,9 @@ function input(args) {
   return args.issueJson;
 }
 export function magazineTools(ctx, config = {}) {
+  return [...(config.legacyCompiler ? legacyMagazineTools(ctx, config) : []), ...authoringTools(ctx, config)];
+}
+function legacyMagazineTools(ctx, config = {}) {
   return [
     {
       name: 'buyer_magazine_validate_issue',

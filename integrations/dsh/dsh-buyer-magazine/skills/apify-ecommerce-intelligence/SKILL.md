@@ -1,11 +1,29 @@
 ---
 name: apify-ecommerce-intelligence
-description: "Research actual company facts, products, source-backed metrics and image assets for editorial web cards using available native DSH web tools. Preserves the supplied Apify method as a reference; Apify execution requires a configured provider. Use before design to avoid fabricated facts and placeholder imagery."
+description: "Collect actual corporate website evidence through the native Apify Actor tool, preserving source content and image URLs for LLM-led editorial design. Requires configured APIFY_TOKEN; report missing capabilities without silently substituting another collector."
 ---
 
 ## Native DSH integration contract
 
-Use this supplied skill to collect actual brand DNA and CDN assets. At startup inspect available native tools and configured providers. In the current DSH integration, native web_fetch/file tools are the supported collection path and must be recorded as such; the reference Apify/Jina Python helper is not a registered tool. If an Apify host tool is configured and authorized, use its actual schema. Never invent tokens, run placeholder scripts, rotate credentials to evade a denied service, or send source/private materials to an unconfigured relay. Read exact source endpoints, identify brand, positioning, evidence-backed metrics, 3–5 capability pillars and matching SKU/asset URLs. Retain actual timestamps and image-use declarations. The owner default applies to user-supplied own/authorized sites, not Agent-selected third-party examples.
+Use the actual native buyer_magazine_collect_site tool: action:start with the
+company's public HTTPS URL and a bounded maxPages, then action:status with the
+returned runId. The tool runs apify/website-content-crawler and returns the real
+run/dataset IDs, dated source content, image URLs and a native dataset attachment.
+Retain the dataset and source map; inspect relevant pages and original images.
+No fact becomes verified merely because the crawler returned it.
+
+The operator configures APIFY_TOKEN (APIFY_TOKEN_1 is also recognized). A missing
+credential returns APIFY_NOT_CONFIGURED before any request. Do not silently use
+web_fetch/Jina as an equivalent. Respect access failures and rate limits; do not
+rotate credentials to evade a denial. The original rotation script is preserved
+for provenance but is not executed. The native run is capped at 30 pages, 180
+seconds and the configured charge budget (default USD 1, maximum USD 5).
+
+Extract the facts the editorial question needs: brand history and positioning,
+product/material evidence, meaningful imagery, actual contacts and limitations.
+Retain precise source URLs and separate quotations from interpretations. Feed
+this research to the designing LLM; do not map it into a fixed rendering schema.
+Never copy placeholder metrics, credentials or brands from examples.
 
 ## Preserved original design method
 

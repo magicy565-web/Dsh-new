@@ -5,7 +5,20 @@ description: Complete art-directed typography and kinetic typesetting design sys
 
 ## Native DSH integration contract
 
-Use this supplied skill and all five resource files as the typography authority. Author `cover.headlineLines` as 2–3 exact text segments with roman/italic/sans voice, keeping their joined wording equal to cover.headline. Use original OpenType/staircase/CJK primitives embedded by the shared renderer. CJK stays upright; apply actual available serif/gothic/mono stacks. No font binaries are bundled: inspect actual fallback fonts and don't claim a named font was loaded merely because CSS lists it. External font loading requires an available authorized host path, not an undisclosed CDN dependency. Render and inspect at 375/768/1440 before accepting.
+Read the five typography resources below and use them as a design method. Write
+and edit the actual copy before typesetting: headline, deck, lead, body, pull
+quote, caption, source note and folio each need an editorial role. Design these
+roles in your HTML/CSS, with content-driven line breaks, measure, spacing, scale
+and CJK/Latin treatment. You are not limited to headlineLines, three voices or
+an existing compiler's fontStyle enum. Avoid repeating the same headline formula
+across every spread. Keep CJK upright, and use contrast and emphasis deliberately.
+
+Load actual available fonts (local files or explicitly declared font asset URLs)
+or accurately identify fallbacks. A CSS font-family declaration does not prove
+font loading. Inspect the rendered text through buyer_magazine_review_artifact,
+including narrow screens and PDF pages, and edit your own code to repair line
+breaks, contrast, orphaned captions and unreadable passages. Do not reduce this
+skill to choosing a serif font and making the heading larger.
 
 ## Preserved original design method
 

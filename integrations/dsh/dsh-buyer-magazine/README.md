@@ -1,84 +1,47 @@
-# 网站转买手杂志 · dsh-buyer-magazine
+# 四技能驱动的杂志设计 · dsh-buyer-magazine
 
-版本 **0.3.0**，面向官方 `@deepseek-ai/dsh@0.2.1-rc.2`。这是可单独安装的 DSH 原生插件，提供自己的「网站转杂志」Agent 预设、用户提供的四技能包、五跨页与双阅读模式、品牌设计参数及原生生成／截图审阅工具。无需安装 Sourcing、资料库或 ERP。模型、会话、权限、文件与交付复用 DSH。
+**0.4.0 · DeepSeek Harness 原生插件**。四个技能指导当前 LLM 研究、编辑、艺术指导并直接编写 HTML/CSS/JavaScript。插件提供真实采集和文件审阅能力，不决定版面。
 
-## 安装与使用
+0.3 的固定 Allbirds 模板被用户否定，不能作为设计验收样板。旧编译器仅保留给已有 Studio/模块输入兼容调用。
+
+## 工作方式
+
+1. `apify-ecommerce-intelligence`：通过实际 Apify Actor 采集网站，保存原始资料、图片地址与来源。
+2. `editorial-magazine-design`：指导 LLM 确定选题、图文叙事、跨页节奏、材料与版面。
+3. `editorial-typography-system`：指导 LLM 编辑标题和正文，设计字阶、行宽、断行、图注与中西文关系。
+4. `ai-media-kinetic-commerce`：编排过程与交互、看图修订和交付。
+
+LLM 使用 DSH 原生 write/edit 创作文件。无需填写 issue JSON，没有三款商品上限、固定 DOM、五种容器或预制封面。五跨页是原技能包的叙事目标，具体设计由内容决定。原始 ZIP 的 15 个文件与哈希保留，运行约定与原始正文分开。
+
+## 安装
 
 ```sh
-dsh plugin --profile web add /absolute/path/dsh-buyer-magazine-0.3.0.tgz
+dsh plugin --profile web add /absolute/path/dsh-buyer-magazine-0.4.0.tgz
 dsh web
 ```
 
-开发时也可通过 `link:/absolute/path/integrations/dsh/dsh-buyer-magazine` 安装。插件包含完整的运行资源，压缩包安装不依赖源码仓库或相邻目录。
+选择「网站转杂志」，提供网站、读者与制作要求。独立安装不需要 Sourcing 或 ERP；模型、会话、文件、权限和附件由 DSH 提供。开发时可使用 `link:/absolute/path/integrations/dsh/dsh-buyer-magazine`。
 
-在原生新会话中选择「网站转杂志」、工作区和宿主已配置的模型，然后输入：
+## 实际工具
 
-> 请把 https://你的企业网站 转成一份面向欧洲买手的中文杂志，选择资料充分的产品，保留来源，完成图文设计、看图修订，交付 HTML 和 PDF。
+- `buyer_magazine_collect_site`：`action:start` 加网址创建真实 `apify/website-content-crawler` 任务；`action:status` 加返回的 runId 读取结果。保留 run/dataset ID、来源与原生 JSON 附件。
+- `buyer_magazine_review_artifact`：读取当前 Session 工作区中 LLM 编写的 `htmlPath`，显示真实截图或 PDF 页图。可以选择宽度、滚动位置、CSS selector，并执行有限的本地 UI 操作。返回文件哈希、素材指纹与实际观察，不修改 HTML，不提供审美批准。
+- 原生 `write/edit/read`：编写并修改实际作品。原生 `present`：交付已审阅文件。
 
-Agent 自行读取网站与相关页面、选择内容、编辑、组织输入、校验、生成并通过原生文件卡片交付。用户无需编写 JSON 或运行脚本。已有模型配置和允许目标网站访问的网络仍由宿主提供；本插件不绕过网络或权限设置。
+本地 CSS/JS、图片和字体放在 HTML 所在目录下。远程图片/字体/CSS 通过 `assetUrls` 明确列出。审阅浏览器隔离运行，不允许外部脚本、任意导航或表单提交。它不是网站发布服务；HTML 成品也不会自动提交线索。
 
-停用／卸载：
+`view:print` 生成实际 PDF，每次最多返回三页截图，按 `nextPrintStart` 继续。修改文件后重新审查受影响的视图。机械测量、程序检查与设计质量分别记录，不能用一个 observed 状态宣称作品合格。
 
-```sh
-dsh plugin --profile web remove dsh-buyer-magazine
-```
+## 环境能力
 
-已生成文件与原生会话不删除。
+- Apify：在环境密钥面板配置 `APIFY_TOKEN`，目标 `api.apify.com`；也识别已有 `APIFY_TOKEN_1`。缺失时返回 `APIFY_NOT_CONFIGURED`，不静默切换采集器。每次最多 30 页、180 秒，默认费用上限 USD 1；宿主可通过 `apifyMaxChargeUsd` 配置，最高 USD 5。授权错误不轮换密钥绕过。
+- 审阅：宿主 Chromium、原生附件、支持图片输入的当前模型；PDF 页图另外需要 `pdfinfo`/`pdftoppm`。保留宿主代理与 TLS 信任。
+- FastAI、视频请求、VIP 和线索后端：仍需实际配置相应能力，原始参考脚本不自动执行，不把示例或占位值当作可用服务。
 
-## 四个原始技能
+用户提供的网站沿用其自有/已授权素材声明；自选第三方站点不继承商用授权。用户提供的材料或明确标注的合成设计测试可直接使用。缺少采集能力时报告真实缺项，不把未采集的作品称为网站研究成品。
 
-- `ai-media-kinetic-commerce`：总编排、五跨页交互名片与交付。
-- `apify-ecommerce-intelligence`：真实企业资料与素材采集；当前可用路径是 DSH 原生网页工具，Apify 外部服务须实际配置。
-- `editorial-magazine-design`：Kinfolk / Loewe / Monocle / 032c 四种原型、纸张质感、跨页节奏与获客交互。
-- `editorial-typography-system`：多声部标题、CJK/Latin 排版、字阶与 OpenType 原语。
+## 兼容与验证
 
-原始 ZIP 的全部 15 个文件保留来源哈希，原始 SKILL 与 DSH 运行适配分开保存。`buyer-magazine` 是兼容入口，不是另一套制作技能。六个制作阶段属于这四项技能的工作流程。
+原 `compiler`/`adapters` 公共入口保留。旧 Studio JSON 或十模块调用方显式配置 `legacyCompiler: true` 后才注册原 validate/generate/review 工具。Sourcing 兼容配置已显式启用；创意设计预设默认看不到固定生成工具。
 
-## 设计制作能力与运行条件
-
-默认按用户提供的网站属于自有或已授权素材源制作对外交付成品；授权属于用户声明，不冒称独立核验。Agent 自选第三方测试站不继承此声明。
-
-`design` 记录品牌、读者、编辑目标、视觉概念、来源、配色、字体与图片用途，并由同一个渲染器实际应用。图片支持 contain/cover 与焦点设置。中文刊物包含中文导航、状态与对比控件。
-
-`buyer_magazine_review({issueJson,view,start?})` 返回当前 HTML 的真实截图，让当前模型逐屏审看后修改。overview 检查三种宽度；spreads/products 每次最多三屏；editorial 返回原生 PDF 附件，print 将实际 PDF 页面转成截图逐页检查。翻页／滚动、键盘、材料对比、描图注记、vCard 和实际行动入口均有浏览器检查。机械测量通过不代表审美通过。
-
-宿主需要 Chromium、原生附件存储和支持图片输入的模型；实际 PDF 逐页审阅还需 pdfinfo/pdftoppm。使用现有 `/usr/bin/chromium` 等安装，或设置非敏感环境变量 `DSH_MAGAZINE_CHROMIUM` 为浏览器绝对路径。不在运行中下载安装浏览器，不改变网络/TLS规则；不可用时明确返回 blocked。浏览器库随插件安装，不依赖另一个业务插件。截图审阅仅处理本编译器生成的内容，不接受任意网页/代码/文件路径。
-
-## 一个核心，两种资料组织方式
-
-- 网站编辑稿沿用 Studio 的产品档案、来源、编辑说明、四种主题及交互。
-- 十种内容模块可选择、排序、按产品重复组合；兼容输入先归一化为同一个 Studio schema 的 `composition: modules`，再使用同一个校验、主题、HTML 外壳和编译器。
-- ERP 是可选只读资料源，转换结果只包含选中模块。内部来源追溯保留在任务工作区；生成本身不创建交易。
-- 原 Sourcing 脚本路径仅转调此包，原重复 Skill 入口和独立文档渲染器已移除。
-
-字段见 [网站输入](skills/buyer-magazine/ISSUE-FORMAT.md)、[模块输入](skills/buyer-magazine/MODULES.md)。原 Studio 编辑方法与 18 份参考资料随包提供。
-
-## 原生工具与文件 API
-
-`buyer_magazine_validate_issue({issueJson})` 返回有效性、错误数、警告数和受限字段路径，便于 Agent 自行修正，不回显任意输入内容。
-
-`buyer_magazine_generate({issueJson})` 在当前原生 Session 工作区创建 HTML，返回实际 `path`、哈希、大小与草稿状态。相同内容可复用；冲突不覆盖。生成后由 Agent 单独调用官方 `present`，只有该调用成功才表示文件已交付。
-
-纯编译 API `dsh-buyer-magazine/compiler` 不导入 SDK、联网或写文件。`dsh-buyer-magazine/adapters` 提供模块归一化和 ERP 只读转换。命令行兼容入口：
-
-```sh
-node cli.js issue.json new-output.html
-node cli.js --list
-node src/adapters/from-erp.js snapshot.json selection.json new-blocks.json
-```
-
-## 结果边界
-
-网络读取、模型响应与来源内容会影响实际完成情况。Agent 对无法读取的资料如实说明；价格未知保持待询价，公开网页不等于取得图片复用授权。缺少所需素材时报告具体阻碍，不能自动把任务降级为无图工作稿。用户明确选择文字刊物时，需专门的文字版设计。
-
-全部产物保留 DRAFT FOR REVIEW。生成和文件交付不代表已经发布、发送、核实供应商、付款或预留库存。外部发送与发布按用户已有授权执行。
-
-## 验证
-
-仓库 `npm run check` 包含原 Studio 校验、文件边界、价格／来源、模块与 ERP 回归，以及独立包和统一编译检查。可另运行官方 SDK、Skill 发现与交互 DOM 检查；它们不等同于真实模型全流程验收。当前原生安装、浏览器和实际执行结果记录在仓库 `docs/DSH-MAGAZINE-UNIFICATION.md`。
-
-来源版本、许可、原始与修改后文件指纹保留在 `upstream/` 和 `docs/*provenance.json`。不包含旧 CLI、采集服务器、模型网关或业务数据库。
-
-## 外部能力边界
-
-FastAI 图片中继、Apify 采集、VIP 身份核验和真实线索 Webhook 尚未注册为本包的原生工具。随包脚本是原始参考，不自动运行，不使用占位密钥。使用可用的原站授权图片及原生采集；如任务必须使用外部服务，报告具体未配置项。视频仅作为实际目的地的请求入口，不自动生成；无成本证据时使用真实材料比较，不虚构 ROI。获客动作目前支持真实链接或本地需求卡下载，不能宣称同步 CRM。
+`npm run check` 检查源数据、文件边界、兼容性和默认工具路由。可显式运行 `node dev/authored-review-smoke.mjs` 检查自由 DOM、本地 CSS/JS、交互截图和 PDF；这是合成浏览器验证，不是设计验收。实际 Apify 采集必须另有真实凭据与成功 run 证明。

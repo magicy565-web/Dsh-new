@@ -40,7 +40,7 @@ try {
   ctx = new Context(); new SystemPrompt(ctx, { includeHarnessIdentity: false, includeRuntimeContext: false });
   new SessionProjectionRegistry(ctx); new SandboxPolicy(ctx, { mode: 'workspace-write', workspaceRoot: workspace });
   new SandboxedFileSystem(ctx, { cwd: workspace, diffBasisMaxBytes: 1024 * 1024 }); new WorkingDirectory(ctx, { defaultDirectory: workspace }); new ToolRuntime(ctx, { mode: 'native' });
-  mountObservation(ctx); mountPresent(ctx, { maxFiles: 1 }); apply(ctx);
+  mountObservation(ctx); mountPresent(ctx, { maxFiles: 1 }); apply(ctx, {legacyCompiler:true});
   // Minimal test-only turnBoundary fold; production owns this in AgentLoop, which is NOT imported.
   ctx.sessionProjections.register({ key: 'turnBoundary', stateVersion: 1,
     stateSchema: z.object({ lastTurn: z.number(), openTurnStartSeq: z.number().nullable() }), init: () => ({ lastTurn: 0, openTurnStartSeq: null }),
@@ -62,6 +62,11 @@ try {
   assert.equal((await dispatch('buyer_magazine_generate', { issueJson: json(good) }, null)).error.info.code, 'MAGAZINE_SESSION_REQUIRED');
   assert.equal((await dispatch('buyer_magazine_generate', { issueJson: '{}' })).error.info.code, 'MAGAZINE_ISSUE_INVALID'); assert.equal(writes, 0);
   const first = await generate(good); assert.equal(first.isError, false); assert.equal(writes, 1); assert.deepEqual(await readFile(first.value.path), expected.data);
+  const authored = await dispatch('buyer_magazine_review_artifact', {htmlPath:first.value.path,view:'screen'});
+  assert.equal(authored.isError,false);assert.equal(authored.value.reason,'NATIVE_IMAGE_ROUTE_UNAVAILABLE');
+  assert.equal(authored.value.sha256,expected.sha256);assert.equal(writes,1);
+  const escapedReview=await dispatch('buyer_magazine_review_artifact',{htmlPath:join(root,'outside.html'),view:'screen'});
+  assert.equal(escapedReview.error.info.code,'MAGAZINE_WORKSPACE_DENIED');
   const before = await stat(first.value.path, { bigint: true }); const repeated = await generate(good); const after = await stat(first.value.path, { bigint: true });
   assert.equal(repeated.value.reused, true); assert.equal(writes, 1); assert.equal(before.mtimeNs, after.mtimeNs); assert.equal(before.ino, after.ino);
   assert.equal(first.value.presentation, 'pending-official-present'); assert.equal(ctx.sessionProjections.stateOf(session, 'syntheticDeliveryReceipt').count, 0);

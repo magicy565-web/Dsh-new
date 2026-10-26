@@ -1,3 +1,5 @@
+> **设计验收结论已撤回。** 用户否定了 0.3 的固定模板产物。以下是历史实现记录；代码检查、技能发现与截图存在不能证明设计合格。0.4 已改为四技能指导 LLM 直接创作文件，见 [当前插件说明](../integrations/dsh/dsh-buyer-magazine/README.md)。
+
 # 四技能包与原生设计制作
 
 2026-10-26，`dsh-buyer-magazine@0.3.0`。用户指出原产物只有通用工作稿，随后提供 `luxury_ecommerce_skills_package.zip`。这是一组四个协作技能，接入现有单一插件：

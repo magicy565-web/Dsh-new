@@ -1,9 +1,8 @@
 {
   "name": "Luxury Editorial Web-Card Skill Pack",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "entry": "ai-media-kinetic-commerce",
   "compatibilityEntry": "buyer-magazine",
-  "defaultComposition": "web-card",
   "skills": [
     {
       "name": "editorial-magazine-design",
@@ -23,16 +22,17 @@
     }
   ],
   "tools": [
-    "buyer_magazine_validate_issue",
-    "buyer_magazine_generate",
-    "buyer_magazine_review"
+    "buyer_magazine_collect_site",
+    "buyer_magazine_review_artifact"
   ],
   "source": "User supplied luxury_ecommerce_skills_package.zip",
   "runtime": "DeepSeek Harness; one compiler; no separate Agent host",
   "externalIntegrations": {
-    "apify": "requires configured native provider; native web_fetch available",
+    "apify": "Native Actor adapter; requires APIFY_TOKEN; never silently falls back",
     "fastai": "reference only until configured host image tool",
     "video": "request-only, no automatic generation",
     "leadSubmission": "actual contact link or local brief; no fake webhook"
-  }
+  },
+  "authorship": "LLM-authored HTML/CSS/JS driven by the four supplied skills",
+  "legacyCompiler": "Explicit opt-in for existing Studio/module callers; not part of the design workflow"
 }
