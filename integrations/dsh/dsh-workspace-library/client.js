@@ -2015,7 +2015,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'wl-form-actions' },
-          h('button', { type: 'button', className: 'wl-btn', onClick: onCancel }, t('action.cancel')),
+          h('button', { type: 'button', className: 'wl-btn', disabled: busy, onClick: () => { if (!onDirtyChange || !dirty || window.confirm('放弃尚未保存的修改？')) onCancel(); } }, t('action.cancel')),
           h('button', { type: 'submit', className: 'wl-btn primary', disabled: busy || !draft.title.trim() }, busy ? t('editor.saving') : t('action.save')),
         ),
       );
@@ -2041,7 +2041,7 @@ window.__ModuleLoader__.load({
           t,
           document,
           onDirtyChange, onBusy,
-          onCancel: () => { if (!onDirtyChange || window.confirm('放弃尚未保存的修改？')) setEditingInfo(false); },
+          onCancel: () => setEditingInfo(false),
           onSaved: async () => {
             setEditingInfo(false);
             await onChanged();
@@ -2389,7 +2389,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'wl-form-actions' },
-          h('button', { type: 'button', className: 'wl-btn', onClick: onCancel }, t('action.cancel')),
+          h('button', { type: 'button', className: 'wl-btn', disabled: busy, onClick: () => { if (!versionMode || !onDirtyChange || !dirty || window.confirm('放弃尚未保存的修改？')) onCancel(); } }, t('action.cancel')),
           h('button', { type: 'submit', className: 'wl-btn primary', disabled: busy || (creating && !draft.title.trim()) || (mode === 'file' ? !file : !draft.content.trim()) }, busy ? t('editor.saving') : creating ? t('editor.saveDocument') : t('editor.saveVersion')),
         ),
       );
@@ -2417,7 +2417,7 @@ window.__ModuleLoader__.load({
       const t = key => zh[key] || key;
       return h('div', { className: 'wl-admin-surface wl-admin-file' }, h('style', null, styles),
         creating || versionDocument ? h(DocumentEditor, { t, document: versionDocument, versionMode: !!versionDocument,
-          onDirtyChange, onBusy, onCancel: () => { if (versionDocument) { if (window.confirm('放弃尚未保存的修改？')) setVersionDocument(null); } else onClose(); },
+          onDirtyChange, onBusy, onCancel: () => { if (versionDocument) setVersionDocument(null); else onClose(); },
           onSaved: async id => { setVersionDocument(null); refresh(v => v + 1); onDirtyChange?.(false); onSaved?.(id); } })
           : h(DocumentDetail, { key: `${documentId}:${revision}`, t, id: documentId, onDirtyChange, onBusy, admin: true,
             onAddVersion: document => setVersionDocument(document), onChanged: async () => { refresh(v => v + 1); onSaved?.(documentId); } }));

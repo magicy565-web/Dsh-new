@@ -1,6 +1,6 @@
 # ERP Admin 插件包交付
 
-两个原生 DSH bundle：`dsh-mini-erp@0.3.0` 与 `dsh-workspace-library@1.3.0`。后台留在 DSH 内，共用宿主登录、工作区、附件、工具和权限，不启动独立网页应用或业务服务器。
+两个原生 DSH bundle：`dsh-mini-erp@0.3.1` 与 `dsh-workspace-library@1.3.1`。后台留在 DSH 内，共用宿主登录、工作区、附件、工具和权限，不启动独立网页应用或业务服务器。
 
 ## 安装
 
@@ -27,8 +27,8 @@ node scripts/package-erp-admin.mjs /absolute/path/erp-admin-package
 
 生成：
 
-- `dsh-workspace-library-1.3.0.tgz`
-- `dsh-mini-erp-0.3.0.tgz`
+- `dsh-workspace-library-1.3.1.tgz`
+- `dsh-mini-erp-0.3.1.tgz`
 - `manifest.json`：版本、大小和 SHA-256
 - `INSTALL.md`：安装说明
 
@@ -43,6 +43,8 @@ node scripts/package-erp-admin.mjs /absolute/path/erp-admin-package
 | 首页 | [打开](screenshots/erp-admin/home.png) | [打开](screenshots/erp-admin/home-mobile.png) |
 | 商品编辑器 | [打开](screenshots/erp-admin/product-form.png) | [打开](screenshots/erp-admin/product-form-mobile.png) |
 | 店铺设置 | [打开](screenshots/erp-admin/settings.png) | — |
+| 搜索与键盘选择 | [打开](screenshots/erp-admin/search.png) | — |
+| 移动菜单 | — | [打开](screenshots/erp-admin/menu-mobile.png) |
 | 深色首页 | [打开](screenshots/erp-admin/home-dark.png) | — |
 
 ## 能力边界

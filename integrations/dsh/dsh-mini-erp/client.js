@@ -51,10 +51,32 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
     link: 'm10 13 4-4M8 16l-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0M16 8l1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0',
     info: 'M12 11v6M12 7v.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z', check: 'm5 12 4 4L19 6',
   };
-  const Icon = ({ name, size = 18 }) => h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.65, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: paths[name] || paths.product }));
+  // Own 20px navigation silhouettes; utility icons retain the 24px outline grid.
+  const solidPaths = {
+    home: 'M9.4 2.2a1 1 0 0 1 1.2 0l6.5 5.1a1 1 0 0 1 .4.8V16a2 2 0 0 1-2 2H12v-5H8v5H4.5a2 2 0 0 1-2-2V8.1a1 1 0 0 1 .4-.8l6.5-5.1Z',
+    order: 'M5 2h10a1 1 0 0 1 1 1v15l-3-1.5-3 1.5-3-1.5L4 18V3a1 1 0 0 1 1-1Zm2 4v1.5h6V6H7Zm0 3.5V11h6V9.5H7Zm0 3.5v1.5h4V13H7Z',
+    product: 'M3 3h7.3a2 2 0 0 1 1.4.6l6 6a2 2 0 0 1 0 2.8l-5.3 5.3a2 2 0 0 1-2.8 0l-6-6a2 2 0 0 1-.6-1.4V3Zm4 2.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z',
+    buyer: 'M10 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm0 9c-4.1 0-7 2.3-7 5.5V18h14v-1.5c0-3.2-2.9-5.5-7-5.5Z',
+    marketing: 'M4 7h3l8-4v12l-8-4H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2Zm1 5h2l2 5H6l-1-5Zm11-6h1a3 3 0 0 1 0 6h-1V6Z',
+    discount: 'm10 1 2.4 1.8 3-.1.9 2.8L19 7l-.9 3 .9 3-2.7 1.5-.9 2.8-3-.1L10 19l-2.4-1.8-3 .1-.9-2.8L1 13l.9-3L1 7l2.7-1.5.9-2.8 3 .1L10 1ZM6 6a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0Zm7.3-.3-7.6 7.6 1 1 7.6-7.6-1-1ZM11 14a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0Z',
+    document: 'M5 2h6l5 5v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Zm6 1.5V7h3.5L11 3.5ZM7 10v1.5h6V10H7Zm0 3.5V15h6v-1.5H7Z',
+    chart: 'M3 11h3v7H3v-7Zm5-5h3v12H8V6Zm5-4h3v16h-3V2Z',
+    wallet: 'M4 3h11v2H4a1 1 0 0 0 0 2h13v3h-5v5h5v2a1 1 0 0 1-1 1H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm9 8h5v3h-5v-3Zm1 1v1h1v-1h-1Z',
+    apps: 'M3 3h5v5H3V3Zm0 9h5v5H3v-5Zm9 0h5v5h-5v-5Zm2.5-10 4 4-4 4-4-4 4-4Z',
+    folder: 'M3 4h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z',
+    inventory: 'm2 6 8-4 8 4v12h-3V9H5v9H2V6Zm5 5h6v2H7v-2Zm0 4h6v3H7v-3Z',
+    store: 'M4 2h12l2 5H2l2-5ZM2 8h16v1a2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0V8Zm1 4a3 3 0 0 0 3-.8A3 3 0 0 0 10 11a3 3 0 0 0 4 .2 3 3 0 0 0 3 .8v6h-5v-5H8v5H3v-6Z',
+    settings: 'm8 1-.5 2-1.3.8-2-.6-2 3.5L3.7 8v1.5L2.2 11l2 3.5 2-.6 1.3.8.5 2h4l.5-2 1.3-.8 2 .6 2-3.5-1.5-1.5V8l1.5-1.3-2-3.5-2 .6-1.3-.8-.5-2H8Zm2 4.5a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Z',
+  };
+  const Icon = ({ name, size = 20 }) => {
+    const solid = solidPaths[name];
+    return h('svg', { className: 'me-icon', 'data-icon': name, width: size, height: size, viewBox: solid ? '0 0 20 20' : '0 0 24 24',
+      fill: solid ? 'currentColor' : 'none', stroke: solid ? 'none' : 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, focusable: 'false' },
+      h('path', { d: solid || paths[name] || paths.product, fillRule: 'evenodd', clipRule: 'evenodd' }));
+  };
   const button = (label, onClick, options = {}) => {
     const { icon, className = '', ...props } = options;
-    return h('button', { type: 'button', className: `me-button ${className}`, onClick, ...props }, icon ? h(Icon, { name: icon, size: 16 }) : null, label);
+    return h('button', { type: 'button', className: `me-button ${className}`, onClick, ...(!label && props['aria-label'] ? { title: props['aria-label'] } : {}), ...props }, icon ? h(Icon, { name: icon, size: 16 }) : null, label);
   };
   const field = (label, node, hint) => h('label', { className: 'me-field' }, h('span', null, label), node, hint ? h('small', null, hint) : null);
   const badge = (value, text) => h('span', { className: `me-badge me-badge-${value || 'neutral'}` }, h('span', { className: 'me-dot' }), text || states[value] || value);
@@ -77,6 +99,18 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
 .me-main{max-width:1200px;margin:0 auto;padding:30px 32px 48px;min-width:0}.me-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}.me-heading p{color:var(--me-muted);margin-top:6px;line-height:1.7}.me-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.me-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:33px;padding:6px 12px;border:1px solid var(--me-line);border-radius:7px;background:var(--me-surface);box-shadow:0 1px 1px #00000008;font-size:12px!important;font-weight:550;white-space:nowrap;text-decoration:none}.me-button:hover:not(:disabled){background:var(--me-soft);border-color:#b9bcc0}.me-button-primary{color:var(--me-primary-ink)!important;background:var(--me-primary);border-color:var(--me-primary);box-shadow:inset 0 1px #ffffff25,0 1px 2px #00000015}.me-button-primary:hover:not(:disabled){background:#454545;border-color:#454545}.me-button-plain{border-color:transparent;background:transparent;box-shadow:none;color:var(--me-muted)!important}.me-button-plain:hover:not(:disabled){border-color:transparent}.me-icon-button{width:33px;padding:6px}.me-text-button{border:0;background:none;padding:0;color:var(--me-green)!important;box-shadow:none;white-space:normal;justify-content:flex-start}.me-text-button:hover:not(:disabled){background:none;text-decoration:underline}.me-heading-title{display:flex;align-items:flex-start;gap:12px;min-width:0}.me-heading-title h1{overflow-wrap:anywhere}.me-back{margin-top:2px}.me-reference{font-size:11px;font-family:ui-monospace,monospace;color:var(--me-muted);overflow-wrap:anywhere}
 .me-alert{display:flex;align-items:flex-start;gap:10px;border-radius:8px;padding:12px 15px;margin-bottom:20px;border:1px solid #e0d4b5;background:#fcf8ec;color:#6d5429}.me-alert strong{font-weight:600}.me-alert p{font-size:12px;margin-top:3px}.me-alert-error{background:#fff1f0;border-color:#f0c9c5;color:#9b342a}.me-alert-success{background:var(--me-tint);border-color:#cde1d4;color:var(--me-green)}.me-alert .me-button{margin-left:auto}.me-card{min-width:0;border:1px solid var(--me-line);border-radius:11px;background:var(--me-surface);box-shadow:0 1px 3px #00000006;overflow:hidden}.me-card+.me-card{margin-top:18px}.me-card-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 20px;border-bottom:1px solid var(--me-line)}.me-card-body{padding:20px}.me-card-header p{color:var(--me-muted);font-size:12px;margin-top:4px}.me-list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border-bottom:1px solid var(--me-line)}.me-view-label{display:inline-flex;align-items:center;font-weight:600;white-space:nowrap;padding:6px 10px;background:var(--me-soft);border-radius:6px}.me-list-controls{display:flex;gap:8px;align-items:center;min-width:0}.me-search{display:flex;align-items:center;gap:7px;padding:0 9px;border:1px solid var(--me-line);border-radius:7px;color:var(--me-muted);width:230px;max-width:100%;background:var(--me-surface)}.me-search:focus-within{outline:2px solid #4583d5;outline-offset:1px}.me-search input{border:0;background:none;outline:0!important;width:100%;padding:7px 0;font-size:12px;min-height:31px}.me-search:has(input:disabled){opacity:.55}.me-table-wrap{overflow-x:auto}.me table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}.me th{color:var(--me-muted);font-weight:550;font-size:11px;background:var(--me-soft);padding:10px 16px;border-bottom:1px solid var(--me-line);white-space:nowrap}.me td{padding:15px 16px;border-bottom:1px solid var(--me-line);vertical-align:middle}.me tbody tr:last-child td{border-bottom:0}.me tbody tr:not(.me-empty-row):hover{background:var(--me-soft)}.me-product-cell{display:flex;align-items:center;gap:12px;min-width:180px}.me-thumb{width:42px;height:42px;border-radius:7px;border:1px solid var(--me-line);background:var(--me-soft);display:grid;place-items:center;flex-shrink:0;overflow:hidden;color:var(--me-muted)}.me-thumb img{width:100%;height:100%;object-fit:cover}.me-record-button{font-size:13px!important;font-weight:600;color:var(--me-ink)!important;text-align:left;max-width:260px;overflow-wrap:anywhere}.me-row-sub{font-size:11px;color:var(--me-muted);margin-top:3px;max-width:230px;overflow-wrap:anywhere}.me-number{font-variant-numeric:tabular-nums;white-space:nowrap}.me-quiet{color:var(--me-muted)}.me-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 7px;border-radius:5px;white-space:nowrap;background:var(--me-soft);color:var(--me-muted);font-weight:500}.me-dot{width:5px;height:5px;border-radius:50%;background:currentColor}.me-badge-linked,.me-badge-confirmed{background:var(--me-tint);color:var(--me-green)}.me-badge-reserved,.me-badge-legacy-unlinked{background:#fff1d6;color:#836225}.me-badge-unavailable{background:#ffece9;color:#a0392c}.me-list-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-top:1px solid var(--me-line);font-size:11px;color:var(--me-muted)}.me-list-footer .me-actions{flex-shrink:0}.me-page-note{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--me-muted);font-size:11px;margin:20px 0 0;text-align:center}.me-empty-cell{padding:0!important}.me-empty{min-height:330px;text-align:center;padding:38px 24px 42px;display:flex;align-items:center;flex-direction:column;justify-content:center}.me-empty h2{font-size:17px;letter-spacing:-.2px;margin:16px 0 8px}.me-empty p{color:var(--me-muted);max-width:380px;line-height:1.9;font-size:12px}.me-empty .me-button{margin-top:18px}.me-empty-icon{width:52px;height:52px;border-radius:14px;background:var(--me-soft);display:grid;place-items:center;color:var(--me-muted)}.me-art{position:relative;width:150px;height:115px;margin-bottom:2px}.me-art-sheet{position:absolute;left:39px;top:10px;width:81px;height:100px;border:1px solid var(--me-line);border-radius:9px;background:var(--me-surface);box-shadow:0 5px 12px #00000006;transform:rotate(7deg);padding:9px}.me-art-sheet-back{transform:rotate(-11deg);left:22px;top:4px;background:var(--me-soft)}.me-art-picture{height:58px;border-radius:5px;background:var(--me-tint);display:grid;place-items:center;color:var(--me-green)}.me-art-sheet i{display:block;height:4px;border-radius:3px;background:var(--me-line);margin-top:7px;width:41px}.me-art-sheet i:last-child{width:26px;margin-top:4px}.me-art-tag{position:absolute;bottom:-3px;right:17px;width:29px;height:29px;border:3px solid var(--me-surface);border-radius:50%;background:var(--me-primary);color:var(--me-primary-ink);display:grid;place-items:center}.me-loading{padding:22px 20px;min-height:280px}.me-loading p{margin-bottom:22px;color:var(--me-muted)}.me-skeleton{height:44px;border-radius:6px;background:var(--me-soft);margin-bottom:14px;animation:me-pulse 1.4s ease-in-out infinite alternate}.me-skeleton:nth-child(3){width:86%}.me-skeleton:nth-child(4){width:93%}@keyframes me-pulse{to{opacity:.45}}
 .me-binding{margin-bottom:20px}.me-binding .me-card-header{align-items:flex-start}.me-form-grid{display:grid;grid-template-columns:1.4fr 1fr .7fr;gap:18px}.me-field{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:12px;font-weight:550}.me-field small{font-size:11px;line-height:1.7;font-weight:400}.me-form-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:22px;padding-top:16px;border-top:1px solid var(--me-line)}.me-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}.me-detail-grid>div{min-width:0}.me-detail-description{line-height:1.9;white-space:pre-wrap;margin-bottom:22px!important}.me-definition{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:0}.me-definition>div{min-width:0}.me-definition dt{font-size:11px;color:var(--me-muted);margin-bottom:5px}.me-definition dd{margin:0;font-size:13px}.me-media{display:flex;gap:12px;flex-wrap:wrap}.me-media img{width:115px;height:115px;border:1px solid var(--me-line);border-radius:8px;object-fit:contain;background:white}.me-no-media{width:100%;display:flex;gap:12px;align-items:center;padding:16px;border:1px dashed var(--me-line);border-radius:8px;color:var(--me-muted);background:var(--me-soft);font-size:12px}.me-related{display:flex;align-items:center;gap:10px;margin-top:18px;font-size:12px}.me-related small{margin-left:auto}.me-stat{font-size:31px;font-weight:600;letter-spacing:-.7px;line-height:1.3;font-variant-numeric:tabular-nums;margin:4px 0}.me-stat small{font-size:12px;margin-left:5px;font-weight:400;letter-spacing:0}.me-data-row{display:flex;justify-content:space-between;gap:15px;margin:10px 0;color:var(--me-muted);font-size:12px}.me-data-row b{font-weight:550;color:var(--me-ink)}.me-stock-form{margin-top:19px;padding-top:18px;border-top:1px solid var(--me-line)}.me-stock-form .me-button{width:100%;margin-top:14px}.me-help{font-size:11px;color:var(--me-muted);margin-top:13px;line-height:1.8}.me-help summary{cursor:pointer}.me-help p{margin-top:7px}.me-quote{font-size:23px;font-weight:650;letter-spacing:-.4px;margin-bottom:5px}.me-tiers{width:100%;margin-top:17px}.me-tiers td,.me-tiers th{padding:8px 0;font-size:11px}.me-tiers th{background:none}.me-tiers td:last-child,.me-tiers th:last-child{text-align:right}.me-detail-actions{padding-top:18px;border-top:1px solid var(--me-line);margin-top:18px}.me-detail-actions .me-button{flex:1}.me-terms{white-space:pre-wrap;font-size:13px;line-height:1.9}.me-section-label{font-size:11px;color:var(--me-muted);margin-bottom:6px!important}.me-space-top{margin-top:20px!important}
+/* Shared visual and interaction finish: navigation silhouettes, utility outlines. */
+.me{--me-focus:#005bd3;--me-hover:color-mix(in srgb,var(--me-ink) 5%,var(--me-surface));--me-pressed:color-mix(in srgb,var(--me-ink) 9%,var(--me-surface));text-rendering:optimizeLegibility}
+.me .me-icon{display:block;flex:none;vertical-align:middle}.me h1:focus{outline:none;box-shadow:none}.me-heading h1{font-weight:650;letter-spacing:-.4px}.me-heading p{line-height:1.65}.me th{color:var(--me-muted);font-weight:550}.me td{font-variant-numeric:tabular-nums}.me .me-button{font-weight:500}.me .me-button:active:not(:disabled){background:var(--me-pressed);box-shadow:inset 0 1px 2px #00000012}.me .me-button-primary:active:not(:disabled){background:#242424;color:white;box-shadow:inset 0 2px 2px #0004}.me button:disabled{cursor:default;opacity:.45}
+.me :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible{outline:2px solid var(--me-focus);outline-offset:2px;box-shadow:0 0 0 4px color-mix(in srgb,var(--me-focus) 13%,transparent)}.me .me-command-input input:focus-visible{outline:0!important;box-shadow:none}.me .me-command-input:focus-within{box-shadow:inset 0 -2px var(--me-focus)}
+.me .me-nav{padding:16px 12px 12px}.me .me-nav button{font-weight:450;min-height:34px;gap:9px;transition:background .12s,color .12s;letter-spacing:.05px}.me .me-nav button .me-icon{width:20px;height:20px;display:block;color:#777b7e}.me .me-nav button:hover:not(:disabled){background:var(--me-hover)}.me .me-nav button:active:not(:disabled){background:var(--me-pressed);box-shadow:none}.me .me-nav button[aria-current=page]{background:var(--me-surface);box-shadow:0 1px 3px #0000000c;font-weight:650}.me .me-nav button[aria-current=page] .me-icon,.me .me-nav-row[data-current=true]>.me-button:first-child .me-icon{color:var(--me-ink)}.me .me-nav-row[data-current=true]>.me-button:first-child{color:var(--me-ink);font-weight:650}.me .me-nav .me-nav-expand{min-height:28px;width:28px;top:3px}.me .me-nav-expand .me-icon{width:14px;height:14px;transition:transform .16s ease}.me .me-nav-expand[aria-expanded=true] .me-icon{transform:rotate(180deg)}.me .me-nav-children{margin:3px 0 6px 19px;padding:0 0 0 12px;border-left:1px solid var(--me-line)}.me .me-nav-children button{font-size:12px!important;min-height:31px;font-weight:450}.me .me-nav-divider{font-weight:600;font-size:11px;letter-spacing:.3px;padding-top:22px}.me .me-nav-bottom{padding-top:20px}
+.me .me-topbar .me-icon-button:hover{background:#383838;color:#fff}.me .me-topbar .me-icon-button:active{background:#484848}.me .me-global-search{transition:background .12s,border-color .12s}.me .me-global-search:hover{background:#414141;border-color:#666}.me .me-global-search:active{background:#4a4a4a}.me .me-global-search kbd{font-family:inherit;font-size:10px;line-height:1.6;white-space:nowrap;padding:1px 5px;border-color:#606060;color:#d8d8d8}.me .me-topbar select:focus-visible{outline-color:#a5c7ff}
+.me .me-list-toolbar{padding:10px 12px}.me .me-views .me-button[aria-pressed=true]{background:var(--me-pressed);box-shadow:inset 0 1px 1px #00000006}.me .me-check-cell input{width:16px;height:16px;min-height:0;padding:0;vertical-align:middle;accent-color:var(--me-ink);cursor:pointer}.me .me-table-wrap tbody tr:not(.me-empty-row):hover{background:var(--me-hover)}.me .me-table-wrap tr[data-selected=true]{background:var(--me-soft)}.me .me-table-wrap tr[data-selected=true]:hover{background:var(--me-pressed)}.me .me-table-wrap tbody tr:focus-within{background:var(--me-hover)}.me .me-selection-bar{background:var(--me-soft);border-block:1px solid var(--me-line);padding:9px 16px}.me .me-selection-bar strong{font-size:12px}.me .me-record-button{color:var(--me-ink)!important;text-decoration:none;font-weight:550}.me .me-record-button:hover:not(:disabled){text-decoration:underline;text-underline-offset:3px}.me .me-thumb{color:var(--me-muted);background:var(--me-soft)}.me .me-thumb .me-icon{width:20px;height:20px;opacity:.7}
+.me .me-search{gap:7px}.me .me-search:focus-within{outline:2px solid var(--me-focus);outline-offset:1px;border-color:transparent}.me .me-search input:focus-visible{outline:none;box-shadow:none}.me .me-search-clear{flex:none;width:25px;min-height:25px;padding:4px;margin-right:3px}.me .me-search input::-webkit-search-cancel-button,.me .me-command-input input::-webkit-search-cancel-button{display:none}.me .is-loading>.me-icon{animation:me-spin .9s linear infinite}@keyframes me-spin{to{transform:rotate(360deg)}}
+.me .me-command-dialog{border-radius:14px;box-shadow:0 24px 80px #0004,0 0 0 1px #00000008}.me .me-command-label{font-size:11px;letter-spacing:.2px;padding:14px 12px 7px;font-weight:550}.me .me-search-result{font-weight:450;padding:8px 11px;gap:11px;min-height:46px}.me .me-result-icon{width:30px;height:30px;display:grid;place-items:center;flex:none;border-radius:7px;background:var(--me-surface);border:1px solid var(--me-line);color:var(--me-muted)}.me .me-result-icon .me-icon{width:18px;height:18px}.me .me-search-result>span:not(.me-result-icon){flex:1}.me .me-search-result:hover:not([aria-selected=true]){background:transparent}.me .me-search-result[aria-selected=true]{background:var(--me-soft);box-shadow:inset 0 0 0 1px var(--me-line)}.me .me-search-result>svg:last-child{opacity:0;transition:opacity .12s}.me .me-search-result[aria-selected=true]>svg:last-child{opacity:1}.me .me-command-dialog footer{padding:12px 16px;font-size:11px;align-items:center}.me .me-command-dialog kbd{display:inline-block;background:var(--me-soft);border:1px solid var(--me-line);border-radius:4px;min-width:19px;text-align:center;padding:0 3px;font-family:inherit;font-size:11px;line-height:18px}.me .me-command-empty{display:flex;align-items:center;flex-direction:column;gap:10px;text-align:center;padding:40px 18px}.me .me-command-empty strong{color:var(--me-ink);font-size:14px}.me .me-command-empty p{font-size:12px}.me .me-command-error{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;font-size:12px}.me .me-command-error button{flex-shrink:0}
+.me .me-settings-nav button:hover{background:var(--me-hover)}.me .me-settings-nav .me-icon{width:18px;height:18px}.me .me-settings-nav button[aria-current=page]{font-weight:650}.me :is(.wl-admin-editor,.wl-admin-company,.wl-admin-file) :is(input,textarea,select):hover:not(:disabled){border-color:var(--me-muted)}.me .wl-btn{transition:background .12s,border-color .12s,box-shadow .12s}.me .wl-btn:active:not(:disabled){box-shadow:inset 0 1px 3px #0002}.me .me-toast{padding:10px 12px 10px 16px;font-size:12px;line-height:1.6}.me .me-toast>.me-icon{color:#c8eac2}.me[data-appearance=dark] .me-nav button .me-icon{color:#b0b3b5}.me[data-appearance=dark] .me-nav button[aria-current=page] .me-icon{color:var(--me-ink)}
+@container(max-width:900px){.me .me-shell .me-nav{z-index:15;width:238px;max-width:calc(100% - 40px);padding:12px;background:var(--me-canvas)}.me .me-nav button{min-height:40px}.me .me-nav .me-nav-expand{width:36px;min-height:36px;top:2px}.me .me-nav-children button{min-height:38px}.me .me-nav .me-drawer-close{margin-bottom:12px;justify-content:flex-start;gap:10px;font-size:12px!important;color:var(--me-muted)}}
+@container(max-width:650px){.me .me-icon-button{width:36px;min-height:36px}.me .me-topbar .me-mobile-menu{width:36px;min-height:36px}.me .me-list-toolbar{padding:10px}.me .me-command-dialog footer{align-items:flex-start;gap:7px}.me .me-command-input input{font-size:16px}.me .me-command-input .me-button-plain{min-height:36px}.me .me-command-error{align-items:flex-start;flex-direction:column}.me .me-search-clear{width:28px;min-height:28px}.me .me-heading .me-actions button{min-height:36px}}
 @media(prefers-reduced-motion:reduce){.me *{transition:none!important;animation:none!important}}
 @container(max-width:850px){.me-topbar{padding:0 22px}.me-nav{padding:0 22px;gap:23px}.me-main{padding:24px 22px}.me-detail-grid{grid-template-columns:minmax(0,1fr) 260px}.me-heading{gap:14px}.me-heading h1{font-size:23px}.me-heading .me-actions{justify-content:flex-end}.me-form-grid{grid-template-columns:1fr 1fr}.me-form-grid>.me-field:last-child{grid-column:1/-1}.me-search{width:190px}}
 @container(max-width:650px){.me-topbar{padding:0 18px;height:58px;gap:12px}.me-brand small{display:none}.me-workspace{gap:4px}.me-workspace select{max-width:145px}.me-nav{padding:0 18px;gap:22px}.me-nav button{font-size:12px;padding:13px 0 11px}.me-nav svg{display:none}.me-nav .me-nav-library{margin-left:0}.me-main{padding:22px 16px 32px}.me-heading{align-items:flex-start;flex-direction:column;gap:17px;margin-bottom:20px}.me-heading h1{font-size:24px}.me-heading p{font-size:12px}.me-heading .me-actions{justify-content:flex-start}.me-detail-grid{grid-template-columns:1fr}.me-form-grid{grid-template-columns:1fr}.me-list-toolbar{flex-wrap:wrap;padding:12px}.me-list-controls{flex:1;justify-content:flex-end}.me-search{width:185px}.me-view-label{font-size:12px}.me-empty{padding:32px 20px;min-height:320px}.me-empty h2{font-size:16px}.me-card-header{padding:16px}.me-card-body{padding:16px}.me-card-header .me-text-button{font-size:11px!important;max-width:150px}.me-list-footer{padding:11px 12px;flex-wrap:wrap}.me-definition{gap:18px}.me-page-note{align-items:flex-start;font-size:10px}.me-brand{font-size:13px}.me-topbar select{font-size:11px}}
@@ -310,7 +344,7 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
     ['markets', []], ['analytics', ['reports', 'live']], ['finances', []],
   ];
   const settingsPages = ['store_details', 'payments', 'checkout', 'shipping', 'taxes', 'locations', 'domains', 'notifications', 'users', 'appearance', 'connections'];
-  const livePages = new Set(['home', 'orders', 'products', 'inventory', 'customers', 'files', 'settings', 'store_details', 'appearance', 'connections']);
+  const livePages = new Set(['home', 'orders', 'products', 'inventory', 'customers', 'content', 'files', 'settings', 'store_details', 'appearance', 'connections']);
   const resourceColumns = {
     drafts: ['草稿订单', '客户', '状态', '总计'], abandoned: ['结账', '客户', '恢复状态', '总计'], collections: ['标题', '商品条件', '商品数量'],
     purchase_orders: ['采购订单', '供应商', '目的地', '状态'], transfers: ['转移', '发货地', '目的地', '状态'], gift_cards: ['礼品卡', '客户', '状态', '余额'],
@@ -366,12 +400,12 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
   function useResource(load, key) {
     const [state, setState] = useState({ loading: true, value: null, error: '' }), [nonce, reload] = useState(0);
     useEffect(() => {
-      const a = new AbortController(); setState({ loading: true, value: null, error: '' });
-      Promise.resolve().then(() => load(a.signal)).then(value => { if (!a.signal.aborted) setState({ loading: false, value, error: '' }); })
-        .catch(error => { if (!a.signal.aborted) setState({ loading: false, value: null, error: error.message }); });
+      const a = new AbortController(); setState({ key, loading: true, value: null, error: '' });
+      Promise.resolve().then(() => load(a.signal)).then(value => { if (!a.signal.aborted) setState({ key, loading: false, value, error: '' }); })
+        .catch(error => { if (!a.signal.aborted) setState({ key, loading: false, value: null, error: error.message }); });
       return () => a.abort();
     }, [key, nonce]);
-    return { ...state, reload: () => reload(n => n + 1) };
+    return { ...(state.key === key ? state : { loading: true, value: null, error: '' }), reload: () => reload(n => n + 1) };
   }
   function PageHeading({ title, subtitle, actions, crumb, onBack }) {
     return h('div', { className: 'me-heading' }, h('div', { className: 'me-heading-title' },
@@ -394,6 +428,9 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
     const params = new URLSearchParams({ q: query, status, offset: String(offset), limit: '50', sort });
     const resource = useResource(signal => libraryRead(`/${files ? 'documents' : 'products'}?${params}`, signal), `${kind}:${params}`);
     const rows = resource.value?.items || [];
+    const selection = useRef(null);
+    useEffect(() => { if (selection.current) selection.current.indeterminate = selected.length > 0 && selected.length < rows.length; }, [selected, resource.value, resource.loading]);
+    useEffect(() => { if (resource.value) setSelected(old => old.filter(id => resource.value.items.some(row => row.id === id))); }, [resource.value]);
     useEffect(() => { setSelected([]); }, [kind, query, status, offset, sort]);
     function change(fn, value) { fn(value); setOffset(0); }
     function exportRows() {
@@ -407,16 +444,16 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
           button(files ? '上传文件' : '添加商品', onCreate, { key: 'create', className: 'me-button-primary', icon: 'plus' })] }),
       h('section', { className: 'me-card' },
         h('div', { className: 'me-list-toolbar' }, h('div', { className: 'me-views' }, [['', '全部'], [files ? 'active' : 'draft', files ? '可用' : '草稿'], ['archived', '已归档']].map(([value, label]) => button(label, () => change(setStatus, value), { key: value, 'aria-pressed': status === value }))),
-          h('div', { className: 'me-list-controls' }, h('label', { className: 'me-search' }, h(Icon, { name: 'search', size: 16 }), h('input', { type: 'search', value: query, maxLength: 200, placeholder: files ? '搜索文件' : '搜索所有商品', 'aria-label': files ? '搜索文件' : '搜索所有商品', onChange: e => change(setQuery, e.target.value) })),
+          h('div', { className: 'me-list-controls' }, h('label', { className: 'me-search' }, h(Icon, { name: 'search', size: 16 }), h('input', { type: 'search', value: query, maxLength: 200, placeholder: files ? '搜索文件' : '搜索所有商品', 'aria-label': files ? '搜索文件' : '搜索所有商品', onChange: e => change(setQuery, e.target.value) }), query ? button(null, e => { change(setQuery, ''); e.currentTarget.closest('label').querySelector('input').focus(); }, { icon: 'close', className: 'me-button-plain me-search-clear', 'aria-label': '清除列表搜索' }) : null),
             h('select', { className: 'me-sort', 'aria-label': '排序', value: sort, onChange: e => change(setSort, e.target.value) }, h('option', { value: 'updated' }, '最近更新'), h('option', { value: 'name_asc' }, '名称 A–Z'), h('option', { value: 'name_desc' }, '名称 Z–A')),
-            button(null, resource.reload, { icon: 'refresh', className: 'me-icon-button', 'aria-label': '刷新' }))),
+            button(null, resource.reload, { icon: 'refresh', className: `me-icon-button${resource.loading ? ' is-loading' : ''}`, disabled: resource.loading, 'aria-label': '刷新' }))),
         selected.length ? h('div', { className: 'me-selection-bar' }, h('strong', null, `已选择 ${selected.length} 项`), button('导出所选', exportRows, { icon: 'download' }), button('取消选择', () => setSelected([]), { className: 'me-button-plain' })) : null,
         h(ResourceState, { resource }, !rows.length ? h('div', { className: 'me-empty' }, h(EmptyArtwork, { entity: files ? 'document' : 'product' }),
           h('h2', null, query || status ? '没有符合条件的记录' : files ? '让文件井井有条' : '添加你的第一件商品'),
           h('p', null, query || status ? '调整搜索词或筛选条件后重试。' : files ? '上传真实文件，在商品和企业资料中重复使用。' : '从商品名称开始，添加图片、变体和价格。'),
           query || status ? button('清除筛选', () => { setQuery(''); setStatus(''); setOffset(0); }) : button(files ? '上传文件' : '添加商品', onCreate, { className: 'me-button-primary' }))
           : h('div', { className: 'me-table-wrap', tabIndex: 0, role: 'region', 'aria-label': files ? '文件列表' : '商品列表' }, h('table', null,
-            h('thead', null, h('tr', null, h('th', { className: 'me-check-cell' }, h('input', { type: 'checkbox', 'aria-label': '选择本页全部', checked: rows.length > 0 && selected.length === rows.length, onChange: e => setSelected(e.target.checked ? rows.map(r => r.id) : []) })),
+            h('thead', null, h('tr', null, h('th', { className: 'me-check-cell' }, h('input', { ref: selection, type: 'checkbox', 'aria-label': '选择本页全部', checked: rows.length > 0 && selected.length === rows.length, onChange: e => setSelected(e.target.checked ? rows.map(r => r.id) : []) })),
               (files ? ['文件名称', '类型', '状态', '版本', '更新日期'] : ['商品', '状态', '变体', '分类', '更新日期']).map(label => h('th', { key: label, scope: 'col' }, label)))),
             h('tbody', null, rows.map(row => h('tr', { key: row.id, 'data-selected': selected.includes(row.id) },
               h('td', { className: 'me-check-cell' }, h('input', { type: 'checkbox', 'aria-label': `选择 ${row.name || row.title}`, checked: selected.includes(row.id), onChange: e => setSelected(old => e.target.checked ? [...old, row.id] : old.filter(id => id !== row.id)) })),
@@ -478,50 +515,71 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
                 : h(ConnectionPage, { page: selected, navigate, embedded: true }))));
   }
   function SearchDialog({ workspace, onClose, onNavigate, onProduct, onFile, onCustomer, onOrder, returnFocus }) {
-    const [query, setQuery] = useState(''), [search, setSearch] = useState('');
-    const input = useRef(null), dialog = useRef(null);
+    const [query, setQuery] = useState(''), [search, setSearch] = useState(''), [activeIndex, setActiveIndex] = useState(0);
+    const input = useRef(null), dialog = useRef(null), restore = useRef(true);
     useEffect(() => { const timer = setTimeout(() => setSearch(query.trim()), 180); return () => clearTimeout(timer); }, [query]);
-    useEffect(() => { input.current?.focus(); return () => { setTimeout(() => { if (!document.querySelector('.me-command-dialog') && returnFocus?.isConnected) returnFocus.focus(); }, 0); }; }, []);
+    useEffect(() => { input.current?.focus(); return () => { setTimeout(() => {
+      if (!document.querySelector('.me-command-dialog')) {
+        if (restore.current && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+        else document.querySelector('.me-main h1')?.focus({ preventScroll: true });
+      }
+    }, 0); }; }, []);
     const resource = useResource(async signal => {
       if (!search) return [];
       const jobs = [libraryRead('/search?' + new URLSearchParams({ q: search, limit: '10' }), signal), ...workspace ? ['buyer', 'order'].map(entity => request(`/workspaces/${encodeURIComponent(workspace)}/read?` + new URLSearchParams({ entity, q: search, limit: '10' }), null, signal)) : []];
       const results = await Promise.allSettled(jobs);
       return results.map(result => result.status === 'fulfilled' ? { data: result.value } : { error: result.reason.message });
     }, `${workspace}:${search}`);
-    const routes = Object.entries(pages).filter(([, [title]]) => !query || title.includes(query.trim())).slice(0, search ? 5 : 9);
-    const results = resource.value || [], library = results[0]?.data?.hits || [], customers = results[1]?.data?.items || [], orders = results[2]?.data?.items || [];
-    const act = fn => { onClose(); fn(); };
+    const waiting = query.trim() !== search || resource.loading;
+    const results = waiting ? [] : resource.value || [], failed = results.some(row => row.error);
+    const library = results[0]?.data?.hits || [], customers = results[1]?.data?.items || [], orders = results[2]?.data?.items || [];
+    const choices = [
+      ...Object.entries(pages).filter(([, [title]]) => !query || title.includes(query.trim())).slice(0, query.trim() ? 5 : 9)
+        .map(([id, [title, icon]]) => ({ key: id, label: title, type: livePages.has(id) ? '页面' : '未接入', icon, group: '前往', run: () => onNavigate(id) })),
+      ...library.map(row => ({ key: row.type + row.id, label: row.title, type: row.type === 'product' ? '商品' : '文件', icon: row.type === 'product' ? 'product' : 'document', group: '商品与文件', run: () => row.type === 'product' ? onProduct(row.id) : onFile(row.id) })),
+      ...customers.map(row => ({ key: 'customer' + row.id, label: row.name, type: '客户', icon: 'buyer', group: '当前工作区', run: () => onCustomer(row.id) })),
+      ...orders.map(row => ({ key: 'order' + row.id, label: shortId(row.id), type: '订单', icon: 'order', group: '当前工作区', run: () => onOrder(row.id) })),
+    ];
+    const signature = choices.map(row => row.key).join('|');
+    useEffect(() => { setActiveIndex(0); }, [query, signature]);
+    const active = choices.length ? Math.min(activeIndex, choices.length - 1) : -1;
+    function choose(index) { if (!choices[index]) return; restore.current = false; onClose(); choices[index].run(); }
     function keys(e) {
+      if (e.nativeEvent?.isComposing || e.isComposing) return;
       if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
       if (e.key === 'Tab') {
-        const nodes = [...dialog.current.querySelectorAll('button:not(:disabled),input')], first = nodes[0], last = nodes.at(-1);
+        const nodes = [...dialog.current.querySelectorAll('button:not(:disabled):not([tabindex="-1"]),input')], first = nodes[0], last = nodes.at(-1);
         if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
         if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
       }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault(); const nodes = [...dialog.current.querySelectorAll('[data-search-result]')], current = nodes.indexOf(document.activeElement);
-        nodes[(current + (e.key === 'ArrowDown' ? 1 : -1) + nodes.length) % nodes.length]?.focus();
+      if (e.target === input.current && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && choices.length) {
+        e.preventDefault(); const next = (active + (e.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length;
+        setActiveIndex(next); document.getElementById(`me-search-option-${next}`)?.scrollIntoView?.({ block: 'nearest' });
       }
+      if (e.target === input.current && e.key === 'Enter' && active >= 0) { e.preventDefault(); choose(active); }
     }
-    const item = (label, type, fn, key, icon) => h('button', { key, 'data-search-result': true, className: 'me-search-result', onClick: () => act(fn) }, h(Icon, { name: icon }), h('span', null, label), h('small', null, type), h(Icon, { name: 'arrow', size: 13 }));
     return h('div', { className: 'me-modal-backdrop', onClick: e => { if (e.target === e.currentTarget) onClose(); } },
       h('section', { ref: dialog, className: 'me-command-dialog', role: 'dialog', 'aria-modal': true, 'aria-label': '搜索后台', onKeyDown: keys },
-        h('div', { className: 'me-command-input' }, h(Icon, { name: 'search' }), h('input', { ref: input, type: 'search', placeholder: '搜索商品、文件、客户或订单', maxLength: 200, value: query, onChange: e => setQuery(e.target.value), 'aria-label': '搜索后台' }), button('Esc', onClose, { className: 'me-button-plain', 'aria-label': '关闭搜索' })),
-        h('div', { className: 'me-command-results', 'aria-live': 'polite' },
-          routes.length ? h('p', { className: 'me-command-label' }, '前往') : null,
-          routes.map(([id, [title, icon]]) => item(title, livePages.has(id) ? '页面' : '未接入', () => onNavigate(id), id, icon)),
-          search && resource.loading ? h('p', { className: 'me-command-label', role: 'status' }, '正在搜索…') : null,
-          results.some(result => result.error) ? h('p', { role: 'alert', className: 'me-command-label' }, '部分来源读取失败，请重试。') : null,
-          library.map(row => item(row.title, row.type === 'product' ? '商品' : '文件', () => row.type === 'product' ? onProduct(row.id) : onFile(row.id), row.type + row.id, row.type === 'product' ? 'product' : 'document')),
-          customers.map(row => item(row.name, '客户', () => onCustomer(row.id), 'customer' + row.id, 'buyer')),
-          orders.map(row => item(shortId(row.id), '订单', () => onOrder(row.id), 'order' + row.id, 'order')),
-          search && !resource.loading && !routes.length && !library.length && !customers.length && !orders.length && !results.some(r => r.error) ? h('div', { className: 'me-command-empty' }, '没有找到匹配结果。试试其他名称或订单编号。') : null),
-        h('footer', null, h('span', null, '↑ ↓ 选择 · Enter 打开'), h('span', null, '每个来源最多 10 项；客户与订单限当前工作区。'))));
+        h('div', { className: 'me-command-input' }, h(Icon, { name: 'search' }), h('input', { ref: input, type: 'search', role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': true, 'aria-controls': 'me-search-options', 'aria-activedescendant': active >= 0 ? `me-search-option-${active}` : undefined,
+          placeholder: '搜索商品、文件、客户或订单', maxLength: 200, value: query, onChange: e => setQuery(e.target.value), 'aria-label': '搜索后台' }),
+          query ? button(null, () => { setQuery(''); input.current.focus(); }, { icon: 'close', className: 'me-icon-button me-button-plain', 'aria-label': '清除搜索' }) : null,
+          button('Esc', onClose, { className: 'me-button-plain', 'aria-label': '关闭搜索' })),
+        h('div', { className: 'me-command-results' },
+          h('div', { id: 'me-search-options', role: 'listbox', 'aria-label': '搜索结果', 'aria-busy': waiting }, choices.map((row, index) => h(React.Fragment, { key: row.key },
+            index === 0 || choices[index - 1].group !== row.group ? h('div', { className: 'me-command-label', role: 'presentation' }, row.group) : null,
+            h('button', { type: 'button', id: `me-search-option-${index}`, role: 'option', 'aria-selected': active === index, tabIndex: -1, 'data-search-result': true, className: 'me-search-result',
+              onMouseDown: e => e.preventDefault(), onMouseMove: () => setActiveIndex(index), onClick: () => choose(index) },
+              h('span', { className: 'me-result-icon' }, h(Icon, { name: row.icon })), h('span', null, row.label), h('small', null, row.type), h(Icon, { name: 'arrow', size: 14 }))))),
+          waiting && query.trim() ? h('p', { className: 'me-command-label', role: 'status' }, '正在搜索…') : null,
+          failed ? h('div', { role: 'alert', className: 'me-command-error' }, h('span', null, '部分来源读取失败，请重试。'), button('重新搜索', resource.reload, { className: 'me-text-button' })) : null,
+          query.trim() && !waiting && !choices.length && !failed ? h('div', { className: 'me-command-empty', role: 'status' }, h(Icon, { name: 'search', size: 28 }), h('strong', null, '没有找到匹配结果'), h('p', null, '试试商品名称、客户邮箱或订单编号。')) : null),
+        h('footer', null, h('span', null, h('kbd', null, '↑'), ' ', h('kbd', null, '↓'), ' 选择 · ', h('kbd', null, '↵'), ' 打开'), h('span', null, '每个来源最多 10 项；客户与订单限当前工作区。'))));
   }
 
-  function Panel({ openLibrary, toggleHostSidebar }) {
+  function Panel({ toggleHostSidebar }) {
     const [section, setSection] = useState(() => readLocation().page), [searchOpen, setSearchOpen] = useState(false), [expanded, setExpanded] = useState({});
     const [fileView, setFileView] = useState(null), searchReturnFocus = useRef(null);
+    function closeMenu() { setMenuOpen(false); document.querySelector('.me-mobile-menu')?.focus({ preventScroll: true }); }
     function openSearch() { if (busy) return; searchReturnFocus.current = document.activeElement; setSearchOpen(true); }
     const preference = (key, fallback) => { try { return window.localStorage.getItem('erp-admin:' + key) || fallback; } catch { return fallback; } };
     const [appearance, changeAppearance] = useState(() => { const v = preference('appearance', 'system'); return ['system', 'light', 'dark'].includes(v) ? v : 'system'; });
@@ -628,7 +686,14 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
       return () => { window.removeEventListener('keydown', key); window.removeEventListener('popstate', pop); window.removeEventListener('beforeunload', warn); };
     }, [section, workspace, busy, editorDirty, workspaces, searchOpen]);
     useEffect(() => { const main = document.querySelector('.me-main'); if (main) main.scrollTop = 0; main?.querySelector('h1')?.focus({ preventScroll: true }); }, [section]);
-    useEffect(() => { const resize = () => { if (document.querySelector('.me')?.clientWidth > 900) setMenuOpen(false); }; window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize); }, []);
+    useEffect(() => {
+      const root = document.querySelector('.me'), resize = () => {
+        if (root?.clientWidth > 900) { setMenuOpen(false); if (document.activeElement?.classList.contains('me-drawer-close')) document.querySelector('.me-global-search')?.focus(); }
+      };
+      const observer = window.ResizeObserver ? new window.ResizeObserver(resize) : null;
+      if (root) observer?.observe(root); window.addEventListener('resize', resize);
+      return () => { observer?.disconnect(); window.removeEventListener('resize', resize); };
+    }, []);
     useEffect(() => { if (menuOpen) document.querySelector('.me-nav .me-drawer-close')?.focus(); }, [menuOpen]);
     useEffect(() => {
       if (!notice) return; const timer = setTimeout(() => setNotice(''), 6000); return () => clearTimeout(timer);
@@ -726,7 +791,7 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
       : section === 'settings' || settingsPages.includes(section) ? h(SettingsPage, { key: section, page: section, navigate, appearance, density,
           setAppearance: value => savePreference('appearance', value, changeAppearance), setDensity: value => savePreference('density', value, changeDensity), onDirtyChange: setEditorDirty, onBusy: setBusy, onSaved: () => setNotice('店铺资料已保存') })
       : h(ConnectionPage, { page: section, navigate });
-    const content = h('main', { id: 'me-content', className: `me-main${editor ? ' me-main-editor' : ''}` },
+    const content = h('main', { id: 'me-content', inert: menuOpen ? '' : undefined, className: `me-main${editor ? ' me-main-editor' : ''}` },
         showResource ? h('div', { className: 'me-heading' }, h('div', { className: 'me-heading-title' }, detail || editor || composer ? button(null, () => { if (composer) { if (leaveEditor()) { setComposer(null); setEditorDirty(false); refresh(n => n + 1); } } else if (editor) closeEditor(); else { detailRequest.current++; setDetail(null); refresh(n => n + 1); } }, { className: 'me-icon-button me-back', icon: 'back', 'aria-label': '返回列表', disabled: busy }) : null,
           h('div', null, h('h1', { tabIndex: -1 }, title), composer ? h('p', null, composer.kind === 'buyer' ? '记录真实客户信息。' : '按实际数量核对报价与供货条件。') : editor ? h('p', null, '商品内容与资料统一保存到产品库。') : detail ? h('p', { className: 'me-reference' }, detail.id) : h('p', null, descriptions[entity]))),
           editor || composer ? null : detail ? entity === 'product' ? h('div', { className: 'me-actions' }, badge(detail.catalogStatus), button('创建订单', () => beginComposer('order', { initialProductId: detail.id }), { disabled: busy || detail.catalogStatus === 'unavailable', className: 'me-button-primary' })) : entity === 'buyer' ? button('创建订单', () => beginComposer('order', { initialBuyerId: detail.id }), { disabled: busy, className: 'me-button-primary' }) : null : entity === 'product' ? h('div', { className: 'me-actions' },
@@ -745,7 +810,7 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
             h('div', { className: 'me-form-footer' }, button('取消', () => setBinding(false), { disabled: busy }), button(busy ? '正在保存…' : '确认关联', undefined, { type: 'submit', disabled: busy || !skuId, className: 'me-button-primary' })))) : null,
         showResource ? (composer ? h(composer.kind === 'buyer' ? CustomerComposer : OrderComposer, { key: `${workspace}:${composer.kind}:${composer.customer?.id || 'new'}`, workspace, ...composer, onSaved: created, onClose: () => { if (leaveEditor()) { setComposer(null); setEditorDirty(false); refresh(n => n + 1); } }, onBusy: setBusy, onDirtyChange: setEditorDirty }) : editor ? h(ProductEditorSurface, { key: editor.productId || 'new', productId: editor.productId, onClose: closeEditor, onDirtyChange: setEditorDirty, onBusy: setBusy, onSaved: () => { setEditor(null); setEditorDirty(false); refresh(n => n + 1); setNotice('商品已保存'); } }) : detail ? entity === 'product' ? renderProductDetail() : renderOtherDetail() : h('section', { className: 'me-card' },
           h('div', { className: 'me-list-toolbar' }, h('div', { className: 'me-views', 'aria-label': '筛选本页状态' }, views.map(([key, label]) => button(label, () => setFilter(key), { key, 'aria-pressed': filter === key }))), h('div', { className: 'me-list-controls' },
-            h('label', { className: 'me-search' }, h(Icon, { name: 'search', size: 15 }), h('input', { type: 'search', 'aria-label': '搜索记录', placeholder: entity === 'product' ? '筛选本页 SKU' : `搜索所有${labels[entity]}`, value: query, onChange: e => { setQuery(e.target.value); setCursor(''); } })),
+            h('label', { className: 'me-search' }, h(Icon, { name: 'search', size: 15 }), h('input', { type: 'search', 'aria-label': '搜索记录', placeholder: entity === 'product' ? '筛选本页 SKU' : `搜索所有${labels[entity]}`, value: query, onChange: e => { setQuery(e.target.value); setCursor(''); } }), query ? button(null, e => { setQuery(''); setCursor(''); e.currentTarget.closest('label').querySelector('input').focus(); }, { icon: 'close', className: 'me-button-plain me-search-clear', 'aria-label': '清除列表搜索' }) : null),
             h('select', { className: 'me-sort', 'aria-label': '本页排序', value: sort, onChange: e => setSort(e.target.value) }, h('option', { value: 'default' }, '默认排序'), h('option', { value: 'asc' }, '名称 A–Z'), h('option', { value: 'desc' }, '名称 Z–A')),
             button(null, reload, { icon: 'refresh', disabled: busy, className: 'me-icon-button', 'aria-label': '刷新列表', title: '刷新列表' }))),
           h('div', { className: 'me-table-wrap' }, h('table', null, h('thead', null, h('tr', null, columns.map(c => h('th', { key: c, scope: 'col' }, c)))), h('tbody', null,
@@ -755,25 +820,25 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
         !composer && !editor && section === 'inventory' ? h('p', { className: 'me-page-note' }, h(Icon, { name: 'link', size: 13 }), '商品、图片与资料在产品库统一维护，订单保留成交时的价格。') : null);
     const navItem = (id, children = []) => {
       const current = section === id || children.includes(section), open = expanded[id] ?? current;
-      return h('div', { className: 'me-nav-group', key: id }, h('div', { className: 'me-nav-row' },
+      return h('div', { className: 'me-nav-group', key: id }, h('div', { className: 'me-nav-row', 'data-current': current },
         button(pages[id][0], () => navigate(id), { icon: pages[id][1], disabled: busy, 'aria-current': section === id ? 'page' : undefined, 'data-admin-page': id }),
-        children.length ? button(null, () => setExpanded(value => ({ ...value, [id]: !open })), { icon: 'down', className: 'me-nav-expand', 'aria-label': `${open ? '折叠' : '展开'}${pages[id][0]}`, 'aria-expanded': open, disabled: busy }) : null),
-        children.length && open ? h('div', { className: 'me-nav-children' }, children.map(child => button(pages[child][0], () => navigate(child), { key: child, disabled: busy, 'aria-current': section === child ? 'page' : undefined, 'data-admin-page': child }))) : null);
+        children.length ? button(null, () => setExpanded(value => ({ ...value, [id]: !open })), { icon: 'down', className: 'me-nav-expand', 'aria-label': `${open ? '折叠' : '展开'}${pages[id][0]}`, 'aria-expanded': open, 'aria-controls': `me-nav-${id}`, disabled: busy }) : null),
+        children.length && open ? h('div', { id: `me-nav-${id}`, className: 'me-nav-children' }, children.map(child => button(pages[child][0], () => navigate(child), { key: child, disabled: busy, 'aria-current': section === child ? 'page' : undefined, 'data-admin-page': child }))) : null);
     };
-    return h('div', { className: 'me', 'data-appearance': appearance, 'data-density': density, onKeyDown: e => { if (e.key === 'Escape') { setMenuOpen(false); setSearchOpen(false); } } }, h('style', null, css),
+    return h('div', { className: 'me', 'data-appearance': appearance, 'data-density': density, onKeyDown: e => { if (e.key === 'Escape' && menuOpen) { e.stopPropagation(); closeMenu(); } } }, h('style', null, css),
       h('header', { className: 'me-topbar', inert: searchOpen ? '' : undefined },
         h('div', { className: 'me-brand' }, button(null, () => setMenuOpen(v => !v), { className: 'me-icon-button me-mobile-menu', icon: 'menu', 'aria-label': '经营菜单', 'aria-expanded': menuOpen, 'aria-controls': 'me-business-nav' }), h('span', { className: 'me-brand-mark' }, h(Icon, { name: 'store', size: 18 })), h('span', { className: 'me-brand-name' }, 'Workspace'), h('small', null, 'ADMIN')),
-        h('button', { className: 'me-global-search', onClick: openSearch, disabled: busy, 'aria-label': '搜索后台', 'aria-haspopup': 'dialog' }, h(Icon, { name: 'search', size: 16 }), h('span', null, '搜索'), h('kbd', null, '⌘ K')),
+        h('button', { className: 'me-global-search', onClick: openSearch, disabled: busy, 'aria-label': '搜索后台', 'aria-haspopup': 'dialog' }, h(Icon, { name: 'search', size: 16 }), h('span', null, '搜索'), h('kbd', null, /Mac|iPhone|iPad/.test(window.navigator.platform) ? '⌘ K' : 'Ctrl K')),
         h('div', { className: 'me-topbar-actions' }, toggleHostSidebar ? button(null, toggleHostSidebar, { className: 'me-icon-button me-host-toggle', icon: 'back', 'aria-label': '折叠或展开 DSH 导航' }) : null,
           button(null, () => navigate('connections'), { className: 'me-icon-button me-help-toggle', icon: 'info', 'aria-label': '查看接入状态', disabled: busy }),
           h('label', { className: 'me-workspace' }, h('span', { className: 'me-store-avatar', 'aria-hidden': true }, (pageTitle || 'W').slice(0, 1).toUpperCase()), h('select', { 'aria-label': '经营工作区', value: workspace, disabled: busy || !workspaces.length, onChange: e => changeWorkspace(e.target.value) },
             !workspaces.length ? h('option', { value: '' }, workspaceReady ? '未选择工作区' : '正在读取…') : workspaces.map(w => h('option', { key: w.id, value: w.id }, w.title || w.id)))))),
       h('div', { className: `me-shell${menuOpen ? ' me-menu-open' : ''}`, inert: searchOpen ? '' : undefined },
-        menuOpen ? h('button', { className: 'me-nav-scrim', 'aria-label': '关闭经营菜单', onClick: () => setMenuOpen(false), tabIndex: -1 }) : null,
+        menuOpen ? h('button', { className: 'me-nav-scrim', 'aria-label': '关闭经营菜单', onClick: closeMenu, tabIndex: -1 }) : null,
         h('nav', { id: 'me-business-nav', className: 'me-nav', 'aria-label': 'ERP 导航', onKeyDown: e => {
           if (e.key === 'Tab' && menuOpen) { const nodes = [...e.currentTarget.querySelectorAll('button:not(:disabled)')].filter(node => node.getClientRects().length); const first = nodes[0], last = nodes.at(-1); if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); } }
         } },
-          button('关闭菜单', () => setMenuOpen(false), { icon: 'close', className: 'me-drawer-close' }),
+          button('关闭菜单', closeMenu, { icon: 'close', className: 'me-drawer-close' }),
           ...navGroups.map(([id, children]) => navItem(id, children)),
           h('div', { className: 'me-nav-divider' }, '销售渠道'), navItem('online_store', ['themes', 'store_pages', 'preferences']),
           h('div', { className: 'me-nav-divider' }, '应用'), navItem('apps'),
@@ -783,13 +848,8 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
 
   }
   function apply(ctx) {
-    const openLibrary = (page, id) => {
-      const target = { page, id }; sessionStorage.setItem('workspace-library-navigation', JSON.stringify(target));
-      ctx.get('layout').selectPanel('workspace-library');
-      window.dispatchEvent(new CustomEvent('workspace-library:navigate', { detail: target }));
-    };
     ctx.effect(() => ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: NS, order: 25, label: () => 'ERP' }, () => h(Icon, { name: 'product' }))), 'mini-erp: sidebar');
-    ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS }, () => h(Panel, { openLibrary, toggleHostSidebar: () => ctx.get('layout').toggleSidebar() }))), 'mini-erp: panel');
+    ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS }, () => h(Panel, { toggleHostSidebar: () => ctx.get('layout').toggleSidebar() }))), 'mini-erp: panel');
   }
   return { apply, inject: ['slots'], Panel, pages, csvFile };
 } });
