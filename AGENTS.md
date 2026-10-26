@@ -1,5 +1,15 @@
 # DSH development boundary
 
+Latest product direction: the user explicitly changed the target from an ERP
+to Agentive, then clarified that each business module has an editable Assistant
+and named Shopify Sidekick as the interaction reference. Follow
+docs/AGENTIVE-ARCHITECTURE.md. A module remains a business workspace with its
+contextual assistant; do not replace the product with a disconnected agent
+catalogue or continue filling every Shopify Admin placeholder as an ERP roadmap.
+Reuse DSH native sessions, execution, skills, tools and permissions. Keep existing
+product/document/customer/transaction data services and records. The earlier ERP
+UI instructions below describe existing assets, not the current product target.
+
 Scope correction: the user rejected building a broad business platform. Follow
 docs/SCOPE-REDUCTION.md. Treat "continue" as continuing the agreed scope, not as
 permission to invent the next business module, panel, approval chain or stage
@@ -21,14 +31,14 @@ of duplicate rendering. dsh-buyer-magazine owns the single magazine Skill,
 schema/theme/compiler and native generation entry. Sourcing reuses it; modules
 and ERP are input adapters. Keep it independently installable without Sourcing
 or ERP, and do not create a second renderer or execution host.
-The user now wants a Shopify Admin-style operator ERP. Follow docs/ERP-REUSE.md:
+The earlier Shopify Admin-style operator ERP work follows docs/ERP-REUSE.md:
 reuse the native library's product/SKU/media/document capabilities and unify
 master data before building duplicate CRUD. Conversation-only magazine creation
 does not prohibit an ERP operator UI. Do not migrate existing records implicitly.
 The user confirmed that the ERP UI remains inside DSH. Follow
 docs/ERP-ADMIN-DESIGN.md for the Shopify-style resource index/detail layouts;
 reuse the original library editor component rather than a second CRUD implementation.
-The latest user request authorizes a complete Shopify Admin-style navigation and
+The earlier user request authorized a complete Shopify Admin-style navigation and
 page UI/UX package inside DSH, wired to existing capabilities. This supersedes the
 earlier incremental-page restriction. External/unimplemented services have honest
 unconnected states; full backend parity is not authorized or claimed.

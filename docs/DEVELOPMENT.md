@@ -1,5 +1,7 @@
 # 开发约定
 
+最新产品方向见 [Agentive 模块与助理](AGENTIVE-ARCHITECTURE.md)：每个业务模块配置上下文 Assistant，交互参考 Shopify Sidekick。暂停按完整 ERP 页面清单补功能，优先验证商品模块的原生 DSH 助理接入；已有数据服务和记录保留。
+
 当前优先级是范围收敛，依据 [收敛清单](SCOPE-REDUCTION.md) 做减法。
 暂停新增业务模块、面板和审批链；既有功能及五插件环境记录不是继续扩建的要求。
 Sourcing 试点已删除自建阶段引擎，六份方法改为可独立加载的 skill；资料读取工具与其他模块本轮保留。

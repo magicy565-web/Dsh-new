@@ -1,5 +1,7 @@
 # ERP Admin UI/UX 插件包
 
+后续方向已调整为 [Agentive 模块与上下文助理](AGENTIVE-ARCHITECTURE.md)，交互参考 Shopify Sidekick。本文记录已经实现的 ERP 界面及复用能力，不再作为完整 ERP 扩建清单。
+
 用户确认：ERP 保留在 DSH 内，一次实现完整后台 UI／UX，接通已有能力；未实现的服务明确显示未接入。此次范围取代此前逐页迭代的限制，不扩大交易后台能力或建立第二套业务库。
 
 ## 设计依据
