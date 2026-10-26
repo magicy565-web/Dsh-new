@@ -59,4 +59,6 @@ DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-sourcing-agent/
 
 > 使用 buyer-magazine 创建本期微刊，只包含产品展示、新品首发、样品申请；缺失资料保持待确认。
 
-渲染器处理文件，不获取外部数据、不发送或发布；样品与独家权益通过实际供应方链接处理，不在本地模拟名额锁定。
+创建通过对话完成。资料来自实际可读的用户电脑工作区或工单上传附件；样品、采购及独家权益等交易由 ERP 承担。具体边界见 [架构说明](../../../docs/BUYER-MAGAZINE-ARCHITECTURE.md)。
+
+当前已实现模块和文件渲染；工单附件接口、用户电脑接入与 ERP 交易尚未验收。渲染器不发送或发布，不在本地模拟名额锁定。

@@ -8,6 +8,13 @@ on-demand skills. Existing business bundles are not the required core. The
 current five-bundle development profile is historical implementation state,
 not the target architecture. Preserve data during any subsequent code removal.
 
+Buyer magazine scope is defined in docs/BUYER-MAGAZINE-ARCHITECTURE.md:
+conversation-driven creation, with no visual editor requirement. Read actual
+materials from the user's accessible local workspace or server-side work-order
+uploads. Cloud execution does not imply access to the user's computer. ERP owns
+transactions and supply reservations; no ERP vendor or work-order integration
+has been selected or validated. Do not implement parallel transaction state.
+
 The user selected DeepSeek Harness as the sole execution host and explicitly
 requested removal of the standalone Workspace Harness and remaining legacy
 implementations on 2026-10-26. Develop native bundles under integrations/dsh.
