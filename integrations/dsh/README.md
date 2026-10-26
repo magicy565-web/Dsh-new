@@ -9,7 +9,7 @@ DSH 是当前唯一的后续 Agent 执行宿主。这里的六个当前 bundle �
 | `dsh-space-workspace` | `dsh-space-workspace` | 1.1.0 | Space 页面、分享、评论及任务设置记录 |
 | `dsh-sourcing-agent` | `@local/dsh-sourcing-agent` | 1.0.0 | 按需业务 skill 与模板，无自建阶段引擎 |
 | `dsh-workspace-memory` | `dsh-workspace-memory` | 0.1.0 | 经营记忆候选、人工审核、原生工作区隔离与来源召回 |
-| `dsh-mini-erp` | `dsh-mini-erp` | 0.2.0 | 简易本机 ERP，商品／买手／订单／供应名额 |
+| `dsh-mini-erp` | `dsh-mini-erp` | 0.2.0 | 简易本机 ERP，商品／客户／订单／文件；旧权益仅保留兼容数据与工具 |
 | `dsh-inquiry-recovery` | `dsh-inquiry-recovery` | 0.1.0 | 可选询盘来源、身份及未发送草稿 |
 
 这些既有实现不是通用底座的默认必备范围，收敛方向见 [清单](../../docs/SCOPE-REDUCTION.md)。
