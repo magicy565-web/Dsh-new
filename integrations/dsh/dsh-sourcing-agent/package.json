@@ -22,5 +22,8 @@
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
+  },
+  "dependencies": {
+    "dsh-buyer-magazine": "file:../dsh-buyer-magazine"
   }
 }

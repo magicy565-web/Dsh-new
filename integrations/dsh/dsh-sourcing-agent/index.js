@@ -10,6 +10,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+const ownSkills = join(dirname(fileURLToPath(import.meta.url)), 'skills')
+const magazineSkills = join(dirname(createRequire(import.meta.url).resolve('dsh-buyer-magazine/package.json')), 'skills')
 
 export const name = 'sourcing-skills'
 export const inject = ['skills']
@@ -54,7 +57,7 @@ export function parseSkill(text) {
 export function loadSkills(root, log) {
   const loaded = []
   for (const id of SKILLS) {
-    const dir = join(root, id)
+    const dir = join(id === 'buyer-magazine' && root === ownSkills ? magazineSkills : root, id)
     const file = join(dir, 'SKILL.md')
     if (!existsSync(file)) {
       log.warn(`sourcing-agent: missing playbook ${file}`)

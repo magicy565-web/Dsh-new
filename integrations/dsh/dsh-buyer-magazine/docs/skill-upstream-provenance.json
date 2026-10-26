@@ -1,0 +1,157 @@
+{
+  "sourceArtifact": "Buyer-Magazine-Studio-v1.3.0-Source.zip",
+  "sourceSha256": "e8baf59b7f7c28b18cce4cb6fc93e787a1194548ae111e4d6e3cc66d8b096fde",
+  "sourceVersion": "1.3.0",
+  "method": "Explicit member allowlist; byte-for-byte copy without modifying original texts; no runtime execution",
+  "copiedOriginalCount": 23,
+  "excluded": [
+    "agents/openai.yaml",
+    "scripts/run.mjs",
+    "scripts/editorial-audit.mjs",
+    "runtime/source code",
+    "collector/provider/CLI/server code",
+    "Pi/OMP integration",
+    "environment/credential configuration"
+  ],
+  "files": [
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/SKILL.md",
+      "target": "skills/buyer-magazine/upstream/studio/STUDIO-SKILL.md",
+      "bytes": 12084,
+      "sha256": "6013239d011adbc55074b2b7b56837d64ee3b553d00026b58f2fcf0b2032d2e8",
+      "layoutNote": "Original SKILL.md bytes retained under STUDIO-SKILL.md as archived reference, not a second operational entrypoint."
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/assets/design-tokens.json",
+      "target": "skills/buyer-magazine/upstream/studio/assets/design-tokens.json",
+      "bytes": 2545,
+      "sha256": "8a96840f978e6307c73d4bb98598f29200d2465ed5f077b6e40c557b6253739b"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/assets/editorial-plan.json",
+      "target": "skills/buyer-magazine/upstream/studio/assets/editorial-plan.json",
+      "bytes": 2320,
+      "sha256": "b6b4d2b8a75c80f8ba42ef3d0b9a0148a8484daf9539d074e5914e4418ed5b4a"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/01-website-intelligence.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/01-website-intelligence.md",
+      "bytes": 4184,
+      "sha256": "76f78daa9d3c37d9cb91e0491eea7bf943d31e3298f9f882e094af4f4fe4ac6d"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/02-product-intelligence.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/02-product-intelligence.md",
+      "bytes": 4417,
+      "sha256": "25de7145a520fad255c645a55e0fbb1a54b07f9ebb5a5e45a0ea90a561d3b94a"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/03-brand-dna.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/03-brand-dna.md",
+      "bytes": 3755,
+      "sha256": "6635b78f1f90e3abdf4cb7b71005f427d6b389806972ffd6e474f88bbac01022"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/04-evidence-verification.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/04-evidence-verification.md",
+      "bytes": 4317,
+      "sha256": "1f393702868e9959da0e45a28d8a971a52dec47a09029f8f5ed568b20c4efd7f"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/05-editorial-director.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/05-editorial-director.md",
+      "bytes": 3814,
+      "sha256": "14cc58a3c2e23b91e750352370c4041d530f677145c435db2d77093035b367d1"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/06-copywriting-studio.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/06-copywriting-studio.md",
+      "bytes": 4198,
+      "sha256": "256c1b083d051a2803190a17b0dcb31c869fa0ea9e1330b74f938292cde7139d"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/07-magazine-storyboard.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/07-magazine-storyboard.md",
+      "bytes": 3994,
+      "sha256": "3e1a786153be823f73a1773506120d93ec33c64c07afd9c055480b85a9c1745c"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/08-art-director.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/08-art-director.md",
+      "bytes": 5236,
+      "sha256": "5d592f56c29ba99dc98bcb3bb95e4a09e87113b99accf3d6ebd0d55dc6631cbe"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/09-ai-image-studio.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/09-ai-image-studio.md",
+      "bytes": 4545,
+      "sha256": "01ee602412a43f6a3b548fe08d6cf95dfa9bcdb3708948449c3a6a9aa03091fc"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/10-product-image-studio.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/10-product-image-studio.md",
+      "bytes": 4226,
+      "sha256": "05d6af3b21b7530d281db73d6bb5f18eccbe3313496a3b513dd770b7850fa628"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/11-editorial-typography.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/11-editorial-typography.md",
+      "bytes": 6122,
+      "sha256": "0e41c3b10b9c4837e65c4493a7f188723947842751d7fadc5b2fdb67ae950419"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/12-magazine-layout-engine.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/12-magazine-layout-engine.md",
+      "bytes": 6307,
+      "sha256": "f948534a182031754dfb52ecdf5f50af5df6613891428ee3d8fa835907c01423"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/13-interactive-magazine.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/13-interactive-magazine.md",
+      "bytes": 5795,
+      "sha256": "348100eefd72472c970231ac45a5076026f5470234e342d62aa259236ae41246"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/14-shoppable-editorial.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/14-shoppable-editorial.md",
+      "bytes": 3869,
+      "sha256": "e89bd94cda2641481a677bfeaaf83f4e6b5d2bb02916aaa3fe439473c394f4bd"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/15-publishing-engine.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/15-publishing-engine.md",
+      "bytes": 5323,
+      "sha256": "3285bf1f211171fd53dc87796d475d5fc63dbbaefab928e72f9b3403da34b0ad"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/16-editorial-qa.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/16-editorial-qa.md",
+      "bytes": 5200,
+      "sha256": "d7a1a34fb740bdbf464ca2939ca29834fc0db099f7c474f761c45d5d7e0cd4b6"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/17-enterprise-agent-dispatch.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/17-enterprise-agent-dispatch.md",
+      "bytes": 4953,
+      "sha256": "11507376794081ebaa14123c7e79f9c5c18926e6d6e92c386dffb4bb5bc25fef"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/skills/buyer-magazine-studio/references/18-buyer-delivery-orchestration.md",
+      "target": "skills/buyer-magazine/upstream/studio/references/18-buyer-delivery-orchestration.md",
+      "bytes": 2939,
+      "sha256": "51d77b62906a2736f7d4c0cbc620a55d1e4e45407e2901fd2b2b8fad010c3961"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/LICENSE",
+      "target": "skills/buyer-magazine/upstream/LICENSE",
+      "bytes": 321,
+      "sha256": "689d3195a8b6749069eda67038b131debc12a3c1d1dc7fcbca10310638c9a836"
+    },
+    {
+      "sourceMember": "buyer-magazine-studio/THIRD_PARTY.md",
+      "target": "skills/buyer-magazine/upstream/THIRD_PARTY.md",
+      "bytes": 1974,
+      "sha256": "94a3145326808ed00e55b816a3870568217defd0c0fe7134da33fa74409f4d70"
+    }
+  ]
+}

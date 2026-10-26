@@ -12,6 +12,7 @@ const directories = [
   'integrations/dsh/dsh-inquiry-recovery/test',
   'integrations/dsh/dsh-mini-erp/test',
   'integrations/dsh/dsh-workspace-brand/test',
+  'integrations/dsh/dsh-buyer-magazine/test',
   'packages/domain-business-memory/test',
   'packages/domain-product-library/test',
   'packages/domain-inquiry-recovery/test',
