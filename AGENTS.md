@@ -23,6 +23,13 @@ does not prohibit an ERP operator UI. Do not migrate existing records implicitly
 The user confirmed that the ERP UI remains inside DSH. Follow
 docs/ERP-ADMIN-DESIGN.md for the Shopify-style resource index/detail layouts;
 reuse the original library editor component rather than a second CRUD implementation.
+The latest scope is Shopify Admin capabilities only, implemented incrementally.
+Use standard products, customers, orders and files; do not add magazine-specific
+supply-rights navigation or checkout choices. Legacy rights and reservations
+remain readable/replayable without reclassifying them as Shopify draft orders.
+Customers retain legacy buyer IDs and contact text; preserve existing records.
+Proper draft orders, payment/fulfillment state and inventory semantics are still
+outstanding; do not claim parity by renaming the existing reservation ledger.
 
 The user selected DeepSeek Harness as the sole execution host and explicitly
 requested removal of the standalone Workspace Harness and remaining legacy

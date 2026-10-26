@@ -86,11 +86,16 @@ try {
   assert.ok(text().includes('本页没有匹配的记录'));
   await click('清除筛选'); assert.ok(text().includes('Updated original product'));
   await service.write('a', { action: 'update_stock', requestId: 'stock', id: ledger.id, expectedRevision: 1, stockTotal: 5, source: 'Fixture only' });
-  await click('买手'); await wait(() => text().includes('还没有买手记录')); await click('登记买手');
-  await input('buyerName', 'Test buyer'); await input('buyerContact', 'test@example.test');
-  await click('保存买手'); await wait(() => text().includes('买手已登记'));
+  await click('客户'); await wait(() => text().includes('还没有客户记录')); await click('添加客户');
+  await input('customerName', 'Test buyer'); await input('customerEmail', 'test@example.test');
+  await click('保存客户'); await wait(() => text().includes('客户已保存'));
   const buyer = (await service.read('a', { entity: 'buyer' })).items[0]; assert.equal(buyer.name, 'Test buyer');
   await service.write('a', { action: 'add_offer', requestId: 'offer', id: 'rights', productId: ledger.id, territory: 'US', channel: 'gift-retail', term: 'Fixture only', conditions: 'Test supply terms', capacity: 1, validUntil: new Date(Date.now() + 86400000).toISOString(), source: 'Synthetic agreement' });
+  await click('编辑客户'); await input('customerPhone', '+1 202 555 0100'); await input('customerNote', 'Fixture internal note');
+  window.confirm = () => false; await click('商品'); assert.ok(document.querySelector('.me-customer-compose')); window.confirm = () => true;
+  await click('保存客户'); await wait(() => text().includes('客户已保存'));
+  const edited = await service.read('a', { entity: 'buyer', id: buyer.id }); assert.equal(edited.phone, '+1 202 555 0100'); assert.equal(edited.revision, 2);
+  assert.equal(document.querySelector('.me-nav').textContent.includes('供应名额'), false);
   await click('创建订单'); await wait(() => document.querySelector('[name=productId] option[value="' + ledger.id + '"]'));
   assert.equal(document.querySelector('[name=buyerId]').value, buyer.id);
   await change(document.querySelector('[name=productId]'), ledger.id);
@@ -98,8 +103,7 @@ try {
   assert.equal([...document.querySelectorAll('button')].find(b => b.textContent === '创建预留').disabled, true, 'MOQ prevents submission');
   await input('quantity', '6'); await wait(() => text().includes('可供应数量不足'));
   await input('quantity', '3'); await wait(() => document.querySelector('[data-quote-total="3000"]'));
-  await wait(() => document.querySelector('[name=offerId] option[value=rights]'));
-  await change(document.querySelector('[name=offerId]'), 'rights'); await wait(() => text().includes('Test supply terms'));
+  assert.equal(document.querySelector('[name=offerId]'), null, 'standard order form has no exclusive-right picker');
   await library.saveProduct({ productId: p.id, expectedRevision: 2, changes: { description: 'Source changed before submit' } });
   await click('创建预留'); await wait(() => text().includes('商品资料已更新'));
   assert.equal((await service.read('a', { entity: 'order' })).items.length, 0);
@@ -108,7 +112,8 @@ try {
   assert.equal(document.querySelector('[name=quantity]').closest('fieldset').disabled, true);
   const order = (await service.read('a', { entity: 'order' })).items[0];
   assert.equal(order.totalMinor, 3000); assert.equal(order.quantity, 3);
-  assert.equal((await service.read('a', { entity: 'offer', id: 'rights' })).availableSlots, 0);
+  assert.equal(order.offerId, null);
+  assert.equal((await service.read('a', { entity: 'offer', id: 'rights' })).availableSlots, 1);
   // Re-mount simulates a page reload while retaining this tab's recovery record.
   await act(async () => root.render(null));
   await act(async () => root.render(React.createElement(module.Panel, { openLibrary: (...args) => navigations.push(args) })));
@@ -126,9 +131,30 @@ try {
   await wait(() => text().includes('确认订单'));
   await click('确认订单'); await wait(() => document.querySelector('tbody .me-badge-confirmed'));
   assert.equal((await service.read('a', { entity: 'order', id: order.id })).status, 'confirmed');
+  await click('客户'); await wait(() => document.querySelector('[data-record-id]')?.textContent === 'Test buyer');
+  await click('Test buyer'); await wait(() => document.querySelector('[data-customer-order]'));
+  assert.equal(document.querySelectorAll('[data-customer-order]').length, 1);
+  assert.ok(text().includes('Fixture internal note'));
+  await act(async () => document.querySelector('[data-customer-order]').click());
+  await wait(() => text().includes('订单明细')); assert.ok(text().includes(order.id));
+  // A pending command from the removed picker must still recover its original rights/receipt.
+  const product = await service.read('a', { entity: 'product', id: ledger.id, quantity: 2 });
+  const legacy = { action: 'reserve', requestId: 'legacy-pending', buyerId: buyer.id, productId: ledger.id, quantity: 2,
+    expectedRevision: product.revision, expectedCatalogRevision: product.catalogRevision, offerId: 'rights', holdMinutes: 60 };
+  const oldReceipt = await service.write('a', legacy);
+  window.sessionStorage.setItem('mini-erp:pending:a:reserve', JSON.stringify({ workspace: 'a', body: legacy }));
+  await act(async () => root.render(null));
+  await act(async () => root.render(React.createElement(module.Panel, { openLibrary: (...args) => navigations.push(args) })));
+  await wait(() => document.querySelector('[data-record-id]')); await click('订单'); await click('创建订单');
+  await wait(() => text().includes('上次提交包含旧供货名额 rights'));
+  await click('重试同一次提交'); await wait(() => text().includes('已核对上次提交'));
+  assert.equal((await service.read('a', { entity: 'order' })).items.length, 2);
+  assert.equal((await service.read('a', { entity: 'order', id: oldReceipt.id })).offerId, 'rights');
+  await click('取消预留'); await wait(() => document.querySelector('tbody .me-badge-cancelled'));
+  assert.equal((await service.read('a', { entity: 'offer', id: 'rights' })).availableSlots, 1);
   await change(document.querySelector('header select'), 'b'); await wait(() => text().includes('订单会从这里开始'));
-  await click('资料与媒体'); assert.deepEqual(navigations.at(-1), ['documents']);
-  console.log('OK: ERP DOM + real HTTP/SQLite/library binding, live quote, embedded original product editor/save, filters/search, buyer creation, live tier/MOQ/stock checks, stale-source rejection, slot reservation, dropped-reply recovery after remount, confirmation and workspace isolation. Synthetic temporary data only.');
+  await click('文件'); assert.deepEqual(navigations.at(-1), ['documents']);
+  console.log('OK: ERP DOM + real HTTP/SQLite/library binding, live quote, embedded original product editor/save, filters/search, customer create/edit/history, live tier/MOQ/stock checks, stale-source rejection, new orders without rights, old-rights recovery, dropped-reply recovery after remount, confirmation and workspace isolation. Synthetic temporary data only.');
 } finally {
   await act(async () => root.unmount()); dom.window.close(); globalThis.fetch = nativeFetch;
   await new Promise(r => server.close(r)); store.close(); await rm(dir, { recursive: true, force: true });

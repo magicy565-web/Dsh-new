@@ -70,6 +70,6 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 
 ## 简易 ERP（用户新增授权范围）
 
-`integrations/dsh/dsh-mini-erp` 使用 Node 24 内置 SQLite 提供三个原生工具，交易记录按实际 DSH 工作区分区。仅处理商品、买手、供货权益及预留／确认订单，范围见插件 README。单机数据库是本试点的唯一交易账本；内容 Skill 只引用快照，不保存库存或订单副本。
+`integrations/dsh/dsh-mini-erp` 使用 Node 24 内置 SQLite 提供三个原生工具，交易记录按实际 DSH 工作区分区。当前后台按 Shopify Admin 收敛为订单、商品、客户和文件；客户支持创建、编辑与订单查看。原供货权益仅保留兼容账本及工具，不再出现在导航或新订单表单，范围见插件 README。单机数据库是本试点的唯一交易账本；内容 Skill 只引用快照，不保存库存或订单副本。
 
 ERP 经营后台已按 [复用设计](ERP-REUSE.md) 关联原库 Product/SKU。商品资料实时读取，交易独立持久化，订单单价不随原库编辑变化。Agent 与认证 HTTP 共用服务，后台复用原有编辑器。开发 profile 无旧业务记录需迁移。supply 快照继续支持微刊模块选配，不新增商品或交易副本。

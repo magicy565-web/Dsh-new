@@ -11,50 +11,66 @@ const integer = (v, name, min = 0, max = 1_000_000_000) => { if (!Number.isSafeI
 const fields = (body, keys) => { for (const key of Object.keys(body)) if (!keys.includes(key)) fail('INPUT', `Unexpected field: ${key}`); };
 const canonical = value => JSON.stringify(value, Object.keys(value).sort());
 const currency = value => { if (!['USD', 'EUR', 'GBP', 'CNY'].includes(value)) fail('INPUT', 'Supported two-decimal currencies: USD, EUR, GBP, CNY'); return value; };
+const optionalText = (value, name, max) => value === undefined || value === '' ? '' : text(value, name, max);
+function customerFields(body) {
+  const email = optionalText(body.email, 'email', 254), phone = optionalText(body.phone, 'phone', 50);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail('INPUT', 'Invalid customer email');
+  if (phone && (!/\d/.test(phone) || !/^[+()\d\s.\-#xext]+$/i.test(phone))) fail('INPUT', 'Invalid customer phone');
+  return { name: text(body.name, 'name'), email, phone, note: optionalText(body.note, 'note', 2000) };
+}
 
 export class ErpStore {
   constructor(file, { clock = Date.now } = {}) {
     this.clock = clock;
     this.db = new DatabaseSync(file);
     this.db.exec('PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;');
-    const version = this.db.prepare('PRAGMA user_version').get().user_version;
-    if (version > 2) { this.db.close(); fail('VERSION', 'Database was created by a newer ERP version'); }
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS products (
-        workspace TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, currency TEXT NOT NULL,
-        unit_price INTEGER NOT NULL CHECK(unit_price>=0), stock INTEGER NOT NULL CHECK(stock>=0),
-        revision INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(workspace,id));
-      CREATE TABLE IF NOT EXISTS buyers (
-        workspace TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, contact TEXT NOT NULL,
-        PRIMARY KEY(workspace,id));
-      CREATE TABLE IF NOT EXISTS offers (
-        workspace TEXT NOT NULL, id TEXT NOT NULL, product_id TEXT NOT NULL, territory TEXT NOT NULL,
-        channel TEXT NOT NULL, term TEXT NOT NULL, conditions TEXT NOT NULL, capacity INTEGER NOT NULL CHECK(capacity>0),
-        valid_until INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(workspace,id),
-        UNIQUE(workspace,product_id,territory,channel),
-        FOREIGN KEY(workspace,product_id) REFERENCES products(workspace,id));
-      CREATE TABLE IF NOT EXISTS orders (
-        workspace TEXT NOT NULL, id TEXT NOT NULL, buyer_id TEXT NOT NULL, product_id TEXT NOT NULL,
-        offer_id TEXT, quantity INTEGER NOT NULL CHECK(quantity>0), currency TEXT NOT NULL,
-        unit_price INTEGER NOT NULL, total INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('reserved','confirmed','cancelled','expired')),
-        created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
-        PRIMARY KEY(workspace,id), FOREIGN KEY(workspace,buyer_id) REFERENCES buyers(workspace,id),
-        FOREIGN KEY(workspace,product_id) REFERENCES products(workspace,id),
-        FOREIGN KEY(workspace,offer_id) REFERENCES offers(workspace,id));
-      CREATE INDEX IF NOT EXISTS order_product ON orders(workspace,product_id,status,expires_at);
-      CREATE INDEX IF NOT EXISTS order_offer ON orders(workspace,offer_id,status,expires_at);
-      CREATE TABLE IF NOT EXISTS requests (
-        workspace TEXT NOT NULL, request_id TEXT NOT NULL, payload TEXT NOT NULL, receipt TEXT NOT NULL,
-        PRIMARY KEY(workspace,request_id));
-      CREATE TABLE IF NOT EXISTS events (
-        sequence INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, request_id TEXT NOT NULL,
-        action TEXT NOT NULL, entity_id TEXT NOT NULL, actor TEXT NOT NULL, created_at INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS catalog_links (
-        workspace TEXT NOT NULL, ledger_id TEXT NOT NULL, product_id TEXT NOT NULL, sku_id TEXT NOT NULL,
-        PRIMARY KEY(workspace,ledger_id), UNIQUE(product_id,sku_id),
-        FOREIGN KEY(workspace,ledger_id) REFERENCES products(workspace,id));
-      PRAGMA user_version=2;
-    `);
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const version = this.db.prepare('PRAGMA user_version').get().user_version;
+      if (version > 3) fail('VERSION', 'Database was created by a newer ERP version');
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS products (
+          workspace TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, currency TEXT NOT NULL,
+          unit_price INTEGER NOT NULL CHECK(unit_price>=0), stock INTEGER NOT NULL CHECK(stock>=0),
+          revision INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(workspace,id));
+        CREATE TABLE IF NOT EXISTS buyers (
+          workspace TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, contact TEXT NOT NULL,
+          PRIMARY KEY(workspace,id));
+        CREATE TABLE IF NOT EXISTS offers (
+          workspace TEXT NOT NULL, id TEXT NOT NULL, product_id TEXT NOT NULL, territory TEXT NOT NULL,
+          channel TEXT NOT NULL, term TEXT NOT NULL, conditions TEXT NOT NULL, capacity INTEGER NOT NULL CHECK(capacity>0),
+          valid_until INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(workspace,id),
+          UNIQUE(workspace,product_id,territory,channel),
+          FOREIGN KEY(workspace,product_id) REFERENCES products(workspace,id));
+        CREATE TABLE IF NOT EXISTS orders (
+          workspace TEXT NOT NULL, id TEXT NOT NULL, buyer_id TEXT NOT NULL, product_id TEXT NOT NULL,
+          offer_id TEXT, quantity INTEGER NOT NULL CHECK(quantity>0), currency TEXT NOT NULL,
+          unit_price INTEGER NOT NULL, total INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('reserved','confirmed','cancelled','expired')),
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY(workspace,id), FOREIGN KEY(workspace,buyer_id) REFERENCES buyers(workspace,id),
+          FOREIGN KEY(workspace,product_id) REFERENCES products(workspace,id),
+          FOREIGN KEY(workspace,offer_id) REFERENCES offers(workspace,id));
+        CREATE INDEX IF NOT EXISTS order_product ON orders(workspace,product_id,status,expires_at);
+        CREATE INDEX IF NOT EXISTS order_offer ON orders(workspace,offer_id,status,expires_at);
+        CREATE TABLE IF NOT EXISTS requests (
+          workspace TEXT NOT NULL, request_id TEXT NOT NULL, payload TEXT NOT NULL, receipt TEXT NOT NULL,
+          PRIMARY KEY(workspace,request_id));
+        CREATE TABLE IF NOT EXISTS events (
+          sequence INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, request_id TEXT NOT NULL,
+          action TEXT NOT NULL, entity_id TEXT NOT NULL, actor TEXT NOT NULL, created_at INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS catalog_links (
+          workspace TEXT NOT NULL, ledger_id TEXT NOT NULL, product_id TEXT NOT NULL, sku_id TEXT NOT NULL,
+          PRIMARY KEY(workspace,ledger_id), UNIQUE(product_id,sku_id),
+          FOREIGN KEY(workspace,ledger_id) REFERENCES products(workspace,id));
+      `);
+      if (version < 3) {
+        const columns = this.db.prepare('PRAGMA table_info(buyers)').all().map(c => c.name);
+        for (const [name, definition] of [['email', "TEXT NOT NULL DEFAULT ''"], ['phone', "TEXT NOT NULL DEFAULT ''"], ['note', "TEXT NOT NULL DEFAULT ''"], ['revision', 'INTEGER NOT NULL DEFAULT 1']]) {
+          if (!columns.includes(name)) this.db.exec(`ALTER TABLE buyers ADD COLUMN ${name} ${definition}`);
+        }
+      }
+      this.db.exec('CREATE INDEX IF NOT EXISTS order_buyer ON orders(workspace,buyer_id,id); PRAGMA user_version=3; COMMIT;');
+    } catch (e) { this.db.exec('ROLLBACK'); this.db.close(); throw e; }
   }
   close() { this.db.close(); }
   link(workspace, ledgerId) { return this.db.prepare('SELECT * FROM catalog_links WHERE workspace=? AND ledger_id=?').get(workspace, ledgerId); }
@@ -88,9 +104,14 @@ export class ErpStore {
       expiresAt: new Date(o.expires_at).toISOString(), createdAt: new Date(o.created_at).toISOString(),
       updatedAt: new Date(o.updated_at).toISOString(), paymentStatus: 'not_tracked' };
   }
+  buyer(workspace, buyerId) {
+    const b = this.row('buyers', workspace, buyerId);
+    return { id: b.id, name: b.name, email: b.email, phone: b.phone, note: b.note, revision: b.revision,
+      legacyContact: b.contact, contact: b.email || b.phone || b.contact };
+  }
   read(workspace, input) {
     id(workspace, 'workspace');
-    fields(input, ['entity', 'id', 'limit', 'afterId', 'offerId', 'productId']);
+    fields(input, ['entity', 'id', 'limit', 'afterId', 'offerId', 'productId', 'buyerId']);
     const tables = { product: 'products', buyer: 'buyers', offer: 'offers', order: 'orders' };
     if (!Object.hasOwn(tables, input.entity) && input.entity !== 'supply') fail('INPUT', 'entity: product, buyer, offer, order or supply');
     if (input.entity === 'supply') {
@@ -102,10 +123,12 @@ export class ErpStore {
       if (input.entity !== 'offer' || input.id !== undefined) fail('INPUT', 'productId only filters offer lists');
       id(input.productId, 'productId');
     }
+    if (input.buyerId !== undefined) {
+      if (input.entity !== 'order' || input.id !== undefined) fail('INPUT', 'buyerId only filters order lists');
+      id(input.buyerId, 'buyerId');
+    }
     let now;
-    const get = key => input.entity === 'buyer'
-      ? (({ id, name, contact }) => ({ id, name, contact }))(this.row('buyers', workspace, key))
-      : this[input.entity](workspace, key, now);
+    const get = key => this[input.entity](workspace, key, now);
     // All quantities and related rows in a read come from one SQLite snapshot.
     this.db.exec('BEGIN');
     try {
@@ -119,8 +142,10 @@ export class ErpStore {
       }
       const limit = integer(input.limit ?? 50, 'limit', 1, 100);
       if (input.productId !== undefined) this.row('products', workspace, input.productId);
+      if (input.buyerId !== undefined) this.row('buyers', workspace, input.buyerId);
       const rows = input.id ? [] : input.productId !== undefined
         ? this.db.prepare('SELECT id FROM offers WHERE workspace=? AND product_id=? AND id>? ORDER BY id LIMIT ?').all(workspace, input.productId, input.afterId ?? '', limit + 1)
+        : input.buyerId !== undefined ? this.db.prepare('SELECT id FROM orders WHERE workspace=? AND buyer_id=? AND id>? ORDER BY id LIMIT ?').all(workspace, input.buyerId, input.afterId ?? '', limit + 1)
         : this.db.prepare(`SELECT id FROM ${tables[input.entity]} WHERE workspace=? AND id>? ORDER BY id LIMIT ?`).all(workspace, input.afterId ?? '', limit + 1);
       const result = input.id ? get(input.id) : {
         items: rows.slice(0, limit).map(r => get(r.id)),
@@ -141,13 +166,13 @@ export class ErpStore {
       if (prior) {
         if (prior.payload !== payload) fail('IDEMPOTENCY_CONFLICT', 'requestId was already used for a different command');
         const receipt = JSON.parse(prior.receipt);
-        const current = receipt.entity === 'buyer' ? (({ id, name, contact }) => ({ id, name, contact }))(this.row('buyers', workspace, receipt.id)) : this[receipt.entity](workspace, receipt.id, now);
+        const current = this[receipt.entity](workspace, receipt.id, now);
         this.db.exec('COMMIT'); return { ...receipt, replayed: true, current };
       }
       this.db.prepare("UPDATE orders SET status='expired',updated_at=? WHERE workspace=? AND status='reserved' AND expires_at<=?").run(now, workspace, now);
       const result = this.command(workspace, input, now, catalog);
       const receipt = { workspaceId: workspace, requestId: input.requestId, action: input.action, entity: result.entity, id: result.id, recordedAt: new Date(now).toISOString() };
-      const current = result.entity === 'buyer' ? (({ id, name, contact }) => ({ id, name, contact }))(this.row('buyers', workspace, result.id)) : this[result.entity](workspace, result.id, now);
+      const current = this[result.entity](workspace, result.id, now);
       this.db.prepare('INSERT INTO requests VALUES(?,?,?,?)').run(workspace, input.requestId, payload, JSON.stringify(receipt));
       this.db.prepare('INSERT INTO events(workspace,request_id,action,entity_id,actor,created_at) VALUES(?,?,?,?,?,?)').run(workspace, input.requestId, input.action, result.id, actor, now);
       this.db.exec('COMMIT'); return { ...receipt, replayed: false, current };
@@ -197,8 +222,18 @@ export class ErpStore {
         return { entity: 'product', id: p.id };
       }
       case 'add_buyer': {
-        fields(b, [...common, 'id', 'name', 'contact']);
-        this.db.prepare('INSERT INTO buyers VALUES(?,?,?,?)').run(w, id(b.id), text(b.name, 'name'), text(b.contact, 'contact'));
+        fields(b, [...common, 'id', 'name', 'contact', 'email', 'phone', 'note']);
+        const c = customerFields(b);
+        this.db.prepare('INSERT INTO buyers(workspace,id,name,contact,email,phone,note,revision) VALUES(?,?,?,?,?,?,?,1)').run(w, id(b.id), c.name, optionalText(b.contact, 'contact', 500), c.email, c.phone, c.note);
+        return { entity: 'buyer', id: b.id };
+      }
+      case 'update_buyer': {
+        fields(b, [...common, 'id', 'expectedRevision', 'name', 'email', 'phone', 'note']);
+        const old = this.row('buyers', w, b.id);
+        if (integer(b.expectedRevision, 'expectedRevision', 1) !== old.revision) fail('CUSTOMER_CHANGED', 'Customer changed; reload before editing');
+        // Updates are patches: omitted fields, legacy contact and order links are preserved.
+        const c = customerFields({ ...old, ...b });
+        this.db.prepare('UPDATE buyers SET name=?,email=?,phone=?,note=?,revision=revision+1 WHERE workspace=? AND id=?').run(c.name, c.email, c.phone, c.note, w, b.id);
         return { entity: 'buyer', id: b.id };
       }
       case 'add_offer': {

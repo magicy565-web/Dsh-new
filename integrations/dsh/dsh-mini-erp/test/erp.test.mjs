@@ -157,3 +157,56 @@ test('offer pickers filter by workspace product before cursor pagination', async
   assert.throws(() => f.store.read('workspace-a', { entity: 'buyer', productId: 'sku' }), { code: 'INPUT' });
   assert.throws(() => f.store.read('workspace-a', { entity: 'offer', id: 'exclusive', productId: 'sku' }), { code: 'INPUT' });
 });
+
+test('customer edits preserve legacy contacts/order links, validate input and reject stale/foreign writes', async t => {
+  const f = await fixture(t); const order = f.write(f.reserve());
+  const c = f.store.read('workspace-a', { entity: 'buyer', id: 'buyer-a' });
+  assert.equal(c.email, ''); assert.equal(c.legacyContact, 'buyer-a@example.test');
+  const update = { action: 'update_buyer', requestId: 'customer-edit', id: c.id, expectedRevision: c.revision,
+    name: 'Updated customer', email: 'customer@example.test', phone: '+1 202 555 0100', note: 'Internal note' };
+  const saved = f.write(update); assert.equal(saved.current.revision, 2);
+  assert.equal(saved.current.legacyContact, c.legacyContact);
+  assert.equal(f.write(update).current.revision, 2, 'replay does not write twice');
+  assert.throws(() => f.write({ ...update, requestId: 'stale-edit' }), { code: 'CUSTOMER_CHANGED' });
+  assert.throws(() => f.store.write('workspace-b', { ...update, requestId: 'foreign-edit' }), { code: 'NOT_FOUND' });
+  for (const invalid of [{ email: 'not-an-email' }, { phone: 'not-a-phone' }, { note: 'x'.repeat(2001) }]) {
+    assert.throws(() => f.write({ ...update, expectedRevision: 2, requestId: 'invalid', ...invalid }), { code: 'INPUT' });
+    assert.equal(f.store.buyer('workspace-a', c.id).revision, 2);
+  }
+  const cleared = f.write({ action: 'update_buyer', requestId: 'clear', id: c.id, expectedRevision: 2, email: '', note: '' }).current;
+  assert.equal(cleared.email, ''); assert.equal(cleared.note, ''); assert.equal(cleared.phone, update.phone);
+  assert.equal(cleared.name, update.name); assert.equal(cleared.legacyContact, c.legacyContact);
+  assert.equal(f.store.order('workspace-a', order.id, initial).buyerId, c.id);
+  assert.equal(f.store.order('workspace-a', order.id, initial).totalMinor, order.current.totalMinor);
+});
+
+test('customer order history filters before pagination and enforces workspace boundaries', async t => {
+  const f = await fixture(t);
+  const reserve = extra => { const body = f.reserve(extra); delete body.offerId; return f.write(body); };
+  const wanted = [reserve({ requestId: 'first' }), reserve({ requestId: 'second' })].map(r => r.id).sort();
+  reserve({ requestId: 'other', buyerId: 'buyer-b' });
+  const page = f.store.read('workspace-a', { entity: 'order', buyerId: 'buyer-a', limit: 1 });
+  assert.deepEqual(page.items.map(r => r.id), wanted.slice(0, 1)); assert.equal(page.hasMore, true);
+  const next = f.store.read('workspace-a', { entity: 'order', buyerId: 'buyer-a', limit: 1, afterId: page.nextCursor });
+  assert.deepEqual(next.items.map(r => r.id), wanted.slice(1)); assert.equal(next.hasMore, false);
+  assert.throws(() => f.store.read('workspace-b', { entity: 'order', buyerId: 'buyer-a' }), { code: 'NOT_FOUND' });
+  assert.throws(() => f.store.read('workspace-a', { entity: 'buyer', buyerId: 'buyer-a' }), { code: 'INPUT' });
+  assert.throws(() => f.store.read('workspace-a', { entity: 'order', id: wanted[0], buyerId: 'buyer-b' }), { code: 'INPUT' });
+});
+
+test('v2 customer schema upgrade preserves old contacts, receipts, orders and survives reopening', async t => {
+  const f = await fixture(t); const command = f.reserve(), receipt = f.write(command);
+  // Reproduce the exact pre-customer buyers table without replacing any business rows.
+  f.store.db.exec("ALTER TABLE buyers DROP COLUMN email; ALTER TABLE buyers DROP COLUMN phone; ALTER TABLE buyers DROP COLUMN note; ALTER TABLE buyers DROP COLUMN revision; PRAGMA user_version=2;");
+  for (let pass = 0; pass < 2; pass++) {
+    const upgraded = new ErpStore(f.file, { clock: () => initial });
+    try {
+      assert.equal(upgraded.db.prepare('PRAGMA user_version').get().user_version, 3);
+      const customer = upgraded.read('workspace-a', { entity: 'buyer', id: 'buyer-a' });
+      assert.equal(customer.legacyContact, 'buyer-a@example.test'); assert.equal(customer.email, ''); assert.equal(customer.revision, 1);
+      const replay = upgraded.write('workspace-a', command);
+      assert.equal(replay.id, receipt.id); assert.equal(replay.replayed, true); assert.equal(replay.current.totalMinor, receipt.current.totalMinor);
+      assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM events WHERE request_id='reserve'").get().n, 1);
+    } finally { upgraded.close(); }
+  }
+});

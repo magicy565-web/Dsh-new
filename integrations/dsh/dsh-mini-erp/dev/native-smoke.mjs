@@ -34,6 +34,8 @@ try {
   ctx = await boot();
   await execute('mini_erp_catalog', { action: 'link_sku', requestId: 'p', id: 'sku', catalogProductId: sourceProduct.id, skuId: 'native-sku', catalogRevision: sourceProduct.revision, stockTotal: 5 });
   await execute('mini_erp_catalog', { action: 'add_buyer', requestId: 'b', id: 'buyer', name: 'Synthetic buyer', contact: 'test@example.test' });
+  const customer = await execute('mini_erp_catalog', { action: 'update_buyer', requestId: 'customer-edit', id: 'buyer', expectedRevision: 1, email: 'customer@example.test', phone: '+1 202 555 0100', note: 'Internal fixture' });
+  assert.equal(customer.current.revision, 2); assert.equal(customer.current.legacyContact, 'test@example.test');
   await execute('mini_erp_catalog', { action: 'add_offer', requestId: 'offer', id: 'rights', productId: 'sku', territory: 'US', channel: 'gift-retail', term: 'Synthetic term', conditions: 'Synthetic rights', capacity: 1, validUntil: new Date(Date.now() + 86400000).toISOString(), source: 'Native fixture only' });
   const snapshot = await execute('mini_erp_read', { entity: 'supply', id: 'sku', offerId: 'rights' });
   const draft = blocksFromErp(snapshot, { modules: ['procurement', 'exclusive'], language: 'en' });
@@ -50,5 +52,7 @@ try {
   await ctx.fiber.dispose(); ctx = await boot();
   assert.equal((await execute('mini_erp_read', { entity: 'order', id: held.id })).status, 'confirmed');
   assert.equal((await execute('mini_erp_read', { entity: 'product', id: 'sku' })).available, 3);
-  console.log('OK: official ToolRuntime, supply snapshot -> selected magazine blocks -> HTML without orders; stock+slot reservation updates fresh snapshots, confirmation and restart persist. Synthetic records and fixture session; no model calls.');
+  assert.equal((await execute('mini_erp_read', { entity: 'order', buyerId: 'buyer' })).items[0].id, held.id);
+  assert.equal((await execute('mini_erp_read', { entity: 'buyer', id: 'buyer' })).email, 'customer@example.test');
+  console.log('OK: official ToolRuntime, customer edit and filtered history persist; supply snapshot -> selected magazine blocks -> HTML without orders; stock+slot reservation updates fresh snapshots, confirmation and restart persist. Synthetic records and fixture session; no model calls.');
 } finally { await ctx?.fiber.dispose(); await rm(root, { recursive: true, force: true }); }

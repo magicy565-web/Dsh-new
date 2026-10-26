@@ -26,7 +26,7 @@ export function createHttpHandler(service, { authorize = () => 401 } = {}) {
           for await (const chunk of req) { bytes += chunk.length; if (bytes > 16000) return send(413, { ok: false }); chunks.push(chunk); }
           let input; try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return send(400, { ok: false }); }
           if (!input || typeof input !== 'object' || Array.isArray(input)) return send(400, { ok: false });
-          if (!['link_sku', 'update_stock', 'add_buyer', 'add_offer', 'reserve', 'confirm', 'cancel'].includes(input.action)) return send(400, { ok: false });
+          if (!['link_sku', 'update_stock', 'add_buyer', 'update_buyer', 'add_offer', 'reserve', 'confirm', 'cancel'].includes(input.action)) return send(400, { ok: false });
           result = await service.write(workspace, input, 'dsh-browser-admin');
         } else return send(405, { ok: false });
       }
