@@ -22,7 +22,7 @@ licenses/          第三方许可
 | --- | --- |
 | [dsh-workspace-library](integrations/dsh/dsh-workspace-library/README.md) | 企业／产品资料、版本审核、产品上下文与缺口、原生对话引用和确切版本读取 |
 | [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
-| [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill 与模板 |
+| [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill，以及十种可组合的买手微刊模块 |
 | [dsh-workspace-memory](integrations/dsh/dsh-workspace-memory/README.md) | 经营记忆、人工审核、来源核验，以及跨已有资料／记忆／询盘的只读检索 |
 | [dsh-inquiry-recovery](integrations/dsh/dsh-inquiry-recovery/README.md) | 可选历史询盘：原文件核验、人工身份判断、Agent 撰写的未发送草稿 |
 

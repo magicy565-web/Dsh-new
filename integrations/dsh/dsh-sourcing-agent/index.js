@@ -15,7 +15,7 @@ export const name = 'sourcing-skills'
 export const inject = ['skills']
 
 /** Playbooks shipped with the package, in catalog order. */
-const SKILLS = ['sourcing', 'dtc-brand', 'export-supplier', 'market-evidence', 'opportunity-pack', 'long-term-mandate']
+const SKILLS = ['sourcing', 'dtc-brand', 'export-supplier', 'market-evidence', 'opportunity-pack', 'long-term-mandate', 'buyer-magazine']
 
 /**
  * Parse a `SKILL.md` file: YAML-ish frontmatter with single-line fields, then

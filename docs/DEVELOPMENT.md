@@ -58,3 +58,9 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 
 运行数据、真实附件／会话、凭据、构建包、历史截图及交付 ZIP 均留在 Git 外。
 旧实现可以从清理前提交恢复，不在当前目录另建 archive 或第二套运行入口。
+
+## 买手微刊模块（用户指定的新范围）
+
+`dsh-sourcing-agent/skills/buyer-magazine` 提供本期可选择的十种内容模块；这是原生 Skill 的方法、数据格式和 HTML 文件渲染器，不是新宿主或业务管理平台。数组定义选择和顺序，同一类型可用于不同产品。来源读取仍由 Agent 按需使用原生工具完成。
+
+`test/magazine.test.mjs` 覆盖独立与组合渲染、利润口径、销售来源绑定、权益入口边界、文本转义和重复输出保护。官方 skill 冒烟覆盖新增第七份 Skill。实际供应名额预留、外部数据服务和 WorkBuddy 客户端不属于当前实现。

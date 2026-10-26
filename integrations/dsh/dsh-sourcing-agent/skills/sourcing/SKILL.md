@@ -13,6 +13,7 @@ whenToUse: 用户的业务请求较宽泛，需要判断本次该解决什么问
 - 面向海外买家、渠道或询盘：export-supplier。
 - 自有品牌、店铺或单位经济：dtc-brand。
 - 整理可打开的交付文件：opportunity-pack。
+- 按本期要求组装买手微刊：buyer-magazine。
 - 用户明确要求持续跟踪：long-term-mandate。
 
 这些方法可以单独使用；目录顺序不代表执行顺序。小任务不要求建立文件目录、列全套待办或加载其余 skill。

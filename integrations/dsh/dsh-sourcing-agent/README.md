@@ -1,6 +1,6 @@
 # Sourcing skills
 
-六份按需使用的方法与模板，供 DSH 原生会话完成当前任务：
+七份按需使用的方法与模板，供 DSH 原生会话完成当前任务：
 
 | Skill | 用途 |
 | --- | --- |
@@ -10,6 +10,7 @@
 | market-evidence | 来源、口径、引用与估算 |
 | opportunity-pack | 按请求整理文件和交接材料 |
 | long-term-mandate | 用户明确要求持续工作时，使用工作记录及原生提醒 |
+| buyer-magazine | 本期选择十种可选模块，按产品与顺序组装 HTML 微刊 |
 
 每份可独立使用。用户只要一封回复就交付回复；不要求先建立项目、完成其他文档或推进商业阶段。
 模板中的数字、预算、条款是示例，不替代实际来源或用户确认。
@@ -49,3 +50,13 @@ DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-sourcing-agent/
 ```
 
 后续具体任务由原生 DSH Agent 执行，skill 本身不注册阶段工具、不代替用户授权，也不承诺经营结果。
+
+## 买手微刊模块
+
+新增的 [buyer-magazine](skills/buyer-magazine/SKILL.md) 是一份按需 Skill，包含十种内容模块和无依赖的 Node 渲染脚本。每期明确选择 blocks，支持重排、重复类型及不同产品的不同组合；不自动补全全部模块。
+
+输入格式见 [字段说明](skills/buyer-magazine/MODULES.md)。在 DSH 中可以要求：
+
+> 使用 buyer-magazine 创建本期微刊，只包含产品展示、新品首发、样品申请；缺失资料保持待确认。
+
+渲染器处理文件，不获取外部数据、不发送或发布；样品与独家权益通过实际供应方链接处理，不在本地模拟名额锁定。
