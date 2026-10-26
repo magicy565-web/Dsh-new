@@ -12,7 +12,7 @@ const native=name=>import(nativeRequire.resolve('@deepseek-ai/'+name));
 let ctx;
 try {
  await writeFile(join(root,'package.json'),JSON.stringify({name:'isolated-erp-acceptance',private:true,type:'module'}));
- execFileSync('npm',['install','--offline','--ignore-scripts','--no-audit','--no-fund',join(packageDir,'dsh-workspace-library-1.3.1.tgz'),join(packageDir,'dsh-mini-erp-0.3.2.tgz')],{cwd:root,stdio:'pipe'});
+ execFileSync('npm',['install','--offline','--ignore-scripts','--no-audit','--no-fund',join(packageDir,'dsh-workspace-library-1.3.1.tgz'),join(packageDir,'dsh-mini-erp-0.3.3.tgz')],{cwd:root,stdio:'pipe'});
  const require=createRequire(join(root,'package.json'));
  const [{default:Library},{default:ERP},{Context},{default:Tools},{default:SystemPrompt},{default:Attachments}]=await Promise.all([import(require.resolve('dsh-workspace-library')),import(require.resolve('dsh-mini-erp')),native('cordis'),native('dsh-tools'),native('dsh-system-prompt'),native('dsh-attachment-local')]);
  ctx=new Context(); await ctx.plugin(SystemPrompt);await ctx.plugin(Tools);await ctx.plugin(Attachments,{dshHome:join(root,'home')});

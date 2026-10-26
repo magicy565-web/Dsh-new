@@ -6,7 +6,7 @@
 
 采用 Shopify Admin 的资源导航、页头操作、筛选列表、主辅栏详情和分栏设置结构。参考官方归档 Polaris 文档：[资源列表](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/resource-index-layout/variants/default.mdx)、[资源详情](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/resource-details-layout/variants/default.mdx)、[应用设置](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/app-settings-layout/variants/default.mdx)。
 
-官方 React 仓库已归档，当前环境访问 Shopify 帮助站受限。这里交付既定范围的导航与页面结构，不声称与 2026 年 Shopify 每项功能或像素完全一致。未复制 Polaris 组件源码、商标或示例图片。UI 使用自己的 CSS、SVG 和本地系统字体栈。
+官方 React 仓库已归档，当前环境访问 Shopify 帮助站受限。这里交付既定范围的导航与页面结构，不声称与 2026 年 Shopify 每项功能或像素完全一致。未复制 Polaris 组件源码、商标或示例图片。UI 使用自己的 CSS、SVG；英文与数字内置 Inter 可变字体，中文使用本地系统字体栈。
 
 ## 页面与能力
 
@@ -58,3 +58,13 @@ URL 的 `erp_page` / `erp_workspace` 保留页面与工作区位置，支持浏�
 新浏览器默认选择紫黑；已保存的外观选择继续保留。浅色与跟随 DSH 仍可选择，后者遵循宿主的 color-scheme。当前验收实例通过 DSH 原生设置切为深色，ERP 不通过样式修改宿主导航。
 
 真实 Chromium 检查 43 个页面在 1440／768／390px 下无页面横向溢出或运行异常，键盘搜索与手机指针点击通过。商品／客户／订单／文件表单、原库文件保存等已有 DOM 检查通过；浅色／跟随宿主／紫黑切换及刷新后重新进入的偏好保留通过。主要正文、次要文字、操作按钮和状态文字配色对比度抽查均大于 4.5:1；这不是完整无障碍认证。
+
+## 0.3.3 字体层级
+
+全后台共用字号角色：页面标题 28/36px、首页重点标题 24/34px、卡片标题 16/24px、正文 14/22px、控件 13/20px、辅助说明 12/19px、关键数字 38/44px。标题使用 700 字重，正文与说明使用 400；不再依靠几个难以区分的中间字重表达中文层级。手机页面标题缩至 24px、重点标题 21px、数字 34px，保留层级关系。列表、搜索、设置及复用的商品／文件编辑器均使用同一套角色。
+
+Inter Latin variable 原始 WOFF2 子集来自 `@fontsource-variable/inter@5.3.0`，48,256 字节，内嵌到原生 Client 的 CSS data URL，无外部字体请求或新增服务。字体按 SIL OFL 1.1 分发，插件包含 [完整许可证](../integrations/dsh/dsh-mini-erp/INTER-OFL.txt)。中文沿用 PingFang SC／Microsoft YaHei／Noto Sans CJK SC 等系统字体；不同操作系统的字形仍会略有区别。真实 Chromium 的字体审计确认数字使用内置 Inter，当前云端的中文标题使用 Noto Sans CJK Bold、正文使用 Regular。
+
+字体与留白共同区分页头、指标、重点卡片、字段与说明；数字使用等宽数字和正文亮色，辅助说明降低强调程度。没有新增业务页面、数据或依赖。
+
+本轮验证：`npm run check` 223/223，通过现有 Admin DOM 检查；真实 DSH Web／Chromium 对 43 个页面在 1440／768／390／375px 下检查溢出与运行错误，并复查搜索、移动菜单和四类创建表单。375px 实测页面标题 24px、重点标题 21px、数字 34px。新安装包在干净目录离线安装通过，字体原始字节与 OFL 许可证均随包交付。截图更新为本轮真实空数据 profile；未增加演示记录。

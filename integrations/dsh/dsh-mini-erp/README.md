@@ -82,3 +82,7 @@ DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-mini-erp/dev/na
 ```
 
 核心测试包含独立 SQLite 连接并发争抢最后库存／名额、过期释放、幂等、跨工作区拒绝、版本变化和金额计算。官方 ToolRuntime 冒烟通过原生工具登记合成资料、预留、确认及重启读取；会话身份为夹具，不代表真实模型或买手公网验收。
+
+### 界面字体
+
+Admin 使用共享的标题／正文／说明／数字字号角色。Inter Latin variable（Fontsource 5.3.0，原始 WOFF2 子集）内嵌在 Client 中，离线可用；中文由本地系统字体提供。字体授权见 [INTER-OFL.txt](INTER-OFL.txt)，完整层级与验证范围见 [界面设计](../../../docs/ERP-ADMIN-DESIGN.md)。

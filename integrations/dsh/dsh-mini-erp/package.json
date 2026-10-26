@@ -1,6 +1,6 @@
 {
   "name": "dsh-mini-erp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "type": "module",
   "description": "Small workspace ERP: products, buyers, orders and atomic supply reservations",
@@ -18,7 +18,8 @@
     "README.md",
     "catalog.js",
     "http.js",
-    "client.js"
+    "client.js",
+    "INTER-OFL.txt"
   ],
   "dsh": {
     "bundle": {
