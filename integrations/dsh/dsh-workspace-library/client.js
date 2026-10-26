@@ -873,6 +873,21 @@ window.__ModuleLoader__.load({
       }, [load]);
 
       useEffect(() => {
+        const navigate = target => {
+          if (!target || !['documents', 'productNew', 'product'].includes(target.page)) return;
+          if (target.page === 'product' && typeof target.id !== 'string') return;
+          setTab(target.page === 'documents' ? 'company' : 'products');
+          setQuery(''); setNotice(null);
+          setRoute(target.page === 'documents' ? { page: 'list' } : { page: target.page, id: target.id });
+          window.sessionStorage.removeItem('workspace-library-navigation');
+        };
+        const receive = event => navigate(event.detail);
+        window.addEventListener('workspace-library:navigate', receive);
+        try { navigate(JSON.parse(window.sessionStorage.getItem('workspace-library-navigation'))); } catch { /* No pending navigation. */ }
+        return () => window.removeEventListener('workspace-library:navigate', receive);
+      }, []);
+
+      useEffect(() => {
         const node = pageRef.current;
         if (node) node.scrollTop = 0;
       }, [route, detailNonce]);

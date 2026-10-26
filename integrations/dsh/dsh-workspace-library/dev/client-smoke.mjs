@@ -209,6 +209,13 @@ click(findByText('button.wl-btn', 'action.cancel'));
 await settle();
 if (!container.textContent.includes('document.versions')) fail('document detail did not return from metadata editor');
 
+await act(async () => window.dispatchEvent(new window.CustomEvent('workspace-library:navigate', { detail: { page: 'product', id: 'prd_1' } })));
+await settle();
+if (!container.textContent.includes('SKU-1')) fail('ERP navigation did not open existing product detail');
+await act(async () => window.dispatchEvent(new window.CustomEvent('workspace-library:navigate', { detail: { page: 'productNew' } })));
+await settle();
+if (!container.querySelector('form')) fail('ERP navigation did not open existing product creator');
+
 root.unmount();
 dom.window.close();
 console.log(`OK: client panel mounted and navigated; ${calls.length} mocked requests`);

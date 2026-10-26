@@ -18,7 +18,7 @@ export class ErpStore {
     this.db = new DatabaseSync(file);
     this.db.exec('PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;');
     const version = this.db.prepare('PRAGMA user_version').get().user_version;
-    if (version > 1) { this.db.close(); fail('VERSION', 'Database was created by a newer ERP version'); }
+    if (version > 2) { this.db.close(); fail('VERSION', 'Database was created by a newer ERP version'); }
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS products (
         workspace TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, currency TEXT NOT NULL,
@@ -49,10 +49,16 @@ export class ErpStore {
       CREATE TABLE IF NOT EXISTS events (
         sequence INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, request_id TEXT NOT NULL,
         action TEXT NOT NULL, entity_id TEXT NOT NULL, actor TEXT NOT NULL, created_at INTEGER NOT NULL);
-      PRAGMA user_version=1;
+      CREATE TABLE IF NOT EXISTS catalog_links (
+        workspace TEXT NOT NULL, ledger_id TEXT NOT NULL, product_id TEXT NOT NULL, sku_id TEXT NOT NULL,
+        PRIMARY KEY(workspace,ledger_id), UNIQUE(product_id,sku_id),
+        FOREIGN KEY(workspace,ledger_id) REFERENCES products(workspace,id));
+      PRAGMA user_version=2;
     `);
   }
   close() { this.db.close(); }
+  link(workspace, ledgerId) { return this.db.prepare('SELECT * FROM catalog_links WHERE workspace=? AND ledger_id=?').get(workspace, ledgerId); }
+  prior(workspace, requestId) { return this.db.prepare('SELECT payload FROM requests WHERE workspace=? AND request_id=?').get(workspace, requestId); }
   now() { return integer(this.clock(), 'clock', 0, Number.MAX_SAFE_INTEGER - 604800000); }
   row(table, workspace, entityId) {
     const row = this.db.prepare(`SELECT * FROM ${table} WHERE workspace=? AND id=?`).get(workspace, id(entityId));
@@ -116,7 +122,7 @@ export class ErpStore {
       this.db.exec('COMMIT'); return { workspaceId: workspace, asOf: new Date(now).toISOString(), ...result };
     } catch (e) { this.db.exec('ROLLBACK'); throw e; }
   }
-  write(workspace, input, actor = 'local-operator') {
+  write(workspace, input, actor = 'local-operator', catalog = null) {
     id(workspace, 'workspace'); text(actor, 'actor', 300);
     if (!input || typeof input !== 'object' || Array.isArray(input)) fail('INPUT', 'Command object required');
     id(input.requestId, 'requestId');
@@ -132,7 +138,7 @@ export class ErpStore {
         this.db.exec('COMMIT'); return { ...receipt, replayed: true, current };
       }
       this.db.prepare("UPDATE orders SET status='expired',updated_at=? WHERE workspace=? AND status='reserved' AND expires_at<=?").run(now, workspace, now);
-      const result = this.command(workspace, input, now);
+      const result = this.command(workspace, input, now, catalog);
       const receipt = { workspaceId: workspace, requestId: input.requestId, action: input.action, entity: result.entity, id: result.id, recordedAt: new Date(now).toISOString() };
       const current = result.entity === 'buyer' ? (({ id, name, contact }) => ({ id, name, contact }))(this.row('buyers', workspace, result.id)) : this[result.entity](workspace, result.id, now);
       this.db.prepare('INSERT INTO requests VALUES(?,?,?,?)').run(workspace, input.requestId, payload, JSON.stringify(receipt));
@@ -140,9 +146,35 @@ export class ErpStore {
       this.db.exec('COMMIT'); return { ...receipt, replayed: false, current };
     } catch (e) { this.db.exec('ROLLBACK'); throw e; }
   }
-  command(w, b, now) {
+  command(w, b, now, catalog) {
     const common = ['action', 'requestId'];
     switch (b.action) {
+      case 'link_sku': {
+        fields(b, [...common, 'id', 'catalogProductId', 'skuId', 'catalogRevision', 'stockTotal', 'expectedRevision']);
+        id(b.id); id(b.catalogProductId);
+        if (typeof b.skuId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(b.skuId)) fail('INPUT', 'Invalid source SKU id');
+        if (this.db.prepare('SELECT 1 FROM catalog_links WHERE product_id=? AND sku_id=?').get(b.catalogProductId, b.skuId)) fail('ALREADY_LINKED', 'This source SKU already belongs to an ERP allocation');
+        if (!catalog || catalog.productId !== b.catalogProductId || catalog.skuId !== b.skuId || catalog.revision !== b.catalogRevision) fail('CATALOG_CHANGED', 'Read the source product and SKU again');
+        if (this.link(w, b.id)) fail('ALREADY_LINKED', 'This ledger SKU is already linked; remapping is not supported');
+        const existing = this.db.prepare('SELECT * FROM products WHERE workspace=? AND id=?').get(w, b.id);
+        integer(b.stockTotal, 'stockTotal');
+        if (existing) {
+          if (b.expectedRevision !== existing.revision || b.stockTotal !== existing.stock) fail('REVISION_CONFLICT', 'Link existing records with their current revision and allocation; update stock separately');
+        } else {
+          if (b.expectedRevision !== undefined) fail('INPUT', 'New links do not have expectedRevision');
+          this.db.prepare('INSERT INTO products VALUES(?,?,?,?,?,?,1,?)').run(w, b.id, catalog.name, catalog.currency ?? 'USD', catalog.unitPriceMinor ?? 0, b.stockTotal, `catalog:${b.catalogProductId}/${b.skuId}`);
+        }
+        this.db.prepare('INSERT INTO catalog_links VALUES(?,?,?,?)').run(w, b.id, b.catalogProductId, b.skuId);
+        return { entity: 'product', id: b.id };
+      }
+      case 'update_stock': {
+        fields(b, [...common, 'id', 'expectedRevision', 'stockTotal', 'source']);
+        const p = this.row('products', w, b.id);
+        if (integer(b.expectedRevision, 'expectedRevision', 1) !== p.revision) fail('REVISION_CONFLICT', 'Read allocation again');
+        if (integer(b.stockTotal, 'stockTotal') < this.consumed(w, p.id, now)) fail('STOCK_CONFLICT', 'Allocation is smaller than occupied quantity');
+        this.db.prepare('UPDATE products SET stock=?,source=?,revision=revision+1 WHERE workspace=? AND id=?').run(b.stockTotal, text(b.source, 'source', 2000), w, p.id);
+        return { entity: 'product', id: p.id };
+      }
       case 'add_product': {
         fields(b, [...common, 'id', 'name', 'currency', 'unitPriceMinor', 'stockTotal', 'source']);
         this.db.prepare('INSERT INTO products VALUES(?,?,?,?,?,?,1,?)').run(w, id(b.id), text(b.name, 'name'), currency(b.currency), integer(b.unitPriceMinor, 'unitPriceMinor'), integer(b.stockTotal, 'stockTotal'), text(b.source, 'source', 2000));
@@ -151,6 +183,7 @@ export class ErpStore {
       case 'update_product': {
         fields(b, [...common, 'id', 'expectedRevision', 'unitPriceMinor', 'stockTotal', 'source']);
         const p = this.row('products', w, b.id);
+        if (this.link(w, b.id)) fail('CATALOG_AUTHORITY', 'Edit product and prices in the source library; use update_stock for allocation');
         if (integer(b.expectedRevision, 'expectedRevision', 1) !== p.revision) fail('REVISION_CONFLICT', 'Read the product again before updating');
         if (integer(b.stockTotal, 'stockTotal') < this.consumed(w, p.id, now)) fail('STOCK_CONFLICT', 'Total allocation cannot be less than reserved plus confirmed quantities');
         this.db.prepare('UPDATE products SET unit_price=?,stock=?,source=?,revision=revision+1 WHERE workspace=? AND id=?').run(integer(b.unitPriceMinor, 'unitPriceMinor'), b.stockTotal, text(b.source, 'source', 2000), w, p.id);
@@ -170,8 +203,10 @@ export class ErpStore {
         return { entity: 'offer', id: b.id };
       }
       case 'reserve': {
-        fields(b, [...common, 'buyerId', 'productId', 'expectedRevision', 'quantity', 'offerId', 'holdMinutes']);
+        fields(b, [...common, 'buyerId', 'productId', 'expectedRevision', 'expectedCatalogRevision', 'quantity', 'offerId', 'holdMinutes']);
         const p = this.row('products', w, b.productId); this.row('buyers', w, b.buyerId);
+        const linked = this.link(w, p.id);
+        if (linked && (!catalog || catalog.productId !== linked.product_id || catalog.skuId !== linked.sku_id || catalog.revision !== b.expectedCatalogRevision || catalog.quantity !== b.quantity || catalog.unitPriceMinor === null)) fail('CATALOG_CHANGED', 'A current source quote is required for this SKU and quantity');
         if (integer(b.expectedRevision, 'expectedRevision', 1) !== p.revision) fail('REVISION_CONFLICT', 'Product terms changed; read again');
         const qty = integer(b.quantity, 'quantity', 1), minutes = integer(b.holdMinutes ?? 60, 'holdMinutes', 1, 10080);
         if (p.stock - this.consumed(w, p.id, now) < qty) fail('OUT_OF_STOCK', 'Insufficient available product allocation');
@@ -183,10 +218,12 @@ export class ErpStore {
           if (this.db.prepare("SELECT id FROM orders WHERE workspace=? AND offer_id=? AND buyer_id=? AND (status='confirmed' OR (status='reserved' AND expires_at>?))").get(w, o.id, b.buyerId, now)) fail('ALREADY_HELD', 'Buyer already holds this offer');
           expiry = Math.min(expiry, o.valid_until);
         }
-        const total = p.unit_price * qty;
+        const unitPrice = linked ? integer(catalog.unitPriceMinor, 'quoted price') : p.unit_price;
+        const orderCurrency = linked ? currency(catalog.currency) : p.currency;
+        const total = unitPrice * qty;
         if (!Number.isSafeInteger(total)) fail('INPUT', 'Order total exceeds safe integer range');
         const key = randomUUID();
-        this.db.prepare("INSERT INTO orders VALUES(?,?,?,?,?,?,?,?,?, 'reserved',?,?,?)").run(w, key, b.buyerId, p.id, b.offerId ?? null, qty, p.currency, p.unit_price, total, now, expiry, now);
+        this.db.prepare("INSERT INTO orders VALUES(?,?,?,?,?,?,?,?,?, 'reserved',?,?,?)").run(w, key, b.buyerId, p.id, b.offerId ?? null, qty, orderCurrency, unitPrice, total, now, expiry, now);
         return { entity: 'order', id: key };
       }
       case 'confirm': case 'cancel': {

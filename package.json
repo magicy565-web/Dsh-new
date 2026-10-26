@@ -19,7 +19,7 @@
     "build": "node scripts/check-dsh.mjs",
     "test": "node scripts/test-dsh.mjs",
     "check": "npm run build && npm test",
-    "test:client": "node integrations/dsh/dsh-workspace-library/dev/client-smoke.mjs && node integrations/dsh/dsh-space-workspace/dev/client-smoke.mjs && node integrations/dsh/dsh-workspace-memory/dev/client-smoke.mjs && node integrations/dsh/dsh-inquiry-recovery/dev/client-smoke.mjs"
+    "test:client": "node integrations/dsh/dsh-workspace-library/dev/client-smoke.mjs && node integrations/dsh/dsh-space-workspace/dev/client-smoke.mjs && node integrations/dsh/dsh-workspace-memory/dev/client-smoke.mjs && node integrations/dsh/dsh-inquiry-recovery/dev/client-smoke.mjs && node integrations/dsh/dsh-mini-erp/dev/client-smoke.mjs"
   },
   "devDependencies": {
     "react": "18.3.1",

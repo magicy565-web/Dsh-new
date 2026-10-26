@@ -74,4 +74,4 @@ profile 的方式：仅在 `DSH_PRIMARY_RUNTIME` 或 `DSH_BUNDLED_PRIMARY_RUNTIM
 官方参考：[CLI](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/cli/README.md)、
 [插件管理](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/packages/boot/plugin-manager/README.md)。
 
-简易 ERP 已作为第六个 bundle 安装并检查原生 Loader active。数据在 `$DSH_HOME/data/mini-erp/erp.sqlite`，开发 profile 不写入测试订单；官方 ToolRuntime 验收使用独立临时数据库和夹具会话。无需 Client 面板或单独服务。
+简易 ERP 已作为第六个 bundle 安装并检查原生 Loader active。数据在 `$DSH_HOME/data/mini-erp/erp.sqlite`，开发 profile 不写入测试订单；官方 ToolRuntime 验收使用独立临时数据库和夹具会话。ERP Client 已挂载；认证 HTTP 与 Agent 工具共用服务，商品编辑跳转至原生资料库，不启动独立服务。

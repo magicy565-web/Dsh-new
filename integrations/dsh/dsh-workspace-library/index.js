@@ -321,6 +321,13 @@ export class LibraryStore {
     return run;
   }
 
+  // Serialize a read with edits without persisting or incrementing revisions.
+  async inspect(operation) {
+    const run = this.#queue.then(async () => operation(await this.state()));
+    this.#queue = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
   async #persist(state) {
     await mkdir(this.dir, { recursive: true });
     const temporary = `${this.file}.${process.pid}.tmp`;
@@ -513,6 +520,7 @@ function normalizeProductChanges(state, changes, original) {
   if (changes.skus !== undefined) {
     next.skus = array(changes.skus, 'skus', 100).map((sku, index) => normalizeSku(sku, index));
     unique(next.skus.map(sku => sku.code), 'skus.code');
+    unique(next.skus.map(sku => sku.id), 'skus.id');
   }
   if (changes.supply !== undefined) next.supply = normalizeSupply(changes.supply, next.supply);
   if (changes.documents !== undefined) {
@@ -892,6 +900,9 @@ export function createLibraryService(store, { attachments = null } = {}) {
   const read = () => store.state();
 
   return {
+    withProducts(operation) {
+      return store.inspect(state => operation(structuredClone(state.products)));
+    },
     async referenceCandidates(query = {}) {
       return listReferenceCandidates(await read(), { q: query.q, limit: clampLimit(query.limit, 50, 100) });
     },

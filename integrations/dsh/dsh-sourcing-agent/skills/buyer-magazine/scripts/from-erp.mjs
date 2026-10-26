@@ -26,8 +26,11 @@ export function blocksFromErp(snapshot, selection) {
   for (const key of ['id', 'name', 'source']) requireText(p[key], `product.${key}`);
   if (p.asOf !== snapshot.asOf) throw new Error('Product must belong to the same supply snapshot');
   count(p.revision, 'revision'); if (!p.revision) throw new Error('revision must be positive');
-  count(p.unitPriceMinor, 'unitPriceMinor'); count(p.available, 'available'); count(p.stockTotal, 'stockTotal');
-  if (p.available > p.stockTotal || !['USD', 'EUR', 'GBP', 'CNY'].includes(p.currency)) throw new Error('Invalid allocation or unsupported currency');
+  if (p.catalogStatus === 'unavailable') throw new Error('Source product/SKU is unavailable; refresh the source before publication');
+  const unpriced = p.quoteStatus === 'required' && p.unitPriceMinor === null && p.currency === null;
+  if (!unpriced) count(p.unitPriceMinor, 'unitPriceMinor');
+  count(p.available, 'available'); count(p.stockTotal, 'stockTotal');
+  if (p.available > p.stockTotal || (!unpriced && !['USD', 'EUR', 'GBP', 'CNY'].includes(p.currency))) throw new Error('Invalid allocation or unsupported currency');
   const o = modules.includes('exclusive') ? snapshot.offer : null;
   if (modules.includes('exclusive')) {
     if (!o) throw new Error('exclusive requires an explicit offerId and matching offer snapshot');
@@ -47,10 +50,13 @@ export function blocksFromErp(snapshot, selection) {
   const blocks = modules.map(type => {
     let data, evidence = [productEvidence];
     if (type === 'product') data = {
-      summary: p.name, features: [t(`产品编号：${p.id}`, `SKU: ${p.id}`)],
+      summary: p.description || p.name, features: [t(`产品编号：${p.skuCode || p.id}`, `SKU: ${p.skuCode || p.id}`), ...(p.specs ?? []).map(s => `${s.key}: ${s.value}`)],
     };
     if (type === 'procurement') data = { terms: [
-      t(`ERP 登记单价：${p.currency} ${(p.unitPriceMinor / 100).toFixed(2)} / 件`, `ERP recorded unit price: ${p.currency} ${(p.unitPriceMinor / 100).toFixed(2)}`),
+      unpriced ? t('价格待询价。', 'Price available on request.') : t(`ERP 登记单价：${p.currency} ${(p.unitPriceMinor / 100).toFixed(2)} / ${p.unit || '件'}`, `ERP recorded unit price: ${p.currency} ${(p.unitPriceMinor / 100).toFixed(2)}${p.unit ? ` / ${p.unit}` : ''}`),
+      ...(p.quoteQuantity ? [t(`该报价对应数量：${p.quoteQuantity} ${p.unit || '件'}`, `Quotation quantity: ${p.quoteQuantity} ${p.unit || 'units'}`)] : []),
+      ...(p.moq != null ? [t(`登记起订量：${p.moq}`, `Recorded MOQ: ${p.moq}`)] : []),
+      ...(p.leadTimeDays != null ? [t(`登记交期：${p.leadTimeDays} 天`, `Recorded lead time: ${p.leadTimeDays} days`)] : []),
       t(`可分配数量快照：${p.available} 件（${asOf}）`, `Available allocation snapshot: ${p.available} units (${asOf})`),
       t('起订量、交期、运费、税费及付款条件尚需核对原始资料；登记单价不等于包含全部费用的报价。', 'MOQ, lead time, freight, taxes and payment terms require the source material. Recorded unit price is not an all-inclusive quote.'),
     ] };
@@ -68,7 +74,9 @@ export function blocksFromErp(snapshot, selection) {
   return {
     blocks,
     provenance: { internalOnly: true, workspaceId: snapshot.workspaceId, productId: p.id, productRevision: p.revision,
-      productSource: p.source, asOf: snapshot.asOf, ...(o ? { offerId: o.id, offerSource: o.source } : {}) },
+      productSource: p.source, asOf: snapshot.asOf,
+      ...(p.catalogProductId ? { catalogProductId: p.catalogProductId, skuId: p.skuId, catalogRevision: p.catalogRevision } : {}),
+      ...(o ? { offerId: o.id, offerSource: o.source } : {}) },
     notes: [t('仅转换所选模块。发布前按本期要求补充产品说明、图片及缺失条款；交易前重新读取 ERP。', 'Only selected modules were converted. Add descriptions, images and missing terms as needed; read the ERP again before any transaction.')],
   };
 }
