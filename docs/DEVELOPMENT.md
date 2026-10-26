@@ -16,9 +16,9 @@ Sourcing 试点已删除自建阶段引擎，六份方法改为可独立加载�
 ## 日常命令
 
 - `npm ci --ignore-scripts`：首次设置的依赖安装和本地 workspace 链接。
-- `npm start`：显示六个插件的真实安装目录，不启动另一套应用。
+- `npm start`：显示七个候选插件的真实安装目录（含可选品牌插件），不启动另一套应用。
 - `npm run build`：原生 bundle 入口、JS 语法、中英文字典。
-- `npm test`：六个原生插件与三个领域包的回归。
+- `npm test`：原生业务／品牌插件与三个领域包的回归。
 - `npm run check`：顺序运行上述静态检查与回归，无模型调用。
 - `npm run test:client`：可选 DOM 冒烟，需要先安装根目录锁定的开发依赖。
 
