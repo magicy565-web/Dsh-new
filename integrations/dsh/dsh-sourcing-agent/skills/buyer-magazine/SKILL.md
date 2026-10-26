@@ -64,4 +64,14 @@ node <skill-directory>/scripts/render.mjs <issue.json> <new-output.html>
 
 若实际安装 mini-erp，可用 mini_erp_read 按当前工作区读取 product / offer / order；没有工具时不假定可用。商品 unitPriceMinor 除以 100 才是 USD/EUR/GBP/CNY 单价，不能直接当作售价或利润。offer.availableSlots 是 asOf 时点的可用名额；登记的 source 仍需按任务核对原资料。
 
+为本期商品调用 `mini_erp_read({entity: "supply", id: "商品ID", offerId: "明确选择的权益ID"})`，获得同一次只读快照；不需要权益时省略 offerId。将工具结果保存为任务工作区内的 snapshot.json，并按本期要求创建 selection.json，例如 `{"modules":["procurement","exclusive"],"language":"zh","timeZone":"Asia/Shanghai"}`。
+
+```sh
+node <skill-directory>/scripts/from-erp.mjs <snapshot.json> <selection.json> <new-blocks.json>
+```
+
+转换只支持 ERP 已有数据能够支撑的 product / procurement / exclusive，顺序按选择保留；不支持的模块或缺少选中权益时明确报错。将结果 blocks 合并进本期 JSON，内部 provenance 留在任务工作区，不随 HTML 发给买手。文本 source 不会被直接写进公开来源；经营者自由填写的产品名和权益条款仍需按本期披露范围审阅。
+
+产品展示只生成名称和编号，规格与图片按需从工作区资料补充。采购条件保留未录入条款的缺口，金额从分转换为元。ERP 权益用 recorded 标记，仅表示已登记；拿到并核验真实供应方依据后才改成 confirmed。缺少零售价／成本或历史销售时不生成利润或销量模块。转换不会预留库存，不生成交易链接，不证明输入文件来自可信接口。
+
 微刊生成只读取。用户已有交易授权时才使用 mini_erp_order 预留、确认或取消。保存并复用 requestId 以处理不确定结果；读取回执的 current.status 和 expiresAt，不能把旧 receipt 当作现存名额。confirmed 表示本机 ERP 已确认订单，不代表已付款、发货或签署外部法律合同。当前插件没有买手门户或公网交易 URL，不能编造 actionUrl。

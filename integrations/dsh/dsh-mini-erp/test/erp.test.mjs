@@ -116,3 +116,30 @@ test('native tool adapter derives workspace and audit identity from host, honour
   workspace.id = 'workspace-b'; assert.deepEqual(read({ entity: 'order' }, execution).items, []);
   dispose.reverse().forEach(fn => fn()); assert.equal(tools.size, 0);
 });
+
+test('supply snapshots are read-only, workspace-bound and never mix product/offer states across concurrent writes', async t => {
+  const f = await fixture(t);
+  const audit = () => f.store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n;
+  const before = audit();
+  const first = f.store.read('workspace-a', { entity: 'supply', id: 'sku', offerId: 'exclusive' });
+  assert.equal(first.product.asOf, first.offer.asOf); assert.equal(first.offer.asOf, first.asOf);
+  assert.equal(first.product.available, 10); assert.equal(first.offer.availableSlots, 1); assert.equal(audit(), before);
+  assert.equal(f.store.read('workspace-a', { entity: 'supply', id: 'sku' }).offer, null);
+  assert.throws(() => f.store.read('workspace-b', { entity: 'supply', id: 'sku', offerId: 'exclusive' }), { code: 'NOT_FOUND' });
+  assert.throws(() => f.store.read('workspace-a', { entity: 'supply' }), { code: 'INPUT' });
+  assert.throws(() => f.store.read('workspace-a', { entity: 'product', id: 'sku', offerId: 'exclusive' }), { code: 'INPUT' });
+  f.write({ action: 'add_product', requestId: 'other', id: 'other', name: 'Other', currency: 'USD', unitPriceMinor: 100, stockTotal: 1, source: 'Test' });
+  assert.throws(() => f.store.read('workspace-a', { entity: 'supply', id: 'other', offerId: 'exclusive' }), { code: 'OFFER_PRODUCT_MISMATCH' });
+  const writer = new ErpStore(f.file, { clock: () => initial }), original = f.store.product.bind(f.store);
+  f.store.product = (...args) => {
+    const product = original(...args);
+    writer.write('workspace-a', f.reserve({ requestId: 'concurrent-supply-write' }));
+    return product;
+  };
+  try {
+    const consistent = f.store.read('workspace-a', { entity: 'supply', id: 'sku', offerId: 'exclusive' });
+    assert.equal(consistent.product.available, 10); assert.equal(consistent.offer.availableSlots, 1);
+  } finally { f.store.product = original; writer.close(); }
+  const after = f.store.read('workspace-a', { entity: 'supply', id: 'sku', offerId: 'exclusive' });
+  assert.equal(after.product.available, 8); assert.equal(after.offer.availableSlots, 0);
+});

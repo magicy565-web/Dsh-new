@@ -69,11 +69,11 @@ export function validateIssue(issue) {
       case 'procurement': case 'sample': arrays('terms'); break;
       case 'exclusive':
         text('territory', 'channel', 'term'); arrays('conditions');
-        if (!['proposed', 'confirmed'].includes(d.status)) throw new Error('exclusive.status must be proposed or confirmed');
-        if (d.status === 'confirmed' && !evidence.length) throw new Error('Confirmed supply rights need supplier evidence');
-        if (d.status === 'confirmed' && evidence.every(s => s.kind === 'estimated')) throw new Error('Estimated evidence cannot confirm supply rights');
+        if (!['proposed', 'recorded', 'confirmed'].includes(d.status)) throw new Error('exclusive.status must be proposed, recorded or confirmed');
+        if (['recorded', 'confirmed'].includes(d.status) && !evidence.length) throw new Error('Confirmed supply rights need supplier evidence');
+        if (['recorded', 'confirmed'].includes(d.status) && evidence.every(s => s.kind === 'estimated')) throw new Error('Estimated evidence cannot confirm supply rights');
         if (d.slots !== undefined) {
-          if (d.status !== 'confirmed' || !Number.isInteger(d.slots) || d.slots < 0) throw new Error('Slots require confirmed rights and a non-negative integer');
+          if (!['recorded', 'confirmed'].includes(d.status) || !Number.isInteger(d.slots) || d.slots < 0) throw new Error('Slots require recorded or confirmed rights and a non-negative integer');
           text('asOf');
         }
         break;
@@ -102,7 +102,7 @@ function body(block, issue) {
     case 'comparison': return table(d.columns, d.rows) + list(d.caveats);
     case 'procurement': return list(d.terms);
     case 'sample': return list(d.terms) + action(t('申请样品', 'Request a sample'));
-    case 'exclusive': return paragraph(d.status === 'confirmed' ? t('供应商已确认以下权益条件', 'Supplier-confirmed terms') : t('拟议权益，尚待供应商确认', 'Proposed rights, awaiting supplier confirmation')) + table([t('范围', 'Scope'), t('条件', 'Terms')], [[t('区域', 'Territory'), d.territory], [t('渠道', 'Channel'), d.channel], [t('期限', 'Term'), d.term]]) + list(d.conditions) + (d.slots !== undefined ? paragraph(`${t('名额快照', 'Availability snapshot')}: ${d.slots} · ${d.asOf}`) : '') + action(d.status === 'confirmed' ? t('前往供应方确认并锁定', 'Confirm and reserve with supplier') : t('申请洽谈独家权益', 'Enquire about exclusivity'), d.slots !== 0) + `<p class="muted">${t('点击进入供应方渠道；名额及锁定结果以供应方实时确认为准。', 'Opens the supplier channel. Availability and reservations require live supplier confirmation.')}</p>`;
+    case 'exclusive': return paragraph(d.status === 'confirmed' ? t('供应商已确认以下权益条件', 'Supplier-confirmed terms') : d.status === 'recorded' ? t('ERP 已登记以下权益条件，供应方原始依据仍需核对', 'ERP-recorded terms; supplier source material still needs review') : t('拟议权益，尚待供应商确认', 'Proposed rights, awaiting supplier confirmation')) + table([t('范围', 'Scope'), t('条件', 'Terms')], [[t('区域', 'Territory'), d.territory], [t('渠道', 'Channel'), d.channel], [t('期限', 'Term'), d.term]]) + list(d.conditions) + (d.slots !== undefined ? paragraph(`${t('名额快照', 'Availability snapshot')}: ${d.slots} · ${d.asOf}`) : '') + action(d.status === 'confirmed' ? t('前往供应方确认并锁定', 'Confirm and reserve with supplier') : d.status === 'recorded' ? t('前往供应方核对权益', 'Review rights with supplier') : t('申请洽谈独家权益', 'Enquire about exclusivity'), d.slots !== 0) + `<p class="muted">${t('点击进入供应方渠道；名额及锁定结果以供应方实时确认为准。', 'Opens the supplier channel. Availability and reservations require live supplier confirmation.')}</p>`;
   }
 }
 

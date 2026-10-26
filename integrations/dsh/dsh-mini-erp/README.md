@@ -48,6 +48,12 @@ reserve 固定当前单价，要求 expectedRevision 与商品当前版本一致
 
 Agent 可读取 product 和 offer，将价格及带 asOf 的可用名额快照填入已选模块。source 由经营者提供，不等于系统已打开原文件。报价数据变化后重新读取；渲染 HTML 不触发写入。
 
+用于微刊时，调用 `mini_erp_read`，传 `entity: "supply"`、`id: "商品ID"` 和可选 `offerId`。商品、可分配数量和指定权益来自同一只读 SQLite 快照，避免跨次查询混合状态；未指定权益时返回 offer: null，不自动选择或创建。
+
+buyer-magazine 的 `scripts/from-erp.mjs` 可将该快照转换成明确选中的 product / procurement / exclusive 模块。内部 source 只保留在转换结果的 provenance，公开块引用 ERP 编号、修订和读取时间；只有 blocks 进入 HTML。ERP 登记权益使用 recorded 状态，不能自动当成原始供应方材料已核验。其余模块仍需对应的实际资料。
+
+经营后台后续按 [复用设计](../../../docs/ERP-REUSE.md) 整合原生资料库的多 SKU、媒体与资料能力；当前没有执行商品迁移或新增后台页面。
+
 已获授权的名额预留通过 mini_erp_order 完成，返回订单 ID、状态和到期时间。当前没有买手登录、交易网页或公开 URL，因此不要为微刊 actionUrl 编造 ERP 链接；对话操作是本版真实入口。
 
 ## 存储与运行范围

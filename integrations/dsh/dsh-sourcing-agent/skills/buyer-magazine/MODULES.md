@@ -41,7 +41,7 @@
 | comparison | columns：列名列表；rows：二维文字列表（与列数一致）；caveats：限制列表 |
 | procurement | terms：条款列表 |
 | sample | terms：条件列表；可选 actionUrl |
-| exclusive | status：proposed / confirmed；territory、channel、term：文字；conditions：列表；可选 slots：非负整数、asOf：快照时间、actionUrl |
+| exclusive | status：proposed / recorded / confirmed；territory、channel、term：文字；conditions：列表；可选 slots：非负整数、asOf：快照时间、actionUrl |
 
 sales-history 中每个 comparable 含 name、period、market、channel、currency、basis（统计口径）、comparability（可比性说明）、revenue（非负数）、measurement（reported / estimated）、source（本块 evidence 的零起始索引）。reported 表示来源报告，不代表我们获得审计权限；estimated 必须保留估算标记。每行必须绑定来源。该模块允许不同币种，但不跨币种汇总或默认换汇。
 
@@ -55,7 +55,9 @@ margin 按以下公式计算，不接受模型直接写入利润结果：
 
 固定成本、税、退货等若未列入，应在 assumptions 说明；这不是完整利润预测，也不模拟售出率。
 
-exclusive 的 confirmed 必须带供应方依据，表示权益条件已确认，不表示买手已锁定；slots 仅可与 confirmed 和 asOf 一起出现。零名额时禁用申请入口。交易 actionUrl 应由实际 ERP 接入提供，HTML 本身不提供并发名额扣减或锁定结果。proposed 的动作显示申请洽谈，不能称作已经持有权益。样品和采购等交易状态同样以 ERP 为准。
+exclusive 的 confirmed 必须带供应方依据，表示权益条件已确认，不表示买手已锁定。recorded 表示 ERP 登记记录，供应方原始依据仍需核对，也必须带登记来源。slots 仅可与 recorded / confirmed 和 asOf 一起出现。零名额时禁用申请入口。交易 actionUrl 应由实际 ERP 接入提供，HTML 本身不提供并发名额扣减或锁定结果。proposed 的动作显示申请洽谈，recorded 显示核对权益，都不能称作已经持有权益。样品和采购等交易状态同样以 ERP 为准。
+
+`scripts/from-erp.mjs` 读取 mini_erp_read 的 supply 快照与本期 selection，生成所选商品、采购条件和独家权益块。输出 blocks 可交给渲染器；provenance 含内部来源，保留在工作区。来源编号和读取时间不是对原始材料的独立审计证明。输入转换及 HTML 文件创建均拒绝覆盖既有文件。
 
 链接仅允许无内嵌账号密码的 HTTP(S) 地址；不允许输入 HTML。文本统一转义。图片仅作为 URL 引用，不下载、授权或验证图片本身。
 

@@ -16,6 +16,10 @@ transactions and supply reservations. The user subsequently authorized a small
 local ERP: integrations/dsh/dsh-mini-erp is the single transaction ledger for
 this pilot. It has no buyer portal or work-order integration. Keep further
 ERP development scoped to the user request; no parallel transaction state.
+The user now wants a Shopify Admin-style operator ERP. Follow docs/ERP-REUSE.md:
+reuse the native library's product/SKU/media/document capabilities and unify
+master data before building duplicate CRUD. Conversation-only magazine creation
+does not prohibit an ERP operator UI. Do not migrate existing records implicitly.
 
 The user selected DeepSeek Harness as the sole execution host and explicitly
 requested removal of the standalone Workspace Harness and remaining legacy

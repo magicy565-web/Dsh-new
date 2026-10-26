@@ -84,9 +84,13 @@ export class ErpStore {
   }
   read(workspace, input) {
     id(workspace, 'workspace');
-    fields(input, ['entity', 'id', 'limit', 'afterId']);
+    fields(input, ['entity', 'id', 'limit', 'afterId', 'offerId']);
     const tables = { product: 'products', buyer: 'buyers', offer: 'offers', order: 'orders' };
-    if (!Object.hasOwn(tables, input.entity)) fail('INPUT', 'entity: product, buyer, offer or order');
+    if (!Object.hasOwn(tables, input.entity) && input.entity !== 'supply') fail('INPUT', 'entity: product, buyer, offer, order or supply');
+    if (input.entity === 'supply') {
+      fields(input, ['entity', 'id', 'offerId']); id(input.id, 'id');
+      if (input.offerId !== undefined) id(input.offerId, 'offerId');
+    } else if (input.offerId !== undefined) fail('INPUT', 'offerId is only supported for a supply snapshot');
     if (input.afterId !== undefined) id(input.afterId, 'afterId');
     let now;
     const get = key => input.entity === 'buyer'
@@ -96,6 +100,13 @@ export class ErpStore {
     this.db.exec('BEGIN');
     try {
       now = this.now();
+      if (input.entity === 'supply') {
+        const product = this.product(workspace, input.id, now);
+        const offer = input.offerId === undefined ? null : this.offer(workspace, input.offerId, now);
+        if (offer && offer.productId !== product.id) fail('OFFER_PRODUCT_MISMATCH', 'Offer belongs to a different product');
+        this.db.exec('COMMIT');
+        return { workspaceId: workspace, asOf: new Date(now).toISOString(), product, offer };
+      }
       const limit = integer(input.limit ?? 50, 'limit', 1, 100);
       const rows = input.id ? [] : this.db.prepare(`SELECT id FROM ${tables[input.entity]} WHERE workspace=? AND id>? ORDER BY id LIMIT ?`).all(workspace, input.afterId ?? '', limit + 1);
       const result = input.id ? get(input.id) : {
