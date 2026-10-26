@@ -15,6 +15,8 @@ DSH 是当前唯一的后续 Agent 执行宿主。这里的六个当前 bundle �
 
 这些既有实现不是通用底座的默认必备范围，收敛方向见 [清单](../../docs/SCOPE-REDUCTION.md)。
 
+可选的 [dsh-workspace-brand](dsh-workspace-brand/README.md) 通过原生主题与品牌槽位定制外观，不增加业务面板或执行宿主。它须单独安装；本轮独立预览 profile 的验证见 [原生品牌验收](../../docs/DSH-NATIVE-BRAND.md)。
+
 按需在 DSH 内安装：
 
 ```text
