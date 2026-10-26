@@ -14,7 +14,9 @@ function load(fetch, sourceCode = code) {
     window: { __ModuleLoader__: { load({ factory }) {
       exported = factory(name => {
         assert.equal(name, 'react');
-        return { createElement: (type, props, ...children) => ({ type, props, children }) };
+        // This suite exercises reference serialization, not rendered surfaces.
+        return { createContext: () => ({}), forwardRef: render => render,
+          createElement: (type, props, ...children) => ({ type, props, children }) };
       });
     } } },
   };

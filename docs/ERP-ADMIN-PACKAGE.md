@@ -1,6 +1,6 @@
 # ERP Admin 插件包交付
 
-两个原生 DSH bundle：`dsh-mini-erp@0.3.3` 与 `dsh-workspace-library@1.3.1`。默认采用紫黑主题，已保存的外观偏好继续保留。后台留在 DSH 内，共用宿主登录、工作区、附件、工具和权限，不启动独立网页应用或业务服务器。
+两个原生 DSH bundle：`dsh-mini-erp@0.4.0` 与 `dsh-workspace-library@1.4.0`。采用 Radix Themes + Lucide，默认中性深色与紫色重点，已保存的外观偏好继续保留。后台留在 DSH 内，共用宿主登录、工作区、附件、工具和权限，不启动独立网页应用或业务服务器。
 
 ## 安装
 
@@ -27,16 +27,16 @@ node scripts/package-erp-admin.mjs /absolute/path/erp-admin-package
 
 生成：
 
-- `dsh-workspace-library-1.3.1.tgz`
-- `dsh-mini-erp-0.3.3.tgz`
+- `dsh-workspace-library-1.4.0.tgz`
+- `dsh-mini-erp-0.4.0.tgz`
 - `manifest.json`：版本、大小和 SHA-256
 - `INSTALL.md`：安装说明
 
-脚本调用 `npm pack --ignore-scripts`，只收集两个包的运行文件白名单；不安装、不发布、不打包业务数据。将两个 `.tgz` 搬到目标宿主后，可按上面顺序将绝对 `.tgz` 路径作为原生 `install_bundle target`。无需根仓库的 React/JSDOM 测试依赖。
+脚本先构建 ERP 原生 Client，再调用 `npm pack --ignore-scripts`，只收集两个包的运行文件白名单；不安装、不发布、不打包业务数据。将两个 `.tgz` 搬到目标宿主后，可按上面顺序将绝对 `.tgz` 路径作为原生 `install_bundle target`。无需根仓库的 React/JSDOM 测试依赖。
 
 ## 实际截图
 
-来自真实 DSH Web 空数据 profile，无演示商品或虚构交易。
+来自真实 DSH Web 空数据 profile，已更新为 Radix Themes 版本；无演示商品或虚构交易。
 
 | 页面 | 桌面 | 手机 |
 | --- | --- | --- |

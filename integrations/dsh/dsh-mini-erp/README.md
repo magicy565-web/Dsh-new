@@ -86,3 +86,9 @@ DSH_RUNTIME_DIR=/workspace/dsh-runtime node integrations/dsh/dsh-mini-erp/dev/na
 ### 界面字体
 
 Admin 使用共享的标题／正文／说明／数字字号角色。Inter Latin variable（Fontsource 5.3.0，原始 WOFF2 子集）内嵌在 Client 中，离线可用；中文由本地系统字体提供。字体授权见 [INTER-OFL.txt](INTER-OFL.txt)，完整层级与验证范围见 [界面设计](../../../docs/ERP-ADMIN-DESIGN.md)。
+
+### Radix UI 开发
+
+界面组件使用 Radix Themes 3.3.0，图标使用 Lucide React 1.61.0。源文件位于 `src/client.js`、`src/theme.css` 与 `src/fonts.css`；不要手改生成的 `client.js`。在仓库根目录执行 `npm ci --ignore-scripts` 后，用 `npm run build:erp-client` 构建原生 Client factory，或执行会自动构建的 `npm run check`。没有独立网页服务器。安装包包含编译后的组件与许可证，运行时不需要 npm 下载或 CDN。
+
+主题 CSS 限定在 ERP 节点；React / ReactDOM 及资料库沿用宿主模块。表单控件通过资料库 1.4.0 的可选 `ui` 适配器传入，保存仍由原编辑器处理。第三方许可见 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)。

@@ -1,5 +1,7 @@
 # 验证状态
 
+2026-10-27（Asia/Shanghai）：ERP 0.4.0 实际接入 Radix Themes 3.3.0 与 Lucide 1.61.0，资料库 1.4.0 通过可选控件适配器复用原编辑器。223 项核心检查与六组 Client DOM 通过；真实 Chromium 43 页四种宽度、搜索／菜单／表单、主题持久化、宿主样式隔离抽查及两个原生包的干净目录离线安装通过。没有新增业务数据、交易模型或服务进程。当前视觉与构建方式见 [ERP Admin 设计](docs/ERP-ADMIN-DESIGN.md)。
+
 2026-10-27（Asia/Shanghai）：ERP Admin 0.3.3 统一标题、正文、说明和数字字号，随包内置 Inter Latin 可变字体。核心检查 223/223、现有 Admin DOM、原生包离线安装通过；真实 Chromium 对 43 页在 1440／768／390／375px 下无页面横向溢出或运行异常，字体审计确认内置 Inter 和中文粗体／常规体实际生效。范围与截图见 [ERP Admin 设计](docs/ERP-ADMIN-DESIGN.md)。
 
 2026-10-27：新增独立 `dsh-buyer-magazine@0.2.0`，原网站与模块稿共用校验／主题／编译器，Sourcing 只保留复用与脚本兼容。独立 tar 包安装、唯一 Skill 发现、官方工具／文件／present 检查通过；真实 DSH Web / DeepSeek-V4.1-Flash 完成网址研究、生成与文件交付，最终独立预设无 Shell 调用与审批请求。整合同期 ERP Admin 更新后，`npm run check` 为 223/223、零跳过，六组 Client 冒烟通过。实际网站稿和模块稿的 1440／390px 检查无页面横向溢出，原生 HTML 侧栏可打开。详细范围、修订与截图见 [杂志统一验收](docs/DSH-MAGAZINE-UNIFICATION.md)；这不代表商业网站、图片授权或发布终审已经完成。

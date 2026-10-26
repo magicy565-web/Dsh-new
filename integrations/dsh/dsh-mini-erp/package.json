@@ -1,6 +1,6 @@
 {
   "name": "dsh-mini-erp",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Small workspace ERP: products, buyers, orders and atomic supply reservations",
@@ -19,7 +19,8 @@
     "catalog.js",
     "http.js",
     "client.js",
-    "INTER-OFL.txt"
+    "INTER-OFL.txt",
+    "THIRD-PARTY-NOTICES.txt"
   ],
   "dsh": {
     "bundle": {
@@ -34,5 +35,9 @@
         "dsh-workspace-library"
       ]
     }
+  },
+  "devDependencies": {
+    "@radix-ui/themes": "3.3.0",
+    "lucide-react": "1.61.0"
   }
 }

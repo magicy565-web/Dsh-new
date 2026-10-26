@@ -8,6 +8,15 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react');
     const h = React.createElement;
+    const SurfaceUI = React.createContext(null);
+    const control = (name, tag) => React.forwardRef((props, ref) => {
+      const ui = React.useContext(SurfaceUI);
+      return h(ui?.[name] || tag, { ...props, ref });
+    });
+    const LibraryInput = control('Input', 'input'), LibraryTextArea = control('TextArea', 'textarea');
+    const LibraryButton = control('Button', 'button'), LibraryCard = control('Card', 'div');
+    const withSurfaceUI = Component => ({ ui, ...props }) => h(SurfaceUI.Provider, { value: ui || null }, h(Component, props));
+
     const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
     const NS = 'workspace-library';
@@ -419,7 +428,7 @@ window.__ModuleLoader__.load({
 .wl-tab{appearance:none;background:none;border:0;cursor:pointer;white-space:nowrap;padding:12px 0 15px;color:var(--dsw-alias-label-secondary);font:inherit;font-size:14px;border-bottom:2px solid transparent}
 .wl-tab:hover{color:var(--dsw-alias-label-primary)}
 .wl-tab[aria-selected="true"]{color:var(--dsw-alias-label-primary);border-bottom-color:var(--dsw-alias-label-primary)}
-.wl-tab:focus-visible,.wl-row:focus-visible,.wl-back:focus-visible,.wl-btn:focus-visible,.wl-chip:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px}
+.wl-tab:focus-visible,.wl-row:focus-visible,.wl-back:focus-visible,.wl-btn:not(.rt-Button):focus-visible,.wl-chip:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px}
 .wl-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin:0 0 25px}
 .wl-heading h2{font-size:24px;font-weight:550;line-height:1.4;margin:0 0 8px;overflow-wrap:anywhere}
 .wl-heading p{font-size:13px;line-height:1.8;color:var(--dsw-alias-label-secondary);max-width:510px;margin:0}
@@ -460,11 +469,11 @@ window.__ModuleLoader__.load({
 .wl-section:first-of-type{border-top:0;padding-top:0;margin-top:0}
 .wl-section h3{font-size:17px;font-weight:550;margin:0 0 12px}
 .wl-section h4{font-size:13px;font-weight:500;margin:18px 0 12px}
-.wl-card{border-top:1px solid var(--dsw-alias-border-l2);padding:27px 0;margin-top:25px}
-.wl-card:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.wl-card:not(.rt-Card){border-top:1px solid var(--dsw-alias-border-l2);padding:27px 0;margin-top:25px}
+.wl-card:not(.rt-Card):first-of-type{border-top:0;padding-top:0;margin-top:0}
 .wl-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
 .wl-card-head h3{margin:0;font-size:17px;font-weight:550}
-.wl-card h4{font-size:13px;font-weight:500;margin:18px 0 12px}
+.wl-card:not(.rt-Card) h4{font-size:13px;font-weight:500;margin:18px 0 12px}
 .wl-subheading{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:0 0 16px}
 .wl-subheading h3{margin:0}
 .wl-help{margin:8px 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.8;overflow-wrap:anywhere}
@@ -482,16 +491,16 @@ window.__ModuleLoader__.load({
 .wl-check-body{min-width:0;display:flex;flex-direction:column;gap:4px}
 .wl-check-body strong{font-size:13px;font-weight:500}
 .wl-check-body p{margin:0;font-size:12px;line-height:1.7;color:var(--dsw-alias-label-secondary)}
-.wl-btn{appearance:none;min-height:39px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:23px;padding:10px 20px;font:inherit;font-size:13px;line-height:1.4;font-weight:500;white-space:nowrap;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);cursor:pointer}
-.wl-btn:hover{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
-.wl-btn[disabled]{opacity:.5;cursor:default}
-.wl-btn.primary{background:var(--wl-accent);color:var(--wl-accent-ink)}
-.wl-btn.primary:hover{filter:brightness(1.06)}
-.wl-btn.danger{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent);color:var(--dsw-alias-state-error-primary)}
-.wl-btn.ghost{background:none;color:var(--dsw-alias-label-secondary);padding-left:6px;padding-right:6px}
-.wl-btn.small{min-height:30px;padding:5px 12px;font-size:12px}
+.wl-btn:not(.rt-Button){appearance:none;min-height:39px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:23px;padding:10px 20px;font:inherit;font-size:13px;line-height:1.4;font-weight:500;white-space:nowrap;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);cursor:pointer}
+.wl-btn:not(.rt-Button):hover{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
+.wl-btn:not(.rt-Button)[disabled]{opacity:.5;cursor:default}
+.wl-btn:not(.rt-Button).primary{background:var(--wl-accent);color:var(--wl-accent-ink)}
+.wl-btn:not(.rt-Button).primary:hover{filter:brightness(1.06)}
+.wl-btn:not(.rt-Button).danger{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent);color:var(--dsw-alias-state-error-primary)}
+.wl-btn:not(.rt-Button).ghost{background:none;color:var(--dsw-alias-label-secondary);padding-left:6px;padding-right:6px}
+.wl-btn:not(.rt-Button).small{min-height:30px;padding:5px 12px;font-size:12px}
 .wl-detail-action{display:flex;justify-content:flex-end;padding:20px 0;margin-top:20px;border-top:1px solid var(--dsw-alias-border-l2)}
-.wl-detail-action .wl-btn.primary{min-width:140px}
+.wl-detail-action .wl-btn:not(.rt-Button).primary{min-width:140px}
 .wl-empty{padding:60px 10px;text-align:center;color:var(--dsw-alias-label-secondary)}
 .wl-empty strong{display:block;font-size:19px;font-weight:500;color:var(--dsw-alias-label-primary);margin:0 0 12px}
 .wl-empty p{font-size:13px;line-height:1.8;margin:0 auto;max-width:42ch}
@@ -503,9 +512,9 @@ window.__ModuleLoader__.load({
 .wl-editor{max-width:780px}
 .wl-field{display:flex;flex-direction:column;gap:9px;font-size:13px;color:var(--dsw-alias-label-secondary);margin:0 0 23px}
 .wl-field > label{font-size:13px;color:var(--dsw-alias-label-secondary)}
-.wl-field input,.wl-field select,.wl-field textarea{width:100%;min-width:0;box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:11px;padding:12px;font:14px/1.6 inherit;color:var(--dsw-alias-label-primary)}
-.wl-field textarea{resize:vertical;line-height:1.7}
-.wl-field input:focus-visible,.wl-field select:focus-visible,.wl-field textarea:focus-visible{outline:none;border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-brand-primary) 16%,transparent)}
+.wl-field input:not(.rt-TextFieldInput),.wl-field select,.wl-field textarea:not(.rt-TextAreaInput){width:100%;min-width:0;box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:11px;padding:12px;font:14px/1.6 inherit;color:var(--dsw-alias-label-primary)}
+.wl-field textarea:not(.rt-TextAreaInput){resize:vertical;line-height:1.7}
+.wl-field input:not(.rt-TextFieldInput):focus-visible,.wl-field select:focus-visible,.wl-field textarea:not(.rt-TextAreaInput):focus-visible{outline:none;border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-brand-primary) 16%,transparent)}
 .wl-field-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .wl-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .wl-form-actions{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:20px 0 0;margin-top:15px;border-top:1px solid var(--dsw-alias-border-l2)}
@@ -564,7 +573,7 @@ window.__ModuleLoader__.load({
 .wl-split{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .wl-split > *{flex:1;min-width:120px}
 @media(max-width:820px){.wl-content{width:calc(100% - 64px);margin-top:35px}.wl-tabs{gap:23px}.wl-heading h2{font-size:22px}}
-@media(max-width:600px){.wl-content{width:calc(100% - 44px);margin:29px auto 45px}.wl-title{font-size:24px}.wl-tabs{gap:23px;margin-bottom:26px}.wl-tabs .wl-tab{font-size:13px}.wl-heading{gap:13px;flex-wrap:wrap;margin-bottom:20px}.wl-heading .wl-btn{padding:8px 14px;font-size:12px}.wl-heading h2{font-size:21px}.wl-heading p{font-size:12px}.wl-toolbar{gap:8px}.wl-search{padding:11px}.wl-search input{font-size:16px}.wl-row{padding:16px 0;gap:12px}.wl-row.with-thumb{grid-template-columns:46px minmax(0,1fr) 14px}.wl-row-thumb{width:46px;height:56px;border-radius:10px}.wl-row-title{font-size:15px}.wl-row-snippet{font-size:12px;-webkit-line-clamp:1}.wl-row-meta{font-size:10px}.wl-detail-title{font-size:22px}.wl-description{font-size:14px}.wl-section{padding:22px 0;margin-top:20px}.wl-card{padding:22px 0;margin-top:20px}.wl-field input,.wl-field select,.wl-field textarea{font-size:16px}.wl-field-row{grid-template-columns:1fr;gap:0}.wl-facts{grid-template-columns:78px minmax(0,1fr);gap:10px;font-size:13px}.wl-detail-action{position:sticky;bottom:0;padding:12px 0 13px;background:var(--dsw-alias-bg-base);box-shadow:0 -10px 16px color-mix(in srgb,var(--dsw-alias-bg-base) 85%,transparent);z-index:2}.wl-detail-action .wl-btn{width:100%}.wl-form-actions{position:sticky;bottom:0;background:var(--dsw-alias-bg-base);padding:12px 0 13px}.wl-form-actions .wl-btn.primary{flex:1}.wl-gallery{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.wl-frame{height:380px}}
+@media(max-width:600px){.wl-content{width:calc(100% - 44px);margin:29px auto 45px}.wl-title{font-size:24px}.wl-tabs{gap:23px;margin-bottom:26px}.wl-tabs .wl-tab{font-size:13px}.wl-heading{gap:13px;flex-wrap:wrap;margin-bottom:20px}.wl-heading .wl-btn:not(.rt-Button){padding:8px 14px;font-size:12px}.wl-heading h2{font-size:21px}.wl-heading p{font-size:12px}.wl-toolbar{gap:8px}.wl-search{padding:11px}.wl-search input{font-size:16px}.wl-row{padding:16px 0;gap:12px}.wl-row.with-thumb{grid-template-columns:46px minmax(0,1fr) 14px}.wl-row-thumb{width:46px;height:56px;border-radius:10px}.wl-row-title{font-size:15px}.wl-row-snippet{font-size:12px;-webkit-line-clamp:1}.wl-row-meta{font-size:10px}.wl-detail-title{font-size:22px}.wl-description{font-size:14px}.wl-section{padding:22px 0;margin-top:20px}.wl-card:not(.rt-Card){padding:22px 0;margin-top:20px}.wl-field input:not(.rt-TextFieldInput),.wl-field select,.wl-field textarea:not(.rt-TextAreaInput){font-size:16px}.wl-field-row{grid-template-columns:1fr;gap:0}.wl-facts{grid-template-columns:78px minmax(0,1fr);gap:10px;font-size:13px}.wl-detail-action{position:sticky;bottom:0;padding:12px 0 13px;background:var(--dsw-alias-bg-base);box-shadow:0 -10px 16px color-mix(in srgb,var(--dsw-alias-bg-base) 85%,transparent);z-index:2}.wl-detail-action .wl-btn:not(.rt-Button){width:100%}.wl-form-actions{position:sticky;bottom:0;background:var(--dsw-alias-bg-base);padding:12px 0 13px}.wl-form-actions .wl-btn:not(.rt-Button).primary{flex:1}.wl-gallery{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.wl-frame{height:380px}}
 `;
 
     // ---------------------------------------------------------------------
@@ -774,7 +783,7 @@ window.__ModuleLoader__.load({
         { className: 'wl-error', role: 'alert' },
         h('div', null, error.message || t('error.generic')),
         onRetry
-          ? h('div', { style: { marginTop: '6px' } }, h('button', { type: 'button', className: 'wl-btn small', onClick: onRetry }, t('action.retry')))
+          ? h('div', { style: { marginTop: '6px' } }, h(LibraryButton, { type: 'button', className: 'wl-btn small', onClick: onRetry }, t('action.retry')))
           : null,
       );
     }
@@ -1077,8 +1086,7 @@ window.__ModuleLoader__.load({
                   'nav',
                   { key: 'tabs', className: 'wl-tabs', role: 'tablist', 'aria-label': t('title') },
                   [['products', t('tab.products')], ['company', t('tab.company')]].map(([key, label]) =>
-                    h(
-                      'button',
+                    h(LibraryButton,
                       { key, type: 'button', role: 'tab', className: 'wl-tab', 'aria-selected': tab === key, onClick: () => switchTab(key) },
                       label,
                     ),
@@ -1088,8 +1096,7 @@ window.__ModuleLoader__.load({
               ]
             : [
                 back
-                  ? h(
-                      'button',
+                  ? h(LibraryButton,
                       { key: 'back', type: 'button', className: 'wl-back', onClick: () => go(back.to) },
                       h(IconBack, { size: 16 }),
                       back.label,
@@ -1121,8 +1128,8 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { className: 'wl-detail-actions' },
-            h('button', { type: 'button', className: 'wl-btn ghost small', onClick: onRefresh, disabled: refreshing }, t('action.refresh')),
-            h('button', { type: 'button', className: 'wl-btn primary', onClick: onCreate }, h(IconPlus, { size: 14 }), t('action.newProduct')),
+            h(LibraryButton, { type: 'button', className: 'wl-btn ghost small', onClick: onRefresh, disabled: refreshing }, t('action.refresh')),
+            h(LibraryButton, { type: 'button', className: 'wl-btn primary', onClick: onCreate }, h(IconPlus, { size: 14 }), t('action.newProduct')),
           ),
         ),
         h(
@@ -1132,7 +1139,7 @@ window.__ModuleLoader__.load({
             'label',
             { className: 'wl-search' },
             h(IconSearch, { size: 15 }),
-            h('input', {
+            h(LibraryInput, {
               type: 'search',
               value: query,
               placeholder: t('search.products'),
@@ -1146,8 +1153,7 @@ window.__ModuleLoader__.load({
           { className: 'wl-list' },
           products.length
             ? products.map(product =>
-                h(
-                  'button',
+                h(LibraryButton,
                   { key: product.id, type: 'button', className: 'wl-row with-thumb', onClick: () => onSelect(product.id) },
                   h(ProductRowThumb, { productId: product.id, imageId: product.primaryImageId }),
                   h(
@@ -1198,7 +1204,7 @@ window.__ModuleLoader__.load({
         'div',
         { className: 'wl-image-card' },
         h('div', { className: 'wl-image-thumb' }, url ? h('img', { src: url, alt: image.alt || image.fileName }) : h('span', null, image.fileName)),
-        h('input', {
+        h(LibraryInput, {
           value: alt,
           maxLength: 1000,
           'aria-label': t('image.alt'),
@@ -1213,10 +1219,10 @@ window.__ModuleLoader__.load({
           { className: 'wl-image-actions' },
           image.isPrimary
             ? h('span', { className: 'wl-tag ok' }, t('image.primary'))
-            : h('button', { type: 'button', className: 'wl-btn small', disabled: busy, onClick: () => onUpdate({ isPrimary: true }) }, t('image.setPrimary')),
-          h('button', { type: 'button', className: 'wl-btn small', disabled: busy || index === 0, onClick: () => onUpdate({ order: index - 1 }) }, t('image.up')),
-          h('button', { type: 'button', className: 'wl-btn small', disabled: busy || index === total - 1, onClick: () => onUpdate({ order: index + 1 }) }, t('image.down')),
-          h('button', { type: 'button', className: 'wl-btn small danger', disabled: busy, onClick: onRemove }, t('image.remove')),
+            : h(LibraryButton, { type: 'button', className: 'wl-btn small', disabled: busy, onClick: () => onUpdate({ isPrimary: true }) }, t('image.setPrimary')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn small', disabled: busy || index === 0, onClick: () => onUpdate({ order: index - 1 }) }, t('image.up')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn small', disabled: busy || index === total - 1, onClick: () => onUpdate({ order: index + 1 }) }, t('image.down')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn small danger', disabled: busy, onClick: onRemove }, t('image.remove')),
         ),
       );
     }
@@ -1336,7 +1342,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'wl-detail-action' },
-          h('button', { type: 'button', className: 'wl-btn primary', onClick: () => onEdit(product) }, t('action.edit')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn primary', onClick: () => onEdit(product) }, t('action.edit')),
         ),
       );
     }
@@ -1506,18 +1512,17 @@ window.__ModuleLoader__.load({
         'form',
         { className: `wl-form wl-editor${admin ? ' wl-admin-editor' : ''}`, onSubmit: submit },
         admin ? null : h('div', { className: 'wl-detail-head' }, h('h2', { className: 'wl-detail-title' }, product ? t('editor.editProduct') : t('editor.newProduct'))),
-        h(
-          'div',
+        h(LibraryCard,
           { className: 'wl-card wl-product-identity' },
           h(
             'div',
             { className: 'wl-form' },
-            h('div', { className: 'wl-field' }, h('label', null, t('product.name')), h('input', { required: true, maxLength: 200, value: draft.name, onChange: event => patch({ name: event.target.value }) })),
-            h('div', { className: 'wl-field' }, h('label', null, t('product.description')), h('textarea', { rows: 4, maxLength: 8000, value: draft.description, onChange: event => patch({ description: event.target.value }) })),
+            h('div', { className: 'wl-field' }, h('label', null, t('product.name')), h(LibraryInput, { required: true, maxLength: 200, value: draft.name, onChange: event => patch({ name: event.target.value }) })),
+            h('div', { className: 'wl-field' }, h('label', null, t('product.description')), h(LibraryTextArea, { rows: 4, maxLength: 8000, value: draft.description, onChange: event => patch({ description: event.target.value }) })),
             admin ? null : h(
               'div',
               { className: 'wl-field-row' },
-              h('div', { className: 'wl-field' }, h('label', null, t('product.category')), h('input', { maxLength: 200, value: draft.category, onChange: event => patch({ category: event.target.value }) })),
+              h('div', { className: 'wl-field' }, h('label', null, t('product.category')), h(LibraryInput, { maxLength: 200, value: draft.category, onChange: event => patch({ category: event.target.value }) })),
               h(
                 'div',
                 { className: 'wl-field' },
@@ -1532,14 +1537,13 @@ window.__ModuleLoader__.load({
             ),
           ),
         ),
-        h(
-          'div',
+        h(LibraryCard,
           { className: 'wl-card wl-product-variants' },
           h(
             'div',
             { className: 'wl-card-head' },
             h('h3', null, t('sku.title')),
-            h('button', { type: 'button', className: 'wl-btn small', onClick: addSku, disabled: draft.skus.length >= 100 }, t('sku.add')),
+            h(LibraryButton, { type: 'button', className: 'wl-btn small', onClick: addSku, disabled: draft.skus.length >= 100 }, t('sku.add')),
           ),
           draft.skus.length ? null : h('p', { className: 'wl-help' }, t('sku.empty')),
           draft.skus.map((sku, index) =>
@@ -1550,15 +1554,15 @@ window.__ModuleLoader__.load({
                 'div',
                 { className: 'wl-sku-head' },
                 h('strong', null, sku.code || `${t('sku.code')} ${index + 1}`),
-                h('button', { type: 'button', className: 'wl-btn small danger', onClick: () => removeSku(index) }, t('sku.remove')),
+                h(LibraryButton, { type: 'button', className: 'wl-btn small danger', onClick: () => removeSku(index) }, t('sku.remove')),
               ),
               h(
                 'div',
                 { className: 'wl-field-row' },
-                h('div', { className: 'wl-field' }, h('label', null, t('sku.code')), h('input', { required: true, maxLength: 100, value: sku.code, onChange: event => patchSku(index, { code: event.target.value }) })),
-                h('div', { className: 'wl-field' }, h('label', null, t('sku.unit')), h('input', { maxLength: 100, placeholder: t('sku.unitHint'), value: sku.unit, onChange: event => patchSku(index, { unit: event.target.value }) })),
-                h('div', { className: 'wl-field' }, h('label', null, t('sku.moq')), h('input', { type: 'number', min: 1, value: sku.moq ?? '', onChange: event => patchSku(index, { moq: event.target.value ? Number(event.target.value) : null }) })),
-                h('div', { className: 'wl-field' }, h('label', null, t('sku.lead')), h('input', { type: 'number', min: 1, max: 36500, value: sku.leadTimeDays ?? '', onChange: event => patchSku(index, { leadTimeDays: event.target.value ? Number(event.target.value) : null }) })),
+                h('div', { className: 'wl-field' }, h('label', null, t('sku.code')), h(LibraryInput, { required: true, maxLength: 100, value: sku.code, onChange: event => patchSku(index, { code: event.target.value }) })),
+                h('div', { className: 'wl-field' }, h('label', null, t('sku.unit')), h(LibraryInput, { maxLength: 100, placeholder: t('sku.unitHint'), value: sku.unit, onChange: event => patchSku(index, { unit: event.target.value }) })),
+                h('div', { className: 'wl-field' }, h('label', null, t('sku.moq')), h(LibraryInput, { type: 'number', min: 1, value: sku.moq ?? '', onChange: event => patchSku(index, { moq: event.target.value ? Number(event.target.value) : null }) })),
+                h('div', { className: 'wl-field' }, h('label', null, t('sku.lead')), h(LibraryInput, { type: 'number', min: 1, max: 36500, value: sku.leadTimeDays ?? '', onChange: event => patchSku(index, { leadTimeDays: event.target.value ? Number(event.target.value) : null }) })),
               ),
               h(
                 'div',
@@ -1575,7 +1579,7 @@ window.__ModuleLoader__.load({
                     h('option', { value: 'on_request' }, t('sku.pricing.on_request')),
                   ),
                 ),
-                h('div', { className: 'wl-field' }, h('label', null, t('sku.pricing.note')), h('input', { maxLength: 500, value: sku.pricingNote, onChange: event => patchSku(index, { pricingNote: event.target.value }) })),
+                h('div', { className: 'wl-field' }, h('label', null, t('sku.pricing.note')), h(LibraryInput, { maxLength: 500, value: sku.pricingNote, onChange: event => patchSku(index, { pricingNote: event.target.value }) })),
               ),
               sku.pricingMode === 'tiered'
                 ? h(
@@ -1585,34 +1589,33 @@ window.__ModuleLoader__.load({
                       h(
                         'div',
                         { key: tierIndex, className: 'wl-tier-row' },
-                        h('input', { type: 'number', min: 1, 'aria-label': t('sku.tier.min'), placeholder: t('sku.tier.min'), value: tier.minQuantity ?? '', onChange: event => patchSku(index, { priceTiers: sku.priceTiers.map((entry, at) => (at === tierIndex ? { ...entry, minQuantity: Number(event.target.value) } : entry)) }) }),
-                        h('input', { 'aria-label': t('sku.tier.price'), placeholder: t('sku.tier.price'), value: tier.unitPrice ?? '', onChange: event => patchSku(index, { priceTiers: sku.priceTiers.map((entry, at) => (at === tierIndex ? { ...entry, unitPrice: event.target.value } : entry)) }) }),
-                        h('input', { 'aria-label': t('sku.tier.currency'), placeholder: 'CNY', maxLength: 8, value: tier.currency ?? 'CNY', onChange: event => patchSku(index, { priceTiers: sku.priceTiers.map((entry, at) => (at === tierIndex ? { ...entry, currency: event.target.value } : entry)) }) }),
-                        h('button', { type: 'button', className: 'wl-btn small danger', onClick: () => patchSku(index, { priceTiers: sku.priceTiers.filter((_, at) => at !== tierIndex) }) }, '×'),
+                        h(LibraryInput, { type: 'number', min: 1, 'aria-label': t('sku.tier.min'), placeholder: t('sku.tier.min'), value: tier.minQuantity ?? '', onChange: event => patchSku(index, { priceTiers: sku.priceTiers.map((entry, at) => (at === tierIndex ? { ...entry, minQuantity: Number(event.target.value) } : entry)) }) }),
+                        h(LibraryInput, { 'aria-label': t('sku.tier.price'), placeholder: t('sku.tier.price'), value: tier.unitPrice ?? '', onChange: event => patchSku(index, { priceTiers: sku.priceTiers.map((entry, at) => (at === tierIndex ? { ...entry, unitPrice: event.target.value } : entry)) }) }),
+                        h(LibraryInput, { 'aria-label': t('sku.tier.currency'), placeholder: 'CNY', maxLength: 8, value: tier.currency ?? 'CNY', onChange: event => patchSku(index, { priceTiers: sku.priceTiers.map((entry, at) => (at === tierIndex ? { ...entry, currency: event.target.value } : entry)) }) }),
+                        h(LibraryButton, { type: 'button', className: 'wl-btn small danger', onClick: () => patchSku(index, { priceTiers: sku.priceTiers.filter((_, at) => at !== tierIndex) }) }, '×'),
                       ),
                     ),
-                    h('button', { type: 'button', className: 'wl-btn small', style: { marginTop: '6px' }, onClick: () => patchSku(index, { priceTiers: [...(sku.priceTiers || []), { minQuantity: 1, unitPrice: '', currency: 'CNY' }] }) }, t('sku.tier.add')),
+                    h(LibraryButton, { type: 'button', className: 'wl-btn small', style: { marginTop: '6px' }, onClick: () => patchSku(index, { priceTiers: [...(sku.priceTiers || []), { minQuantity: 1, unitPrice: '', currency: 'CNY' }] }) }, t('sku.tier.add')),
                   )
                 : null,
               h(
                 'div',
                 { style: { marginTop: '8px' } },
-                h('div', { className: 'wl-inline', style: { justifyContent: 'space-between' } }, h('span', { className: 'wl-help' }, t('sku.spec.key')), h('button', { type: 'button', className: 'wl-btn small', onClick: () => patchSku(index, { specs: [...(sku.specs || []), { key: '', value: '' }] }) }, t('sku.spec.add'))),
+                h('div', { className: 'wl-inline', style: { justifyContent: 'space-between' } }, h('span', { className: 'wl-help' }, t('sku.spec.key')), h(LibraryButton, { type: 'button', className: 'wl-btn small', onClick: () => patchSku(index, { specs: [...(sku.specs || []), { key: '', value: '' }] }) }, t('sku.spec.add'))),
                 (sku.specs || []).map((spec, specIndex) =>
                   h(
                     'div',
                     { key: specIndex, className: 'wl-spec-row' },
-                    h('input', { 'aria-label': t('sku.spec.key'), placeholder: t('sku.spec.key'), value: spec.key, onChange: event => patchSku(index, { specs: sku.specs.map((entry, at) => (at === specIndex ? { ...entry, key: event.target.value } : entry)) }) }),
-                    h('input', { 'aria-label': t('sku.spec.value'), placeholder: t('sku.spec.value'), value: spec.value, onChange: event => patchSku(index, { specs: sku.specs.map((entry, at) => (at === specIndex ? { ...entry, value: event.target.value } : entry)) }) }),
-                    h('button', { type: 'button', className: 'wl-btn small danger', onClick: () => patchSku(index, { specs: sku.specs.filter((_, at) => at !== specIndex) }) }, '×'),
+                    h(LibraryInput, { 'aria-label': t('sku.spec.key'), placeholder: t('sku.spec.key'), value: spec.key, onChange: event => patchSku(index, { specs: sku.specs.map((entry, at) => (at === specIndex ? { ...entry, key: event.target.value } : entry)) }) }),
+                    h(LibraryInput, { 'aria-label': t('sku.spec.value'), placeholder: t('sku.spec.value'), value: spec.value, onChange: event => patchSku(index, { specs: sku.specs.map((entry, at) => (at === specIndex ? { ...entry, value: event.target.value } : entry)) }) }),
+                    h(LibraryButton, { type: 'button', className: 'wl-btn small danger', onClick: () => patchSku(index, { specs: sku.specs.filter((_, at) => at !== specIndex) }) }, '×'),
                   ),
                 ),
               ),
             ),
           ),
         ),
-        h(
-          'div',
+        h(LibraryCard,
           { className: 'wl-card wl-product-supply' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('supply.title'))),
           h(
@@ -1623,13 +1626,12 @@ window.__ModuleLoader__.load({
                 'div',
                 { key, className: 'wl-field' },
                 h('label', null, label),
-                h('textarea', { rows: 2, maxLength: 4000, value: draft.supply[key] || '', onChange: event => patch({ supply: { ...draft.supply, [key]: event.target.value } }) }),
+                h(LibraryTextArea, { rows: 2, maxLength: 4000, value: draft.supply[key] || '', onChange: event => patch({ supply: { ...draft.supply, [key]: event.target.value } }) }),
               ),
             ),
           ),
         ),
-        h(
-          'div',
+        h(LibraryCard,
           { className: 'wl-card wl-product-media' },
           h(
             'div',
@@ -1640,7 +1642,7 @@ window.__ModuleLoader__.load({
                   'label',
                   { className: 'wl-btn small' },
                   imageBusy ? t('editor.uploading') : t('image.add'),
-                  h('input', {
+                  h(LibraryInput, {
                     type: 'file',
                     accept: IMAGE_TYPES.join(','),
                     style: { display: 'none' },
@@ -1677,8 +1679,7 @@ window.__ModuleLoader__.load({
             : h('p', { className: 'wl-help' }, t('image.saveFirst')),
           h('p', { className: 'wl-help' }, t('image.hint')),
         ),
-        h(
-          'div',
+        h(LibraryCard,
           { className: 'wl-card wl-product-documents' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('documents.title'))),
           h('p', { className: 'wl-help' }, t('documents.hint')),
@@ -1692,13 +1693,13 @@ window.__ModuleLoader__.load({
                     { className: 'wl-version-head' },
                     h('strong', null, availableDocuments.find(document => document.id === reference.documentId)?.title || reference.documentId),
                     h('span', { className: 'wl-tag' }, `v${reference.documentVersion}`),
-                    h('button', { type: 'button', className: 'wl-btn small danger', onClick: () => patch({ documents: draft.documents.filter((_, at) => at !== index) }) }, t('documents.remove')),
+                    h(LibraryButton, { type: 'button', className: 'wl-btn small danger', onClick: () => patch({ documents: draft.documents.filter((_, at) => at !== index) }) }, t('documents.remove')),
                   ),
                   h(
                     'div',
                     { className: 'wl-field', style: { marginTop: '6px' } },
                     h('label', null, t('documents.purpose')),
-                    h('input', { maxLength: 1000, value: reference.purpose || '', onChange: event => patch({ documents: draft.documents.map((entry, at) => (at === index ? { ...entry, purpose: event.target.value } : entry)) }) }),
+                    h(LibraryInput, { maxLength: 1000, value: reference.purpose || '', onChange: event => patch({ documents: draft.documents.map((entry, at) => (at === index ? { ...entry, purpose: event.target.value } : entry)) }) }),
                   ),
                 ),
               )
@@ -1713,12 +1714,12 @@ window.__ModuleLoader__.load({
             disabled: draft.documents.length >= 50,
           }),
         ),
-        admin ? h('div', { className: 'wl-card wl-product-organization' },
+        admin ? h(LibraryCard, { className: 'wl-card wl-product-organization' },
           h('div', { className: 'wl-card-head' }, h('h3', null, '商品组织与状态')),
             h(
               'div',
               { className: 'wl-field-row' },
-              h('div', { className: 'wl-field' }, h('label', null, t('product.category')), h('input', { maxLength: 200, value: draft.category, onChange: event => patch({ category: event.target.value }) })),
+              h('div', { className: 'wl-field' }, h('label', null, t('product.category')), h(LibraryInput, { maxLength: 200, value: draft.category, onChange: event => patch({ category: event.target.value }) })),
               h(
                 'div',
                 { className: 'wl-field' },
@@ -1737,8 +1738,8 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'wl-form-actions' },
           admin ? h('span', { className: 'wl-save-state', role: 'status' }, busy ? '正在保存…' : dirty ? '有未保存的更改' : product ? '商品资料已保存' : '新商品') : null,
-          h('button', { type: 'button', className: 'wl-btn', onClick: onCancel }, t('action.cancel')),
-          h('button', { type: 'submit', className: 'wl-btn primary', disabled: busy || imageBusy || !draft.name.trim() || (admin && product && !dirty) }, busy ? t('editor.saving') : t('editor.saveProduct')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn', onClick: onCancel }, t('action.cancel')),
+          h(LibraryButton, { type: 'submit', className: 'wl-btn primary', disabled: busy || imageBusy || !draft.name.trim() || (admin && product && !dirty) }, busy ? t('editor.saving') : t('editor.saveProduct')),
         ),
       );
       if (!admin) return editor;
@@ -1798,12 +1799,11 @@ window.__ModuleLoader__.load({
           ? h(
               'div',
               { className: 'wl-field-row' },
-              h('div', { className: 'wl-field' }, h('label', null, t('documents.purpose')), h('input', { maxLength: 1000, value: purpose, onChange: event => setPurpose(event.target.value) })),
+              h('div', { className: 'wl-field' }, h('label', null, t('documents.purpose')), h(LibraryInput, { maxLength: 1000, value: purpose, onChange: event => setPurpose(event.target.value) })),
               h(
                 'div',
                 { className: 'wl-field', style: { justifyContent: 'flex-end' } },
-                h(
-                  'button',
+                h(LibraryButton,
                   {
                     type: 'button',
                     className: 'wl-btn',
@@ -1834,7 +1834,7 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'wl-heading' },
           h('div', null, h('h2', null, t('tab.company')), h('p', null, t('company.subtitle'))),
-          h('button', { type: 'button', className: 'wl-btn primary', onClick: onCreate }, h(IconPlus, { size: 14 }), t('action.newDocument')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn primary', onClick: onCreate }, h(IconPlus, { size: 14 }), t('action.newDocument')),
         ),
         h(CompanyCard, { t, company, onSaved: onCompanySaved }),
         h(
@@ -1845,8 +1845,7 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'wl-chipbar' },
             [['', t('document.slot.all')], ...SLOTS].map(([key, label]) =>
-              h(
-                'button',
+              h(LibraryButton,
                 { key: key || 'all', type: 'button', className: 'wl-chip', 'aria-pressed': slot === key, onClick: () => onSlot(key) },
                 `${label}${key && slotCounts[key] ? ` ${slotCounts[key]}` : ''}`,
               ),
@@ -1856,15 +1855,14 @@ window.__ModuleLoader__.load({
             'label',
             { className: 'wl-search', style: { marginBottom: '16px' } },
             h(IconSearch, { size: 15 }),
-            h('input', { type: 'search', value: query, placeholder: t('search.documents'), 'aria-label': t('search.documents'), onChange: event => onQuery(event.target.value) }),
+            h(LibraryInput, { type: 'search', value: query, placeholder: t('search.documents'), 'aria-label': t('search.documents'), onChange: event => onQuery(event.target.value) }),
           ),
           h(
             'div',
             { className: 'wl-list' },
             documents.length
               ? documents.map(document =>
-                  h(
-                    'button',
+                  h(LibraryButton,
                     { key: document.id, type: 'button', className: 'wl-row', onClick: () => onSelect(document.id) },
                     h(
                       'span',
@@ -1935,15 +1933,15 @@ window.__ModuleLoader__.load({
         h(
           'form',
           { className: 'wl-form', onSubmit: submit },
-          h('div', { className: 'wl-field' }, h('label', null, t('company.displayName')), h('input', { maxLength: 200, value: draft.displayName, onChange: event => setDraft({ ...draft, displayName: event.target.value }) })),
-          h('div', { className: 'wl-field' }, h('label', null, t('company.legalName')), h('input', { maxLength: 200, value: draft.legalName, onChange: event => setDraft({ ...draft, legalName: event.target.value }) })),
-          h('div', { className: 'wl-field' }, h('label', null, t('company.description')), h('textarea', { rows: 4, maxLength: 4000, value: draft.description, onChange: event => setDraft({ ...draft, description: event.target.value }) })),
+          h('div', { className: 'wl-field' }, h('label', null, t('company.displayName')), h(LibraryInput, { maxLength: 200, value: draft.displayName, onChange: event => setDraft({ ...draft, displayName: event.target.value }) })),
+          h('div', { className: 'wl-field' }, h('label', null, t('company.legalName')), h(LibraryInput, { maxLength: 200, value: draft.legalName, onChange: event => setDraft({ ...draft, legalName: event.target.value }) })),
+          h('div', { className: 'wl-field' }, h('label', null, t('company.description')), h(LibraryTextArea, { rows: 4, maxLength: 4000, value: draft.description, onChange: event => setDraft({ ...draft, description: event.target.value }) })),
           h(ErrorNote, { error, t }),
           h(
             'div',
             { className: 'wl-form-actions' },
             h('span', { className: 'wl-help', style: { marginRight: 'auto', marginTop: 0, marginBottom: 0 } }, `${t('product.revision')} ${company?.revision ?? 0} · ${formatDate(company?.updatedAt)}`),
-            h('button', { type: 'submit', className: 'wl-btn primary', disabled: busy }, busy ? t('editor.saving') : t('action.save')),
+            h(LibraryButton, { type: 'submit', className: 'wl-btn primary', disabled: busy }, busy ? t('editor.saving') : t('action.save')),
           ),
         ),
       );
@@ -1991,13 +1989,12 @@ window.__ModuleLoader__.load({
         'form',
         { className: 'wl-form wl-editor', onSubmit: submit },
         h('div', { className: 'wl-detail-head' }, h('h2', { className: 'wl-detail-title' }, t('metadata.title'))),
-        h(
-          'div',
+        h(LibraryCard,
           { className: 'wl-card' },
           h(
             'div',
             { className: 'wl-form' },
-            h('div', { className: 'wl-field' }, h('label', null, t('document.title')), h('input', { required: true, maxLength: 200, value: draft.title, onChange: event => setDraft({ ...draft, title: event.target.value }) })),
+            h('div', { className: 'wl-field' }, h('label', null, t('document.title')), h(LibraryInput, { required: true, maxLength: 200, value: draft.title, onChange: event => setDraft({ ...draft, title: event.target.value }) })),
             h(
               'div',
               { className: 'wl-field-row' },
@@ -2007,7 +2004,7 @@ window.__ModuleLoader__.load({
                 h('label', null, t('document.slot')),
                 h('select', { value: draft.slotKey, onChange: event => setDraft({ ...draft, slotKey: event.target.value }) }, SLOTS.map(([key, label]) => h('option', { key, value: key }, label))),
               ),
-              h('div', { className: 'wl-field' }, h('label', null, t('document.tags')), h('input', { maxLength: 400, placeholder: t('metadata.tagsHint'), value: draft.tags, onChange: event => setDraft({ ...draft, tags: event.target.value }) })),
+              h('div', { className: 'wl-field' }, h('label', null, t('document.tags')), h(LibraryInput, { maxLength: 400, placeholder: t('metadata.tagsHint'), value: draft.tags, onChange: event => setDraft({ ...draft, tags: event.target.value }) })),
             ),
           ),
         ),
@@ -2015,8 +2012,8 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'wl-form-actions' },
-          h('button', { type: 'button', className: 'wl-btn', disabled: busy, onClick: () => { if (!onDirtyChange || !dirty || window.confirm('放弃尚未保存的修改？')) onCancel(); } }, t('action.cancel')),
-          h('button', { type: 'submit', className: 'wl-btn primary', disabled: busy || !draft.title.trim() }, busy ? t('editor.saving') : t('action.save')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn', disabled: busy, onClick: () => { if (!onDirtyChange || !dirty || window.confirm('放弃尚未保存的修改？')) onCancel(); } }, t('action.cancel')),
+          h(LibraryButton, { type: 'submit', className: 'wl-btn primary', disabled: busy || !draft.title.trim() }, busy ? t('editor.saving') : t('action.save')),
         ),
       );
     }
@@ -2103,14 +2100,13 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { className: 'wl-detail-actions' },
-            h('button', { type: 'button', className: 'wl-btn', onClick: () => setEditingInfo(true) }, t('document.editInfo')),
-            h('button', { type: 'button', className: 'wl-btn', onClick: () => onAddVersion(document) }, t('document.addVersion')),
-            h('button', { type: 'button', className: 'wl-btn', onClick: toggleStatus, disabled: busy }, document.status === 'active' ? t('document.archive') : t('document.restore')),
+            h(LibraryButton, { type: 'button', className: 'wl-btn', onClick: () => setEditingInfo(true) }, t('document.editInfo')),
+            h(LibraryButton, { type: 'button', className: 'wl-btn', onClick: () => onAddVersion(document) }, t('document.addVersion')),
+            h(LibraryButton, { type: 'button', className: 'wl-btn', onClick: toggleStatus, disabled: busy }, document.status === 'active' ? t('document.archive') : t('document.restore')),
           ),
         ),
         document.tags?.length ? h('div', { className: 'wl-inline', style: { marginTop: '6px' } }, document.tags.map(tag => h('span', { key: tag, className: 'wl-tag' }, tag))) : null,
-        !admin ? h(
-          'div',
+        !admin ? h(LibraryCard,
           { className: 'wl-card' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('document.review')), reviewTag(reviewState, t)),
           h('p', { className: 'wl-help' }, t('document.review.hint')),
@@ -2118,18 +2114,17 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'wl-field', style: { marginTop: '10px' } },
             h('label', null, t('document.review.note')),
-            h('input', { maxLength: 2000, value: note, onChange: event => setNote(event.target.value) }),
+            h(LibraryInput, { maxLength: 2000, value: note, onChange: event => setNote(event.target.value) }),
           ),
           h(
             'div',
             { className: 'wl-form-actions', style: { justifyContent: 'flex-start' } },
-            h('button', { type: 'button', className: 'wl-btn primary', disabled: busy, onClick: () => void review('verified') }, t('document.verify')),
-            h('button', { type: 'button', className: 'wl-btn danger', disabled: busy, onClick: () => void review('rejected') }, t('document.reject')),
+            h(LibraryButton, { type: 'button', className: 'wl-btn primary', disabled: busy, onClick: () => void review('verified') }, t('document.verify')),
+            h(LibraryButton, { type: 'button', className: 'wl-btn danger', disabled: busy, onClick: () => void review('rejected') }, t('document.reject')),
           ),
           h(ErrorNote, { error, t }),
         ) : h(ErrorNote, { error, t }),
-        h(
-          'div',
+        h(LibraryCard,
           { className: 'wl-card' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('document.versions')), h('span', { className: 'wl-tag' }, `${document.versions.length}`)),
           [...document.versions].reverse().map(version =>
@@ -2145,19 +2140,16 @@ window.__ModuleLoader__.load({
                 h('span', { className: 'wl-tag' }, formatBytes(version.bytes)),
                 version.attachment
                   ? [
-                      h(
-                        'button',
+                      h(LibraryButton,
                         { key: 'open', type: 'button', className: 'wl-btn small', onClick: () => void openStoredFile(`/documents/${encodeURIComponent(document.id)}/versions/${version.version}/file`, version.fileName).catch(cause => setError(cause)) },
                         t('document.openFile'),
                       ),
-                      h(
-                        'button',
+                      h(LibraryButton,
                         { key: 'download', type: 'button', className: 'wl-btn small', onClick: () => void openStoredFile(`/documents/${encodeURIComponent(document.id)}/versions/${version.version}/file`, version.fileName, true).catch(cause => setError(cause)) },
                         t('document.download'),
                       ),
                     ]
-                  : h(
-                      'button',
+                  : h(LibraryButton,
                       { type: 'button', className: 'wl-btn small', onClick: () => setOpenVersion(openVersion === version.version ? null : version.version) },
                       openVersion === version.version ? t('document.hidePreview') : t('document.preview'),
                     ),
@@ -2179,8 +2171,7 @@ window.__ModuleLoader__.load({
           ),
           !admin ? h('div', { className: 'wl-version-meta', style: { marginTop: '10px' } }, h('span', { className: 'wl-sha' }, `sha256 ${current ? current.sha256 : ''}`)) : null,
         ),
-        !admin ? h(
-          'div',
+        !admin ? h(LibraryCard,
           { className: 'wl-card' },
           h('div', { className: 'wl-card-head' }, h('h3', null, t('document.reviews')), h('span', { className: 'wl-tag' }, `${document.reviews.length}`)),
           document.reviews.length
@@ -2276,13 +2267,12 @@ window.__ModuleLoader__.load({
           !creating ? h('p', { className: 'wl-help' }, t('editor.versionHint')) : null,
         ),
         creating
-          ? h(
-              'div',
+          ? h(LibraryCard,
               { className: 'wl-card' },
               h(
                 'div',
                 { className: 'wl-form' },
-                h('div', { className: 'wl-field' }, h('label', null, t('document.title')), h('input', { required: true, maxLength: 200, value: draft.title, onChange: event => patch({ title: event.target.value }) })),
+                h('div', { className: 'wl-field' }, h('label', null, t('document.title')), h(LibraryInput, { required: true, maxLength: 200, value: draft.title, onChange: event => patch({ title: event.target.value }) })),
                 h(
                   'div',
                   { className: 'wl-field-row' },
@@ -2292,13 +2282,12 @@ window.__ModuleLoader__.load({
                     h('label', null, t('document.slot')),
                     h('select', { value: draft.slotKey, onChange: event => patch({ slotKey: event.target.value }) }, SLOTS.map(([key, label]) => h('option', { key, value: key }, label))),
                   ),
-                  h('div', { className: 'wl-field' }, h('label', null, t('document.tags')), h('input', { maxLength: 400, placeholder: t('document.tagsHint'), value: draft.tags, onChange: event => patch({ tags: event.target.value }) })),
+                  h('div', { className: 'wl-field' }, h('label', null, t('document.tags')), h(LibraryInput, { maxLength: 400, placeholder: t('document.tagsHint'), value: draft.tags, onChange: event => patch({ tags: event.target.value }) })),
                 ),
               ),
             )
           : null,
-        h(
-          'div',
+        h(LibraryCard,
           { className: 'wl-card' },
           h(
             'div',
@@ -2307,8 +2296,7 @@ window.__ModuleLoader__.load({
               'div',
               { className: 'wl-seg', role: 'group', 'aria-label': t('document.content') },
               [['file', t('editor.modeFile')], ['text', t('editor.modeText')]].map(([value, label]) =>
-                h(
-                  'button',
+                h(LibraryButton,
                   { key: value, type: 'button', className: 'wl-seg-btn', 'aria-pressed': mode === value, onClick: () => setMode(value) },
                   label,
                 ),
@@ -2320,7 +2308,7 @@ window.__ModuleLoader__.load({
                     'div',
                     { key: 'file', className: 'wl-field' },
                     h('label', null, t('file.choose')),
-                    h('input', {
+                    h(LibraryInput, {
                       type: 'file',
                       disabled: busy,
                       onChange: event => {
@@ -2336,20 +2324,19 @@ window.__ModuleLoader__.load({
                     'div',
                     { key: 'name', className: 'wl-field' },
                     h('label', null, t('document.fileName')),
-                    h('input', { maxLength: 200, placeholder: '资料说明.txt', value: draft.fileName, onChange: event => patch({ fileName: event.target.value }) }),
+                    h(LibraryInput, { maxLength: 200, placeholder: '资料说明.txt', value: draft.fileName, onChange: event => patch({ fileName: event.target.value }) }),
                   ),
                   h(
                     'div',
                     { key: 'content', className: 'wl-field' },
                     h('label', null, `${t('document.content')} (${t('editor.required')})`),
-                    h('textarea', { required: mode === 'text', rows: 10, maxLength: 20000, value: draft.content, onChange: event => patch({ content: event.target.value }) }),
+                    h(LibraryTextArea, { required: mode === 'text', rows: 10, maxLength: 20000, value: draft.content, onChange: event => patch({ content: event.target.value }) }),
                   ),
                 ],
           ),
         ),
         showCertificate
-          ? h(
-              'div',
+          ? h(LibraryCard,
               { className: 'wl-card' },
               h('div', { className: 'wl-card-head' }, h('h3', null, t('document.certificate'))),
               h('p', { className: 'wl-help' }, t('cert.hint')),
@@ -2359,10 +2346,10 @@ window.__ModuleLoader__.load({
                 h(
                   'div',
                   { className: 'wl-field-row' },
-                  h('div', { className: 'wl-field' }, h('label', null, t('cert.number')), h('input', { maxLength: 200, value: draft.certificate.number, onChange: event => patch({ certificate: { ...draft.certificate, number: event.target.value } }) })),
-                  h('div', { className: 'wl-field' }, h('label', null, t('cert.issuer')), h('input', { maxLength: 200, value: draft.certificate.issuer, onChange: event => patch({ certificate: { ...draft.certificate, issuer: event.target.value } }) })),
+                  h('div', { className: 'wl-field' }, h('label', null, t('cert.number')), h(LibraryInput, { maxLength: 200, value: draft.certificate.number, onChange: event => patch({ certificate: { ...draft.certificate, number: event.target.value } }) })),
+                  h('div', { className: 'wl-field' }, h('label', null, t('cert.issuer')), h(LibraryInput, { maxLength: 200, value: draft.certificate.issuer, onChange: event => patch({ certificate: { ...draft.certificate, issuer: event.target.value } }) })),
                 ),
-                h('div', { className: 'wl-field' }, h('label', null, t('cert.scope')), h('input', { maxLength: 500, value: draft.certificate.scope, onChange: event => patch({ certificate: { ...draft.certificate, scope: event.target.value } }) })),
+                h('div', { className: 'wl-field' }, h('label', null, t('cert.scope')), h(LibraryInput, { maxLength: 500, value: draft.certificate.scope, onChange: event => patch({ certificate: { ...draft.certificate, scope: event.target.value } }) })),
                 h(
                   'div',
                   { className: 'wl-field-row' },
@@ -2378,10 +2365,10 @@ window.__ModuleLoader__.load({
                       h('option', { value: 'no_expiry' }, t('cert.no_expiry')),
                     ),
                   ),
-                  h('div', { className: 'wl-field' }, h('label', null, t('cert.validFrom')), h('input', { type: 'date', value: draft.certificate.validFrom || '', onChange: event => patch({ certificate: { ...draft.certificate, validFrom: event.target.value } }) })),
-                  h('div', { className: 'wl-field' }, h('label', null, t('cert.validUntil')), h('input', { type: 'date', value: draft.certificate.validUntil || '', onChange: event => patch({ certificate: { ...draft.certificate, validUntil: event.target.value } }) })),
+                  h('div', { className: 'wl-field' }, h('label', null, t('cert.validFrom')), h(LibraryInput, { type: 'date', value: draft.certificate.validFrom || '', onChange: event => patch({ certificate: { ...draft.certificate, validFrom: event.target.value } }) })),
+                  h('div', { className: 'wl-field' }, h('label', null, t('cert.validUntil')), h(LibraryInput, { type: 'date', value: draft.certificate.validUntil || '', onChange: event => patch({ certificate: { ...draft.certificate, validUntil: event.target.value } }) })),
                 ),
-                h('div', { className: 'wl-field' }, h('label', null, t('cert.expiryNote')), h('input', { maxLength: 500, value: draft.certificate.expiryNote, onChange: event => patch({ certificate: { ...draft.certificate, expiryNote: event.target.value } }) })),
+                h('div', { className: 'wl-field' }, h('label', null, t('cert.expiryNote')), h(LibraryInput, { maxLength: 500, value: draft.certificate.expiryNote, onChange: event => patch({ certificate: { ...draft.certificate, expiryNote: event.target.value } }) })),
               ),
             )
           : null,
@@ -2389,8 +2376,8 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'wl-form-actions' },
-          h('button', { type: 'button', className: 'wl-btn', disabled: busy, onClick: () => { if (!versionMode || !onDirtyChange || !dirty || window.confirm('放弃尚未保存的修改？')) onCancel(); } }, t('action.cancel')),
-          h('button', { type: 'submit', className: 'wl-btn primary', disabled: busy || (creating && !draft.title.trim()) || (mode === 'file' ? !file : !draft.content.trim()) }, busy ? t('editor.saving') : creating ? t('editor.saveDocument') : t('editor.saveVersion')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn', disabled: busy, onClick: () => { if (!versionMode || !onDirtyChange || !dirty || window.confirm('放弃尚未保存的修改？')) onCancel(); } }, t('action.cancel')),
+          h(LibraryButton, { type: 'submit', className: 'wl-btn primary', disabled: busy || (creating && !draft.title.trim()) || (mode === 'file' ? !file : !draft.content.trim()) }, busy ? t('editor.saving') : creating ? t('editor.saveDocument') : t('editor.saveVersion')),
         ),
       );
     }
@@ -2475,7 +2462,7 @@ window.__ModuleLoader__.load({
 
     function ReferenceButton({ t, inputActions, useInput, openLibraryReferences }) {
       const input = useInput(value => value);
-      return h('button', {
+      return h(LibraryButton, {
         type: 'button', title: t('reference.hint'),
         disabled: input.phase !== 'plain',
         onMouseDown: event => event.preventDefault(),
@@ -2511,6 +2498,6 @@ window.__ModuleLoader__.load({
       'workspace-library: panel');
     }
 
-    return { apply, inject, createReferenceSource, ProductEditorSurface, FileSurface, CompanySettingsSurface };
+    return { apply, inject, createReferenceSource, ProductEditorSurface: withSurfaceUI(ProductEditorSurface), FileSurface: withSurfaceUI(FileSurface), CompanySettingsSurface: withSurfaceUI(CompanySettingsSurface) };
   },
 });

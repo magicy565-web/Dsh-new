@@ -36,7 +36,8 @@ globalThis.fetch = (url, options = {}) => {
   if (failSearch && String(url).includes('/search?')) return Promise.resolve(new Response(JSON.stringify({error:'Fixture search failure'}), {status:503}));
   return nativeFetch(new URL(url, base), {...options, headers:{...options.headers, cookie:'fixture=1', origin:base}});
 };
-const modules = new Map([['react', React]]);
+Object.assign(globalThis, { getComputedStyle: dom.window.getComputedStyle, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, CustomEvent: dom.window.CustomEvent, MutationObserver: dom.window.MutationObserver, requestAnimationFrame: fn => setTimeout(fn, 0), cancelAnimationFrame: clearTimeout, ResizeObserver: class { observe() {} unobserve() {} disconnect() {} } });
+const modules = new Map([['react', React], ['react-dom', await import('react-dom')], ['react/jsx-runtime', await import('react/jsx-runtime')]]);
 window.__ModuleLoader__ = { load: x => modules.set(x.id, x.factory(name => modules.get(name))) };
 await import('../../dsh-workspace-library/client.js');
 await import('../client.js');

@@ -39,6 +39,11 @@ Customers retain legacy buyer IDs and contact text; preserve existing records.
 Proper draft orders, payment/fulfillment state and inventory semantics are still
 outstanding; do not claim parity by renaming the existing reservation ledger.
 
+ERP now uses Radix Themes and Lucide. Edit dsh-mini-erp/src and run
+`npm run build:erp-client`; client.js is a generated native factory, not a new
+web application. Keep React host-owned and CSS scoped to ERP. The library ui
+adapter changes presentation only; retain its original persistence logic.
+
 The user selected DeepSeek Harness as the sole execution host and explicitly
 requested removal of the standalone Workspace Harness and remaining legacy
 implementations on 2026-10-26. Develop native bundles under integrations/dsh.

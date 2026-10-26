@@ -8,6 +8,8 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 if (!process.argv[2]) throw new Error('Usage: node scripts/package-erp-admin.mjs /absolute/output-directory-outside-repository');
 const out = resolve(process.argv[2]), rel = relative(root, out);
 if (!rel.startsWith('..') || rel === '..') throw new Error('Choose an output directory outside the repository.');
+// Rebuild the checked-in native Client before packing edited source.
+execFileSync(process.execPath, [join(root,'scripts/build-erp-client.mjs')], { cwd:root, stdio:'inherit' });
 await mkdir(out, { recursive: true });
 const bundles = [];
 for (const name of ['dsh-workspace-library', 'dsh-mini-erp']) {
