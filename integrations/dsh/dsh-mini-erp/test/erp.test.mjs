@@ -143,3 +143,17 @@ test('supply snapshots are read-only, workspace-bound and never mix product/offe
   const after = f.store.read('workspace-a', { entity: 'supply', id: 'sku', offerId: 'exclusive' });
   assert.equal(after.product.available, 8); assert.equal(after.offer.availableSlots, 0);
 });
+
+test('offer pickers filter by workspace product before cursor pagination', async t => {
+  const f = await fixture(t);
+  f.write({ action: 'add_product', requestId: 'other', id: 'other', name: 'Other fixture', currency: 'USD', unitPriceMinor: 1, stockTotal: 1, source: 'Test only' });
+  const offer = (id, productId) => ({ action: 'add_offer', requestId: id, id, productId, territory: id, channel: 'test', term: 'Test', conditions: 'Test', capacity: 1, validUntil: '2026-11-26T00:00:00Z', source: 'Test only' });
+  f.write(offer('aaa-other', 'other')); f.write(offer('zzz-match', 'sku'));
+  const page = f.store.read('workspace-a', { entity: 'offer', productId: 'sku', limit: 1 });
+  assert.equal(page.items[0].id, 'exclusive'); assert.equal(page.hasMore, true);
+  const next = f.store.read('workspace-a', { entity: 'offer', productId: 'sku', limit: 1, afterId: page.nextCursor });
+  assert.equal(next.items[0].id, 'zzz-match'); assert.equal(next.hasMore, false);
+  assert.throws(() => f.store.read('workspace-b', { entity: 'offer', productId: 'sku' }), { code: 'NOT_FOUND' });
+  assert.throws(() => f.store.read('workspace-a', { entity: 'buyer', productId: 'sku' }), { code: 'INPUT' });
+  assert.throws(() => f.store.read('workspace-a', { entity: 'offer', id: 'exclusive', productId: 'sku' }), { code: 'INPUT' });
+});

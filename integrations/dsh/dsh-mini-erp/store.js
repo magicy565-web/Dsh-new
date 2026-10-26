@@ -90,7 +90,7 @@ export class ErpStore {
   }
   read(workspace, input) {
     id(workspace, 'workspace');
-    fields(input, ['entity', 'id', 'limit', 'afterId', 'offerId']);
+    fields(input, ['entity', 'id', 'limit', 'afterId', 'offerId', 'productId']);
     const tables = { product: 'products', buyer: 'buyers', offer: 'offers', order: 'orders' };
     if (!Object.hasOwn(tables, input.entity) && input.entity !== 'supply') fail('INPUT', 'entity: product, buyer, offer, order or supply');
     if (input.entity === 'supply') {
@@ -98,6 +98,10 @@ export class ErpStore {
       if (input.offerId !== undefined) id(input.offerId, 'offerId');
     } else if (input.offerId !== undefined) fail('INPUT', 'offerId is only supported for a supply snapshot');
     if (input.afterId !== undefined) id(input.afterId, 'afterId');
+    if (input.productId !== undefined) {
+      if (input.entity !== 'offer' || input.id !== undefined) fail('INPUT', 'productId only filters offer lists');
+      id(input.productId, 'productId');
+    }
     let now;
     const get = key => input.entity === 'buyer'
       ? (({ id, name, contact }) => ({ id, name, contact }))(this.row('buyers', workspace, key))
@@ -114,7 +118,10 @@ export class ErpStore {
         return { workspaceId: workspace, asOf: new Date(now).toISOString(), product, offer };
       }
       const limit = integer(input.limit ?? 50, 'limit', 1, 100);
-      const rows = input.id ? [] : this.db.prepare(`SELECT id FROM ${tables[input.entity]} WHERE workspace=? AND id>? ORDER BY id LIMIT ?`).all(workspace, input.afterId ?? '', limit + 1);
+      if (input.productId !== undefined) this.row('products', workspace, input.productId);
+      const rows = input.id ? [] : input.productId !== undefined
+        ? this.db.prepare('SELECT id FROM offers WHERE workspace=? AND product_id=? AND id>? ORDER BY id LIMIT ?').all(workspace, input.productId, input.afterId ?? '', limit + 1)
+        : this.db.prepare(`SELECT id FROM ${tables[input.entity]} WHERE workspace=? AND id>? ORDER BY id LIMIT ?`).all(workspace, input.afterId ?? '', limit + 1);
       const result = input.id ? get(input.id) : {
         items: rows.slice(0, limit).map(r => get(r.id)),
         hasMore: rows.length > limit, nextCursor: rows.length > limit ? rows[limit - 1].id : null,

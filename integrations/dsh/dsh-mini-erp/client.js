@@ -6,7 +6,16 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
     const response = await fetch(API + path, { credentials: 'same-origin', cache: 'no-store', signal,
       ...(body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}) });
     const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error?.message || `HTTP ${response.status}`);
+    if (!response.ok || !result.ok) {
+      const messages = { CATALOG_CHANGED: '商品资料已更新，请核对新报价后重新提交。', REVISION_CONFLICT: '供应数量已更新，请重新读取后提交。',
+        QUOTE_REQUIRED: '当前数量没有可用报价，请核对起订量和价格档。', OUT_OF_STOCK: '可供应数量不足，请调整采购数量。',
+        NO_SLOTS: '这个供货名额已满或已截止，请重新选择。', ALREADY_HELD: '该买手已持有此供货权益，请查看已有订单。',
+        CATALOG_UNAVAILABLE: '商品资料已归档或不可用，请核对原产品库。', ORDER_STATE: '订单状态已变化，请重新读取订单。' };
+      const error = new Error(messages[result.error?.code] || result.error?.message || `HTTP ${response.status}`);
+      error.code = result.error?.code; error.status = response.status;
+      error.rejected = response.status >= 400 && response.status < 500 && result.ok === false && error.code !== 'IDEMPOTENCY_CONFLICT';
+      throw error;
+    }
     return result.data;
   }
   const labels = { product: '商品', buyer: '买手', order: '订单', offer: '供应名额' };
@@ -66,13 +75,169 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
 @container(max-width:1050px){.me-shell{grid-template-columns:150px minmax(0,1fr)}.me-main{padding:24px 20px}.me-topbar{padding:0 18px}.me-nav{padding:20px 8px}.me-nav button{padding:8px 10px}.me .wl-admin-grid,.me-detail-grid{grid-template-columns:minmax(0,1.65fr) minmax(210px,1fr)}.me .wl-admin-editor .wl-tier-row{grid-template-columns:1fr 1fr;gap:7px}.me .wl-admin-editor .wl-spec-row{grid-template-columns:1fr 1fr 28px}}
 @container(max-width:800px){.me-shell{grid-template-columns:minmax(0,1fr)}.me-mobile-menu{display:inline-flex}.me-shell .me-nav{display:none;position:absolute;top:0;bottom:0;left:0;width:185px;z-index:10;box-shadow:6px 0 15px #00000014}.me-shell.me-menu-open .me-nav{display:flex}.me-main{padding:24px 20px}.me .wl-admin-grid,.me-detail-grid{grid-template-columns:minmax(0,2fr) minmax(210px,1fr)}.me-topbar .me-brand{gap:8px}.me-heading{flex-direction:row;align-items:center}.me-heading .me-actions{justify-content:flex-start}}
 @container(max-width:600px){.me-topbar{padding:0 10px;gap:8px}.me-topbar-actions{gap:4px}.me-topbar .me-brand-mark,.me-topbar .me-brand small,.me-workspace>svg{display:none}.me-topbar .me-workspace select{max-width:140px}.me-main{padding:20px 14px 28px}.me-heading{flex-direction:column;align-items:flex-start}.me .wl-admin-grid,.me-detail-grid{grid-template-columns:1fr}.me-list-controls{flex:1 1 100%;justify-content:flex-start;flex-wrap:nowrap;min-width:0}.me-search{width:auto;flex:1;min-width:70px}.me-sort{max-width:82px;font-size:10px!important}.me-views .me-button{padding:5px 9px;font-size:11px!important}.me-empty{padding:30px 18px}.me .wl-admin-editor .wl-card,.me .wl-admin-editor .wl-card:first-of-type{padding:16px}.me .wl-admin-editor .wl-form-actions{padding:12px 0}.me .wl-admin-editor .wl-field-row{grid-template-columns:1fr 1fr}.me .wl-admin-editor .wl-admin-secondary .wl-field-row{grid-template-columns:1fr}.me-main-editor{padding-bottom:0}}
+
+.me{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",sans-serif;-webkit-font-smoothing:antialiased}.me h1{font-weight:600;line-height:1.45;letter-spacing:-.2px}.me th{font-size:12px;font-weight:500}.me td{font-size:13px;line-height:1.65}.me-record-button{font-size:13px!important;font-weight:550}.me-row-sub{font-size:11px;line-height:1.65}.me-nav button{font-size:13px!important}.me-compose{max-width:1050px;margin:0 auto}.me-compose-fields{border:0;margin:0;min-width:0;display:flex;flex-direction:column;gap:19px}.me-compose-fields .me-field{font-size:13px;font-weight:500}.me-compose-fields input,.me-compose-fields select{font-size:13px;min-height:37px;width:100%}.me-compose-fields small{font-size:12px;font-weight:400;line-height:1.7}.me-compose-footer{display:flex;justify-content:flex-end;gap:9px;position:sticky;bottom:-40px;padding:16px 0;background:var(--me-canvas);border-top:1px solid var(--me-line);margin-top:20px;z-index:2}.me-compose .me-alert{overflow-wrap:anywhere}.me-compose .me-alert small{display:block;margin-top:5px}.me-quote-offer{border-top:1px solid var(--me-line);margin-top:18px;padding-top:16px}.me-quote-offer p{margin-top:6px;font-size:12px;white-space:pre-wrap}.me-choice .me-text-button{margin-top:6px}.me-compose .me-detail-grid{max-width:none}.me-order-compose .me-quote{font-variant-numeric:tabular-nums}.me-compose-fields:disabled{opacity:.75}
+@container(max-width:600px){.me-compose-footer{bottom:-28px}.me-compose .me-detail-grid{grid-template-columns:1fr}.me-nav button{font-size:13px!important}}
 `;
+  // Only submitted commands are retained, scoped to this browser tab and workspace.
+  // An uncertain reply freezes the command until the same request can be replayed.
+  function useSubmission(workspace, action, onSaved, onBusy) {
+    const storageKey = `mini-erp:pending:${workspace}:${action}`;
+    const [initial] = useState(() => {
+      try {
+        const raw = window.sessionStorage.getItem(storageKey);
+        if (!raw) return { pending: null };
+        const record = JSON.parse(raw);
+        if (record.workspace !== workspace || record.body?.action !== action || typeof record.body.requestId !== 'string') throw new Error('invalid recovery record');
+        return { pending: record.body };
+      } catch { return { pending: null, storageError: '无法读取上次提交的重试记录。请先核对已有记录，再处理浏览器存储。' }; }
+    });
+    const [pending, setPending] = useState(initial.pending), [error, setError] = useState(null), [busy, setBusy] = useState(false);
+    const flight = useRef(false), alive = useRef(true), saved = useRef(initial.pending);
+    useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+    async function submit(input) {
+      if (flight.current || initial.storageError) return;
+      const retrying = !!saved.current;
+      const body = saved.current || { ...input, action, requestId: crypto.randomUUID() };
+      try { window.sessionStorage.setItem(storageKey, JSON.stringify({ workspace, body })); }
+      catch { setError(new Error('无法保存重试信息，本次尚未提交。请检查浏览器存储后重试。')); return; }
+      saved.current = body; setPending(body); flight.current = true; setBusy(true); setError(null); onBusy?.(true);
+      try {
+        const receipt = await request(`/workspaces/${encodeURIComponent(workspace)}/command`, body);
+        window.sessionStorage.removeItem(storageKey); saved.current = null;
+        if (alive.current) { setPending(null); onSaved(receipt); }
+      } catch (e) {
+        // Losing authentication during a retry says nothing about the original commit.
+        if (e.rejected && (!retrying || e.status === 409 && e.code !== 'WORKSPACE_REQUIRED')) {
+          try { window.sessionStorage.removeItem(storageKey); saved.current = null; if (alive.current) setPending(null); }
+          catch { e = new Error('提交被拒绝，但无法清理重试记录。请恢复浏览器存储后重试同一次提交。'); }
+        }
+        if (alive.current) setError(e);
+      } finally { flight.current = false; onBusy?.(false); if (alive.current) setBusy(false); }
+    }
+    return { pending, initial: initial.pending, error, busy, blocked: !!initial.storageError, storageError: initial.storageError, submit };
+  }
+  function SubmissionNotice({ submission }) {
+    const s = submission;
+    return h(React.Fragment, null,
+      s.storageError ? h('div', { className: 'me-alert me-alert-error', role: 'alert' }, s.storageError) : null,
+      s.error ? h('div', { className: 'me-alert me-alert-error', role: 'alert' }, s.error.message) : null,
+      s.pending && !s.busy ? h('div', { className: 'me-alert', role: 'status' }, h(Icon, { name: 'info' }), h('div', null,
+        h('strong', null, '上次提交的结果尚未确认'), h('p', null, '重试会核对同一次提交，不会另建一笔。当前参数已锁定；刷新页面后仍可继续核对。'),
+        h('small', null, `请求编号 ${s.pending.requestId}`))) : null);
+  }
+  function BuyerComposer({ workspace, onSaved, onClose, onBusy }) {
+    const s = useSubmission(workspace, 'add_buyer', onSaved, onBusy);
+    const [id] = useState(() => s.initial?.id || crypto.randomUUID());
+    const [name, setName] = useState(s.initial?.name || ''), [contact, setContact] = useState(s.initial?.contact || '');
+    const locked = s.busy || !!s.pending || s.blocked;
+    return h('form', { className: 'me-compose', onSubmit: e => { e.preventDefault(); s.submit({ id, name: name.trim(), contact: contact.trim() }); } },
+      h(SubmissionNotice, { submission: s }),
+      h('section', { className: 'me-card' }, h('div', { className: 'me-card-header' }, h('h2', null, '买手资料')),
+        h('fieldset', { disabled: locked, className: 'me-card-body me-compose-fields' },
+          field('买手名称', h('input', { name: 'buyerName', autoComplete: 'organization', required: true, maxLength: 500, value: name, onChange: e => setName(e.target.value) })),
+          field('联系方式', h('input', { name: 'buyerContact', required: true, maxLength: 500, value: contact, onChange: e => setContact(e.target.value), placeholder: '邮箱、电话或其他已提供的联系方式' }), '用于识别和跟进买手，保存不会发送任何消息。'))),
+      h('div', { className: 'me-compose-footer' }, button(s.pending ? '稍后核对' : '取消', onClose, { disabled: s.busy }),
+        s.pending ? button(s.busy ? '正在核对…' : '重试同一次提交', () => s.submit(), { disabled: s.busy, className: 'me-button-primary' })
+          : button('保存买手', undefined, { type: 'submit', disabled: s.blocked || !name.trim() || !contact.trim(), className: 'me-button-primary' })));
+  }
+  function useChoices(workspace, entity, productId, enabled = true) {
+    const key = JSON.stringify([workspace, entity, productId, enabled]);
+    const active = useRef(key); active.current = key;
+    const [state, setState] = useState({ key, items: [], loading: enabled });
+    const current = state.key === key ? state : { key, items: [], loading: enabled };
+    async function load(afterId, signal) {
+      setState(old => ({ ...old, key, loading: true, error: '' }));
+      try {
+        const params = new URLSearchParams({ entity, limit: '50', ...(productId ? { productId } : {}), ...(afterId ? { afterId } : {}) });
+        const result = await request(`/workspaces/${encodeURIComponent(workspace)}/read?${params}`, null, signal);
+        if (active.current === key && !signal?.aborted) setState(old => ({ ...result, key, loading: false, items: afterId ? [...old.items, ...result.items] : result.items }));
+      } catch (e) { if (active.current === key && !signal?.aborted) setState(old => ({ ...old, key, loading: false, error: e.message })); }
+    }
+    useEffect(() => {
+      setState({ key, items: [], loading: enabled });
+      if (!enabled) return;
+      const a = new AbortController(); load(null, a.signal); return () => a.abort();
+    }, [key]);
+    return { ...current, more: () => { if (!current.loading) load(current.nextCursor); }, retry: () => load(null) };
+  }
+  function Choice({ label, name, value, onChange, choices, disabled, textOf, optional }) {
+    return h('div', { className: 'me-choice' }, field(label,
+      h('select', { name, required: !optional, value, disabled: disabled || choices.loading && !choices.items.length, onChange: e => onChange(e.target.value) },
+        h('option', { value: '' }, choices.loading && !choices.items.length ? '正在读取…' : optional ? '不占用供货名额' : `选择${label}`),
+        value && !choices.items.some(row => row.id === value) ? h('option', { value }, value) : null,
+        choices.items.map(row => h('option', { key: row.id, value: row.id }, textOf(row)))),
+      choices.items.length ? `已读取 ${choices.items.length} 条${choices.hasMore ? '，还有更多记录' : ''}` : choices.loading ? '' : optional ? '当前商品尚无已登记的供货名额。' : '当前工作区还没有可选记录。'),
+      choices.error ? h('p', { role: 'alert', className: 'me-help' }, choices.error, ' ', button('重新读取', choices.retry, { disabled, className: 'me-text-button' })) : null,
+      choices.hasMore ? button(choices.loading ? '正在读取…' : '加载更多', choices.more, { disabled: disabled || choices.loading, className: 'me-text-button' }) : null);
+  }
+  function OrderComposer({ workspace, initialProductId = '', initialBuyerId = '', onSaved, onClose, onBusy }) {
+    const s = useSubmission(workspace, 'reserve', onSaved, onBusy);
+    const [buyerId, setBuyerId] = useState(s.initial?.buyerId || initialBuyerId), [productId, setProductId] = useState(s.initial?.productId || initialProductId);
+    const [quantity, setQuantity] = useState(String(s.initial?.quantity || 1)), [holdMinutes, setHoldMinutes] = useState(String(s.initial?.holdMinutes || 60)), [offerId, setOfferId] = useState(s.initial?.offerId || '');
+    const [quote, setQuote] = useState(null), [quoteError, setQuoteError] = useState(''), [quoteNonce, refreshQuote] = useState(0);
+    const buyers = useChoices(workspace, 'buyer'), products = useChoices(workspace, 'product'), offers = useChoices(workspace, 'offer', productId, !!productId);
+    const q = Number(quantity), minutes = Number(holdMinutes), validQuantity = Number.isSafeInteger(q) && q > 0 && q <= 1e9;
+    const quoteKey = JSON.stringify([workspace, productId, q, offerId, quoteNonce]);
+    useEffect(() => {
+      setQuote(null); setQuoteError('');
+      if (!productId || !validQuantity || s.pending) return;
+      const a = new AbortController();
+      const timer = setTimeout(() => {
+        const params = new URLSearchParams({ entity: 'supply', id: productId, quantity: String(q), ...(offerId ? { offerId } : {}) });
+        request(`/workspaces/${encodeURIComponent(workspace)}/read?${params}`, null, a.signal)
+          .then(snapshot => { if (!a.signal.aborted) setQuote({ key: quoteKey, snapshot }); })
+          .catch(e => { if (!a.signal.aborted) setQuoteError(e.message); });
+      }, 180);
+      return () => { clearTimeout(timer); a.abort(); };
+    }, [quoteKey, !!s.pending]);
+    useEffect(() => { if (s.error?.rejected) refreshQuote(n => n + 1); }, [s.error]);
+    const snapshot = quote?.key === quoteKey ? quote.snapshot : null, p = snapshot?.product, offer = snapshot?.offer;
+    const total = p?.unitPriceMinor == null ? null : p.unitPriceMinor * q;
+    const available = p && p.catalogStatus !== 'unavailable' && p.unitPriceMinor != null && p.available >= q && (!offerId || offer && offer.availableSlots > 0);
+    const valid = available && buyerId && validQuantity && Number.isSafeInteger(total) && Number.isSafeInteger(minutes) && minutes >= 1 && minutes <= 10080;
+    const locked = s.busy || !!s.pending || s.blocked;
+    function submit(e) {
+      e.preventDefault(); if (!valid || locked) return;
+      s.submit({ productId, buyerId, quantity: q, holdMinutes: minutes, expectedRevision: p.revision,
+        ...(p.catalogRevision ? { expectedCatalogRevision: p.catalogRevision } : {}), ...(offerId ? { offerId } : {}) });
+    }
+    return h('form', { className: 'me-compose me-order-compose', onSubmit: submit }, h(SubmissionNotice, { submission: s }),
+      h('div', { className: 'me-detail-grid' }, h('div', null,
+        h('section', { className: 'me-card' }, h('div', { className: 'me-card-header' }, h('h2', null, '买手与采购商品')),
+          h('fieldset', { disabled: locked, className: 'me-card-body me-compose-fields' },
+            h(Choice, { label: '买手', name: 'buyerId', value: buyerId, onChange: setBuyerId, choices: buyers, disabled: locked, textOf: r => `${r.name} · ${r.contact}` }),
+            h(Choice, { label: '商品 / SKU', name: 'productId', value: productId, onChange: id => { setProductId(id); setOfferId(''); }, choices: products, disabled: locked, textOf: r => `${r.name} · ${r.skuCode || r.id}` }),
+            field('采购数量', h('input', { name: 'quantity', type: 'number', min: 1, max: 1e9, step: 1, required: true, value: quantity, onChange: e => setQuantity(e.target.value) }), '单价按实际数量读取原产品库的阶梯报价。'))),
+        h('section', { className: 'me-card' }, h('div', { className: 'me-card-header' }, h('h2', null, '预留条件')),
+          h('fieldset', { disabled: locked, className: 'me-card-body me-compose-fields' },
+            h(Choice, { label: '供货名额（可选）', name: 'offerId', value: offerId, onChange: setOfferId, choices: offers, disabled: locked || !productId, optional: true, textOf: r => `${r.territory} · ${r.channel} · 可用 ${r.availableSlots}/${r.capacity}` }),
+            field('预留时长（分钟）', h('input', { name: 'holdMinutes', type: 'number', min: 1, max: 10080, step: 1, required: true, value: holdMinutes, onChange: e => setHoldMinutes(e.target.value) }), '到期后释放预留；如果选择了名额，预留不超过其接受新预留的截止时间。')))),
+        h('aside', { className: 'me-card', 'aria-label': '订单报价汇总' }, h('div', { className: 'me-card-header' }, h('h2', null, '采购小计'), button(null, () => refreshQuote(n => n + 1), { icon: 'refresh', className: 'me-icon-button', disabled: locked || !productId, 'aria-label': '重新读取报价' })),
+          h('div', { className: 'me-card-body' }, s.pending ? h('p', { className: 'me-help' }, '核对上次提交后，以订单回执中的金额和当前状态为准。')
+            : quoteError ? h('p', { role: 'alert' }, quoteError) : !snapshot ? h('p', { role: 'status', className: 'me-help' }, !productId ? '选择商品与数量后显示实际报价。' : !validQuantity ? '请填写有效的采购数量。' : '正在读取报价…')
+              : h(React.Fragment, null,
+                h('p', { className: 'me-section-label' }, p.name), h('div', { className: 'me-quote', 'data-quote-total': Number.isSafeInteger(total) ? total : '' }, Number.isSafeInteger(total) ? money(total, p.currency) : '待确认'),
+                h('div', { className: 'me-data-row' }, '单价', h('b', null, price(p))), h('div', { className: 'me-data-row' }, '采购数量', h('b', null, `${q} ${p.unit || '件'}`)),
+                h('div', { className: 'me-data-row' }, '当前可分配', h('b', null, p.available)), h('div', { className: 'me-data-row' }, '起订量', h('b', null, p.moq ?? '待确认')),
+                p.unitPriceMinor == null ? h('p', { role: 'alert', className: 'me-help' }, '当前数量尚无可用报价。请核对起订量和商品资料。') : null,
+                total !== null && !Number.isSafeInteger(total) ? h('p', { role: 'alert', className: 'me-help' }, '商品小计超出支持范围，请减少数量。') : null,
+                p.available < q ? h('p', { role: 'alert', className: 'me-help' }, '可供应数量不足，请调整采购数量。') : null,
+                offer ? h('div', { className: 'me-quote-offer' }, h('h3', null, '供货名额'), h('p', null, `${offer.territory} · ${offer.channel}`), h('p', null, `可用 ${offer.availableSlots} / ${offer.capacity}`), h('p', { className: 'me-help' }, offer.term), h('p', { className: 'me-help' }, offer.conditions), !offer.availableSlots ? h('p', { role: 'alert' }, '当前没有可用名额。') : null) : null,
+                h('p', { className: 'me-help' }, `读取于 ${clock(snapshot.asOf)}。提交时会再次校验报价、数量与名额。`)),
+            h('p', { className: 'me-help' }, '金额为商品小计，不含运费、税费。创建预留不会收款或发货。')))),
+      h('div', { className: 'me-compose-footer' }, button(s.pending ? '稍后核对' : '取消', onClose, { disabled: s.busy }),
+        s.pending ? button(s.busy ? '正在核对…' : '重试同一次提交', () => s.submit(), { disabled: s.busy, className: 'me-button-primary' })
+          : button('创建预留', undefined, { type: 'submit', disabled: s.blocked || !valid, className: 'me-button-primary' })));
+  }
+
   function Panel({ openLibrary, toggleHostSidebar }) {
     const [workspaces, setWorkspaces] = useState([]), [workspace, setWorkspace] = useState(''), [workspaceReady, setWorkspaceReady] = useState(false);
     const [entity, setEntity] = useState('product'), [data, setData] = useState(null), [detail, setDetail] = useState(null);
     const [error, setError] = useState(''), [busy, setBusy] = useState(false), [nonce, refresh] = useState(0);
     const [binding, setBinding] = useState(false), [catalog, setCatalog] = useState([]), [sourceId, setSourceId] = useState(''), [skuId, setSkuId] = useState(''), [stock, setStock] = useState('0');
     const [menuOpen, setMenuOpen] = useState(false);
+    const [composer, setComposer] = useState(null);
     const [editor, setEditor] = useState(null), [editorDirty, setEditorDirty] = useState(false), [filter, setFilter] = useState('all'), [sort, setSort] = useState('default');
     const [cursor, setCursor] = useState(''), [notice, setNotice] = useState(''), [query, setQuery] = useState('');
     const active = useRef(''), pending = useRef(null), detailRequest = useRef(0);
@@ -132,7 +297,7 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
     const leaveEditor = () => !editorDirty || window.confirm('放弃尚未保存的商品修改？');
     const openEditor = productId => { if (!leaveEditor()) return; setEditor({ productId }); setEditorDirty(false); setNotice(''); };
     const closeEditor = () => { if (leaveEditor()) { setEditor(null); setEditorDirty(false); } };
-    const selectEntity = next => { if (!leaveEditor()) return; setMenuOpen(false); setEditor(null); setEditorDirty(false); setFilter('all'); setSort('default'); detailRequest.current++; setEntity(next); setCursor(''); setQuery(''); setDetail(null); setBinding(false); setNotice(''); };
+    const selectEntity = next => { if (!leaveEditor()) return; setComposer(null); setMenuOpen(false); setEditor(null); setEditorDirty(false); setFilter('all'); setSort('default'); detailRequest.current++; setEntity(next); setCursor(''); setQuery(''); setDetail(null); setBinding(false); setNotice(''); };
     const selected = catalog.find(p => p.id === sourceId), items = data?.items ?? [];
     const matching = items.filter(row => [row.name, row.id, row.skuCode, row.contact, row.buyerId, row.territory, row.channel].some(v => String(v ?? '').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
     const views = entity === 'product' ? [['all', '全部'], ['available', '可供货'], ['quote', '待询价'], ['unavailable', '来源异常']]
@@ -142,10 +307,19 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
       : row.status === filter));
     if (sort !== 'default') filtered.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id, 'zh-CN') * (sort === 'asc' ? 1 : -1));
     const recordName = row => row.name || (entity === 'order' ? shortId(row.id) : entity === 'offer' ? `${row.territory} · ${row.channel}` : row.id);
-    const title = editor ? editor.productId ? '编辑商品' : '添加商品' : detail ? recordName(detail) : labels[entity];
+    const title = composer ? composer.kind === 'buyer' ? '登记买手' : '创建订单预留' : editor ? editor.productId ? '编辑商品' : '添加商品' : detail ? recordName(detail) : labels[entity];
     const columns = { product: ['商品 / SKU', '状态', '可分配数量', '参考单价', '起订量'], buyer: ['买手', '联系方式'], order: ['订单编号', '状态', '数量', '商品小计', '创建时间'], offer: ['供应范围', '可用名额', '新预留截止'] }[entity];
     const emptyTitle = { product: '把你的商品带到这里', buyer: '还没有买手记录', order: '订单会从这里开始', offer: '还没有供应名额' }[entity];
-    const emptyDescription = { product: '创建商品，或关联产品库中已有的 SKU。图片、规格和报价可以直接沿用。', buyer: '在对话中登记买手名称与联系方式后，即可在这里查看。', order: '在对话中创建采购预留后，即可在这里跟进、确认或取消。', offer: '在对话中登记真实供货条件、区域和渠道后，即可在这里查看可用名额。' }[entity];
+    const emptyDescription = { product: '创建商品，或关联产品库中已有的 SKU。图片、规格和报价可以直接沿用。', buyer: '登记买手名称与联系方式，为采购预留准备好客户资料。', order: '选择买手和商品，按实际报价创建预留，再跟进确认或取消。', offer: '在对话中登记真实供货条件、区域和渠道后，即可在这里查看可用名额。' }[entity];
+    function beginComposer(kind, prefill = {}) {
+      if (!leaveEditor()) return;
+      setEditor(null); setEditorDirty(false); setDetail(null); setBinding(false); setNotice(''); setError('');
+      setEntity(kind === 'buyer' ? 'buyer' : 'order'); setComposer({ kind, ...prefill });
+    }
+    function created(receipt) {
+      setComposer(null); setDetail(receipt.current); setData(null);
+      setNotice(receipt.entity === 'buyer' ? '买手已登记。' : `订单 ${shortId(receipt.id)} · ${states[receipt.current.status] || receipt.current.status}${receipt.replayed ? '（已核对上次提交）' : ''}`);
+    }
     const detailField = (label, value) => h('div', { key: label }, h('dt', null, label), h('dd', null, value ?? '待补充'));
     function renderEmpty() {
       if (!workspaceReady || workspace && !data && !error) return h('div', { className: 'me-loading', role: 'status', 'aria-label': '正在读取记录' }, h('p', null, `正在读取${labels[entity]}…`), ...[1, 2, 3].map(i => h('div', { key: i, className: 'me-skeleton', 'aria-hidden': true })));
@@ -201,16 +375,16 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
     }
     return h('div', { className: 'me', onKeyDown: e => { if (e.key === 'Escape') setMenuOpen(false); } }, h('style', null, css),
       h('header', { className: 'me-topbar' }, h('div', { className: 'me-brand' }, button(null, () => setMenuOpen(v => !v), { className: 'me-icon-button me-mobile-menu', icon: 'menu', 'aria-label': '经营菜单', 'aria-expanded': menuOpen, 'aria-controls': 'me-business-nav' }), h('span', { className: 'me-brand-mark' }, h(Icon, { name: 'product', size: 17 })), '经营后台', h('small', null, 'ERP')),
-        h('div', { className: 'me-topbar-actions' }, toggleHostSidebar ? button(null, toggleHostSidebar, { className: 'me-icon-button me-host-toggle', icon: 'back', 'aria-label': '折叠或展开 DSH 导航', title: '折叠或展开 DSH 导航' }) : null, h('label', { className: 'me-workspace' }, h(Icon, { name: 'folder', size: 16 }), h('select', { 'aria-label': '经营工作区', value: workspace, disabled: busy || !workspaces.length, onChange: e => { if (!leaveEditor()) return; setEditor(null); setEditorDirty(false); setWorkspace(e.target.value); setCursor(''); setQuery(''); setNotice(''); } },
+        h('div', { className: 'me-topbar-actions' }, toggleHostSidebar ? button(null, toggleHostSidebar, { className: 'me-icon-button me-host-toggle', icon: 'back', 'aria-label': '折叠或展开 DSH 导航', title: '折叠或展开 DSH 导航' }) : null, h('label', { className: 'me-workspace' }, h(Icon, { name: 'folder', size: 16 }), h('select', { 'aria-label': '经营工作区', value: workspace, disabled: busy || !workspaces.length, onChange: e => { if (!leaveEditor()) return; setEditor(null); setEditorDirty(false); setComposer(null); setWorkspace(e.target.value); setCursor(''); setQuery(''); setNotice(''); } },
           !workspaces.length ? h('option', { value: '' }, workspaceReady ? '未选择工作区' : '正在读取…') : workspaces.map(w => h('option', { key: w.id, value: w.id }, w.title || w.id)))))),
       h('div', { className: `me-shell${menuOpen ? ' me-menu-open' : ''}` }, h('nav', { id: 'me-business-nav', className: 'me-nav', 'aria-label': 'ERP 导航' }, h('span', { className: 'me-nav-label' }, '经营管理'), Object.entries(labels).map(([key, label]) => button(label, () => selectEntity(key), { key, disabled: busy, 'aria-current': entity === key ? 'page' : undefined, icon: key })),
         button('资料与媒体', () => { if (leaveEditor()) openLibrary('documents'); }, { className: 'me-nav-library', icon: 'document' })),
       h('main', { className: `me-main${editor ? ' me-main-editor' : ''}` },
-        h('div', { className: 'me-heading' }, h('div', { className: 'me-heading-title' }, detail || editor ? button(null, () => { if (editor) closeEditor(); else { detailRequest.current++; setDetail(null); } }, { className: 'me-icon-button me-back', icon: 'back', 'aria-label': '返回列表', disabled: busy }) : null,
-          h('div', null, h('h1', null, title), editor ? h('p', null, '商品内容与资料统一保存到产品库。') : detail ? h('p', { className: 'me-reference' }, detail.id) : h('p', null, descriptions[entity]))),
-          editor ? null : detail ? entity === 'product' ? badge(detail.catalogStatus) : null : entity === 'product' ? h('div', { className: 'me-actions' },
+        h('div', { className: 'me-heading' }, h('div', { className: 'me-heading-title' }, detail || editor || composer ? button(null, () => { if (composer) setComposer(null); else if (editor) closeEditor(); else { detailRequest.current++; setDetail(null); refresh(n => n + 1); } }, { className: 'me-icon-button me-back', icon: 'back', 'aria-label': '返回列表', disabled: busy }) : null,
+          h('div', null, h('h1', null, title), composer ? h('p', null, composer.kind === 'buyer' ? '记录真实买手信息。' : '按实际数量核对报价与供货条件。') : editor ? h('p', null, '商品内容与资料统一保存到产品库。') : detail ? h('p', { className: 'me-reference' }, detail.id) : h('p', null, descriptions[entity]))),
+          editor || composer ? null : detail ? entity === 'product' ? h('div', { className: 'me-actions' }, badge(detail.catalogStatus), button('创建订单', () => beginComposer('order', { initialProductId: detail.id }), { disabled: busy || detail.catalogStatus === 'unavailable', className: 'me-button-primary' })) : entity === 'buyer' ? button('创建订单', () => beginComposer('order', { initialBuyerId: detail.id }), { disabled: busy, className: 'me-button-primary' }) : null : entity === 'product' ? h('div', { className: 'me-actions' },
             button('关联已有 SKU', startBinding, { disabled: !workspace || busy, icon: 'link', title: workspace ? '关联产品库中的 SKU' : '请先在左侧 Workspaces 添加工作区' }),
-            button('创建商品', () => openEditor(null), { disabled: busy, icon: 'plus', className: 'me-button-primary' })) : null),
+            button('创建商品', () => openEditor(null), { disabled: busy, icon: 'plus', className: 'me-button-primary' })) : ['buyer', 'order'].includes(entity) ? button(entity === 'buyer' ? '登记买手' : '创建订单', () => beginComposer(entity), { disabled: !workspace || busy, icon: 'plus', className: 'me-button-primary' }) : null),
         error ? h('div', { role: 'alert', className: 'me-alert me-alert-error' }, h(Icon, { name: 'info' }), h('p', null, error)) : null,
         notice ? h('div', { role: 'status', className: 'me-alert me-alert-success' }, h(Icon, { name: 'check' }), notice, button(null, () => setNotice(''), { className: 'me-icon-button me-button-plain', icon: 'close', 'aria-label': '关闭保存提示' })) : null,
         !editor && !workspace && workspaceReady && !error ? h('div', { className: 'me-alert' }, h(Icon, { name: 'folder' }), h('div', null, h('strong', null, '选择工作区，开始管理供货'), h('p', null, '在左侧 Workspaces 添加文件夹，然后刷新列表。你也可以先创建商品，准备好产品资料。'))) : null,
@@ -221,7 +395,7 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
               field('选择 SKU', h('select', { required: true, value: skuId, disabled: busy || !sourceId, onChange: e => setSkuId(e.target.value) }, h('option', { value: '' }, '选择 SKU'), (selected?.skus ?? []).map(s => h('option', { key: s.id, value: s.id }, s.code || s.id)))),
               field('累计可供应数量', h('input', { type: 'number', min: 0, max: 1e9, step: 1, required: true, value: stock, disabled: busy, onChange: e => setStock(e.target.value) }), '仅填写已确认的供应数量。')),
             h('div', { className: 'me-form-footer' }, button('取消', () => setBinding(false), { disabled: busy }), button(busy ? '正在保存…' : '确认关联', undefined, { type: 'submit', disabled: busy || !skuId, className: 'me-button-primary' })))) : null,
-        editor ? h(ProductEditorSurface, { key: editor.productId || 'new', productId: editor.productId, onClose: closeEditor, onDirtyChange: setEditorDirty, onSaved: () => { setEditor(null); setEditorDirty(false); refresh(n => n + 1); setNotice('商品已保存到产品库。新商品可通过「关联已有 SKU」分配供货数量。'); } }) : detail ? entity === 'product' ? renderProductDetail() : renderOtherDetail() : h('section', { className: 'me-card' },
+        composer ? h(composer.kind === 'buyer' ? BuyerComposer : OrderComposer, { key: `${workspace}:${composer.kind}`, workspace, ...composer, onSaved: created, onClose: () => setComposer(null), onBusy: setBusy }) : editor ? h(ProductEditorSurface, { key: editor.productId || 'new', productId: editor.productId, onClose: closeEditor, onDirtyChange: setEditorDirty, onSaved: () => { setEditor(null); setEditorDirty(false); refresh(n => n + 1); setNotice('商品已保存到产品库。新商品可通过「关联已有 SKU」分配供货数量。'); } }) : detail ? entity === 'product' ? renderProductDetail() : renderOtherDetail() : h('section', { className: 'me-card' },
           h('div', { className: 'me-list-toolbar' }, h('div', { className: 'me-views', 'aria-label': '筛选本页状态' }, views.map(([key, label]) => button(label, () => setFilter(key), { key, 'aria-pressed': filter === key }))), h('div', { className: 'me-list-controls' },
             h('label', { className: 'me-search' }, h(Icon, { name: 'search', size: 15 }), h('input', { type: 'search', 'aria-label': '筛选本页记录', placeholder: `筛选本页${labels[entity]}`, value: query, disabled: !data || !items.length, onChange: e => setQuery(e.target.value) })),
             h('select', { className: 'me-sort', 'aria-label': '本页排序', value: sort, onChange: e => setSort(e.target.value) }, h('option', { value: 'default' }, '默认排序'), h('option', { value: 'asc' }, '名称 A–Z'), h('option', { value: 'desc' }, '名称 Z–A')),
@@ -230,7 +404,7 @@ window.__ModuleLoader__.load({ id: 'dsh-mini-erp', factory(require) {
             filtered.length ? renderRows() : h('tr', { className: 'me-empty-row' }, h('td', { className: 'me-empty-cell', colSpan: columns.length }, renderEmpty()))))),
           h('div', { className: 'me-list-footer' }, h('span', null, data ? `本页 ${items.length} 条${query ? ` · 匹配 ${filtered.length} 条` : ''}${data.asOf ? ` · 读取于 ${clock(data.asOf)}` : ''}` : '商品资料与交易记录保持关联'),
             h('div', { className: 'me-actions' }, cursor ? button('返回首页', () => { setCursor(''); setQuery(''); }, { disabled: busy }) : null, data?.hasMore ? button('下一页', () => { setCursor(data.nextCursor); setQuery(''); }, { disabled: busy, icon: 'arrow' }) : null))),
-        !editor && entity === 'product' ? h('p', { className: 'me-page-note' }, h(Icon, { name: 'link', size: 13 }), '商品、图片与资料在产品库统一维护，订单保留成交时的价格。') : null)));
+        !composer && !editor && entity === 'product' ? h('p', { className: 'me-page-note' }, h(Icon, { name: 'link', size: 13 }), '商品、图片与资料在产品库统一维护，订单保留成交时的价格。') : null)));
   }
   function apply(ctx) {
     const openLibrary = (page, id) => {
