@@ -90,3 +90,5 @@ html[data-composition="web-card"] .issue-footer{display:block;padding:28px 0;fon
 
 .card-print-only{display:none}
 @media print{.material-apparatus .card-screen-only,.material-apparatus select{display:none}.card-print-only{display:inline}}
+/* A three-column archive has no center fold; keep the plate and type unobstructed. */
+[data-card-mode="flip"]>.card-archive::after{display:none}

@@ -100,7 +100,7 @@ export async function inspectRenderedIssue(issueJson, { executablePath, view = '
       }
       for(let i=start;i<Math.min(start+3,await spreads.count());i++){
         screenshots.push({label:`spread-${i}`,data:await captureSection(spreads.nth(i))});
-        if(readingMode==='flip')await page.locator('[data-card-next]').click();
+        if(readingMode==='flip'&&i+1<await spreads.count())await page.locator('[data-card-next]').click();
       }
       if(readingMode==='flip')await page.locator('[data-card-mode-select="scroll"]').click();
     }
