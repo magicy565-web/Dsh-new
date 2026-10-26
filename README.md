@@ -10,7 +10,7 @@ Agent 执行、模型、会话、工具循环和取消由 DSH 宿主负责。
 ## 目录
 
 ```text
-integrations/dsh/   五个可安装的原生插件
+integrations/dsh/   六个可安装的原生插件
 packages/          三个宿主无关的领域包
 scripts/           安装位置提示、静态检查、回归测试
 .github/           DSH 检查工作流
@@ -24,10 +24,11 @@ licenses/          第三方许可
 | [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
 | [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill，以及十种可组合的买手微刊模块 |
 | [dsh-workspace-memory](integrations/dsh/dsh-workspace-memory/README.md) | 经营记忆、人工审核、来源核验，以及跨已有资料／记忆／询盘的只读检索 |
+| [dsh-mini-erp](integrations/dsh/dsh-mini-erp/README.md) | 简易 ERP：商品、买手、订单与原子供货名额预留，原生工具操作 |
 | [dsh-inquiry-recovery](integrations/dsh/dsh-inquiry-recovery/README.md) | 可选历史询盘：原文件核验、人工身份判断、Agent 撰写的未发送草稿 |
 
 在 DSH 中执行 `plugin_manager install_bundle target=<插件绝对目录>` 安装。
-`npm start` 只显示当前 checkout 的五个安装位置，不启动服务或修改 profile。
+`npm start` 只显示当前 checkout 的六个安装位置，不启动服务或修改 profile。
 
 ## 验证
 

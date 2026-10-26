@@ -1,0 +1,11 @@
+{
+  "name": "dsh-mini-erp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Small workspace ERP: products, buyers, orders and atomic supply reservations",
+  "engines": { "node": ">=24" },
+  "exports": { ".": "./index.js" },
+  "files": ["index.js", "store.js", "cordis.patch.yml", "README.md"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}

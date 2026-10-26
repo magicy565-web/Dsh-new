@@ -24,7 +24,7 @@
 
 ## 已实测
 
-- 五个 bundle 均 installed／enabled，原生 Loader 对应行均 active。
+- 六个 bundle 均 installed／enabled，原生 Loader 对应行均 active。
 - 资料库、Space、经营记忆和询盘恢复：认证请求 200，无会话请求 401。
 - 四个插件的真实 Client 资源由宿主提供，Chromium 面板正常挂载。
   资料库和 Space 已修复等待 slot 声明的启动顺序问题。
@@ -73,3 +73,5 @@ profile 的方式：仅在 `DSH_PRIMARY_RUNTIME` 或 `DSH_BUNDLED_PRIMARY_RUNTIM
 
 官方参考：[CLI](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/cli/README.md)、
 [插件管理](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/packages/boot/plugin-manager/README.md)。
+
+简易 ERP 已作为第六个 bundle 安装并检查原生 Loader active。数据在 `$DSH_HOME/data/mini-erp/erp.sqlite`，开发 profile 不写入测试订单；官方 ToolRuntime 验收使用独立临时数据库和夹具会话。无需 Client 面板或单独服务。

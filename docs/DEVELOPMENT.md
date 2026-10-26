@@ -16,9 +16,9 @@ Sourcing 试点已删除自建阶段引擎，六份方法改为可独立加载�
 ## 日常命令
 
 - `npm ci --ignore-scripts`：首次设置的依赖安装和本地 workspace 链接。
-- `npm start`：显示五个插件的真实安装目录，不启动另一套应用。
+- `npm start`：显示六个插件的真实安装目录，不启动另一套应用。
 - `npm run build`：原生 bundle 入口、JS 语法、中英文字典。
-- `npm test`：五个原生插件与三个领域包的回归。
+- `npm test`：六个原生插件与三个领域包的回归。
 - `npm run check`：顺序运行上述静态检查与回归，无模型调用。
 - `npm run test:client`：可选 DOM 冒烟，需要先安装根目录锁定的开发依赖。
 
@@ -29,7 +29,7 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 
 由用户在 DSH 的 `plugin_manager` 中安装插件。源码更新后按插件 README 重载 Host／刷新界面。
 仓库中的安装位置、配置模板和历史测试记录不代表本机插件已加载。
-本云环境已安装官方 DSH 0.2.1-rc.2 Web 宿主，五个原生插件已实际挂载；
+本云环境已安装官方 DSH 0.2.1-rc.2 Web 宿主，六个原生插件已实际挂载；
 运行目录、接口与浏览器验收范围见 [DSH-HOST.md](DSH-HOST.md)。
 隔离 profile 中的三个真实模型场景见 [LIVE-ACCEPTANCE.md](LIVE-ACCEPTANCE.md)；尚未验证桌面宿主。
 
@@ -61,8 +61,13 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 
 ## 买手微刊模块（用户指定的新范围）
 
-后续开发遵循 [微刊架构边界](BUYER-MAGAZINE-ARCHITECTURE.md)：对话创建；读取用户实际可访问的工作区或工单上传资料；交易由 ERP 承担。无需可视化创建界面，当前未指定 ERP 产品或验收工单上传接口。
+后续开发遵循 [微刊架构边界](BUYER-MAGAZINE-ARCHITECTURE.md)：对话创建；读取用户实际可访问的工作区或工单上传资料；交易由 ERP 承担。无需可视化创建界面，用户随后授权开发本机 mini-erp；工单上传接口仍未接入。
 
 `dsh-sourcing-agent/skills/buyer-magazine` 提供本期可选择的十种内容模块；这是原生 Skill 的方法、数据格式和 HTML 文件渲染器，不是新宿主或业务管理平台。数组定义选择和顺序，同一类型可用于不同产品。来源读取仍由 Agent 按需使用原生工具完成。
 
-`test/magazine.test.mjs` 覆盖独立与组合渲染、利润口径、销售来源绑定、权益入口边界、文本转义和重复输出保护。官方 skill 冒烟覆盖新增第七份 Skill。实际供应名额预留、外部数据服务和 WorkBuddy 客户端不属于当前实现。
+`test/magazine.test.mjs` 覆盖独立与组合渲染、利润口径、销售来源绑定、权益入口边界、文本转义和重复输出保护。官方 skill 冒烟覆盖新增第七份 Skill。微刊本身不预留供应名额；可选 mini-erp 已提供本机预留和确认工具。外部数据服务和 WorkBuddy 客户端未接入。
+
+
+## 简易 ERP（用户新增授权范围）
+
+`integrations/dsh/dsh-mini-erp` 使用 Node 24 内置 SQLite 提供三个原生工具，交易记录按实际 DSH 工作区分区。仅处理商品、买手、供货权益及预留／确认订单，范围见插件 README。单机数据库是本试点的唯一交易账本；内容 Skill 只引用快照，不保存库存或订单副本。

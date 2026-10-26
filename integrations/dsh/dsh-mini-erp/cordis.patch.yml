@@ -1,0 +1,4 @@
+- insert:
+    - id: mini-erp
+      name: dsh-mini-erp
+      config: {}

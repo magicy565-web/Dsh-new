@@ -59,3 +59,9 @@ node <skill-directory>/scripts/render.mjs <issue.json> <new-output.html>
 脚本只校验并渲染选中模块，不做外部采集、模型编辑、发送或发布。输出文件已存在时拒绝覆盖；修订使用新文件名。HTML 使用本地样式，无外部脚本或跟踪；可选远程图片仍需要网络及使用依据。
 
 检查内容、来源、计算及所需交互后，通过 DSH 原生 present 交付实际生成的文件。正文准确说明哪些资料和行为已验证。浏览器排版通过不代表事实已核验，HTML 生成不代表 WorkBuddy 安装或公网发布通过。
+
+## 可选简易 ERP 工具
+
+若实际安装 mini-erp，可用 mini_erp_read 按当前工作区读取 product / offer / order；没有工具时不假定可用。商品 unitPriceMinor 除以 100 才是 USD/EUR/GBP/CNY 单价，不能直接当作售价或利润。offer.availableSlots 是 asOf 时点的可用名额；登记的 source 仍需按任务核对原资料。
+
+微刊生成只读取。用户已有交易授权时才使用 mini_erp_order 预留、确认或取消。保存并复用 requestId 以处理不确定结果；读取回执的 current.status 和 expiresAt，不能把旧 receipt 当作现存名额。confirmed 表示本机 ERP 已确认订单，不代表已付款、发货或签署外部法律合同。当前插件没有买手门户或公网交易 URL，不能编造 actionUrl。
