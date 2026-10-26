@@ -100,3 +100,12 @@ height:100%;min-height:0;min-width:0;overflow:hidden;display:flex;flex-direction
 @container(max-width:650px){.me .me-discard-body{padding:22px 20px}.me .me-discard-actions{padding:16px 20px;flex-wrap:wrap}.me .me-discard-actions .me-button{flex:1;min-width:100px}.me .me-discard-title{font-size:19px}}
 
 @media(prefers-reduced-motion:reduce){.me *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+.me .me-with-assistant{grid-template-columns:198px minmax(0,1fr) 340px}
+.me .me-assistant{min-height:0;overflow:auto;background:var(--gray-2);border-left:1px solid var(--me-edge);box-shadow:-8px 0 30px -20px #0006;z-index:16}
+.me .me-assistant-head{display:flex;align-items:center;justify-content:space-between;padding:20px;border-bottom:1px solid var(--me-edge)}
+.me .me-assistant-head small{font-size:10px;letter-spacing:1px;color:var(--accent-11)}
+.me .me-assistant-body{display:flex;flex-direction:column;gap:18px;padding:20px}
+.me .me-assistant-context{display:flex;gap:10px;align-items:center;padding:14px;background:var(--gray-a3);border-radius:12px;overflow-wrap:anywhere}
+.me .me-assistant-context small{display:block;font-size:11px}.me .me-assistant-context strong{font-size:12px}
+@container(max-width:1100px){.me .me-with-assistant{grid-template-columns:minmax(0,1fr)}.me .me-assistant{position:absolute;right:0;top:0;bottom:0;width:min(360px,100%);border-radius:16px 0 0 16px}.me .me-with-assistant .me-nav{display:none}}

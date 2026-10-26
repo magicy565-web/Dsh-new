@@ -1,3 +1,4 @@
+import { assistants, assistantModule, assistantPrompt, launchAssistant } from './assistant.js';
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductEditorSurface, FileSurface, CompanySettingsSurface } from 'dsh-workspace-library';
 import { Theme, Card, Button, TextField, TextArea, Badge, Table, Progress, AlertDialog } from '@radix-ui/themes';
@@ -532,7 +533,33 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
         h('footer', null, h('span', null, h('kbd', null, '↑'), ' ', h('kbd', null, '↓'), ' 选择 · ', h('kbd', null, '↵'), ' 打开'), h('span', null, '每个来源最多 10 项；客户与订单限当前工作区。'))));
   }
 
-  function Panel({ toggleHostSidebar }) {
+  function AssistantPanel({ module, context, blocked, onStart, onClose }) {
+    const defaults = assistants[module], key = `agentive:assistant:${module}`;
+    const [initial] = useState(() => { try { return JSON.parse(window.localStorage.getItem(key)) || {}; } catch { return {}; } });
+    const [goal, setGoal] = useState(typeof initial.goal === 'string' && initial.goal.trim() ? initial.goal : defaults.goal), [instructions, setInstructions] = useState(typeof initial.instructions === 'string' ? initial.instructions : '');
+    const [task, setTask] = useState(''), [settings, setSettings] = useState(false), [message, setMessage] = useState(''), [starting, setStarting] = useState(false);
+    async function start() {
+      if (blocked || starting || !task.trim() || !context.workspaceId) return;
+      setStarting(true); setMessage('');
+      try { await onStart(context.workspaceId, assistantPrompt({ module, context, goal, instructions, task })); }
+      catch (e) { setMessage(e.message); } finally { setStarting(false); }
+    }
+    function save() { try { window.localStorage.setItem(key, JSON.stringify({goal,instructions})); setMessage('助理配置已保存在当前浏览器。'); setSettings(false); } catch { setMessage('浏览器无法保存配置，请保留当前内容。'); } }
+    return h('aside', { className: 'me-assistant', 'aria-label': defaults.name },
+      h('div', { className: 'me-assistant-head' }, h('div', null, h('small', null, 'ASSISTANT'), h('h2', null, defaults.name)), button(null, onClose, {icon:'close',className:'me-icon-button me-button-plain','aria-label':'关闭助理'})),
+      h('div', {className:'me-assistant-body'},
+        h('div',{className:'me-assistant-context'},h(Icon,{name:pages[module][1],size:18}),h('div',null,h('strong',null,context.recordId ? '已选中记录' : pages[module][0]),h('small',null,context.recordId || '当前模块 · 使用真实工作区数据'))),
+        button(settings ? '返回任务' : '编辑助理',()=>setSettings(!settings),{icon:'settings',className:'me-text-button'}),
+        settings ? h(React.Fragment,null,field('助理职责',h(TextArea,{value:goal,maxLength:2000,onChange:e=>setGoal(e.target.value),rows:3})),field('工作指令',h(TextArea,{value:instructions,maxLength:8000,onChange:e=>setInstructions(e.target.value),rows:7,placeholder:'例如：先列出缺失信息；使用中文；保留原始来源。'})),h('p',{className:'me-help'},'当前可编辑职责和工作指令。实际工具及权限由 DSH 会话提供。'),button('保存助理配置',save,{className:'me-button-primary',disabled:!goal.trim()}))
+        : h(React.Fragment,null,h('p',{className:'me-subtle'},goal),field('需要我帮你做什么？',h(TextArea,{value:task,maxLength:12000,onChange:e=>setTask(e.target.value),rows:7,placeholder:module==='products'?'检查当前商品资料，列出缺失项和需要核实的信息。':'描述本次任务…'})),
+          blocked ? h('p',{role:'status',className:'me-help'},'请先保存或放弃页面中未保存的更改，再启动助理。') : null,
+          !context.workspaceId ? h('p',{className:'me-help'},'请先选择工作区。') : null,
+          button(starting?'正在打开…':'进入助理会话',start,{icon:'arrow',className:'me-button-primary',disabled:starting||blocked||!task.trim()||!context.workspaceId||!onStart}),
+          h('p',{className:'me-help'},'在 DSH 原生对话中发送任务并查看执行过程。返回模块时重新读取实际结果。')),
+        message ? h('p',{role:'status',className:'me-help'},message):null));
+  }
+  function Panel({ toggleHostSidebar, onStartAssistant }) {
+    const [assistantOpen, setAssistantOpen] = useState(false);
     const [section, setSection] = useState(() => readLocation().page), [searchOpen, setSearchOpen] = useState(false), [expanded, setExpanded] = useState({});
     const [fileView, setFileView] = useState(null), searchReturnFocus = useRef(null);
     function closeMenu() { setMenuOpen(false); document.querySelector('.me-mobile-menu')?.focus({ preventScroll: true }); }
@@ -755,6 +782,8 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
           detail.status === 'reserved' ? h('div', { className: 'me-detail-actions' }, h('div', { className: 'me-actions' }, button('确认订单', () => command({ action: 'confirm', orderId: detail.id }), { disabled: busy, className: 'me-button-primary' }), button('取消预留', () => command({ action: 'cancel', orderId: detail.id }), { disabled: busy })), h('p', { className: 'me-help' }, '确认后占用供货数量；取消预留会释放数量及名额。')) : null)));
     }
     const showResource = ['inventory', 'orders', 'customers'].includes(section) || editor || composer || detail || binding;
+    const module = assistantModule(section);
+    const assistantContext = {module,workspaceId:workspace,recordId:editor?.productId || fileView?.id || detail?.id || null, recordType:editor ? 'catalog-product' : fileView ? 'document' : detail ? entity : null,revision:detail?.revision || null};
     const pageTitle = workspaces.find(w => w.id === workspace)?.title || '';
     const savedFile = id => { setFileView({ id, creating: false }); setEditorDirty(false); setNotice('文件已保存'); };
     const closeComposer = async () => { if (await leaveEditor()) { setComposer(null); setEditorDirty(false); refresh(n => n + 1); } };
@@ -803,13 +832,13 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
     };
     return h(ERPTheme, { appearance, accentColor: 'violet', grayColor: 'gray', radius: 'large', scaling: '100%', className: 'me', 'data-appearance': appearance, 'data-density': density, onKeyDown: e => { if (e.key === 'Escape' && menuOpen) { e.stopPropagation(); closeMenu(); } } }, h('style', { 'data-erp-styles': true }, radixStyles + fontStyles + styles),
       h('header', { className: 'me-topbar', inert: searchOpen ? '' : undefined },
-        h('div', { className: 'me-brand' }, button(null, () => setMenuOpen(v => !v), { className: 'me-icon-button me-mobile-menu', icon: 'menu', 'aria-label': '经营菜单', 'aria-expanded': menuOpen, 'aria-controls': 'me-business-nav' }), h('span', { className: 'me-brand-mark' }, h(Icon, { name: 'store', size: 18 })), h('span', { className: 'me-brand-name' }, 'Workspace'), h('small', null, 'ADMIN')),
+        h('div', { className: 'me-brand' }, button(null, () => setMenuOpen(v => !v), { className: 'me-icon-button me-mobile-menu', icon: 'menu', 'aria-label': '经营菜单', 'aria-expanded': menuOpen, 'aria-controls': 'me-business-nav' }), h('span', { className: 'me-brand-mark' }, h(Icon, { name: 'store', size: 18 })), h('span', { className: 'me-brand-name' }, 'Agentive'), h('small', null, 'WORKSPACE')),
         h('button', { className: 'me-global-search', onClick: openSearch, disabled: busy, 'aria-label': '搜索后台', 'aria-haspopup': 'dialog' }, h(Icon, { name: 'search', size: 16 }), h('span', null, '搜索'), h('kbd', null, /Mac|iPhone|iPad/.test(window.navigator.platform) ? '⌘ K' : 'Ctrl K')),
-        h('div', { className: 'me-topbar-actions' }, toggleHostSidebar ? button(null, toggleHostSidebar, { className: 'me-icon-button me-host-toggle', icon: 'back', 'aria-label': '折叠或展开 DSH 导航' }) : null,
+        h('div', { className: 'me-topbar-actions' }, module ? button('助理',()=>setAssistantOpen(v=>!v),{icon:'activity','aria-expanded':assistantOpen,'aria-label':'打开模块助理'}) : null, toggleHostSidebar ? button(null, toggleHostSidebar, { className: 'me-icon-button me-host-toggle', icon: 'back', 'aria-label': '折叠或展开 DSH 导航' }) : null,
           button(null, () => navigate('connections'), { className: 'me-icon-button me-help-toggle', icon: 'info', 'aria-label': '查看接入状态', disabled: busy }),
           h('label', { className: 'me-workspace' }, h('span', { className: 'me-store-avatar', 'aria-hidden': true }, (pageTitle || 'W').slice(0, 1).toUpperCase()), h('select', { 'aria-label': '经营工作区', value: workspace, disabled: busy || !workspaces.length, onChange: e => changeWorkspace(e.target.value) },
             !workspaces.length ? h('option', { value: '' }, workspaceReady ? '未选择工作区' : '正在读取…') : workspaces.map(w => h('option', { key: w.id, value: w.id }, w.title || w.id)))))),
-      h('div', { className: `me-shell${menuOpen ? ' me-menu-open' : ''}`, inert: searchOpen ? '' : undefined },
+      h('div', { className: `me-shell${menuOpen ? ' me-menu-open' : ''}${assistantOpen && module ? ' me-with-assistant' : ''}`, inert: searchOpen ? '' : undefined },
         menuOpen ? h('button', { className: 'me-nav-scrim', 'aria-label': '关闭经营菜单', onClick: closeMenu, tabIndex: -1 }) : null,
         h('nav', { id: 'me-business-nav', className: 'me-nav', 'aria-label': 'ERP 导航', onKeyDown: e => {
           if (e.key === 'Tab' && menuOpen) { const nodes = [...e.currentTarget.querySelectorAll('button:not(:disabled)')].filter(node => node.getClientRects().length); const first = nodes[0], last = nodes.at(-1); if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); } }
@@ -818,15 +847,15 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
           ...navGroups.map(([id, children]) => navItem(id, children)),
           h('div', { className: 'me-nav-divider' }, '销售渠道'), navItem('online_store', ['themes', 'store_pages', 'preferences']),
           h('div', { className: 'me-nav-divider' }, '应用'), navItem('apps'),
-          h('div', { className: 'me-nav-bottom' }, button('设置', () => navigate('settings'), { icon: 'settings', disabled: busy, 'data-admin-page': 'settings', 'aria-current': section === 'settings' || settingsPages.includes(section) ? 'page' : undefined }))), content),
+          h('div', { className: 'me-nav-bottom' }, button('设置', () => navigate('settings'), { icon: 'settings', disabled: busy, 'data-admin-page': 'settings', 'aria-current': section === 'settings' || settingsPages.includes(section) ? 'page' : undefined }))), content, assistantOpen && module ? h(AssistantPanel,{key:JSON.stringify(assistantContext),module,context:assistantContext,blocked:busy||editorDirty,onStart:onStartAssistant,onClose:()=>setAssistantOpen(false)}) : null),
       notice ? h('div', { role: 'status', className: 'me-toast' }, h(Icon, { name: 'check', size: 17 }), h('span', null, notice), button(null, () => setNotice(''), { icon: 'close', className: 'me-icon-button', 'aria-label': '关闭保存提示' })) : null,
       discard ? h(DiscardDialog, { request: discard, onResolve: resolveDiscard }) : null,
       searchOpen ? h(SearchDialog, { workspace, returnFocus: searchReturnFocus.current, onClose: () => setSearchOpen(false), onNavigate: navigate, onProduct: openEditor, onFile: openFile, onCustomer: id => openRecord('customers', id), onOrder: id => openRecord('orders', id) }) : null);
 
   }
   function apply(ctx) {
-    ctx.effect(() => ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: NS, order: 25, label: () => 'ERP' }, () => h(Icon, { name: 'product' }))), 'mini-erp: sidebar');
-    ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS }, () => h(Panel, { toggleHostSidebar: () => ctx.get('layout').toggleSidebar() }))), 'mini-erp: panel');
+    ctx.effect(() => ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: NS, order: 25, label: () => 'Agentive' }, () => h(Icon, { name: 'product' }))), 'mini-erp: sidebar');
+    ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS }, () => h(Panel, { toggleHostSidebar: () => ctx.get('layout').toggleSidebar(), onStartAssistant: (workspaceId,prompt) => launchAssistant({sessions:ctx.get('sessions'),conversation:ctx.get('conversation'),uiWorkspace:ctx.get('uiWorkspace')},workspaceId,prompt) }))), 'mini-erp: panel');
   }
-export { apply, Panel, pages, csvFile };
+export { apply, Panel, pages, csvFile, AssistantPanel };
 export const inject = ['slots'];
