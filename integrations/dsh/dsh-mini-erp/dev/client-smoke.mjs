@@ -35,7 +35,7 @@ globalThis.fetch = async (url, options = {}) => {
   }
   return result;
 };
-Object.assign(globalThis, { getComputedStyle: dom.window.getComputedStyle, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, CustomEvent: dom.window.CustomEvent, MutationObserver: dom.window.MutationObserver, requestAnimationFrame: fn => setTimeout(fn, 0), cancelAnimationFrame: clearTimeout, ResizeObserver: class { observe() {} unobserve() {} disconnect() {} } });
+Object.assign(globalThis, { getComputedStyle: dom.window.getComputedStyle, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, NodeFilter: dom.window.NodeFilter, HTMLInputElement: dom.window.HTMLInputElement, CustomEvent: dom.window.CustomEvent, MutationObserver: dom.window.MutationObserver, requestAnimationFrame: fn => setTimeout(fn, 0), cancelAnimationFrame: clearTimeout, ResizeObserver: class { observe() {} unobserve() {} disconnect() {} } });
 const modules = new Map([['react', React], ['react-dom', await import('react-dom')], ['react/jsx-runtime', await import('react/jsx-runtime')]]);
 window.__ModuleLoader__ = { load: x => modules.set(x.id, x.factory(name => modules.get(name))) };
 await import('../../dsh-workspace-library/client.js');
@@ -43,6 +43,7 @@ await import('../client.js');
 const module = modules.get('dsh-mini-erp');
 const root = createRoot(document.getElementById('root')), navigations = [];
 const text = () => document.body.textContent;
+window.confirm = () => { throw new Error('ERP must use its themed discard dialog'); };
 const wait = async condition => {
   for (let i = 0; i < 100; i++) {
     await act(async () => { await new Promise(r => setTimeout(r, 10)); });
@@ -77,9 +78,8 @@ try {
   assert.equal(document.querySelectorAll('.wl-admin-grid>.wl-admin-primary').length, 1);
   await act(async () => Simulate.change(document.querySelector('.wl-product-identity input'), { target: { value: 'Updated original product' } }));
   assert.ok(text().includes('有未保存的更改'));
-  window.confirm = () => false; await click('订单');
+  await click('订单'); await wait(() => document.querySelector('[role=alertdialog]')); await click('继续编辑');
   assert.ok(document.querySelector('.wl-admin-editor'), 'declining discard keeps the original draft');
-  window.confirm = () => true;
   await click('保存商品'); await wait(() => !document.querySelector('.wl-admin-editor'));
   assert.equal((await library.product(p.id)).product.name, 'Updated original product');
   assert.equal((await service.read('a', { entity: 'product', id: ledger.id })).name, 'Updated original product');
@@ -97,7 +97,7 @@ try {
   const buyer = (await service.read('a', { entity: 'buyer' })).items[0]; assert.equal(buyer.name, 'Test buyer');
   await service.write('a', { action: 'add_offer', requestId: 'offer', id: 'rights', productId: ledger.id, territory: 'US', channel: 'gift-retail', term: 'Fixture only', conditions: 'Test supply terms', capacity: 1, validUntil: new Date(Date.now() + 86400000).toISOString(), source: 'Synthetic agreement' });
   await click('编辑客户'); await input('customerPhone', '+1 202 555 0100'); await input('customerNote', 'Fixture internal note');
-  window.confirm = () => false; await click('商品'); assert.ok(document.querySelector('.me-customer-compose')); window.confirm = () => true;
+  await click('商品'); await wait(() => document.querySelector('[role=alertdialog]')); await click('继续编辑'); assert.ok(document.querySelector('.me-customer-compose'));
   await click('保存客户'); await wait(() => text().includes('客户已保存'));
   const edited = await service.read('a', { entity: 'buyer', id: buyer.id }); assert.equal(edited.phone, '+1 202 555 0100'); assert.equal(edited.revision, 2);
   assert.equal(document.querySelector('.me-nav').textContent.includes('供应名额'), false);

@@ -1,6 +1,6 @@
 # ERP Admin 插件包交付
 
-两个原生 DSH bundle：`dsh-mini-erp@0.4.1` 与 `dsh-workspace-library@1.4.0`。采用 Radix Themes + Lucide，默认中性深色与紫色重点，已保存的外观偏好继续保留。后台留在 DSH 内，共用宿主登录、工作区、附件、工具和权限，不启动独立网页应用或业务服务器。
+两个原生 DSH bundle：`dsh-mini-erp@0.4.2` 与 `dsh-workspace-library@1.4.1`。采用 Radix Themes + Lucide，默认中性深色与紫色重点，已保存的外观偏好继续保留。后台留在 DSH 内，共用宿主登录、工作区、附件、工具和权限，不启动独立网页应用或业务服务器。
 
 ## 安装
 
@@ -27,8 +27,8 @@ node scripts/package-erp-admin.mjs /absolute/path/erp-admin-package
 
 生成：
 
-- `dsh-workspace-library-1.4.0.tgz`
-- `dsh-mini-erp-0.4.1.tgz`
+- `dsh-workspace-library-1.4.1.tgz`
+- `dsh-mini-erp-0.4.2.tgz`
 - `manifest.json`：版本、大小和 SHA-256
 - `INSTALL.md`：安装说明
 
@@ -36,7 +36,7 @@ node scripts/package-erp-admin.mjs /absolute/path/erp-admin-package
 
 ## 实际截图
 
-来自真实 DSH Web 空数据 profile，已更新为 0.4.1 圆角与柔和边界版本；无演示商品或虚构交易。
+来自真实 DSH Web 空数据 profile，包含 0.4.2 表单与确认交互；弹窗截图中的输入仅为未保存草稿，验收后已放弃；无演示商品或虚构交易。
 
 | 页面 | 桌面 | 手机 |
 | --- | --- | --- |
@@ -44,6 +44,10 @@ node scripts/package-erp-admin.mjs /absolute/path/erp-admin-package
 | 商品编辑器 | [打开](screenshots/erp-admin/product-form.png) | [打开](screenshots/erp-admin/product-form-mobile.png) |
 | 店铺设置 | [打开](screenshots/erp-admin/settings.png) | — |
 | 搜索与键盘选择 | [打开](screenshots/erp-admin/search.png) | — |
+| 未保存更改确认 | [打开](screenshots/erp-admin/discard.png) | [打开](screenshots/erp-admin/discard-mobile.png) |
+| 浅色确认弹窗 | [打开](screenshots/erp-admin/discard-light.png) | — |
+| 客户表单 | [打开](screenshots/erp-admin/customer-form.png) | [打开](screenshots/erp-admin/customer-form-mobile.png) |
+| 订单预留表单 | [打开](screenshots/erp-admin/order-form.png) | [打开](screenshots/erp-admin/order-form-mobile.png) |
 | 移动菜单 | — | [打开](screenshots/erp-admin/menu-mobile.png) |
 | 紫黑首页 | [打开](screenshots/erp-admin/home-dark.png) | — |
 

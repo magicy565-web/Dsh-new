@@ -1956,6 +1956,7 @@ window.__ModuleLoader__.load({
     }
 
     function DocumentMetaEditor({ t, document, onCancel, onSaved, onDirtyChange, onBusy }) {
+      const ui = React.useContext(SurfaceUI);
       const [draft, setDraft] = useState({ title: document.title, slotKey: document.slotKey, tags: (document.tags || []).join(', ') });
       const [busy, setBusy] = useState(false);
       const [error, setError] = useState(null);
@@ -2012,7 +2013,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'wl-form-actions' },
-          h(LibraryButton, { type: 'button', className: 'wl-btn', disabled: busy, onClick: () => { if (!onDirtyChange || !dirty || window.confirm('放弃尚未保存的修改？')) onCancel(); } }, t('action.cancel')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn', disabled: busy, onClick: async () => { if (!onDirtyChange || !dirty || await (ui?.confirmDiscard?.() ?? window.confirm('放弃尚未保存的修改？'))) onCancel(); } }, t('action.cancel')),
           h(LibraryButton, { type: 'submit', className: 'wl-btn primary', disabled: busy || !draft.title.trim() }, busy ? t('editor.saving') : t('action.save')),
         ),
       );
@@ -2195,6 +2196,7 @@ window.__ModuleLoader__.load({
     }
 
     function DocumentEditor({ t, document, versionMode, onCancel, onSaved, onDirtyChange, onBusy }) {
+      const ui = React.useContext(SurfaceUI);
       const creating = !document;
       const certificateSlot = CERT_SLOTS.includes(document?.slotKey || 'other');
       const [draft, setDraft] = useState(() => ({
@@ -2376,7 +2378,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'wl-form-actions' },
-          h(LibraryButton, { type: 'button', className: 'wl-btn', disabled: busy, onClick: () => { if (!versionMode || !onDirtyChange || !dirty || window.confirm('放弃尚未保存的修改？')) onCancel(); } }, t('action.cancel')),
+          h(LibraryButton, { type: 'button', className: 'wl-btn', disabled: busy, onClick: async () => { if (!versionMode || !onDirtyChange || !dirty || await (ui?.confirmDiscard?.() ?? window.confirm('放弃尚未保存的修改？'))) onCancel(); } }, t('action.cancel')),
           h(LibraryButton, { type: 'submit', className: 'wl-btn primary', disabled: busy || (creating && !draft.title.trim()) || (mode === 'file' ? !file : !draft.content.trim()) }, busy ? t('editor.saving') : creating ? t('editor.saveDocument') : t('editor.saveVersion')),
         ),
       );

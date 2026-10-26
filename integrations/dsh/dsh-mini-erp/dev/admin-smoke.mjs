@@ -36,7 +36,7 @@ globalThis.fetch = (url, options = {}) => {
   if (failSearch && String(url).includes('/search?')) return Promise.resolve(new Response(JSON.stringify({error:'Fixture search failure'}), {status:503}));
   return nativeFetch(new URL(url, base), {...options, headers:{...options.headers, cookie:'fixture=1', origin:base}});
 };
-Object.assign(globalThis, { getComputedStyle: dom.window.getComputedStyle, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, CustomEvent: dom.window.CustomEvent, MutationObserver: dom.window.MutationObserver, requestAnimationFrame: fn => setTimeout(fn, 0), cancelAnimationFrame: clearTimeout, ResizeObserver: class { observe() {} unobserve() {} disconnect() {} } });
+Object.assign(globalThis, { getComputedStyle: dom.window.getComputedStyle, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, NodeFilter: dom.window.NodeFilter, HTMLInputElement: dom.window.HTMLInputElement, CustomEvent: dom.window.CustomEvent, MutationObserver: dom.window.MutationObserver, requestAnimationFrame: fn => setTimeout(fn, 0), cancelAnimationFrame: clearTimeout, ResizeObserver: class { observe() {} unobserve() {} disconnect() {} } });
 const modules = new Map([['react', React], ['react-dom', await import('react-dom')], ['react/jsx-runtime', await import('react/jsx-runtime')]]);
 window.__ModuleLoader__ = { load: x => modules.set(x.id, x.factory(name => modules.get(name))) };
 await import('../../dsh-workspace-library/client.js');
@@ -44,6 +44,7 @@ await import('../client.js');
 const module = modules.get('dsh-mini-erp');
 const root = createRoot(document.getElementById('root')), navigations = [];
 const text = () => document.body.textContent;
+window.confirm = () => { throw new Error('ERP must use its themed discard dialog'); };
 const wait = async condition => {
   for (let i = 0; i < 100; i++) {
     await act(async () => { await new Promise(r => setTimeout(r, 10)); });
@@ -93,12 +94,47 @@ try {
   await act(async () => document.querySelector('[aria-label="清除列表搜索"]').click());
   assert.equal(document.activeElement.getAttribute('aria-label'),'搜索所有商品');
   await wait(() => document.querySelectorAll('[data-catalog-record]').length === 50);
+  // Dirty forms are preserved on cancel/Escape and never written by discard.
+  await click('添加商品'); await wait(() => document.querySelector('.wl-product-identity input'));
+  const draftName = document.querySelector('.wl-product-identity input');
+  await edit(draftName, 'Unsaved product');
+  const targetNav = document.querySelector('[data-admin-page=orders]'); targetNav.focus();
+  await click('订单'); await wait(() => document.querySelector('[role=alertdialog]'));
+  assert.equal(document.querySelector('[role=alertdialog]').closest('.me'), document.querySelector('.me'));
+  assert.equal(document.activeElement.textContent, '继续编辑', 'cancel receives initial focus');
+  assert.equal(document.querySelector('[role=alertdialog]').getAttribute('aria-modal'), 'true');
+  await key('Escape'); await wait(() => !document.querySelector('[role=alertdialog]'));
+  assert.equal(draftName.value, 'Unsaved product');
+  await wait(() => document.activeElement === targetNav);
+  assert.equal(document.body.style.pointerEvents, '', 'modal restores host interactions');
+  // A workspace change waits for the answer, and cancellation retains the current scope.
+  await edit(document.querySelector('[aria-label="经营工作区"]'), 'b');
+  await wait(() => document.querySelector('[role=alertdialog]'));
+  assert.equal(document.querySelector('[aria-label="经营工作区"]').value, 'a');
+  await click('继续编辑'); assert.equal(document.querySelector('[aria-label="经营工作区"]').value, 'a');
+  // While waiting, a second navigation cannot inherit approval for the first.
+  await click('订单'); await wait(() => document.querySelector('[role=alertdialog]'));
+  await click('客户'); await click('放弃更改');
+  await wait(() => document.querySelector('.me h1')?.textContent === '订单');
+  assert.equal((await library.products({q:'Unsaved product'})).items.length, 0);
+  await route('products'); await click('添加商品'); await wait(() => document.querySelector('.wl-product-identity input'));
+  await edit(document.querySelector('.wl-product-identity input'), 'Back navigation draft');
+  // Browser history and the displayed form stay aligned while the prompt is open.
+  const url = new URL(window.location.href); url.searchParams.set('erp_page', 'customers');
+  await act(async () => { window.history.pushState({}, '', url); window.dispatchEvent(new dom.window.PopStateEvent('popstate')); });
+  await wait(() => document.querySelector('[role=alertdialog]'));
+  assert.equal(new URL(window.location.href).searchParams.get('erp_page'), 'products');
+  await click('继续编辑'); assert.equal(document.querySelector('.wl-product-identity input').value, 'Back navigation draft');
+  await act(async () => { window.history.replaceState({}, '', url); window.dispatchEvent(new dom.window.PopStateEvent('popstate')); });
+  await wait(() => document.querySelector('[role=alertdialog]')); await click('放弃更改');
+  await wait(() => document.querySelector('.me h1')?.textContent === '客户');
+  assert.equal(new URL(window.location.href).searchParams.get('erp_page'), 'customers');
   await route('files'); await click('上传文件'); await wait(() => document.querySelector('input[type=file]'));
   await edit(labeled('文档标题'), 'Uploaded fixture');
   const bytes = 'Real bytes in temporary test storage';
   const file = new dom.window.File([bytes], 'fixture.txt', {type:'text/plain'});
   await act(async () => Simulate.change(document.querySelector('input[type=file]'), {target:{files:[file]}}));
-  window.confirm=()=>false; await click('订单'); assert.ok(document.querySelector('input[type=file]'), 'dirty file protects navigation'); window.confirm=()=>true;
+  await click('订单'); await wait(() => document.querySelector('[role=alertdialog]')); await click('继续编辑'); assert.ok(document.querySelector('input[type=file]'), 'dirty file protects navigation');
   await act(async () => Simulate.submit(document.querySelector('.wl-editor')));
   await wait(() => text().includes('版本历史'));
   const doc = (await library.documents({})).items[0];
@@ -106,14 +142,24 @@ try {
   assert.equal([...objects.values()][0].toString(),bytes);
   assert.equal(text().includes('本版本审核'),false);
   await click('编辑资料信息'); await wait(() => labeled('文档标题'));
-  let confirms=0; window.confirm=()=>{confirms++; return false;};
-  await click('取消'); await wait(() => text().includes('版本历史')); assert.equal(confirms,0);
+  await click('取消'); await wait(() => text().includes('版本历史')); assert.equal(document.querySelector('[role=alertdialog]'), null);
   await click('编辑资料信息'); await edit(labeled('文档标题'),'Unsaved change');
-  await click('取消'); assert.equal(confirms,1); assert.ok(labeled('文档标题')); window.confirm=()=>true;
+  await click('取消'); await wait(() => document.querySelector('[role=alertdialog]')); await click('继续编辑'); assert.ok(labeled('文档标题'));
   await edit(labeled('文档标题'), 'Renamed fixture');
   await act(async () => Simulate.submit(document.querySelector('.wl-editor')));
   await wait(() => text().includes('Renamed fixture') && text().includes('版本历史'));
   assert.equal((await library.document(doc.id)).document.title,'Renamed fixture');
+  await click('编辑资料信息'); await edit(labeled('文档标题'), 'Discarded metadata');
+  await click('取消'); await wait(() => document.querySelector('[role=alertdialog]')); await click('放弃更改');
+  await wait(() => text().includes('版本历史') && !labeled('文档标题'));
+  assert.equal((await library.document(doc.id)).document.title, 'Renamed fixture');
+  await click('添加新版本'); await wait(() => document.querySelector('input[type=file]'));
+  await act(async () => Simulate.change(document.querySelector('input[type=file]'), {target:{files:[new dom.window.File(['discarded'], 'discard.txt', {type:'text/plain'})]}}));
+  await click('取消'); await wait(() => document.querySelector('[role=alertdialog]')); await click('继续编辑');
+  assert.ok(document.querySelector('input[type=file]'));
+  await click('取消'); await wait(() => document.querySelector('[role=alertdialog]')); await click('放弃更改');
+  await wait(() => text().includes('版本历史'));
+  assert.equal((await library.document(doc.id)).document.versions.length, 1);
   await click('添加新版本'); await wait(() => document.querySelector('input[type=file]'));
   await act(async () => Simulate.change(document.querySelector('input[type=file]'), {target:{files:[new dom.window.File(['Version two'], 'second.txt', {type:'text/plain'})]}}));
   await act(async () => Simulate.submit(document.querySelector('.wl-editor')));
@@ -125,7 +171,7 @@ try {
   finally {URL.createObjectURL=createUrl;URL.revokeObjectURL=revokeUrl;dom.window.HTMLAnchorElement.prototype.click=anchorClick;}
   await route('store_details'); await wait(() => labeled('展示名称'));
   await edit(labeled('展示名称'),'Test store');
-  window.confirm=()=>false; await click('商品'); assert.ok(labeled('展示名称')); window.confirm=()=>true;
+  await click('商品'); await wait(() => document.querySelector('[role=alertdialog]')); await click('继续编辑'); assert.ok(labeled('展示名称'));
   await act(async () => Simulate.submit(document.querySelector('.wl-form')));
   await wait(() => text().includes('店铺资料已保存'));
   assert.equal((await library.company()).displayName,'Test store');

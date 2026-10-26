@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductEditorSurface, FileSurface, CompanySettingsSurface } from 'dsh-workspace-library';
-import { Theme, Card, Button, TextField, TextArea, Badge, Table, Progress } from '@radix-ui/themes';
+import { Theme, Card, Button, TextField, TextArea, Badge, Table, Progress, AlertDialog } from '@radix-ui/themes';
 import { House, ChartNoAxesCombined, Settings2, Store, ShoppingCart, Layers, Warehouse, ArrowLeftRight, Gift, ListFilter, Megaphone, Zap, BadgePercent, Globe2, Activity, Wallet, Palette, LayoutGrid, Truck, MapPin, Bell, ChevronDown, Download, Package, UsersRound, ClipboardList, FolderOpen, FileText, Menu, Plus, Search, RefreshCw, ArrowRight, ArrowLeft, X, Link2, CircleHelp, Check } from 'lucide-react';
 import radixStyles from 'erp:radix-css';
 import fontStyles from './fonts.css';
@@ -29,6 +29,26 @@ function ERPTheme({appearance, ...props}) {
   return h(Theme, {...props, ref, appearance:appearance === 'system' ? inherited : appearance});
 }
 const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.forwardRef((props,ref)=>h(Surface,{as:'div',...props,ref})) };
+  function DiscardDialog({ request, onResolve }) {
+    const accepted = useRef(false);
+    return h(AlertDialog.Root, { open: true, onOpenChange: open => { if (!open) onResolve(false); } },
+      h(AlertDialog.Content, { container: document.querySelector('.me'), className: 'me-discard-dialog', size: '3', 'aria-modal': true,
+        onEscapeKeyDown: event => event.stopPropagation(),
+        onCloseAutoFocus: event => {
+          event.preventDefault();
+          setTimeout(() => {
+            if (document.querySelector('.me-discard-dialog')) return;
+            const target = !accepted.current && request.returnFocus?.isConnected ? request.returnFocus : document.querySelector('.me-main h1');
+            target?.focus({ preventScroll: true });
+          }, 0);
+        } },
+        h('div', { className: 'me-discard-body' }, h('div', { className: 'me-discard-mark' }, h(Icon, { name: 'document', size: 23 })),
+          h(AlertDialog.Title, { className: 'me-discard-title' }, '放弃未保存的更改？'),
+          h(AlertDialog.Description, { className: 'me-discard-description' }, '这些更改尚未保存。你可以继续编辑，或放弃本次更改后离开。')),
+        h('div', { className: 'me-discard-actions' },
+          h(AlertDialog.Cancel, null, button('继续编辑', () => onResolve(false))),
+          h(AlertDialog.Action, null, button('放弃更改', () => { accepted.current = true; onResolve(true); }, { variant: 'solid', color: 'red', className: 'me-button-danger' })))));
+  }
   async function request(path, body, signal) {
     const response = await fetch(API + path, { credentials: 'same-origin', cache: 'no-store', signal,
       ...(body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}) });
@@ -220,7 +240,7 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
         h(Surface, { className: 'me-card' }, h('div', { className: 'me-card-header' }, h('h2', null, '预留条件')),
           h('fieldset', { disabled: locked, className: 'me-card-body me-compose-fields' },
             field('预留时长（分钟）', h(ERPInput, { name: 'holdMinutes', type: 'number', min: 1, max: 10080, step: 1, required: true, value: holdMinutes, onChange: e => setHoldMinutes(e.target.value) }), '到期后释放预留数量。')))),
-        h('aside', { className: 'me-card', 'aria-label': '订单报价汇总' }, h('div', { className: 'me-card-header' }, h('h2', null, '采购小计'), button(null, () => refreshQuote(n => n + 1), { icon: 'refresh', className: 'me-icon-button', disabled: locked || !productId, 'aria-label': '重新读取报价' })),
+        h(Surface, { as: 'aside', className: 'me-card', 'aria-label': '订单报价汇总' }, h('div', { className: 'me-card-header' }, h('h2', null, '采购小计'), button(null, () => refreshQuote(n => n + 1), { icon: 'refresh', className: 'me-icon-button', disabled: locked || !productId, 'aria-label': '重新读取报价' })),
           h('div', { className: 'me-card-body' }, s.pending ? h('p', { className: 'me-help' }, '核对上次提交后，以订单回执中的金额和当前状态为准。')
             : quoteError ? h('p', { role: 'alert' }, quoteError) : !snapshot ? h('p', { role: 'status', className: 'me-help' }, !productId ? '选择商品与数量后显示实际报价。' : !validQuantity ? '请填写有效的采购数量。' : '正在读取报价…')
               : h(React.Fragment, null,
@@ -455,7 +475,7 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
     const input = useRef(null), dialog = useRef(null), restore = useRef(true);
     useEffect(() => { const timer = setTimeout(() => setSearch(query.trim()), 180); return () => clearTimeout(timer); }, [query]);
     useEffect(() => { input.current?.focus(); return () => { setTimeout(() => {
-      if (!document.querySelector('.me-command-dialog')) {
+      if (!document.querySelector('.me-command-dialog') && !document.querySelector('.me-discard-dialog')) {
         if (restore.current && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
         else document.querySelector('.me-main h1')?.focus({ preventScroll: true });
       }
@@ -516,7 +536,7 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
     const [section, setSection] = useState(() => readLocation().page), [searchOpen, setSearchOpen] = useState(false), [expanded, setExpanded] = useState({});
     const [fileView, setFileView] = useState(null), searchReturnFocus = useRef(null);
     function closeMenu() { setMenuOpen(false); document.querySelector('.me-mobile-menu')?.focus({ preventScroll: true }); }
-    function openSearch() { if (busy) return; searchReturnFocus.current = document.activeElement; setSearchOpen(true); }
+    function openSearch() { if (busy || discardRequest.current) return; searchReturnFocus.current = document.activeElement; setSearchOpen(true); }
     const preference = (key, fallback) => { try { return window.localStorage.getItem('erp-admin:' + key) || fallback; } catch { return fallback; } };
     const [appearance, changeAppearance] = useState(() => { const v = preference('appearance', 'dark'); return ['system', 'light', 'dark'].includes(v) ? v : 'dark'; });
     const [density, changeDensity] = useState(() => preference('density', 'comfortable') === 'compact' ? 'compact' : 'comfortable');
@@ -528,6 +548,22 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
     const [composer, setComposer] = useState(null), [orderToOpen, setOrderToOpen] = useState(null);
     const [editor, setEditor] = useState(null), [editorDirty, setEditorDirty] = useState(false), [filter, setFilter] = useState('all'), [sort, setSort] = useState('default');
     const [cursor, setCursor] = useState(''), [notice, setNotice] = useState(''), [query, setQuery] = useState('');
+    const [discard, setDiscard] = useState(null), discardRequest = useRef(null);
+    function confirmDiscard() {
+      // Only one pending navigation can own the user's answer.
+      if (discardRequest.current) return Promise.resolve(false);
+      return new Promise(resolve => {
+        const request = { resolve, returnFocus: document.activeElement };
+        discardRequest.current = request; setDiscard(request);
+      });
+    }
+    function resolveDiscard(confirmed) {
+      const request = discardRequest.current;
+      if (!request) return;
+      discardRequest.current = null; setDiscard(null); request.resolve(confirmed);
+    }
+    useEffect(() => () => { discardRequest.current?.resolve(false); discardRequest.current = null; }, []);
+    const editorUI = { ...libraryUI, confirmDiscard };
     const active = useRef(''), pending = useRef(null), detailRequest = useRef(0);
     active.current = workspace + '/' + entity + '/' + section;
     useEffect(() => {
@@ -583,7 +619,7 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
       const body = { action: 'link_sku', id: ledgerId, catalogProductId: sourceId, skuId, catalogRevision: selected.revision, stockTotal: Number(stock) };
       command(body); pending.current = { ...pending.current, bindingFingerprint: fingerprint, ledgerId };
     }
-    const leaveEditor = () => !editorDirty || window.confirm('放弃尚未保存的修改？');
+    const leaveEditor = async () => !busy && (!editorDirty || await confirmDiscard());
     function writeLocation(page, workspaceId = workspace, replace = false) {
       const url = new URL(window.location.href); url.searchParams.set('erp_page', page);
       if (workspaceId) url.searchParams.set('erp_workspace', workspaceId); else url.searchParams.delete('erp_workspace');
@@ -593,29 +629,32 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
       setComposer(null); setMenuOpen(false); setEditor(null); setFileView(null); setEditorDirty(false); setFilter('all'); setSort('default');
       detailRequest.current++; setCursor(''); setQuery(''); setDetail(null); setBinding(false); setNotice(''); setError(''); setOrderToOpen(null);
     }
-    function navigate(next, history = true) {
-      if (busy || !Object.hasOwn(pages, next) || !leaveEditor()) return false;
+    async function navigate(next, history = true) {
+      if (busy || !Object.hasOwn(pages, next) || !await leaveEditor()) return false;
       resetView(); setSection(next); setEntity({ orders: 'order', customers: 'buyer', inventory: 'product' }[next] || 'product');
       if (history) writeLocation(next); return true;
     }
-    function changeWorkspace(id) {
-      if (busy || !leaveEditor()) return; resetView(); setWorkspace(id); writeLocation(section, id);
+    async function changeWorkspace(id) {
+      if (busy || !await leaveEditor()) return; resetView(); setWorkspace(id); writeLocation(section, id);
     }
-    const openEditor = productId => { if (!navigate('products')) return; setEditor({ productId }); };
-    const closeEditor = () => { if (leaveEditor()) { setEditor(null); setEditorDirty(false); refresh(n => n + 1); } };
-    const openFile = id => { if (!navigate('files')) return; setFileView({ id, creating: !id }); };
+    const openEditor = async productId => { if (!await navigate('products')) return; setEditor({ productId }); };
+    const closeEditor = async () => { if (await leaveEditor()) { setEditor(null); setEditorDirty(false); refresh(n => n + 1); } };
+    const openFile = async id => { if (!await navigate('files')) return; setFileView({ id, creating: !id }); };
     const selectEntity = next => navigate({ product: 'inventory', buyer: 'customers', order: 'orders' }[next]);
-    const openRecord = (page, id) => { if (navigate(page)) setOrderToOpen(id); };
+    const openRecord = async (page, id) => { if (await navigate(page)) setOrderToOpen(id); };
     function savePreference(key, value, setter) {
       setter(value); try { window.localStorage.setItem('erp-admin:' + key, value); setNotice('显示偏好已保存'); }
       catch { setError('显示已更新，但浏览器无法保存偏好。'); }
     }
     useEffect(() => {
       const key = event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); if (searchOpen) setSearchOpen(false); else openSearch(); } };
-      const pop = () => {
-        if (busy || !leaveEditor()) { writeLocation(section, workspace, true); return; }
-        const location = readLocation(); navigate(location.page, false);
-        if (workspaces.some(w => w.id === location.workspace)) setWorkspace(location.workspace);
+      const pop = async () => {
+        const location = readLocation();
+        // Keep the address aligned with the visible form while confirmation is pending.
+        writeLocation(section, workspace, true);
+        if (!await navigate(location.page, false)) return;
+        const nextWorkspace = workspaces.some(w => w.id === location.workspace) ? location.workspace : workspace;
+        setWorkspace(nextWorkspace); writeLocation(location.page, nextWorkspace, true);
       };
       const warn = event => { if (editorDirty) { event.preventDefault(); event.returnValue = ''; } };
       window.addEventListener('keydown', key); window.addEventListener('popstate', pop); window.addEventListener('beforeunload', warn);
@@ -647,8 +686,8 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
     const columns = { product: ['商品 / SKU', '状态', '可分配数量', '参考单价', '起订量'], buyer: ['客户', '邮箱', '电话'], order: ['订单编号', '状态', '数量', '商品小计', '创建时间'] }[entity];
     const emptyTitle = { product: '还没有关联的库存分配', buyer: '还没有客户记录', order: '订单会从这里开始' }[entity];
     const emptyDescription = { product: '关联已有商品的 SKU，查看并维护当前可供应数量。', buyer: '添加客户名称与联系方式，为采购预留准备好客户资料。', order: '选择客户和商品，按实际报价创建预留，再跟进确认或取消。' }[entity];
-    function beginComposer(kind, prefill = {}) {
-      if (!leaveEditor()) return;
+    async function beginComposer(kind, prefill = {}) {
+      if (!await leaveEditor()) return;
       setEditor(null); setEditorDirty(false); setDetail(null); setBinding(false); setNotice(''); setError('');
       const page = kind === 'buyer' ? 'customers' : 'orders'; setSection(page); writeLocation(page);
       setEntity(kind === 'buyer' ? 'buyer' : 'order'); setComposer({ kind, ...prefill });
@@ -718,17 +757,18 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
     const showResource = ['inventory', 'orders', 'customers'].includes(section) || editor || composer || detail || binding;
     const pageTitle = workspaces.find(w => w.id === workspace)?.title || '';
     const savedFile = id => { setFileView({ id, creating: false }); setEditorDirty(false); setNotice('文件已保存'); };
-    const closeFile = () => { if (busy) return; if (leaveEditor()) { setFileView(null); setEditorDirty(false); refresh(n => n + 1); } };
+    const closeComposer = async () => { if (await leaveEditor()) { setComposer(null); setEditorDirty(false); refresh(n => n + 1); } };
+    const closeFile = async () => { if (await leaveEditor()) { setFileView(null); setEditorDirty(false); refresh(n => n + 1); } };
     const extra = section === 'home' ? h(HomePage, { key: workspace + nonce, workspace, title: pageTitle, navigate, onCreateProduct: () => openEditor(null) })
       : section === 'products' ? h(CatalogIndex, { key: 'products' + nonce, kind: 'products', onCreate: () => openEditor(null), onOpen: openEditor, onInventory: () => navigate('inventory') })
-      : section === 'files' ? fileView ? h(React.Fragment, null, h(PageHeading, { title: fileView.creating ? '上传文件' : '文件详情', crumb: '内容 / 文件', onBack: closeFile }), h(FileSurface, { ui: libraryUI, key: fileView.id || 'new', documentId: fileView.id, creating: fileView.creating, onClose: closeFile, onSaved: savedFile, onDirtyChange: setEditorDirty, onBusy: setBusy }))
+      : section === 'files' ? fileView ? h(React.Fragment, null, h(PageHeading, { title: fileView.creating ? '上传文件' : '文件详情', crumb: '内容 / 文件', onBack: closeFile }), h(FileSurface, { ui: editorUI, key: fileView.id || 'new', documentId: fileView.id, creating: fileView.creating, onClose: closeFile, onSaved: savedFile, onDirtyChange: setEditorDirty, onBusy: setBusy }))
         : h(CatalogIndex, { key: 'files' + nonce, kind: 'files', onCreate: () => openFile(null), onOpen: openFile })
       : section === 'content' ? h(ContentPage, { navigate })
       : section === 'settings' || settingsPages.includes(section) ? h(SettingsPage, { key: section, page: section, navigate, appearance, density,
           setAppearance: value => savePreference('appearance', value, changeAppearance), setDensity: value => savePreference('density', value, changeDensity), onDirtyChange: setEditorDirty, onBusy: setBusy, onSaved: () => setNotice('店铺资料已保存') })
       : h(ConnectionPage, { page: section, navigate });
     const content = h('main', { id: 'me-content', inert: menuOpen ? '' : undefined, className: `me-main${editor ? ' me-main-editor' : ''}` },
-        showResource ? h('div', { className: 'me-heading' }, h('div', { className: 'me-heading-title' }, detail || editor || composer ? button(null, () => { if (composer) { if (leaveEditor()) { setComposer(null); setEditorDirty(false); refresh(n => n + 1); } } else if (editor) closeEditor(); else { detailRequest.current++; setDetail(null); refresh(n => n + 1); } }, { className: 'me-icon-button me-back', icon: 'back', 'aria-label': '返回列表', disabled: busy }) : null,
+        showResource ? h('div', { className: 'me-heading' }, h('div', { className: 'me-heading-title' }, detail || editor || composer ? button(null, () => { if (composer) closeComposer(); else if (editor) closeEditor(); else { detailRequest.current++; setDetail(null); refresh(n => n + 1); } }, { className: 'me-icon-button me-back', icon: 'back', 'aria-label': '返回列表', disabled: busy }) : null,
           h('div', null, h('h1', { tabIndex: -1 }, title), composer ? h('p', null, composer.kind === 'buyer' ? '记录真实客户信息。' : '按实际数量核对报价与供货条件。') : editor ? h('p', null, '商品内容与资料统一保存到产品库。') : detail ? h('p', { className: 'me-reference' }, detail.id) : h('p', null, descriptions[entity]))),
           editor || composer ? null : detail ? entity === 'product' ? h('div', { className: 'me-actions' }, badge(detail.catalogStatus), button('创建订单', () => beginComposer('order', { initialProductId: detail.id }), { disabled: busy || detail.catalogStatus === 'unavailable', className: 'me-button-primary' })) : entity === 'buyer' ? button('创建订单', () => beginComposer('order', { initialBuyerId: detail.id }), { disabled: busy, className: 'me-button-primary' }) : null : entity === 'product' ? h('div', { className: 'me-actions' },
             button('关联已有 SKU', startBinding, { disabled: !workspace || busy, icon: 'link', title: workspace ? '关联产品库中的 SKU' : '请先在左侧 Workspaces 添加工作区' }),
@@ -737,14 +777,14 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
 
         showResource && !editor && !workspace && workspaceReady && !error ? h('div', { className: 'me-alert' }, h(Icon, { name: 'folder' }), h('div', null, h('strong', null, '选择工作区，开始管理供货'), h('p', null, '在左侧 Workspaces 添加文件夹，然后刷新列表。你也可以先创建商品，准备好产品资料。'))) : null,
         section === 'inventory' && !editor && !composer ? h('div', { className: 'me-alert' }, h(Icon, { name: 'info', size: 17 }), h('div', null, h('strong', null, '库存服务部分接入'), h('p', null, '当前显示可供应分配，包含已确认订单占用；尚无地点现存量、收货与出库流水。'))) : null,
-        !editor && binding ? h('form', { className: 'me-card me-binding', onSubmit: bind }, h('div', { className: 'me-card-header' }, h('div', null, h('h2', null, '关联产品库 SKU'), h('p', null, '沿用已有商品资料，为当前工作区分配可供应数量。')),
+        !editor && binding ? h(Surface, { as: 'form', className: 'me-card me-binding', onSubmit: bind }, h('div', { className: 'me-card-header' }, h('div', null, h('h2', null, '关联产品库 SKU'), h('p', null, '沿用已有商品资料，为当前工作区分配可供应数量。')),
           button(null, () => setBinding(false), { disabled: busy, icon: 'close', className: 'me-icon-button me-button-plain', 'aria-label': '关闭关联表单' })),
           h('div', { className: 'me-card-body' }, !catalog.length ? h('p', null, '产品库中还没有可关联的商品。请先创建商品和 SKU。') : null,
             h('div', { className: 'me-form-grid' }, field('选择产品', h('select', { required: true, value: sourceId, disabled: busy, onChange: e => { setSourceId(e.target.value); setSkuId(''); } }, h('option', { value: '' }, '选择产品'), catalog.map(p => h('option', { key: p.id, value: p.id }, p.name)))),
               field('选择 SKU', h('select', { required: true, value: skuId, disabled: busy || !sourceId, onChange: e => setSkuId(e.target.value) }, h('option', { value: '' }, '选择 SKU'), (selected?.skus ?? []).map(s => h('option', { key: s.id, value: s.id }, s.code || s.id)))),
               field('累计可供应数量', h(ERPInput, { type: 'number', min: 0, max: 1e9, step: 1, required: true, value: stock, disabled: busy, onChange: e => setStock(e.target.value) }), '仅填写已确认的供应数量。')),
             h('div', { className: 'me-form-footer' }, button('取消', () => setBinding(false), { disabled: busy }), button(busy ? '正在保存…' : '确认关联', undefined, { type: 'submit', disabled: busy || !skuId, className: 'me-button-primary' })))) : null,
-        showResource ? (composer ? h(composer.kind === 'buyer' ? CustomerComposer : OrderComposer, { key: `${workspace}:${composer.kind}:${composer.customer?.id || 'new'}`, workspace, ...composer, onSaved: created, onClose: () => { if (leaveEditor()) { setComposer(null); setEditorDirty(false); refresh(n => n + 1); } }, onBusy: setBusy, onDirtyChange: setEditorDirty }) : editor ? h(ProductEditorSurface, { ui: libraryUI, key: editor.productId || 'new', productId: editor.productId, onClose: closeEditor, onDirtyChange: setEditorDirty, onBusy: setBusy, onSaved: () => { setEditor(null); setEditorDirty(false); refresh(n => n + 1); setNotice('商品已保存'); } }) : detail ? entity === 'product' ? renderProductDetail() : renderOtherDetail() : h(Surface, { className: 'me-card' },
+        showResource ? (composer ? h(composer.kind === 'buyer' ? CustomerComposer : OrderComposer, { key: `${workspace}:${composer.kind}:${composer.customer?.id || 'new'}`, workspace, ...composer, onSaved: created, onClose: closeComposer, onBusy: setBusy, onDirtyChange: setEditorDirty }) : editor ? h(ProductEditorSurface, { ui: libraryUI, key: editor.productId || 'new', productId: editor.productId, onClose: closeEditor, onDirtyChange: setEditorDirty, onBusy: setBusy, onSaved: () => { setEditor(null); setEditorDirty(false); refresh(n => n + 1); setNotice('商品已保存'); } }) : detail ? entity === 'product' ? renderProductDetail() : renderOtherDetail() : h(Surface, { className: 'me-card' },
           h('div', { className: 'me-list-toolbar' }, h('div', { className: 'me-views', 'aria-label': '筛选本页状态' }, views.map(([key, label]) => button(label, () => setFilter(key), { key, 'aria-pressed': filter === key }))), h('div', { className: 'me-list-controls' },
             h('label', { className: 'me-search' }, h(Icon, { name: 'search', size: 15 }), h(ERPInput, { type: 'search', 'aria-label': '搜索记录', placeholder: entity === 'product' ? '筛选本页 SKU' : `搜索所有${labels[entity]}`, value: query, onChange: e => { setQuery(e.target.value); setCursor(''); } }), query ? button(null, e => { setQuery(''); setCursor(''); e.currentTarget.closest('label').querySelector('input').focus(); }, { icon: 'close', className: 'me-button-plain me-search-clear', 'aria-label': '清除列表搜索' }) : null),
             h('select', { className: 'me-sort', 'aria-label': '本页排序', value: sort, onChange: e => setSort(e.target.value) }, h('option', { value: 'default' }, '默认排序'), h('option', { value: 'asc' }, '名称 A–Z'), h('option', { value: 'desc' }, '名称 Z–A')),
@@ -780,6 +820,7 @@ const libraryUI = { Input: ERPInput, TextArea, Button: ERPButton, Card: React.fo
           h('div', { className: 'me-nav-divider' }, '应用'), navItem('apps'),
           h('div', { className: 'me-nav-bottom' }, button('设置', () => navigate('settings'), { icon: 'settings', disabled: busy, 'data-admin-page': 'settings', 'aria-current': section === 'settings' || settingsPages.includes(section) ? 'page' : undefined }))), content),
       notice ? h('div', { role: 'status', className: 'me-toast' }, h(Icon, { name: 'check', size: 17 }), h('span', null, notice), button(null, () => setNotice(''), { icon: 'close', className: 'me-icon-button', 'aria-label': '关闭保存提示' })) : null,
+      discard ? h(DiscardDialog, { request: discard, onResolve: resolveDiscard }) : null,
       searchOpen ? h(SearchDialog, { workspace, returnFocus: searchReturnFocus.current, onClose: () => setSearchOpen(false), onNavigate: navigate, onProduct: openEditor, onFile: openFile, onCustomer: id => openRecord('customers', id), onOrder: id => openRecord('orders', id) }) : null);
 
   }

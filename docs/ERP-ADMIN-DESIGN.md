@@ -6,7 +6,7 @@
 
 采用 Shopify Admin 的资源导航、页头操作、筛选列表、主辅栏详情和分栏设置结构。参考官方归档 Polaris 文档：[资源列表](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/resource-index-layout/variants/default.mdx)、[资源详情](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/resource-details-layout/variants/default.mdx)、[应用设置](https://github.com/Shopify/polaris/blob/3f7954ae42fabf26d63cee68c23ceebfd7ef0972/polaris.shopify.com/content/patterns/app-settings-layout/variants/default.mdx)。
 
-官方 React 仓库已归档，当前环境访问 Shopify 帮助站受限。这里交付既定范围的导航与页面结构，不声称与 2026 年 Shopify 每项功能或像素完全一致。未复制 Polaris 组件源码、商标或示例图片。当前界面使用 Radix Themes 3.3.0 与 Lucide React 1.61.0，应用 CSS 负责布局和少量密度调整；英文与数字内置 Inter 可变字体，中文使用本地系统字体栈。下方 0.3.x 为历史迭代记录，现行视觉以 0.4.1 为准。
+官方 React 仓库已归档，当前环境访问 Shopify 帮助站受限。这里交付既定范围的导航与页面结构，不声称与 2026 年 Shopify 每项功能或像素完全一致。未复制 Polaris 组件源码、商标或示例图片。当前界面使用 Radix Themes 3.3.0 与 Lucide React 1.61.0，应用 CSS 负责布局和少量密度调整；英文与数字内置 Inter 可变字体，中文使用本地系统字体栈。下方 0.3.x 为历史迭代记录，现行视觉以 0.4.2 为准。
 
 ## 页面与能力
 
@@ -92,3 +92,13 @@ Inter Latin variable 原始 WOFF2 子集来自 `@fontsource-variable/inter@5.3.0
 首页四个指标合并为一个圆角面板，内部分隔线两端淡出；设置任务改为内缩的圆角悬停区域。原库表单、内容卡片、列表、搜索及保存栏同步调整。保存栏仅对背景使用柔和渐变与背景模糊，保证内容清晰；键盘焦点和减少动态效果的系统偏好继续生效。没有新增业务逻辑、依赖或数据。
 
 本轮验收：核心检查 223/223、现有 Admin DOM 检查通过；真实 DSH Web／Chromium 检查 43 页在 1440／768／390／375px 下的布局，最终样式另复查 7 个页面和四类创建表单的桌面／手机布局，以及键盘搜索与手机菜单。浅色／跟随宿主／深色、刷新后的偏好保留和宿主样式隔离抽查通过。计算样式确认基础阴影变量保留、卡片外层 16px／内层 15px（内缩 1px）、按钮 10px；375px 无页面横向溢出，减少动态效果时过渡为 0s。两个原生包在干净目录离线安装并通过官方运行时检查。截图来自真实空数据 profile。
+
+## 0.4.2 表单离开确认与布局修正
+
+继续打磨既有后台交互。ERP 内商品、客户、订单、文件与店铺资料的未保存离开提示改用 Radix AlertDialog：20px 圆角、柔和遮罩与背景模糊，默认焦点落在“继续编辑”；Esc 保留草稿，Tab／Shift+Tab 在弹窗内循环，点击背景不会放弃更改。关闭后返回触发位置，确认离开后聚焦目标页标题。全局搜索与手机菜单共用同一离开检查；弹窗等待期间不接受第二次导航的代用确认。
+
+导航改为等待明确选择后执行。切换工作区或浏览器历史时，未确认前仍显示原表单及原地址；提交中的表单仍禁止跳转。刷新／关闭浏览器标签页继续使用浏览器原生 `beforeunload` 保护，未提交草稿仍不永久存储。资料库 1.4.1 只为原文件元信息／新版本编辑器增加可选的 `ui.confirmDiscard` 回调，独立资料库维持原交互与存储逻辑。
+
+修复客户／订单表单 fieldset 的内边距被旧规则清零，以及订单选择框意外居中的问题；字段改为左对齐并填满内容宽度，主辅卡片顶部对齐。订单报价汇总与 SKU 关联表单也使用现有 Radix Card。没有新增业务页面、后台服务或交易动作。
+
+本轮验收：223 项核心检查和六组 Client DOM 通过。Admin DOM 使用临时真实资料库／SQLite／HTTP，新增确认默认焦点、Esc 取消、工作区取消、历史地址回滚、重复导航、商品／文件元信息／版本放弃后不写入的检查；原商品与客户保存、订单幂等重试回归继续通过。真实 DSH Web／Chromium 对 43 页在 1440／768／390／375px 的布局和搜索／菜单检查通过；最终 1440／375px 下验证确认弹窗的真实指针、焦点循环、背景点击保护、搜索切换、控件对齐与返回焦点，深浅色均实际截图。未发现浏览器运行异常或原生 confirm；关闭弹窗后宿主交互恢复，宿主样式隔离抽查通过。最终两个原生包在干净目录离线安装，通过官方 Cordis／ToolRuntime／附件服务检查。真实 profile 未新增记录；截图中的输入仅是随后放弃的草稿。
