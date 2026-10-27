@@ -20,6 +20,22 @@ it an Apify run. A different collector requires the user's explicit choice.
 For user-provided research or a declared synthetic design exercise, use that
 material and clearly identify its provenance; no crawler is necessary.
 
+For actual business work, first use the installed workspace_library_status,
+workspace_library_products, workspace_library_product_context and
+workspace_library_references tools, with their existing revision/SHA checks.
+Do not copy the library or create another source database. Read Session files
+with native read. A work-order attachment needs a real authorized task reference
+and returned bytes; Space file metadata and sample tasks are not such evidence.
+Cloud files are not remote access to the user's computer. Preserve the actual
+source authorization; read access alone is not permission to publish private
+prices, costs or images. If no real material is available, report the blocked
+source intake and stop before authoring a business publication. Do not fill it
+with examples. For websites, inspect action:preflight before action:start.
+An authorized Session file or accessible work-order attachment can be sufficient
+without importing it into the library. Require only evidence the actual brief
+needs; an empty library does not block a supplied file, and a textual brief does
+not require a complete SKU catalogue, certificates, photography or an ERP account.
+
 Create an editorial plan in the native workspace: reader and purpose, evidence
 map, one worthwhile editorial question, original copy, image selections, and a
 spread-by-spread rationale. The story must offer insight beyond restating product
@@ -52,6 +68,16 @@ Include linked local assets if used; do not call an HTML file self-contained if
 it depends on other files or network assets. Do not insert generic procurement
 warnings or tool implementation details into a brand publication. Use only
 attribution, usage labels and source notes relevant to the actual brief.
+
+Keep a separate delivery record with the real Session ID, any authorized work-order
+reference, pinned sources, Run/Dataset IDs, exact file/resource hashes, reviewed
+viewports/interactions/PDF pages and observed limitations. Missing task references
+stay missing. Native present declares mutable workspace files; it does not make
+an immutable attachment copy or establish enterprise acceptance. Preserve the
+actual native attachment and presentation receipts separately. Public sharing,
+buyer access, distribution and receipt require observed external records. Space
+member/link metadata is not a public access-control service. Do not claim buyer
+visits, lead submission or transactions from a working local HTML interaction.
 
 Apify is an actual native tool when credentials are configured. FastAI image relay,
 VIP verification and lead submission still require separately configured host

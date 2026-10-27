@@ -24,7 +24,7 @@ dsh web
 
 ## 实际工具
 
-- `buyer_magazine_collect_site`：`action:start` 加网址创建真实 `apify/website-content-crawler` 任务；`action:status` 加返回的 runId 读取结果。保留 run/dataset ID、来源与原生 JSON 附件。
+- `buyer_magazine_collect_site`：先 `action:preflight` 只读检查凭据和账户额度；`action:start` 加网址，重新检查额度后创建真实 `apify/website-content-crawler` 任务；`action:status` 加返回的 runId 读取结果。原生 JSON 附件保留实际 Run 响应及原始 Dataset，失败和空结果也保留已有证据。
 - `buyer_magazine_review_artifact`：读取当前 Session 工作区中 LLM 编写的 `htmlPath`，显示真实截图或 PDF 页图。可以选择宽度、滚动位置、CSS selector，并执行有限的本地 UI 操作。返回文件哈希、素材指纹与实际观察，不修改 HTML，不提供审美批准。
 - 原生 `write/edit/read`：编写并修改实际作品。原生 `present`：交付已审阅文件。
 
@@ -35,6 +35,8 @@ dsh web
 ## 环境能力
 
 - Apify：支持 `APIFY_TOKEN_1` 到 `APIFY_TOKEN_100`，每个 Token 单独绑定，目标均为 `api.apify.com`。`action:credentials` 仅返回当前已配置的编号；`credentialId` 明确选择账号，创建与查询同一 run 使用相同编号。配置存在不代表认证通过。缺失时返回 `APIFY_NOT_CONFIGURED`，不切换账号或采集器。每次最多 30 页、180 秒，默认费用上限 USD 1；宿主可通过 `apifyMaxChargeUsd` 配置，最高 USD 5。权限、额度或限流错误如实返回。
+
+费用配置接受 USD 0.01–5，非法值拒绝执行。启动前通过官方 `GET /v2/users/me/limits` 检查所选账号的当前月额度差额；不可读取或不足时不启动 Actor，不修改账户限额。额度快照不是已预留余额。
 - 审阅：宿主 Chromium、原生附件、支持图片输入的当前模型；PDF 页图另外需要 `pdfinfo`/`pdftoppm`。保留宿主代理与 TLS 信任。
 - FastAI、视频请求、VIP 和线索后端：仍需实际配置相应能力，原始参考脚本不自动执行，不把示例或占位值当作可用服务。
 
@@ -53,6 +55,14 @@ dsh web
 ```
 
 获得 runId 后，使用 `{"action":"status","credentialId":5,"runId":"返回的真实 runId"}` 查询。工具不将 Token 值、前缀或哈希返回给模型。
+
+启动响应丢失、5xx 或缺少有效 Run 标识时返回 `unknown / APIFY_START_OUTCOME_UNKNOWN`，不自动重试；须先在 Apify 核对是否已有收费任务。空 Dataset 返回 `APIFY_DATASET_EMPTY`，不视作研究成功。原生证据存储不可用时不启动采集；附件保存失败则保留已知 Run 标识并报告 `APIFY_EVIDENCE_SAVE_FAILED`。
+
+## 实际业务接入
+
+已安装企业资料库时直接使用原 `workspace_library_status/products/product_context/references` 工具，固定版本与 SHA 仍由原库校验；不新增资料库或复制记录。原生 read 只读取实际会话可访问的文件。工单必须返回当前授权任务的附件字节；Space 文件元数据、示例任务及云端目录不能替代工单附件或用户电脑接入。读取权限与对外披露授权分别保留。
+
+交付记录单独保存真实 Session ID、工单引用（没有则注明缺失）、来源版本、Run/Dataset ID、文件与资源哈希、审阅范围和未完成项。官方 `present` 声明的是当前工作区文件，不是不可变附件快照；原生附件、交付事件与企业验收分别记录。公开买手链接、分发和回执必须有实际服务记录，不能由 Space 的链接／成员元数据推断。当前环境核查与业务阻塞见 [真实接入验收](../../../docs/BUYER-MAGAZINE-LIVE-WIRING.md)。
 
 ## 兼容与验证
 

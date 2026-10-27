@@ -5,7 +5,8 @@ description: "Collect actual corporate website evidence through the native Apify
 
 ## Native DSH integration contract
 
-Use the actual native buyer_magazine_collect_site tool: action:start with the
+Use the actual native buyer_magazine_collect_site tool: action:preflight first
+(read-only account limits, no Actor started), then action:start with the
 company's public HTTPS URL and a bounded maxPages, then action:status with the
 returned runId. The tool runs apify/website-content-crawler and returns the real
 run/dataset IDs, dated source content, image URLs and a native dataset attachment.
@@ -27,6 +28,13 @@ web_fetch/Jina as an equivalent. Respect access failures and rate limits; do not
 rotate credentials to evade a denial. The original rotation script is preserved
 for provenance but is not executed. The native run is capped at 30 pages, 180
 seconds and the configured charge budget (default USD 1, maximum USD 5).
+Start rechecks account limit headroom; unavailable or insufficient headroom blocks
+the POST. This is a dated snapshot, not reserved credit or permission to change
+account limits. A start result of unknown/APIFY_START_OUTCOME_UNKNOWN may already
+have created a paid Run: reconcile with the operator in Apify before another start.
+Native JSON attachments retain actual Run responses even while running or failed;
+successful nonempty Datasets additionally retain raw items. An empty Dataset is
+APIFY_DATASET_EMPTY, not completed research. Evidence-save failure blocks delivery.
 
 Extract the facts the editorial question needs: brand history and positioning,
 product/material evidence, meaningful imagery, actual contacts and limitations.

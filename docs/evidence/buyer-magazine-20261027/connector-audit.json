@@ -1,0 +1,31 @@
+{
+  "observedAt": "2026-10-27T08:55:01.059Z",
+  "workspacePlugin": {
+    "identity": {
+      "content": [
+        {
+          "type": "text",
+          "text": "tool call error: tool call failed for `codex_apps/workspace_xy.workspace_worker_identity`\n\nCaused by:\n    Mcp error: -32603: Internal error"
+        }
+      ],
+      "isError": true
+    },
+    "inbox": {
+      "content": [
+        {
+          "type": "text",
+          "text": "tool call error: tool call failed for `codex_apps/workspace_xy.workspace_worker_inbox`\n\nCaused by:\n    Mcp error: -32603: Internal error"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "driveDiscovery": {
+    "queries": [
+      "工厂",
+      "产品资料"
+    ],
+    "matchedMaterial": false,
+    "scope": "bounded keyword searches; engineering and general AI documents were not used as factory sources"
+  }
+}

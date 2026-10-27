@@ -1,0 +1,214 @@
+{
+  "recordType": "redacted-native-intake-receipt",
+  "baseSourceCommit": "2360d7bec665180043ce26e5506eb8d973582571",
+  "sessionId": "session-8fd6c541-0715-4786-a9f6-b3f5b4037df4",
+  "agentPreset": "standard",
+  "workOrderReference": null,
+  "businessStatus": "source-intake-blocked",
+  "nativeTurnStatus": "completed",
+  "toolObservations": [
+    {
+      "name": "skill",
+      "arguments": {
+        "name": "ai-media-kinetic-commerce"
+      },
+      "callId": "call_00_ET_UrqwzDFcELorX2pokMrJ5166",
+      "resultEventSeq": 23,
+      "isError": false,
+      "at": "2026-10-27T08:52:47.858000+00:00"
+    },
+    {
+      "name": "skill",
+      "arguments": {
+        "name": "apify-ecommerce-intelligence"
+      },
+      "callId": "call_01_ET_mpqWMQ6RxTKpknl6STgn0188",
+      "resultEventSeq": 25,
+      "isError": false,
+      "at": "2026-10-27T08:52:47.866000+00:00"
+    },
+    {
+      "name": "skill",
+      "arguments": {
+        "name": "editorial-magazine-design"
+      },
+      "callId": "call_00_RHlqUDSYhtsIP8d0yhud1501",
+      "resultEventSeq": 31,
+      "isError": false,
+      "at": "2026-10-27T08:52:49.382000+00:00"
+    },
+    {
+      "name": "skill",
+      "arguments": {
+        "name": "editorial-typography-system"
+      },
+      "callId": "call_01_BrOBcbZfmxGa785N3Js79294",
+      "resultEventSeq": 33,
+      "isError": false,
+      "at": "2026-10-27T08:52:49.391000+00:00"
+    },
+    {
+      "name": "workspace_library_status",
+      "arguments": {},
+      "callId": "call_00_5t9yaKLAwQGIVg47j6M46862",
+      "resultEventSeq": 39,
+      "isError": false,
+      "at": "2026-10-27T08:52:51.361000+00:00",
+      "result": {
+        "version": 1,
+        "sequence": 0,
+        "attachments": true,
+        "counts": {
+          "products": 0,
+          "documents": 0,
+          "documentsBySlot": {
+            "company": 0,
+            "license": 0,
+            "certificate": 0,
+            "test_report": 0,
+            "specification": 0,
+            "supply_policy": 0,
+            "other": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "workspace_library_products",
+      "arguments": {
+        "action": "list"
+      },
+      "callId": "call_01_37rzMKri7xf0ztVldAOX5782",
+      "resultEventSeq": 41,
+      "isError": false,
+      "at": "2026-10-27T08:52:51.368000+00:00",
+      "result": {
+        "items": [],
+        "total": 0,
+        "sequence": 0,
+        "matched": 0,
+        "offset": 0,
+        "hasMore": false,
+        "nextOffset": null
+      }
+    },
+    {
+      "name": "workspace_library_documents",
+      "arguments": {
+        "action": "list"
+      },
+      "callId": "call_02_pTxzX3ViGYeSsDYBsrvz7314",
+      "resultEventSeq": 43,
+      "isError": false,
+      "at": "2026-10-27T08:52:51.374000+00:00",
+      "result": {
+        "items": [],
+        "total": 0,
+        "slotCounts": {
+          "company": 0,
+          "license": 0,
+          "certificate": 0,
+          "test_report": 0,
+          "specification": 0,
+          "supply_policy": 0,
+          "other": 0
+        },
+        "sequence": 0,
+        "matched": 0,
+        "offset": 0,
+        "hasMore": false,
+        "nextOffset": null
+      }
+    },
+    {
+      "name": "buyer_magazine_collect_site",
+      "arguments": {
+        "action": "preflight"
+      },
+      "callId": "call_03_jRNn3JLeTbAJH2ZFYQF65362",
+      "resultEventSeq": 45,
+      "isError": false,
+      "at": "2026-10-27T08:52:51.381000+00:00",
+      "result": {
+        "status": "blocked",
+        "reason": "APIFY_NOT_CONFIGURED",
+        "requiredSecret": "APIFY_TOKEN",
+        "provider": "apify",
+        "screenshots": []
+      }
+    },
+    {
+      "name": "working_directory",
+      "arguments": {},
+      "callId": "call_00_ykLeJyYaImTsNn15e0nq2407",
+      "resultEventSeq": 51,
+      "isError": false,
+      "at": "2026-10-27T08:52:53.416000+00:00"
+    },
+    {
+      "name": "glob",
+      "arguments": {
+        "pattern": "**/*"
+      },
+      "callId": "call_01_aLZPAUh9G3luSMK3HPa22998",
+      "resultEventSeq": 53,
+      "isError": false,
+      "at": "2026-10-27T08:52:53.440000+00:00",
+      "result": "No files found"
+    },
+    {
+      "name": "write",
+      "arguments": {
+        "file": "source-intake-result.json"
+      },
+      "callId": "call_00_x877fuk8Lp9IwkVCYZV94553",
+      "resultEventSeq": 59,
+      "isError": false,
+      "at": "2026-10-27T08:53:10.921000+00:00"
+    },
+    {
+      "name": "read",
+      "arguments": {
+        "file": "source-intake-result.json"
+      },
+      "callId": "call_00_D0mmQsYxAeIMlfv5DSvH9600",
+      "resultEventSeq": 65,
+      "isError": false,
+      "at": "2026-10-27T08:53:12.493000+00:00"
+    },
+    {
+      "name": "present",
+      "arguments": {
+        "file": "source-intake-result.json"
+      },
+      "callId": "call_00_ET_ijTdNJ2udb564pHi3wLi9079",
+      "resultEventSeq": 72,
+      "isError": false,
+      "at": "2026-10-27T08:53:14.327000+00:00"
+    }
+  ],
+  "presentation": {
+    "eventSeq": 71,
+    "callId": "call_00_ET_ijTdNJ2udb564pHi3wLi9079",
+    "turn": 1,
+    "fileName": "source-intake-result.json",
+    "bytes": 10046,
+    "sha256": "a37e1b2a204ca610d143cc48414649ad3c2c368a37344192f9bfabf72a17fc3e",
+    "semantics": "mutable workspace file declaration; not immutable native attachment snapshot; not business acceptance"
+  },
+  "notPerformed": [
+    "business publication",
+    "business desktop/mobile/PDF visual review",
+    "real Apify Actor run",
+    "buyer sharing",
+    "buyer access",
+    "distribution",
+    "buyer receipt"
+  ],
+  "scopeNotes": [
+    "Raw native session and original intake file remain outside Git. This receipt contains bounded diagnostic observations only.",
+    "The native model did not know its Session ID; the actual ID and presentation event here were read from native persistence.",
+    "The original model checklist is advisory, not seven mandatory prerequisites: one authorized usable source is enough for a suitable brief.",
+    "Library sequence=0 is an observed snapshot, not a claim about all enterprise systems or history."
+  ]
+}
