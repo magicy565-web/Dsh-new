@@ -1,0 +1,10 @@
+{
+  "name": "@workspace-agent/domain-commerce-network",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Host-independent third-party Personal Agent registration and delegated work order policies",
+  "engines": {"node": ">=22"},
+  "exports": {".": "./src/index.mjs"},
+  "scripts": {"test": "node --test test/*.test.mjs"}
+}
