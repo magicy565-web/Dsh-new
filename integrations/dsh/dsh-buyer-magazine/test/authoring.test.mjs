@@ -39,9 +39,49 @@ test('Apify uses the real Actor protocol, bounded spend and a header credential'
  const {url,init}=calls[1];
  assert(url.startsWith('https://api.apify.com/v2/acts/apify~website-content-crawler/runs?'));
  assert.equal(new URL(url).searchParams.get('maxTotalChargeUsd'),'1');
+ assert.equal(new URL(url).searchParams.get('memory'),'2048');
  assert.equal(init.headers.Authorization,'Bearer SYNTHETIC_TOKEN');assert(!url.includes('TOKEN'));
  assert.equal(JSON.parse(init.body).maxCrawlPages,6);assert.equal(init.redirect,'error');
+ assert.equal(JSON.parse(init.body).crawlerType,'playwright:firefox');
+ assert.equal(JSON.parse(init.body).maxConcurrency,1);
+ assert.equal(JSON.parse(init.body).maxRequestRetries,1);
  assert(!JSON.stringify(result).includes('SYNTHETIC_TOKEN'));
+});
+test('raw HTTP is explicit, bounded and never a retry after browser failure',async()=>{
+ const calls=[];
+ const result=await collectWithApify({action:'start',url:'https://example.com/',maxPages:3,crawlerType:'cheerio'},{token:'SYNTHETIC_TOKEN',fetchImpl:async(url,init)=>{
+  calls.push({url,init});return url.endsWith('/limits')?limits():Response.json({data:{id:'run1234567890',actId:'aYG0l9s7dbB7j3gbS',defaultDatasetId:'data1234567890'}});
+ }});
+ assert.equal(calls.length,2);assert.equal(result.crawlerType,'cheerio');assert.equal(result.memoryMbytes,1024);
+ assert.equal(JSON.parse(calls[1].init.body).crawlerType,'cheerio');
+ assert.equal(new URL(calls[1].url).searchParams.get('maxTotalChargeUsd'),'1');
+ for(const crawlerType of ['unknown','playwright:adaptive']){
+  const invalid=await collectWithApify({action:'start',url:'https://example.com/',crawlerType},{token:'SYNTHETIC_TOKEN',fetchImpl:()=>assert.fail('invalid engine must not request')});
+  assert.equal(invalid.reason,'APIFY_INPUT_INVALID');
+ }
+});
+test('curated research URLs share the origin and page budget, with no link traversal',async()=>{
+ const calls=[];
+ const result=await collectWithApify({action:'start',url:'https://example.com/about',pageUrls:['https://example.com/products/plate','https://example.com/products/bowl'],maxPages:3},{token:'SYNTHETIC_TOKEN',fetchImpl:async(url,init)=>{
+  calls.push({url,init});return url.endsWith('/limits')?limits():Response.json({data:{id:'run1234567890',actId:'aYG0l9s7dbB7j3gbS',defaultDatasetId:'data1234567890'}});
+ }});
+ const body=JSON.parse(calls[1].init.body);
+ assert.equal(body.startUrls.length,3);assert.equal(body.maxCrawlDepth,0);assert.equal(result.crawlDepth,0);
+ assert.deepEqual(result.startUrls,body.startUrls.map(x=>x.url));
+ for(const pageUrls of [['https://elsewhere.example/product'],['http://example.com/product'],['https://127.0.0.1/private'],'invalid',['https://example.com/a','https://example.com/b','https://example.com/c']]){
+  const invalid=await collectWithApify({action:'start',url:'https://example.com/',pageUrls,maxPages:3},{token:'SYNTHETIC_TOKEN',fetchImpl:()=>assert.fail('must block before preflight')});
+  assert.equal(invalid.reason,'APIFY_INPUT_INVALID');
+ }
+});
+test('failed terminal runs preserve partial datasets without claiming collection success',async()=>{
+ for(const status of ['FAILED','ABORTED','TIMED-OUT']){
+  const calls=[];
+  const result=await collectWithApify({action:'status',runId:'run1234567890'},{token:'SYNTHETIC_TOKEN',fetchImpl:async url=>{
+   calls.push(url);return url.includes('/actor-runs/')?Response.json({data:{id:'run1234567890',actId:'aYG0l9s7dbB7j3gbS',status,defaultDatasetId:'data1234567890'}}):Response.json([{url:'https://example.com/',markdown:'partial evidence'}]);
+  }});
+  assert.equal(result.status,'failed');assert.equal(result.reason,'APIFY_RUN_FAILED');assert.equal(result.partialDataset,true);
+  assert.equal(result.items[0].markdown,'partial evidence');assert.equal(calls.length,2);
+ }
 });
 test('Apify access failure is surfaced without credential rotation or fallback',async()=>{
  let calls=0;
@@ -108,6 +148,14 @@ test('native collection requires evidence storage before any paid request',async
  t.mock.method(globalThis,'fetch',()=>{throw Error('must not request');});
  const result=await collectSiteInSession({}, {action:'start',url:'https://example.com/'}, {signal:new AbortController().signal});
  assert.equal(result.reason,'NATIVE_ATTACHMENTS_UNAVAILABLE');
+});
+test('read-only native preflight works without evidence storage and cannot start a Run',async t=>{
+ credentialEnvironment(t,{APIFY_TOKEN1:'SYNTHETIC_ONE'});
+ const calls=[];
+ t.mock.method(globalThis,'fetch',async(url,init)=>{calls.push({url,method:init.method});return limits();});
+ const result=await collectSiteInSession({}, {action:'preflight',credentialId:1},{signal:new AbortController().signal});
+ assert.equal(result.status,'ready');assert.equal(result.credentialName,'APIFY_TOKEN1');
+ assert.deepEqual(calls,[{url:'https://api.apify.com/v2/users/me/limits',method:'GET'}]);
 });
 test('a dataset transport failure retains its known Run for reconciliation',async()=>{
  const result=await collectWithApify({action:'status',runId:'run1234567890'},{token:'SYNTHETIC_TOKEN',fetchImpl:async url=>{

@@ -13,6 +13,19 @@ run/dataset IDs, dated source content, image URLs and a native dataset attachmen
 Retain the dataset and source map; inspect relevant pages and original images.
 No fact becomes verified merely because the crawler returned it.
 
+Before spending a small page budget, select relevant brand/about and product URLs
+from real evidence. Pass the additional same-origin pages as pageUrls and include
+the main url in the total maxPages budget. Providing pageUrls disables traversal;
+an empty array reads only url. Omitting it follows links and may spend all three
+pages on legal or gift-card pages. Do not call such a dataset adequate product
+research merely because its Run succeeded.
+
+The default explicit engine is playwright:firefox with 2048 MiB, one concurrent
+request and one network retry. For server-rendered sites, explicitly selecting
+crawlerType:cheerio uses 1024 MiB and does not execute webpage JavaScript. Neither
+engine switches automatically on failure. A failed terminal Run can include raw
+partialDataset evidence; it remains failed and is not collection acceptance.
+
 Use action:credentials to list configured credential numbers without their values.
 The operator may configure APIFY_TOKEN_1 through APIFY_TOKEN_100, or the existing
 UI names APIFY_TOKEN1 through APIFY_TOKEN100. Do not ask the user to re-enter

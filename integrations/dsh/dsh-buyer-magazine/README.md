@@ -1,6 +1,6 @@
 # 四技能驱动的杂志设计 · dsh-buyer-magazine
 
-**0.4.2 · DeepSeek Harness 原生插件**。四个技能指导当前 LLM 研究、编辑、艺术指导并直接编写 HTML/CSS/JavaScript。插件提供真实采集和文件审阅能力，不决定版面。
+**0.4.3 · DeepSeek Harness 原生插件**。四个技能指导当前 LLM 研究、编辑、艺术指导并直接编写 HTML/CSS/JavaScript。插件提供真实采集和文件审阅能力，不决定版面。
 
 0.3 的固定 Allbirds 模板被用户否定，不能作为设计验收样板。旧编译器仅保留给已有 Studio/模块输入兼容调用。
 
@@ -16,7 +16,7 @@ LLM 使用 DSH 原生 write/edit 创作文件。无需填写 issue JSON，没有
 ## 安装
 
 ```sh
-dsh plugin --profile web add /absolute/path/dsh-buyer-magazine-0.4.2.tgz
+dsh plugin --profile web add /absolute/path/dsh-buyer-magazine-0.4.3.tgz
 dsh web
 ```
 
@@ -37,6 +37,17 @@ dsh web
 - Apify：支持 `APIFY_TOKEN_1` 到 `APIFY_TOKEN_100`，也兼容已有的 `APIFY_TOKEN1` 到 `APIFY_TOKEN100`，每个 Token 单独绑定，目标均为 `api.apify.com`。`action:credentials` 仅返回当前已配置的编号；`credentialId` 明确选择账号，创建与查询同一 run 使用相同编号。配置存在不代表认证通过。缺失时返回 `APIFY_NOT_CONFIGURED`，不切换账号或采集器。每次最多 30 页、180 秒，默认费用上限 USD 1；宿主可通过 `apifyMaxChargeUsd` 配置，最高 USD 5。权限、额度或限流错误如实返回。
 
 费用配置接受 USD 0.01–5，非法值拒绝执行。启动前通过官方 `GET /v2/users/me/limits` 检查所选账号的当前月额度差额；不可读取或不足时不启动 Actor，不修改账户限额。额度快照不是已预留余额。
+
+采集默认显式使用 `playwright:firefox`、2048 MiB 内存、单并发和最多一次网络重试。
+对于服务端 HTML，可显式传 `crawlerType: "cheerio"`（1024 MiB，不执行网页 JavaScript）；
+失败后不会自动换引擎。费用和 180 秒上限均保持不变。
+
+小页数研究应先确定真正相关的页面。`pageUrls` 可增加同 origin 的明确页面，连同 `url`
+去重后的数量不能超过 `maxPages`；传入该数组后深度固定为 0，只读取指定页面。
+传空数组表示只读 `url`。省略时保持原有跟随链接行为，但可能采到法律声明等无关页面。
+例如 `url` 为品牌介绍页，`pageUrls` 为两个已确认存在的产品页，`maxPages` 为 3。
+这只控制采集范围，不验证商品事实或图片授权。失败／超时／中止的终态仍尝试保存已存在的
+Dataset，并标为 `failed / APIFY_RUN_FAILED / partialDataset`；部分结果不算成功研究。
 - 审阅：宿主 Chromium、原生附件、支持图片输入的当前模型；PDF 页图另外需要 `pdfinfo`/`pdftoppm`。保留宿主代理与 TLS 信任。
 - FastAI、视频请求、VIP 和线索后端：仍需实际配置相应能力，原始参考脚本不自动执行，不把示例或占位值当作可用服务。
 

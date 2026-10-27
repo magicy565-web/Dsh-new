@@ -43,17 +43,26 @@ export async function collectWithApify(args,{token,fetchImpl=fetch,signal,maxCha
     signal?.throwIfAborted();
     if(args.action==='preflight')return await preflight();
     if(args.action==='start'){
-      if(!safePublicUrl(args.url)||!Number.isInteger(args.maxPages??8)||(args.maxPages??8)<1||(args.maxPages??8)>30)return {status:'blocked',reason:'APIFY_INPUT_INVALID',provider:'apify'};
+      const crawlerType=args.crawlerType??'playwright:firefox';
+      if(!safePublicUrl(args.url)||!Number.isInteger(args.maxPages??8)||(args.maxPages??8)<1||(args.maxPages??8)>30||!['playwright:firefox','cheerio'].includes(crawlerType))return {status:'blocked',reason:'APIFY_INPUT_INVALID',provider:'apify'};
+      const pageUrls=args.pageUrls;
+      if(pageUrls!==undefined&&(!Array.isArray(pageUrls)||pageUrls.length>29||pageUrls.some(url=>!safePublicUrl(url)||new URL(url).origin!==new URL(args.url).origin)))return {status:'blocked',reason:'APIFY_INPUT_INVALID',provider:'apify'};
+      const startUrls=[...new Set([args.url,...pageUrls??[]])];
+      if(startUrls.length>(args.maxPages??8))return {status:'blocked',reason:'APIFY_INPUT_INVALID',provider:'apify'};
       const checked=await preflight();
       if(checked.status!=='ready')return checked;
-      const query=new URLSearchParams({timeout:'180',memory:'1024',maxTotalChargeUsd:String(maxChargeUsd)});
-      const body={startUrls:[{url:args.url}],maxCrawlPages:args.maxPages??8,maxConcurrency:2,maxCrawlDepth:3,saveHtml:true,saveMarkdown:true,saveScreenshots:false,respectRobotsTxtFile:true};
+      // A real 1 GiB Firefox run exhausted memory before extracting any page.
+      // Keep one request in flight to respect small page budgets. Never switch
+      // engines or accounts after failure; raw HTTP is an explicit caller choice.
+      const memoryMbytes=crawlerType==='cheerio'?1024:2048;
+      const query=new URLSearchParams({timeout:'180',memory:String(memoryMbytes),maxTotalChargeUsd:String(maxChargeUsd)});
+      const body={startUrls:startUrls.map(url=>({url})),crawlerType,maxCrawlPages:args.maxPages??8,maxConcurrency:1,maxRequestRetries:1,maxCrawlDepth:pageUrls===undefined?3:0,saveHtml:true,saveMarkdown:true,saveScreenshots:false,respectRobotsTxtFile:true};
       starting=true;
       const result=await request('/acts/'+ACTOR+'/runs?'+query,body);
       if(result.httpStatus)return {status:result.httpStatus>=500?'unknown':'failed',provider:'apify',reason:result.httpStatus>=500?'APIFY_START_OUTCOME_UNKNOWN':'APIFY_HTTP_ERROR',httpStatus:result.httpStatus};
       const run=result.data?.data;
       if(!id(run?.id)||!id(run?.defaultDatasetId)||run.actId!==ACTOR_ID)return {status:'unknown',provider:'apify',reason:'APIFY_START_OUTCOME_UNKNOWN'};
-      return {status:'running',provider:'apify',actor:ACTOR,runId:run.id,datasetId:run.defaultDatasetId,sourceUrl:args.url,maxPages:body.maxCrawlPages,maxChargeUsd,budget:checked.budget,run};
+      return {status:'running',provider:'apify',actor:ACTOR,runId:run.id,datasetId:run.defaultDatasetId,sourceUrl:args.url,startUrls,crawlDepth:body.maxCrawlDepth,maxPages:body.maxCrawlPages,maxChargeUsd,crawlerType,memoryMbytes,budget:checked.budget,run};
     }
     if(args.action!=='status'||!id(args.runId))return {status:'blocked',reason:'APIFY_INPUT_INVALID',provider:'apify'};
     const result=await request('/actor-runs/'+args.runId);
@@ -62,12 +71,14 @@ export async function collectWithApify(args,{token,fetchImpl=fetch,signal,maxCha
     if(run?.id!==args.runId||run.actId!==ACTOR_ID)return {status:'blocked',reason:'UNEXPECTED_APIFY_ACTOR',provider:'apify'};
     record={provider:'apify',actor:ACTOR,runId:run.id,datasetId:run.defaultDatasetId??null,actorStatus:run.status,run};
     if(['READY','RUNNING','TIMING-OUT','ABORTING'].includes(run.status))return {status:'running',...record};
-    if(run.status!=='SUCCEEDED')return {status:'failed',...record};
+    const succeeded=run.status==='SUCCEEDED';
+    if(!succeeded&&!['FAILED','ABORTED','TIMED-OUT'].includes(run.status))return {status:'failed',...record,reason:'APIFY_RUN_STATUS_UNEXPECTED'};
     if(!id(run.defaultDatasetId))return {status:'failed',...record,reason:'APIFY_DATASET_INVALID'};
     const dataset=await request('/datasets/'+run.defaultDatasetId+'/items?clean=true&format=json&limit=30');
     if(dataset.httpStatus)return {status:'failed',...record,reason:'APIFY_HTTP_ERROR',httpStatus:dataset.httpStatus};
     const items=dataset.data;
     if(!Array.isArray(items)||items.some(item=>!item||typeof item!=='object'||Array.isArray(item)))return {status:'failed',...record,reason:'APIFY_DATASET_INVALID'};
+    if(!succeeded)return {status:'failed',...record,reason:'APIFY_RUN_FAILED',partialDataset:true,finishedAt:run.finishedAt??null,items};
     return {status:items.length?'collected':'blocked',...record,...items.length?{}:{reason:'APIFY_DATASET_EMPTY'},finishedAt:run.finishedAt??null,items};
   }catch(error){
     signal?.throwIfAborted();
@@ -87,7 +98,9 @@ export async function collectSiteInSession(ctx,args,exec,config={}){
   const token=process.env[credentialName];
   if(!token)return {status:'blocked',reason:'APIFY_NOT_CONFIGURED',requiredSecret:credentialName,acceptedSecretNames:credentialId===null?['APIFY_TOKEN']:credentialNames(credentialId),credentialId,credentialName,provider:'apify'};
   const attachments=ctx.get?.('attachments');
-  if(token&&!attachments?.saveFile)return {status:'blocked',provider:'apify',reason:'NATIVE_ATTACHMENTS_UNAVAILABLE',credentialId,credentialName};
+  // A GET-only preflight has no Run evidence to persist. Lack of an attachment
+  // store must block paid collection, not conceal credential/limit diagnostics.
+  if(args.action!=='preflight'&&!attachments?.saveFile)return {status:'blocked',provider:'apify',reason:'NATIVE_ATTACHMENTS_UNAVAILABLE',credentialId,credentialName};
   const result={...await collectWithApify(args,{token,signal:exec.signal,maxChargeUsd:config.apifyMaxChargeUsd??1}),credentialId,credentialName};
   // Preserve the actual Run response even while running, failed, or empty.
   let dataset;
