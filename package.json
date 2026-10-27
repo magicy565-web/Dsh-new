@@ -10,7 +10,9 @@
     "integrations/dsh/dsh-inquiry-recovery",
     "integrations/dsh/dsh-buyer-magazine",
     "integrations/dsh/dsh-sourcing-agent",
-    "integrations/dsh/dsh-mini-erp"
+    "integrations/dsh/dsh-mini-erp",
+    "packages/domain-commerce-network",
+    "integrations/dsh/dsh-commerce-network"
   ],
   "description": "Native workspace plugins for DeepSeek Harness and host-independent business domains",
   "engines": {
@@ -19,17 +21,21 @@
   "scripts": {
     "start": "node scripts/dsh-info.mjs",
     "dev": "node scripts/dsh-info.mjs",
-    "build": "npm run build:erp-client && node scripts/check-dsh.mjs",
+    "build": "npm run build:erp-client && npm run build:commerce-client && node scripts/check-dsh.mjs",
     "test": "node scripts/test-dsh.mjs",
     "check": "npm run build && npm test",
-    "test:client": "node integrations/dsh/dsh-workspace-library/dev/client-smoke.mjs && node integrations/dsh/dsh-space-workspace/dev/client-smoke.mjs && node integrations/dsh/dsh-workspace-memory/dev/client-smoke.mjs && node integrations/dsh/dsh-inquiry-recovery/dev/client-smoke.mjs && node integrations/dsh/dsh-mini-erp/dev/client-smoke.mjs && node integrations/dsh/dsh-mini-erp/dev/admin-smoke.mjs",
-    "build:erp-client": "node scripts/build-erp-client.mjs"
+    "test:client": "node integrations/dsh/dsh-workspace-library/dev/client-smoke.mjs && node integrations/dsh/dsh-space-workspace/dev/client-smoke.mjs && node integrations/dsh/dsh-workspace-memory/dev/client-smoke.mjs && node integrations/dsh/dsh-inquiry-recovery/dev/client-smoke.mjs && node integrations/dsh/dsh-mini-erp/dev/client-smoke.mjs && node integrations/dsh/dsh-mini-erp/dev/admin-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/client-smoke.mjs",
+    "build:erp-client": "node scripts/build-erp-client.mjs",
+    "build:commerce-client": "node scripts/build-commerce-client.mjs",
+    "test:commerce": "node --test --test-isolation=none packages/domain-commerce-network/test/*.test.mjs integrations/dsh/dsh-commerce-network/test/*.test.mjs",
+    "package:commerce": "node scripts/package-commerce-network.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
     "jsdom": "29.1.1",
     "postcss": "8.5.6",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "@xyflow/react": "12.11.2"
   }
 }

@@ -1,0 +1,70 @@
+// Native factory/DOM contract smoke. Explicit synthetic HTTP fixtures only;
+// this does not establish a live DSH model or external Worker acceptance.
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {JSDOM} from 'jsdom';
+import React,{act} from 'react';
+import {createRoot} from 'react-dom/client';
+
+const dom=new JSDOM('<!doctype html><div id="app"></div>',{url:'https://workspace.example.test/'});
+const saved=new Map();
+function expose(key,value){saved.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});}
+for(const key of ['window','document','navigator','HTMLElement','Element','MutationObserver','Event','MouseEvent'])expose(key,dom.window[key]);
+expose('getComputedStyle',dom.window.getComputedStyle.bind(dom.window));
+// jsdom has no browser layout engine. Supply dimensions only; retain the real
+// bundled React Flow and its rendering/hooks so nonempty-path failures surface.
+const dimensions=element=>element.classList?.contains('cn-node')?{width:270,height:185}:{width:1000,height:680};
+Object.defineProperty(dom.window.HTMLElement.prototype,'offsetWidth',{configurable:true,get(){return dimensions(this).width;}});
+Object.defineProperty(dom.window.HTMLElement.prototype,'offsetHeight',{configurable:true,get(){return dimensions(this).height;}});
+dom.window.HTMLElement.prototype.getBoundingClientRect=function(){const size=dimensions(this);return {x:0,y:0,top:0,left:0,right:size.width,bottom:size.height,...size};};
+dom.window.SVGElement.prototype.getBBox=function(){return {x:0,y:0,width:(this.textContent?.length||1)*7,height:14};};
+class TestResizeObserver {constructor(callback){this.callback=callback;this.active=true;}observe(target){queueMicrotask(()=>{if(this.active&&target.isConnected)this.callback([{target,contentRect:target.getBoundingClientRect()}]);});}unobserve(){}disconnect(){this.active=false;}}
+class TestDOMMatrix {constructor(){this.m11=1;this.m22=1;}}
+expose('ResizeObserver',TestResizeObserver);expose('DOMMatrixReadOnly',TestDOMMatrix);dom.window.ResizeObserver=TestResizeObserver;dom.window.DOMMatrixReadOnly=TestDOMMatrix;
+expose('IS_REACT_ACT_ENVIRONMENT',true);
+expose('requestAnimationFrame',callback=>setTimeout(callback,0));
+expose('cancelAnimationFrame',clearTimeout);
+const requests=[];
+const empty={workspaceId:'test-workspace',revision:0,projectId:null,projects:[],events:[],canvasLayouts:[],commerceNetwork:{parties:[],agentServices:[],workOrders:[],salesAuthorizations:[]}};
+let fixture=empty;
+expose('fetch',async(url,options)=>{requests.push({url,options});return new Response(JSON.stringify({ok:true,data:fixture}),{status:200,headers:{'content-type':'application/json'}});});
+const require=createRequire(import.meta.url);let exports;
+dom.window.__ModuleLoader__={load:registration=>{assert.equal(registration.id,'dsh-commerce-network');exports=registration.factory(require);}};
+new Function('window',await readFile(new URL('../client.js',import.meta.url),'utf8'))(dom.window);
+const slots=[],disposers=[],prompts=[],opens=[];const source={getSnapshot:()=>({revision:0,entries:[],change:{kind:'replace'}}),subscribe:()=>()=>{}};
+const sessionId='session-61c8013e-110a-431c-b214-8c7fe715a4f8';
+const binding={sessionId,eventSource:source,session:{prompt:async(messages,mode,signal,requestId)=>{prompts.push({messages,mode,requestId});return {ok:true,value:{accepted:true}};}}};
+const ctx={effect:register=>{const disposer=register();if(typeof disposer==='function')disposers.push(disposer);},locale:{register:()=>()=>{},bind:()=>()=> '商业网络'},sidebarRightTabs:{register:definition=>{assert.equal(definition.id,'dsh-commerce-network/canvas');return()=>{};}},sidebarRight:{mounted:{getSnapshot:()=>sessionId},openTab:kind=>opens.push(kind)},sessions:{binding:()=>binding,retain:()=>({ready:Promise.resolve(binding),release(){}})},slots:{inject:(_name,register)=>register(),register:(definition,component)=>{slots.push({definition,component});return()=>{};}}};
+exports.apply(ctx);
+assert.equal(slots.some(s=>s.definition.name==='main'),false,'must not replace the native conversation');
+const slot=slots.find(s=>s.definition.name==='sidebar.right.pane.tab');
+assert.equal(slot.definition.key,'dsh-commerce-network/canvas');
+const abort=new AbortController();let refresh;
+const props={sessionId,...slot.definition.inject(sessionId),useTabInfo:()=>({tab:{visible:true,signal:abort.signal,actions:{bindCommands:commands=>{refresh=commands.refresh;return()=>{};}}}})};
+const root=createRoot(document.getElementById('app'));
+try{
+  await act(async()=>{root.render(React.createElement(slot.component,props));await new Promise(resolve=>setTimeout(resolve,15));});
+  assert.ok(document.querySelector('.cn-empty'));
+  assert.equal(document.querySelectorAll('.cn-node').length,0,'empty workspace must not show fabricated operational nodes');
+  assert.ok(requests[0].url.includes(`sessionId=${sessionId}`));
+  assert.equal(requests[0].options.credentials,'same-origin');
+  const start=[...document.querySelectorAll('button')].find(button=>button.textContent.includes('从产品资料开始'));
+  await act(async()=>{start.dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,5));});
+  assert.equal(prompts.length,1);assert.equal(prompts[0].mode,'queue');assert.match(prompts[0].messages[0].text,/commerce_network_plan/);
+  assert.ok(document.querySelector('.cn-message').textContent.includes('已交给当前 Assistant'));
+  assert.equal(document.querySelectorAll('.cn-node').length,0,'native prompt admission must not fabricate a completed canvas');
+  await act(async()=>{refresh();await new Promise(resolve=>setTimeout(resolve,5));});
+  assert.ok(requests.length>=2);
+  fixture={...empty,revision:1,projectId:'p1',projects:[{id:'p1',name:'TEST ONLY network'}],products:[],routes:[],canvasLayouts:[{projectId:'p1',revision:1,nodes:[],viewport:{x:0,y:0,zoom:1}}],commerceNetwork:{projectId:'p1',revision:1,layoutWriteSupported:true,layoutContractVersion:'commerce-layout-v1',parties:[{id:'f1',projectId:'p1',type:'factory',displayName:'TEST factory'},{id:'pvd',projectId:'p1',type:'provider',displayName:'TEST provider'}],agentServices:[{id:'a1',projectId:'p1',providerPartyId:'pvd',displayName:'TEST worker',skills:['public_web_research'],protocol:'pull_gateway',status:'pending'}],workOrders:[{id:'o1',projectId:'p1',requesterPartyId:'f1',agentServiceId:'a1',title:'TEST research order',status:'proposed',allowedActions:['public_web_research'],allowedResourceRefs:[],maximumMinor:0,currency:'USD'}],salesAuthorizations:[]}};
+  await act(async()=>{refresh();await new Promise(resolve=>setTimeout(resolve,20));});
+  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
+  assert.equal(document.querySelectorAll('.cn-node').length,3,'nonempty native graph must render actual React Flow node components');
+  assert.ok(document.querySelector('.cn-flow'),'a rendering failure must not be hidden by the error boundary');
+  assert.ok(document.querySelector('.cn-node').textContent.includes('TEST'));
+  assert.equal(document.querySelectorAll('.react-flow__edge').length,2,'actual delegated work relation edges must mount');
+  console.log(JSON.stringify({ok:true,checks:['native-right-sidebar-contract','host-react-factory','authenticated-session-read','honest-empty-state','native-prompt-admission-only','native-refresh-binding','nonempty-react-flow-node-render','actual-relation-edge-render']}));
+}finally{
+  await act(async()=>root.unmount());abort.abort();for(const dispose of disposers.reverse())dispose();dom.window.close();
+  for(const[key,descriptor]of saved){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}
+}
