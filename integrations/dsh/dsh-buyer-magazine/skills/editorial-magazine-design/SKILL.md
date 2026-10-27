@@ -5,13 +5,27 @@ description: Universal luxury print magazine and editorial lookbook web design s
 
 ## Native DSH integration contract
 
+For a buyer/procurement publication, first read
+`resources/buyer-publication-standard.md` and
+`resources/buyer-publication-reading.md`. These buyer-specific editorial rules
+take precedence over the preserved luxury methods below. Build and edit a
+copy-deck before HTML: specific reader and buying stage, product selection,
+headlines/decks/leads/body/captions, comparable evidence and a useful next action.
+Do not treat a unit-conversion essay, factory travelogue or list of disclaimers
+as a sufficient buying publication. If the user requests learning/training first,
+use `resources/buyer-publication-exercises.md`, record actual responses and
+editorial feedback, and stop before making another magazine. This is skill and
+context practice, not model weight training or evidence of user acceptance.
+
 Read all three supplied resources below. Apply their art-direction methods while
 authoring your own HTML and CSS with native file tools. Choose the archetype from
 the actual brand and editorial question, then design distinct compositions from
 the material. There is no required issue JSON, product count, class naming scheme
 or canonical web-card layout. Five spreads describes narrative rhythm; use the
 actual copy and images to decide how each spread works. Typography, photography,
-whitespace and interactive apparatus must serve the story. Decorative paper,
+whitespace and interactive apparatus must serve the buying decision and story.
+Archetypes and the preserved five-spread choreography are optional design methods,
+not mandatory content slots. Decorative paper,
 spines, rules and seals do not establish editorial quality on their own.
 
 Use buyer_magazine_review_artifact for screenshots of your authored file and

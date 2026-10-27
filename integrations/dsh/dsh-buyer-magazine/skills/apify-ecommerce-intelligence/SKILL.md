@@ -5,6 +5,15 @@ description: "Collect actual corporate website evidence through the native Apify
 
 ## Native DSH integration contract
 
+For a buyer publication, research the chosen reader's category and buying stage.
+Prioritize actual product/series identifiers, representative product/detail images,
+materials and construction, comparable specifications, supplier specialization,
+sample/customization routes and available commercial terms. Do not collect only
+brand heritage and visit-page imagery. Missing terms become focused follow-up
+questions; do not invent them or fill the finished publication with repeated
+unknowns. Use the buyer-publication-standard.md resource in
+editorial-magazine-design to turn source facts into a copy-deck before design.
+
 Use the actual native buyer_magazine_collect_site tool: action:preflight first
 (read-only account limits, no Actor started), then action:start with the
 company's public HTTPS URL and a bounded maxPages, then action:status with the

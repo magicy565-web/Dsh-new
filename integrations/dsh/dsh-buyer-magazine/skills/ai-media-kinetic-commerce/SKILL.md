@@ -11,6 +11,18 @@ editorial-magazine-design and editorial-typography-system, and read their releva
 resources before designing. Their methods are instructions for your decisions,
 not parameters for a fixed template.
 
+For procurement work, read editorial-magazine-design/resources/buyer-publication-standard.md
+and buyer-publication-reading.md before choosing the story. Identify a specific
+reader, category and buying stage; draft and review copy-deck.md before writing
+HTML. Product selection, readable copy, comparable specifications, supplier
+capability and a useful sampling/inquiry route take precedence over decorative
+effects or a compulsory calculator. A simple accurate headline is allowed.
+Keep raw source audits separate from reader-facing editorial copy. Record
+editorial review separately from browser/geometry checks and user acceptance.
+When the user asks for batch learning/training, do reading and text exercises,
+not another demo or publication. Persist source notes, actual practice outputs
+and critique; do not claim fine-tuning, learned weights or unmeasured improvement.
+
 For a website request, call buyer_magazine_collect_site to run actual Apify
 collection and poll its runId with the same credentialId. Use action:credentials
 to discover configured account numbers; use the user's selected account, and

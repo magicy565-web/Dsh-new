@@ -4,6 +4,8 @@
 
 0.3 的固定 Allbirds 模板被用户否定，不能作为设计验收样板。旧编译器仅保留给已有 Studio/模块输入兼容调用。
 
+2026-10-27 的 Burel 实际流程虽完成交付，用户随后否定其采购文案编排。采购任务现优先加载 [采购编辑标准](skills/editorial-magazine-design/resources/buyer-publication-standard.md) 与 [第一批阅读笔记](skills/editorial-magazine-design/resources/buyer-publication-reading.md)，先编辑文案再设计。原奢侈品视觉资源保留为可选方法。用户要求先学习时只做阅读与文字练习；这不是模型权重训练。记录见 [采购编辑学习](../../../docs/BUYER-EDITORIAL-LEARNING.md)。
+
 ## 工作方式
 
 1. `apify-ecommerce-intelligence`：通过实际 Apify Actor 采集网站，保存原始资料、图片地址与来源。

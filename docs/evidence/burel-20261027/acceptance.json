@@ -99,5 +99,11 @@
     "shared": false,
     "buyerAccessClaimed": false
   },
-  "fixedSourceIntegrationBase": "28af511a0858567ff2b5022cb2a5ab2662650ff2"
+  "fixedSourceIntegrationBase": "28af511a0858567ff2b5022cb2a5ab2662650ff2",
+  "userEditorialAcceptance": {
+    "status": "rejected",
+    "date": "2026-10-27",
+    "reason": "用户指出文案编排不符合采购刊物要求，要求先批量学习和训练。",
+    "technicalExecutionRecordsRemainHistorical": true
+  }
 }

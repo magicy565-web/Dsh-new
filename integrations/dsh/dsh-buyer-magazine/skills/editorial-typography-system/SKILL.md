@@ -5,6 +5,15 @@ description: Complete art-directed typography and kinetic typesetting design sys
 
 ## Native DSH integration contract
 
+For buyer publications, the editorial-magazine-design resource
+`resources/buyer-publication-standard.md` takes precedence over the preserved
+stylistic mandates below. Plain single-voice headings, normal paragraphs and
+legible system fallbacks are valid. Do not require three voices, a 12:1 scale,
+tiny marginalia, English on every Chinese heading or kinetic ornaments. Preserve
+model identifiers, price bases, units and image-caption relationships when
+reflowing for mobile/print. Typography must support buying information and reading,
+not force the copy to fit an ornamental pattern.
+
 Read the five typography resources below and use them as a design method. Write
 and edit the actual copy before typesetting: headline, deck, lead, body, pull
 quote, caption, source note and folio each need an editorial role. Design these
