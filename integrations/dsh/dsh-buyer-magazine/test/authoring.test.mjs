@@ -114,7 +114,7 @@ test('a native evidence-save failure preserves known Run metadata without claimi
 });
 
 function credentialEnvironment(t,values){
- const names=['APIFY_TOKEN',...Array.from({length:100},(_,i)=>'APIFY_TOKEN_'+(i+1))];
+ const names=['APIFY_TOKEN',...Array.from({length:100},(_,i)=>['APIFY_TOKEN_'+(i+1),'APIFY_TOKEN'+(i+1)]).flat()];
  const previous=new Map(names.map(n=>[n,process.env[n]]));
  for(const name of names)delete process.env[name];
  Object.assign(process.env,values);
@@ -173,6 +173,41 @@ test('legacy default remains compatible and HTTP failures do not rotate selected
   assert.equal(selected.httpStatus,code);assert.equal(selected.credentialId,5);
  }
  assert.deepEqual(headers,['Bearer SYNTHETIC_LEGACY','Bearer SYNTHETIC_ONE','Bearer SYNTHETIC_FIVE','Bearer SYNTHETIC_FIVE']);
+});
+test('unseparated names from the environment UI work for default, selection and status',async t=>{
+ credentialEnvironment(t,{APIFY_TOKEN1:'SYNTHETIC_UI_ONE',APIFY_TOKEN5:'SYNTHETIC_UI_FIVE',APIFY_TOKEN100:'SYNTHETIC_UI_HUNDRED'});
+ const headers=[];
+ t.mock.method(globalThis,'fetch',async(url,init)=>{
+  headers.push(init.headers.Authorization);
+  if(url.endsWith('/users/me/limits'))return limits();
+  return Response.json({data:{id:'run1234567890',defaultDatasetId:'data1234567890',actId:'aYG0l9s7dbB7j3gbS',status:'RUNNING'}});
+ });
+ const inventory=await collectSiteInSession({}, {action:'credentials'}, {});
+ assert.deepEqual(inventory.credentials,[{credentialId:1,name:'APIFY_TOKEN1'},{credentialId:5,name:'APIFY_TOKEN5'},{credentialId:100,name:'APIFY_TOKEN100'}]);
+ assert.equal(inventory.defaultCredential,'APIFY_TOKEN1');
+ const exec={signal:new AbortController().signal};
+ const ctx={get:()=>({saveFile:async file=>({attachmentId:'d'.repeat(64),name:file.name})})};
+ const first=await collectSiteInSession(ctx, {action:'start',url:'https://example.com/'},exec);
+ assert.equal(first.credentialName,'APIFY_TOKEN1');
+ for(const credentialId of [5,100]){
+  const start=await collectSiteInSession(ctx, {action:'start',url:'https://example.com/',credentialId},exec);
+  const status=await collectSiteInSession(ctx, {action:'status',runId:start.runId,credentialId},exec);
+  assert.equal(status.credentialName,'APIFY_TOKEN'+credentialId);
+ }
+ assert.deepEqual(headers,['Bearer SYNTHETIC_UI_ONE','Bearer SYNTHETIC_UI_ONE','Bearer SYNTHETIC_UI_FIVE','Bearer SYNTHETIC_UI_FIVE','Bearer SYNTHETIC_UI_FIVE','Bearer SYNTHETIC_UI_HUNDRED','Bearer SYNTHETIC_UI_HUNDRED','Bearer SYNTHETIC_UI_HUNDRED']);
+ assert(!JSON.stringify(inventory).includes('SYNTHETIC_'));
+});
+test('mixed naming resolves each slot once and never retries its alias on denial',async t=>{
+ credentialEnvironment(t,{APIFY_TOKEN_5:'SYNTHETIC_UNDERSCORE',APIFY_TOKEN5:'SYNTHETIC_ALIAS',APIFY_TOKEN100:'SYNTHETIC_HUNDRED'});
+ const inventory=apifyCredentials();assert.equal(inventory.credentials.length,2);
+ assert.deepEqual(inventory.credentials[0],{credentialId:5,name:'APIFY_TOKEN_5'});
+ const headers=[];t.mock.method(globalThis,'fetch',async(url,init)=>{headers.push(init.headers.Authorization);return new Response('',{status:403});});
+ const ctx={get:()=>({saveFile:async()=>assert.fail('denied preflight must not have a Run')})};
+ const result=await collectSiteInSession(ctx, {action:'start',url:'https://example.com/',credentialId:5}, {signal:new AbortController().signal});
+ assert.equal(result.httpStatus,403);assert.equal(result.credentialName,'APIFY_TOKEN_5');
+ assert.deepEqual(headers,['Bearer SYNTHETIC_UNDERSCORE']);
+ const missing=await collectSiteInSession(ctx, {action:'start',url:'https://example.com/',credentialId:4}, {signal:new AbortController().signal});
+ assert.deepEqual(missing.acceptedSecretNames,['APIFY_TOKEN_4','APIFY_TOKEN4']);
 });
 
 import {openAuthoredArtifact} from '../src/authored-review.js';

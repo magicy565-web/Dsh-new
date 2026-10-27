@@ -14,7 +14,10 @@ Retain the dataset and source map; inspect relevant pages and original images.
 No fact becomes verified merely because the crawler returned it.
 
 Use action:credentials to list configured credential numbers without their values.
-The operator may configure APIFY_TOKEN_1 through APIFY_TOKEN_100. When the user
+The operator may configure APIFY_TOKEN_1 through APIFY_TOKEN_100, or the existing
+UI names APIFY_TOKEN1 through APIFY_TOKEN100. Do not ask the user to re-enter
+secrets just to add an underscore. When both names exist for one slot, the
+underscored name wins; never retry the other alias after a remote failure. When the user
 selects an account, pass its credentialId (1..100) on start and every status call
 for that run. Record credentialId with runId in the native workspace. Presence
 does not prove remote authorization. Do not select a different account after a
