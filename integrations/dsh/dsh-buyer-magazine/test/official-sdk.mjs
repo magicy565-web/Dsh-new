@@ -58,6 +58,11 @@ try {
     arguments: args, ...(actor ? { agent: actor } : {}), signal: new AbortController().signal });
   const generate = value => dispatch('buyer_magazine_generate', { issueJson: json(value) });
   const good = issueFixture(), expected = compileDraft(json(good));
+  const inventory = await dispatch('buyer_magazine_collect_site', {action:'credentials'});
+  assert.equal(inventory.isError,false);assert.equal(inventory.value.capacity,100);
+  assert.equal((await dispatch('buyer_magazine_collect_site',{action:'credentials',credentialId:100})).isError,false);
+  const invalidCredential=await dispatch('buyer_magazine_collect_site',{action:'credentials',credentialId:101});
+  assert.equal(invalidCredential.isError,false);assert.equal(invalidCredential.value.reason,'APIFY_CREDENTIAL_INVALID');
   assert.equal((await dispatch('buyer_magazine_validate_issue', { issueJson: json(good) })).isError, false);
   assert.equal((await dispatch('buyer_magazine_generate', { issueJson: json(good) }, null)).error.info.code, 'MAGAZINE_SESSION_REQUIRED');
   assert.equal((await dispatch('buyer_magazine_generate', { issueJson: '{}' })).error.info.code, 'MAGAZINE_ISSUE_INVALID'); assert.equal(writes, 0);

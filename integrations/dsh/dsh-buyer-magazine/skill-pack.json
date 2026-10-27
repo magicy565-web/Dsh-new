@@ -1,6 +1,6 @@
 {
   "name": "Luxury Editorial Web-Card Skill Pack",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "entry": "ai-media-kinetic-commerce",
   "compatibilityEntry": "buyer-magazine",
   "skills": [
@@ -28,7 +28,7 @@
   "source": "User supplied luxury_ecommerce_skills_package.zip",
   "runtime": "DeepSeek Harness; one compiler; no separate Agent host",
   "externalIntegrations": {
-    "apify": "Native Actor adapter; requires APIFY_TOKEN; never silently falls back",
+    "apify": "Native Actor adapter; explicit credentialId 1..100; no automatic rotation or silent fallback",
     "fastai": "reference only until configured host image tool",
     "video": "request-only, no automatic generation",
     "leadSubmission": "actual contact link or local brief; no fake webhook"

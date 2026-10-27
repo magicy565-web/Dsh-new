@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {collectWithApify,collectSiteInSession} from '../src/apify.js';
+import {apifyCredentials,collectWithApify,collectSiteInSession} from '../src/apify.js';
 import {magazineTools} from '../src/tools.js';
 
 test('design preset offers collection and authored-file review, not a fixed generator',()=>{
@@ -49,6 +49,65 @@ test('native Apify excerpts remain lossless JSON when page metadata is missing',
  assert.deepEqual(JSON.parse(JSON.stringify(result)),result);
  assert.equal(result.items[0].title,null);
  assert.deepEqual(result.items[0].images,['https://example.com/photo.jpg']);
+});
+
+function credentialEnvironment(t,values){
+ const names=['APIFY_TOKEN',...Array.from({length:100},(_,i)=>'APIFY_TOKEN_'+(i+1))];
+ const previous=new Map(names.map(n=>[n,process.env[n]]));
+ for(const name of names)delete process.env[name];
+ Object.assign(process.env,values);
+ t.after(()=>{for(const [name,value] of previous)if(value===undefined)delete process.env[name];else process.env[name]=value;});
+}
+test('credential inventory supports 100 slots without returning secret values',async t=>{
+ const values=Object.fromEntries(Array.from({length:100},(_,i)=>['APIFY_TOKEN_'+(i+1),'SYNTHETIC_SECRET_'+(i+1)]));
+ credentialEnvironment(t,values);
+ const inventory=await collectSiteInSession({}, {action:'credentials'}, {});
+ assert.equal(inventory.credentials.length,100);assert.equal(inventory.capacity,100);
+ assert.deepEqual(inventory.credentials.at(-1),{credentialId:100,name:'APIFY_TOKEN_100'});
+ assert(!JSON.stringify(inventory).includes('SYNTHETIC_SECRET'));
+ assert.deepEqual(apifyCredentials({APIFY_TOKEN_5:'SYNTHETIC'}).credentials,[{credentialId:5,name:'APIFY_TOKEN_5'}]);
+});
+test('selected credentials are used for start and status, including slot 100',async t=>{
+ credentialEnvironment(t,{APIFY_TOKEN:'SYNTHETIC_LEGACY',APIFY_TOKEN_5:'SYNTHETIC_FIVE',APIFY_TOKEN_100:'SYNTHETIC_HUNDRED'});
+ const headers=[];
+ t.mock.method(globalThis,'fetch',async (url,init)=>{
+  headers.push(init.headers.Authorization);
+  return Response.json({data:{id:'run1234567890',defaultDatasetId:'data1234567890',actId:'aYG0l9s7dbB7j3gbS',status:'RUNNING'}});
+ });
+ const exec={signal:new AbortController().signal};
+ for(const credentialId of [5,100]){
+  const start=await collectSiteInSession({}, {action:'start',url:'https://example.com/',credentialId},exec);
+  const status=await collectSiteInSession({}, {action:'status',runId:start.runId,credentialId},exec);
+  assert.equal(start.credentialId,credentialId);assert.equal(status.credentialName,'APIFY_TOKEN_'+credentialId);
+  assert(!JSON.stringify([start,status]).includes('SYNTHETIC_'));
+ }
+ assert.deepEqual(headers,['Bearer SYNTHETIC_FIVE','Bearer SYNTHETIC_FIVE','Bearer SYNTHETIC_HUNDRED','Bearer SYNTHETIC_HUNDRED']);
+});
+test('missing or invalid slots cannot fall back to another account',async t=>{
+ credentialEnvironment(t,{APIFY_TOKEN:'SYNTHETIC_LEGACY',APIFY_TOKEN_5:'SYNTHETIC_FIVE'});
+ let requests=0;t.mock.method(globalThis,'fetch',async()=>{requests++;throw Error('must not request');});
+ const exec={signal:new AbortController().signal};
+ const missing=await collectSiteInSession({}, {action:'start',url:'https://example.com/',credentialId:4},exec);
+ assert.equal(missing.reason,'APIFY_NOT_CONFIGURED');assert.equal(missing.requiredSecret,'APIFY_TOKEN_4');
+ for(const credentialId of [0,101,-1,1.5,'5']){
+  const invalid=await collectSiteInSession({}, {action:'start',url:'https://example.com/',credentialId},exec);
+  assert.equal(invalid.reason,'APIFY_CREDENTIAL_INVALID');
+ }
+ assert.equal(requests,0);
+});
+test('legacy default remains compatible and HTTP failures do not rotate selected tokens',async t=>{
+ credentialEnvironment(t,{APIFY_TOKEN:'SYNTHETIC_LEGACY',APIFY_TOKEN_1:'SYNTHETIC_ONE',APIFY_TOKEN_5:'SYNTHETIC_FIVE'});
+ const headers=[];let code=429;
+ t.mock.method(globalThis,'fetch',async (url,init)=>{headers.push(init.headers.Authorization);return new Response('',{status:code});});
+ const exec={signal:new AbortController().signal},args={action:'start',url:'https://example.com/'};
+ const legacy=await collectSiteInSession({},args,exec);assert.equal(legacy.credentialName,'APIFY_TOKEN');
+ delete process.env.APIFY_TOKEN;
+ const first=await collectSiteInSession({},args,exec);assert.equal(first.credentialId,1);
+ for(code of [403,429]){
+  const selected=await collectSiteInSession({}, {...args,credentialId:5},exec);
+  assert.equal(selected.httpStatus,code);assert.equal(selected.credentialId,5);
+ }
+ assert.deepEqual(headers,['Bearer SYNTHETIC_LEGACY','Bearer SYNTHETIC_ONE','Bearer SYNTHETIC_FIVE','Bearer SYNTHETIC_FIVE']);
 });
 
 import {openAuthoredArtifact} from '../src/authored-review.js';

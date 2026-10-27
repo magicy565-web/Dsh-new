@@ -1,6 +1,6 @@
 # 四技能驱动的杂志设计 · dsh-buyer-magazine
 
-**0.4.0 · DeepSeek Harness 原生插件**。四个技能指导当前 LLM 研究、编辑、艺术指导并直接编写 HTML/CSS/JavaScript。插件提供真实采集和文件审阅能力，不决定版面。
+**0.4.1 · DeepSeek Harness 原生插件**。四个技能指导当前 LLM 研究、编辑、艺术指导并直接编写 HTML/CSS/JavaScript。插件提供真实采集和文件审阅能力，不决定版面。
 
 0.3 的固定 Allbirds 模板被用户否定，不能作为设计验收样板。旧编译器仅保留给已有 Studio/模块输入兼容调用。
 
@@ -16,7 +16,7 @@ LLM 使用 DSH 原生 write/edit 创作文件。无需填写 issue JSON，没有
 ## 安装
 
 ```sh
-dsh plugin --profile web add /absolute/path/dsh-buyer-magazine-0.4.0.tgz
+dsh plugin --profile web add /absolute/path/dsh-buyer-magazine-0.4.1.tgz
 dsh web
 ```
 
@@ -34,11 +34,25 @@ dsh web
 
 ## 环境能力
 
-- Apify：在环境密钥面板配置 `APIFY_TOKEN`，目标 `api.apify.com`；也识别已有 `APIFY_TOKEN_1`。缺失时返回 `APIFY_NOT_CONFIGURED`，不静默切换采集器。每次最多 30 页、180 秒，默认费用上限 USD 1；宿主可通过 `apifyMaxChargeUsd` 配置，最高 USD 5。授权错误不轮换密钥绕过。
+- Apify：支持 `APIFY_TOKEN_1` 到 `APIFY_TOKEN_100`，每个 Token 单独绑定，目标均为 `api.apify.com`。`action:credentials` 仅返回当前已配置的编号；`credentialId` 明确选择账号，创建与查询同一 run 使用相同编号。配置存在不代表认证通过。缺失时返回 `APIFY_NOT_CONFIGURED`，不切换账号或采集器。每次最多 30 页、180 秒，默认费用上限 USD 1；宿主可通过 `apifyMaxChargeUsd` 配置，最高 USD 5。权限、额度或限流错误如实返回。
 - 审阅：宿主 Chromium、原生附件、支持图片输入的当前模型；PDF 页图另外需要 `pdfinfo`/`pdftoppm`。保留宿主代理与 TLS 信任。
 - FastAI、视频请求、VIP 和线索后端：仍需实际配置相应能力，原始参考脚本不自动执行，不把示例或占位值当作可用服务。
 
 用户提供的网站沿用其自有/已授权素材声明；自选第三方站点不继承商用授权。用户提供的材料或明确标注的合成设计测试可直接使用。缺少采集能力时报告真实缺项，不把未采集的作品称为网站研究成品。
+
+### 多个 Apify Token 的配置
+
+目前环境草稿声明了 `APIFY_TOKEN_1` 至 `APIFY_TOKEN_5` 五项。用户在环境密钥面板分别绑定值、保存并发布后生效；代码不保存密钥。后续按需增加 `_6` 至 `_100` 的绑定即可，不需要修改插件，也无需提前建立 100 个必填密钥项。
+
+旧 `APIFY_TOKEN` 继续兼容：未指定编号时优先读取它，不存在时读取 `_1`。使用编号方案不需要旧变量；草稿中的旧空项可由用户在设置中移除。显式编号不会回退到旧变量或其他编号。
+
+例如要求“用第 5 个 Apify 账号采集此网站”，模型调用：
+
+```json
+{"action":"start","credentialId":5,"url":"https://example.com/","maxPages":8}
+```
+
+获得 runId 后，使用 `{"action":"status","credentialId":5,"runId":"返回的真实 runId"}` 查询。工具不将 Token 值、前缀或哈希返回给模型。
 
 ## 兼容与验证
 

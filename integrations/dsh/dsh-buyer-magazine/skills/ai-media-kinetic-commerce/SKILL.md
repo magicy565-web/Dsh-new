@@ -12,7 +12,9 @@ resources before designing. Their methods are instructions for your decisions,
 not parameters for a fixed template.
 
 For a website request, call buyer_magazine_collect_site to run actual Apify
-collection and poll its runId. If it returns APIFY_NOT_CONFIGURED, report that
+collection and poll its runId with the same credentialId. Use action:credentials
+to discover configured account numbers; use the user's selected account, and
+retain the chosen credentialId with the runId. If it returns APIFY_NOT_CONFIGURED, report that
 specific missing capability. Do not silently substitute native web_fetch or call
 it an Apify run. A different collector requires the user's explicit choice.
 For user-provided research or a declared synthetic design exercise, use that

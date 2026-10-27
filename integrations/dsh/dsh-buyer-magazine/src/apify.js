@@ -1,6 +1,16 @@
 import {safePublicUrl} from '../upstream/src/schema.js';
 const API='https://api.apify.com/v2';
 const ACTOR='apify~website-content-crawler';
+const MAX_CREDENTIALS=100;
+/** Presence only: never expose token values, hashes or prefixes to the model. */
+export function apifyCredentials(environment=process.env){
+  const credentials=[];
+  for(let credentialId=1;credentialId<=MAX_CREDENTIALS;credentialId++){
+    const name='APIFY_TOKEN_'+credentialId;
+    if(environment[name])credentials.push({credentialId,name});
+  }
+  return {status:'listed',provider:'apify',capacity:MAX_CREDENTIALS,credentials,legacyDefaultConfigured:Boolean(environment.APIFY_TOKEN),defaultCredential:environment.APIFY_TOKEN?'APIFY_TOKEN':environment.APIFY_TOKEN_1?'APIFY_TOKEN_1':null};
+}
 const id=value=>typeof value==='string'&&/^[A-Za-z0-9]{10,40}$/.test(value);
 async function boundedJson(response){
   const parts=[];let size=0;
@@ -43,7 +53,13 @@ export async function collectWithApify(args,{token,fetchImpl=fetch,signal,maxCha
 }
 
 export async function collectSiteInSession(ctx,args,exec,config={}){
-  const result=await collectWithApify(args,{token:process.env.APIFY_TOKEN||process.env.APIFY_TOKEN_1,signal:exec.signal,maxChargeUsd:config.apifyMaxChargeUsd??1});
+  if(args.credentialId!==undefined&&(!Number.isInteger(args.credentialId)||args.credentialId<1||args.credentialId>MAX_CREDENTIALS))return {status:'blocked',provider:'apify',reason:'APIFY_CREDENTIAL_INVALID'};
+  if(args.action==='credentials')return apifyCredentials();
+  const credentialId=args.credentialId??(process.env.APIFY_TOKEN?null:1);
+  const credentialName=credentialId===null?'APIFY_TOKEN':'APIFY_TOKEN_'+credentialId;
+  const token=process.env[credentialName];
+  if(!token)return {status:'blocked',reason:'APIFY_NOT_CONFIGURED',requiredSecret:credentialName,credentialId,credentialName,provider:'apify'};
+  const result={...await collectWithApify(args,{token,signal:exec.signal,maxChargeUsd:config.apifyMaxChargeUsd??1}),credentialId,credentialName};
   if(result.status!=='collected')return result;
   const attachments=ctx.get?.('attachments');
   const dataset=attachments?await attachments.saveFile({data:Buffer.from(JSON.stringify(result,null,2)),name:'apify-'+result.runId+'.json'}):undefined;

@@ -12,7 +12,16 @@ run/dataset IDs, dated source content, image URLs and a native dataset attachmen
 Retain the dataset and source map; inspect relevant pages and original images.
 No fact becomes verified merely because the crawler returned it.
 
-The operator configures APIFY_TOKEN (APIFY_TOKEN_1 is also recognized). A missing
+Use action:credentials to list configured credential numbers without their values.
+The operator may configure APIFY_TOKEN_1 through APIFY_TOKEN_100. When the user
+selects an account, pass its credentialId (1..100) on start and every status call
+for that run. Record credentialId with runId in the native workspace. Presence
+does not prove remote authorization. Do not select a different account after a
+permission, quota or rate-limit failure. Omitted credentialId retains the legacy
+APIFY_TOKEN default, then slot 1 when the legacy variable is absent. An explicitly
+selected missing slot is blocked; it never falls back to another account.
+
+A missing
 credential returns APIFY_NOT_CONFIGURED before any request. Do not silently use
 web_fetch/Jina as an equivalent. Respect access failures and rate limits; do not
 rotate credentials to evade a denial. The original rotation script is preserved
