@@ -69,7 +69,14 @@ export async function collectWithApify(args,{token,fetchImpl=fetch,signal,maxCha
     const items=dataset.data;
     if(!Array.isArray(items)||items.some(item=>!item||typeof item!=='object'||Array.isArray(item)))return {status:'failed',...record,reason:'APIFY_DATASET_INVALID'};
     return {status:items.length?'collected':'blocked',...record,...items.length?{}:{reason:'APIFY_DATASET_EMPTY'},finishedAt:run.finishedAt??null,items};
-  }catch(error){signal?.throwIfAborted();return {status:starting?'unknown':'failed',provider:'apify',...record,reason:starting?'APIFY_START_OUTCOME_UNKNOWN':error.message==='APIFY_RESPONSE_TOO_LARGE'?error.message:'APIFY_REQUEST_FAILED'};}
+  }catch(error){
+    signal?.throwIfAborted();
+    // Only fixed transport codes may cross the boundary: exception messages can
+    // contain URLs, proxy credentials or request headers.
+    const code=error?.cause?.code??error?.code;
+    const transportCode=['ECONNREFUSED','ENOTFOUND','EAI_AGAIN','ETIMEDOUT','ENETUNREACH','UND_ERR_CONNECT_TIMEOUT','CERT_HAS_EXPIRED','UNABLE_TO_VERIFY_LEAF_SIGNATURE'].includes(code)?code:null;
+    return {status:starting?'unknown':'failed',provider:'apify',...record,reason:starting?'APIFY_START_OUTCOME_UNKNOWN':error.message==='APIFY_RESPONSE_TOO_LARGE'?error.message:'APIFY_REQUEST_FAILED',...transportCode?{transportCode}:{}};
+  }
 }
 
 export async function collectSiteInSession(ctx,args,exec,config={}){

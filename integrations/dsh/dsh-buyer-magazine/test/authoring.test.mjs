@@ -4,6 +4,18 @@ import {apifyCredentials,collectWithApify,collectSiteInSession} from '../src/api
 import {magazineTools} from '../src/tools.js';
 const limits=()=>Response.json({data:{limits:{maxMonthlyUsageUsd:10},current:{monthlyUsageUsd:2},monthlyUsageCycle:{startAt:'2026-10-01T00:00:00Z',endAt:'2026-11-01T00:00:00Z'}}});
 
+test('transport diagnostics disclose only allowlisted codes, never exception text',async()=>{
+ for(const code of ['ENETUNREACH','PRIVATE_SECRET']){
+  let requests=0;
+  const result=await collectWithApify({action:'preflight'},{token:'SYNTHETIC_TOKEN',fetchImpl:async()=>{
+   requests++;throw new Error('private URL and credential',{cause:{code}});
+  }});
+  assert.equal(requests,1);assert.equal(result.reason,'APIFY_REQUEST_FAILED');
+  assert.equal(result.transportCode,code==='ENETUNREACH'?code:undefined);
+  assert(!JSON.stringify(result).includes('private'));assert(!JSON.stringify(result).includes('PRIVATE_SECRET'));
+ }
+});
+
 test('design preset offers collection and authored-file review, not a fixed generator',()=>{
  const names=magazineTools({}).map(t=>t.name);
  assert.deepEqual(names,['buyer_magazine_collect_site','buyer_magazine_review_artifact']);
