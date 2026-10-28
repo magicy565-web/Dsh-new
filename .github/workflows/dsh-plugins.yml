@@ -33,3 +33,10 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npm run test:client
+      - run: npm run package:commerce-business
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commerce-business-candidate
+          path: dist/commerce-business/
+          if-no-files-found: error
+          retention-days: 7
