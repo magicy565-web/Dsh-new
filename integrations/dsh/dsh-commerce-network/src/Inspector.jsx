@@ -5,13 +5,14 @@ import {KINDS,ACTION_LABELS,EDGE_LABELS,money,timestamp,selectedRecord,eventLabe
 import {safeUrl,callApi,unwrap,errorText} from './api.mjs';
 
 export function Dialog({title,children,onClose,footer,wide=false}) {
-  const ref=useRef(null);
+  const ref=useRef(null),closeRef=useRef(onClose);
+  closeRef.current=onClose;
   useEffect(()=>{
     const previous=document.activeElement;
     const focusable=()=>[...ref.current?.querySelectorAll('button,input,select,textarea,a[href],[tabindex="0"]')||[]].filter(el=>!el.disabled);
     focusable()[0]?.focus();
     const key=event=>{
-      if(event.key==='Escape'){event.preventDefault();onClose();}
+      if(event.key==='Escape'){event.preventDefault();closeRef.current();}
       if(event.key==='Tab'){
         const items=focusable(),first=items[0],last=items[items.length-1];
         if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
@@ -20,7 +21,7 @@ export function Dialog({title,children,onClose,footer,wide=false}) {
     };
     ref.current?.addEventListener('keydown',key);
     return ()=>{ref.current?.removeEventListener('keydown',key);if(previous?.isConnected)previous.focus();};
-  },[onClose]);
+  },[]);
   return <div className="cn-modal-shade" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><section ref={ref} className={`cn-modal${wide?' cn-modal-wide':''}`} role="dialog" aria-modal="true" aria-label={title}><header><h2>{title}</h2><button className="cn-icon-button" aria-label="关闭" onClick={onClose}><X size={18}/></button></header><div className="cn-modal-body">{children}</div>{footer&&<footer>{footer}</footer>}</section></div>;
 }
 

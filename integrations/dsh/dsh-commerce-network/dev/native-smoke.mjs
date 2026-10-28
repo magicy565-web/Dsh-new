@@ -41,6 +41,13 @@ try {
   });
   const state = () => service.state(sessionId, plan.projectId);
   const command = (name, payload) => service.command(sessionId, { projectId: plan.projectId, expectedRevision: state().revision, requestId: randomUUID(), command: name, payload });
+  await execute('commerce_network_propose_business_mandate', {
+    projectId:plan.projectId, expectedRevision:state().revision, requestId:'native-business', id:'business', title:'Synthetic sourcing agreement', principalPartyId:'factory', operatorPartyId:'provider', marketCode:'US', scope:'Synthetic verification only', workOrderIds:['order'],
+    businessTerms:{version:1,mode:'sourcing_commission',currency:'USD',startDate:'2026-01-01',endDate:'2099-12-31',fixedFeeMinor:null,monthlyFeeMinor:null,aiCredits:{payer:'operator',policy:'Operator covers test usage'},commission:{rateBps:500,basis:'net_collected_goods',trigger:'verified_collection',refundRule:'proportional_reversal'},agreementEvidence:'Synthetic native tool acceptance'},
+  });
+  assert.equal(state().commerceNetwork.salesAuthorizations[0].status,'proposed');
+  await command('approve_mandate',{mandateId:'business'});
+  assert.equal(state().commerceNetwork.salesAuthorizations[0].billingStatus,'not_connected');
   const issued = await command('issue_agent_credential', { agentServiceId: 'worker' });
   server = createServer(createWorkerHandler(service)); server.listen(0, '127.0.0.1'); await once(server, 'listening');
   worker = fork(new URL('./worker-process.mjs', import.meta.url), [], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });

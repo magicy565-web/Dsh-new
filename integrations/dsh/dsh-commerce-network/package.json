@@ -1,6 +1,6 @@
 {
   "name": "dsh-commerce-network",
-  "version": "1.1.0-rc.2",
+  "version": "1.2.0-rc.1",
   "private": true,
   "type": "module",
   "description": "Native DSH commerce canvas and scoped third-party Personal Worker delegation",

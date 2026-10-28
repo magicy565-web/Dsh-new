@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { makeWorkOrderProposal, applyWorkOrderEvent, validateMandateTerms } from '@workspace-agent/domain-commerce-network';
+import { makeWorkOrderProposal, applyWorkOrderEvent, validateMandateTerms, validateBusinessTerms, businessTermStatus } from '@workspace-agent/domain-commerce-network';
 
 export class CommerceError extends Error {
   constructor(code, message, status = 400) { super(message); this.code = code; this.status = status; }
@@ -141,7 +141,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       })),
       commerceNetwork: { projectId: selected, revision: state.revision,
         parties: state.parties.filter(belongs), agentServices: state.agents.filter(belongs).map(publicAgent),
-        salesAuthorizations: state.mandates.filter(belongs), grants: state.grants.filter(belongs).map(({ resources, ...g }) => ({ ...g, resourceRefs: resources.map(r => r.ref) })),
+        salesAuthorizations: state.mandates.filter(belongs).map(m => m.businessTerms ? { ...m, effectiveStatus: businessTermStatus(m, now()), billingStatus: 'not_connected' } : m), grants: state.grants.filter(belongs).map(({ resources, ...g }) => ({ ...g, resourceRefs: resources.map(r => r.ref) })),
         workOrders: state.workOrders.filter(belongs).map(({ appliedEvents, ...o }) => ({ ...o,
           dependencyStates: (o.dependsOn ?? []).map(id => { const previous = state.workOrders.find(w => w.id === id); return { id, title: previous?.title ?? id, status: previous?.status ?? 'missing' }; }),
           dispatchReady: o.status === 'authorized' && (o.dependsOn ?? []).every(id => state.workOrders.find(w => w.id === id)?.status === 'accepted') && state.agents.find(a => a.id === o.agentServiceId)?.status === 'connected' })),
@@ -296,6 +296,52 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     if (payload.terms) mandate.terms = validateMandateTerms(payload.terms, state.products.filter(p => productIds.includes(p.id) && p.projectId === projectId), now());
     state.mandates.push(mandate); return mandate;
   }
+  function commercialTerms(value, complete = false) {
+    try { return validateBusinessTerms(value, { complete, now: now() }); }
+    catch (error) { if (/^BUSINESS_/.test(error.message)) fail(error.message, '商业条款不完整或与所选模式冲突，请核对日期、费用、AI 用量和佣金约定。'); throw error; }
+  }
+  function businessFields(state, projectId, payload) {
+    const terms = commercialTerms(payload.businessTerms);
+    const principal = state.parties.find(p => p.id === payload.principalPartyId && p.projectId === projectId);
+    const operator = state.parties.find(p => p.id === payload.operatorPartyId && p.projectId === projectId && p.type === 'provider');
+    if (!principal || !operator || principal.id === operator.id || (terms.mode === 'factory_sales' && principal.type !== 'factory') || (terms.mode === 'channel_subscription' && principal.type !== 'distributor')) fail('BUSINESS_PARTY_INVALID', '请选择本项目内符合业务模式的委托方和独立服务方。');
+    const references = (name, rows) => {
+      const ids = array(payload[name] ?? [], name, 100).map(v => identifier(v));
+      if (new Set(ids).size !== ids.length || ids.some(id => !rows.some(r => r.id === id && r.projectId === projectId))) fail('BUSINESS_REFERENCE_INVALID', '关联记录重复或不属于当前项目。');
+      return [...ids];
+    };
+    const productIds = references('productIds', state.products);
+    const routeIds = references('routeIds', state.routes);
+    const workOrderIds = references('workOrderIds', state.workOrders);
+    return { title: text(payload.title, 'title'), principalPartyId: principal.id, operatorPartyId: operator.id,
+      marketCode: text(payload.marketCode, 'marketCode', 40), scope: text(payload.scope, 'scope', 4000),
+      productIds, routeIds, workOrderIds, businessTerms: terms,
+      productPins: productIds.map(id => { const p = state.products.find(p => p.id === id && p.projectId === projectId); return { id, version: p.version, sourceRef: p.sourceRef ?? null }; }) };
+  }
+  function saveBusinessMandate(state, projectId, payload, amendment = false) {
+    assertKeys(payload, [amendment ? 'mandateId' : 'id', 'title', 'principalPartyId', 'operatorPartyId', 'marketCode', 'scope', 'productIds', 'routeIds', 'workOrderIds', 'businessTerms']);
+    const previous = amendment ? state.mandates.find(m => m.id === payload.mandateId && m.projectId === projectId && m.businessTerms) : null;
+    if (amendment && (!previous || previous.status === 'revoked')) fail('MANDATE_NOT_FOUND', '只能修改本项目未撤销的业务委托。');
+    const fields = businessFields(state, projectId, payload);
+    if (fields.businessTerms.version !== (previous?.businessTerms.version ?? 0) + 1) fail('REVISION_CONFLICT', '请读取当前委托后创建下一条款版本。', 409);
+    if (previous) {
+      const { history, ...snapshot } = previous;
+      previous.history = [...(history ?? []), structuredClone(snapshot)];
+      Object.assign(previous, fields, { status: 'proposed', revision: previous.revision + 1, updatedAt: iso() });
+      delete previous.approvalReceiptId; delete previous.approvedAt; delete previous.approvedBy;
+      return previous;
+    }
+    const id = payload.id ? identifier(payload.id) : generated('mandate');
+    if (state.mandates.some(m => m.id === id)) fail('ID_CONFLICT', '委托编号已存在。', 409);
+    const value = { id, projectId, ...fields, status: 'proposed', revision: 1, createdAt: iso(), legalSignature: false };
+    state.mandates.push(value); return value;
+  }
+  function reviewBusinessMandate(state, mandate) {
+    commercialTerms(mandate.businessTerms, true);
+    const fields = businessFields(state, mandate.projectId, mandate);
+    if (mandate.businessTerms.mode === 'factory_sales' && !mandate.productIds.length) fail('BUSINESS_PRODUCT_REQUIRED', '工厂代运营审核前需关联产品。');
+    if (canonical(fields.productPins) !== canonical(mandate.productPins)) fail('BUSINESS_PRODUCT_CHANGED', '产品版本已变化，请修改委托并重新核对。', 409);
+  }
   function resourceSnapshots(state, projectId, refs, scope) {
     return refs.map(ref => {
       if (ref.startsWith('accepted_deliverable:')) {
@@ -378,7 +424,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     log(scope, 'work_order.cancel_requested', o.id, LIVE.has(o.status) ? 'Stop requested; waiting for a real worker acknowledgement.' : 'Work order cancelled before execution.');
   }
   function ownerOnly(scope) { if (scope.kind !== 'owner') fail('OWNER_ACTION_REQUIRED', 'This action requires an explicit decision in the authenticated canvas.', 403); }
-  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute']);
+  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute', 'amend_business_mandate']);
   function applyCommand(scope, input) {
     assertKeys(input, ['projectId', 'expectedRevision', 'requestId', 'command', 'payload']);
     text(input.command, 'command', 80); const payload = input.payload ?? {};
@@ -412,9 +458,14 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       else if (input.command === 'upsert_route') { const r = upsertRoute(state, projectId, payload); log(scope, 'route.recorded', r.id, 'Planned sales channel recorded; account not connected.'); }
       else if (input.command === 'propose_order') { const o = proposeOrder(state, projectId, payload); validateDependencies(state, projectId); log(scope, 'work_order.proposed', o.id, 'Service task proposed for owner review.'); }
       else if (input.command === 'propose_mandate') { const m = proposeMandate(state, projectId, payload); log(scope, 'mandate.proposed', m.id, 'Factory-distributor relationship proposed with explicit product/market scope.'); }
+      else if (input.command === 'propose_business_mandate' || input.command === 'amend_business_mandate') {
+        const amended = input.command === 'amend_business_mandate';
+        const m = saveBusinessMandate(state, projectId, payload, amended);
+        log(scope, amended ? 'business_mandate.amended' : 'business_mandate.proposed', m.id, 'Commercial terms recorded for owner review. No billing, commission accrual, task dispatch or data grant.');
+      }
       else if (input.command === 'amend_mandate') {
         assertKeys(payload, ['mandateId', 'terms']); const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);
-        if (!m || m.status === 'revoked') fail('MANDATE_NOT_FOUND', 'Active or proposed mandate required.');
+        if (!m || m.businessTerms || m.status === 'revoked') fail('MANDATE_NOT_FOUND', 'Active or proposed mandate required.');
         const terms = validateMandateTerms(payload.terms, state.products.filter(p => m.productIds.includes(p.id) && p.projectId === projectId), now());
         if (terms.version !== (m.terms?.version ?? 0) + 1) fail('REVISION_CONFLICT', 'Create the next terms version.');
         m.history ??= []; m.history.push({ revision: m.revision, terms: m.terms ?? null, status: m.status, approvalReceiptId: m.approvalReceiptId ?? null });
@@ -438,6 +489,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
         assertKeys(payload, ['mandateId']); const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);
         if (!m) fail('MANDATE_NOT_FOUND', 'Sales mandate not found.', 404);
         if (input.command === 'approve_mandate') {
+          if (m.businessTerms) reviewBusinessMandate(state, m);
           if (m.terms) validateMandateTerms(m.terms, state.products.filter(p => m.productIds.includes(p.id) && p.projectId === projectId), now());
           if (m.status !== 'proposed') fail('MANDATE_STATE', 'Only a proposed mandate can be approved.', 409);
           m.status = 'active'; m.approvalReceiptId = generated('mandate_approval'); m.approvedAt = iso(); m.approvedBy = scope.actor;
@@ -531,6 +583,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       for (const a of state.agents.filter(a => a.projectId === input.projectId)) allowed.add(`personal_agent:${a.id}`);
       for (const o of state.workOrders.filter(o => o.projectId === input.projectId)) allowed.add(`service_order:${o.id}`);
       if (tradeFacts) { const facts = tradeFacts; for (const [kind, rows] of [['rfq',facts.rfqs],['quote',facts.quotes],['buyer',facts.buyers],['erp_order',facts.orders],['sample',facts.samples]]) for (const row of rows) allowed.add(`${kind}:${row.id}`); }
+      for (const m of state.mandates.filter(m => m.projectId === input.projectId && m.businessTerms)) allowed.add(`business_mandate:${m.id}`);
       const seen = new Set();
       const nodes = array(input.nodes, 'nodes', 3000).map(n => {
         assertKeys(n, ['id', 'position']); assertKeys(n.position, ['x', 'y']);

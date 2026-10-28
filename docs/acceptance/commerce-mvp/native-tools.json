@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "officialToolRuntime": true,
+  "nativePluginLoaded": true,
+  "independentProcessGateway": true,
+  "actualStoredBytes": true,
+  "ownerAcceptance": true,
+  "modelCalls": 0,
+  "records": "explicit-synthetic-fixtures",
+  "scope": "Official Cordis+ToolRuntime with fixture session/registry, real SQLite, HTTP and external worker process. Separate live Host/browser acceptance is required."
+}

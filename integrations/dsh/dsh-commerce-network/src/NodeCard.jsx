@@ -3,7 +3,7 @@ import {Handle,Position} from '@xyflow/react';
 import {Factory,UserRound,Network,Bot,Package,Globe2,Store,ClipboardCheck,ContactRound,ReceiptText,ShoppingBag,ShieldCheck,FileText,ArrowUpRight,Check,ExternalLink} from 'lucide-react';
 import {KINDS,STATUSES,statusTone,money} from './model.mjs';
 import {safeUrl} from './api.mjs';
-export const ICONS={factory:Factory,distributor:UserRound,personal_agent:Bot,service_order:ClipboardCheck,product:Package,market:Globe2,channel:Store,worker:Network,buyer:ContactRound,quote:ReceiptText,order:ShoppingBag,approval:ShieldCheck,evidence:FileText};
+export const ICONS={business_mandate:FileText,factory:Factory,distributor:UserRound,personal_agent:Bot,service_order:ClipboardCheck,product:Package,market:Globe2,channel:Store,worker:Network,buyer:ContactRound,quote:ReceiptText,order:ShoppingBag,approval:ShieldCheck,evidence:FileText};
 export function KindIcon({kind,size=18,...props}) {const Icon=ICONS[kind]||Network;return <Icon size={size} strokeWidth={1.7} {...props}/>;}
 export function Status({value}){return <span className={`cn-status cn-tone-${statusTone(value)}`}><i/>{STATUSES[value]||'待核对'}</span>;}
 function Facts({item}) {

@@ -50,6 +50,8 @@ export function validateMandateTerms(terms, products, now) {
 // Customer attribution alone does not authorize every product or market.
 // Resolve against the exact accepted quote version linked to the ERP order.
 export function mandateCoversOrder(mandate, order, now) {
+  // New commercial terms are not yet a settlement authorization.
+  if (mandate?.businessTerms) return false;
   const terms = mandate?.terms,
     quote = order?.quoteRef;
   const product = quote?.productRef,

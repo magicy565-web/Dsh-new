@@ -57,5 +57,5 @@ export function watchNativeCommerce(source,onChange) {
 
 export function nativeInstruction(projectId,text,selection) {
   const reference=selection?`当前选中节点 ${selection.id}，业务引用 ${selection.refId}（${selection.kind}）。`:'';
-  return `${text}\n\n[Commerce Network 当前画布上下文]\n项目：${projectId||'尚未创建'}。${reference}\n请用 commerce_network_read 读取当前会话工作区，再使用 commerce_network_plan 或 commerce_network_propose_order 提交可追溯的业务计划。保留已有业务记录和手动布局。缺失的资料应在当前对话中询问。第三方 Agent 自报能力不能当作已核验。未获得批准的委托保持 proposed，不发送消息、不报价、不扣费。commerce_network_dispatch 只能在真实批准和连接核验完成后调度原生任务。`;
+  return `${text}\n\n[Commerce Network 当前画布上下文]\n项目：${projectId||'尚未创建'}。${reference}\n请用 commerce_network_read 读取当前会话工作区，再使用 commerce_network_plan、commerce_network_propose_business_mandate 或 commerce_network_propose_order 提交可追溯的业务计划。保留已有业务记录和手动布局。缺失的资料应在当前对话中询问。第三方 Agent 自报能力不能当作已核验。未获得批准的委托保持 proposed，不发送消息、不报价、不扣费。commerce_network_dispatch 只能在真实批准和连接核验完成后调度原生任务。`;
 }

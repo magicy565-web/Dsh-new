@@ -108,3 +108,30 @@ allowRemoteIngress: false
 4. 远端 Actions 的启动失败仍是独立问题；需要仓库管理员可见的账单/配额/组织策略或进一步 runner 信息才能确定原因。
 
 这是一份可安装、可审阅的候选实现，不自动发布到生产或替换用户现有数据。
+
+## 业务流 MVP 第一批：三种委托模式（Commerce 1.2.0-rc.1）
+
+本批在上一版实现上增量开发，复用 `commerce_state.mandates`、原生会话、Owner API、工单、产品引用和交付物；不新增登录、Agent 循环、任务账本或计费引擎。原有 factory→distributor 销售授权 `.terms` 及客户归属继续保留，新业务委托使用独立的 `.businessTerms` 字段。
+
+| 模式 | 商业条款 | 约束 |
+| --- | --- | --- |
+| 工厂海外销售代运营 | 固定委托费、委托方承担的 AI 用量约定、销售佣金 | 不收月订阅费；审核前至少关联一个产品 |
+| 渠道／代发／Creator 经营 | 月订阅费、AI 用量承担方和约定 | 不收固定委托费和佣金；多供应商履约留待后续批次 |
+| 采购代理／中介服务 | 佣金、服务方承担 AI 用量 | 不向委托方收固定费、订阅费或 AI 费用；佣金比例必须大于零 |
+
+入口：官方 Web 宿主的 **Commerce Network → 业务委托**。空工作区可创建项目；登记工厂／渠道商／服务方后，新建委托，填写范围、有效期、费用和协议依据，关联已有产品／渠道／工单，保存待审核版本。选择记录后可查看关联交付、核对并审核、修改条款或撤销。业务委托节点可点击查看详情，并保存画布布局。
+
+未知费用以 `null` 保存，明确免费为 `0`；金额使用整数最小货币单位，佣金比例为整数基点。草稿允许未约定的费用、日期和协议依据，审核要求完整且未过期。结束日期包含 UTC 当天；已批准但未到开始日期为“待生效”，超过结束日期为“已到期”。本批支持 USD、EUR、GBP、CNY。
+
+新增原生工具 `commerce_network_propose_business_mandate` 只能提议。Owner 使用 `approve_mandate` 审核；`amend_business_mandate` 保存完整历史快照、递增条款版本并撤掉旧批准状态。审批按当前工作区 revision 进行 CAS 检查，产品版本变化要求修改后重新审核。UI 锁定实际审阅的版本；不确定的写入在当前浏览器 sessionStorage 中保留原始请求，重试使用相同 requestId、revision 和内容。取消会话中的请求不会推断服务端回滚，重新打开该会话可核对原请求结果。
+
+**本批收费只记录条款，不创建账单、自动续订、扣 AI Credits、收款或佣金计提。** 新业务委托明确不进入旧 ChannelLedger 的佣金计算路径，防止与原销售授权重复计提。关联工单仅用于业务组织，不自动授权执行、披露产品、共享交付或改变工单预算；批准、修改和撤销业务委托都不会代替工单独立审批／停止流程。协议依据由用户填写，不构成电子签署或第三方身份验证。
+
+### 兼容、升级和源码入口
+
+- 本批 Commerce JSON 状态新增可选字段，无破坏性 SQL 迁移；旧 mandates 和工单不改写。已有七包安装时仅升级 Commerce 也可使用新入口；全套 tarball 仍由同一打包命令生成。涉及之前 ERP v4 升级时仍遵循上文的完整备份要求。
+- 商业规则：`packages/domain-commerce-network/src/business-mandate.mjs`。
+- 服务与原生工具：`integrations/dsh/dsh-commerce-network/{service.js,index.js,http.js}`。
+- UI 与画布：`src/Mandates.jsx`、`src/projection/network.mjs`、`src/CommerceApp.jsx`。
+- 专项测试：`test/business-mandate.test.mjs`、`dev/business-mandate-smoke.mjs`；已纳入 `npm run check` 和 `npm run test:client`。
+- 下一批：可审计的账单／订阅／Credits 计量、多供应商接单与履约、可退款的佣金结算。没有把这些未完成能力标为上线可用。

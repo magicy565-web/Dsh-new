@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "officialHost": "@deepseek-ai/dsh@0.2.1-rc.3",
+  "packageVersion": "1.2.0-rc.1",
+  "actualNativeSession": true,
+  "actualOwnerHttp": true,
+  "syntheticFixture": true,
+  "restartPreserved": true,
+  "checks": [
+    "native-installed-client",
+    "party-registration-ui",
+    "all-three-modes-create-and-owner-review",
+    "fixed-monthly-and-commission-terms",
+    "product-references",
+    "amendment-preserves-history-and-resets-approval",
+    "business-canvas-node-opens-terms",
+    "saved-business-node-layout",
+    "430px-dialog",
+    "no-automatic-charges-or-grants"
+  ],
+  "observed": {
+    "mandates": 3,
+    "accruedMinor": 0,
+    "reservedMinor": 0,
+    "externalMessages": 0,
+    "modelCalls": 0
+  },
+  "pageErrors": []
+}

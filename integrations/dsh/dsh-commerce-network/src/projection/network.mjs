@@ -8,7 +8,7 @@ import { buildSalesGraph } from './graph.mjs';
  * project-scoped, field-redacted projection. Client project IDs and filters do
  * not provide tenant isolation. No record here grants authority to dispatch.
  */
-export const COMMERCE_NODE_KINDS = Object.freeze(['factory', 'distributor', 'personal_agent', 'service_order']);
+export const COMMERCE_NODE_KINDS = Object.freeze(['factory', 'distributor', 'personal_agent', 'service_order', 'business_mandate']);
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 const validNodeId = value => {
   if (typeof value !== 'string') return false;
@@ -86,6 +86,7 @@ export function buildCommerceGraph(workspace, projectId, savedLayout = null) {
     {x:1130,y:110+i*275});
   });
   stable(objects(network.salesAuthorizations).filter(a=>a.projectId===projectId&&validId(a.id))).forEach(a=>{
+    if(a.businessTerms)return;
     if(partyMap.get(a.factoryPartyId)?.type!=='factory'||partyMap.get(a.distributorPartyId)?.type!=='distributor'){
       graph.warnings.push({code:'NETWORK_AUTHORIZATION_INVALID_PARTY',recordId:a.id});return;
     }
@@ -110,6 +111,12 @@ export function buildCommerceGraph(workspace, projectId, savedLayout = null) {
     link(`requested:${o.id}`,source,order,'service_requested',state);
     link(`assigned:${o.id}`,order,target,state==='proposed'||state==='blocked'?'service_proposed':'service_delegated',state);
     if(state==='blocked')graph.warnings.push({code:'NETWORK_WORK_ORDER_UNVERIFIED_STATE',recordId:o.id});
+  });
+  stable(objects(network.salesAuthorizations).filter(a=>a.projectId===projectId&&validId(a.id)&&a.businessTerms)).forEach((a,i)=>{
+    push('business_mandate',a.id,{title:label(a.title,'业务委托'),subtitle:`商业条款 · v${a.businessTerms.version}`,status:a.effectiveStatus||a.status,info:{marketCode:a.marketCode,stage:a.scope},evidenceIds:[a.approvalReceiptId].filter(validId)},{x:300,y:-300-i*230});
+    const root=`business_mandate:${a.id}`,principal=partyMap.get(a.principalPartyId);
+    if(principal)link(`principal:${a.id}`,`${principal.type}:${principal.id}`,root,'business_link',a.status);
+    for(const [kind,ids] of [['product',a.productIds],['route',a.routeIds],['service_order',a.workOrderIds]])for(const id of ids||[])link(`business:${a.id}:${kind}:${id}`,root,`${kind}:${id}`,'business_link',a.status);
   });
   graph.nodes.sort((a,b)=>a.id.localeCompare(b.id));
   graph.edges.sort((a,b)=>a.id.localeCompare(b.id));
