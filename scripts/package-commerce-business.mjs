@@ -21,7 +21,7 @@ const destination = resolve(
 );
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
 const names = only
-  ? [only]
+  ? only.split(",")
   : [
       "dsh-workspace-library",
       "dsh-mini-erp",
@@ -72,6 +72,10 @@ for (const name of names) {
       join(stage, "COMMERCE-BUSINESS-IMPLEMENTATION.md"),
     );
     manifest.files = [...manifest.files, "COMMERCE-BUSINESS-IMPLEMENTATION.md"];
+    if (['dsh-service-billing','dsh-commerce-network'].includes(name)) {
+      await cp(join(root,'docs/SERVICE-BILLING-IMPLEMENTATION.md'),join(stage,'SERVICE-BILLING-IMPLEMENTATION.md'));
+      manifest.files.push('SERVICE-BILLING-IMPLEMENTATION.md');
+    }
     manifest.dependencies = {};
     delete manifest.devDependencies;
     delete manifest.scripts;

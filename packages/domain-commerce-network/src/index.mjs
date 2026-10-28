@@ -128,3 +128,5 @@ export function applyWorkOrderEvent(order,event,{role,actorPartyId,agentServiceI
 
 export { validateMandateTerms, mandateCoversOrder } from './partner.mjs';
 export { BUSINESS_MODES, BUSINESS_CURRENCIES, validateBusinessTerms, businessTermStatus } from './business-mandate.mjs';
+
+export { serviceBillTerms } from './service-billing.mjs';

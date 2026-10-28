@@ -1,3 +1,4 @@
+import { ServiceBilling } from "./ServiceBilling.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Dialog } from "./Inspector.jsx";
 import { callApi, stateFrom, requestId, errorText } from "./api.mjs";
@@ -89,8 +90,8 @@ export function BusinessSummary({ record, state }) {
         ))}
       </dl>
       <p>
-        收费尚未接通；审核仅确认条款，不是法律签署。关联记录不授予 Agent
-        权限，修改或撤销委托不会自动停止已有工单。
+        商业条款审核不扣款；服务账单另行记录。审核仅确认条款，不是法律签署。关联记录不授予
+        Agent 权限，修改或撤销委托不会自动停止已有工单。
       </p>
       <h4>关联交付</h4>
       {(state.deliverables || [])
@@ -396,6 +397,7 @@ export function Mandates({ state, sessionId, onClose, onChanged, initialId }) {
     lifetime.current = controller;
     return () => controller.abort();
   }, []);
+  const [billingRecord, setBillingRecord] = useState(null);
   const storageKey = `commerce-business-pending:${sessionId}:${state.workspaceId}`;
   const [pending, setPending] = useState(() => {
     try {
@@ -462,6 +464,17 @@ export function Mandates({ state, sessionId, onClose, onChanged, initialId }) {
       command: name,
       payload,
     });
+  if (billingRecord)
+    return (
+      <ServiceBilling
+        key={billingRecord.id}
+        sessionId={sessionId}
+        workspaceId={state.workspaceId}
+        projectId={state.projectId}
+        mandate={billingRecord}
+        onClose={() => setBillingRecord(null)}
+      />
+    );
   return (
     <Dialog
       wide
@@ -481,7 +494,8 @@ export function Mandates({ state, sessionId, onClose, onChanged, initialId }) {
     >
       <div className="cn-business">
         <p>
-          同一 Agent 底座，三种业务模式。条款与工单分别审核，所有收费尚未接通。
+          同一 Agent
+          底座，三种业务模式。条款与工单分别审核，服务账单可由独立计费插件登记，自动扣款尚未接通。
         </p>
         {error && (
           <p role="alert" className="cn-danger-text">
@@ -637,6 +651,12 @@ export function Mandates({ state, sessionId, onClose, onChanged, initialId }) {
               ) : record ? (
                 <>
                   <BusinessSummary record={record} state={state} />
+                  <button
+                    className="cn-button"
+                    onClick={() => setBillingRecord(structuredClone(record))}
+                  >
+                    服务账单与对账
+                  </button>
                   {record.status !== "revoked" && (
                     <>
                       <button

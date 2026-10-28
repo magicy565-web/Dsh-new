@@ -22,6 +22,7 @@ const directories = [
   'integrations/dsh/dsh-quote-guard/test',
   'integrations/dsh/dsh-sample-flow/test',
   'integrations/dsh/dsh-channel-ledger/test',
+  'integrations/dsh/dsh-service-billing/test',
   'packages/domain-rfq/test',
   'packages/domain-quote/test',
 ];
