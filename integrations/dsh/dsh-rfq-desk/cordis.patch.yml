@@ -1,0 +1,4 @@
+- insert:
+    - id: rfq-desk
+      name: dsh-rfq-desk
+      config: {}

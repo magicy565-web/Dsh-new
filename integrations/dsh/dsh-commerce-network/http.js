@@ -1,8 +1,9 @@
+import { isBusinessError } from '@workspace-agent/dsh-commerce-contracts';
 import { CommerceError, assertKeys, fail } from './service.js';
 
 export const API_PREFIX = '/commerce-network-api';
 export const WORKER_PREFIX = '/commerce-worker-api';
-const OWNER_COMMANDS = new Set(['create_project', 'upsert_party', 'register_agent', 'upsert_product', 'upsert_route', 'propose_order', 'propose_mandate', 'approve_mandate', 'revoke_mandate', 'approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'resolve_failed_order']);
+const OWNER_COMMANDS = new Set(['create_project', 'upsert_party', 'register_agent', 'upsert_product', 'upsert_route', 'propose_order', 'propose_mandate', 'approve_mandate', 'revoke_mandate', 'approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute']);
 const WORKER_ACTIONS = new Set(['connect', 'claim', 'heartbeat', 'status', 'deliver', 'stopped', 'resources']);
 
 async function readJson(req, maximum = 256 * 1024) {
@@ -30,7 +31,7 @@ function send(res, status, value) {
   res.end(JSON.stringify(value));
 }
 function report(res, error) {
-  const known = error instanceof CommerceError || (error?.name === 'Error' && typeof error.code === 'string' && error.code.startsWith('RESOURCE_') && Number.isInteger(error.status));
+  const known = isBusinessError(error) || error instanceof CommerceError || (error?.name === 'Error' && typeof error.code === 'string' && error.code.startsWith('RESOURCE_') && Number.isInteger(error.status));
   // Never log the request/body/Bearer credential or unknown exception details.
   send(res, known ? error.status : 500, { ok: false, error: { code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Operation failed. Refresh the current records before retrying.' } });
 }
@@ -48,6 +49,9 @@ export function createHttpHandler(service, { authorize } = {}) {
       if (req.method === 'GET' && path === '/workspace') {
         if ([...url.searchParams.keys()].some(k => !['sessionId', 'projectId'].includes(k))) fail('INPUT', 'Unsupported query fields.');
         data = await service.state(url.searchParams.get('sessionId'), url.searchParams.get('projectId') || undefined);
+      } else if (req.method === 'GET' && path === '/trade') {
+        if ([...url.searchParams.keys()].some(k => !['sessionId', 'projectId'].includes(k))) fail('INPUT', 'Unsupported query fields.');
+        data = service.trade(url.searchParams.get('sessionId'), url.searchParams.get('projectId'));
       } else if (req.method === 'GET' && path === '/review') {
         if ([...url.searchParams.keys()].some(k => !['sessionId', 'projectId', 'orderId'].includes(k))) fail('INPUT', 'Unsupported query fields.');
         data = await service.review(url.searchParams.get('sessionId'), url.searchParams.get('projectId'), url.searchParams.get('orderId'));

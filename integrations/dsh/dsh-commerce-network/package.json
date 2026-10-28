@@ -1,17 +1,49 @@
 {
   "name": "dsh-commerce-network",
-  "version": "1.0.0-rc.1",
+  "version": "1.1.0-rc.1",
   "private": true,
   "type": "module",
   "description": "Native DSH commerce canvas and scoped third-party Personal Worker delegation",
-  "engines": { "node": ">=24" },
-  "exports": { ".": "./index.js", "./client": "./client.js", "./worker-client": "./worker-client.mjs" },
-  "files": ["index.js", "service.js", "store.js", "http.js", "resources.js", "worker-client.mjs", "client.js", "cordis.patch.yml", "README.md", "THIRD-PARTY-NOTICES.txt"],
-  "dependencies": { "@workspace-agent/domain-commerce-network": "0.2.0" },
-  "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web", "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-sidebar-right", "@deepseek-ai/dsh-api-session-controller", "@deepseek-ai/dsh-client-ui-conversation"] }
+  "engines": {
+    "node": ">=24"
   },
-  "scripts": { "test": "node --test test/*.test.mjs" }
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./worker-client": "./worker-client.mjs"
+  },
+  "files": [
+    "index.js",
+    "service.js",
+    "store.js",
+    "http.js",
+    "resources.js",
+    "worker-client.mjs",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "THIRD-PARTY-NOTICES.txt",
+    "trade.js"
+  ],
+  "dependencies": {
+    "@workspace-agent/domain-commerce-network": "0.2.0",
+    "@workspace-agent/dsh-commerce-contracts": "1.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
 }

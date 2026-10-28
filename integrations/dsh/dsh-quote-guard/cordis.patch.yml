@@ -1,0 +1,4 @@
+- insert:
+    - id: quote-guard
+      name: dsh-quote-guard
+      config: {}

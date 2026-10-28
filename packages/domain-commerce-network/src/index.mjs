@@ -125,3 +125,5 @@ export function applyWorkOrderEvent(order,event,{role,actorPartyId,agentServiceI
   next.appliedEvents=[...(order.appliedEvents??[]),{id:event.eventId,sha256:hash}];
   return next;
 }
+
+export { validateMandateTerms } from './partner.mjs';

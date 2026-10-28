@@ -8,7 +8,7 @@ export function Dialog({title,children,onClose,footer,wide=false}) {
   const ref=useRef(null);
   useEffect(()=>{
     const previous=document.activeElement;
-    const focusable=()=>[...ref.current?.querySelectorAll('button,input,textarea,a[href],[tabindex="0"]')||[]].filter(el=>!el.disabled);
+    const focusable=()=>[...ref.current?.querySelectorAll('button,input,select,textarea,a[href],[tabindex="0"]')||[]].filter(el=>!el.disabled);
     focusable()[0]?.focus();
     const key=event=>{
       if(event.key==='Escape'){event.preventDefault();onClose();}

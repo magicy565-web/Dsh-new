@@ -1,0 +1,12 @@
+{
+  "name": "@workspace-agent/domain-quote",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@workspace-agent/dsh-commerce-contracts": "1.0.0"
+  }
+}

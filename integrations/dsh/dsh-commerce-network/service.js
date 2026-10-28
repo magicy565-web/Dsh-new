@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { makeWorkOrderProposal, applyWorkOrderEvent } from '@workspace-agent/domain-commerce-network';
+import { makeWorkOrderProposal, applyWorkOrderEvent, validateMandateTerms } from '@workspace-agent/domain-commerce-network';
 
 export class CommerceError extends Error {
   constructor(code, message, status = 400) { super(message); this.code = code; this.status = status; }
@@ -32,7 +32,7 @@ const array = (value, field, max = 100) => { if (!Array.isArray(value) || value.
 const generated = prefix => `${prefix}_${randomUUID()}`;
 const publicAgent = a => ({ ...a });
 
-export function createCommerceService({ store, registry, clock = Date.now, resourceAdapter = null }) {
+export function createCommerceService({ store, registry, clock = Date.now, resourceAdapter = null, tradeProjection = null, buyerLookup = null }) {
   let disposed = false;
   const workerWindows = new Map();
   const now = () => clock();
@@ -285,7 +285,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     if (count !== orders.length) fail('DEPENDENCY_CYCLE', 'Work-order dependencies must not contain a cycle.');
   }
   function proposeMandate(state, projectId, payload) {
-    assertKeys(payload, ['id', 'factoryPartyId', 'distributorPartyId', 'marketCode', 'productIds', 'scope']);
+    assertKeys(payload, ['id', 'factoryPartyId', 'distributorPartyId', 'marketCode', 'productIds', 'scope', 'terms']);
     if (!state.parties.some(p => p.projectId === projectId && p.id === payload.factoryPartyId && p.type === 'factory') || !state.parties.some(p => p.projectId === projectId && p.id === payload.distributorPartyId && p.type === 'distributor')) fail('MANDATE_PARTY', 'Choose the factory and distributor in this project.');
     const productIds = [...new Set(array(payload.productIds, 'productIds', 100).map(id => identifier(id)))];
     if (!productIds.length || productIds.some(id => !state.products.some(p => p.projectId === projectId && p.id === id))) fail('MANDATE_PRODUCT', 'Choose explicit product context nodes in this project.');
@@ -293,6 +293,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     if (state.mandates.some(m => m.id === id)) fail('ID_CONFLICT', 'Sales mandate already exists.', 409);
     const mandate = { id, projectId, factoryPartyId: payload.factoryPartyId, distributorPartyId: payload.distributorPartyId,
       marketCode: text(payload.marketCode, 'marketCode', 40), productIds, scope: text(payload.scope, 'scope', 4000), status: 'proposed', revision: 1, createdAt: iso(), legalSignature: false };
+    if (payload.terms) mandate.terms = validateMandateTerms(payload.terms, state.products.filter(p => productIds.includes(p.id) && p.projectId === projectId), now());
     state.mandates.push(mandate); return mandate;
   }
   function resourceSnapshots(state, projectId, refs, scope) {
@@ -377,7 +378,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     log(scope, 'work_order.cancel_requested', o.id, LIVE.has(o.status) ? 'Stop requested; waiting for a real worker acknowledgement.' : 'Work order cancelled before execution.');
   }
   function ownerOnly(scope) { if (scope.kind !== 'owner') fail('OWNER_ACTION_REQUIRED', 'This action requires an explicit decision in the authenticated canvas.', 403); }
-  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order']);
+  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute']);
   function applyCommand(scope, input) {
     assertKeys(input, ['projectId', 'expectedRevision', 'requestId', 'command', 'payload']);
     text(input.command, 'command', 80); const payload = input.payload ?? {};
@@ -411,10 +412,33 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       else if (input.command === 'upsert_route') { const r = upsertRoute(state, projectId, payload); log(scope, 'route.recorded', r.id, 'Planned sales channel recorded; account not connected.'); }
       else if (input.command === 'propose_order') { const o = proposeOrder(state, projectId, payload); validateDependencies(state, projectId); log(scope, 'work_order.proposed', o.id, 'Service task proposed for owner review.'); }
       else if (input.command === 'propose_mandate') { const m = proposeMandate(state, projectId, payload); log(scope, 'mandate.proposed', m.id, 'Factory-distributor relationship proposed with explicit product/market scope.'); }
+      else if (input.command === 'amend_mandate') {
+        assertKeys(payload, ['mandateId', 'terms']); const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);
+        if (!m || m.status === 'revoked') fail('MANDATE_NOT_FOUND', 'Active or proposed mandate required.');
+        const terms = validateMandateTerms(payload.terms, state.products.filter(p => m.productIds.includes(p.id) && p.projectId === projectId), now());
+        if (terms.version !== (m.terms?.version ?? 0) + 1) fail('REVISION_CONFLICT', 'Create the next terms version.');
+        m.history ??= []; m.history.push({ revision: m.revision, terms: m.terms ?? null, status: m.status, approvalReceiptId: m.approvalReceiptId ?? null });
+        m.terms = terms; m.status = 'proposed'; delete m.approvalReceiptId; m.revision++;
+        log(scope, 'mandate.amended', m.id, 'New terms need independent owner approval. No legal signature recorded.');
+      }
+      else if (input.command === 'assign_customer' || input.command === 'resolve_customer_dispute') {
+        assertKeys(payload, ['mandateId', 'buyerId', 'evidence']); const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);
+        if (!m || m.status !== 'active' || !m.terms || Date.parse(m.terms.validUntil) <= now()) fail('MANDATE_UNAVAILABLE', 'Current reviewed mandate terms required.');
+        if (!buyerLookup) fail('DEPENDENCY_MISSING', 'Mini ERP buyer service is required.'); buyerLookup(scope.sessionId, payload.buyerId);
+        const evidence = text(payload.evidence, 'evidence', 2000), buyerId = identifier(payload.buyerId);
+        const competing = state.mandates.filter(other => other.projectId === projectId && other.id !== m.id && other.customerAssignments?.some(a => a.buyerId === buyerId && a.status !== 'released'));
+        const disputed = competing.length > 0 && input.command !== 'resolve_customer_dispute';
+        for (const other of competing) { for (const a of other.customerAssignments.filter(a => a.buyerId === buyerId && a.status !== 'released')) { a.status = disputed ? 'disputed' : 'released'; a.resolutionEvidence = evidence; a.resolvedAt = iso(); } other.revision++; }
+        m.customerAssignments ??= []; const existing = m.customerAssignments.find(a => a.buyerId === buyerId);
+        const assignment = {buyerId,status:disputed?'disputed':'assigned',evidence,actor:scope.actor,at:iso()};
+        if(existing)Object.assign(existing,assignment);else m.customerAssignments.push(assignment);m.revision++;
+        log(scope, disputed?'customer.disputed':'customer.assigned', m.id, 'Owner recorded customer attribution; this does not share customer data with a worker.');
+      }
       else if (input.command === 'approve_mandate' || input.command === 'revoke_mandate') {
         assertKeys(payload, ['mandateId']); const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);
         if (!m) fail('MANDATE_NOT_FOUND', 'Sales mandate not found.', 404);
         if (input.command === 'approve_mandate') {
+          if (m.terms) validateMandateTerms(m.terms, state.products.filter(p => m.productIds.includes(p.id) && p.projectId === projectId), now());
           if (m.status !== 'proposed') fail('MANDATE_STATE', 'Only a proposed mandate can be approved.', 409);
           m.status = 'active'; m.approvalReceiptId = generated('mandate_approval'); m.approvedAt = iso(); m.approvedBy = scope.actor;
           log(scope, 'mandate.approved', m.id, 'Owner recorded business authorization. This is not a legal signature or channel connection.');
@@ -495,6 +519,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
   function layout(sessionId, input) {
     const scope = browser(sessionId);
     assertKeys(input, ['projectId', 'requestId', 'expectedLayoutRevision', 'nodes', 'viewport']);
+    const tradeFacts = tradeProjection ? tradeProjection(scope.sessionId, input.projectId) : null;
     return mutate(scope, input, state => {
       project(state, input.projectId);
       const current = state.layouts.find(l => l.projectId === input.projectId);
@@ -505,6 +530,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       for (const p of state.parties.filter(p => p.projectId === input.projectId && ['factory', 'distributor'].includes(p.type))) allowed.add(`${p.type}:${p.id}`);
       for (const a of state.agents.filter(a => a.projectId === input.projectId)) allowed.add(`personal_agent:${a.id}`);
       for (const o of state.workOrders.filter(o => o.projectId === input.projectId)) allowed.add(`service_order:${o.id}`);
+      if (tradeFacts) { const facts = tradeFacts; for (const [kind, rows] of [['rfq',facts.rfqs],['quote',facts.quotes],['buyer',facts.buyers],['erp_order',facts.orders],['sample',facts.samples]]) for (const row of rows) allowed.add(`${kind}:${row.id}`); }
       const seen = new Set();
       const nodes = array(input.nodes, 'nodes', 3000).map(n => {
         assertKeys(n, ['id', 'position']); assertKeys(n.position, ['x', 'y']);

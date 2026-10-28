@@ -18,6 +18,12 @@ const directories = [
   'packages/domain-inquiry-recovery/test',
   'packages/domain-commerce-network/test',
   'integrations/dsh/dsh-commerce-network/test',
+  'integrations/dsh/dsh-rfq-desk/test',
+  'integrations/dsh/dsh-quote-guard/test',
+  'integrations/dsh/dsh-sample-flow/test',
+  'integrations/dsh/dsh-channel-ledger/test',
+  'packages/domain-rfq/test',
+  'packages/domain-quote/test',
 ];
 const files = [];
 for (const directory of directories) {

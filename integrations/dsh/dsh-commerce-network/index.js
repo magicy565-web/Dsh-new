@@ -1,3 +1,5 @@
+import { createTradeProjection } from './trade.js';
+import { createAccess } from '@workspace-agent/dsh-commerce-contracts';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { CommerceStore } from './store.js';
@@ -18,7 +20,7 @@ const agent = obj({ id: identifier, providerPartyId: identifier, displayName: sh
 const sourceRef = obj({ kind: { type: 'string', enum: ['product'] }, id: identifier, revision: { type: 'integer', minimum: 1 } }, ['kind', 'id', 'revision']);
 const product = obj({ id: identifier, name: short, sku: short, description: { type: 'string', maxLength: 12000 }, source: { type: 'string', maxLength: 2000 }, category: short, moq: { type: 'integer', minimum: 1 }, leadTimeDays: { type: 'integer', minimum: 0, maximum: 3650 }, sourceRef }, ['id', 'name']);
 const route = obj({ id: identifier, name: short, market: { type: 'string', maxLength: 12 }, channel: short, goal: nullableText, productIds: array(identifier), workerRole: short, workerGoal: nullableText }, ['id', 'name', 'market', 'channel', 'productIds']);
-const mandate = obj({ id: identifier, factoryPartyId: identifier, distributorPartyId: identifier, marketCode: { type: 'string', minLength: 1, maxLength: 40 }, productIds: array(identifier), scope: { type: 'string', minLength: 1, maxLength: 4000 } }, ['id', 'factoryPartyId', 'distributorPartyId', 'marketCode', 'productIds', 'scope']);
+const mandate = obj({ id: identifier, factoryPartyId: identifier, distributorPartyId: identifier, marketCode: { type: 'string', minLength: 1, maxLength: 40 }, productIds: array(identifier), scope: { type: 'string', minLength: 1, maxLength: 4000 }, terms: { type: 'object' } }, ['id', 'factoryPartyId', 'distributorPartyId', 'marketCode', 'productIds', 'scope']);
 const orderFields = { id: identifier, requesterPartyId: identifier, agentServiceId: identifier, title: short, brief: { type: 'string', minLength: 1, maxLength: 16000 }, allowedActions: actions,
   allowedResourceRefs: array({ type: 'string', maxLength: 160 }), maximumMinor: { type: 'integer', minimum: 0, maximum: 100000000 }, currency: { type: 'string', pattern: '^[A-Z]{3}$' }, ttlSeconds: { type: 'integer', minimum: 60, maximum: 2592000 }, opportunityId: identifier, dependsOn: { type: 'array', maxItems: 20, items: identifier } };
 const orderRequired = ['requesterPartyId', 'agentServiceId', 'title', 'brief', 'allowedActions'];
@@ -71,7 +73,13 @@ export function apply(ctx, config = {}) {
     // No document disclosure authorization is inferred from source verification.
     return { disclosureApproved: false };
   } });
-  const service = createCommerceService({ store, registry: ctx.workspaceRegistry, resourceAdapter });
+  const access = createAccess(ctx.workspaceRegistry);
+  let service;
+  const trade = createTradeProjection({ registry: ctx.workspaceRegistry, rfq: () => ctx.get('rfqDesk'), quotes: () => ctx.get('miniErpQuotes'), trade: () => ctx.get('miniErpTrade'), network: () => service });
+  service = createCommerceService({ store, registry: ctx.workspaceRegistry, resourceAdapter, tradeProjection: trade.read, buyerLookup: (sessionId, buyerId) => { const erp = ctx.get('miniErpQuotes'); if (!erp) throw new CommerceError('DEPENDENCY_MISSING', 'Mini ERP is not installed.', 503); return erp.buyer(access.owner(sessionId), buyerId); } });
+  service.trade = trade.read;
+  ctx.effect(() => () => { trade.close(); access.close(); }, 'commerce: trade projection lifetime');
+  ctx.effect(() => ctx.tools.register({ name: 'commerce_trade_read', description: 'Read versioned RFQ, buyer, quote, sample and ERP order references from their authoritative services in this project. Missing plugins are explicit. No prices or business facts are copied into Commerce storage.', parameters: obj({ projectId: identifier }, ['projectId']), output, execute: trade.toolRead }), 'commerce: trade read');
   ctx.effect(() => () => service.close(), 'commerce-network: durable store lifetime');
   ctx.effect(() => ctx.reflect.provide('commerceNetwork', service), 'commerce-network: service');
   registerTools(ctx, service);

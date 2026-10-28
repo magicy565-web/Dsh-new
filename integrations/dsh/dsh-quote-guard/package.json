@@ -1,0 +1,28 @@
+{
+  "name": "dsh-quote-guard",
+  "version": "1.0.0-rc.1",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "service.js",
+    "http.js",
+    "transport.js",
+    "cordis.patch.yml",
+    "README.md",
+    "ingress.js"
+  ],
+  "dependencies": {
+    "@workspace-agent/dsh-commerce-contracts": "1.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

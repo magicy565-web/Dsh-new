@@ -201,7 +201,7 @@ test('v2 customer schema upgrade preserves old contacts, receipts, orders and su
   for (let pass = 0; pass < 2; pass++) {
     const upgraded = new ErpStore(f.file, { clock: () => initial });
     try {
-      assert.equal(upgraded.db.prepare('PRAGMA user_version').get().user_version, 3);
+      assert.equal(upgraded.db.prepare('PRAGMA user_version').get().user_version, 4);
       const customer = upgraded.read('workspace-a', { entity: 'buyer', id: 'buyer-a' });
       assert.equal(customer.legacyContact, 'buyer-a@example.test'); assert.equal(customer.email, ''); assert.equal(customer.revision, 1);
       const replay = upgraded.write('workspace-a', command);

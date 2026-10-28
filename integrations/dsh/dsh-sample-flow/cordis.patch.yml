@@ -1,0 +1,4 @@
+- insert:
+    - id: sample-flow
+      name: dsh-sample-flow
+      config: {}

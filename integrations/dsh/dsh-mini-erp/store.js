@@ -1,8 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
+import { BusinessError } from '@workspace-agent/dsh-commerce-contracts';
 import { randomUUID } from 'node:crypto';
+import { migrateQuotes } from './quote-store.js';
 
-export class ErpError extends Error {
-  constructor(code, message) { super(message); this.code = code; this.name = 'ErpError'; }
+export class ErpError extends BusinessError {
+  constructor(code, message) { super(code, message, code === 'NOT_FOUND' ? 404 : 409); this.name = 'ErpError'; }
 }
 const fail = (code, message) => { throw new ErpError(code, message); };
 const text = (v, name, max = 500) => { if (typeof v !== 'string' || !v.trim() || v.length > max) fail('INPUT', `${name}: non-empty text, max ${max}`); return v.trim(); };
@@ -27,7 +29,7 @@ export class ErpStore {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (version > 3) fail('VERSION', 'Database was created by a newer ERP version');
+      if (version > 4) fail('VERSION', 'Database was created by a newer ERP version');
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS products (
           workspace TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, currency TEXT NOT NULL,
@@ -69,7 +71,8 @@ export class ErpStore {
           if (!columns.includes(name)) this.db.exec(`ALTER TABLE buyers ADD COLUMN ${name} ${definition}`);
         }
       }
-      this.db.exec('CREATE INDEX IF NOT EXISTS order_buyer ON orders(workspace,buyer_id,id); PRAGMA user_version=3; COMMIT;');
+      migrateQuotes(this.db);
+      this.db.exec('CREATE INDEX IF NOT EXISTS order_buyer ON orders(workspace,buyer_id,id); PRAGMA user_version=4; COMMIT;');
     } catch (e) { this.db.exec('ROLLBACK'); this.db.close(); throw e; }
   }
   close() { this.db.close(); }
