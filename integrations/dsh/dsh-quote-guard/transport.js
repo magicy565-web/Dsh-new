@@ -23,8 +23,25 @@ export function createResendTransport({
         ? AbortSignal.any([options.signal, AbortSignal.timeout(15000)])
         : AbortSignal.timeout(15000),
     });
-    const raw = await response.text();
-    if (Buffer.byteLength(raw) > 262144) fail("PROVIDER_RESPONSE_INVALID");
+    const reader = response.body?.getReader();
+    const chunks = [];
+    let size = 0;
+    if (reader)
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > 262144) {
+            await reader.cancel();
+            fail("PROVIDER_RESPONSE_INVALID");
+          }
+          chunks.push(Buffer.from(value));
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    const raw = Buffer.concat(chunks).toString("utf8");
     let data;
     try {
       data = JSON.parse(raw);

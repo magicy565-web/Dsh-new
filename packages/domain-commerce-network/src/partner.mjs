@@ -46,3 +46,51 @@ export function validateMandateTerms(terms, products, now) {
   }
   return structuredClone(terms);
 }
+
+// Customer attribution alone does not authorize every product or market.
+// Resolve against the exact accepted quote version linked to the ERP order.
+export function mandateCoversOrder(mandate, order, now) {
+  const terms = mandate?.terms,
+    quote = order?.quoteRef;
+  const product = quote?.productRef,
+    catalog = order?.catalogRef;
+  if (
+    mandate?.status !== "active" ||
+    !terms ||
+    !(Date.parse(terms.validUntil) > now) ||
+    !Number.isInteger(terms.commissionBps) ||
+    terms.commissionBps < 0 ||
+    terms.commissionBps > 10000
+  )
+    return false;
+  if (
+    !mandate.customerAssignments?.some(
+      (a) => a.buyerId === order.buyerId && a.status === "assigned",
+    )
+  )
+    return false;
+  if (
+    !product ||
+    !catalog ||
+    product.id !== catalog.id ||
+    product.revision !== catalog.revision ||
+    product.skuId !== catalog.skuId
+  )
+    return false;
+  if (
+    typeof quote.destination !== "string" ||
+    !quote.destination.trim() ||
+    typeof mandate.marketCode !== "string" ||
+    quote.destination.trim().toUpperCase() !==
+      mandate.marketCode.trim().toUpperCase()
+  )
+    return false;
+  return (
+    terms.productPins?.some(
+      (pin) =>
+        mandate.productIds?.includes(pin.contextId) &&
+        pin.productId === product.id &&
+        pin.revision === product.revision,
+    ) === true
+  );
+}

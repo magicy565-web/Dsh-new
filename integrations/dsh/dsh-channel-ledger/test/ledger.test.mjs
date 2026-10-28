@@ -56,3 +56,64 @@ test("unknown cash and commission stay null; service cost and order value are se
     { code: "PROJECT_SCOPE" },
   );
 });
+test("expired quotes are excluded and historic cost/evidence currencies remain visible", (t) => {
+  const f = fixture();
+  t.after(() => f.close());
+  const ledger = createChannelLedger({
+    registry: f.registry,
+    clock: () => Date.parse("2026-10-28T09:00:00Z"),
+    commerce: () => ({
+      state: () => ({
+        workspaceId: f.w,
+        projectId: "p1",
+        budget: { currency: "EUR", maximumMinor: 100 },
+        commerceNetwork: {
+          salesAuthorizations: [],
+          workOrders: [
+            { currency: "USD", status: "delivered", actualMinor: 120 },
+          ],
+        },
+      }),
+    }),
+    quotes: () => ({
+      orderRefs: () => [],
+      read: () => ({
+        items: [
+          {
+            currency: "EUR",
+            totalMinor: 999,
+            status: "approved",
+            validUntil: "2026-10-28T08:00:00Z",
+          },
+          {
+            currency: "EUR",
+            totalMinor: 500,
+            status: "approved",
+            validUntil: "2026-10-29T08:00:00Z",
+          },
+        ],
+        hasMore: false,
+      }),
+    }),
+    trade: () => ({
+      financial: () => [
+        {
+          id: "event1",
+          kind: "commission_paid",
+          currency: "GBP",
+          amountMinor: 20,
+          evidence: { sha256: "a".repeat(64) },
+          orderId: "historical-order",
+        },
+      ],
+    }),
+  });
+  t.after(() => ledger.close());
+  const rows = ledger.read(f.owner, { projectId: "p1" }).metrics;
+  assert.equal(rows.find((r) => r.currency === "EUR").quotedValueMinor, 500);
+  assert.equal(
+    rows.find((r) => r.currency === "USD").workerReportedCostMinor,
+    120,
+  );
+  assert.equal(rows.find((r) => r.currency === "GBP").commissionPaidMinor, 20);
+});

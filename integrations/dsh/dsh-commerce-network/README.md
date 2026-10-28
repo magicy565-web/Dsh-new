@@ -1,6 +1,6 @@
 # Commerce Network — native DSH product candidate
 
-`dsh-commerce-network@1.1.0-rc.1` extends the recovered Channel Atlas React Flow
+`dsh-commerce-network@1.1.0-rc.2` extends the recovered Channel Atlas React Flow
 canvas with independently owned factory, overseas distributor and Personal
 Worker service nodes, a durable delegation ledger, and a scoped external worker
 gateway. DeepSeek Harness is the only internal execution host.

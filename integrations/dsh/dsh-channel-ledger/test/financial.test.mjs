@@ -11,7 +11,15 @@ test("collections and commission receipts require actual order/evidence and reje
     id: "m1",
     revision: 2,
     status: "active",
-    terms: { validUntil: "2030-01-01T00:00:00Z", commissionBps: 500 },
+    marketCode: "US",
+    productIds: ["context1"],
+    terms: {
+      validUntil: "2030-01-01T00:00:00Z",
+      commissionBps: 500,
+      productPins: [
+        { contextId: "context1", productId: f.product.id, revision: 1 },
+      ],
+    },
     customerAssignments: [{ buyerId: "buyer1", status: "assigned" }],
   };
   const network = {

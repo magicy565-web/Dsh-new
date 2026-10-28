@@ -1,6 +1,6 @@
 {
   "name": "dsh-mini-erp",
-  "version": "0.6.0-rc.1",
+  "version": "0.6.0-rc.2",
   "private": true,
   "type": "module",
   "description": "Small workspace ERP: products, buyers, orders and atomic supply reservations",
@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@workspace-agent/dsh-commerce-contracts": "1.0.0",
-    "@workspace-agent/domain-quote": "1.0.0"
+    "@workspace-agent/domain-quote": "1.0.0",
+    "@workspace-agent/domain-commerce-network": "0.2.0"
   }
 }

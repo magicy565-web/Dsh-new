@@ -18,7 +18,7 @@ are unique; changed reuse and excess collections/commissions are refused.
 Partner terms and customer assignments remain in existing Commerce mandates.
 Competing assignments become disputed; explicit owner resolution releases the
 losing claim. Commission accrual requires exactly one active current mandate,
-reviewed customer attribution and evidenced collections. Commission-paid evidence
+reviewed customer attribution, exact product revision and destination market coverage, and evidenced collections. Orders retain their source SKU/revision from the original ERP reserve receipt and the immutable accepted quote version. Missing or ambiguous legacy references remain unresolved. Expired quotes are excluded from the current quoted value; currencies represented only in historic costs/evidence remain visible. Commission-paid evidence
 requires current terms/revision, attribution and an accrued ceiling. This records
 already supported transactions; no settlement, payout, invoice or global trust
 score is created. Unavailable authoritative services fail closed.

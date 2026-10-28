@@ -50,9 +50,9 @@ schema v4 增加 quotes、quote_versions、quote_events、quote_requests、quote
 
 ### SampleFlow / ChannelLedger
 
-样品提议需要已接受且有发送凭据的报价。费用审核不收款；寄送需要独立已确认且匹配产品/买手/数量的 ERP 库存订单，以及单独的外部物流凭据。寄送、签收、反馈分开记录；不自动调用快递、不把 Worker 费用当库存。没有物流凭据时不展示已寄送。
+样品提议需要已接受且有发送凭据的报价。费用审核不收款；寄送需要独立已确认且匹配产品/买手/数量的 ERP 库存订单，以及单独的外部物流凭据。寄送、签收、反馈分开记录；不自动调用快递、不把 Worker 费用当库存。没有物流凭据时不展示已寄送；库存订单的来源 SKU/产品修订也必须与样品所依据的报价一致。
 
-代理条款固定产品版本、市场、有效期、披露范围、客户归属规则、佣金比例/依据。更改条款生成下一版本并重置授权；历史审批保留。竞争客户归属变为 disputed，Owner 有据决定后释放另一方。授权和法律签署分开；没有代理多企业账号或工商核验。
+代理条款固定产品版本、市场、有效期、披露范围、客户归属规则、佣金比例/依据。更改条款生成下一版本并重置授权；历史审批保留。佣金逐单核对原始订单的 SKU/产品修订、已关联的不可变报价版本、协议产品范围及目的市场；目的市场按明确市场代码匹配，不猜测地理别名。一个订单只关联一个报价版本；旧数据缺少来源或存在冲突关联时保持待核对。竞争客户归属变为 disputed，Owner 有据决定后释放另一方。授权和法律签署分开；没有代理多企业账号或工商核验。
 
 ChannelLedger 按币种分别输出 `plannedBudgetMinor`、`workerReportedCostMinor`、`approvedCostMinor`、`quotedValueMinor`、`confirmedOrderValueMinor`、`collectedRevenueMinor`、`commissionAccruedMinor`、`commissionPaidMinor`。付款/收款依实际原生附件及外部事件编号登记，重复事件拒绝；收款不得超匹配订单金额，佣金支付不得超有效归属与已核对收款产生的应计额。无证据的收款/支付为 null，ROI 为 null，settlement 为 not_connected。订单或协议不满足条件时不能据此生成新的佣金支付记录。
 

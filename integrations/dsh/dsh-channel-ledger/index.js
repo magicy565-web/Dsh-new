@@ -9,7 +9,15 @@ import {
   fail,
 } from "@workspace-agent/dsh-commerce-contracts";
 export const inject = ["tools", "workspaceRegistry"];
-export function createChannelLedger({ registry, commerce, quotes, trade }) {
+import { mandateCoversOrder } from "@workspace-agent/domain-commerce-network";
+import { effectiveQuoteStatus } from "@workspace-agent/domain-quote";
+export function createChannelLedger({
+  registry,
+  commerce,
+  quotes,
+  trade,
+  clock = Date.now,
+}) {
   const access = createAccess(registry);
   function read(scope, { projectId }) {
     scope.check();
@@ -38,6 +46,8 @@ export function createChannelLedger({ registry, commerce, quotes, trade }) {
         c.budget.currency,
         ...orders.map((o) => o.currency),
         ...quoteRows.map((q) => q.currency),
+        ...events.map((e) => e.currency),
+        ...c.commerceNetwork.workOrders.map((w) => w.currency),
       ]),
     ];
     const metrics = currencies.map((currency) => {
@@ -57,14 +67,8 @@ export function createChannelLedger({ registry, commerce, quotes, trade }) {
       for (const order of orders.filter(
         (o) => o.status === "confirmed" && o.currency === currency,
       )) {
-        const mandates = c.commerceNetwork.salesAuthorizations.filter(
-          (m) =>
-            m.status === "active" &&
-            m.terms &&
-            Date.parse(m.terms.validUntil) > Date.now() &&
-            m.customerAssignments?.some(
-              (a) => a.buyerId === order.buyerId && a.status === "assigned",
-            ),
+        const mandates = c.commerceNetwork.salesAuthorizations.filter((m) =>
+          mandateCoversOrder(m, order, clock()),
         );
         if (mandates.length !== 1) {
           unresolved = true;
@@ -98,7 +102,9 @@ export function createChannelLedger({ registry, commerce, quotes, trade }) {
             .filter(
               (q) =>
                 q.currency === currency &&
-                !["withdrawn", "expired"].includes(q.status),
+                !["withdrawn", "expired"].includes(
+                  effectiveQuoteStatus(q, clock()),
+                ),
             )
             .map((q) => q.totalMinor),
         ),

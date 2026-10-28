@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { mandateCoversOrder } from "@workspace-agent/domain-commerce-network";
 import {
   checkScope,
   keys,
@@ -225,11 +226,17 @@ export function createTradeRecords(
             if (r.status !== "approved" || !verified)
               fail("SAMPLE_EVIDENCE_REQUIRED");
             const order = erp.order(s.workspaceId, id(input.orderId), clock());
+            const original = quotes.read(s, {
+              quoteId: r.quoteId,
+              version: r.quoteVersion,
+            });
             if (
               order.status !== "confirmed" ||
               order.buyerId !== r.buyerId ||
               order.productId !== r.productId ||
-              order.quantity !== r.quantity
+              order.quantity !== r.quantity ||
+              !order.catalogRef ||
+              canonical(order.catalogRef) !== canonical(original.productRef)
             )
               fail(
                 "INVENTORY_EVIDENCE_REQUIRED",
@@ -329,8 +336,10 @@ export function createTradeRecords(
         order = erp.order(s.workspaceId, id(input.orderId), clock());
       if (order.status !== "confirmed" || order.currency !== input.currency)
         fail("ORDER_EVIDENCE_REQUIRED");
-      if (!quotes.orderRefs(s, input.projectId).some((o) => o.id === order.id))
-        fail("ORDER_PROJECT_MISMATCH");
+      const linkedOrder = quotes
+        .orderRefs(s, input.projectId)
+        .find((o) => o.id === order.id);
+      if (!linkedOrder) fail("ORDER_PROJECT_MISMATCH");
       const verified = await evidence(s, input.evidence);
       check(s, true);
       const current = project(s, input.projectId);
@@ -382,28 +391,38 @@ export function createTradeRecords(
             (a) => a.buyerId === order.buyerId && a.status === "assigned",
           );
           if (!assignment) fail("OWNERSHIP_UNRESOLVED");
+          if (!mandateCoversOrder(m, linkedOrder, clock()))
+            fail(
+              "MANDATE_SCOPE_MISMATCH",
+              "The mandate must cover this exact product version and destination market",
+            );
+          if (
+            current.commerceNetwork.salesAuthorizations.filter((other) =>
+              mandateCoversOrder(other, linkedOrder, clock()),
+            ).length !== 1
+          )
+            fail("OWNERSHIP_UNRESOLVED");
           const collected = api
             .financial(s, input.projectId)
             .filter((e) => e.kind === "collection" && e.orderId === order.id)
-            .reduce((a, e) => a + e.amountMinor, 0);
-          const ceiling = Number(
-            (BigInt(collected) * BigInt(m.terms.commissionBps)) / 10000n,
-          );
+            .reduce((a, e) => a + BigInt(e.amountMinor), 0n);
+          const ceiling = (collected * BigInt(m.terms.commissionBps)) / 10000n;
           const paid = api
             .financial(s, input.projectId)
             .filter(
               (e) => e.kind === "commission_paid" && e.orderId === order.id,
             )
-            .reduce((a, e) => a + e.amountMinor, 0);
-          if (input.amountMinor + paid > ceiling) fail("COMMISSION_LIMIT");
+            .reduce((a, e) => a + BigInt(e.amountMinor), 0n);
+          if (BigInt(input.amountMinor) + paid > ceiling)
+            fail("COMMISSION_LIMIT");
         }
 
         if (input.kind === "collection") {
           const sum = api
             .financial(s, input.projectId)
             .filter((e) => e.kind === "collection" && e.orderId === order.id)
-            .reduce((a, e) => a + e.amountMinor, 0);
-          if (input.amountMinor + sum > order.totalMinor)
+            .reduce((a, e) => a + BigInt(e.amountMinor), 0n);
+          if (BigInt(input.amountMinor) + sum > BigInt(order.totalMinor))
             fail(
               "COLLECTION_LIMIT",
               "This goods-only ledger cannot reconcile more than the order subtotal",

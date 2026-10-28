@@ -1,6 +1,6 @@
 # Mini ERP
 
-`0.6.0-rc.1` 新增 ERP schema v4：独立报价及不可变版本、审批与发送 outbox、样品请求、可核查的收款和佣金支付证据。v1–v3 原订单、客户、数量、权益及回执原样迁移保留；报价接受不创建订单。原生业务服务由可选 RFQ Desk / QuoteGuard / SampleFlow / ChannelLedger 使用。安装与验收边界见 `docs/COMMERCE-BUSINESS-IMPLEMENTATION.md`（发行包附同名文件）。
+`0.6.0-rc.2` 新增 ERP schema v4：独立报价及不可变版本、审批与发送 outbox、样品请求、可核查的收款和佣金支付证据。v1–v3 原订单、客户、数量、权益及回执原样迁移保留；报价接受不创建订单。原生业务服务由可选 RFQ Desk / QuoteGuard / SampleFlow / ChannelLedger 使用。安装与验收边界见 `docs/COMMERCE-BUSINESS-IMPLEMENTATION.md`（发行包附同名文件）。
 
 当前 UI 入口为 Agentive：商品、文件、客户、订单各有助理侧栏，可编辑职责和工作指令，带当前上下文进入全新 DSH 原生会话。配置仅保存在当前浏览器；实际执行需宿主已配置模型凭据，执行及权限沿用 DSH。详见仓库 `docs/AGENTIVE-ARCHITECTURE.md`。原包名、数据库及工具接口保持兼容。
 

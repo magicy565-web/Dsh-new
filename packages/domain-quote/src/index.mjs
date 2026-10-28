@@ -7,6 +7,12 @@ import {
   sha,
 } from "@workspace-agent/dsh-commerce-contracts/validation";
 export const currencies = ["USD", "EUR", "GBP", "CNY"];
+export function effectiveQuoteStatus(quote, now) {
+  return !["accepted", "withdrawn", "sending"].includes(quote.status) &&
+    Date.parse(quote.validUntil) <= now
+    ? "expired"
+    : quote.status;
+}
 export const disclosureFields = [
   "productName",
   "sku",

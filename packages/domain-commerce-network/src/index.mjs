@@ -126,4 +126,4 @@ export function applyWorkOrderEvent(order,event,{role,actorPartyId,agentServiceI
   return next;
 }
 
-export { validateMandateTerms } from './partner.mjs';
+export { validateMandateTerms, mandateCoversOrder } from './partner.mjs';

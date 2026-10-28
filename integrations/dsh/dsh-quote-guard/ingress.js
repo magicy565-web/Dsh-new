@@ -40,16 +40,17 @@ export function createInboundHandler({
         fail("TLS_REQUIRED", "Configure a trusted HTTPS reverse proxy", 403);
       const remote = req.socket.remoteAddress,
         window = Math.floor(clock() / 60000);
+      // Check capacity before inserting an unfamiliar peer. Rejected peers must
+      // not grow this map beyond the bound during the same minute.
+      if (!windows.has(remote) && windows.size >= 1024)
+        for (const [k, v] of windows)
+          if (v.window !== window) windows.delete(k);
+      if (!windows.has(remote) && windows.size >= 1024)
+        fail("RATE_LIMIT", "Ingress capacity reached", 429);
       if (windows.get(remote)?.window !== window)
         windows.set(remote, { window, n: 0 });
       if (++windows.get(remote).n > 60)
         fail("RATE_LIMIT", "Too many ingress events", 429);
-      // Bound the number of independently tracked remote windows.
-      if (windows.size > 1024)
-        for (const [k, v] of windows)
-          if (v.window !== window) windows.delete(k);
-      if (windows.size > 1024)
-        fail("RATE_LIMIT", "Ingress capacity reached", 429);
       let size = 0;
       const chunks = [];
       for await (const c of req) {

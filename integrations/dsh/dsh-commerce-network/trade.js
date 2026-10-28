@@ -83,11 +83,7 @@ export function createTradeProjection({
         version: v.version,
         revision: v.revision,
         projectId: v.projectId,
-        status:
-          !["sending", "accepted", "withdrawn"].includes(v.status) &&
-          Date.parse(v.validUntil) <= Date.now()
-            ? "expired"
-            : v.status,
+        status: v.effectiveStatus ?? v.status,
         rfqRef: v.rfqRef,
         buyerId: v.buyerId,
         productRef: v.productRef,

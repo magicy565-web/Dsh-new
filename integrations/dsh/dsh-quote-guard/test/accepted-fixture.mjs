@@ -1,14 +1,14 @@
 import { sha } from "@workspace-agent/dsh-commerce-contracts";
-export async function accepted(f) {
+export async function accepted(f, { prefix = "" } = {}) {
   let q = await f.approve(await f.setup());
   q = (
     await f.quotes.send(
       f.owner,
       {
-        requestId: "send",
+        requestId: `${prefix}send`,
         expectedRevision: q.revision,
         quoteId: q.quoteId,
-        version: 1,
+        version: q.version,
         approvalReceiptId: q.approval.id,
       },
       {
@@ -16,7 +16,7 @@ export async function accepted(f) {
         send: async () => ({
           status: "sent",
           provider: "test",
-          providerMessageId: "synthetic-message",
+          providerMessageId: `${prefix}synthetic-message`,
           at: "2026-10-28T08:00:00Z",
         }),
       },
@@ -25,11 +25,11 @@ export async function accepted(f) {
   const raw = "Yes, I accept this synthetic quote.";
   let r = f.rfq.ownerWrite(f.session, {
     ...f.importBody,
-    requestId: "reply",
+    requestId: `${prefix}reply`,
     rawText: raw,
     source: {
       ...f.importBody.source,
-      externalMessageId: "reply1",
+      externalMessageId: `${prefix}reply1`,
       receivedAt: "2026-10-28T08:01:00Z",
       rawEvidenceSha256: sha(raw),
     },
@@ -38,7 +38,7 @@ export async function accepted(f) {
     "propose_extraction",
     {
       id: r.id,
-      requestId: "reply-extract",
+      requestId: `${prefix}reply-extract`,
       expectedRevision: r.revision,
       extraction: {
         requirements: {},
@@ -53,7 +53,7 @@ export async function accepted(f) {
   r = f.rfq.ownerWrite(f.session, {
     action: "review",
     id: r.id,
-    requestId: "reply-review",
+    requestId: `${prefix}reply-review`,
     expectedRevision: r.revision,
     candidateId: r.candidates[0].id,
     status: "needs_info",
@@ -62,10 +62,10 @@ export async function accepted(f) {
   }).current;
   return (
     await f.quotes.accept(f.owner, {
-      requestId: "accept",
+      requestId: `${prefix}accept`,
       expectedRevision: q.revision,
       quoteId: q.quoteId,
-      version: 1,
+      version: q.version,
       replyRfqId: r.id,
       replyRevision: r.revision,
       evidenceQuote: raw,

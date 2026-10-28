@@ -17,6 +17,7 @@ import {
   calculate,
   validatePolicy,
   transition,
+  effectiveQuoteStatus,
 } from "@workspace-agent/domain-quote";
 export function createQuoteService(
   erp,
@@ -127,6 +128,7 @@ export function createQuoteService(
       buyerRevision: b.revision,
       productId: input.productId,
       productRef: { id: c.productId, revision: c.revision, skuId: c.skuId },
+      destination: r.requirements.destination,
       validUntil,
       recipient: b.email,
       subject,
@@ -191,11 +193,7 @@ export function createQuoteService(
           fail("NOT_FOUND");
         return {
           ...q,
-          effectiveStatus:
-            !["accepted", "withdrawn", "sending"].includes(q.status) &&
-            Date.parse(q.validUntil) <= clock()
-              ? "expired"
-              : q.status,
+          effectiveStatus: effectiveQuoteStatus(q, clock()),
           outbox: store.outbox(scope.workspaceId, q.quoteId, q.version),
           events: store.db
             .prepare(
@@ -205,12 +203,19 @@ export function createQuoteService(
             .map((e) => ({ ...e, body: JSON.parse(e.body) })),
         };
       }
-      return store.list(
+      const page = store.list(
         scope.workspaceId,
         input.projectId,
         input.afterId ?? "",
         integer(input.limit ?? 50, "limit", 1, 100),
       );
+      return {
+        ...page,
+        items: page.items.map((q) => ({
+          ...q,
+          effectiveStatus: effectiveQuoteStatus(q, clock()),
+        })),
+      };
     },
     async preview(scope, input) {
       keys(input, [
@@ -467,6 +472,29 @@ export function createQuoteService(
           order.totalMinor !== q.totalMinor
         )
           fail("ORDER_MISMATCH");
+        if (
+          !order.catalogRef ||
+          canonical(order.catalogRef) !== canonical(q.productRef)
+        )
+          fail(
+            "ORDER_SOURCE_MISMATCH",
+            "The order must retain the exact SKU and source revision from this quote",
+          );
+        const previous = store.db
+          .prepare(
+            "SELECT quote_id,version FROM quote_events WHERE workspace=? AND action='order_linked' AND json_extract(body,'$.orderId')=?",
+          )
+          .all(scope.workspaceId, order.id);
+        if (
+          previous.some(
+            (row) => row.quote_id !== q.quoteId || row.version !== q.version,
+          )
+        )
+          fail(
+            "ORDER_ALREADY_LINKED",
+            "One ERP order cannot be attributed to different quote versions",
+          );
+        if (previous.length) return q;
         store.event(scope, q, "order_linked", { orderId: order.id });
         store.db
           .prepare(
@@ -478,15 +506,41 @@ export function createQuoteService(
     },
     orderRefs(scope, projectId) {
       check(scope);
-      return store.db
+      const rows = store.db
         .prepare(
-          "SELECT e.body,e.quote_id FROM quote_events e JOIN quotes q ON q.workspace=e.workspace AND q.id=e.quote_id WHERE e.workspace=? AND q.project=? AND e.action='order_linked'",
+          "SELECT e.body,e.quote_id,e.version,v.body AS quote_body FROM quote_events e JOIN quotes q ON q.workspace=e.workspace AND q.id=e.quote_id JOIN quote_versions v ON v.workspace=e.workspace AND v.quote_id=e.quote_id AND v.version=e.version WHERE e.workspace=? AND q.project=? AND e.action='order_linked' ORDER BY e.seq",
         )
         .all(scope.workspaceId, projectId)
-        .map((r) => ({
-          quoteId: r.quote_id,
-          ...erp.order(scope.workspaceId, JSON.parse(r.body).orderId, clock()),
-        }));
+        .map((r) => {
+          const q = JSON.parse(r.quote_body);
+          return {
+            ...erp.order(
+              scope.workspaceId,
+              JSON.parse(r.body).orderId,
+              clock(),
+            ),
+            quoteId: r.quote_id,
+            quoteRef: {
+              id: r.quote_id,
+              version: r.version,
+              productRef: q.productRef,
+              destination: q.destination ?? null,
+            },
+          };
+        });
+      const orders = new Map();
+      for (const order of rows) {
+        const previous = orders.get(order.id);
+        if (!previous) orders.set(order.id, order);
+        else if (canonical(previous.quoteRef) !== canonical(order.quoteRef))
+          orders.set(order.id, {
+            ...order,
+            quoteId: null,
+            quoteRef: null,
+            attributionStatus: "ambiguous_quote_links",
+          });
+      }
+      return [...orders.values()];
     },
     accept(scope, input) {
       check(scope, true);

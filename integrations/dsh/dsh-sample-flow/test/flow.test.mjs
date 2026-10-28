@@ -95,6 +95,46 @@ test("accepted quote keeps order command independent; samples require fee, stock
       }),
     { code: "EVIDENCE_CHANGED" },
   );
+  const mismatched = f.erp.write(
+    f.w,
+    {
+      action: "reserve",
+      requestId: "sample-other-revision",
+      productId: "allocation1",
+      buyerId: "buyer1",
+      quantity: 10,
+      expectedRevision: 1,
+      expectedCatalogRevision: 2,
+    },
+    "fixture",
+    {
+      productId: f.product.id,
+      skuId: "sku1",
+      revision: 2,
+      quantity: 10,
+      unitPriceMinor: 1234,
+      currency: "USD",
+    },
+  ).current;
+  f.erp.write(f.w, {
+    action: "confirm",
+    requestId: "confirm-other-revision",
+    orderId: mismatched.id,
+  });
+  await assert.rejects(
+    () =>
+      records.write(f.owner, {
+        action: "ship",
+        requestId: "wrong-source-version",
+        id: s.id,
+        expectedRevision: s.revision,
+        evidence: { ...evidence, externalEventId: "wrong-version-shipment" },
+        carrier: "fixture",
+        trackingId: "wrong-version",
+        orderId: mismatched.id,
+      }),
+    { code: "INVENTORY_EVIDENCE_REQUIRED" },
+  );
   const reservation = f.erp.write(
     f.w,
     {
