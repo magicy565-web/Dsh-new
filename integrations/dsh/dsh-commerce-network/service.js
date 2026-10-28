@@ -1,5 +1,6 @@
+import { recordBusinessProgress } from './business-progress.js';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { makeWorkOrderProposal, applyWorkOrderEvent, validateMandateTerms, validateBusinessTerms, businessTermStatus } from '@workspace-agent/domain-commerce-network';
+import { makeWorkOrderProposal, applyWorkOrderEvent, validateMandateTerms, validateBusinessTerms, businessTermStatus, businessProgressView } from '@workspace-agent/domain-commerce-network';
 
 export class CommerceError extends Error {
   constructor(code, message, status = 400) { super(message); this.code = code; this.status = status; }
@@ -141,7 +142,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       })),
       commerceNetwork: { projectId: selected, revision: state.revision,
         parties: state.parties.filter(belongs), agentServices: state.agents.filter(belongs).map(publicAgent),
-        salesAuthorizations: state.mandates.filter(belongs).map(m => m.businessTerms ? { ...m, effectiveStatus: businessTermStatus(m, now()), billingStatus: 'not_connected' } : m), grants: state.grants.filter(belongs).map(({ resources, ...g }) => ({ ...g, resourceRefs: resources.map(r => r.ref) })),
+        salesAuthorizations: state.mandates.filter(belongs).map(m => m.businessTerms ? { ...m, effectiveStatus: businessTermStatus(m, now()), billingStatus: 'not_connected', progressView: m.businessTerms.mode === 'factory_sales' ? businessProgressView(m, state) : null } : m), grants: state.grants.filter(belongs).map(({ resources, ...g }) => ({ ...g, resourceRefs: resources.map(r => r.ref) })),
         workOrders: state.workOrders.filter(belongs).map(({ appliedEvents, ...o }) => ({ ...o,
           dependencyStates: (o.dependsOn ?? []).map(id => { const previous = state.workOrders.find(w => w.id === id); return { id, title: previous?.title ?? id, status: previous?.status ?? 'missing' }; }),
           dispatchReady: o.status === 'authorized' && (o.dependsOn ?? []).every(id => state.workOrders.find(w => w.id === id)?.status === 'accepted') && state.agents.find(a => a.id === o.agentServiceId)?.status === 'connected' })),
@@ -325,7 +326,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     const fields = businessFields(state, projectId, payload);
     if (fields.businessTerms.version !== (previous?.businessTerms.version ?? 0) + 1) fail('REVISION_CONFLICT', '请读取当前委托后创建下一条款版本。', 409);
     if (previous) {
-      const { history, ...snapshot } = previous;
+      const { history, progress, progressHistory, ...snapshot } = previous;
       previous.history = [...(history ?? []), structuredClone(snapshot)];
       Object.assign(previous, fields, { status: 'proposed', revision: previous.revision + 1, updatedAt: iso() });
       delete previous.approvalReceiptId; delete previous.approvedAt; delete previous.approvedBy;
@@ -424,7 +425,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     log(scope, 'work_order.cancel_requested', o.id, LIVE.has(o.status) ? 'Stop requested; waiting for a real worker acknowledgement.' : 'Work order cancelled before execution.');
   }
   function ownerOnly(scope) { if (scope.kind !== 'owner') fail('OWNER_ACTION_REQUIRED', 'This action requires an explicit decision in the authenticated canvas.', 403); }
-  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute', 'amend_business_mandate']);
+  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute', 'amend_business_mandate', 'record_business_progress']);
   function applyCommand(scope, input) {
     assertKeys(input, ['projectId', 'expectedRevision', 'requestId', 'command', 'payload']);
     text(input.command, 'command', 80); const payload = input.payload ?? {};
@@ -462,6 +463,11 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
         const amended = input.command === 'amend_business_mandate';
         const m = saveBusinessMandate(state, projectId, payload, amended);
         log(scope, amended ? 'business_mandate.amended' : 'business_mandate.proposed', m.id, 'Commercial terms recorded for owner review. No billing, commission accrual, task dispatch or data grant.');
+      }
+      else if (input.command === 'record_business_progress') {
+        const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);
+        recordBusinessProgress(m, payload, { state, actor: scope.actor, now: now(), eventId: generated('progress'), fail });
+        log(scope, 'business_mandate.progress_recorded', m.id, 'Owner recorded business progress and evidence references. No authorization, dispatch, sale or charge implied.');
       }
       else if (input.command === 'amend_mandate') {
         assertKeys(payload, ['mandateId', 'terms']); const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);

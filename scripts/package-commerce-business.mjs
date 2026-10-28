@@ -76,6 +76,10 @@ for (const name of names) {
       await cp(join(root,'docs/SERVICE-BILLING-IMPLEMENTATION.md'),join(stage,'SERVICE-BILLING-IMPLEMENTATION.md'));
       manifest.files.push('SERVICE-BILLING-IMPLEMENTATION.md');
     }
+    if (name === 'dsh-commerce-network') {
+      await cp(join(root,'docs/COMMERCE-BUSINESS-WORKBENCH.md'),join(stage,'COMMERCE-BUSINESS-WORKBENCH.md'));
+      manifest.files.push('COMMERCE-BUSINESS-WORKBENCH.md');
+    }
     manifest.dependencies = {};
     delete manifest.devDependencies;
     delete manifest.scripts;

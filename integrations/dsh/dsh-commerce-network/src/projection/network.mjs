@@ -1,3 +1,4 @@
+import { BUSINESS_STAGES, linkedWorkIds } from '../../../../../packages/domain-commerce-network/src/business-progress.mjs';
 import { buildSalesGraph } from './graph.mjs';
 
 /**
@@ -113,10 +114,10 @@ export function buildCommerceGraph(workspace, projectId, savedLayout = null) {
     if(state==='blocked')graph.warnings.push({code:'NETWORK_WORK_ORDER_UNVERIFIED_STATE',recordId:o.id});
   });
   stable(objects(network.salesAuthorizations).filter(a=>a.projectId===projectId&&validId(a.id)&&a.businessTerms)).forEach((a,i)=>{
-    push('business_mandate',a.id,{title:label(a.title,'业务委托'),subtitle:`商业条款 · v${a.businessTerms.version}`,status:a.effectiveStatus||a.status,info:{marketCode:a.marketCode,stage:a.scope},evidenceIds:[a.approvalReceiptId].filter(validId)},{x:300,y:-300-i*230});
+    push('business_mandate',a.id,{title:label(a.title,'业务委托'),subtitle:a.progress ? `${BUSINESS_STAGES[a.progress.stage]} · 进展 #${a.progress.revision}` : `商业条款 · v${a.businessTerms.version}`,status:a.effectiveStatus||a.status,info:{marketCode:a.marketCode,stage:a.scope},evidenceIds:[a.approvalReceiptId].filter(validId)},{x:300,y:-300-i*230});
     const root=`business_mandate:${a.id}`,principal=partyMap.get(a.principalPartyId);
     if(principal)link(`principal:${a.id}`,`${principal.type}:${principal.id}`,root,'business_link',a.status);
-    for(const [kind,ids] of [['product',a.productIds],['route',a.routeIds],['service_order',a.workOrderIds]])for(const id of ids||[])link(`business:${a.id}:${kind}:${id}`,root,`${kind}:${id}`,'business_link',a.status);
+    for(const [kind,ids] of [['product',a.productIds],['route',a.routeIds],['service_order',linkedWorkIds(a)]])for(const id of ids||[])link(`business:${a.id}:${kind}:${id}`,root,`${kind}:${id}`,'business_link',a.status);
   });
   graph.nodes.sort((a,b)=>a.id.localeCompare(b.id));
   graph.edges.sort((a,b)=>a.id.localeCompare(b.id));

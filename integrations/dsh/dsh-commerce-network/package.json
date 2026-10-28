@@ -1,6 +1,6 @@
 {
   "name": "dsh-commerce-network",
-  "version": "1.3.0-rc.1",
+  "version": "1.4.0-rc.1",
   "private": true,
   "type": "module",
   "description": "Native DSH commerce canvas and scoped third-party Personal Worker delegation",
@@ -23,7 +23,8 @@
     "cordis.patch.yml",
     "README.md",
     "THIRD-PARTY-NOTICES.txt",
-    "trade.js"
+    "trade.js",
+    "business-progress.js"
   ],
   "dependencies": {
     "@workspace-agent/domain-commerce-network": "0.2.0",
