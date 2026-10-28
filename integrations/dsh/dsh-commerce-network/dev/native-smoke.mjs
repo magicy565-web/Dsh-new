@@ -63,7 +63,10 @@ try {
   await command('accept_delivery', { orderId: 'order' });
   const accepted = await execute('commerce_network_read', { projectId: plan.projectId });
   assert.equal(accepted.commerceNetwork.workOrders[0].status, 'accepted');
-  assert.equal(accepted.deliverables[0].content, delivered.content);
+  assert.equal(accepted.deliverables[0].content, undefined);
+  const fullDelivery = await execute('commerce_network_delivery_read', { projectId: plan.projectId, deliveryId: accepted.deliverables[0].id });
+  assert.equal(fullDelivery.content, delivered.content);
+  assert.equal(fullDelivery.sha256, delivered.result.deliverable.sha256);
   console.log(JSON.stringify({ ok: true, officialToolRuntime: true, nativePluginLoaded: true, independentProcessGateway: true, actualStoredBytes: true, ownerAcceptance: true, modelCalls: 0, records: 'explicit-synthetic-fixtures', scope: 'Official Cordis+ToolRuntime with fixture session/registry, real SQLite, HTTP and external worker process. Separate live Host/browser acceptance is required.' }, null, 2));
 } finally {
   worker?.kill(); if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

@@ -4,8 +4,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
 import { CommerceStore } from '../store.js';
 import { createCommerceService } from '../service.js';
+import { createHttpHandler } from '../http.js';
+import { callApi, unwrap } from '../src/api.mjs';
 
 export function fixture({ filename = ':memory:', clock = Date.now, resourceAdapter = null } = {}) {
   const workspaceId = randomUUID(), sessionId = `session-${randomUUID()}`, otherWorkspace = randomUUID(), otherSession = `session-${randomUUID()}`;
@@ -68,7 +72,9 @@ test('durable native plan → credential handshake → approved exact scope → 
     assert.equal(f.state().budget.reservedMinor, 0);
     assert.equal(f.state().budget.accruedMinor, 700);
     assert.equal(f.state().budget.paymentStatus, 'not_connected');
-    assert.equal(f.state().deliverables[0].content, content);
+    assert.equal(f.state().deliverables[0].content, undefined);
+    assert.equal(f.state().deliverables[0].contentBytes, Buffer.byteLength(content));
+    assert.equal(f.service.delivery(f.sessionId, f.projectId, result.deliverable.id).content, content);
     const raw = f.store.db.prepare('SELECT secret_hash FROM commerce_credential').get();
     assert.equal(raw.secret_hash, createHash('sha256').update(token).digest('hex'));
     assert.equal(JSON.stringify(f.state()).includes(token), false);
@@ -76,7 +82,8 @@ test('durable native plan → credential handshake → approved exact scope → 
     const reopened = new CommerceStore(filename);
     const restored = createCommerceService({ store: reopened, registry: f.registry });
     assert.equal(restored.state(f.sessionId).commerceNetwork.workOrders[0].status, 'accepted');
-    assert.equal(restored.state(f.sessionId).deliverables[0].content, content);
+    assert.equal(restored.state(f.sessionId).deliverables[0].content, undefined);
+    assert.equal(restored.delivery(f.sessionId, f.projectId, result.deliverable.id).content, content);
     restored.close();
     assert.equal(readFileSync(filename).includes(Buffer.from(token)), false);
   } finally { f.service.close(); rmSync(dir, { recursive: true, force: true }); }
@@ -199,4 +206,92 @@ test('official prefixed native SessionIds resolve only through current registry 
     assert.equal(f.service.state('session-42').workspaceId, f.workspaceId);
     assert.throws(() => f.service.state('session-43'), e => e.code === 'SESSION_REQUIRED');
   } finally { f.service.close(); }
+});
+
+test('43 large accepted deliveries keep canvas and owner responses readable; individual HTTP reads preserve exact bytes', async t => {
+  let now = Date.now();
+  const f = fixture({ clock: () => now });
+  t.after(() => f.service.close());
+  const { token } = await f.setup({ resources: false });
+  const content = 'Synthetic delivery <script>untrusted()</script>\n'.padEnd(100_000, 'x');
+  const sourceUrls = Array.from({ length: 50 }, (_, index) => `https://example.com/source/${index}`);
+  let lastId;
+  for (let index = 0; index < 43; index++) {
+    now += 60_001; // Stay within the real per-credential request window.
+    const orderId = index === 0 ? 'work_fixture' : `large_${index}`;
+    if (index > 0) await f.tool('propose_order', {
+      id: orderId, requesterPartyId: 'factory_fixture', agentServiceId: 'agent_fixture',
+      title: `Synthetic delivery ${index}`, brief: 'Store explicit test content; no outreach.',
+      allowedActions: ['public_web_research'], allowedResourceRefs: [], maximumMinor: 0,
+    });
+    await f.dispatch(orderId);
+    const { order } = await f.service.worker(token, 'claim', { requestId: randomUUID(), orderId });
+    const lease = { orderId, leaseId: order.leaseId };
+    await f.service.worker(token, 'heartbeat', { requestId: randomUUID(), ...lease });
+    const result = await f.service.worker(token, 'deliver', { requestId: randomUUID(), ...lease, title: `Synthetic delivery ${index}`, content, sourceUrls });
+    lastId = result.deliverable.id;
+    await f.command('accept_delivery', { orderId });
+  }
+  assert.ok(JSON.stringify(f.store.load(f.workspaceId)).length > 4 * 1024 * 1024, 'fixture must reproduce the original oversized payload');
+  const handler = createHttpHandler(f.service, { authorize: ({ headers }) => headers.cookie === 'owner=fixture' ? null : 401 });
+  const server = createServer(handler);
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
+  const base = `http://127.0.0.1:${server.address().port}`, originalFetch = globalThis.fetch;
+  t.mock.method(globalThis, 'fetch', (url, options = {}) => originalFetch(new URL(url, base), {
+    ...options, headers: { ...options.headers, cookie: 'owner=fixture', ...(options.method === 'POST' ? { origin: base } : {}) },
+  }));
+  const params = new URLSearchParams({ sessionId: f.sessionId, projectId: f.projectId });
+  const state = unwrap(await callApi(`/workspace?${params}`));
+  assert.equal(state.deliverables.length, 43);
+  assert.ok(JSON.stringify(state).length < 512 * 1024, 'canvas remains small even with maximum-size text and source lists');
+  for (const row of state.deliverables) {
+    assert.equal(Object.hasOwn(row, 'content'), false);
+    assert.equal(Object.hasOwn(row, 'sourceUrls'), false);
+    assert.equal(row.contentBytes, Buffer.byteLength(content));
+    assert.equal(row.sourceCount, sourceUrls.length);
+  }
+  const owner = unwrap(await callApi('/command', { body: { sessionId: f.sessionId, projectId: f.projectId, requestId: randomUUID(), expectedRevision: state.revision, command: 'set_budget', payload: { maximumMinor: 0, currency: 'USD' } } }));
+  assert.equal(owner.receipt.projectId, f.projectId);
+  assert.equal(owner.deliverables.length, 43);
+  assert.equal(Object.hasOwn(owner.deliverables[0], 'content'), false);
+  const delivery = unwrap(await callApi(`/delivery?${params}&deliveryId=${lastId}`));
+  assert.equal(delivery.id, lastId);
+  assert.equal(delivery.content, content);
+  assert.deepEqual(delivery.sourceUrls, sourceUrls);
+  assert.equal(delivery.sha256, createHash('sha256').update(delivery.content).digest('hex'));
+  const native = f.service.toolDeliveryRead({ projectId: f.projectId, deliveryId: lastId }, f.execution());
+  assert.deepEqual(native, delivery, 'native tools retain explicit full-content inspection');
+  assert.equal((await originalFetch(`${base}/commerce-network-api/delivery?${params}&deliveryId=${lastId}`)).status, 401);
+  assert.equal((await originalFetch(`${base}/commerce-network-api/delivery?${params}&deliveryId=${lastId}&workspaceId=${f.workspaceId}`, { headers: { cookie: 'owner=fixture' } })).status, 400);
+  assert.equal((await originalFetch(`${base}/commerce-network-api/delivery?sessionId=${f.otherSession}&projectId=${f.projectId}&deliveryId=${lastId}`, { headers: { cookie: 'owner=fixture' } })).status, 404);
+});
+
+test('delivery reads are explicit, read-only and confined to current project and native membership', async t => {
+  const f = fixture(); t.after(() => f.service.close());
+  const { token } = await f.setup(); await f.dispatch();
+  const { order } = await f.service.worker(token, 'claim', { requestId: randomUUID() });
+  const lease = { orderId: order.id, leaseId: order.leaseId };
+  await f.service.worker(token, 'heartbeat', { requestId: randomUUID(), ...lease });
+  const content = '交付内容 🧵 — exact Unicode bytes';
+  const { deliverable } = await f.service.worker(token, 'deliver', { requestId: randomUUID(), ...lease, title: 'Scoped delivery', content });
+  const input = { projectId: f.projectId, deliveryId: deliverable.id };
+  const revision = f.state().revision;
+  assert.equal(f.service.delivery(f.sessionId, f.projectId, deliverable.id).content, content);
+  assert.equal(f.service.toolDeliveryRead(input, f.execution()).content, content);
+  assert.equal(f.state().revision, revision);
+  assert.equal(f.state().commerceNetwork.workOrders[0].status, 'delivered', 'reading does not accept a delivery');
+  assert.equal(f.state().deliverables[0].contentBytes, Buffer.byteLength(content));
+  const another = await f.command('create_project', { title: 'Another isolated project' });
+  assert.throws(() => f.service.delivery(f.sessionId, another.projectId, deliverable.id), { code: 'DELIVERY_NOT_FOUND' });
+  await f.service.command(f.otherSession, { command: 'create_project', payload: { id: f.projectId, title: 'Same ID in a separate workspace' }, expectedRevision: 0, requestId: randomUUID() });
+  assert.throws(() => f.service.delivery(f.otherSession, f.projectId, deliverable.id), { code: 'DELIVERY_NOT_FOUND' });
+  assert.throws(() => f.service.delivery(f.sessionId, f.projectId, 'missing'), { code: 'DELIVERY_NOT_FOUND' });
+  assert.throws(() => f.service.delivery(f.sessionId, undefined, deliverable.id), { code: 'INPUT' });
+  assert.throws(() => f.service.delivery(f.sessionId, f.projectId, '../delivery'), { code: 'INPUT' });
+  assert.throws(() => f.service.toolDeliveryRead({ ...input, workspaceId: f.workspaceId }, f.execution()), { code: 'INPUT' });
+  assert.throws(() => f.service.toolDeliveryRead(input, { agent: { session: { id: f.sessionId } } }), { code: 'TOOL_IDENTITY_REQUIRED' });
+  f.rows[0].sessionIds = [];
+  assert.throws(() => f.service.delivery(f.sessionId, f.projectId, deliverable.id), { code: 'SESSION_REQUIRED' });
+  assert.throws(() => f.service.toolDeliveryRead(input, f.execution()), { code: 'SESSION_REQUIRED' });
 });

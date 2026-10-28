@@ -51,6 +51,9 @@ export function createHttpHandler(service, { authorize } = {}) {
       } else if (req.method === 'GET' && path === '/review') {
         if ([...url.searchParams.keys()].some(k => !['sessionId', 'projectId', 'orderId'].includes(k))) fail('INPUT', 'Unsupported query fields.');
         data = await service.review(url.searchParams.get('sessionId'), url.searchParams.get('projectId'), url.searchParams.get('orderId'));
+      } else if (req.method === 'GET' && path === '/delivery') {
+        if ([...url.searchParams.keys()].some(k => !['sessionId', 'projectId', 'deliveryId'].includes(k))) fail('INPUT', 'Unsupported query fields.');
+        data = await service.delivery(url.searchParams.get('sessionId'), url.searchParams.get('projectId'), url.searchParams.get('deliveryId'));
       } else if (req.method === 'POST' && path === '/command') {
         sameOrigin(req); const body = await readJson(req);
         assertKeys(body, ['sessionId', 'projectId', 'expectedRevision', 'requestId', 'command', 'payload']);

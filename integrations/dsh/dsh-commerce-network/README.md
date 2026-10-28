@@ -203,6 +203,7 @@ SDK transport failures return an unknown-outcome error and do not auto-retry.
 | Tool | Effect |
 | --- | --- |
 | `commerce_network_read` | Read current workspace state and actual revision |
+| `commerce_network_delivery_read` | Read one complete delivery by `projectId` and `deliveryId` in the current native workspace |
 | `commerce_network_plan` | Atomically apply a reviewed-in-conversation project plan; proposals only |
 | `commerce_network_propose_order` | Add a bounded service task proposal |
 | `commerce_network_dispatch` | Queue a specific already owner-authorized task with native call provenance |
@@ -222,6 +223,7 @@ require exact same-origin headers and JSON. Body size is capped at 256 KiB.
 | Method and route | Request or response |
 | --- | --- |
 | `GET /commerce-network-api/workspace?sessionId=...&projectId=...` | Actual native-session-scoped graph projection |
+| `GET /commerce-network-api/delivery?sessionId=...&projectId=...&deliveryId=...` | One complete stored delivery, scoped to the authenticated native workspace and project |
 | `GET /commerce-network-api/review?sessionId=...&projectId=...&orderId=...` | Exact disclosure preview and `reviewDigest` |
 | `POST /commerce-network-api/command` | `{sessionId,projectId,expectedRevision,requestId,command,payload}` |
 | `POST /commerce-network-api/layout` | `{sessionId,projectId,expectedLayoutRevision,requestId,nodes,viewport}` |
@@ -231,6 +233,18 @@ propose task, issue credential, set budget, approve task, accept/reject delivery
 cancel task, revoke agent or grant. Native `apply_plan` and `dispatch_order` are
 explicitly unavailable through HTTP. Layout writes use a separate revision and
 validate every node against the current project.
+
+Canvas projections (including owner-command and layout responses) contain only
+delivery metadata: IDs, title, hash, timestamp, provenance, UTF-8 content byte
+count and source count. They omit full `content` and `sourceUrls`. Opening a
+delivery in the inspector fetches that one record; downloads remain unavailable
+until its complete body has loaded. Read failures can be retried, and closing
+or changing the conversation/project cancels stale reads. Native Assistants use
+`commerce_network_delivery_read` when they need the actual text and sources.
+Neither read path accepts a delivery or grants it to a downstream Worker.
+Existing stored content, hashes and exact-content disclosure approvals are
+unchanged. Other large collections still follow the existing canvas size limit;
+this change does not add project-wide pagination.
 
 Worker requests use `Authorization: Bearer ...`, no browser cookie, no token URL
 and no CORS. External HTTPS ingress must be configured explicitly; the default

@@ -10,6 +10,14 @@ import { buildSalesGraph } from './graph.mjs';
  */
 export const COMMERCE_NODE_KINDS = Object.freeze(['factory', 'distributor', 'personal_agent', 'service_order']);
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
+const validNodeId = value => {
+  if (typeof value !== 'string') return false;
+  const separator = value.indexOf(':');
+  // The kind is not part of the record ID's 128-character limit. Split only
+  // once: record IDs may themselves contain colons. Sales/market IDs retain
+  // their own projection contract in buildSalesGraph.
+  return separator > 0 && COMMERCE_NODE_KINDS.includes(value.slice(0, separator)) && validId(value.slice(separator + 1));
+};
 const objects = x => Array.isArray(x) ? x.filter(v => v && typeof v === 'object' && !Array.isArray(v)) : [];
 const label = (value, fallback) => typeof value === 'string' && value.trim() ? value.trim().slice(0, 160) : fallback;
 const sourced = (record, stamp = 'verifiedAt') => validId(record.verificationReceiptId) && typeof record[stamp] === 'string' && Boolean(record[stamp].trim());
@@ -40,7 +48,7 @@ export function buildCommerceGraph(workspace, projectId, savedLayout = null) {
   const nodes = new Set(graph.nodes.map(n => n.id));
   const edges = new Set(graph.edges.map(e => e.id));
   const layout = savedLayout ?? (Array.isArray(workspace.canvasLayouts) ? workspace.canvasLayouts.find(l => l.projectId === projectId) : null);
-  const positions = new Map(objects(layout?.nodes).filter(x => validId(x.id) && Number.isFinite(x.position?.x) && Number.isFinite(x.position?.y))
+  const positions = new Map(objects(layout?.nodes).filter(x => validNodeId(x.id) && Number.isFinite(x.position?.x) && Number.isFinite(x.position?.y))
     .map(x => [x.id, {x:x.position.x,y:x.position.y}]));
   const push = (kind, id, values, fallbackPosition) => {
     const nodeId=`${kind}:${id}`;

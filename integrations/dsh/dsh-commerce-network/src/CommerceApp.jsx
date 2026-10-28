@@ -130,7 +130,7 @@ export function CommerceApp({sessionId,active=true,submitPrompt,watchChanges,tab
     finally{if(alive.current&&sequence===loadSequence.current){setLoading(false);setRefreshing(false);}}
   },[sessionId]);
   useEffect(()=>{
-    alive.current=true;projectRef.current=null;setState(EMPTY);setLoading(true);setSelectedId(null);setCredential(null);setReview(null);
+    alive.current=true;projectRef.current=null;setState(EMPTY);setLoading(true);setSelectedId(null);setCredential(null);setReview(null);setArtifact(null);
     const controller=new AbortController();abortLifetime.current=controller;
     const stop=()=>{controller.abort();loadRef.current?.abort();};tabSignal?.addEventListener('abort',stop,{once:true});
     void load();
@@ -197,7 +197,7 @@ export function CommerceApp({sessionId,active=true,submitPrompt,watchChanges,tab
   const select=useCallback(id=>{setSelectedId(id);setSelectedEdgeId(null);setFocusId(null);if(id)setPanel(null);},[]);
   const selectEdge=useCallback(id=>{setSelectedEdgeId(id);setSelectedId(null);setPanel(null);setFocusId(null);},[]);
   const selectEvent=useCallback(ref=>{const node=graph?.nodes.find(n=>n.id===ref||n.refId===ref);if(node){setView('all');select(node.id);setFocusId(node.id);}},[graph,select]);
-  const chooseProject=event=>{projectRef.current=event.target.value||null;setSelectedId(null);setPanel(null);setLayoutStatus('saved');void load({projectId:projectRef.current});};
+  const chooseProject=event=>{projectRef.current=event.target.value||null;setSelectedId(null);setPanel(null);setArtifact(null);setLayoutStatus('saved');void load({projectId:projectRef.current});};
   const showDecisions=()=>{const first=decisions[0];if(first){setView('all');selectEvent(`service_order:${first.id}`);}};
   const budget=project?.budget||{};
   return <section className="cn" ref={rootRef} aria-label="Commerce Network 商业协作画布"><style>{flowCss}{appCss}</style>
@@ -215,7 +215,7 @@ export function CommerceApp({sessionId,active=true,submitPrompt,watchChanges,tab
     <footer className="cn-footer"><button onClick={()=>{setPanel(panel==='activity'?null:'activity');setSelectedId(null);}} className={panel==='activity'?'cn-active':''}><Activity size={14}/><span>协作动态</span>{running>0&&<b>{running} 项进行中</b>}</button><span className={`cn-layout-state${layoutStatus==='error'?' cn-danger-text':''}`}>{layoutStatus==='saving'?<LoaderCircle size={12} className="cn-spin"/>:layoutStatus==='error'?<AlertCircle size={12}/>:<Check size={12}/>}<span>{loading?'读取中':!state.workspaceId?'未连接':layoutStatus==='saving'?'布局保存中':layoutStatus==='error'?'布局未保存':'已同步'}</span>{graph?.nodes.length>0&&<small>{graph.nodes.length} 个节点 · {graph.edges.length} 条关系</small>}</span></footer>
     {review&&<ReviewDialog review={review} onClose={()=>{if(!busy)setReview(null);}} onConfirm={confirm} onReload={reloadReview} busy={busy}/>}
     {credential&&<CredentialDialog credential={credential} onClose={()=>setCredential(null)} onError={onError}/>}
-    {artifact&&<ArtifactDialog artifact={artifact} onClose={()=>setArtifact(null)}/>}
+    {artifact&&<ArtifactDialog key={`${sessionId}:${state.projectId}:${artifact.id}`} artifact={artifact} sessionId={sessionId} projectId={state.projectId} onClose={()=>setArtifact(null)}/>}
     {budgetOpen&&<BudgetDialog project={project} busy={busy} error={error} onClose={()=>setBudgetOpen(false)} onSave={async payload=>{try{await mutate('set_budget',payload);setBudgetOpen(false);setToast('项目预算已更新。');}catch{}}}/>}
   </section>;
 }

@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {X,ArrowUpRight,FileText,ShieldCheck,Clock3,Copy,Check,Download,KeyRound,ChevronRight,AlertCircle,Link2} from 'lucide-react';
 import {KindIcon,Status} from './NodeCard.jsx';
 import {KINDS,ACTION_LABELS,EDGE_LABELS,money,timestamp,selectedRecord,eventLabel} from './model.mjs';
-import {safeUrl} from './api.mjs';
+import {safeUrl,callApi,unwrap,errorText} from './api.mjs';
 
 export function Dialog({title,children,onClose,footer,wide=false}) {
   const ref=useRef(null);
@@ -64,7 +64,7 @@ export function Inspector({node,state,onClose,onAsk,onAction,busy,onFocus,onArti
         {node.status==='authorized'&&<div className="cn-decision-card"><Clock3 size={20}/><h3>{waitingOnDependencies?'已授权，等待前序验收':'已授权，等待调度'}</h3><p>{waitingOnDependencies?'所有前序委托完成验收后，才能启动这一步。':'由当前会话创建原生执行任务。'}</p><button className="cn-button cn-primary" disabled={waitingOnDependencies} onClick={()=>onAsk(node,'请核验这项委托的批准记录和 Agent 连接，然后通过原生 DSH 工具调度执行。')}>交给当前 Assistant 调度</button></div>}
         {artifacts.length>0&&<section><h3>交付物 · {artifacts.length}</h3>{artifacts.map((a,i)=><button className="cn-artifact" key={a.id||i} onClick={()=>onArtifact(a)}><FileText size={19}/><span><b>{a.title||a.name||a.id||'任务交付'}</b><small>{a.createdAt?timestamp(a.createdAt):a.sha256?`SHA-256 ${a.sha256.slice(0,12)}…`:'查看交付内容与凭据'}</small></span><ChevronRight size={15}/></button>)}</section>}
         {node.status==='delivered'&&<div className="cn-decision-card"><ClipboardCheckIcon/><h3>交付已到，等待验收</h3><p>请核对实际交付内容和来源，再决定接收或退回。</p><div className="cn-two-buttons"><button className="cn-button" disabled={busy} onClick={()=>onAction('reject_delivery',record)}>拒收交付</button><button className="cn-button cn-primary" disabled={busy} onClick={()=>onAction('accept_delivery',record)}>验收交付</button></div></div>}
-        {['proposed','authorized','queued','claimed','running','delivered'].includes(node.status)&&<button className="cn-text-button cn-danger-text" disabled={busy} onClick={()=>onAction('cancel_order',record)}>取消这项委托</button>}
+        {['proposed','authorized','queued','claimed','running'].includes(node.status)&&<button className="cn-text-button cn-danger-text" disabled={busy} onClick={()=>onAction('cancel_order',record)}>取消这项委托</button>}
         {node.status==='failed'&&record.stopUnconfirmed&&<div className="cn-decision-card"><AlertCircle size={20}/><h3>外部执行需要核对</h3><p>{record.stopAcknowledgedAt?'已收到外部停止回执。核对后可释放本项委托的费用预留。':'执行租约已到期，尚未收到停止回执。费用预留保持冻结，避免重复委托。'}</p>{record.stopAcknowledgedAt&&<button className="cn-button" disabled={busy} onClick={()=>onAction('resolve_failed_order',record)}>核对并释放预留</button>}</div>}
       </>:node.kind==='personal_agent'?<>
         <section><h3>独立服务商</h3><Detail label="提供者" value={info.providerName}/><Detail label="接入方式" value="Pull Gateway"/><Detail label="首次连接" value={record.endpointVerifiedAt?timestamp(record.endpointVerifiedAt):null}/><Detail label="最近心跳" value={record.lastSeenAt?timestamp(record.lastSeenAt):record.lastHeartbeatAt?timestamp(record.lastHeartbeatAt):null}/></section>
@@ -91,11 +91,30 @@ export function RelationshipInspector({edge,graph,state,onClose,onAsk,onAction,b
   </div></aside>;
 }
 
-export function ArtifactDialog({artifact,onClose}) {
-  return <Dialog title={artifact.title||artifact.name||'查看交付物'} onClose={onClose} wide footer={<button className="cn-button" onClick={()=>downloadJson(artifact,`${artifact.id||'delivery'}.json`)}><Download size={15}/>下载交付记录</button>}>
+export function ArtifactDialog({artifact,sessionId,projectId,onClose}) {
+  const [loaded,setLoaded]=useState(null),[error,setError]=useState(null),[attempt,setAttempt]=useState(0);
+  const scopeKey=JSON.stringify([sessionId,projectId,artifact.id,artifact.orderId,artifact.sha256,attempt]);
+  const delivery=loaded?.scopeKey===scopeKey?loaded.value:null;
+  const failure=error?.scopeKey===scopeKey?error.message:null;
+  useEffect(()=>{
+    const controller=new AbortController();let current=true;
+    setLoaded(null);setError(null);
+    void (async()=>{
+      try{
+        const params=new URLSearchParams({sessionId,projectId,deliveryId:artifact.id});
+        const value=unwrap(await callApi(`/delivery?${params}`,{signal:controller.signal}));
+        if(value?.id!==artifact.id||value.projectId!==projectId||value.orderId!==artifact.orderId||value.sha256!==artifact.sha256||typeof value.content!=='string')throw new Error('交付内容与当前记录不一致，请关闭后刷新画布再试。');
+        if(current)setLoaded({scopeKey,value});
+      }catch(err){if(current&&err.name!=='AbortError')setError({scopeKey,message:errorText(err)});}
+    })();
+    return()=>{current=false;controller.abort();};
+  },[scopeKey,sessionId,projectId,artifact.id,artifact.orderId,artifact.sha256]);
+  return <Dialog title={artifact.title||artifact.name||'查看交付物'} onClose={onClose} wide footer={<button className="cn-button" disabled={!delivery} onClick={()=>{if(delivery)downloadJson(delivery,`${delivery.id}.json`);}}><Download size={15}/>下载交付记录</button>}>
     <div className="cn-detail-box"><Detail label="交付编号" value={artifact.id} mono/><Detail label="内容校验" value={artifact.sha256||artifact.digest} mono/><Detail label="交付时间" value={artifact.createdAt?timestamp(artifact.createdAt):null}/></div>
-    {artifact.summary&&<p>{artifact.summary}</p>}<pre className="cn-artifact-content">{typeof artifact.content==='string'?artifact.content:JSON.stringify(artifact.content??artifact.result??artifact,null,2)}</pre>
-    {artifact.sourceUrls?.length>0&&<section className="cn-source-links"><h4>服务商提交的来源</h4>{artifact.sourceUrls.filter(url=>safeUrl(url)).map((url,i)=><a key={i} href={safeUrl(url)} target="_blank" rel="noopener noreferrer">{url}</a>)}</section>}
+    {!delivery&&!failure&&<p role="status">正在读取交付内容…</p>}
+    {failure&&<div><p role="alert" className="cn-danger-text">{failure}</p><button className="cn-button" onClick={()=>setAttempt(value=>value+1)}>重新读取交付内容</button></div>}
+    {delivery&&<pre className="cn-artifact-content">{delivery.content}</pre>}
+    {delivery?.sourceUrls?.length>0&&<section className="cn-source-links"><h4>服务商提交的来源</h4>{delivery.sourceUrls.filter(url=>safeUrl(url)).map((url,i)=><a key={i} href={safeUrl(url)} target="_blank" rel="noopener noreferrer">{url}</a>)}</section>}
   </Dialog>;
 }
 

@@ -132,7 +132,13 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       products: state.products.filter(belongs), routes: state.routes.filter(belongs),
       assets: [], leads: [], quotes: [], orders: [], workers: [], workerRuns: [], channelConnections: [], channelMetrics: [], approvals: [], evidence: [],
       canvasLayouts: state.layouts.filter(belongs), events,
-      deliverables: state.deliverables.filter(belongs),
+      // Repeated canvas reads and command receipts must not carry every stored
+      // delivery body or its potentially large source list. Read one on demand.
+      deliverables: state.deliverables.filter(belongs).map(d => ({
+        id: d.id, projectId: d.projectId, orderId: d.orderId, agentServiceId: d.agentServiceId,
+        title: d.title, sha256: d.sha256, createdAt: d.createdAt, provenance: d.provenance,
+        contentBytes: Buffer.byteLength(d.content, 'utf8'), sourceCount: d.sourceUrls.length,
+      })),
       commerceNetwork: { projectId: selected, revision: state.revision,
         parties: state.parties.filter(belongs), agentServices: state.agents.filter(belongs).map(publicAgent),
         salesAuthorizations: state.mandates.filter(belongs), grants: state.grants.filter(belongs).map(({ resources, ...g }) => ({ ...g, resourceRefs: resources.map(r => r.ref) })),
@@ -151,6 +157,17 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       if (expire(state, scope)) { state.revision++; store.save(scope.workspaceId, state); }
       checkScope(scope);
       return projection(scope, state, projectId);
+    });
+  }
+  function readDelivery(scope, projectId, deliveryId) {
+    checkScope(scope); identifier(deliveryId, 'deliveryId');
+    return store.transaction(() => {
+      const state = store.load(scope.workspaceId);
+      project(state, projectId);
+      const value = state.deliverables.find(d => d.id === deliveryId && d.projectId === projectId);
+      if (!value) fail('DELIVERY_NOT_FOUND', 'Delivery is not in the current project.', 404);
+      checkScope(scope);
+      return value;
     });
   }
   function mutate(scope, input, operation, { layout = false } = {}) {
@@ -639,10 +656,12 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
   }
   return {
     state: (sessionId, projectId) => readScope(browser(sessionId), projectId),
+    delivery: (sessionId, projectId, deliveryId) => readDelivery(browser(sessionId), projectId, deliveryId),
     review,
     command: (sessionId, input) => command(browser(sessionId), input),
     layout,
     toolRead: (input, execution) => { assertKeys(input, ['projectId']); return readScope(executionScope(execution), input.projectId); },
+    toolDeliveryRead: (input, execution) => { assertKeys(input, ['projectId', 'deliveryId']); return readDelivery(executionScope(execution), input.projectId, input.deliveryId); },
     toolCommand: (input, execution) => command(executionScope(execution), input),
     worker,
     close: () => { disposed = true; workerWindows.clear(); store.close(); },
