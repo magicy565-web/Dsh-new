@@ -8,7 +8,10 @@ on:
       - 'packages/domain-business-memory/**'
       - 'packages/domain-product-library/**'
       - 'packages/domain-inquiry-recovery/**'
+      - 'packages/domain-commerce-network/**'
+      - 'packages/dsh-commerce-contracts/**'
       - 'scripts/*dsh*.mjs'
+      - 'scripts/*commerce*.mjs'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/dsh-plugins.yml'
@@ -18,7 +21,7 @@ permissions:
 jobs:
   native-plugins:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,3 +30,11 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run build
       - run: npm test
+      - run: npm run test:client
+      - run: npm run package:business-services
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commerce-business-services
+          path: dist/business-services/
+          if-no-files-found: error
+          retention-days: 7

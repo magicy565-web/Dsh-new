@@ -16,6 +16,9 @@ const directories = [
   'packages/domain-business-memory/test',
   'packages/domain-product-library/test',
   'packages/domain-inquiry-recovery/test',
+  'packages/domain-commerce-network/test',
+  'integrations/dsh/dsh-commerce-network/test',
+  'integrations/dsh/dsh-service-billing/test',
 ];
 const files = [];
 for (const directory of directories) {

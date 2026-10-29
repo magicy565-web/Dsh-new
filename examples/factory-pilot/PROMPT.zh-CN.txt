@@ -1,0 +1,23 @@
+这是一次明确标注的 SYNTHETIC 工厂代运营演练，不是真实商业委托。请只操作当前 DSH 原生工作区，不读取其他客户数据，不联系任何人，不连接外部 Worker，不发信、不扣款、不创建真实成交。
+
+先用 commerce_network_read 读取状态。若已有相同演练项目，向我展示并继续使用，避免重复创建。否则使用 commerce_network_plan 新建一个名为“SYNTHETIC 工厂海外渠道试用”的项目，目标为“检查委托、业务推进和独立服务账单的可操作性”。为所有新记录生成唯一 ID，并保留关联。
+
+计划包含：
+- 工厂主体：SYNTHETIC 演练工厂，type=factory。
+- 服务方主体：SYNTHETIC 演练运营方，type=provider。
+- 产品上下文：SYNTHETIC 棉质 T 恤，SKU=PILOT-TEE，description=“合成演练资料，100% 棉，仅用于功能试用，尺寸待补”，category=apparel，source=“用户明确提供的合成演练资料，未核验”。不要创建库存或假冒已审核的资料库产品。
+- 渠道计划：SYNTHETIC 美国批发渠道，market=US，channel=wholesale，关联上述产品，goal=“评估潜在批发渠道，不进行外联”。
+- 不创建 agents、workOrders 或旧版 mandates，产品与渠道只是计划。
+
+读取最新修订，再用 commerce_network_propose_business_mandate 创建一份业务委托草稿：
+- title=SYNTHETIC 工厂代运营委托。
+- principalPartyId 为上面的工厂，operatorPartyId 为上面的服务方，关联刚创建的产品和渠道。
+- marketCode=US，scope=“演练产品准备、渠道计划、业务推进与服务费对账；不代表授权实际销售或外联”。
+- businessTerms.version=1，mode=factory_sales，currency=USD。
+- startDate 为当前 UTC 日期，endDate 为起始日期一年后的有效日期；请计算有效日历日期，不自行猜测系统日期。
+- fixedFeeMinor=10000，monthlyFeeMinor=null。
+- aiCredits.payer=principal，policy=“SYNTHETIC 演练不计费；真实 AI 预算和额度须另行约定”。
+- commission.rateBps=500，basis=net_collected_goods，trigger=verified_collection，refundRule=proportional_reversal。
+- agreementEvidence=“SYNTHETIC 演练协议，不是实际合同，不构成真实收款依据”。
+
+使用读取到的实际 expectedRevision 和稳定 requestId；响应未知时仅用原始请求重试，遇到修订冲突先重读。不能自动审核委托，也不能把普通回复当成工具成功。完成后展示实际项目与委托 ID，告诉我从“业务委托”核对并审核，再打开“业务推进”。如果模型/工具不可用，明确报告缺失条件，不模拟成功。

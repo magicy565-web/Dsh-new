@@ -1,0 +1,16 @@
+{
+  "name": "@workspace-agent/dsh-commerce-contracts",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.mjs",
+    "./validation": "./validation.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "validation.mjs"
+  ],
+  "engines": {
+    "node": ">=24"
+  }
+}

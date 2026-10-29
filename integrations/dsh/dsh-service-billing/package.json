@@ -1,0 +1,30 @@
+{
+  "name": "dsh-service-billing",
+  "version": "0.1.0-rc.2",
+  "private": true,
+  "type": "module",
+  "description": "Optional DSH service fee statements and evidence reconciliation; independent of Mini ERP",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "service.js",
+    "store.js",
+    "evidence.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dependencies": {
+    "@workspace-agent/dsh-commerce-contracts": "1.0.0",
+    "@workspace-agent/domain-commerce-network": "0.2.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

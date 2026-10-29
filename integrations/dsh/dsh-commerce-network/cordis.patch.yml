@@ -1,0 +1,4 @@
+- insert:
+    - id: commerce-network
+      name: dsh-commerce-network
+      config: {}

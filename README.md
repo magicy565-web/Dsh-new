@@ -3,15 +3,17 @@
 本仓库只维护 **DeepSeek Harness（DSH）原生插件和可复用领域逻辑**。
 Agent 执行、模型、会话、工具循环和取消由 DSH 宿主负责。
 
-当前正在收敛为 DSH 宿主与少量按需插件，暂停扩展业务面板和阶段流程。
-下方是现有实现清单，不代表通用底座需要全部安装。保留／移出核心／删除的判断见
-[收敛清单](docs/SCOPE-REDUCTION.md)；Sourcing 已完成 skill 化试点，其余实现尚待收敛。
+当前集成交付范围见 [发布说明](docs/COMMERCE-RELEASE.md)。工厂试用重点是海外渠道代运营：沿用 Commerce 1.4.0-rc.2 和独立 Service Billing 0.1.0-rc.2，不扩展新模块，不安装或升级 Mini ERP。
+
+**先看 [工厂试用快速开始](docs/COMMERCE-PILOT-QUICKSTART.md)**：包含 Windows / macOS / Linux 安装、启动、演练提示词和排错步骤。`npm start` 仅打印说明；运行界面由官方 DSH Web 提供。
+
+已完成的业务委托、独立账单和业务推进工作台分别见 [委托验收](docs/COMMERCE-MVP-MANDATES-ACCEPTANCE.md)、[计费说明](docs/SERVICE-BILLING-IMPLEMENTATION.md)、[工作台说明](docs/COMMERCE-BUSINESS-WORKBENCH.md)。下方是已有可选资产，不要求全部安装；旧收敛历史见 [收敛清单](docs/SCOPE-REDUCTION.md)。
 
 ## 目录
 
 ```text
-integrations/dsh/   八个可选原生插件，含独立网站转杂志与品牌插件
-packages/          三个宿主无关的领域包
+integrations/dsh/   可选原生业务插件与技能
+packages/          宿主无关的领域逻辑与集成契约
 scripts/           安装位置提示、静态检查、回归测试
 .github/           DSH 检查工作流
 docs/              当前开发约定与清理记录
@@ -20,6 +22,8 @@ licenses/          第三方许可
 
 | 插件 | 能力 |
 | --- | --- |
+| [dsh-commerce-network](integrations/dsh/dsh-commerce-network/README.md) | 业务委托、画布、工厂业务推进与独立 Worker 委派 |
+| [dsh-service-billing](integrations/dsh/dsh-service-billing/README.md) | 独立服务账单与人工收退款对账，不依赖 Mini ERP |
 | [dsh-workspace-library](integrations/dsh/dsh-workspace-library/README.md) | 企业／产品资料、版本审核、产品上下文与缺口、原生对话引用和确切版本读取 |
 | [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
 | [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill；微刊复用独立杂志包 |
@@ -29,8 +33,8 @@ licenses/          第三方许可
 | [dsh-mini-erp](integrations/dsh/dsh-mini-erp/README.md) | ERP Admin：完整后台 UI／UX，复用原库与交易账本；[安装与截图](docs/ERP-ADMIN-PACKAGE.md) |
 | [dsh-inquiry-recovery](integrations/dsh/dsh-inquiry-recovery/README.md) | 可选历史询盘：原文件核验、人工身份判断、Agent 撰写的未发送草稿 |
 
-在 DSH 中执行 `plugin_manager install_bundle target=<插件绝对目录>` 安装。
-`npm start` 只显示当前 checkout 的八个安装位置，不启动服务或修改 profile。
+使用官方 CLI `dsh plugin --profile web add <安装包.tgz>` 安装到自己选定的 DSH_HOME。
+本次只选 Commerce 和 Billing，完整步骤见上方快速开始；`npm start` 不启动服务或修改 profile。
 
 ## 验证
 

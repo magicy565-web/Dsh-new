@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "officialCordisAndTools": true,
+  "installedServices": [
+    "commerceNetwork",
+    "serviceBilling"
+  ],
+  "miniErpLoaded": false,
+  "toolDraft": true,
+  "actualOfficialAttachmentRead": true,
+  "ownerIssue": true,
+  "amountMinor": 2900,
+  "automaticCharges": 0,
+  "modelCalls": 0,
+  "records": "synthetic fixture session and registry"
+}
