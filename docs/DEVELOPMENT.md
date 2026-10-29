@@ -1,5 +1,7 @@
 # 开发约定
 
+2026-10-29 当前交付工作：先完成 Commerce/Billing 独立试用，不扩展新业务模块，不加入 Mini ERP。当前安装和试用以 [快速开始](COMMERCE-PILOT-QUICKSTART.md) 为准。下面早期工作区、环境和产品方向为历史背景，不作为本次安装清单。
+
 最新产品方向见 [Agentive 模块与助理](AGENTIVE-ARCHITECTURE.md)：每个业务模块配置上下文 Assistant，交互参考 Shopify Sidekick。暂停按完整 ERP 页面清单补功能，优先验证商品模块的原生 DSH 助理接入；已有数据服务和记录保留。
 
 当前优先级是范围收敛，依据 [收敛清单](SCOPE-REDUCTION.md) 做减法。
@@ -18,7 +20,7 @@ Sourcing 试点已删除自建阶段引擎，六份方法改为可独立加载�
 ## 日常命令
 
 - `npm ci --ignore-scripts`：首次设置的依赖安装和本地 workspace 链接。
-- `npm start`：显示八个候选插件的真实安装目录（含独立网站转杂志与可选品牌），不启动另一套应用。
+- `npm start`：显示当前 Commerce/Billing 的构建与官方 CLI 安装说明，不启动服务、不安装插件。
 - `npm run build:erp-client`：把 ERP 的 `src/` 与 Radix Themes / Lucide 打成原生 Client；外置宿主 React、内嵌限定作用域的 CSS。
 - `npm run build`：先构建 ERP Client，再检查原生 bundle 入口、JS 语法、中英文字典。
 - `npm test`：原生业务／品牌插件与三个领域包的回归。
@@ -30,7 +32,7 @@ Client 冒烟默认从本仓库 `node_modules/` 读取 React / React DOM / jsdom
 
 ## 原生接入边界
 
-由用户在 DSH 的 `plugin_manager` 中安装插件。源码更新后按插件 README 重载 Host／刷新界面。
+当前包使用官方 `dsh plugin --profile web add <包路径>` 安装；早期 `plugin_manager` 记录仅为历史。源码更新后按插件 README 重载 Host／刷新界面。
 仓库中的安装位置、配置模板和历史测试记录不代表本机插件已加载。
 本云环境已安装官方 DSH 0.2.1-rc.2 Web 宿主，六个原生插件已实际挂载；
 运行目录、接口与浏览器验收范围见 [DSH-HOST.md](DSH-HOST.md)。
