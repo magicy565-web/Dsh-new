@@ -1,6 +1,6 @@
 # 工厂代运营试用 从安装到第一份委托
 
-2026-10-29。目标是打开当前系统并试跑一份演练委托。本轮不增加业务模块；沿用 Commerce 1.4.0-rc.1 和独立 Service Billing 0.1.0-rc.1，不安装或升级 Mini ERP。
+2026-10-29。目标是打开当前系统并试跑一份演练委托。本轮不增加业务模块；沿用 Commerce 1.4.0-rc.2 和独立 Service Billing 0.1.0-rc.2，不安装或升级 Mini ERP。
 
 ## 1 选择交付包
 
@@ -38,7 +38,7 @@ Linux（bash），也适用于 macOS zsh：
 ```sh
 export DSH_HOME="$PWD/pilot-data"
 mkdir -p pilot-workspace
-dsh plugin --profile web add ./packages/dsh-commerce-network-1.4.0-rc.1.tgz ./packages/dsh-service-billing-0.1.0-rc.1.tgz
+dsh plugin --profile web add ./packages/dsh-commerce-network-1.4.0-rc.2.tgz ./packages/dsh-service-billing-0.1.0-rc.2.tgz
 cd pilot-workspace
 dsh --profile web --host 127.0.0.1 --port 4187 --no-open
 ```
@@ -50,7 +50,7 @@ Windows PowerShell 备用说明：
 ```powershell
 $env:DSH_HOME = Join-Path $PWD 'pilot-data'
 New-Item -ItemType Directory -Force 'pilot-workspace' | Out-Null
-dsh plugin --profile web add ./packages/dsh-commerce-network-1.4.0-rc.1.tgz ./packages/dsh-service-billing-0.1.0-rc.1.tgz
+dsh plugin --profile web add ./packages/dsh-commerce-network-1.4.0-rc.2.tgz ./packages/dsh-service-billing-0.1.0-rc.2.tgz
 Set-Location 'pilot-workspace'
 dsh --profile web --host 127.0.0.1 --port 4187 --no-open
 ```

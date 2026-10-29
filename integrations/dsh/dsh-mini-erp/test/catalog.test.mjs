@@ -95,7 +95,7 @@ test('explicitly linking a legacy record preserves orders, ledger id and origina
   // Recreate the v1 boundary: identical legacy tables, no mapping table yet.
   f.store.db.exec('DROP TABLE catalog_links; PRAGMA user_version=1;');
   const migrated = new ErpStore(join(f.dir, 'erp.sqlite'));
-  assert.equal(migrated.db.prepare('PRAGMA user_version').get().user_version, 4); migrated.close();
+  assert.equal(migrated.db.prepare('PRAGMA user_version').get().user_version, 3); migrated.close();
   const command = f.link({ expectedRevision: 1 }); await f.write(command);
   assert.equal((await f.service.read('a', { entity: 'order', id: old.id })).unitPriceMinor, 4321);
   assert.equal((await f.service.read('a', { entity: 'product', id: 'ledger' })).available, 90);

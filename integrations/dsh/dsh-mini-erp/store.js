@@ -1,10 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
-import { BusinessError } from '@workspace-agent/dsh-commerce-contracts';
 import { randomUUID } from 'node:crypto';
-import { migrateQuotes } from './quote-store.js';
 
-export class ErpError extends BusinessError {
-  constructor(code, message) { super(code, message, code === 'NOT_FOUND' ? 404 : 409); this.name = 'ErpError'; }
+export class ErpError extends Error {
+  constructor(code, message) { super(message); this.code = code; this.name = 'ErpError'; }
 }
 const fail = (code, message) => { throw new ErpError(code, message); };
 const text = (v, name, max = 500) => { if (typeof v !== 'string' || !v.trim() || v.length > max) fail('INPUT', `${name}: non-empty text, max ${max}`); return v.trim(); };
@@ -29,7 +27,7 @@ export class ErpStore {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (version > 4) fail('VERSION', 'Database was created by a newer ERP version');
+      if (version > 3) fail('VERSION', 'Database was created by a newer ERP version');
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS products (
           workspace TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, currency TEXT NOT NULL,
@@ -71,8 +69,7 @@ export class ErpStore {
           if (!columns.includes(name)) this.db.exec(`ALTER TABLE buyers ADD COLUMN ${name} ${definition}`);
         }
       }
-      migrateQuotes(this.db);
-      this.db.exec('CREATE INDEX IF NOT EXISTS order_buyer ON orders(workspace,buyer_id,id); CREATE INDEX IF NOT EXISTS erp_event_entity ON events(workspace,entity_id,action,sequence); PRAGMA user_version=4; COMMIT;');
+      this.db.exec('CREATE INDEX IF NOT EXISTS order_buyer ON orders(workspace,buyer_id,id); PRAGMA user_version=3; COMMIT;');
     } catch (e) { this.db.exec('ROLLBACK'); this.db.close(); throw e; }
   }
   close() { this.db.close(); }
@@ -101,15 +98,11 @@ export class ErpStore {
   }
   order(workspace, orderId, now) {
     const o = this.row('orders', workspace, orderId);
-    const reserve = this.db.prepare("SELECT r.payload FROM events e JOIN requests r ON r.workspace=e.workspace AND r.request_id=e.request_id WHERE e.workspace=? AND e.entity_id=? AND e.action='reserve' ORDER BY e.sequence LIMIT 1").get(workspace, orderId);
-    const revision = reserve ? JSON.parse(reserve.payload).expectedCatalogRevision : null;
-    const link = this.link(workspace, o.product_id);
-    const catalogRef = link && Number.isSafeInteger(revision) && revision > 0 ? {id:link.product_id,skuId:link.sku_id,revision} : null;
     return { id: o.id, buyerId: o.buyer_id, productId: o.product_id, offerId: o.offer_id,
       quantity: o.quantity, currency: o.currency, unitPriceMinor: o.unit_price, totalMinor: o.total,
       status: o.status === 'reserved' && o.expires_at <= now ? 'expired' : o.status,
       expiresAt: new Date(o.expires_at).toISOString(), createdAt: new Date(o.created_at).toISOString(),
-      updatedAt: new Date(o.updated_at).toISOString(), paymentStatus: 'not_tracked', catalogRef };
+      updatedAt: new Date(o.updated_at).toISOString(), paymentStatus: 'not_tracked' };
   }
   overview(workspace) {
     id(workspace, 'workspace'); this.db.exec('BEGIN');
@@ -203,9 +196,9 @@ export class ErpStore {
       this.db.prepare("UPDATE orders SET status='expired',updated_at=? WHERE workspace=? AND status='reserved' AND expires_at<=?").run(now, workspace, now);
       const result = this.command(workspace, input, now, catalog);
       const receipt = { workspaceId: workspace, requestId: input.requestId, action: input.action, entity: result.entity, id: result.id, recordedAt: new Date(now).toISOString() };
+      const current = this[result.entity](workspace, result.id, now);
       this.db.prepare('INSERT INTO requests VALUES(?,?,?,?)').run(workspace, input.requestId, payload, JSON.stringify(receipt));
       this.db.prepare('INSERT INTO events(workspace,request_id,action,entity_id,actor,created_at) VALUES(?,?,?,?,?,?)').run(workspace, input.requestId, input.action, result.id, actor, now);
-      const current = this[result.entity](workspace, result.id, now);
       this.db.exec('COMMIT'); return { ...receipt, replayed: false, current };
     } catch (e) { this.db.exec('ROLLBACK'); throw e; }
   }

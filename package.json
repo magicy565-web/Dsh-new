@@ -14,12 +14,6 @@
     "packages/domain-commerce-network",
     "integrations/dsh/dsh-commerce-network",
     "packages/dsh-commerce-contracts",
-    "packages/domain-rfq",
-    "packages/domain-quote",
-    "integrations/dsh/dsh-rfq-desk",
-    "integrations/dsh/dsh-quote-guard",
-    "integrations/dsh/dsh-sample-flow",
-    "integrations/dsh/dsh-channel-ledger",
     "integrations/dsh/dsh-service-billing"
   ],
   "description": "Native workspace plugins for DeepSeek Harness and host-independent business domains",
@@ -37,8 +31,8 @@
     "build:commerce-client": "node scripts/build-commerce-client.mjs",
     "test:commerce": "node --test --test-isolation=none packages/domain-commerce-network/test/*.test.mjs integrations/dsh/dsh-commerce-network/test/*.test.mjs",
     "package:commerce": "node scripts/package-commerce-business.mjs dist --only=dsh-commerce-network",
-    "test:commerce-business": "node --test packages/domain-rfq/test/*.test.mjs packages/domain-quote/test/*.test.mjs integrations/dsh/dsh-rfq-desk/test/*.test.mjs integrations/dsh/dsh-quote-guard/test/*.test.mjs integrations/dsh/dsh-sample-flow/test/*.test.mjs integrations/dsh/dsh-channel-ledger/test/*.test.mjs integrations/dsh/dsh-commerce-network/test/trade.test.mjs integrations/dsh/dsh-mini-erp/test/quote-migration.test.mjs",
-    "package:commerce-business": "node scripts/package-commerce-business.mjs",
+    "test:commerce-business": "node --test packages/domain-commerce-network/test/*.test.mjs integrations/dsh/dsh-commerce-network/test/*.test.mjs integrations/dsh/dsh-service-billing/test/*.test.mjs",
+    "package:commerce-business": "npm run package:business-services",
     "package:service-billing": "node scripts/package-commerce-business.mjs dist/service-billing --only=dsh-service-billing",
     "package:business-services": "npm run build:commerce-client && node scripts/package-commerce-business.mjs dist/business-services --only=dsh-commerce-network,dsh-service-billing"
   },

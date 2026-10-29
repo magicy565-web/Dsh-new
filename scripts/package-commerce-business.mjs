@@ -22,15 +22,7 @@ const destination = resolve(
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
 const names = only
   ? only.split(",")
-  : [
-      "dsh-workspace-library",
-      "dsh-mini-erp",
-      "dsh-rfq-desk",
-      "dsh-quote-guard",
-      "dsh-sample-flow",
-      "dsh-channel-ledger",
-      "dsh-commerce-network",
-    ];
+  : ["dsh-commerce-network", "dsh-service-billing"];
 const receipts = [];
 await mkdir(destination, { recursive: true });
 for (const name of names) {
@@ -68,10 +60,10 @@ for (const name of names) {
       });
     }
     await cp(
-      join(root, "docs/COMMERCE-BUSINESS-IMPLEMENTATION.md"),
-      join(stage, "COMMERCE-BUSINESS-IMPLEMENTATION.md"),
+      join(root, "docs/COMMERCE-RELEASE.md"),
+      join(stage, "COMMERCE-RELEASE.md"),
     );
-    manifest.files = [...manifest.files, "COMMERCE-BUSINESS-IMPLEMENTATION.md"];
+    manifest.files = [...manifest.files, "COMMERCE-RELEASE.md"];
     if (['dsh-service-billing','dsh-commerce-network'].includes(name)) {
       await cp(join(root,'docs/SERVICE-BILLING-IMPLEMENTATION.md'),join(stage,'SERVICE-BILLING-IMPLEMENTATION.md'));
       manifest.files.push('SERVICE-BILLING-IMPLEMENTATION.md');

@@ -2,8 +2,6 @@ import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { ErpStore, ErpError } from './store.js';
-import { createQuoteService } from './quotes.js';
-import { createTradeRecords } from './trade-records.js';
 import { createErpService } from './catalog.js';
 import { createHttpHandler, API_PREFIX } from './http.js';
 
@@ -74,12 +72,6 @@ export function apply(ctx, config = {}) {
   const store = new ErpStore(join(directory, 'erp.sqlite'));
   ctx.effect(() => () => store.close(), 'mini-erp: database');
   const service = createErpService(store, { library: () => ctx.get('workspaceLibrary'), registry: ctx.workspaceRegistry });
-  const quotes = createQuoteService(store, { registry: ctx.workspaceRegistry, library: () => ctx.get('workspaceLibrary'), rfq: () => ctx.get('rfqDesk') });
-  ctx.effect(() => () => quotes.close(), 'mini-erp: quote lifetime');
-  ctx.effect(() => ctx.reflect.provide('miniErpQuotes', quotes), 'mini-erp: restricted quote service');
-  const trade = createTradeRecords(store, { registry: ctx.workspaceRegistry, quotes, attachments: () => ctx.get('attachments'), commerce: () => ctx.get('commerceNetwork') });
-  ctx.effect(() => () => trade.close(), 'mini-erp: trade lifetime');
-  ctx.effect(() => ctx.reflect.provide('miniErpTrade', trade), 'mini-erp: trade records');
   registerTools(ctx, service);
   ctx.inject(['webServer', 'connection'], web => {
     web.effect(() => web.webServer.register({ kind: 'prefix', path: API_PREFIX,

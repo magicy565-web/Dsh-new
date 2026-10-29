@@ -1,21 +1,41 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fixture } from "../../dsh-quote-guard/test/fixture.mjs";
 import { CommerceStore } from "../store.js";
 import { createCommerceService } from "../service.js";
 import { createTradeProjection } from "../trade.js";
 import { projectGraph } from "../src/model.mjs";
 import { randomUUID } from "node:crypto";
-test("authoritative RFQ/ERP projection follows project scope, revocation and persisted layout without copying quotes", async (t) => {
+import { createAccess } from "@workspace-agent/dsh-commerce-contracts";
+// Contract doubles exercise Commerce projection only; real ERP/RFQ integration
+// remains in the deferred implementation branch and is not part of this release.
+function fixture() {
+  const w = randomUUID(), session = "session-fixture";
+  const rows = [{ id: w, sessionIds: [session] }, { id: randomUUID(), sessionIds: ["session-other"] }];
+  const registry = { list: () => rows, get: id => rows.find(r => r.id === id) };
+  const buyer = (scope, id) => {
+    scope.check();
+    assert.equal(scope.workspaceId, w);
+    assert.equal(id, "buyer1");
+    return { id, revision: 1, name: "Synthetic buyer" };
+  };
+  return { w, session, rows, registry, buyer, access: createAccess(registry), product: { id: "prd_fixture" } };
+}
+test("optional trade service contracts preserve project scope, revocation and layout without copying prices", async (t) => {
   const f = fixture();
-  t.after(() => f.close());
+  t.after(() => f.access.close());
   const store = new CommerceStore(":memory:");
   let service;
+  const rfqs = [], quotes = [];
+  const page = (rows, scope, input) => {
+    scope.check();
+    assert.equal(scope.workspaceId, f.w);
+    return { items: rows.filter(r => r.projectId === input.projectId), hasMore: false };
+  };
   const projection = createTradeProjection({
     registry: f.registry,
     network: () => service,
-    rfq: () => f.rfq,
-    quotes: () => f.quotes,
+    rfq: () => ({ read: (scope, input) => page(rfqs, scope, input) }),
+    quotes: () => ({ read: (scope, input) => page(quotes, scope, input), buyer: f.buyer, orderRefs: () => [] }),
     trade: () => null,
   });
   service = createCommerceService({
@@ -24,7 +44,7 @@ test("authoritative RFQ/ERP projection follows project scope, revocation and per
     tradeProjection: projection.read,
   });
   t.after(() => service.close());
-  f.setNetwork(service);
+  t.after(() => projection.close());
   const execution = { agent: { session: { id: f.session } }, callId: "plan" };
   const plan = await service.toolCommand(
     {
@@ -45,15 +65,10 @@ test("authoritative RFQ/ERP projection follows project scope, revocation and per
     execution,
   );
   const projectId = plan.projectId;
-  const r = f.rfq.ownerWrite(f.session, {
-    action: "assign_project",
-    requestId: "route-rfq",
-    id: f.r.id,
-    expectedRevision: f.r.revision,
-    projectId,
-  }).current;
-  f.proposal.rfqRevision = r.revision;
-  const q = await f.setup();
+  const r = { id: "rfq-fixture", projectId, revision: 1, status: "qualified", buyerRef: "buyer1", source: { channel: "import" } };
+  const q = { quoteId: "quote-fixture", projectId, revision: 1, version: 1, status: "approved", rfqRef: r.id, buyerId: "buyer1", unitPriceMinor: 1234 };
+  rfqs.push(r);
+  quotes.push(q);
   const state = service.state(f.session, projectId);
   state.trade = projection.read(f.session, projectId);
   const graph = projectGraph(state);
@@ -95,12 +110,12 @@ test("authoritative RFQ/ERP projection follows project scope, revocation and per
 });
 test("mandate versions preserve approvals; conflicting customer claims require owner resolution", async (t) => {
   const f = fixture();
-  t.after(() => f.close());
+  t.after(() => f.access.close());
   const store = new CommerceStore(":memory:"),
     service = createCommerceService({
       store,
       registry: f.registry,
-      buyerLookup: (s, id) => f.quotes.buyer(f.access.owner(s), id),
+      buyerLookup: (sessionId, id) => f.buyer(f.access.owner(sessionId), id),
     });
   t.after(() => service.close());
   const execution = { agent: { session: { id: f.session } }, callId: "plan" };
@@ -218,4 +233,21 @@ test("mandate versions preserve approvals; conflicting customer claims require o
       ),
     { code: "OWNER_ACTION_REQUIRED" },
   );
+});
+
+
+test("Commerce opens with every optional trade dependency absent", async (t) => {
+  const f = fixture();
+  t.after(() => f.access.close());
+  let service;
+  const projection = createTradeProjection({ registry: f.registry, network: () => service, rfq: () => null, quotes: () => null, trade: () => null });
+  t.after(() => projection.close());
+  service = createCommerceService({ store: new CommerceStore(":memory:"), registry: f.registry, tradeProjection: projection.read });
+  t.after(() => service.close());
+  const plan = await service.toolCommand({ expectedRevision: 0, requestId: "standalone", command: "apply_plan", payload: { title: "Synthetic standalone project" } }, { agent: { session: { id: f.session } }, callId: "standalone" });
+  const state = service.state(f.session, plan.projectId);
+  const trade = projection.read(f.session, plan.projectId);
+  assert.deepEqual(trade.dependencies, { rfq: "DEPENDENCY_MISSING", quotes: "DEPENDENCY_MISSING", samples: "DEPENDENCY_MISSING" });
+  for (const name of ["rfqs", "quotes", "buyers", "orders", "samples"]) assert.deepEqual(trade[name], []);
+  assert.doesNotThrow(() => projectGraph({ ...state, trade }));
 });

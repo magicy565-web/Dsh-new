@@ -9,8 +9,6 @@ on:
       - 'packages/domain-product-library/**'
       - 'packages/domain-inquiry-recovery/**'
       - 'packages/domain-commerce-network/**'
-      - 'packages/domain-rfq/**'
-      - 'packages/domain-quote/**'
       - 'packages/dsh-commerce-contracts/**'
       - 'scripts/*dsh*.mjs'
       - 'scripts/*commerce*.mjs'
@@ -33,10 +31,10 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npm run test:client
-      - run: npm run package:commerce-business
+      - run: npm run package:business-services
       - uses: actions/upload-artifact@v4
         with:
-          name: commerce-business-candidate
-          path: dist/commerce-business/
+          name: commerce-business-services
+          path: dist/business-services/
           if-no-files-found: error
           retention-days: 7

@@ -1,6 +1,6 @@
 {
   "name": "dsh-mini-erp",
-  "version": "0.6.0-rc.2",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "Small workspace ERP: products, buyers, orders and atomic supply reservations",
@@ -20,10 +20,7 @@
     "http.js",
     "client.js",
     "INTER-OFL.txt",
-    "THIRD-PARTY-NOTICES.txt",
-    "quote-store.js",
-    "quotes.js",
-    "trade-records.js"
+    "THIRD-PARTY-NOTICES.txt"
   ],
   "dsh": {
     "bundle": {
@@ -42,10 +39,5 @@
   "devDependencies": {
     "@radix-ui/themes": "3.3.0",
     "lucide-react": "1.61.0"
-  },
-  "dependencies": {
-    "@workspace-agent/dsh-commerce-contracts": "1.0.0",
-    "@workspace-agent/domain-quote": "1.0.0",
-    "@workspace-agent/domain-commerce-network": "0.2.0"
   }
 }

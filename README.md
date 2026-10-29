@@ -3,7 +3,7 @@
 本仓库只维护 **DeepSeek Harness（DSH）原生插件和可复用领域逻辑**。
 Agent 执行、模型、会话、工具循环和取消由 DSH 宿主负责。
 
-当前试用重点是工厂海外渠道代运营：沿用 Commerce 1.4.0-rc.1 和独立 Service Billing 0.1.0-rc.1，不扩展新模块，不安装或升级 Mini ERP。
+当前集成交付范围见 [发布说明](docs/COMMERCE-RELEASE.md)。工厂试用重点是海外渠道代运营：沿用 Commerce 1.4.0-rc.2 和独立 Service Billing 0.1.0-rc.2，不扩展新模块，不安装或升级 Mini ERP。
 
 **先看 [工厂试用快速开始](docs/COMMERCE-PILOT-QUICKSTART.md)**：包含 Windows / macOS / Linux 安装、启动、演练提示词和排错步骤。`npm start` 仅打印说明；运行界面由官方 DSH Web 提供。
 

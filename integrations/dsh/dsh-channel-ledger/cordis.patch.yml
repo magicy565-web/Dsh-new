@@ -1,4 +1,0 @@
-- insert:
-    - id: channel-ledger
-      name: dsh-channel-ledger
-      config: {}
