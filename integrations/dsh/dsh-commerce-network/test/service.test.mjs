@@ -185,6 +185,22 @@ test('business CAS, idempotency and layout CAS are independent and conflict-safe
   } finally { f.service.close(); }
 });
 
+test('layout writes merge into the saved positions and never overwrite the personal viewport', async () => {
+  const f = fixture();
+  try {
+    await f.setup();
+    const base = { projectId: f.projectId, viewport: { x: 5, y: 6, zoom: 0.5 } };
+    f.service.layout(f.sessionId, { ...base, requestId: randomUUID(), expectedLayoutRevision: 0, nodes: [{ id: 'factory:factory_fixture', position: { x: 10, y: 20 } }, { id: 'product:product_fixture', position: { x: 30, y: 40 } }] });
+    f.service.layout(f.sessionId, { projectId: f.projectId, requestId: randomUUID(), expectedLayoutRevision: 1, nodes: [{ id: 'product:product_fixture', position: { x: 300, y: 400 } }] });
+    const saved = f.state().canvasLayouts[0];
+    assert.equal(saved.revision, 2);
+    assert.deepEqual(Object.fromEntries(saved.nodes.map(n => [n.id, n.position])), { 'factory:factory_fixture': { x: 10, y: 20 }, 'product:product_fixture': { x: 300, y: 400 } });
+    assert.deepEqual(saved.viewport, base.viewport, 'a patch without a viewport keeps the stored camera');
+    assert.throws(() => f.service.layout(f.sessionId, { projectId: f.projectId, requestId: randomUUID(), expectedLayoutRevision: 2, nodes: [{ id: 'product:product_fixture', position: { x: 1, y: 1 } }, { id: 'product:product_fixture', position: { x: 2, y: 2 } }] }), e => e.code === 'LAYOUT_INPUT', 'duplicate nodes in one patch are rejected');
+    assert.equal(f.state().canvasLayouts[0].revision, 2, 'a rejected patch leaves the layout untouched');
+  } finally { f.service.close(); }
+});
+
 test('partial plan failures roll back all records and removed native sessions cannot reuse tools', async () => {
   const f = fixture();
   try {

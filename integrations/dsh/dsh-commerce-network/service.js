@@ -1,4 +1,5 @@
 import { recordBusinessProgress } from './business-progress.js';
+import { layoutNodeIds } from './layout-ids.js';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { makeWorkOrderProposal, applyWorkOrderEvent, validateMandateTerms, validateBusinessTerms, businessTermStatus, businessProgressView } from '@workspace-agent/domain-commerce-network';
 
@@ -586,14 +587,8 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       project(state, input.projectId);
       const current = state.layouts.find(l => l.projectId === input.projectId);
       if (input.expectedLayoutRevision !== (current?.revision ?? 0)) fail('LAYOUT_CONFLICT', 'The canvas layout changed. Refresh before saving.', 409);
-      const allowed = new Set();
-      for (const p of state.products.filter(p => p.projectId === input.projectId)) allowed.add(`product:${p.id}`);
-      for (const r of state.routes.filter(r => r.projectId === input.projectId)) { allowed.add(`route:${r.id}`); allowed.add(`market:${r.market}`); if (r.workerRole || r.workerGoal) allowed.add(`worker:${r.id}`); }
-      for (const p of state.parties.filter(p => p.projectId === input.projectId && ['factory', 'distributor'].includes(p.type))) allowed.add(`${p.type}:${p.id}`);
-      for (const a of state.agents.filter(a => a.projectId === input.projectId)) allowed.add(`personal_agent:${a.id}`);
-      for (const o of state.workOrders.filter(o => o.projectId === input.projectId)) allowed.add(`service_order:${o.id}`);
-      if (tradeFacts) { const facts = tradeFacts; for (const [kind, rows] of [['rfq',facts.rfqs],['quote',facts.quotes],['buyer',facts.buyers],['erp_order',facts.orders],['sample',facts.samples]]) for (const row of rows) allowed.add(`${kind}:${row.id}`); }
-      for (const m of state.mandates.filter(m => m.projectId === input.projectId && m.businessTerms)) allowed.add(`business_mandate:${m.id}`);
+      const mine = rows => rows.filter(row => row.projectId === input.projectId);
+      const allowed = layoutNodeIds({ products: mine(state.products), routes: mine(state.routes), parties: mine(state.parties), agents: mine(state.agents), workOrders: mine(state.workOrders), mandates: mine(state.mandates), trade: tradeFacts });
       const seen = new Set();
       const nodes = array(input.nodes, 'nodes', 3000).map(n => {
         assertKeys(n, ['id', 'position']); assertKeys(n.position, ['x', 'y']);
@@ -606,7 +601,11 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
         if (![v.x, v.y, v.zoom].every(Number.isFinite) || Math.abs(v.x) > 1e6 || Math.abs(v.y) > 1e6 || v.zoom < 0.1 || v.zoom > 4) fail('LAYOUT_INPUT', 'Invalid viewport.');
         viewport = { ...v };
       }
-      const next = { projectId: input.projectId, revision: (current?.revision ?? 0) + 1, nodes, viewport, updatedAt: iso() };
+      // Writes are patches: untouched nodes keep their saved position, and positions of nodes that
+      // no longer exist are dropped. The camera is personal and optional, so an omitted viewport keeps the stored one.
+      const saved = new Map((current?.nodes ?? []).filter(n => allowed.has(n.id)).map(n => [n.id, n]));
+      for (const n of nodes) saved.set(n.id, n);
+      const next = { projectId: input.projectId, revision: (current?.revision ?? 0) + 1, nodes: [...saved.values()], viewport: viewport ?? current?.viewport ?? null, updatedAt: iso() };
       if (current) state.layouts[state.layouts.indexOf(current)] = next; else state.layouts.push(next);
       return { projectId: input.projectId };
     }, { layout: true });

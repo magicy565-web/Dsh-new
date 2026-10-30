@@ -16,6 +16,7 @@
   "files": [
     "index.js",
     "service.js",
+    "layout-ids.js",
     "store.js",
     "http.js",
     "resources.js",

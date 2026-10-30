@@ -3,6 +3,8 @@ import {X,ArrowUpRight,FileText,ShieldCheck,Clock3,Copy,Check,Download,KeyRound,
 import {KindIcon,Status} from './NodeCard.jsx';
 import {KINDS,ACTION_LABELS,EDGE_LABELS,money,timestamp,selectedRecord,eventLabel} from './model.mjs';
 import {safeUrl,callApi,unwrap,errorText} from './api.mjs';
+import {Detail,TagList} from './ui.jsx';
+export {Inspector} from './canvas/NodeInspector.jsx';
 
 export function Dialog({title,children,onClose,footer,wide=false}) {
   const ref=useRef(null),closeRef=useRef(onClose);
@@ -25,8 +27,6 @@ export function Dialog({title,children,onClose,footer,wide=false}) {
   return <div className="cn-modal-shade" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><section ref={ref} className={`cn-modal${wide?' cn-modal-wide':''}`} role="dialog" aria-modal="true" aria-label={title}><header><h2>{title}</h2><button className="cn-icon-button" aria-label="关闭" onClick={onClose}><X size={18}/></button></header><div className="cn-modal-body">{children}</div>{footer&&<footer>{footer}</footer>}</section></div>;
 }
 
-function Detail({label,value,mono=false}) {return <div className="cn-detail"><span>{label}</span><strong className={mono?'cn-mono':''}>{value===null||value===undefined||value===''?'待确认':String(value)}</strong></div>;}
-function TagList({items,labels={}}) {return <div className="cn-tags">{items?.length?items.map((v,i)=><span key={`${v}:${i}`} title={String(v)}>{labels[v]||String(v)}</span>):<span>公开信息研究</span>}</div>;}
 function downloadJson(value,name) {const blob=new Blob([JSON.stringify(value,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name.replace(/[^A-Za-z0-9._-]/g,'_');a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
 export function CredentialDialog({credential,onClose,onError}) {
@@ -46,41 +46,6 @@ export function CredentialDialog({credential,onClose,onError}) {
   </Dialog>;
 }
 
-export function Inspector({node,state,onClose,onAsk,onAction,busy,onFocus,onArtifact}) {
-  const record=selectedRecord(state,node)||{},info=node.info||{};
-  const events=(state.events||[]).filter(e=>e.entityId===node.refId||e.orderId===node.refId||e.agentServiceId===node.refId).slice(-5).reverse();
-  const artifacts=(state.deliverables||[]).filter(d=>d.orderId===node.refId||d.workOrderId===node.refId);
-  const dependencies=(record.dependsOn||[]).map(id=>state.commerceNetwork?.workOrders?.find(o=>o.id===id)).filter(Boolean);
-  const waitingOnDependencies=dependencies.some(o=>o.status!=='accepted');
-  const title=KINDS[node.kind]||node.kind;
-  return <aside className="cn-inspector" aria-label={`${title}详情`}>
-    <header><span className={`cn-inspector-icon cn-kind-${node.kind}`}><KindIcon kind={node.kind}/></span><span>{title}</span><button className="cn-icon-button" onClick={onClose} aria-label="关闭节点详情"><X size={17}/></button></header>
-    <div className="cn-inspector-scroll"><h2>{node.title}</h2><Status value={node.status}/>
-      <div className="cn-inspector-actions"><button className="cn-button cn-soft" onClick={()=>onAsk(node)}><ArrowUpRight size={14}/>在对话中处理</button><button className="cn-icon-button cn-bordered" onClick={onFocus} title="查看相关节点" aria-label="查看相关节点"><Link2 size={15}/></button></div>
-      {node.kind==='service_order'?<>
-        <section><h3>服务范围</h3><p>{record.brief||info.brief||'任务说明尚未补全。请在对话中明确预期交付。'}</p><Detail label="本次费用上限" value={money(record.maximumMinor,record.currency)}/><Detail label="原生任务" value={record.dshTaskRef} mono/><Detail label="最后更新" value={record.updatedAt?timestamp(record.updatedAt):null}/></section>
-        <section><h3>允许的服务</h3><TagList items={record.allowedActions} labels={ACTION_LABELS}/><h3>可访问的资料</h3><TagList items={record.allowedResourceRefs}/></section>
-        {dependencies.length>0&&<section><h3>等待前序交付验收</h3>{dependencies.map(order=><div className="cn-dependency-row" key={order.id}><span>{order.title}</span><Status value={order.status}/></div>)}</section>}
-        {node.status==='proposed'&&<div className="cn-decision-card"><ShieldCheck size={20}/><h3>等待你授权</h3><p>核对任务范围、服务商和费用上限后，这项委托才可进入原生调度。</p><button className="cn-button cn-primary" disabled={busy} onClick={()=>onAction('approve_order',record)}>审核并授权</button></div>}
-        {node.status==='authorized'&&<div className="cn-decision-card"><Clock3 size={20}/><h3>{waitingOnDependencies?'已授权，等待前序验收':'已授权，等待调度'}</h3><p>{waitingOnDependencies?'所有前序委托完成验收后，才能启动这一步。':'由当前会话创建原生执行任务。'}</p><button className="cn-button cn-primary" disabled={waitingOnDependencies} onClick={()=>onAsk(node,'请核验这项委托的批准记录和 Agent 连接，然后通过原生 DSH 工具调度执行。')}>交给当前 Assistant 调度</button></div>}
-        {artifacts.length>0&&<section><h3>交付物 · {artifacts.length}</h3>{artifacts.map((a,i)=><button className="cn-artifact" key={a.id||i} onClick={()=>onArtifact(a)}><FileText size={19}/><span><b>{a.title||a.name||a.id||'任务交付'}</b><small>{a.createdAt?timestamp(a.createdAt):a.sha256?`SHA-256 ${a.sha256.slice(0,12)}…`:'查看交付内容与凭据'}</small></span><ChevronRight size={15}/></button>)}</section>}
-        {node.status==='delivered'&&<div className="cn-decision-card"><ClipboardCheckIcon/><h3>交付已到，等待验收</h3><p>请核对实际交付内容和来源，再决定接收或退回。</p><div className="cn-two-buttons"><button className="cn-button" disabled={busy} onClick={()=>onAction('reject_delivery',record)}>拒收交付</button><button className="cn-button cn-primary" disabled={busy} onClick={()=>onAction('accept_delivery',record)}>验收交付</button></div></div>}
-        {['proposed','authorized','queued','claimed','running'].includes(node.status)&&<button className="cn-text-button cn-danger-text" disabled={busy} onClick={()=>onAction('cancel_order',record)}>取消这项委托</button>}
-        {node.status==='failed'&&record.stopUnconfirmed&&<div className="cn-decision-card"><AlertCircle size={20}/><h3>外部执行需要核对</h3><p>{record.stopAcknowledgedAt?'已收到外部停止回执。核对后可释放本项委托的费用预留。':'执行租约已到期，尚未收到停止回执。费用预留保持冻结，避免重复委托。'}</p>{record.stopAcknowledgedAt&&<button className="cn-button" disabled={busy} onClick={()=>onAction('resolve_failed_order',record)}>核对并释放预留</button>}</div>}
-      </>:node.kind==='personal_agent'?<>
-        <section><h3>独立服务商</h3><Detail label="提供者" value={info.providerName}/><Detail label="接入方式" value="Pull Gateway"/><Detail label="首次连接" value={record.endpointVerifiedAt?timestamp(record.endpointVerifiedAt):null}/><Detail label="最近心跳" value={record.lastSeenAt?timestamp(record.lastSeenAt):record.lastHeartbeatAt?timestamp(record.lastHeartbeatAt):null}/></section>
-        <section><h3>登记能力</h3><TagList items={record.skills||info.skills} labels={ACTION_LABELS}/><p className="cn-field-note">登记能力由服务商提供；实际交付需逐项验收。</p></section>
-        {node.status!=='revoked'&&<section><h3>连接与访问</h3><p>{['unverified','credential_issued'].includes(node.status)?'为这位 Agent 创建受限连接凭据，完成握手后即可承接已授权的任务。':'此 Agent 只能领取分配给自己的委托。更新凭据将撤销此前的凭据。'}</p><button className="cn-button cn-primary" disabled={busy} onClick={()=>onAction('issue_agent_credential',record)}><KeyRound size={15}/>{node.status==='endpoint_verified'?'更新连接凭据':'创建连接凭据'}</button><button className="cn-text-button cn-danger-text" disabled={busy} onClick={()=>onAction('revoke_agent',record)}>撤销 Agent 访问</button></section>}
-      </>:<>
-        <section><h3>业务资料</h3><p>{node.raw?.description||node.subtitle||'在当前会话中补全业务资料。'}</p>{Object.entries(info).filter(([k,v])=>['marketCode','stage','channel','source','verifiedAt','externalOrderId','assetCount'].includes(k)&&v!==undefined&&v!==null).map(([k,v])=><Detail key={k} label={({marketCode:'市场',stage:'业务阶段',channel:'渠道',source:'来源',verifiedAt:'核验时间',externalOrderId:'订单号',assetCount:'附件数量'})[k]} value={v}/>)}</section>
-        {['factory','distributor'].includes(node.kind)&&<button className="cn-button cn-primary" onClick={()=>onAsk(node,'为这个商业主体规划一项第三方 Personal AI Worker 服务委托。先核对已有产品和可用服务商，生成待我审批的草案。')}>规划服务委托 <ArrowUpRight size={15}/></button>}
-      </>}
-      <section><h3>证据与记录</h3>{node.evidenceIds?.length?<div className="cn-receipts">{node.evidenceIds.map(id=><div key={id}><ShieldCheck size={13}/><code title={id}>{id}</code></div>)}</div>:<p className="cn-field-note">尚无核验凭据。</p>}{events.length>0&&<div className="cn-mini-timeline">{events.map((e,i)=><div key={e.id||i}><i/><span>{eventLabel(e)}<small>{timestamp(e.at||e.createdAt)}</small></span></div>)}</div>}</section>
-      <div className="cn-record-id"><span>业务引用</span><code>{node.refId}</code></div>
-    </div>
-  </aside>;
-}
-function ClipboardCheckIcon(){return <Check size={21}/>;}
 
 export function RelationshipInspector({edge,graph,state,onClose,onAsk,onAction,busy}) {
   const source=graph.nodes.find(n=>n.id===edge.source),target=graph.nodes.find(n=>n.id===edge.target);

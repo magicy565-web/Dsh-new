@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { KINDS } from '../src/model.mjs';
+import { kindFamily, KIND_FAMILY } from '../src/canvas/kinds.mjs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../src/styles.css');
-const designDoc = read('../../../../docs/COMMERCE-CANVAS-DESIGN-SYSTEM.md');
+const canvasCss = read('../src/canvas.css');
 
 function declarations(block) {
   const match = css.match(new RegExp(`/\\* cn-tokens:${block} \\*/\\s*\\.cn(?:\\[data-theme=dark\\])?\\{([^}]*)\\}`));
@@ -49,17 +50,19 @@ for (const [mode, tokens] of [['light', light], ['dark', dark]]) {
   });
 }
 
-test('the design-system document lists exactly the colour values shipped in styles.css', () => {
-  const rows = [...designDoc.matchAll(/^\|\s*`(--cn-[a-z-]+)`\s*\|\s*`(#[0-9a-fA-F]{6})`\s*\|\s*`(#[0-9a-fA-F]{6})`/gm)];
-  assert.ok(rows.length >= 30, `expected the colour tables to be parsed, found ${rows.length} rows`);
-  for (const [, name, lightValue, darkValue] of rows) {
-    assert.equal(light.get(name)?.toLowerCase(), lightValue.toLowerCase(), `${name} light value differs from the document`);
-    assert.equal(dark.get(name)?.toLowerCase(), darkValue.toLowerCase(), `${name} dark value differs from the document`);
+test('every node kind resolves to a defined kind colour family', () => {
+  for (const kind of Object.keys(KINDS)) {
+    assert.ok(Object.hasOwn(KIND_FAMILY, kind), `kind ${kind} is not in the catalogue`);
+    assert.ok(light.has(`--cn-kind-${kindFamily(kind)}`), `--cn-kind-${kindFamily(kind)} is not defined`);
   }
-  const documented = new Set(rows.map((row) => row[1]));
-  for (const name of light.keys()) if (themed.test(name) && /#[0-9a-f]{6}$/i.test(light.get(name))) assert.ok(documented.has(name), `${name} is not documented`);
 });
 
-test('every node kind has a documented colour family', () => {
-  for (const kind of Object.keys(KINDS)) assert.ok(designDoc.includes(`| \`${kind}\` |`), `kind ${kind} is missing from the kind-to-family table`);
+test('no colour literal exists outside the token blocks, so the dark theme is complete', () => {
+  const tokenBlocks = /\/\* cn-tokens:light \*\/[\s\S]*?\/\* cn-tokens:end \*\//;
+  const withoutTokens = css.replace(tokenBlocks, '');
+  for (const [name, source] of [['styles.css', withoutTokens], ['canvas.css', canvasCss]]) {
+    const literals = source.replace(/\/\*[\s\S]*?\*\//g, '').match(/#[0-9a-fA-F]{3,8}\b/g) || [];
+    assert.deepEqual(literals, [], `${name} contains colour literals that ignore the theme`);
+    assert.ok(!/\brgba?\(/.test(source.replace(/\/\*[\s\S]*?\*\//g, '')), `${name} contains rgb() literals that ignore the theme`);
+  }
 });
