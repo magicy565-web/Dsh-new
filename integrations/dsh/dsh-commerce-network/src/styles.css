@@ -1,3 +1,54 @@
+/* Design tokens: see docs/COMMERCE-CANVAS-DESIGN-SYSTEM.md. This block only declares variables.
+   Transitional: the legacy `.cn` rule below still declares --cn-ink, --cn-muted, --cn-line and
+   --cn-accent (plus --cn-paper, --cn-bg, --cn-soft) and wins by source order, so the shipped UI is
+   unchanged. P1 deletes those legacy declarations and these values take effect.
+   The dark block is opt-in through [data-theme=dark]; nothing sets that attribute until P1
+   replaces the hard-coded colours, because dark tokens would otherwise mix with light literals. */
+/* cn-tokens:light */
+.cn{
+--cn-canvas:#f4f4f2;--cn-grid:#d9d9d4;--cn-surface:#ffffff;--cn-surface-glass:rgba(255,255,255,.88);--cn-surface-sunken:#eeeeeb;
+--cn-ink:#1c1f1d;--cn-muted:#666b67;--cn-line:#e3e3df;
+--cn-accent:#2f7d5b;--cn-accent-ink:#ffffff;--cn-focus:#2f7d5b;
+--cn-tone-green:#386f4d;--cn-tone-green-bg:#e6f1e9;
+--cn-tone-blue:#3f6da8;--cn-tone-blue-bg:#e7eef8;
+--cn-tone-amber:#82601f;--cn-tone-amber-bg:#faf1dd;
+--cn-tone-red:#a5483b;--cn-tone-red-bg:#f8e7e3;
+--cn-tone-muted:#5e6963;--cn-tone-muted-bg:#eef1ee;
+--cn-kind-factory:#c27a2c;--cn-kind-distributor:#1f8a84;--cn-kind-ai:#7c6cf0;--cn-kind-service:#3b7bdb;--cn-kind-product:#5b6b7a;
+--cn-kind-channel:#c2572f;--cn-kind-market:#6e8b2e;--cn-kind-trade:#4e6a8f;--cn-kind-neutral:#7a7f86;--cn-tint:10%;
+--cn-shadow-e1:0 1px 2px rgba(28,31,29,.04),0 3px 12px rgba(28,31,29,.07);
+--cn-shadow-e2:0 2px 6px rgba(28,31,29,.06),0 6px 20px rgba(28,31,29,.08);
+--cn-shadow-e3:0 8px 28px rgba(28,31,29,.12),0 2px 6px rgba(28,31,29,.06);
+--cn-shadow-e4:0 16px 56px rgba(28,31,29,.18),0 4px 12px rgba(28,31,29,.08);
+--cn-font-sans:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;--cn-font-mono:"SFMono-Regular",Consolas,ui-monospace,monospace;
+--cn-fs-meta:10px;--cn-lh-meta:14px;--cn-fs-aux:11px;--cn-lh-aux:18px;--cn-fs-body:12px;--cn-lh-body:20px;--cn-fs-node:13px;--cn-lh-node:20px;
+--cn-fs-panel:15px;--cn-lh-panel:22px;--cn-fs-inspector:18px;--cn-lh-inspector:26px;--cn-fs-empty:23px;--cn-lh-empty:32px;
+--cn-fw-regular:400;--cn-fw-medium:550;--cn-fw-semibold:650;
+--cn-space-1:4px;--cn-space-2:8px;--cn-space-3:12px;--cn-space-4:16px;--cn-space-5:20px;--cn-space-6:24px;--cn-space-7:32px;
+--cn-radius-sm:6px;--cn-radius-md:8px;--cn-radius-lg:10px;--cn-radius-xl:13px;--cn-radius-2xl:16px;
+--cn-z-canvas:0;--cn-z-edge:1;--cn-z-node:2;--cn-z-node-selected:3;--cn-z-float:10;--cn-z-drawer:20;--cn-z-toast:30;--cn-z-modal:40;
+--cn-dur-fast:120ms;--cn-dur-base:160ms;--cn-dur-slow:240ms;--cn-ease:cubic-bezier(.2,.8,.2,1);--cn-flow-period:1.2s;
+--cn-grid-size:24px;--cn-snap:8px;--cn-focus-width:2px;--cn-focus-offset:3px;
+}
+/* cn-tokens:dark */
+.cn[data-theme=dark]{
+color-scheme:dark;
+--cn-canvas:#0f1011;--cn-grid:#26282a;--cn-surface:#17191a;--cn-surface-glass:rgba(23,25,26,.82);--cn-surface-sunken:#1e2022;
+--cn-ink:#ecedec;--cn-muted:#9a9f9b;--cn-line:#2a2d2e;
+--cn-accent:#5cc08e;--cn-accent-ink:#0f1011;--cn-focus:#5cc08e;
+--cn-tone-green:#8fd0a6;--cn-tone-green-bg:#16271d;
+--cn-tone-blue:#93b6e6;--cn-tone-blue-bg:#152031;
+--cn-tone-amber:#e3be7a;--cn-tone-amber-bg:#2a2112;
+--cn-tone-red:#ee9c8f;--cn-tone-red-bg:#2e1714;
+--cn-tone-muted:#8e9a93;--cn-tone-muted-bg:#1e2521;
+--cn-kind-factory:#e0a04f;--cn-kind-distributor:#45b8b1;--cn-kind-ai:#a196ff;--cn-kind-service:#6fa2f5;--cn-kind-product:#93a4b4;
+--cn-kind-channel:#e58259;--cn-kind-market:#9cbc52;--cn-kind-trade:#86a3c9;--cn-kind-neutral:#a3a8af;
+--cn-shadow-e1:inset 0 0 0 1px rgba(255,255,255,.06);
+--cn-shadow-e2:inset 0 0 0 1px rgba(255,255,255,.08);
+--cn-shadow-e3:inset 0 0 0 1px rgba(255,255,255,.10);
+--cn-shadow-e4:inset 0 0 0 1px rgba(255,255,255,.12);
+}
+/* cn-tokens:end */
 .cn{--cn-ink:#283d33;--cn-muted:#728078;--cn-line:#e1e6de;--cn-paper:#fff;--cn-bg:#f5f7f2;--cn-accent:#3c624f;--cn-soft:#edf2eb;position:relative;display:flex;flex-direction:column;width:100%;height:100%;min-height:320px;overflow:hidden;background:var(--cn-bg);color:var(--cn-ink);font:13px/1.55 Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;container-type:inline-size;isolation:isolate}
 .cn *{box-sizing:border-box}.cn button,.cn input,.cn select,.cn textarea{font:inherit}.cn button{cursor:pointer;color:inherit}.cn button:disabled{cursor:wait;opacity:.5}.cn button:focus-visible,.cn input:focus-visible,.cn textarea:focus-visible,.cn select:focus-visible{outline:2px solid #6c8d77;outline-offset:3px}.cn button{transition:background .14s,border-color .14s,color .14s,box-shadow .14s}.cn h1,.cn h2,.cn h3,.cn h4,.cn p{margin:0}.cn svg{flex-shrink:0}.cn .cn-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.cn .cn-mono{font-family:"SFMono-Regular",Consolas,monospace}.cn .cn-spin{animation:cn-spin .9s linear infinite}@keyframes cn-spin{to{transform:rotate(360deg)}}
 .cn .cn-header{height:78px;min-height:78px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--cn-paper);border-bottom:1px solid var(--cn-line)}.cn .cn-heading{display:flex;align-items:center;gap:11px;min-width:0}.cn .cn-heading>div{min-width:0}.cn .cn-brand{width:39px;height:39px;display:grid;place-items:center;border:1px solid #dfe7da;background:var(--cn-soft);border-radius:12px;color:var(--cn-accent)}.cn .cn-eyebrow{display:block;font-size:9px;font-weight:650;letter-spacing:1.8px;color:var(--cn-muted);line-height:1.5}.cn h1{font-size:17px;line-height:1.6;font-weight:600;letter-spacing:-.4px}.cn .cn-project-select{position:relative;display:flex;align-items:center;gap:7px}.cn .cn-project-select select{appearance:none;max-width:320px;min-width:130px;font-size:16px;font-weight:600;background:transparent;color:var(--cn-ink);border:0;padding:1px 20px 1px 0;outline-offset:2px;cursor:pointer;text-overflow:ellipsis}.cn .cn-project-select>svg{position:absolute;right:1px;pointer-events:none}.cn .cn-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}.cn .cn-icon-button{display:inline-flex;align-items:center;justify-content:center;width:31px;height:31px;border:0;border-radius:7px;background:transparent;color:var(--cn-muted);padding:0}.cn .cn-icon-button:hover{background:var(--cn-soft);color:var(--cn-ink)}.cn .cn-icon-button.cn-active{background:var(--cn-soft);color:var(--cn-accent)}.cn .cn-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 13px;border:1px solid var(--cn-line);background:var(--cn-paper);border-radius:8px;font-size:12px;font-weight:550;line-height:1.45;text-decoration:none;white-space:nowrap}.cn .cn-button:hover{background:var(--cn-soft);border-color:#c7d4c4}.cn .cn-primary{background:var(--cn-accent);color:#fff;border-color:var(--cn-accent);box-shadow:0 1px 2px #1b362018}.cn .cn-primary:hover{background:#2e503f;border-color:#2e503f}.cn .cn-soft{background:var(--cn-soft);border-color:transparent;color:var(--cn-accent)}.cn .cn-bordered{border:1px solid var(--cn-line);height:34px;width:34px}.cn .cn-large{padding:12px 19px;min-height:44px;border-radius:10px;font-size:13px}.cn .cn-danger{background:#a2524e;color:white;border-color:#a2524e}.cn .cn-danger:hover{background:#8f4541;border-color:#8f4541}.cn .cn-danger-text{color:#a15a55!important}.cn .cn-text-button{border:0;background:transparent;font-size:12px;padding:9px 0;text-align:left;display:block}.cn .cn-text-button:hover{text-decoration:underline}
