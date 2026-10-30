@@ -4,7 +4,7 @@ import { CommerceError, assertKeys, fail } from './service.js';
 export const API_PREFIX = '/commerce-network-api';
 export const WORKER_PREFIX = '/commerce-worker-api';
 const OWNER_COMMANDS = new Set(['create_project', 'upsert_party', 'register_agent', 'upsert_product', 'upsert_route', 'propose_order', 'propose_mandate', 'approve_mandate', 'revoke_mandate', 'approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute', 'propose_business_mandate', 'amend_business_mandate', 'record_business_progress']);
-const WORKER_ACTIONS = new Set(['connect', 'claim', 'heartbeat', 'status', 'deliver', 'stopped', 'resources']);
+const WORKER_ACTIONS = new Set(['connect', 'claim', 'heartbeat', 'status', 'deliver', 'stopped', 'resources', 'fail']);
 
 async function readJson(req, maximum = 256 * 1024) {
   if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] ?? '')) fail('CONTENT_TYPE', 'Use application/json.', 415);

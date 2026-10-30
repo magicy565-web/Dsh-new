@@ -126,6 +126,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     const selected = projectId ? project(state, projectId).id : state.projects[0]?.id ?? null;
     const belongs = row => row.projectId === selected;
     const p = state.projects.find(p => p.id === selected);
+    const handoffs = new Map(store.db.prepare('SELECT order_id,state,updated_at FROM grok_handoff WHERE workspace_id=? AND project_id=?').all(scope.workspaceId, selected).map(row => [row.order_id, { state: row.state, updatedAt: row.updated_at }]));
     const events = store.events(scope.workspaceId).filter(e => !selected || e.entityId === selected || [...state.parties, ...state.agents, ...state.workOrders, ...state.products, ...state.routes, ...state.mandates].some(r => r.id === e.entityId && belongs(r)));
     return {
       workspaceId: scope.workspaceId, sessionId: scope.sessionId ?? null, revision: state.revision, projectId: selected,
@@ -144,6 +145,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
         parties: state.parties.filter(belongs), agentServices: state.agents.filter(belongs).map(publicAgent),
         salesAuthorizations: state.mandates.filter(belongs).map(m => m.businessTerms ? { ...m, effectiveStatus: businessTermStatus(m, now()), billingStatus: 'not_connected', progressView: m.businessTerms.mode === 'factory_sales' ? businessProgressView(m, state) : null } : m), grants: state.grants.filter(belongs).map(({ resources, ...g }) => ({ ...g, resourceRefs: resources.map(r => r.ref) })),
         workOrders: state.workOrders.filter(belongs).map(({ appliedEvents, ...o }) => ({ ...o,
+          ...(handoffs.has(o.id) ? { grokHandoff: handoffs.get(o.id) } : {}),
           dependencyStates: (o.dependsOn ?? []).map(id => { const previous = state.workOrders.find(w => w.id === id); return { id, title: previous?.title ?? id, status: previous?.status ?? 'missing' }; }),
           dispatchReady: o.status === 'authorized' && (o.dependsOn ?? []).every(id => state.workOrders.find(w => w.id === id)?.status === 'accepted') && state.agents.find(a => a.id === o.agentServiceId)?.status === 'connected' })),
         layoutWriteSupported: true, layoutContractVersion: 'commerce-layout-v1' },
@@ -212,14 +214,16 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     return p;
   }
   function registerAgent(state, projectId, payload) {
-    assertKeys(payload, ['id', 'providerPartyId', 'displayName', 'skills', 'skillLabel']);
+    assertKeys(payload, ['id', 'providerPartyId', 'displayName', 'skills', 'skillLabel', 'providerType']);
     const provider = state.parties.find(p => p.id === payload.providerPartyId && p.projectId === projectId);
     if (!provider) fail('PROVIDER_REQUIRED', 'Register the independent provider party first.');
     const skills = array(payload.skills, 'skills', 10);
     if (!skills.length || skills.some(s => !ACTIONS.includes(s))) fail('CAPABILITY_DENIED', 'Unsupported worker capability.');
     const id = payload.id ? identifier(payload.id) : generated('agent');
     if (state.agents.some(a => a.id === id)) fail('ID_CONFLICT', 'Agent service ID already exists.', 409);
-    const a = { id, projectId, providerPartyId: provider.id, displayName: text(payload.displayName, 'displayName'), protocol: 'pull_gateway', skills: [...new Set(skills)], skillLabel: text(payload.skillLabel ?? skills.join(', '), 'skillLabel', 300), status: 'pending', executionEnabled: false, createdAt: iso() };
+    const providerType = payload.providerType ?? 'other';
+    if (!['grokbot', 'muse', 'other'].includes(providerType)) fail('INPUT', 'Unknown worker provider type.');
+    const a = { id, projectId, providerPartyId: provider.id, providerType, displayName: text(payload.displayName, 'displayName'), protocol: 'pull_gateway', skills: [...new Set(skills)], skillLabel: text(payload.skillLabel ?? skills.join(', '), 'skillLabel', 300), status: 'pending', executionEnabled: false, createdAt: iso() };
     state.agents.push(a); return a;
   }
   function upsertProduct(state, projectId, payload) {
@@ -618,7 +622,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
   function workerTransaction(token, action, input, verifiedGrant = null) {
     const allowRevoked = action === 'status' || action === 'stopped';
     const scope = workerIdentity(token, allowRevoked);
-    assertKeys(input, ['requestId', 'orderId', 'leaseId', 'content', 'title', 'sourceUrls', 'actualMinor']);
+    assertKeys(input, ['requestId', 'orderId', 'leaseId', 'content', 'title', 'sourceUrls', 'actualMinor', 'summary']);
     identifier(input.requestId, 'requestId');
     const fingerprint = sha(canonical({ action, ...input }));
     return store.transaction(() => {
@@ -684,8 +688,16 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
             if (o.status === 'claimed') next = transition(state, o, 'start', { heartbeatReceiptId: generated('heartbeat') }, auth);
             else { next.revision++; next.heartbeatReceiptId = generated('heartbeat'); }
             next.leaseExpiresAt = new Date(Math.min(now() + MAX_LEASE, Date.parse(o.expiresAt))).toISOString(); next.updatedAt = iso(); a.lastSeenAt = iso(); dirty = true;
+            if (input.summary != null) next.workerProgress = text(input.summary, 'summary', 2000, false);
             response = { order: { id: next.id, status: next.status, leaseExpiresAt: next.leaseExpiresAt }, stopRequested: false };
           }
+        } else if (action === 'fail') {
+          if (!['claimed', 'running'].includes(o.status) || Date.parse(o.leaseExpiresAt) <= now()) fail('LEASE_EXPIRED', 'A current lease is required to report failure.', 409);
+          const next = transition(state, o, 'fail', { failureReceiptId: generated('worker_failure') }, host);
+          next.failureReason = 'worker_reported_failure'; next.stopUnconfirmed = true;
+          if (input.summary != null) next.workerProgress = text(input.summary, 'summary', 2000, false);
+          dirty = true; response = { order: { id: next.id, status: next.status }, stopRequested: true };
+          log(scope, 'work_order.worker_failed', o.id, 'Worker reported failure. Remote stop has not been independently confirmed.');
         } else if (action === 'deliver') {
           assertGrant(state, o);
           if (Date.parse(o.leaseExpiresAt) <= now()) fail('LEASE_EXPIRED', 'Cannot deliver with an expired lease.', 409);
@@ -748,6 +760,20 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     toolRead: (input, execution) => { assertKeys(input, ['projectId']); return readScope(executionScope(execution), input.projectId); },
     toolDeliveryRead: (input, execution) => { assertKeys(input, ['projectId', 'deliveryId']); return readDelivery(executionScope(execution), input.projectId, input.deliveryId); },
     toolCommand: (input, execution) => command(executionScope(execution), input),
+    workerToolScope: (token, execution) => {
+      const scope = executionScope(execution), workerScope = workerIdentity(token);
+      if (workerScope.workspaceId !== scope.workspaceId) fail('WORKER_SCOPE', 'Worker credential belongs to another native workspace.', 403);
+      const state = store.load(scope.workspaceId);
+      const registered = agent(state, workerScope.projectId, workerScope.agentServiceId);
+      if (registered.providerType !== 'grokbot') fail('WORKER_SCOPE', 'The configured credential must belong to a Grok Bot service.', 403);
+      return { workspaceId: scope.workspaceId, projectId: workerScope.projectId, agentServiceId: registered.id, sessionId: scope.sessionId };
+    },
+    workerCredentialScope: token => {
+      const scope = workerIdentity(token);
+      const registered = agent(store.load(scope.workspaceId), scope.projectId, scope.agentServiceId);
+      if (registered.providerType !== 'grokbot') fail('WORKER_SCOPE', 'The configured credential must belong to a Grok Bot service.', 403);
+      return { workspaceId: scope.workspaceId, projectId: scope.projectId, agentServiceId: scope.agentServiceId };
+    },
     worker,
     close: () => { disposed = true; workerWindows.clear(); store.close(); },
   };

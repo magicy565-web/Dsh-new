@@ -10,7 +10,8 @@
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
-    "./worker-client": "./worker-client.mjs"
+    "./worker-client": "./worker-client.mjs",
+    "./muse-adapter": "./muse-adapter.mjs"
   },
   "files": [
     "index.js",
@@ -19,6 +20,9 @@
     "http.js",
     "resources.js",
     "worker-client.mjs",
+    "muse-adapter.mjs",
+    "grok-bridge.js",
+    "AI-WORK-CONNECTIONS.md",
     "client.js",
     "cordis.patch.yml",
     "README.md",

@@ -24,6 +24,7 @@ const result = await build({
         if (rule.parent.type === 'atrule' && /keyframes$/.test(rule.parent.name)) return;
         rule.selectors = rule.selectors.map(selector => {
           if (/^\.cn(?:\b|[ .:#\[])/.test(selector)) return selector;
+          if (/^\.aw-root\b/.test(selector)) return selector.replace(/^\.aw-root\b/, '.cn.aw-root');
           if (selector === ':root') return '.cn';
           return `.cn ${selector}`;
         });

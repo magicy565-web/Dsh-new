@@ -26,6 +26,16 @@ export class CommerceStore {
         sequence INTEGER PRIMARY KEY AUTOINCREMENT, workspace_id TEXT NOT NULL,
         event_id TEXT NOT NULL UNIQUE, entity_id TEXT, actor TEXT NOT NULL,
         event_type TEXT NOT NULL, occurred_at TEXT NOT NULL, summary TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS grok_handoff (
+        workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, order_id TEXT NOT NULL,
+        session_id TEXT NOT NULL, lease_id TEXT, state TEXT NOT NULL,
+        updated_at TEXT NOT NULL, PRIMARY KEY(workspace_id, project_id, order_id)
+      );
+      CREATE TABLE IF NOT EXISTS grok_callback_receipt (
+        workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, order_id TEXT NOT NULL,
+        event_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
+        PRIMARY KEY(workspace_id, project_id, order_id, event_key)
       );`);
     if (filename !== ':memory:') chmodSync(filename, 0o600);
     this.closed = false;

@@ -1,5 +1,9 @@
 # Commerce Network — native DSH product candidate
 
+The native AI Work sidebar and the Grok Bot / Muse Agent integration contracts
+are documented in [AI-WORK-CONNECTIONS.md](./AI-WORK-CONNECTIONS.md). External
+provider configuration, actual compatibility and execution remain to be verified.
+
 `dsh-commerce-network@1.1.0-rc.2` extends the recovered Channel Atlas React Flow
 canvas with independently owned factory, overseas distributor and Personal
 Worker service nodes, a durable delegation ledger, and a scoped external worker

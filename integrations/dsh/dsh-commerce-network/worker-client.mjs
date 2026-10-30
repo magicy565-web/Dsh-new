@@ -16,7 +16,7 @@ export function createWorkerClient({ baseUrl, token, allowLocalHttp = false, fet
   if (typeof token !== 'string' || !/^cnw_[a-f0-9]{24}\.[A-Za-z0-9_-]{43}$/.test(token)) throw new TypeError('Provide the scoped worker credential issued by the authenticated canvas.');
   if (typeof transport !== 'function') throw new TypeError('A fetch implementation is required.');
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 60_000) throw new TypeError('timeoutMs must be between 100 and 60000.');
-  const actions = new Set(['connect', 'claim', 'heartbeat', 'status', 'deliver', 'stopped', 'resources']);
+  const actions = new Set(['connect', 'claim', 'heartbeat', 'status', 'deliver', 'stopped', 'resources', 'fail']);
   async function request(action, input = {}, { signal, requestId = `worker:${randomUUID()}` } = {}) {
     if (!actions.has(action)) throw new TypeError('Unsupported worker action.');
     if (!input || typeof input !== 'object' || Array.isArray(input) || Object.hasOwn(input, 'requestId')) throw new TypeError('Use options.requestId for idempotency.');
