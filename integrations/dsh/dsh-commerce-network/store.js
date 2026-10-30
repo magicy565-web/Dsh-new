@@ -54,6 +54,7 @@ export class CommerceStore {
     const row = this.db.prepare('SELECT body FROM commerce_state WHERE workspace_id=?').get(workspaceId);
     const value = row ? JSON.parse(row.body) : { revision: 0, projects: [], products: [], routes: [], parties: [], agents: [], grants: [], workOrders: [], deliverables: [], layouts: [] };
     value.mandates ??= [];
+    value.workerTemplates ??= [];
     return value;
   }
   save(workspaceId, state) {

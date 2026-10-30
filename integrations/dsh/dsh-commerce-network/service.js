@@ -1,6 +1,7 @@
 import { recordBusinessProgress } from './business-progress.js';
 import { layoutNodeIds } from './layout-ids.js';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { BUILTIN_PREFIX, RUNTIME_IDS, changesPricing, createWorkerCatalog, provenSkills, publishIssues, sameSnapshot, snapshotOf, unprovenSkills, widensScope } from './worker-catalog.js';
 import { makeWorkOrderProposal, applyWorkOrderEvent, validateMandateTerms, validateBusinessTerms, businessTermStatus, businessProgressView } from '@workspace-agent/domain-commerce-network';
 
 export class CommerceError extends Error {
@@ -37,6 +38,7 @@ const publicAgent = a => ({ ...a });
 export function createCommerceService({ store, registry, clock = Date.now, resourceAdapter = null, tradeProjection = null, buyerLookup = null }) {
   let disposed = false;
   const workerWindows = new Map();
+  const catalog = createWorkerCatalog({ fail, assertKeys, text, integer, array, identifier, actions: ACTIONS, generated });
   const now = () => clock();
   const iso = () => new Date(now()).toISOString();
   const alive = signal => { if (disposed) fail('UNAVAILABLE', 'Commerce plugin has been unloaded.', 503); signal?.throwIfAborted(); };
@@ -144,6 +146,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       })),
       commerceNetwork: { projectId: selected, revision: state.revision,
         parties: state.parties.filter(belongs), agentServices: state.agents.filter(belongs).map(publicAgent),
+        workerTemplates: catalog.all(state).map(t => catalog.describe(state, t)),
         salesAuthorizations: state.mandates.filter(belongs).map(m => m.businessTerms ? { ...m, effectiveStatus: businessTermStatus(m, now()), billingStatus: 'not_connected', progressView: m.businessTerms.mode === 'factory_sales' ? businessProgressView(m, state) : null } : m), grants: state.grants.filter(belongs).map(({ resources, ...g }) => ({ ...g, resourceRefs: resources.map(r => r.ref) })),
         workOrders: state.workOrders.filter(belongs).map(({ appliedEvents, ...o }) => ({ ...o,
           ...(handoffs.has(o.id) ? { grokHandoff: handoffs.get(o.id) } : {}),
@@ -189,7 +192,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       if (!layout && input.expectedRevision !== state.revision) fail('REVISION_CONFLICT', 'The network changed. Refresh and review before retrying.', 409);
       const extra = operation(state) ?? {};
       checkScope(scope);
-      if (state.projects.length > 100 || state.parties.length > 1000 || state.agents.length > 500 || state.products.length > 2000 || state.routes.length > 2000 || state.workOrders.length > 5000 || state.mandates.length > 2000 || Buffer.byteLength(JSON.stringify(state)) > 32 * 1024 * 1024) fail('LIMIT', 'Workspace record limit reached.');
+      if (state.projects.length > 100 || state.parties.length > 1000 || state.agents.length > 500 || state.products.length > 2000 || state.routes.length > 2000 || state.workOrders.length > 5000 || state.mandates.length > 2000 || state.workerTemplates.length > 100 || Buffer.byteLength(JSON.stringify(state)) > 32 * 1024 * 1024) fail('LIMIT', 'Workspace record limit reached.');
       if (!layout) state.revision++;
       const receipt = { id: generated('receipt'), requestId: input.requestId, projectId: extra.projectId ?? input.projectId ?? null, revision: state.revision, at: iso(), ...(extra.credential ? { credentialIssued: true } : {}) };
       store.save(scope.workspaceId, state);
@@ -429,8 +432,120 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     const grant = state.grants.find(g => g.orderId === o.id); if (grant) grant.status = 'revoked';
     log(scope, 'work_order.cancel_requested', o.id, LIVE.has(o.status) ? 'Stop requested; waiting for a real worker acknowledgement.' : 'Work order cancelled before execution.');
   }
+  const templateCommands = new Set(['upsert_worker_template', 'publish_worker_template', 'set_worker_template_status']);
+  function ownTemplate(state, id) {
+    identifier(id, 'templateId');
+    if (id.startsWith(BUILTIN_PREFIX)) fail('BUILTIN_IMMUTABLE', 'DSH built-in templates cannot be edited.', 409);
+    const found = state.workerTemplates.find(t => t.id === id);
+    if (!found) fail('TEMPLATE_NOT_FOUND', 'Worker template not found.', 404);
+    if (found.status === 'retired') fail('TEMPLATE_RETIRED', 'A retired template cannot be changed.', 409);
+    return found;
+  }
+  // Templates belong to the workspace, not to a project, so they never touch project records.
+  function templateCommand(scope, state, name, payload) {
+    if (name === 'upsert_worker_template') {
+      const draft = catalog.draftFrom(payload);
+      if (payload.id != null) {
+        const found = ownTemplate(state, payload.id);
+        Object.assign(found, draft, { updatedAt: iso(), revision: found.revision + 1 });
+        log(scope, 'worker_template.saved', found.id, 'Maintainer draft saved. Hires keep their pinned published version.');
+      } else {
+        if (state.workerTemplates.length >= 100) fail('LIMIT', 'Workspace template limit reached.');
+        const created = { id: generated('worker'), builtin: false, status: 'draft', maintainerVerification: 'unverified', revision: 1, createdAt: iso(), updatedAt: iso(), ...draft, versions: [] };
+        state.workerTemplates.push(created);
+        log(scope, 'worker_template.created', created.id, 'Worker template drafted. It is not hireable until a version is published.');
+      }
+    } else if (name === 'publish_worker_template') {
+      assertKeys(payload, ['templateId', 'changelog']);
+      const found = ownTemplate(state, payload.templateId), changelog = text(payload.changelog, 'changelog', 500);
+      const issues = publishIssues(found);
+      if (issues.length) fail('TEMPLATE_INCOMPLETE', `Complete before publishing: ${issues.join(', ')}.`);
+      const previous = catalog.latest(found);
+      if (previous && sameSnapshot(found, previous.snapshot)) fail('NO_CHANGES', 'There are no unpublished changes.', 409);
+      if (unprovenSkills(found, previous?.snapshot ?? null, provenSkills(state, found.id)).length) fail('TRIAL_REQUIRED', previous ? 'Each newly added skill needs one owner-accepted real task before publishing.' : 'Run one real trial task and accept its delivery before the first publish.', 409);
+      const snapshot = snapshotOf(found);
+      const version = { version: (previous?.version ?? 0) + 1, changelog, publishedAt: iso(), widensScope: previous ? widensScope(previous.snapshot, snapshot) : false, changesPricing: previous ? changesPricing(previous.snapshot, snapshot) : false, snapshot };
+      found.versions.push(version);
+      if (found.status === 'draft') found.status = 'published';
+      found.updatedAt = iso(); found.revision++;
+      log(scope, 'worker_template.published', found.id, `Version ${version.version} published${version.widensScope ? ' and widens scope: existing hires must re-authorize' : ''}. No payment is connected.`);
+    } else {
+      assertKeys(payload, ['templateId', 'status']);
+      const found = ownTemplate(state, payload.templateId);
+      if (!['published', 'paused', 'retired'].includes(payload.status) || payload.status === found.status) fail('INPUT', 'Choose a different valid status.');
+      if (payload.status !== 'retired' && !found.versions.length) fail('TEMPLATE_UNPUBLISHED', 'Publish a version first.', 409);
+      found.status = payload.status; found.updatedAt = iso(); found.revision++;
+      log(scope, 'worker_template.status', found.id, `Template is now ${payload.status}. Existing hires keep working; paused or retired templates take no new hires.`);
+    }
+    return {};
+  }
+  const maintainerPartyId = (projectId, name) => `maintainer_${sha(`${projectId}/${name}`).slice(0, 24)}`;
+  function pinnedSpec(state, hire) {
+    const found = catalog.find(state, hire.templateId);
+    if (!found) return null;
+    return hire.version == null ? snapshotOf(found) : found.versions.find(v => v.version === hire.version)?.snapshot ?? null;
+  }
+  function hireWorker(state, projectId, payload) {
+    assertKeys(payload, ['templateId', 'runtime', 'grantedSkills', 'trial', 'starterId', 'requesterPartyId', 'allowedResourceRefs']);
+    const found = catalog.find(state, identifier(payload.templateId, 'templateId'));
+    if (!found) fail('TEMPLATE_NOT_FOUND', 'Worker template not found.', 404);
+    if (found.status === 'retired') fail('TEMPLATE_UNAVAILABLE', 'This Worker has been retired.', 409);
+    if (payload.trial != null && typeof payload.trial !== 'boolean') fail('INPUT', 'Invalid trial.');
+    const trial = payload.trial === true;
+    let spec, version;
+    if (trial) {
+      if (found.builtin) fail('TRIAL_NOT_ALLOWED', 'Built-in templates are already published.', 409);
+      spec = snapshotOf(found); version = null;
+    } else {
+      if (found.status !== 'published') fail('TEMPLATE_UNAVAILABLE', 'This Worker is not taking new hires.', 409);
+      version = catalog.latest(found).version; spec = catalog.latest(found).snapshot;
+    }
+    if (!RUNTIME_IDS.includes(payload.runtime) || !spec.runsOn.includes(payload.runtime)) fail('RUNTIME_UNSUPPORTED', 'This template does not support the chosen runtime.');
+    const granted = [...new Set(array(payload.grantedSkills ?? spec.skills, 'grantedSkills', ACTIONS.length))];
+    if (!granted.length || granted.some(s => !spec.skills.includes(s))) fail('CAPABILITY_DENIED', 'Grant a non-empty subset of the template skills.');
+    if (state.agents.some(a => a.projectId === projectId && a.status !== 'revoked' && a.workerTemplate?.templateId === found.id)) fail('ALREADY_HIRED', 'This Worker is already hired in this project.', 409);
+    const maintainerName = spec.maintainerName || '未署名维护者';
+    const maintainer = upsertParty(state, projectId, { id: maintainerPartyId(projectId, maintainerName), type: 'provider', displayName: maintainerName });
+    const hired = registerAgent(state, projectId, { providerPartyId: maintainer.id, displayName: spec.name, skills: granted, skillLabel: spec.tagline || spec.name, providerType: payload.runtime });
+    hired.workerTemplate = { templateId: found.id, version, trial, builtin: !!found.builtin, grantedSkills: granted, hiredAt: iso(), billing: { ...spec.pricing, status: 'not_connected' } };
+    let drafted = null;
+    if (payload.starterId != null) {
+      const starter = spec.starters.find(s => s.id === identifier(payload.starterId, 'starterId'));
+      if (!starter) fail('STARTER_NOT_FOUND', 'Starter task not found in this version.', 404);
+      if (starter.skills.some(s => !granted.includes(s))) fail('CAPABILITY_DENIED', 'Grant every skill this starter task needs.');
+      drafted = proposeOrder(state, projectId, { requesterPartyId: payload.requesterPartyId, agentServiceId: hired.id, title: starter.title, brief: starter.brief, allowedActions: starter.skills, allowedResourceRefs: payload.allowedResourceRefs ?? [], maximumMinor: 0, currency: 'USD' });
+      drafted.workerVersion = version; drafted.starterId = starter.id;
+    } else if (payload.requesterPartyId != null) fail('INPUT', 'requesterPartyId is only used with a starter task.');
+    return { hired, drafted };
+  }
+  function upgradeHire(state, projectId, payload) {
+    assertKeys(payload, ['agentServiceId', 'version', 'grantedSkills', 'acceptPricing']);
+    const hired = agent(state, projectId, identifier(payload.agentServiceId, 'agentServiceId')), pin = hired.workerTemplate;
+    if (!pin) fail('NOT_A_TEMPLATE_HIRE', 'This agent was not hired from a template.', 409);
+    if (hired.status === 'revoked') fail('AGENT_REVOKED', 'Revoked agents cannot be upgraded.', 409);
+    const found = catalog.find(state, pin.templateId);
+    if (!found || found.status === 'retired') fail('TEMPLATE_UNAVAILABLE', 'This Worker has been retired.', 409);
+    const target = found.versions.find(v => v.version === integer(payload.version, 'version', 1, 10_000));
+    if (!target) fail('VERSION_NOT_FOUND', 'Published version not found.', 404);
+    if (pin.version != null && target.version <= pin.version) fail('VERSION_NOT_NEWER', 'Choose a newer published version.', 409);
+    if (!target.snapshot.runsOn.includes(hired.providerType)) fail('RUNTIME_UNSUPPORTED', 'The new version no longer supports this Worker\'s runtime.', 409);
+    if (state.workOrders.some(o => o.agentServiceId === hired.id && LIVE.has(o.status))) fail('AGENT_BUSY', 'Wait for the active task to finish before upgrading.', 409);
+    // Scope never widens implicitly: without an explicit list the owner keeps only what was already granted.
+    const next = [...new Set(payload.grantedSkills == null ? pin.grantedSkills.filter(s => target.snapshot.skills.includes(s)) : array(payload.grantedSkills, 'grantedSkills', ACTIONS.length))];
+    if (!next.length || next.some(s => !target.snapshot.skills.includes(s))) fail('CAPABILITY_DENIED', 'Grant a non-empty subset of the new version\'s skills.');
+    if (state.workOrders.some(o => o.agentServiceId === hired.id && !TERMINAL.has(o.status) && o.status !== 'delivered' && o.allowedActions.some(s => !next.includes(s)))) fail('SKILL_IN_USE', 'An open task still needs a skill this upgrade would remove.', 409);
+    const { status: _paymentState, ...heldPricing } = pin.billing;
+    if (changesPricing({ pricing: heldPricing }, { pricing: target.snapshot.pricing }) && payload.acceptPricing !== true) fail('PRICING_CHANGED', 'The pricing proposal changed. Review it and confirm.', 409);
+    hired.skills = next; hired.skillLabel = target.snapshot.tagline || target.snapshot.name;
+    hired.workerTemplate = { ...pin, version: target.version, trial: false, grantedSkills: next, upgradedAt: iso(), billing: { ...target.snapshot.pricing, status: 'not_connected' } };
+    return hired;
+  }
+  function workerPackage(state, hired) {
+    const pin = hired.workerTemplate, spec = pin && pinnedSpec(state, pin);
+    return spec ? { templateId: pin.templateId, version: pin.version, name: spec.name, instructions: spec.instructions } : null;
+  }
   function ownerOnly(scope) { if (scope.kind !== 'owner') fail('OWNER_ACTION_REQUIRED', 'This action requires an explicit decision in the authenticated canvas.', 403); }
-  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute', 'amend_business_mandate', 'record_business_progress']);
+  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute', 'amend_business_mandate', 'record_business_progress', ...templateCommands, 'hire_worker', 'upgrade_worker_hire']);
   function applyCommand(scope, input) {
     assertKeys(input, ['projectId', 'expectedRevision', 'requestId', 'command', 'payload']);
     text(input.command, 'command', 80); const payload = input.payload ?? {};
@@ -457,9 +572,16 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
         log(scope, 'plan.applied', projectId, 'Native DSH applied a business plan. No authorization or dispatch was implied.');
         return { projectId };
       }
+      if (templateCommands.has(input.command)) return templateCommand(scope, state, input.command, payload);
       project(state, projectId);
       if (input.command === 'upsert_party') { const p = upsertParty(state, projectId, payload); log(scope, 'party.recorded', p.id, 'Business party recorded as unverified.'); }
       else if (input.command === 'register_agent') { const a = registerAgent(state, projectId, payload); log(scope, 'agent.registered', a.id, 'Independent Personal Worker registered; credential handshake pending.'); }
+      else if (input.command === 'hire_worker') {
+        const { hired, drafted } = hireWorker(state, projectId, payload);
+        log(scope, 'worker.hired', hired.id, `Hired from template ${hired.workerTemplate.templateId}${hired.workerTemplate.trial ? ' as a trial' : ` v${hired.workerTemplate.version}`}. Credential handshake pending; no payment is connected.`);
+        if (drafted) log(scope, 'work_order.proposed', drafted.id, 'Starter task drafted for owner review.');
+      }
+      else if (input.command === 'upgrade_worker_hire') { const h = upgradeHire(state, projectId, payload); log(scope, 'worker.upgraded', h.id, `Pinned to template version ${h.workerTemplate.version}. Granted skills were set by the owner.`); }
       else if (input.command === 'upsert_product') { const p = upsertProduct(state, projectId, payload); log(scope, 'product.recorded', p.id, 'Draft product information recorded.'); }
       else if (input.command === 'upsert_route') { const r = upsertRoute(state, projectId, payload); log(scope, 'route.recorded', r.id, 'Planned sales channel recorded; account not connected.'); }
       else if (input.command === 'propose_order') { const o = proposeOrder(state, projectId, payload); validateDependencies(state, projectId); log(scope, 'work_order.proposed', o.id, 'Service task proposed for owner review.'); }
@@ -658,7 +780,8 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
           if (g.resources.some(r => r.sourceRef) && verifiedGrant !== sha(canonical(g))) fail('GRANT_CHANGED', 'The resource grant changed while it was being checked.', 409);
           const next = transition(state, o, 'claim', { claimReceiptId: generated('claim'), leaseId, leaseExpiresAt }, { role: 'provider', actorPartyId: a.providerPartyId, agentServiceId: a.id });
           a.lastSeenAt = iso(); dirty = true;
-          response = { order: { id: next.id, title: next.title, brief: next.brief, allowedActions: next.allowedActions, maximumMinor: next.maximumMinor, currency: next.currency, expiresAt: next.expiresAt, leaseId, leaseExpiresAt, resources: g.resources, status: next.status }, policy: { subdelegation: false, outboundMessages: false, payments: false, credentialSharing: false } };
+          const pkg = workerPackage(state, a);
+          response = { order: { id: next.id, title: next.title, brief: next.brief, allowedActions: next.allowedActions, maximumMinor: next.maximumMinor, currency: next.currency, expiresAt: next.expiresAt, leaseId, leaseExpiresAt, resources: g.resources, status: next.status, ...(pkg ? { workerPackage: pkg } : {}) }, policy: { subdelegation: false, outboundMessages: false, payments: false, credentialSharing: false } };
           log(scope, 'work_order.claimed', o.id, 'Personal Worker claimed the exact delegated task.');
         }
       } else {

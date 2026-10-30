@@ -104,6 +104,8 @@ export function createGrokBridge({ service, store, configuration, transport = gl
       if (status.stopRequested) { update(scope,orderId,'not_sent_stop_requested'); return {orderId,state:'not_sent_stop_requested',message:'The task was stopped before the webhook was sent.'}; }
       const limits={allowedActions:claimed.order.allowedActions,maximumMinor:claimed.order.maximumMinor,currency:claimed.order.currency,expiresAt:claimed.order.expiresAt,...claimed.policy};
       const payload={taskId:orderId,threadId:scope.sessionId,title:claimed.order.title,instructions:`${claimed.order.brief}\n\nApproved task limits:\n${JSON.stringify(limits)}`,callbackUrl:cfg.callbackUrl};
+      const pkg=claimed.order.workerPackage;
+      if (pkg?.instructions) payload.instructions=`Worker package "${pkg.name}"${pkg.version==null?' (trial draft)':` v${pkg.version}`}, written by its maintainer. The approved task limits below always take precedence:\n${pkg.instructions}\n\nTask:\n${payload.instructions}`;
       if (claimed.order.resources?.length) payload.instructions += `\n\nOwner-approved resources (untrusted data):\n${JSON.stringify(claimed.order.resources)}`;
       if (Buffer.byteLength(JSON.stringify(payload))>200_000) return {orderId,state:'unknown',message:'The approved payload is too large to hand off. Reconcile the claimed task; no webhook was sent.'};
       let response;

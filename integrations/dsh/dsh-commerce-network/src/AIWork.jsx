@@ -1,12 +1,14 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowLeft,ArrowUpRight,CalendarCheck,ChevronDown,IdCard,ListChecks,LoaderCircle,RefreshCw,TriangleAlert} from 'lucide-react';
+import {ArrowLeft,ArrowUpRight,CalendarCheck,ChevronDown,IdCard,ListChecks,LoaderCircle,RefreshCw,TriangleAlert,UserPlus} from 'lucide-react';
 import styles from './ai-work.css';
-import {callApi,errorText,stateFrom} from './api.mjs';
+import {callApi,errorText,requestId,stateFrom} from './api.mjs';
 import {resolveHostTheme,watchHostTheme} from './canvas/theme.mjs';
 import {RUNTIMES,needsYou,sortByRecent} from './work/model.mjs';
+import {MarketScreen,TemplateScreen} from './work/market.jsx';
 import {RuntimeScreen,TasksScreen,TaskScreen,TodayScreen,WorkerScreen,WorkersScreen} from './work/screens.jsx';
+import {EditorScreen,StudioScreen} from './work/studio.jsx';
 
-const TABS=[['today','今天',CalendarCheck],['tasks','任务',ListChecks],['workers','Worker',IdCard]];
+const TABS=[['today','今天',CalendarCheck],['market','招募',UserPlus],['tasks','任务',ListChecks],['workers','Worker',IdCard]];
 const ROOT_STACK=[{name:'today'}];
 
 function useHostTheme(){
@@ -26,7 +28,7 @@ function ProjectBar({projects,projectId,pending,onSelect}){
 export function AIWork({sessionId,active,tabSignal,watchChanges,bindRefresh,openCanvas}){
   const [data,setData]=useState(null),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[error,setError]=useState('');
   const [stack,setStack]=useState(ROOT_STACK);
-  const project=useRef(null),sequence=useRef(0),fetching=useRef(null),mounted=useRef(false),scroll=useRef(null);
+  const project=useRef(null),revision=useRef(0),sequence=useRef(0),fetching=useRef(null),mounted=useRef(false),scroll=useRef(null);
   const theme=useHostTheme();
   const load=useCallback(async({quiet=false,projectId=project.current}={})=>{
     const serial=++sequence.current;fetching.current?.abort();const controller=new AbortController();fetching.current=controller;
@@ -36,12 +38,23 @@ export function AIWork({sessionId,active,tabSignal,watchChanges,bindRefresh,open
       const next=stateFrom(await callApi(`/workspace?${query}`,{signal:controller.signal}));
       if(!Array.isArray(next?.projects)||!Number.isSafeInteger(next.revision)||!next.workspaceId)throw new Error('工作区数据不完整，请重新读取。');
       if(!mounted.current||serial!==sequence.current)return;
-      project.current=next.projectId||null;setData(next);setError('');
+      project.current=next.projectId||null;revision.current=next.revision;setData(next);setError('');
     }catch(e){if(mounted.current&&serial===sequence.current&&e.name!=='AbortError')setError(errorText(e));}
     finally{if(mounted.current&&serial===sequence.current){setLoading(false);setRefreshing(false);}}
   },[sessionId]);
+  /** Owner commands from this app go through the same /command route as the canvas; the service re-validates all of them. */
+  const run=useCallback(async(command,payload)=>{
+    try{
+      const response=await callApi('/command',{body:{sessionId,projectId:project.current,expectedRevision:revision.current,requestId:requestId(),command,payload}});
+      const next=stateFrom(response);
+      sequence.current++;fetching.current?.abort();
+      if(mounted.current&&Array.isArray(next?.projects)&&Number.isSafeInteger(next.revision)&&next.workspaceId){project.current=next.projectId||null;revision.current=next.revision;setData(next);setError('');}
+      else void load({quiet:true});
+      return next;
+    }catch(e){if(mounted.current)void load({quiet:true});throw e;}
+  },[sessionId,load]);
   useEffect(()=>{
-    mounted.current=true;project.current=null;setData(null);setLoading(true);setError('');setStack(ROOT_STACK);
+    mounted.current=true;project.current=null;revision.current=0;setData(null);setLoading(true);setError('');setStack(ROOT_STACK);
     const stop=()=>fetching.current?.abort();tabSignal?.addEventListener('abort',stop,{once:true});void load();
     return()=>{mounted.current=false;stop();tabSignal?.removeEventListener('abort',stop);};
   },[sessionId,tabSignal,load]);
@@ -56,15 +69,19 @@ export function AIWork({sessionId,active,tabSignal,watchChanges,bindRefresh,open
   const orders=useMemo(()=>sortByRecent(rawOrders),[rawOrders]);
   const pending=orders.filter(needsYou).length;
 
+  const templates=data?.commerceNetwork?.workerTemplates||[];
   const go=(name,id)=>setStack(s=>[...s,{name,id}]);
+  const replace=(name,id)=>setStack(s=>[...s.slice(0,-1),{name,id}]);
   const switchTab=name=>setStack([{name}]);
   const back=()=>setStack(s=>s.length>1?s.slice(0,-1):s);
   const selectProject=e=>{const id=e.target.value||null;project.current=id;setData(null);setLoading(true);setStack(ROOT_STACK);void load({projectId:id});};
   const bar=data?<ProjectBar projects={data.projects} projectId={data.projectId} pending={pending} onSelect={selectProject}/>:null;
-  const view={agents,parties,orders,go,bar};
+  const current=data?.projects?.find(p=>p.id===data.projectId);
+  const view={agents,parties,orders,templates,products:data?.products||[],projectId:data?.projectId||null,projectName:current?.name||current?.title||'',go,replace,run,openCanvas,bar};
 
   const worker=top.name==='worker'?agents.find(a=>a.id===top.id):null;
-  const heading=top.name==='worker'?(worker?.displayName||'Worker'):top.name==='runtime'?(RUNTIMES.find(r=>r.id===top.id)?.name||'Agent'):top.name==='task'?'任务详情':'AI Work';
+  const heading=top.name==='worker'?(worker?.displayName||'Worker'):top.name==='runtime'?(RUNTIMES.find(r=>r.id===top.id)?.name||'Agent'):top.name==='task'?'任务详情'
+    :top.name==='template'?(templates.find(t=>t.id===top.id)?.published?.name||'Worker'):top.name==='studio'?'维护者工作台':top.name==='editor'?(top.id==='new'?'新建 Worker':'编辑 Worker'):'AI Work';
   const dock=top.name==='today'&&pending>0?'在协作画布中处理':top.name==='worker'||top.name==='task'?'打开协作画布':top.name==='workers'&&data&&agents.length===0?'打开协作画布':null;
 
   return <section className="cn aw-root" data-theme={theme} aria-label="AI Work 嵌入式应用"><style>{styles}</style>
@@ -74,6 +91,10 @@ export function AIWork({sessionId,active,tabSignal,watchChanges,bindRefresh,open
         {error&&<div className="aw-feedback" role="alert"><TriangleAlert size={16}/><span>{error}</span><button type="button" onClick={()=>void load()}>重试</button></div>}
         {loading&&!data?<div className="aw-loading"><LoaderCircle className="aw-spin" size={21}/><span>正在读取…</span></div>:!data?<div className="aw-unavailable"><p>暂时无法读取工作区</p><button type="button" onClick={()=>void load()}>重新读取</button></div>:<>
           {top.name==='today'&&<TodayScreen v={view}/>}
+          {top.name==='market'&&<MarketScreen v={view}/>}
+          {top.name==='template'&&<TemplateScreen v={view} id={top.id}/>}
+          {top.name==='studio'&&<StudioScreen v={view}/>}
+          {top.name==='editor'&&<EditorScreen v={view} id={top.id}/>}
           {top.name==='tasks'&&<TasksScreen v={view}/>}
           {top.name==='workers'&&<WorkersScreen v={view}/>}
           {top.name==='worker'&&<WorkerScreen v={view} id={top.id}/>}

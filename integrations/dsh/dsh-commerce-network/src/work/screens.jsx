@@ -1,4 +1,6 @@
 import React from 'react';
+import {ChevronRight,PenLine} from 'lucide-react';
+import {PackageSection} from './market.jsx';
 import {BadgeRow,Dot,EmptyState,EvidenceNote,NeverList,RuntimeIcon,RuntimeSeat,ScopeList,TaskGroups,TaskList,WorkerBadge,MaintainerChip} from './parts.jsx';
 import {QUEUED,RUNTIMES,dotFor,formatTime,needsYou,partyOf,presence,runtimeOf,taskStatus,workerStats} from './model.mjs';
 
@@ -36,9 +38,12 @@ export function WorkersScreen({v}){
     <div className="aw-pagehead"><h2>Worker</h2></div>
     {v.bar}
     <section className="aw-section"><div className="aw-section-head"><h3>已登记的 Worker</h3>{v.agents.length>0&&<span className="aw-count aw-mono">{v.agents.length}</span>}</div>
-      {v.agents.length?<div className="aw-list">{v.agents.map((a,i)=><BadgeRow key={a.id} index={i} worker={a} orders={v.orders} parties={v.parties} onOpen={()=>v.go('worker',a.id)}/>)}</div>:<EmptyState title="当前项目暂无 Worker" hint="在协作画布中登记 Worker，并由你签发专用凭证。"/>}
+      {v.agents.length?<div className="aw-list">{v.agents.map((a,i)=><BadgeRow key={a.id} index={i} worker={a} orders={v.orders} parties={v.parties} onOpen={()=>v.go('worker',a.id)}/>)}</div>:<EmptyState title="当前项目暂无 Worker" hint="到「招募」页雇一个，或在协作画布中登记你自己的 Worker。"/>}
     </section>
     <section className="aw-section"><div className="aw-section-head"><h3>我的 Agent</h3></div><AgentSeats v={v}/></section>
+    <section className="aw-section"><div className="aw-section-head"><h3>维护者</h3></div>
+      <div className="aw-list"><button type="button" className="aw-seat" onClick={()=>v.go('studio')}><span className="aw-glyph" aria-hidden="true"><PenLine size={20} strokeWidth={1.75}/></span><span className="aw-seat-main"><strong>维护者工作台</strong><small>发布和维护你自己的 Worker</small></span><ChevronRight className="aw-chevron" size={18} aria-hidden="true"/></button></div>
+    </section>
   </>;
 }
 
@@ -48,6 +53,7 @@ export function WorkerScreen({v,id}){
   const stats=workerStats(worker,v.orders),mine=v.orders.filter(o=>o.agentServiceId===worker.id);
   return <>
     <WorkerBadge worker={worker} orders={v.orders} parties={v.parties}/>
+    <PackageSection v={v} agent={worker}/>
     <section className="aw-section"><div className="aw-section-head"><h3>真实记录</h3></div><EvidenceNote stats={stats}/></section>
     <section className="aw-section"><div className="aw-section-head"><h3>授予能力</h3></div>{worker.skills?.length?<ScopeList skills={worker.skills}/>:<p className="aw-calm">登记时未声明能力。</p>}</section>
     <section className="aw-section"><div className="aw-section-head"><h3>不会做</h3></div><NeverList/></section>

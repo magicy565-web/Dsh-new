@@ -15,9 +15,9 @@ export function RuntimeIcon({id,size=28}){
 
 export function Dot({tone}){return <span className="aw-dot" data-tone={tone} aria-hidden="true"/>;}
 
-export function MaintainerChip({party}){
+export function MaintainerChip({party,note}){
   const name=party?.displayName||'维护者未登记';
-  return <span className="aw-maintainer"><span className="aw-avatar" aria-hidden="true">{initialOf(party?.displayName)}</span><span className="aw-maintainer-text"><strong>{name}</strong><small>{party?verificationLabel(party):'—'}</small></span></span>;
+  return <span className="aw-maintainer"><span className="aw-avatar" aria-hidden="true">{initialOf(party?.displayName)}</span><span className="aw-maintainer-text"><strong>{name}</strong><small>{note||(party?verificationLabel(party):'—')}</small></span></span>;
 }
 
 export function RuntimeSeat({runtime,agents,orders,onOpen}){
@@ -58,7 +58,7 @@ export function BadgeRow({worker,orders,parties,onOpen,index=0}){
     <span className="aw-badge-row-main">
       <strong>{worker.displayName}</strong>
       {worker.skillLabel&&<small className="aw-clamp">{worker.skillLabel}</small>}
-      <small className="aw-by">维护者 {party?.displayName||'未登记'} · <span className="aw-mono">已验收 {stats.accepted}</span></small>
+      <small className="aw-by">维护者 {party?.displayName||'未登记'} · <span className="aw-mono">已验收 {stats.accepted}</span>{worker.workerTemplate&&<span className="aw-mono"> · {worker.workerTemplate.version==null?'试运行':`v${worker.workerTemplate.version}`}</span>}</small>
     </span>
     <RuntimeIcon id={runtime.id} size={24}/>
     <ChevronRight className="aw-chevron" size={16} aria-hidden="true"/>

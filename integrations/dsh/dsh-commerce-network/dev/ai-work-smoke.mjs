@@ -31,7 +31,7 @@ try{
   await act(async()=>{root.render(React.createElement(slot.component,props));await new Promise(r=>setTimeout(r,25));});
   assert.ok(document.querySelector('.aw-root'));assert.equal(document.querySelectorAll('.aw-seat').length,2);
   assert.match(document.querySelector('.aw-runtime-grokbot small').textContent,/状态待同步/);assert.match(document.body.textContent,/当前会话暂无项目/);assert.match(document.body.textContent,/暂无任务/);
-  assert.deepEqual([...document.querySelectorAll('.aw-tabbar button')].map(b=>b.textContent),['今天','任务','Worker']);assert.equal(current(),'今天');
+  assert.deepEqual([...document.querySelectorAll('.aw-tabbar button')].map(b=>b.textContent),['今天','招募','任务','Worker']);assert.equal(current(),'今天');
   assert.match(document.querySelector('.aw-runtime-grokbot img').getAttribute('src'),/^data:image\/svg\+xml/);
   assert.match(document.querySelector('.aw-runtime-muse img').getAttribute('src'),/^data:image\/svg\+xml/);
   assert.equal(document.querySelector('.aw-primary'),null,'no action is offered when nothing needs the owner');
@@ -89,5 +89,5 @@ try{
   await click(tab('Worker'));
   assert.match(document.body.textContent,/当前项目暂无 Worker/);assert.match(document.querySelector('.aw-primary').textContent,/打开协作画布/);
   fail=true;await act(async()=>{refresh();await new Promise(r=>setTimeout(r,10));});assert.match(document.querySelector('[role="alert"]').textContent,/TEST read failed/);
-  console.log(JSON.stringify({ok:true,checks:['native-embedded-app','three-tab-navigation','honest-empty-providers','official-provider-icons','no-activation-action','host-theme','needs-you-and-single-primary','unmarked-worker-not-guessed','worker-badge-content','maintainer-and-runtime','never-does-list','no-online-claim','sample-floor','task-detail','canvas-navigation','project-isolation','read-error']}));
+  console.log(JSON.stringify({ok:true,checks:['native-embedded-app','four-tab-navigation','honest-empty-providers','official-provider-icons','no-activation-action','host-theme','needs-you-and-single-primary','unmarked-worker-not-guessed','worker-badge-content','maintainer-and-runtime','never-does-list','no-online-claim','sample-floor','task-detail','canvas-navigation','project-isolation','read-error']}));
 }finally{await act(async()=>root.unmount());controller.abort();for(const dispose of disposers.reverse())dispose();dom.window.close();for(const[k,d]of saved){if(d)Object.defineProperty(globalThis,k,d);else delete globalThis[k];}}
