@@ -2,6 +2,8 @@
 
 AI Work 是 DSH 右侧原生工作区。它读取当前会话的 Commerce Network 项目、已登记 Worker 和工单，使用现有审批、租约、交付及验收记录。空项目不会生成示例数据。提供商类型由登记时明确指定为 `grokbot`、`muse` 或 `other`；历史记录未标记时显示为其他 Worker，不按名称猜测身份。
 
+图标来自 [Grok 官方网站](https://grok.com/images/favicon.svg)和 [Muse 官方网站](https://muse.ai/images/favicon/app-squiggle.svg)，品牌标识属于各自的权利人。旧项目没有记录 Muse 的品牌来源；此处以 muse.ai 的个人 AI Agent 标识作为界面参考。开通流程暂不放在本界面。
+
 界面的“网关已认证”仅表示 Worker 凭证已成功访问 DSH，不能证明远端在线、能力合格或真实执行；最后活动时间也不等于在线状态。需要选中真实项目才能看到其 Worker 和任务。其他项目的任务不会混入当前视图。
 
 ## Grok Bot：按需 webhook 交接

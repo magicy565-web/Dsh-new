@@ -23,7 +23,7 @@ function CanvasTab(props){
 function AIWorkTab(props){
   const {tab}=props.useTabInfo();
   const bindRefresh=useCallback(fn=>tab.actions.bindCommands({refresh:fn}),[tab.actions]);
-  return <CanvasBoundary key={props.sessionId}><AIWork sessionId={props.sessionId} active={tab.visible} tabSignal={tab.signal} bindRefresh={bindRefresh} submitPrompt={props.submitPrompt} watchChanges={props.watchChanges} openCanvas={props.openCanvas}/></CanvasBoundary>;
+  return <CanvasBoundary key={props.sessionId}><AIWork sessionId={props.sessionId} active={tab.visible} tabSignal={tab.signal} bindRefresh={bindRefresh} watchChanges={props.watchChanges} openCanvas={props.openCanvas}/></CanvasBoundary>;
 }
 function OpenCanvasAction(props){
   useEffect(()=>props.watchChanges?.(props.open),[props.watchChanges,props.open]);
@@ -54,7 +54,7 @@ export function apply(ctx){
   ctx.effect(()=>ctx.sidebarRightTabs.register({id:TAB_ID,kind:TAB_KIND,title:()=>t('title'),keepMounted:true,guide:[{id:'canvas',order:42,title:()=>t('title'),description:()=> '用当前会话连接工厂、海外代理商与 Personal AI Worker。'}]}),'commerce-network: sidebar type');
   ctx.effect(()=>ctx.sidebarRightTabs.register({id:AI_TAB_ID,kind:AI_TAB_KIND,title:()=>t('aiWork'),keepMounted:true,guide:[{id:'ai-work',order:41,title:()=>t('aiWork'),description:()=> '查看 Grok Bot、Muse Agent 与工作区任务。'}]}),'commerce-network: AI Work sidebar type');
   ctx.effect(()=>ctx.slots.inject('sidebar.right.pane.tab',()=>ctx.slots.register({name:'sidebar.right.pane.tab',key:TAB_ID,locale:NAMESPACE,inject:sessionId=>({submitPrompt:(text,id,signal)=>submit(sessionId,text,id,signal),watchChanges:listener=>watch(sessionId,listener)})},CanvasTab)),'commerce-network: right canvas');
-  ctx.effect(()=>ctx.slots.inject('sidebar.right.pane.tab',()=>ctx.slots.register({name:'sidebar.right.pane.tab',key:AI_TAB_ID,locale:NAMESPACE,inject:sessionId=>({submitPrompt:(text,id,signal)=>submit(sessionId,text,id,signal),watchChanges:listener=>watch(sessionId,listener),openCanvas:()=>open(sessionId)})},AIWorkTab)),'commerce-network: AI Work');
+  ctx.effect(()=>ctx.slots.inject('sidebar.right.pane.tab',()=>ctx.slots.register({name:'sidebar.right.pane.tab',key:AI_TAB_ID,locale:NAMESPACE,inject:sessionId=>({watchChanges:listener=>watch(sessionId,listener),openCanvas:()=>open(sessionId)})},AIWorkTab)),'commerce-network: AI Work');
   ctx.effect(()=>ctx.slots.inject('conversation.session.header.actions',()=>ctx.slots.register({name:'conversation.session.header.actions',id:'commerce-network-canvas',order:42,locale:NAMESPACE,inject:sessionId=>({open:()=>open(sessionId),watchChanges:listener=>watch(sessionId,listener)})},OpenCanvasAction)),'commerce-network: conversation action');
   ctx.effect(()=>ctx.slots.inject('conversation.session.header.actions',()=>ctx.slots.register({name:'conversation.session.header.actions',id:'ai-work',order:41,locale:NAMESPACE,inject:sessionId=>({open:()=>openAI(sessionId)})},OpenAIWorkAction)),'commerce-network: AI Work action');
 }
