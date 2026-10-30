@@ -1,8 +1,0 @@
-{
-  "url": "https://api.apify.com/v2/openapi.json",
-  "sha256": "59902e5c2e2592b467ff77196352a94fe03185a6e21242faedb9c500312ad1b1",
-  "pathsUsed": [
-    "/v2/users/me/limits"
-  ],
-  "realAuthenticatedRequestPerformed": false
-}

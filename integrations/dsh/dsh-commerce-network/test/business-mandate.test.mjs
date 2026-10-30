@@ -9,7 +9,6 @@ import { createCommerceService } from "../service.js";
 import {
   validateBusinessTerms,
   businessTermStatus,
-  mandateCoversOrder,
 } from "../../../../packages/domain-commerce-network/src/index.mjs";
 import { buildCommerceGraph } from "../src/projection/network.mjs";
 const now = Date.parse("2026-10-28T12:00:00Z");
@@ -156,7 +155,6 @@ test("three commercial modes activate independently without reserving budget, gr
       await f.command("approve_mandate", { mandateId: mode });
       assert.equal(record(f, mode).effectiveStatus, "active");
       assert.equal(record(f, mode).billingStatus, "not_connected");
-      assert.equal(mandateCoversOrder(record(f, mode), {}), false);
     }
     assert.deepEqual(f.state().budget, baseline);
     assert.equal(f.state().commerceNetwork.grants.length, 0);

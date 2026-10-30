@@ -5,13 +5,11 @@ on:
   pull_request:
     paths:
       - 'integrations/dsh/**'
-      - 'packages/domain-business-memory/**'
-      - 'packages/domain-product-library/**'
-      - 'packages/domain-inquiry-recovery/**'
       - 'packages/domain-commerce-network/**'
       - 'packages/dsh-commerce-contracts/**'
-      - 'scripts/*dsh*.mjs'
-      - 'scripts/*commerce*.mjs'
+      - 'scripts/**'
+      - 'AGENTS.md'
+      - 'docs/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/dsh-plugins.yml'

@@ -27,7 +27,6 @@
     "cordis.patch.yml",
     "README.md",
     "THIRD-PARTY-NOTICES.txt",
-    "trade.js",
     "business-progress.js"
   ],
   "dependencies": {

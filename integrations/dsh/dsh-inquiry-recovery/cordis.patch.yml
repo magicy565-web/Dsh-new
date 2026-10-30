@@ -1,4 +1,0 @@
-- insert:
-    - id: inquiry-recovery
-      name: dsh-inquiry-recovery
-      config: {}

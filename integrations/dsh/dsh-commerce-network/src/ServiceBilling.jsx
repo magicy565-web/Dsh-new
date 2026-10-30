@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Dialog } from "./Inspector.jsx";
-import { tradeApi } from "./TradeInspector.jsx";
+import { billingApi } from "./billing-api.mjs";
 import { requestId, errorText } from "./api.mjs";
 import { money } from "./model.mjs";
 const names = {
@@ -66,7 +66,7 @@ export function ServiceBilling({
   async function load(afterId = "") {
     const seq = ++requestSequence.current;
     try {
-      const value = await tradeApi(
+      const value = await billingApi(
         "/service-billing-api/list?" +
           new URLSearchParams({
             sessionId,
@@ -108,7 +108,7 @@ export function ServiceBilling({
     try {
       sessionStorage.setItem(key, JSON.stringify(envelope));
       setPending(envelope);
-      const result = await tradeApi("/service-billing-api/write", {
+      const result = await billingApi("/service-billing-api/write", {
         body: envelope,
         signal: life.current.signal,
       });
@@ -150,7 +150,7 @@ export function ServiceBilling({
       const bytes = new Uint8Array(await file.arrayBuffer());
       let binary = "";
       for (const byte of bytes) binary += String.fromCharCode(byte);
-      const ref = await tradeApi("/service-billing-api/upload-evidence", {
+      const ref = await billingApi("/service-billing-api/upload-evidence", {
         body: { sessionId, fileName: file.name, dataBase64: btoa(binary) },
         signal: life.current.signal,
       });

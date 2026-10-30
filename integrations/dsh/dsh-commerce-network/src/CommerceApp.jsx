@@ -1,6 +1,5 @@
 import {BusinessWorkbench} from './BusinessWorkbench.jsx';
 import {Mandates} from './Mandates.jsx';
-import {TradeInspector,ImportRfq} from './TradeInspector.jsx';
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ReactFlow,ReactFlowProvider,Background,BackgroundVariant,MiniMap,applyNodeChanges,useReactFlow,MarkerType} from '@xyflow/react';
 import {Network,Plus,Search,ChevronDown,ChevronRight,RefreshCw,Check,AlertCircle,Clock3,Users,SlidersHorizontal,LayoutGrid,ZoomIn,ZoomOut,Maximize2,Map as MapIcon,PanelRightClose,ArrowUpRight,ArrowRight,X,Activity,ShieldCheck,Wallet,LoaderCircle,Bot,Factory,UserRound,Copy} from 'lucide-react';
@@ -70,7 +69,7 @@ function CanvasSurface({graph,query,view,onSelect,onSelectEdge,selectedId,onAsk,
     const ids=new Set([focusId]);for(const e of graphRef.current.edges){if(e.source===focusId)ids.add(e.target);if(e.target===focusId)ids.add(e.source);}
     void fitView({nodes:[...ids].map(id=>({id})),duration:280,padding:.3,maxZoom:1});
   },[focusId,fitView]);
-  const allowedKinds=view==='network'?new Set(['factory','distributor','personal_agent','service_order','business_mandate','product','market','channel']):view==='execution'?new Set(['personal_agent','service_order','worker','buyer','rfq','quote','order','erp_order','sample','approval','evidence']):null;
+  const allowedKinds=view==='network'?new Set(['factory','distributor','personal_agent','service_order','business_mandate','product','market','channel']):view==='execution'?new Set(['personal_agent','service_order','worker','buyer','quote','order','approval','evidence']):null;
   const visible=nodes.filter(n=>!allowedKinds||allowedKinds.has(n.data.item.kind));
   const visibleIds=new Set(visible.map(n=>n.id));
   const needle=query.trim().toLowerCase();
@@ -111,7 +110,6 @@ function BudgetDialog({project,onClose,onSave,busy,error}){
 
 export function CommerceApp({sessionId,active=true,submitPrompt,watchChanges,tabSignal,bindRefresh}) {
   const [selectedEdgeId,setSelectedEdgeId]=useState(null);
-  const [importOpen,setImportOpen]=useState(false);
   const [mandatesOpen,setMandatesOpen]=useState(false);
   const [workbenchOpen,setWorkbenchOpen]=useState(false);
   const [state,setState]=useState(EMPTY),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[error,setError]=useState(null),[toast,setToast]=useState(null),[selectedId,setSelectedId]=useState(null),[focusId,setFocusId]=useState(null),[query,setQuery]=useState(''),[view,setView]=useState('all'),[panel,setPanel]=useState(null),[review,setReview]=useState(null),[credential,setCredential]=useState(null),[artifact,setArtifact]=useState(null),[budgetOpen,setBudgetOpen]=useState(false),[busy,setBusy]=useState(false),[promptPending,setPromptPending]=useState(false),[showMap,setShowMap]=useState(false),[showLabels,setShowLabels]=useState(true),[layoutStatus,setLayoutStatus]=useState('saved');
@@ -130,7 +128,6 @@ export function CommerceApp({sessionId,active=true,submitPrompt,watchChanges,tab
       const next=stateFrom(await callApi(`/workspace?${params}`,{signal:controller.signal}));
       if(!alive.current||sequence!==loadSequence.current)return;
       if(!Array.isArray(next.projects)||!Number.isSafeInteger(next.revision))throw new Error('业务数据不完整，请检查插件服务。');
-      if(next.projectId){try{next.trade=unwrap(await callApi(`/trade?${new URLSearchParams({sessionId,projectId:next.projectId})}`,{signal:controller.signal}));}catch(e){if(e.name==='AbortError')throw e;next.tradeUnavailable=e.message;}}
       if(!alive.current||sequence!==loadSequence.current)return;
       projectRef.current=next.projectId||null;setState(publicState(next));if(!quiet)setError(null);
       return next;
@@ -138,7 +135,7 @@ export function CommerceApp({sessionId,active=true,submitPrompt,watchChanges,tab
     finally{if(alive.current&&sequence===loadSequence.current){setLoading(false);setRefreshing(false);}}
   },[sessionId]);
   useEffect(()=>{
-    alive.current=true;projectRef.current=null;setState(EMPTY);setLoading(true);setMandatesOpen(false);setWorkbenchOpen(false);setImportOpen(false);setSelectedId(null);setCredential(null);setReview(null);setArtifact(null);
+    alive.current=true;projectRef.current=null;setState(EMPTY);setLoading(true);setMandatesOpen(false);setWorkbenchOpen(false);setSelectedId(null);setCredential(null);setReview(null);setArtifact(null);
     const controller=new AbortController();abortLifetime.current=controller;
     const stop=()=>{controller.abort();loadRef.current?.abort();};tabSignal?.addEventListener('abort',stop,{once:true});
     void load();
@@ -205,20 +202,16 @@ export function CommerceApp({sessionId,active=true,submitPrompt,watchChanges,tab
   const select=useCallback(id=>{if(id?.startsWith('business_mandate:'))setMandatesOpen(id.slice(17));setSelectedId(id);setSelectedEdgeId(null);setFocusId(null);if(id)setPanel(null);},[]);
   const selectEdge=useCallback(id=>{setSelectedEdgeId(id);setSelectedId(null);setPanel(null);setFocusId(null);},[]);
   const selectEvent=useCallback(ref=>{const node=graph?.nodes.find(n=>n.id===ref||n.refId===ref);if(node){setView('all');select(node.id);setFocusId(node.id);}},[graph,select]);
-  const chooseProject=event=>{projectRef.current=event.target.value||null;setSelectedId(null);setPanel(null);setArtifact(null);setImportOpen(false);setLayoutStatus('saved');void load({projectId:projectRef.current});};
+  const chooseProject=event=>{projectRef.current=event.target.value||null;setSelectedId(null);setPanel(null);setArtifact(null);setLayoutStatus('saved');void load({projectId:projectRef.current});};
   const showDecisions=()=>{const first=decisions[0];if(first){setView('all');selectEvent(`service_order:${first.id}`);}};
   const budget=project?.budget||{};
   return <section className="cn" ref={rootRef} aria-label="Commerce Network 商业协作画布"><style>{flowCss}{appCss}</style>
-    {importOpen&&project&&<ImportRfq sessionId={sessionId} projectId={state.projectId} onClose={()=>setImportOpen(false)} onRefresh={()=>void load()}/>}
-    {state.tradeUnavailable&&<Message type="error">交易投影读取失败：{state.tradeUnavailable}</Message>}
-    {state.trade?.truncated&&<Message>当前画布只显示部分交易记录，请通过原生会话分页读取完整记录。</Message>}
-    {state.trade&&Object.values(state.trade.dependencies||{}).some(v=>v!=='available')&&<Message>部分交易插件尚未加载，相关记录暂不可读取。</Message>}
     <header className="cn-header"><div className="cn-heading"><span className="cn-brand"><Network size={21} strokeWidth={1.7}/></span><div><span className="cn-eyebrow">CHANNEL ATLAS</span>{state.projects?.length?<label className="cn-project-select"><span className="cn-sr-only">当前协作项目</span><select value={state.projectId||''} onChange={chooseProject}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.name||p.title}</option>)}</select><ChevronDown size={13}/></label>:<h1>商业协作网络</h1>}</div></div><div className="cn-header-actions"><button className={`cn-icon-button${panel==='members'?' cn-active':''}`} onClick={()=>{setPanel(panel==='members'?null:'members');setSelectedId(null);}} title="协作成员" aria-label="协作成员"><Users size={18}/></button><button className="cn-icon-button" onClick={()=>void load()} disabled={refreshing} title="刷新真实状态" aria-label="刷新真实状态"><RefreshCw size={17} className={refreshing?'cn-spin':''}/></button><button className="cn-button cn-primary cn-add" disabled={promptPending||!active} onClick={()=>onAsk(null,'我想扩展当前海外销售协作网络。请读取项目后，在当前对话中询问我要添加的工厂、产品、市场、代理商或 Personal AI Worker，再保存业务计划。')}><Plus size={15}/><span>扩展网络</span></button></div></header>
-    <div className="cn-toolbar"><div className="cn-view-switch" role="group" aria-label="画布视图">{[['all','全局'],['network','商业网络'],['execution','执行流程']].map(([id,label])=><button key={id} className={view===id?'cn-selected':''} aria-pressed={view===id} onClick={()=>{setView(id);setSelectedId(null);}}>{label}</button>)}</div><div className="cn-toolbar-right"><button className="cn-button" disabled={loading||!state.projectId} onClick={()=>setWorkbenchOpen(true)}>业务推进</button><button className="cn-button" disabled={loading||!state.workspaceId} onClick={()=>setMandatesOpen(true)}>业务委托</button>{project&&<button className="cn-button" onClick={()=>setImportOpen(true)}>导入询盘</button>}{decisions.length>0&&<button className="cn-review-pill" onClick={showDecisions}><span/>{decisions.length} 项待决策<ChevronRight size={12}/></button>}{project&&<button className="cn-budget-button" onClick={()=>{setError(null);setBudgetOpen(true);}} title="项目服务预算"><Wallet size={14}/><span>{money(budget.maximumMinor??project.maximumMinor??0,budget.currency||project.currency||'USD')}</span></button>}</div></div>
+    <div className="cn-toolbar"><div className="cn-view-switch" role="group" aria-label="画布视图">{[['all','全局'],['network','商业网络'],['execution','执行流程']].map(([id,label])=><button key={id} className={view===id?'cn-selected':''} aria-pressed={view===id} onClick={()=>{setView(id);setSelectedId(null);}}>{label}</button>)}</div><div className="cn-toolbar-right"><button className="cn-button" disabled={loading||!state.projectId} onClick={()=>setWorkbenchOpen(true)}>业务推进</button><button className="cn-button" disabled={loading||!state.workspaceId} onClick={()=>setMandatesOpen(true)}>业务委托</button>{decisions.length>0&&<button className="cn-review-pill" onClick={showDecisions}><span/>{decisions.length} 项待决策<ChevronRight size={12}/></button>}{project&&<button className="cn-budget-button" onClick={()=>{setError(null);setBudgetOpen(true);}} title="项目服务预算"><Wallet size={14}/><span>{money(budget.maximumMinor??project.maximumMinor??0,budget.currency||project.currency||'USD')}</span></button>}</div></div>
     <div className="cn-content">
       {loading?<div className="cn-loading"><LoaderCircle className="cn-spin" size={27}/><p>正在读取工作区…</p></div>:graph?.nodes.length?<ReactFlowProvider><CanvasSurface key={`${sessionId}:${graph.projectId}`} graph={graph} query={query} view={view} selectedId={selectedId} onSelect={select} onSelectEdge={selectEdge} onAsk={onAsk} onSaveLayout={saveLayout} onLayoutStatus={setLayoutStatus} onError={onError} focusId={focusId} actionRef={actions} showMap={showMap} showEdgeLabels={showLabels}/></ReactFlowProvider>:!error?<EmptyCanvas onAsk={onAsk} pending={promptPending} hasProject={Boolean(project)}/>:<div className="cn-loading cn-error-empty"><AlertCircle size={28}/><h2>暂时无法打开工作区</h2><p>{error}</p><button className="cn-button" onClick={()=>void load()}><RefreshCw size={15}/>重新读取</button></div>}
       {graph?.nodes.length>0&&<><div className="cn-canvas-search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="查找节点…" aria-label="查找节点"/>{query&&<button aria-label="清除查找" onClick={()=>setQuery('')}><X size={13}/></button>}</div><div className="cn-canvas-tools" role="toolbar" aria-label="无限画布工具"><button title="放大" aria-label="放大" onClick={()=>actions.current?.zoomIn()}><ZoomIn size={18}/></button><button title="缩小" aria-label="缩小" onClick={()=>actions.current?.zoomOut()}><ZoomOut size={18}/></button><i/><button title="适应画布" aria-label="适应画布" onClick={()=>actions.current?.fit()}><Maximize2 size={17}/></button><button title="自动整理并保存布局" aria-label="自动整理并保存布局" onClick={()=>actions.current?.arrange()}><LayoutGrid size={17}/></button><i/><button title="导航缩略图" aria-label="导航缩略图" aria-pressed={showMap} className={showMap?'cn-active':''} onClick={()=>setShowMap(v=>!v)}><MapIcon size={17}/></button><button title="关系名称" aria-label="显示关系名称" aria-pressed={showLabels} className={showLabels?'cn-active':''} onClick={()=>setShowLabels(v=>!v)}><SlidersHorizontal size={17}/></button></div></>}
-      {selection?.tradeRecord?<TradeInspector key={`${sessionId}:${selection.id}`} node={selection} sessionId={sessionId} workspaceId={state.workspaceId} onClose={()=>setSelectedId(null)} onAsk={onAsk} onRefresh={()=>void load()}/>:selection&&<Inspector node={selection} state={state} busy={busy} onClose={()=>setSelectedId(null)} onAsk={onAsk} onAction={openReview} onFocus={()=>{setView('all');setFocusId(null);requestAnimationFrame(()=>setFocusId(selection.id));}} onArtifact={setArtifact}/>}
+      {selection&&<Inspector node={selection} state={state} busy={busy} onClose={()=>setSelectedId(null)} onAsk={onAsk} onAction={openReview} onFocus={()=>{setView('all');setFocusId(null);requestAnimationFrame(()=>setFocusId(selection.id));}} onArtifact={setArtifact}/>}
       {selectedEdge&&!panel&&<RelationshipInspector edge={selectedEdge} graph={graph} state={state} busy={busy} onClose={()=>setSelectedEdgeId(null)} onAsk={onAsk} onAction={openReview}/>}
       {panel==='members'&&<MembersPanel state={state} onClose={()=>setPanel(null)} onAsk={onAsk} onSelect={select}/>}
       {panel==='activity'&&<ActivityPanel state={state} onClose={()=>setPanel(null)} onSelect={selectEvent}/>}

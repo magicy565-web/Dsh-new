@@ -157,4 +157,4 @@ DSH_RUNTIME_DIR=/workspace/dsh-runtime node dev/native-product-context-smoke.mjs
 
 ERP 直接复用 ProductEditorSurface、FileSurface、CompanySettingsSurface；不维护第二份商品、文件或企业资料。原生资料库界面继续保留自己的版本审核能力；ERP 文件页隐藏自定义审核控件。
 
-商品／文件 HTTP 列表增加 offset 和 sort（updated / name_asc / name_desc），过滤、排序先于分页，返回 matched / offset / hasMore / nextOffset；total 仍是全部原记录数。默认读取兼容原调用。原 Agent 工具参数没有因此增加分页选项。安装与能力边界见 [ERP 插件包](../../../docs/ERP-ADMIN-PACKAGE.md)。
+商品／文件 HTTP 列表增加 offset 和 sort（updated / name_asc / name_desc），过滤、排序先于分页，返回 matched / offset / hasMore / nextOffset；total 仍是全部原记录数。默认读取兼容原调用。原 Agent 工具参数没有因此增加分页选项。安装与能力边界见 ERP 插件包（历史材料见 Git 历史）。

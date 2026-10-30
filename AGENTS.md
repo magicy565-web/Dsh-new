@@ -1,89 +1,33 @@
-# DSH development boundary
+# DSH clean core development boundary
 
-Latest product direction: the user explicitly changed the target from an ERP
-to Agentive, then clarified that each business module has an editable Assistant
-and named Shopify Sidekick as the interaction reference. Follow
-docs/AGENTIVE-ARCHITECTURE.md. A module remains a business workspace with its
-contextual assistant; do not replace the product with a disconnected agent
-catalogue or continue filling every Shopify Admin placeholder as an ERP roadmap.
-Reuse DSH native sessions, execution, skills, tools and permissions. Keep existing
-product/document/customer/transaction data services and records. The earlier ERP
-UI instructions below describe existing assets, not the current product target.
+DeepSeek Harness is the only execution host. Reuse its native Session, tools,
+Connection, attachments, permissions and Client. Do not introduce another Agent
+Loop, model gateway, standalone Workspace Harness, Pi/OMP or web server.
 
-Scope correction: the user rejected building a broad business platform. Follow
-docs/SCOPE-REDUCTION.md. Treat "continue" as continuing the agreed scope, not as
-permission to invent the next business module, panel, approval chain or stage
-engine. Audit and remove duplication first; use native DSH capabilities and
-on-demand skills. Existing business bundles are not the required core. The
-earlier five-bundle development profile is historical implementation state,
-not the target architecture. Preserve data during any subsequent code removal.
+## Retained scope
 
-Buyer magazine scope is defined in docs/BUYER-MAGAZINE-ARCHITECTURE.md:
-conversation-driven creation, with no visual editor requirement. Read actual
-materials from the user's accessible local workspace or server-side work-order
-uploads. Cloud execution does not imply access to the user's computer. ERP owns
-transactions and supply reservations. The user subsequently authorized a small
-local ERP: integrations/dsh/dsh-mini-erp is the single transaction ledger for
-this pilot. It has no buyer portal or work-order integration. Keep further
-ERP development scoped to the user request; no parallel transaction state.
-The user explicitly required a standalone website-to-magazine plugin and removal
-of duplicate rendering. dsh-buyer-magazine owns the magazine skill pack,
-schema/theme/compiler and native generation entry. Sourcing reuses it; modules
-and ERP are input adapters. Keep it independently installable without Sourcing
-or ERP, and do not create a second renderer or execution host.
-The user supplied luxury_ecommerce_skills_package.zip: preserve its four skills
-and source resources, with explicit native DSH integration contracts. The target
-is five editorial spreads with scroll/flip modes, real source imagery, typography,
-working interactions and actual screenshot/PDF review. Unconfigured external
-Apify/FastAI/VIP/lead services must not be described as working capabilities.
-The user rejected the fixed-template magazine approach. The four skills must
-instruct the current LLM to research, edit, art-direct and author HTML/CSS/JS.
-Do not force creative work into issue JSON or the fixed web-card renderer.
-Tools provide actual collection, file inspection, screenshots/PDF and delivery;
-they do not determine the page design. Keep the old compiler only for explicit
-Studio/module compatibility callers. Do not claim Apify collection without a
-real configured Actor run, or design acceptance from code/geometry checks.
-The earlier Shopify Admin-style operator ERP work follows docs/ERP-REUSE.md:
-reuse the native library's product/SKU/media/document capabilities and unify
-master data before building duplicate CRUD. Conversation-only magazine creation
-does not prohibit an ERP operator UI. Do not migrate existing records implicitly.
-The user confirmed that the ERP UI remains inside DSH. Follow
-docs/ERP-ADMIN-DESIGN.md for the Shopify-style resource index/detail layouts;
-reuse the original library editor component rather than a second CRUD implementation.
-The earlier user request authorized a complete Shopify Admin-style navigation and
-page UI/UX package inside DSH, wired to existing capabilities. This supersedes the
-earlier incremental-page restriction. External/unimplemented services have honest
-unconnected states; full backend parity is not authorized or claimed.
-Use standard products, customers, orders and files; do not add magazine-specific
-supply-rights navigation or checkout choices. Legacy rights and reservations
-remain readable/replayable without reclassifying them as Shopify draft orders.
-Customers retain legacy buyer IDs and contact text; preserve existing records.
-Proper draft orders, payment/fulfillment state and inventory semantics are still
-outstanding; do not claim parity by renaming the existing reservation ledger.
+- Commerce Network: existing AI Work, canvas, mandates, scoped Worker delegation
+  and delivery acceptance.
+- Service Billing: independent service bills and owner-recorded collections/refunds.
+- Shopify Admin: official commerce backend binding and bounded read-only access.
+- Workspace Library: enterprise/product evidence and fixed-version document reads.
+- Workspace Brand: optional existing native branding; not a second UI shell.
+- Shared packages: domain-commerce-network and dsh-commerce-contracts only.
 
-ERP now uses Radix Themes and Lucide. Edit dsh-mini-erp/src and run
-`npm run build:erp-client`; client.js is a generated native factory, not a new
-web application. Keep React host-owned and CSS scoped to ERP. The library ui
-adapter changes presentation only; retain its original persistence logic.
+Do not restore the retired Mini ERP, RFQ/quote/sample adapters, Sourcing, magazine,
+memory or inquiry modules from old instructions. Recover historical source from
+Git only when a new explicit task requires it. Shopify owns new business commerce;
+this repository does not create an alternative inventory or transaction ledger.
 
-The user selected DeepSeek Harness as the sole execution host and explicitly
-requested removal of the standalone Workspace Harness and remaining legacy
-implementations on 2026-10-26. Develop native bundles under integrations/dsh.
-Do not restore old React/Node apps, OMP/Pi/TUI, custom Agent loops, composition
-servers, installers or historical release archives in the current tree.
+Work in a dedicated development branch. Never change/merge main, force-push,
+rewrite Git history, deploy, create credentials or widen permissions as a cleanup
+side effect. Preserve runtime databases, attachments, sessions and user files.
+Source removal does not delete or migrate existing runtime data. Stage explicit
+paths and review deletions. Do not copy old branches wholesale.
 
-Reuse native DSH sessions, model execution, tools, permissions and attachments.
-Business workflow gates belong in optional plugins, not the general substrate.
-The packages/domain-* packages contain reusable domain rules only. The native
-dsh-workspace-memory and dsh-inquiry-recovery bundles adapt their domains to DSH.
-The Medusa product domain awaits integration; the native local product library
-already supplies product context. Preserve source/version/review boundaries and state keys.
+Node.js 24+. Run npm ci --ignore-scripts, npm run check, npm run test:client and
+npm run package:business-services. These local/synthetic checks are not real
+Shopify/Grok/Muse connectivity, browser/DSH-host acceptance or production proof.
+Never commit credentials, runtime data, generated archives or test logs.
 
-Run npm ci --ignore-scripts on first setup (Node 24+), then npm run check. Optional Client
-DOM tests use the root devDependencies: npm run test:client. Neither establishes
-live host/model/browser acceptance. Never put user data, credentials, native
-sessions or generated release archives in Git.
-
-Work on agent/harness-20261023; stage explicit paths only. Do not force-push or
-rewrite release history. Preserve untracked user files and other checkouts.
-See docs/DEVELOPMENT.md for the current layout and integration work.
+See docs/DEVELOPMENT.md and docs/CLEAN-CORE.md for current boundaries.

@@ -1,47 +1,44 @@
 {
-  "name": "workspace-agent",
+  "name": "dsh-enterprise-core",
   "version": "0.5.0-rc.2",
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/domain-business-memory",
-    "integrations/dsh/dsh-workspace-memory",
-    "packages/domain-inquiry-recovery",
-    "integrations/dsh/dsh-inquiry-recovery",
-    "integrations/dsh/dsh-buyer-magazine",
-    "integrations/dsh/dsh-sourcing-agent",
-    "integrations/dsh/dsh-mini-erp",
     "packages/domain-commerce-network",
-    "integrations/dsh/dsh-commerce-network",
     "packages/dsh-commerce-contracts",
-    "integrations/dsh/dsh-service-billing"
+    "integrations/dsh/dsh-commerce-network",
+    "integrations/dsh/dsh-service-billing",
+    "integrations/dsh/dsh-shopify-admin",
+    "integrations/dsh/dsh-workspace-library",
+    "integrations/dsh/dsh-workspace-brand"
   ],
-  "description": "Native workspace plugins for DeepSeek Harness and host-independent business domains",
+  "description": "Focused native DeepSeek Harness commerce, billing, Shopify and evidence plugins",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "start": "node scripts/dsh-info.mjs",
     "dev": "node scripts/dsh-info.mjs",
-    "build": "npm run build:erp-client && npm run build:commerce-client && node scripts/check-dsh.mjs",
-    "test": "node scripts/test-dsh.mjs",
+    "build": "npm run build:commerce-client && node scripts/check-dsh.mjs",
+    "test": "node scripts/test-dsh.mjs && npm run test:cleanup",
     "check": "npm run build && npm test",
-    "test:client": "node integrations/dsh/dsh-workspace-library/dev/client-smoke.mjs && node integrations/dsh/dsh-workspace-memory/dev/client-smoke.mjs && node integrations/dsh/dsh-inquiry-recovery/dev/client-smoke.mjs && node integrations/dsh/dsh-mini-erp/dev/client-smoke.mjs && node integrations/dsh/dsh-mini-erp/dev/admin-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/client-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/ai-work-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/inspector-actions-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/artifact-dialog-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/trade-inspector-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/business-mandate-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/service-billing-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/business-workbench-smoke.mjs",
-    "build:erp-client": "node scripts/build-erp-client.mjs",
+    "test:client": "node integrations/dsh/dsh-workspace-library/dev/client-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/client-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/ai-work-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/inspector-actions-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/artifact-dialog-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/business-mandate-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/service-billing-smoke.mjs && node integrations/dsh/dsh-commerce-network/dev/business-workbench-smoke.mjs",
     "build:commerce-client": "node scripts/build-commerce-client.mjs",
     "test:commerce": "node --test --test-isolation=none packages/domain-commerce-network/test/*.test.mjs integrations/dsh/dsh-commerce-network/test/*.test.mjs",
     "package:commerce": "node scripts/package-commerce-business.mjs dist --only=dsh-commerce-network",
     "test:commerce-business": "node --test packages/domain-commerce-network/test/*.test.mjs integrations/dsh/dsh-commerce-network/test/*.test.mjs integrations/dsh/dsh-service-billing/test/*.test.mjs",
     "package:commerce-business": "npm run package:business-services",
     "package:service-billing": "node scripts/package-commerce-business.mjs dist/service-billing --only=dsh-service-billing",
-    "package:business-services": "npm run build:commerce-client && node scripts/package-commerce-business.mjs dist/business-services --only=dsh-commerce-network,dsh-service-billing"
+    "package:business-services": "npm run build:commerce-client && node scripts/package-commerce-business.mjs dist/business-services --only=dsh-commerce-network,dsh-service-billing",
+    "test:cleanup": "node --test scripts/test/clean-core.test.mjs"
   },
   "devDependencies": {
+    "@xyflow/react": "12.11.2",
     "esbuild": "0.28.2",
     "jsdom": "29.1.1",
+    "lucide-react": "1.61.0",
     "postcss": "8.5.6",
     "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "@xyflow/react": "12.11.2"
+    "react-dom": "18.3.1"
   }
 }

@@ -37,8 +37,8 @@ const deliveryRequests=()=>requests.filter(request=>requestUrl(request).pathname
 expose('fetch',async(url,options)=>{
   const request={url,options};requests.push(request);
   const path=requestUrl(request).pathname;
-  assert.ok(['/commerce-network-api/workspace','/commerce-network-api/delivery','/commerce-network-api/trade'].includes(path),`unexpected synthetic API path: ${path}`);
-  const data=path==='/commerce-network-api/trade'?{contractVersion:'commerce-trade-v1',projectId:fixture.projectId,workspaceId:fixture.workspaceId,rfqs:[],buyers:[],quotes:[],orders:[],samples:[]}:path==='/commerce-network-api/delivery'?completeDelivery:fixture;
+  assert.ok(['/commerce-network-api/workspace','/commerce-network-api/delivery'].includes(path),`unexpected synthetic API path: ${path}`);
+  const data=path==='/commerce-network-api/delivery'?completeDelivery:fixture;
   return new Response(JSON.stringify({ok:true,data}),{status:200,headers:{'content-type':'application/json'}});
 });
 const require=createRequire(import.meta.url);let exports;

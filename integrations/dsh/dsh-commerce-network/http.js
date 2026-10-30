@@ -3,7 +3,7 @@ import { CommerceError, assertKeys, fail } from './service.js';
 
 export const API_PREFIX = '/commerce-network-api';
 export const WORKER_PREFIX = '/commerce-worker-api';
-const OWNER_COMMANDS = new Set(['create_project', 'upsert_party', 'register_agent', 'upsert_product', 'upsert_route', 'propose_order', 'propose_mandate', 'approve_mandate', 'revoke_mandate', 'approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute', 'propose_business_mandate', 'amend_business_mandate', 'record_business_progress']);
+const OWNER_COMMANDS = new Set(['create_project', 'upsert_party', 'register_agent', 'upsert_product', 'upsert_route', 'propose_order', 'propose_mandate', 'approve_mandate', 'revoke_mandate', 'approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'resolve_failed_order', 'amend_mandate', 'propose_business_mandate', 'amend_business_mandate', 'record_business_progress']);
 const WORKER_ACTIONS = new Set(['connect', 'claim', 'heartbeat', 'status', 'deliver', 'stopped', 'resources', 'fail']);
 
 async function readJson(req, maximum = 256 * 1024) {
@@ -49,9 +49,6 @@ export function createHttpHandler(service, { authorize } = {}) {
       if (req.method === 'GET' && path === '/workspace') {
         if ([...url.searchParams.keys()].some(k => !['sessionId', 'projectId'].includes(k))) fail('INPUT', 'Unsupported query fields.');
         data = await service.state(url.searchParams.get('sessionId'), url.searchParams.get('projectId') || undefined);
-      } else if (req.method === 'GET' && path === '/trade') {
-        if ([...url.searchParams.keys()].some(k => !['sessionId', 'projectId'].includes(k))) fail('INPUT', 'Unsupported query fields.');
-        data = service.trade(url.searchParams.get('sessionId'), url.searchParams.get('projectId'));
       } else if (req.method === 'GET' && path === '/review') {
         if ([...url.searchParams.keys()].some(k => !['sessionId', 'projectId', 'orderId'].includes(k))) fail('INPUT', 'Unsupported query fields.');
         data = await service.review(url.searchParams.get('sessionId'), url.searchParams.get('projectId'), url.searchParams.get('orderId'));

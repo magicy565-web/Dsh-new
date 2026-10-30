@@ -1,9 +1,0 @@
-{
-  "ok": true,
-  "package": "dsh-commerce-network",
-  "version": "1.4.0-rc.1",
-  "sha256": "86ed9beaf18bcc4de9267c97156352b660e89645dac3df08b8eca8662bd589a1",
-  "verifiedFiles": 16,
-  "miniErpUpdated": false,
-  "billingUpdated": false
-}

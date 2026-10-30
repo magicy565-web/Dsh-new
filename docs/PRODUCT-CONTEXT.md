@@ -50,7 +50,7 @@ GET /workspace-library-api/products/:id/context?expectedRevision=1
 ```
 
 读取不写资料、不批准文档、不迁移数据，也不新建页面。
-旧 `domain-product-library` 包仍保留 Medusa 只读来源契约，尚未接入；本次读取的是原生本地产品资料。
+当前产品证据来自原生本地资料库。未接入的 Medusa 领域包已从当前源码树移除，历史实现保留在 Git。
 
 ## 验证
 

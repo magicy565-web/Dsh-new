@@ -126,7 +126,7 @@ export function applyWorkOrderEvent(order,event,{role,actorPartyId,agentServiceI
   return next;
 }
 
-export { validateMandateTerms, mandateCoversOrder } from './partner.mjs';
+export { validateMandateTerms } from './partner.mjs';
 export { BUSINESS_MODES, BUSINESS_CURRENCIES, validateBusinessTerms, businessTermStatus } from './business-mandate.mjs';
 
 export { serviceBillTerms } from './service-billing.mjs';

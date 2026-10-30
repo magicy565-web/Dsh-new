@@ -9,9 +9,9 @@ canvas with independently owned factory, overseas distributor and Personal
 Worker service nodes, a durable delegation ledger, and a scoped external worker
 gateway. DeepSeek Harness is the only internal execution host.
 
-## Trade extension
+## Clean core
 
-The native canvas now reads RFQ, immutable ERP quotes, buyers, linked ERP orders and samples from their authoritative services. It stores references and layout only. RFQ import/review, policy review, exact quote approval, separate send/reconciliation and evidenced sample transitions stay inside DSH. Optional versioned mandate terms support explicit customer attribution and dispute resolution; approval never grants additional Worker actions. Missing services and truncated projections are shown explicitly. See `docs/COMMERCE-BUSINESS-IMPLEMENTATION.md` (also included in the release archive).
+Legacy RFQ/ERP quote/sample projections and customer-assignment commands have been removed. Commerce retains native project, mandate, Worker and delivery flows; Shopify owns commerce transactions. No runtime records are migrated or erased.
 
 ## Product flow
 
@@ -97,7 +97,7 @@ Confirm the native Plugins page reports a loaded bundle. Restart when the
 manager reports `restart-required`, then refresh the Web client. Selecting a
 bundle does not prove it loaded successfully. The archive is not a claim of npm
 registry publication. Actual verification and remaining capabilities are recorded in
-[the acceptance document](../../../docs/COMMERCE-NETWORK-V1-ACCEPTANCE.md).
+the acceptance document（历史材料见 Git 历史）.
 
 `cordis.patch.yml` loads the optional native plugin. It does not install a model,
 create a production profile, connect a buyer channel or register a schedule.

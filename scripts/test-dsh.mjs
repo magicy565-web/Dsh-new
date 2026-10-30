@@ -6,15 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = new URL('../', import.meta.url);
 const directories = [
   'integrations/dsh/dsh-workspace-library/test',
-  'integrations/dsh/dsh-sourcing-agent/test',
-  'integrations/dsh/dsh-workspace-memory/test',
-  'integrations/dsh/dsh-inquiry-recovery/test',
-  'integrations/dsh/dsh-mini-erp/test',
   'integrations/dsh/dsh-workspace-brand/test',
-  'integrations/dsh/dsh-buyer-magazine/test',
-  'packages/domain-business-memory/test',
-  'packages/domain-product-library/test',
-  'packages/domain-inquiry-recovery/test',
   'packages/domain-commerce-network/test',
   'integrations/dsh/dsh-commerce-network/test',
   'integrations/dsh/dsh-service-billing/test',

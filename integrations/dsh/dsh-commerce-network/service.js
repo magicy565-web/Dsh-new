@@ -33,7 +33,7 @@ const array = (value, field, max = 100) => { if (!Array.isArray(value) || value.
 const generated = prefix => `${prefix}_${randomUUID()}`;
 const publicAgent = a => ({ ...a });
 
-export function createCommerceService({ store, registry, clock = Date.now, resourceAdapter = null, tradeProjection = null, buyerLookup = null }) {
+export function createCommerceService({ store, registry, clock = Date.now, resourceAdapter = null }) {
   let disposed = false;
   const workerWindows = new Map();
   const now = () => clock();
@@ -429,7 +429,7 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
     log(scope, 'work_order.cancel_requested', o.id, LIVE.has(o.status) ? 'Stop requested; waiting for a real worker acknowledgement.' : 'Work order cancelled before execution.');
   }
   function ownerOnly(scope) { if (scope.kind !== 'owner') fail('OWNER_ACTION_REQUIRED', 'This action requires an explicit decision in the authenticated canvas.', 403); }
-  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'assign_customer', 'resolve_customer_dispute', 'amend_business_mandate', 'record_business_progress']);
+  const ownerActions = new Set(['approve_order', 'accept_delivery', 'reject_delivery', 'cancel_order', 'revoke_agent', 'issue_agent_credential', 'set_budget', 'revoke_grant', 'approve_mandate', 'revoke_mandate', 'resolve_failed_order', 'amend_mandate', 'amend_business_mandate', 'record_business_progress']);
   function applyCommand(scope, input) {
     assertKeys(input, ['projectId', 'expectedRevision', 'requestId', 'command', 'payload']);
     text(input.command, 'command', 80); const payload = input.payload ?? {};
@@ -481,19 +481,6 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
         m.history ??= []; m.history.push({ revision: m.revision, terms: m.terms ?? null, status: m.status, approvalReceiptId: m.approvalReceiptId ?? null });
         m.terms = terms; m.status = 'proposed'; delete m.approvalReceiptId; m.revision++;
         log(scope, 'mandate.amended', m.id, 'New terms need independent owner approval. No legal signature recorded.');
-      }
-      else if (input.command === 'assign_customer' || input.command === 'resolve_customer_dispute') {
-        assertKeys(payload, ['mandateId', 'buyerId', 'evidence']); const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);
-        if (!m || m.status !== 'active' || !m.terms || Date.parse(m.terms.validUntil) <= now()) fail('MANDATE_UNAVAILABLE', 'Current reviewed mandate terms required.');
-        if (!buyerLookup) fail('DEPENDENCY_MISSING', 'Mini ERP buyer service is required.'); buyerLookup(scope.sessionId, payload.buyerId);
-        const evidence = text(payload.evidence, 'evidence', 2000), buyerId = identifier(payload.buyerId);
-        const competing = state.mandates.filter(other => other.projectId === projectId && other.id !== m.id && other.customerAssignments?.some(a => a.buyerId === buyerId && a.status !== 'released'));
-        const disputed = competing.length > 0 && input.command !== 'resolve_customer_dispute';
-        for (const other of competing) { for (const a of other.customerAssignments.filter(a => a.buyerId === buyerId && a.status !== 'released')) { a.status = disputed ? 'disputed' : 'released'; a.resolutionEvidence = evidence; a.resolvedAt = iso(); } other.revision++; }
-        m.customerAssignments ??= []; const existing = m.customerAssignments.find(a => a.buyerId === buyerId);
-        const assignment = {buyerId,status:disputed?'disputed':'assigned',evidence,actor:scope.actor,at:iso()};
-        if(existing)Object.assign(existing,assignment);else m.customerAssignments.push(assignment);m.revision++;
-        log(scope, disputed?'customer.disputed':'customer.assigned', m.id, 'Owner recorded customer attribution; this does not share customer data with a worker.');
       }
       else if (input.command === 'approve_mandate' || input.command === 'revoke_mandate') {
         assertKeys(payload, ['mandateId']); const m = state.mandates.find(m => m.projectId === projectId && m.id === payload.mandateId);
@@ -581,7 +568,6 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
   function layout(sessionId, input) {
     const scope = browser(sessionId);
     assertKeys(input, ['projectId', 'requestId', 'expectedLayoutRevision', 'nodes', 'viewport']);
-    const tradeFacts = tradeProjection ? tradeProjection(scope.sessionId, input.projectId) : null;
     return mutate(scope, input, state => {
       project(state, input.projectId);
       const current = state.layouts.find(l => l.projectId === input.projectId);
@@ -592,7 +578,6 @@ export function createCommerceService({ store, registry, clock = Date.now, resou
       for (const p of state.parties.filter(p => p.projectId === input.projectId && ['factory', 'distributor'].includes(p.type))) allowed.add(`${p.type}:${p.id}`);
       for (const a of state.agents.filter(a => a.projectId === input.projectId)) allowed.add(`personal_agent:${a.id}`);
       for (const o of state.workOrders.filter(o => o.projectId === input.projectId)) allowed.add(`service_order:${o.id}`);
-      if (tradeFacts) { const facts = tradeFacts; for (const [kind, rows] of [['rfq',facts.rfqs],['quote',facts.quotes],['buyer',facts.buyers],['erp_order',facts.orders],['sample',facts.samples]]) for (const row of rows) allowed.add(`${kind}:${row.id}`); }
       for (const m of state.mandates.filter(m => m.projectId === input.projectId && m.businessTerms)) allowed.add(`business_mandate:${m.id}`);
       const seen = new Set();
       const nodes = array(input.nodes, 'nodes', 3000).map(n => {
