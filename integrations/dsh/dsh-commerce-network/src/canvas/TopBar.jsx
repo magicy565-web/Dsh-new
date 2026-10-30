@@ -1,5 +1,5 @@
 import React from 'react';
-import { Network, ChevronDown, Briefcase, Wallet, RefreshCw, Users, Ellipsis, Sun, Moon, MonitorCog, Keyboard, Inbox, FileSignature, ClipboardList, ChevronRight } from 'lucide-react';
+import { Activity, Network, ChevronDown, Briefcase, Wallet, RefreshCw, Users, Ellipsis, Sun, Moon, MonitorCog, Keyboard, Inbox, FileSignature, ClipboardList, ChevronRight } from 'lucide-react';
 import { IconButton, MenuButton, MenuItem, MenuLabel, MenuSeparator, Segmented } from '../ui.jsx';
 import { VIEWS } from './kinds.mjs';
 import { THEME_CHOICES } from './theme.mjs';
@@ -9,7 +9,7 @@ const THEME_ICON = { auto: MonitorCog, light: Sun, dark: Moon };
 
 export function TopBar({
   projects, projectId, onProject, view, onView, sync, loading, workspaceId, onRetry, decisions, onDecisions, budgetText, hasProject,
-  onBudget, onWorkbench, onMandates, onImport, refreshing, onRefresh, membersOpen, onMembers, themeChoice, onTheme, onHelp,
+  onBudget, onWorkbench, onMandates, onImport, refreshing, onRefresh, membersOpen, onMembers, themeChoice, onTheme, onHelp, activityOpen = false, onActivity,
 }) {
   return (
     <header className="cv-topbar">
@@ -40,6 +40,7 @@ export function TopBar({
             </>
           )}
         </MenuButton>
+        {onActivity && <IconButton label="协作动态" className="cv-short-only" pressed={activityOpen} active={activityOpen} onClick={onActivity}><Activity size={16} /></IconButton>}
         <IconButton label="协作成员" pressed={membersOpen} active={membersOpen} onClick={onMembers}><Users size={17} /></IconButton>
         <IconButton label="刷新真实状态" disabled={refreshing} onClick={onRefresh}><RefreshCw size={16} className={refreshing ? 'cn-spin' : ''} /></IconButton>
         <MenuButton label="更多" icon={<Ellipsis size={17} />}>

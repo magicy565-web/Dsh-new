@@ -1,5 +1,6 @@
 import { appendTrade } from './projection/trade.mjs';
 import { buildCommerceGraph } from './projection/network.mjs';
+import { layeredLayout, placeGenerated } from './canvas/layered-layout.mjs';
 export const KINDS={business_mandate:'业务委托',rfq:'询盘',sample:'样品',erp_order:'ERP 订单',factory:'工厂',distributor:'海外代理',personal_agent:'Personal AI Worker',service_order:'服务委托',product:'产品',market:'目标市场',channel:'销售渠道',worker:'执行任务',buyer:'买手',quote:'报价',order:'订单',approval:'决策',evidence:'证据'};
 export const STATUSES={active:'生效中',scheduled:'待生效',received:'已收录',needs_info:'待补资料',qualified:'字段已核对',ready_for_quote:'可准备报价',closed:'已关闭',draft:'草稿',review_required:'待审阅',sending:'发送待核查',sent:'已发送',withdrawn:'已撤销',expired:'已到期',shipped:'已登记寄送',feedback_received:'已记录反馈',verified:'已核实',unverified:'待核验',planning:'规划中',proposed:'待授权',authorized:'已授权',queued:'待接单',claimed:'已接单',running:'执行中',delivered:'待验收',accepted:'已验收',rejected:'验收未通过',blocked:'待处理',failed:'失败',cancelled:'已取消',stop_requested:'停止中',endpoint_verified:'已连接',connected:'已连接',pending:'待处理',credential_issued:'等待连接',revoked:'已撤销',not_connected:'未连接',configured:'已配置',unconfigured:'待配置',paused:'已暂停',completed:'已完成',approved:'已批准',unknown:'待核对'};
 export const ACTION_LABELS={public_web_research:'公开网络研究',read_granted_product_context:'读取授权产品资料',draft_outreach:'撰写触达草稿',classify_opted_in_replies:'整理已获许可的回复',summarize_rfq:'整理采购需求'};
@@ -32,16 +33,9 @@ export function projectGraph(state) {
     const source=`service_order:${predecessor}`,target=`service_order:${order.id}`;
     if(ids.has(source)&&ids.has(target))graph.edges.push({id:`dependency:${predecessor}:${order.id}`,source,target,kind:'execution_dependency',status:workOrders.get(predecessor)?.status||'unknown'});
   }}
-  return appendTrade(graph,state);
+  return placeGenerated(appendTrade(graph,state));
 }
-export function autoLayout(nodes) {
-  const rank={factory:0,product:1,market:2,distributor:2,channel:3,personal_agent:3,service_order:4,worker:4,buyer:5,rfq:6,sample:8,erp_order:8,approval:5,evidence:5,quote:6,order:7};
-  const rows=new Map();
-  return [...nodes].sort((a,b)=>(rank[a.kind]??8)-(rank[b.kind]??8)||a.id.localeCompare(b.id)).map(n=>{
-    const col=rank[n.kind]??8,row=rows.get(col)||0;rows.set(col,row+1);
-    return {...n,position:{x:col*350,y:row*230+70}};
-  });
-}
+export function autoLayout(nodes,edges=[]) { return layeredLayout(nodes,edges); }
 export function initialViewport(graph) {
   if(graph?.viewport)return {...graph.viewport};
   const zoom=.9,nodes=graph?.nodes||[];

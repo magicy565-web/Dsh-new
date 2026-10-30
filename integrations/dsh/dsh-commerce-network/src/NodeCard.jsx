@@ -39,7 +39,7 @@ function Facts({ item }) {
   if (item.kind === 'channel') return <><p className="cn-node-summary">{i.goal || item.subtitle || '渠道计划'}</p><div className="cn-node-detail"><span>{i.productCount ?? 0} 个关联产品</span><b>{i.metrics ? `${i.metrics.inquiries ?? '—'} 条询盘` : '尚无业务回执'}</b></div></>;
   if (item.kind === 'worker') return <><p className="cn-node-summary">{i.goal || '执行范围待完善'}</p><div className="cn-node-detail"><span>{i.frequencyHours ? `每 ${i.frequencyHours} 小时` : '按需执行'}</span><b>{i.run?.taskRef ? '已关联任务' : '尚未启动'}</b></div></>;
   if (item.kind === 'business_mandate') return <><p className="cn-node-summary">{item.subtitle}</p><div className="cn-node-detail"><span>{i.marketCode ? `市场 · ${i.marketCode}` : '市场待约定'}</span><span>{item.evidenceIds?.length ? '已有批准凭据' : '待批准'}</span></div></>;
-  return <><p className="cn-node-summary">{i.nextAction || item.subtitle || '在当前对话中查看原始资料'}</p><div className="cn-node-detail"><span>{i.authority || '来源证据'}</span><b>{item.evidenceIds?.length || 0} 条</b></div></>;
+  return <><p className="cn-node-summary">{i.nextAction || STATUSES[item.subtitle] || item.subtitle || '在当前对话中查看原始资料'}</p><div className="cn-node-detail"><span>{i.authority || '来源证据'}</span><b>{item.evidenceIds?.length || 0} 条</b></div></>;
 }
 
 export const NodeCard = memo(function NodeCard({ data, selected }) {

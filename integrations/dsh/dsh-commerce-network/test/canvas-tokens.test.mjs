@@ -16,7 +16,7 @@ function declarations(block) {
 }
 const light = declarations('light');
 const dark = declarations('dark');
-const themed = /^--cn-(canvas|grid|surface|ink|muted|line|accent|focus|tone-|kind-|shadow-)/;
+const themed = /^--cn-(canvas|grid(?!-size)|surface|ink|muted|line|accent|focus(?!-)|tone-|kind-|shadow-)/;
 
 const channel = (hex) => { const value = parseInt(hex.slice(1), 16); return [value >> 16, (value >> 8) & 255, value & 255]; };
 const luminance = (hex) => {

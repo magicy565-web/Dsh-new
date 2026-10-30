@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { AlertCircle, LoaderCircle, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, LoaderCircle, RefreshCw } from 'lucide-react';
 import flowCss from '@xyflow/react/dist/style.css';
 import appCss from './styles.css';
 import canvasCss from './canvas.css';
@@ -423,7 +423,7 @@ export function CommerceApp({ sessionId, active = true, submitPrompt, watchChang
         decisions={decisions.length} onDecisions={showDecisions} hasProject={Boolean(project)} budgetText={money(budget.maximumMinor ?? project?.maximumMinor ?? 0, budget.currency || project?.currency || 'USD')}
         onBudget={() => { setError(null); setBudgetOpen(true); }} onWorkbench={() => setWorkbenchOpen(true)} onMandates={() => setMandatesOpen(true)} onImport={() => setImportOpen(true)}
         refreshing={refreshing} onRefresh={() => void load()} membersOpen={membersOpen} onMembers={() => { setMembersOpen((value) => !value); clearSelection(); setSelectedEdgeId(null); }}
-        themeChoice={themeChoice} onTheme={changeTheme} onHelp={() => setHelpOpen(true)}
+        themeChoice={themeChoice} onTheme={changeTheme} onHelp={() => setHelpOpen(true)} activityOpen={activityOpen} onActivity={() => setActivityOpen((value) => !value)}
       />
       <div className="cv-banners">
         {state.tradeUnavailable && <Banner tone="error">交易投影读取失败：{state.tradeUnavailable}</Banner>}

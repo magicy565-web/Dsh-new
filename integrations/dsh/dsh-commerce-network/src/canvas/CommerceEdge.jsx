@@ -16,7 +16,7 @@ export const CommerceEdge = memo(function CommerceEdge({ id, sourceX, sourceY, t
       <BaseEdge id={id} path={path} className={className} markerEnd={`url(#${EDGE_MARKER[tone] || 'cn-arrow'})`} interactionWidth={18} />
       {showLabel && (
         <EdgeLabelRenderer>
-          <span className={`cn-edge-label cn-edge-label-${tone}${selected ? ' cn-edge-label-selected' : ''}${data.dimmed ? ' cn-edge-dimmed' : ''}`} style={{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}>{data.label}</span>
+          <span className={`nodrag nopan cn-edge-label cn-edge-label-${tone}${selected ? ' cn-edge-label-selected' : ''}${data.dimmed ? ' cn-edge-dimmed' : ''}`} style={{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}>{data.label}</span>
         </EdgeLabelRenderer>
       )}
     </>

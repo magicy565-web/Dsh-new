@@ -29,6 +29,7 @@ export function appendTrade(graph, state) {
           : record.status || "客户主档引用",
       status: record.status || "unverified",
       position: saved.get(id) || { x, y },
+      positionSource: saved.has(id) ? "user" : "generated",
       info: {
         authority: kind === "rfq" ? "RFQ Desk" : "Mini ERP",
         revision: record.revision ?? null,

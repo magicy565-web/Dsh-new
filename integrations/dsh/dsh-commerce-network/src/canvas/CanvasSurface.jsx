@@ -209,7 +209,7 @@ export function CanvasSurface({
       },
       arrange: () => {
         if (!writable) return false;
-        const placed = new Map(autoLayout(graphRef.current.nodes).map((node) => [node.id, node.position]));
+        const placed = new Map(autoLayout(graphRef.current.nodes, graphRef.current.edges).map((node) => [node.id, node.position]));
         const changes = nodesRef.current.filter((node) => node.type !== 'draft' && placed.has(node.id)).map((node) => ({ id: node.id, before: { ...node.position }, after: placed.get(node.id) }));
         applyPositions(changes.map((change) => ({ id: change.id, position: change.after })));
         finishMove('自动整理', changes);

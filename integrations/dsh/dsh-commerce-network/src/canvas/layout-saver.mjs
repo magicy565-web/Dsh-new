@@ -16,7 +16,9 @@ export class LayoutSaver {
   #disposed = false;
   #writable = true;
 
-  constructor({ save, projectId, revision = 0, delay = 400, online = () => true, onChange = () => {}, schedule = setTimeout, cancel = clearTimeout }) {
+  // Browsers reject setTimeout/clearTimeout when they are called with any `this` other than the window,
+  // so they are wrapped here and always invoked detached from the instance.
+  constructor({ save, projectId, revision = 0, delay = 400, online = () => true, onChange = () => {}, schedule = (run, wait) => setTimeout(run, wait), cancel = (handle) => clearTimeout(handle) }) {
     this.#save = save; this.#projectId = projectId; this.#delay = delay; this.#online = online;
     this.#onChange = onChange; this.#schedule = schedule; this.#cancel = cancel;
     this.revision = revision;
@@ -33,9 +35,17 @@ export class LayoutSaver {
     this.#onChange({ status, message, pendingCount: this.#pending.size });
   }
 
+  #clear() {
+    if (this.#timer === null) return;
+    const cancel = this.#cancel;
+    cancel(this.#timer);
+    this.#timer = null;
+  }
+
   #arm() {
-    if (this.#timer !== null) this.#cancel(this.#timer);
-    this.#timer = this.#schedule(() => { this.#timer = null; void this.flush(); }, this.#delay);
+    this.#clear();
+    const schedule = this.#schedule;
+    this.#timer = schedule(() => { this.#timer = null; void this.flush(); }, this.#delay);
   }
 
   /** Track the newest revision seen from the service. A revision never moves backwards. */
@@ -56,7 +66,7 @@ export class LayoutSaver {
   }
 
   async flush() {
-    if (this.#timer !== null) { this.#cancel(this.#timer); this.#timer = null; }
+    this.#clear();
     if (this.#inflight) return this.#inflight;
     if (!this.#pending.size || this.#disposed || !this.#writable || this.status === 'conflict') return undefined;
     if (!this.#online()) { this.#set('offline', '网络已断开，改动会在恢复连接后保存。'); return undefined; }
@@ -95,8 +105,7 @@ export class LayoutSaver {
   }
 
   dispose() {
-    if (this.#timer !== null) this.#cancel(this.#timer);
-    this.#timer = null;
+    this.#clear();
     this.#disposed = true;
   }
 }

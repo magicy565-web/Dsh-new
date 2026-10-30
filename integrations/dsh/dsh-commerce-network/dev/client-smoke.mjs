@@ -57,14 +57,15 @@ const props={sessionId,...slot.definition.inject(sessionId),useTabInfo:()=>({tab
 const root=createRoot(document.getElementById('app'));
 try{
   await act(async()=>{root.render(React.createElement(slot.component,props));await new Promise(resolve=>setTimeout(resolve,15));});
-  assert.ok(document.querySelector('.cn-empty'));
+  assert.ok(document.querySelector('.cv-onboarding'),'an empty workspace shows the dismissible onboarding card on the grid');
+  assert.ok(document.querySelector('.cn-flow'),'the empty canvas is still a real pannable surface');
   assert.equal(document.querySelectorAll('.cn-node').length,0,'empty workspace must not show fabricated operational nodes');
   assert.ok(requests[0].url.includes(`sessionId=${sessionId}`));
   assert.equal(requests[0].options.credentials,'same-origin');
   const start=[...document.querySelectorAll('button')].find(button=>button.textContent.includes('从产品资料开始'));
   await act(async()=>{start.dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,5));});
   assert.equal(prompts.length,1);assert.equal(prompts[0].mode,'queue');assert.match(prompts[0].messages[0].text,/commerce_network_plan/);
-  assert.ok(document.querySelector('.cn-message').textContent.includes('已交给当前 Assistant'));
+  assert.ok([...document.querySelectorAll('.cv-banner')].some(banner=>banner.textContent.includes('已交给当前 Assistant')));
   assert.equal(document.querySelectorAll('.cn-node').length,0,'native prompt admission must not fabricate a completed canvas');
   await act(async()=>{refresh();await new Promise(resolve=>setTimeout(resolve,5));});
   assert.ok(requests.length>=2);
