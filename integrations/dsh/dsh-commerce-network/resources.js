@@ -77,10 +77,15 @@ export function createResourceAdapter({getLibrary,assertScope,clock=Date.now}={}
     let content,source;
     try{
       if(sourceRef.kind==='product'){
-        if(typeof library.productContext!=='function')fail('RESOURCE_UNAVAILABLE','Native product context is unavailable.',503);
+        if(typeof library.productContext!=='function'||typeof library.product!=='function')fail('RESOURCE_UNAVAILABLE','Native product context is unavailable.',503);
         const context=await library.productContext({productId:sourceRef.id,expectedRevision:sourceRef.revision},{signal});
         fence();
         if(context?.source?.productId!==sourceRef.id||context.source.revision!==sourceRef.revision||context.product?.id!==sourceRef.id||context.product.revision!==sourceRef.revision||context.product.status==='archived')fail('RESOURCE_CHANGED','The exact native product revision is unavailable.');
+        // One authoritative re-read detects changes committed during the context await.
+        // This is a point-in-time check, not a cross-service lock or atomic disclosure.
+        const current=(await library.product(sourceRef.id))?.product;
+        fence();
+        if(current?.id!==sourceRef.id||current.revision!==sourceRef.revision||current.status==='archived')fail('RESOURCE_CHANGED','The native product changed while its context was being read.');
         content=safeProduct(context.product);
         source={kind:'native-product',scope:'profile',productId:sourceRef.id,revision:sourceRef.revision,reviewState:'unreviewed',disclosedFields:[...DISCLOSED_PRODUCT_FIELDS]};
       }else{
@@ -98,7 +103,21 @@ export function createResourceAdapter({getLibrary,assertScope,clock=Date.now}={}
         const read=await library.readReferences([reference],{signal});fence();
         const item=read?.items?.[0];
         if(!item||typeof item.content!=='string'||item.source?.documentId!==sourceRef.id||item.source.version!==sourceRef.version||item.source.sha256!==sourceRef.sha256||item.source.reviewState!=='verified'||item.source.isCurrentVersion!==true||createHash('sha256').update(item.content).digest('hex')!==sourceRef.sha256)fail('RESOURCE_CHANGED','Document bytes or approval changed during reading.');
-        content={title:text(metadata.title,200),text:item.content,contentRole:'reference-data'};
+        // One authoritative metadata re-read detects changes committed during the
+        // content await; this is a point-in-time check, not an atomic source lock.
+        const currentRecord=(await library.document(sourceRef.id))?.document;fence();
+        if(currentRecord?.id!==sourceRef.id||currentRecord.status!=='active'||currentRecord.currentVersion!==sourceRef.version)fail('RESOURCE_CHANGED','The document changed while its content was being read.');
+        const currentVersion=currentRecord.versions?.find(version=>version.version===sourceRef.version);
+        if(!currentVersion||currentVersion.sha256!==sourceRef.sha256)fail('RESOURCE_CHANGED','The exact document version changed while its content was being read.');
+        // Same last-matching review rule as native referenceMetadata, from this
+        // one record snapshot (including slot and certificate classification).
+        const currentReview=Array.isArray(currentRecord.reviews)?[...currentRecord.reviews].reverse().find(review=>review.documentVersion===sourceRef.version&&review.sha256===sourceRef.sha256):undefined;
+        if(currentReview?.decision!=='verified')fail('RESOURCE_UNAPPROVED','The document approval changed while its content was being read.');
+        if(CERTIFICATES.has(currentRecord.slotKey)){
+          const c=currentVersion.certificate,day=new Date(clock()).toISOString().slice(0,10);
+          if(!c||!['dated','no_expiry'].includes(c.expiryMode)||c.validFrom&&c.validFrom>day||c.expiryMode==='dated'&&(!c.validUntil||c.validUntil<day))fail('RESOURCE_EXPIRED','Document validity cannot be established for today.');
+        }
+        content={title:text(currentRecord.title,200),text:item.content,contentRole:'reference-data'};
         source={kind:'native-document',scope:'profile',documentId:sourceRef.id,version:sourceRef.version,sha256:sourceRef.sha256,reviewState:'verified'};
       }
     }catch(error){sourceError(error);}

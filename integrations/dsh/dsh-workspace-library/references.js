@@ -33,7 +33,7 @@ export function referenceMetadata(document, version) {
 }
 
 /** Resolve every pin before returning any content; a missing/stale pin rejects the whole request. */
-function resolve(state, references) {
+function snapshotReferences(references) {
   if (!Array.isArray(references) || references.length < 1 || references.length > MAX_REFERENCES)
     fail('REFERENCE_INPUT', `Select 1–${MAX_REFERENCES} exact document versions.`);
   const seen = new Set();
@@ -46,6 +46,12 @@ function resolve(state, references) {
     const key = `${ref.documentId}:${ref.version}`;
     if (seen.has(key)) fail('REFERENCE_INPUT', 'A document version was selected more than once.');
     seen.add(key);
+    return { documentId: ref.documentId, version: ref.version, sha256: ref.sha256 };
+  });
+}
+
+function resolve(state, references) {
+  return snapshotReferences(references).map(ref => {
     const document = state.documents.find(item => item.id === ref.documentId);
     if (!document) fail('REFERENCE_NOT_FOUND', 'The selected document no longer exists.', 404);
     if (document.status !== 'active') fail('REFERENCE_ARCHIVED', 'The selected document is archived. Select another reference.', 409);
@@ -81,7 +87,9 @@ export function checkReferences(state, references) {
 /** Read verified UTF-8 bytes through the host attachment service; never parse binary formats or fetch URLs. */
 export async function readReferences({ readState, attachments, references, signal }) {
   checkSignal(signal);
-  const selected = resolve(structuredClone(await readState()), references);
+  // Capture complete pins before any await; caller-owned inputs cannot rebind bytes.
+  const pins = snapshotReferences(references);
+  const selected = resolve(structuredClone(await readState()), pins);
   const items = [];
   let totalChars = 0;
   let totalBytes = 0;
@@ -127,7 +135,7 @@ export async function readReferences({ readState, attachments, references, signa
     items.push({ source, content });
   }
   checkSignal(signal);
-  const current = checkReferences(await readState(), references).references;
+  const current = checkReferences(await readState(), pins).references;
   checkSignal(signal);
   return {
     items: items.map((item, index) => ({ ...item, source: current[index] })),

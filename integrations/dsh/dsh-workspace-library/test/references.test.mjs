@@ -195,3 +195,78 @@ test('the DSH tool executes the same reader and forwards native cancellation', a
   const signal = AbortSignal.abort();
   await assert.rejects(() => tool.execute({ references: [pin(doc)] }, { signal }), { code: 'REFERENCE_CANCELLED' });
 });
+
+test('reference pins remain paired with their bytes when caller inputs change during native attachment reads', async t => {
+  for (const mutation of ['replace', 'in-place', 'reorder', 'remove']) {
+    await t.test(mutation, async t => {
+      const attachments = attachmentStore();
+      const { service } = await setup(t, attachments);
+      const a = await service.addDocument({ title: 'A', fileName: 'a.txt', mimeType: 'text/plain', data: Buffer.from('evidence A') });
+      const b = await service.addDocument({ title: 'B', fileName: 'b.txt', mimeType: 'text/plain', data: Buffer.from('evidence B') });
+      const refs = [pin(a), pin(b)];
+      const submitted = structuredClone(refs);
+      let started, release;
+      const pendingRead = new Promise(resolve => { started = resolve; });
+      const gate = new Promise(resolve => { release = resolve; });
+      const original = attachments.readFileStream.bind(attachments);
+      attachments.readFileStream = async function* (...args) { started(); await gate; yield* original(...args); };
+      const resultPromise = service.readReferences(refs);
+      await pendingRead;
+      assert.deepEqual(refs, submitted, 'reader does not modify caller input');
+      if (mutation === 'replace') refs[0] = pin(b);
+      if (mutation === 'in-place') Object.assign(refs[0], pin(b));
+      if (mutation === 'reorder') refs.reverse();
+      if (mutation === 'remove') refs.splice(0);
+      const callerState = structuredClone(refs);
+      release();
+      const result = await resultPromise;
+      assert.deepEqual(refs, callerState, 'reader does not restore or freeze caller input');
+      assert.deepEqual(result.items.map(item => item.content), ['evidence A', 'evidence B']);
+      assert.deepEqual(result.items.map(item => ({ documentId: item.source.documentId, version: item.source.version, sha256: item.source.sha256 })), submitted);
+      for (const item of result.items) assert.equal(createHash('sha256').update(item.content).digest('hex'), item.source.sha256);
+    });
+  }
+});
+
+test('caller replacement cannot evade final archive revalidation of the captured original pin', async t => {
+  const attachments = attachmentStore();
+  const { service } = await setup(t, attachments);
+  const a = await service.addDocument({ title: 'A', fileName: 'a.txt', data: Buffer.from('evidence A') });
+  const b = await service.addDocument({ title: 'B', content: 'evidence B' });
+  const refs = [pin(a)];
+  const original = attachments.readFileStream.bind(attachments);
+  attachments.readFileStream = async function* (...args) {
+    refs[0] = pin(b);
+    await service.updateDocument(a.id, { expectedRevision: 1, changes: { status: 'archived' } });
+    yield* original(...args);
+  };
+  await assert.rejects(() => service.readReferences(refs), { code: 'REFERENCE_ARCHIVED' });
+});
+
+test('captured pins retain final authoritative review metadata and do not change review policy', async t => {
+  const attachments = attachmentStore();
+  const { service } = await setup(t, attachments);
+  const a = await service.addDocument({ title: 'A', fileName: 'a.txt', data: Buffer.from('evidence A') });
+  await service.reviewDocument(a.id, 1, { expectedRevision: 1, decision: 'verified' });
+  const refs = [Object.freeze(pin(a))]; Object.freeze(refs);
+  const original = attachments.readFileStream.bind(attachments);
+  attachments.readFileStream = async function* (...args) {
+    await service.reviewDocument(a.id, 1, { expectedRevision: 2, decision: 'rejected', note: 'withdrawn' });
+    yield* original(...args);
+  };
+  const result = await service.readReferences(refs);
+  assert.equal(result.items[0].source.reviewState, 'rejected');
+  assert.equal(result.items[0].source.documentId, a.id);
+  assert.equal(result.items[0].content, 'evidence A');
+  assert.deepEqual(refs, [pin(a)]);
+});
+
+test('complete pin validation happens before the first state read', async () => {
+  const { readReferences } = await import('../references.js');
+  let reads = 0;
+  const valid = { documentId: 'doc_00000000-0000-0000-0000-000000000001', version: 1, sha256: 'a'.repeat(64) };
+  for (const refs of [[valid, { ...valid, version: 0 }], [valid, valid], [{ ...valid, unexpected: true }]]) {
+    await assert.rejects(() => readReferences({ references: refs, readState: async () => { reads++; return { documents: [] }; } }), { code: 'REFERENCE_INPUT' });
+  }
+  assert.equal(reads, 0);
+});

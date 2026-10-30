@@ -12,7 +12,8 @@ Admin, Workspace Library, and optional Workspace Brand. Shared dependencies are
 Library is required for Commerce product/evidence resolution: `index.js` obtains
 `workspaceLibrary`; `resources.js` resolves and verifies the source before access.
 Brand is retained because it is an existing working optional skin, not an unfinished
-replacement frontend. No separate reader safety patch is folded into this cleanup.
+replacement frontend. The cleanup baseline excluded the separate reader safety patch. Its subsequent
+clean-core integration and fresh results are recorded in VALIDATION.md.
 
 ## Removed from source
 
