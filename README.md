@@ -9,6 +9,8 @@ Agent 执行、模型、会话、工具循环和取消由 DSH 宿主负责。
 
 已完成的业务委托、独立账单和业务推进工作台分别见 [委托验收](docs/COMMERCE-MVP-MANDATES-ACCEPTANCE.md)、[计费说明](docs/SERVICE-BILLING-IMPLEMENTATION.md)、[工作台说明](docs/COMMERCE-BUSINESS-WORKBENCH.md)。下方是已有可选资产，不要求全部安装；旧收敛历史见 [收敛清单](docs/SCOPE-REDUCTION.md)。
 
+新业务的经营后台使用 Shopify Admin。接入条件、只读范围及旧数据处理见 [Shopify Admin 接入](docs/SHOPIFY-ADMIN-SETUP.md)。
+
 ## 目录
 
 ```text
@@ -25,12 +27,12 @@ licenses/          第三方许可
 | [dsh-commerce-network](integrations/dsh/dsh-commerce-network/README.md) | 业务委托、画布、工厂业务推进与独立 Worker 委派 |
 | [dsh-service-billing](integrations/dsh/dsh-service-billing/README.md) | 独立服务账单与人工收退款对账，不依赖 Mini ERP |
 | [dsh-workspace-library](integrations/dsh/dsh-workspace-library/README.md) | 企业／产品资料、版本审核、产品上下文与缺口、原生对话引用和确切版本读取 |
-| [dsh-space-workspace](integrations/dsh/dsh-space-workspace/README.md) | Space 页面、分享、评论及任务设置记录 |
+| [dsh-shopify-admin](integrations/dsh/dsh-shopify-admin/README.md) | 连接官方 Shopify Admin，读取商店和商品并在 Shopify 管理交易 |
 | [dsh-sourcing-agent](integrations/dsh/dsh-sourcing-agent/README.md) | 按需市场／供货／品牌 skill；微刊复用独立杂志包 |
 | [dsh-buyer-magazine](integrations/dsh/dsh-buyer-magazine/README.md) | 独立网站转杂志 Agent：来源研究、编辑、四种主题、十模块与原生 HTML 交付 |
 | [dsh-workspace-memory](integrations/dsh/dsh-workspace-memory/README.md) | 经营记忆、人工审核、来源核验，以及跨已有资料／记忆／询盘的只读检索 |
 | [dsh-workspace-brand](integrations/dsh/dsh-workspace-brand/README.md) | 可选原生品牌：侧栏／首页标识与双模式黑白灰主题，保留官方会话与布局 |
-| [dsh-mini-erp](integrations/dsh/dsh-mini-erp/README.md) | ERP Admin：完整后台 UI／UX，复用原库与交易账本；[安装与截图](docs/ERP-ADMIN-PACKAGE.md) |
+| [dsh-mini-erp](integrations/dsh/dsh-mini-erp/README.md) | 历史本地经营记录与 UI；原有数据保留，Shopify 是新接入的交易主系统 |
 | [dsh-inquiry-recovery](integrations/dsh/dsh-inquiry-recovery/README.md) | 可选历史询盘：原文件核验、人工身份判断、Agent 撰写的未发送草稿 |
 
 使用官方 CLI `dsh plugin --profile web add <安装包.tgz>` 安装到自己选定的 DSH_HOME。

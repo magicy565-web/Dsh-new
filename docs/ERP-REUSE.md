@@ -1,5 +1,7 @@
 # ERP 后台设计与已有资产复用
 
+> 历史设计：当前新业务已选择 Shopify Admin 作为交易权威。下述本地 ERP 数据及代码保留用于兼容和核对，不自动同步到 Shopify。见 [Shopify 配置](SHOPIFY-ADMIN-SETUP.md)。
+
 用户要求 ERP 对标 Shopify Admin 式的经营后台。这里借鉴以商品、客户、订单和库存组织经营工作的方式，不表示接入 Shopify，也不复制其全部功能。微刊仍通过对话创建；ERP 的经营者后台是另一种使用需求。
 
 ## 已核对的仓库资产

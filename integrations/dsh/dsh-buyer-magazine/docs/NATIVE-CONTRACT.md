@@ -4,7 +4,12 @@ The independent preset composes the generator, official filesystem Skill provide
 
 # Native file generation and official presentation contract
 
-Reviewed against installed official DSH `0.2.1-rc.2`, Node `v24.22.1`.
+Originally reviewed against official DSH `0.2.1-rc.2`, Node `v24.22.1`.
+Compatibility with `0.2.1-rc.3` was additionally checked with Node `v24.19.0`:
+the official SDK fixture exercised 17 synthetic tool dispatches, including
+workspace write restrictions and official presentation; the web host loaded
+the preset. These checks did not call a model, an external service, or establish
+production or visual acceptance.
 This candidate supersedes the previous candidate's mistaken ref-only restriction.
 The user requires a plugin without an independent frontend; official workspace
 file delivery and native HTML preview are compatible with that request.

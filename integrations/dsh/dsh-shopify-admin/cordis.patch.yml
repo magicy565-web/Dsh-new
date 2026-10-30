@@ -1,0 +1,4 @@
+- insert:
+    - id: shopify-admin-binding
+      name: dsh-shopify-admin
+      config: {}

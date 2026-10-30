@@ -6,18 +6,20 @@ DSH 是当前唯一的后续 Agent 执行宿主。这里的可选 bundle 由 DSH
 | 目录 | 包名 | 版本 | 作用 |
 | --- | --- | --- | --- |
 | `dsh-workspace-library` | `dsh-workspace-library` | 1.4.1 | 企业／产品资料、文件、图片、版本审核 |
-| `dsh-space-workspace` | `dsh-space-workspace` | 1.1.0 | Space 页面、分享、评论及任务设置记录 |
+| `dsh-shopify-admin` | `dsh-shopify-admin` | 0.1.0-draft | 连接 Shopify Admin 并读取商店与商品；经营交易在 Shopify 完成 |
 | `dsh-sourcing-agent` | `@local/dsh-sourcing-agent` | 1.0.0 | 按需业务 skill 与模板，无自建阶段引擎 |
 | `dsh-workspace-memory` | `dsh-workspace-memory` | 0.1.0 | 经营记忆候选、人工审核、原生工作区隔离与来源召回 |
 | `dsh-mini-erp` | `dsh-mini-erp` | 0.5.0 | Agentive 模块助理、原生会话交接；复用原库与现有账本 |
 | `dsh-inquiry-recovery` | `dsh-inquiry-recovery` | 0.1.0 | 可选询盘来源、身份及未发送草稿 |
-| `dsh-buyer-magazine` | `dsh-buyer-magazine` | 0.2.0 | 独立网站转杂志 Agent、完整 Skill、统一编译器与可选模块／ERP 适配 |
+| `dsh-buyer-magazine` | `dsh-buyer-magazine` | 0.4.3 | 独立网站转杂志 Agent、完整 Skill、统一编译器与可选模块／ERP 适配 |
+| `dsh-commerce-network` | `dsh-commerce-network` | 1.4.0-rc.2 | 业务委托和协作网络 |
+| `dsh-service-billing` | `dsh-service-billing` | 0.1.0-rc.2 | 内部服务账单和人工对账 |
 
 这些既有实现不是通用底座的默认必备范围，收敛方向见 [清单](../../docs/SCOPE-REDUCTION.md)。
 
 可选的 [dsh-workspace-brand](dsh-workspace-brand/README.md) 通过原生主题与品牌槽位定制外观，不增加业务面板或执行宿主。它须单独安装；本轮独立预览 profile 的验证见 [原生品牌验收](../../docs/DSH-NATIVE-BRAND.md)。
 
-六个业务插件与品牌插件共同加载后的原生界面见 [完整插件预览](../../docs/DSH-PLUGIN-PREVIEW.md)。其中五个业务插件提供侧栏面板，Sourcing Agent 通过原生模式选择器提供预设与七个按需 Skill。
+此前版本的原生界面验收见 [历史插件预览](../../docs/DSH-PLUGIN-PREVIEW.md)。Sourcing Agent 通过原生模式选择器提供预设与按需 Skill；历史预览中的 Space 不再属于当前插件清单。
 
 后续新增的独立 [网站转杂志](dsh-buyer-magazine/README.md) 自带原生 Agent 预设，无需 Sourcing 或 ERP。Sourcing 中的微刊入口复用它的同一份 Skill 和编译器。联合与独立安装检查见 [杂志统一记录](../../docs/DSH-MAGAZINE-UNIFICATION.md)。
 
@@ -25,7 +27,7 @@ DSH 是当前唯一的后续 Agent 执行宿主。这里的可选 bundle 由 DSH
 
 ```text
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-workspace-library
-plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-space-workspace
+plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-shopify-admin
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-sourcing-agent
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-workspace-memory
 plugin_manager install_bundle target=<本机绝对路径>/integrations/dsh/dsh-inquiry-recovery

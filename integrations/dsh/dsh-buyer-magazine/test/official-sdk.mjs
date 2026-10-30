@@ -9,11 +9,13 @@ import { issueFixture, json } from './fixture.mjs';
 const runtime = process.argv[2];
 if (!runtime || !isAbsolute(runtime)) throw new Error('Supply an explicit absolute existing runtime. No SDK was loaded.');
 const source = fileURLToPath(new URL('../', import.meta.url)), req = createRequire(join(runtime, 'package.json'));
+const runtimeVersion = JSON.parse(await readFile(join(runtime, 'package.json'), 'utf8')).version;
+assert.ok(['0.2.1-rc.2', '0.2.1-rc.3'].includes(runtimeVersion), 'Unreviewed DSH runtime version');
 const names = ['cordis', 'dsh-tools', 'dsh-system-prompt', 'dsh-llm', 'dsh-fs', 'dsh-fs-sandbox', 'dsh-working-directory', 'dsh-sandbox-policy', 'dsh-session', 'dsh-session-projection', 'dsh-scope', 'dsh-tool-present', 'dsh-fs-observation-policy'];
 const entries = {};
 for (const name of names) {
   const manifest = req.resolve('@deepseek-ai/' + name + '/package.json');
-  assert.equal(JSON.parse(await readFile(manifest, 'utf8')).version, name === 'cordis' ? '4.0.5' : '0.2.1-rc.2');
+  assert.equal(JSON.parse(await readFile(manifest, 'utf8')).version, name === 'cordis' ? '4.0.5' : runtimeVersion);
   entries[name] = { entry: req.resolve('@deepseek-ai/' + name), root: dirname(manifest) };
 }
 const root = await mkdtemp(join(tmpdir(), 'dsh-magazine-present-sdk-'));
@@ -92,7 +94,7 @@ try {
   const outside = join(root, 'owned-outside.txt'); await writeFile(outside, 'synthetic outside sentinel'); await symlink(outside, join(workspace, linked.name));
   assert.equal((await generate(linkedIssue)).error.info.code, 'MAGAZINE_WORKSPACE_DENIED'); assert.equal(await readFile(outside, 'utf8'), 'synthetic outside sentinel'); assert.equal(writes, 1);
   for (const name of ['agents', 'sessions', 'llm', 'credentials', 'profileContext', 'connection', 'loader']) assert.equal(ctx.get(name), undefined);
-  console.log(JSON.stringify({ status: 'passed', runtime: '0.2.1-rc.2', node: process.version, nativeFileWrites: writes, verifiedHtmlBytes: expected.data.length,
+  console.log(JSON.stringify({ status: 'passed', runtime: runtimeVersion, node: process.version, nativeFileWrites: writes, verifiedHtmlBytes: expected.data.length,
     reusePreservedMtimeAndInode: true, nativeToolDispatches: dispatches, officialPresentEvents: 1, syntheticDetachedSessions: 1, structuralAgentCarriers: 1,
     liveAgents: 0, syntheticTurnBoundaryFixture: true, syntheticTurnStartEvents: 1, modelTurns: 0, agentLoops: 0, httpServers: 0,
     browserAcceptance: 'not-run', productionHostAcceptance: 'not-run' }));

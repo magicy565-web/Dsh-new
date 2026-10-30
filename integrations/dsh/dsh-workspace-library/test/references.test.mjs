@@ -6,22 +6,18 @@ import { tmpdir, homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createServer } from 'node:http';
 import { LibraryStore, createLibraryService, createHttpHandler, apply, resolveDataDirectory, API_PREFIX } from '../index.js';
-import { resolveDataDirectory as spaceDirectory } from '../../dsh-space-workspace/index.js';
 
-test('both plugins follow native DSH_HOME, explicit overrides and existing profile fallback', () => {
+test('library follows native DSH_HOME, explicit overrides and existing profile fallback', () => {
   const originalHome = process.env.DSH_HOME, originalProfile = process.env.DSH_PROFILE_DIR;
   try {
     process.env.DSH_HOME = join(tmpdir(), 'native-home');
     process.env.DSH_PROFILE_DIR = join(tmpdir(), 'old-home', 'profiles', 'web');
-    for (const [directory, name] of [[resolveDataDirectory, 'workspace-library'], [spaceDirectory, 'space-workspace']]) {
-      assert.equal(directory(), join(tmpdir(), 'native-home', 'data', name));
-      assert.equal(directory({ dataDir: './custom-data' }), resolve('custom-data'));
-      process.env.DSH_HOME = '~/native-test';
-      assert.equal(directory(), join(homedir(), 'native-test', 'data', name));
-      process.env.DSH_HOME = ' ';
-      assert.equal(directory(), join(tmpdir(), 'old-home', 'data', name));
-      process.env.DSH_HOME = join(tmpdir(), 'native-home');
-    }
+    assert.equal(resolveDataDirectory(), join(tmpdir(), 'native-home', 'data', 'workspace-library'));
+    assert.equal(resolveDataDirectory({ dataDir: './custom-data' }), resolve('custom-data'));
+    process.env.DSH_HOME = '~/native-test';
+    assert.equal(resolveDataDirectory(), join(homedir(), 'native-test', 'data', 'workspace-library'));
+    process.env.DSH_HOME = ' ';
+    assert.equal(resolveDataDirectory(), join(tmpdir(), 'old-home', 'data', 'workspace-library'));
   } finally {
     for (const [key, value] of [['DSH_HOME', originalHome], ['DSH_PROFILE_DIR', originalProfile]]) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;

@@ -1,5 +1,7 @@
 # 验证状态
 
+2026-10-30（Asia/Shanghai）：当前 DSH 源码已移除 Space 原型并加入 Shopify Admin 接入。Node 24.19 / DSH 0.2.1-rc.3 环境中，`npm run check` 的 354 项回归通过；Shopify 授权、绑定与读取测试使用合成数据，真实 DSH Web 能显示未配置状态。真实商店、公开 OAuth 回调和 Shopify API 尚未验证。以下为此前版本的历史记录。
+
 2026-10-27（Asia/Shanghai）：Agentive 0.5.0 新增商品／文件／客户／订单助理侧栏、浏览器内职责与指令配置、当前模块／工作区／记录上下文，以及全新原生 DSH 会话交接。231 项核心检查、六组 Client DOM 和两个包的干净目录离线安装通过；新增配置保留、模块／工作区切换清空旧任务及未保存表单阻止启动的检查。真实 DSH 0.2.1-rc.2 / Chromium 的 1440／390px 无横向溢出，新会话创建及任务草稿载入通过。发送只读商品数量查询后，宿主返回 `MISSING_CREDENTIAL`：`deepseek-official` 未配置 API Key；本轮没有模型工具调用成功证据。执行仍在原生对话，未实现侧栏流式对话、服务端配置或工具权限编辑。详见 [Agentive 架构与截图](docs/AGENTIVE-ARCHITECTURE.md)。
 
 2026-10-27（Asia/Shanghai）：ERP 0.4.2 统一未保存更改的 Radix 确认弹窗，资料库 1.4.1 为文件元信息／版本编辑提供可选确认回调；修正客户／订单表单内边距、选择框与主辅栏对齐，补齐报价及关联表单卡片。223 项核心检查、六组 Client DOM 通过；新增草稿取消／放弃、工作区、历史地址和重复导航检查。真实 Chromium 43 页四种宽度、桌面／手机弹窗键盘与指针、深浅色、宿主样式隔离及最终离线包验收通过。截图见 [插件包](docs/ERP-ADMIN-PACKAGE.md)。

@@ -1,5 +1,7 @@
 # Mini ERP
 
+> 此本地账本保留已有记录和兼容能力。新业务使用 Shopify Admin 作为交易权威；本地订单和库存不会自动同步到 Shopify。见 [Shopify 接入](../../../docs/SHOPIFY-ADMIN-SETUP.md)。
+
 当前 UI 入口为 Agentive：商品、文件、客户、订单各有助理侧栏，可编辑职责和工作指令，带当前上下文进入全新 DSH 原生会话。配置仅保存在当前浏览器；实际执行需宿主已配置模型凭据，执行及权限沿用 DSH。详见仓库 `docs/AGENTIVE-ARCHITECTURE.md`。原包名、数据库及工具接口保持兼容。
 
 Shopify Admin 风格的 DSH 经营后台与本地交易记录插件。三个 Agent 工具与 DSH 内的 ERP 经营后台共用同一服务；复用现有产品库和资料库，不另建独立应用。

@@ -49,28 +49,25 @@ test('native @ candidates become fixed-version chips and serialize pins without 
   assert.equal(modelText.includes('supply content'), false);
 });
 
-test('both client panels wait for the slot they contribute to, regardless of host activation order', async () => {
-  const space = await readFile(new URL('../../dsh-space-workspace/client.js', import.meta.url), 'utf8');
-  for (const sourceCode of [code, space]) {
-    const contributions = [];
-    let owner;
-    load(async () => json({}), sourceCode).apply({
-      effect: fn => fn(),
-      locale: { register: () => () => {}, bind: () => key => key },
-      inputTriggers: { registerSource: () => () => {} },
-      uiSession: { provide: () => () => {} },
-      slots: {
-        inject(name, fn) { owner = name; const dispose = fn(); owner = undefined; return dispose; },
-        register(options) {
-          assert.equal(owner, options.name, 'register only after that exact slot is declared');
-          contributions.push(options.name);
-          return () => {};
-        },
+test('the library panel waits for the slots it contributes to', async () => {
+  const contributions = [];
+  let owner;
+  load(async () => json({})).apply({
+    effect: fn => fn(),
+    locale: { register: () => () => {}, bind: () => key => key },
+    inputTriggers: { registerSource: () => () => {} },
+    uiSession: { provide: () => () => {} },
+    slots: {
+      inject(name, fn) { owner = name; const dispose = fn(); owner = undefined; return dispose; },
+      register(options) {
+        assert.equal(owner, options.name, 'register only after that exact slot is declared');
+        contributions.push(options.name);
+        return () => {};
       },
-    });
-    assert.ok(contributions.includes('sidebar.panellist'));
-    assert.ok(contributions.includes('main'));
-  }
+    },
+  });
+  assert.ok(contributions.includes('sidebar.panellist'));
+  assert.ok(contributions.includes('main'));
 });
 
 test('stale pins block native submission instead of falling back to clipboard text', async () => {

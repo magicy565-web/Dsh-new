@@ -1,5 +1,7 @@
 # 开发约定
 
+当前新业务的商品、库存、客户与订单以 Shopify Admin 为交易系统；DSH 提供原生连接和工作区。原有本地 ERP 源码与记录保留用于兼容及后续核对，不自动写入或迁移到 Shopify。接入范围见 [Shopify 配置](SHOPIFY-ADMIN-SETUP.md)。
+
 2026-10-29 当前交付工作：先完成 Commerce/Billing 独立试用，不扩展新业务模块，不加入 Mini ERP。当前安装和试用以 [快速开始](COMMERCE-PILOT-QUICKSTART.md) 为准。下面早期工作区、环境和产品方向为历史背景，不作为本次安装清单。
 
 最新产品方向见 [Agentive 模块与助理](AGENTIVE-ARCHITECTURE.md)：每个业务模块配置上下文 Assistant，交互参考 Shopify Sidekick。暂停按完整 ERP 页面清单补功能，优先验证商品模块的原生 DSH 助理接入；已有数据服务和记录保留。
