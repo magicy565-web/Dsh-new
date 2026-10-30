@@ -1,5 +1,0 @@
-[
-  { "subject": "replace-with-approved-stable-admin-subject", "role": "admin" },
-  { "subject": "replace-with-approved-stable-operator-subject", "role": "operator" },
-  { "subject": "replace-with-approved-stable-viewer-subject", "role": "viewer" }
-]
