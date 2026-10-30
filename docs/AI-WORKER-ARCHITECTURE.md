@@ -1,177 +1,96 @@
-# AI Worker：产品架构
+# AI Worker 产品架构
 
-> 状态：设计稿，未实施。视觉规范见 `AI-WORKER-DESIGN-SYSTEM.md`。
-> 现有基线：`AIWork.jsx`（工作 / 助手两页）、`agentService` 记录（`providerPartyId`、`skills`、`providerType`）、工单的审批 → 派发 → 租约 → 交付 → 验收链路、`AI-WORK-CONNECTIONS.md` 中的 Grok / Muse 适配器。本设计只在这些之上新增一层，不改执行协议。
+## 1. 角色
 
----
-
-## 1. 产品定位
-
-**AI Worker = 由真人维护的专家模板 + 绑定的个人 Agent 运行时。**
-
-体验上参考 Grok 的专家模板：打开一个 Worker 就能看到它擅长什么、给出几个可以直接发起的任务、然后一键雇用。区别在于：
-
-| | Grok 专家模板 | AI Worker |
+| 角色 | 能做 | 看不到 |
 |---|---|---|
-| 背后是谁 | 平台预置的提示词 | 一位**真实的维护者**（个人或团队），负责上传、更新、答疑、兜底 |
-| 在哪里执行 | Grok 自身 | 维护者绑定的运行时：Grok Bot / Muse Agent / 其他 Personal Agent |
-| 权限 | 会话内 | 每个任务单独审批：允许动作、授权资料、预算、期限 |
-| 结果 | 聊天回复 | 交付物进入 DSH，由业主验收；可选维护者先复核 |
-| 可信依据 | 无 | 只展示 DSH 内真实工单产生的数据，样本不足时明确说明 |
+| 业主 | 招募、选择运行在哪个 Agent、审批任务、验收、付款、解约 | 维护者的私有资料与密钥 |
+| 维护者（真人） | 发布 / 更新工作包、复核交付、回复升级、暂停接单、查看收入 | 任务授权范围之外的项目数据 |
+| 个人 Agent | 领取任务、执行、回传进度与交付 | 未授权资源；不能子委托、对外发消息、支付 |
+| DSH | 凭证、限权、版本推送、记账、托管、真实统计 | — |
 
-一句话：**业主雇用的是"一个人维护的 Agent 岗位"，而不是一段提示词。**
-
-## 2. 角色
-
-| 角色 | 是谁 | 能做什么 | 看不到什么 |
-|---|---|---|---|
-| 业主 Owner | 项目所有者（当前 DSH 用户） | 浏览、雇用、派单、审批、验收、解雇 | 维护者的运行时配置与密钥 |
-| 维护者 Maintainer | 上传模板的真人（`providerPartyId` 对应的协作方） | 发布 / 更新模板、处理升级请求、复核交付、暂停接单 | 任务授权范围以外的任何项目数据 |
-| 运行时 Runtime | Grok Bot / Muse / 其他 | 领取任务、心跳、回传进度与交付 | 未授权资源；不能子委托、发消息、支付 |
-| DSH | 网关与记录方 | 发凭证、限权、记账、去重、展示真实统计 | — |
-
-## 3. 对象模型（在现有记录上新增）
+## 2. 对象
 
 ```
-WorkerTemplate (新增，跨项目)
- ├─ id, slug, name, tagline, category
- ├─ maintainerPartyId        → 真人维护者
- ├─ runtime: grokbot | muse | other   (沿用 providerType 枚举)
- ├─ capabilities: skills[]   (沿用现有 actions 枚举，不允许自由文本能力)
- ├─ inputs[]                 需要的资料类型：product / document / url / text
- ├─ outputs[]                交付类型：text / link / draft（与适配器现有能力一致）
- ├─ starters[]               3–4 个预置任务（标题 + 简述 + 默认动作），即"专家模板"入口
- ├─ limits                   maxBudgetMinor、defaultTtl、是否需要维护者复核
- ├─ declared                 维护者自述：响应时间、服务时段（界面标注为"自述"）
- ├─ visibility: private | team | public
- ├─ status: draft | in_review | published | paused | retired
- └─ versions[]  {version, changelog, publishedAt}
+Worker（跨项目，一张「工牌」）
+  id, no(工牌号), name, tagline, category
+  maintainerPartyId, maintainerVerification: email | company | identity
+  runsOn[]: grokbot | muse | other        支持的运行时
+  mode: install | hosted                  A 装到我的 Agent / B 维护者托管
+  package: instructions, skills[], toolScopes[]   skills ⊆ DSH 动作枚举
+  inputs[]: product | document | url | text
+  outputs[]: text | link | draft
+  starters[3–4]: {title, brief, defaultSkills}
+  review: none | optional | required      是否维护者复核
+  pricing: free | subscription{monthly} | per_acceptance{price}
+  declared: {responseTime, hours}         自述
+  status: draft | in_review | published | paused | retired
+  versions[]: {version, changelog, publishedAt, widensScope}
 
-WorkerBinding (新增，项目内 = 一次雇用)
- ├─ projectId, templateId, pinnedVersion
- ├─ agentServiceId           → 复用现有 agentService 记录（含专用凭证）
- └─ grantedSkills[]          雇用时业主勾选的能力子集
+Hire（项目内一次招募）
+  projectId, workerId, pinnedVersion, runtime, agentServiceId(现有)
+  grantedSkills[], billing{plan, nextChargeAt}
 
-WorkOrder (现有，新增字段)
- ├─ templateVersion          执行时的模板版本
- ├─ starterId?               从哪个预置任务发起
- └─ maintainerReview?        pending | passed | returned（仅模板要求复核时存在）
+WorkOrder（现有 + 字段）
+  workerVersion, starterId?, maintainerReview?: pending|passed|returned
+  escrow?: {amountMinor, state: held|released|refunded}
 
-WorkerStats (只读投影，不落库)
- └─ 已验收数、验收率 = accepted / (accepted + rejected)、交付中位时长
-    样本 < 5 时显示"样本不足"，不显示百分比
+WorkerStats（只读投影）acceptedCount, acceptanceRate, medianTurnaround, sampleSize
 ```
 
-规则：
-- `agentService` 仍然是执行身份；`WorkerTemplate` 只是它的"名片和说明书"。旧的无模板 Worker 继续以"其他 Worker"显示。
-- 能力只能从现有动作枚举中选，模板文案不能扩大权限；每个任务的允许动作 ⊆ `grantedSkills` ⊆ `capabilities`。
-- 版本默认**固定**。维护者发布新版后，已雇用项目只收到"可升级"提示，由业主确认；进行中的任务按原版本完成。
-- 暂停 / 下架只停止接新任务，不影响进行中的任务。
+不变量：任务允许动作 ⊆ `grantedSkills` ⊆ `package.skills`；版本默认固定；扩大权限的新版本需要业主重新授权；暂停 / 下架不影响进行中的任务。
 
-## 4. 信息架构（AI Work 移动端）
-
-底部导航从两项扩为三项：
+## 3. 信息架构（移动端）
 
 ```
-工作          发现           助手
- ├ 项目选择    ├ 搜索         ├ 已雇用 Worker（按运行时分组：Grok / Muse / 其他）
- ├ 待处理      ├ 分类筛选      │   └ Worker 详情（本项目视角）
- ├ 我的助手    ├ 推荐 / 最近   │       ├ 任务
- └ 任务分组    └ Worker 列表   │       ├ 权限与版本
-                  └ 模板详情   │       └ 联系维护者
-                     └ 雇用    └ 我维护的（仅维护者可见）
-                                   ├ 待复核 / 升级请求
-                                   ├ 模板列表与状态
-                                   └ 接单开关
+今天          招募            任务            我的
+├ 需要你确认   ├ 搜索           ├ 进行中        ├ 我的 Agent：Grok Bot / Muse / 其他（连接状态）
+├ 进行中       ├ 分类           ├ 待验收        ├ 已招募的 Worker
+├ 我的 Agent   ├ 精选工牌       ├ 已完成        ├ 账单与托管
+└ 已招募       └ Worker 工牌详情 └ 任务详情      └ 维护者工作台（仅维护者）
+                  └ 招募面板        ├ 时间线          ├ 待复核 / 升级
+                                    ├ 交付            ├ 我的 Worker 与版本
+                                    └ 联系维护者      └ 收入
 ```
 
-- 「我的助手」卡片从"按提供商"升级为"按 Worker"：显示模板名、运行时图标、维护者、当前状态灯。
-- 模板的完整编辑（能力、输入输出、预置任务、版本）放在桌面端 **Worker Studio**（协作画布右侧检查器的一个模式），移动端只做查看、复核、暂停。
+桌面端：协作画布 + Worker Studio（右侧检查器的编辑模式）。
 
-## 5. 核心流程
+## 4. 核心流程
 
-### A. 发布（维护者）
-1. 新建模板 → 填名称、一句话、分类。
-2. 绑定运行时：选择 Grok Bot / Muse / 其他，按 `AI-WORK-CONNECTIONS.md` 完成凭证与连接；未通过 `connect` 验证前不能提交。
-3. 声明能力（勾选动作）、输入、输出、限制、是否需要复核。
-4. 编写 2–4 个预置任务。
-5. **试运行**：在维护者自己的沙盒项目里用预置任务跑一次真实工单；没有至少一次已验收的试运行，不能发布。
-6. 提交 → `in_review` → `published v1`。
-7. 迭代：发布 v2 需填写变更说明；能力扩大的版本必须重新试运行。
+**A. 发布（维护者）**：新建工牌 → 选择支持的运行时与模式 → 声明能力 / 输入 / 输出 / 复核要求 → 写预置任务 → 定价 → 试运行（沙盒项目跑一次真实任务并验收）→ 审核 → 发布 v1 → 迭代版本（扩大权限须重新试运行）。
 
-### B. 雇用（业主）
-1. 发现 → 模板详情（像专家模板：能做什么、预置任务、边界、真实记录、维护者）。
-2. 点「雇用到 {项目}」→ 底部确认面板：勾选授予的能力、确认维护者可见范围、确认预算上限。
-3. 确认后创建 `agentService` + `WorkerBinding`，签发专用凭证；Worker 出现在「我的助手」和画布上。
-4. 也可以直接点某个预置任务 → 走雇用确认 → 直接进入新任务草稿。
+**B. 招募（业主）**：招募页 → 工牌详情 → 「招募到 {项目}」→ 面板：选运行在哪（只列出已连接且被支持的 Agent）→ 勾选授予能力 → 确认维护者可见范围 → 确认计费 → 完成。直接点预置任务 = 招募 + 新任务草稿。
 
-### C. 派单与执行（沿用现有链路）
-草稿（可来自预置任务）→ 业主审批（允许动作、资料、预算、期限）→ 派发 → 运行时领取 → 进度 → 交付 →〔模板要求时：维护者复核〕→ 业主验收 / 退回。
+**C. 执行**：草稿 → 审批（动作、资料、预算、期限；按验收计费时冻结金额）→ 派发到所选 Agent → 进度 → 交付 → 〔维护者复核〕→ 验收（放款）/ 退回（必填原因，维护者重做或退款）。
 
-### D. 人工介入
-| 触发 | 业主看到 | 维护者可做 |
+**D. 升级**：失败、待核对或被退回时出现「联系维护者」；沟通只在任务线程内。
+
+## 5. 协作画布
+
+| 节点 | kind | 显示 |
 |---|---|---|
-| 失败 / 派送结果待核对 | 「联系维护者」按钮 | 回复说明、确认远端停止、建议重新派单 |
-| 业主退回交付 | 退回原因必填 | 补充交付（同一工单的新交付）或说明 |
-| 交付待复核 | 「维护者复核中」 | 通过 / 退回运行时重做 |
+| Worker | `personal_agent` | 迷你工牌：挂孔 + 工牌号 + 名称 + 维护者 + 运行时图标 + 版本 |
+| 个人 Agent | `runtime`（新视觉，沿用连接数据） | Grok Bot / Muse 官方图标 + 连接状态 |
+| 维护者 | `provider` 协作方 | 头像 + 认证级别 |
+| 任务 | `service_order` | 状态、预置任务来源、托管金额 |
+| 交付 | `evidence` | 复核印记、验收状态 |
 
-维护者与业主的沟通只在任务内的消息线程中进行，不交换联系方式与凭证。
+关系：维护者 ─维护→ Worker ─运行于→ 个人 Agent；资料 → Worker 生成任务草稿；已验收任务 → Worker 生成后续任务；Worker → Worker 禁止。
 
-## 6. 协作画布
+添加菜单新增「招募 Worker」，从节点端口发起时按 `inputs` 过滤。Worker 检查器标签：概览 · 任务 · 权限 · 账单 · 活动。
 
-### 6.1 业务节点
-| 节点 | kind | 新增内容 | 视图 |
-|---|---|---|---|
-| Worker | `personal_agent`（沿用） | 模板名、运行时徽标、维护者行、版本号、可升级标记 | 全局 / 执行流程 |
-| 维护者 | `provider` 协作方（沿用） | 与 Worker 之间的「维护」关系线 | 商业网络 |
-| 任务 | `service_order`（沿用） | 预置任务来源、模板版本、复核状态 | 执行流程 |
-| 交付 | `evidence`（沿用） | 复核印记 | 执行流程 |
+## 6. 交互规范
 
-**不新增**"模板"节点：模板不是项目数据，只有被雇用的实例才会出现在画布上。
+- 列表 → 详情推入；招募、审批、验收用底部面板（50% / 92%），关闭保留草稿。
+- 同屏一个主按钮，固定在底部安全区之上。
+- 破坏性操作（解约、下架、暂停接单）二次确认并说明对进行中任务与托管资金的影响。
+- 下拉刷新；可见时 6 秒静默刷新；不可见时停止。
+- 返回恢复来源页滚动与筛选。
 
-### 6.2 关系与拖线
-| 拖动 | 结果 |
+| 异常 | 表现 |
 |---|---|
-| 产品 / 资料 → Worker | 打开该 Worker 的预置任务选择，选中后生成任务草稿并预填资料 |
-| Worker → Worker | 禁止（不允许子委托），端口置灰并提示原因 |
-| 已验收任务 → Worker | 生成后续任务草稿，前序交付作为输入 |
-| 维护者 → Worker | 只读关系，不可拖出 |
-
-### 6.3 添加菜单
-「＋」菜单新增分组 **雇用 Worker**：打开发现面板；若从某个节点的端口发起，按该节点类型过滤（例如从产品发起，只显示 `inputs` 含 product 的模板）。
-
-### 6.4 检查器（Worker 节点）
-标签页：**概览**（模板、版本、维护者、能力）· **任务** · **权限**（已授能力、凭证状态、解雇）· **活动**。顶部若有新版本，显示一条「v3 可用 · 查看变更」横幅。
-
-## 7. 交互规范
-
-**移动端**
-- 列表进详情为推入；雇用、审批、验收为底部面板（两档：50% / 90%），关闭不丢草稿。
-- 主操作固定在底部安全区上方，同屏只有一个主按钮。
-- 下拉刷新；后台每 6 秒静默刷新（沿用）；离开可见状态停止轮询。
-- 返回键逐层返回，并恢复来源页的滚动位置与 Tab。
-- 破坏性操作（解雇、下架、暂停接单）二次确认，说明对进行中任务的影响。
-
-**状态表达**
-- Worker 状态灯沿用 `StatusMark` 的 state 枚举；新增 `paused`（模板已暂停）与 `upgrade`（可升级，仅作徽标，不占状态灯）。
-- 「网关已认证」不等于在线；界面不出现"在线"字样，只显示"最近活动 {时间}"。
-- 维护者自述信息一律带「自述」标签；只有 DSH 统计才能用实心数字展示。
-
-**空状态与异常**
-| 场景 | 表现 |
-|---|---|
-| 发现页无结果 | 「没有匹配的 Worker」+ 清除筛选 |
-| 未雇用任何 Worker | 我的助手显示 Grok / Muse 两个占位 + 「去发现」 |
-| 模板已下架 | 详情可读、雇用按钮禁用并说明原因；已雇用的继续可用直到解雇 |
-| 维护者暂停接单 | 卡片显示「暂停接单」，新任务草稿可保存但不能提交审批 |
-| 运行时未连接 | 雇用确认面板阻止提交，并显示维护者需要完成的步骤 |
-
-## 8. 分期
-| 阶段 | 内容 |
-|---|---|
-| P0 | `WorkerTemplate` / `WorkerBinding` 记录与校验；发现页、模板详情、雇用确认；「我的助手」按 Worker 展示 |
-| P1 | 预置任务发起；工单记录模板版本；真实统计投影；画布 Worker 节点新字段 |
-| P2 | 维护者端：我维护的、复核队列、暂停接单；任务内消息线程 |
-| P3 | Worker Studio（桌面编辑）、版本升级流程、试运行门槛、公开审核 |
-
-**明确不做**：评分 / 评论、付费结算（当前 Grok 任务仅支持零预算）、维护者之间转包、自动升级版本、伪造"在线"状态。
+| 没有已连接的 Agent | 招募面板引导到「我的 → 我的 Agent」连接，不能提交 |
+| 工牌不支持你的 Agent | 运行时选项置灰并写原因 |
+| 维护者暂停接单 | 工牌显示「暂停接单」，草稿可存不可提交 |
+| 已下架 | 详情可读，招募禁用；已招募的继续服务到本期结束 |
+| 托管失败 | 审批停在待付款，不派发 |

@@ -4,7 +4,7 @@ AI Work 是 DSH 右侧原生工作区。它读取当前会话的 Commerce Networ
 
 右侧以嵌入式移动 App 呈现：底部“工作 / 助手”切换应用页面，助手与任务详情在 App 内打开，返回保留原入口；协作画布仍通过现有 DSH 标签打开。桌面保持手机宽度，窄屏占满容器，列表独立滚动。它复用当前原生会话，不启动额外服务；开通入口按后续提供的方式接入。
 
-图标来自 [Grok 官方网站](https://grok.com/images/favicon.svg)和 [Muse 官方网站](https://muse.ai/images/favicon/app-squiggle.svg)，品牌标识属于各自的权利人。旧项目没有记录 Muse 的品牌来源；此处以 muse.ai 的个人 AI Agent 标识作为界面参考。开通流程暂不放在本界面。
+图标来自 [Grok 官方网站](https://grok.com/images/favicon.svg)和 [Muse 官方网站](https://muse.ai/images/favicon/app-squiggle.svg)，品牌标识属于各自的权利人。muse.ai 是 Meta 个人 AI Agent「Muse」（2026-09-08 发布）的官方网站，标识为其官方图标。开通流程暂不放在本界面。
 
 界面的“网关已认证”仅表示 Worker 凭证已成功访问 DSH，不能证明远端在线、能力合格或真实执行；最后活动时间也不等于在线状态。需要选中真实项目才能看到其 Worker 和任务。其他项目的任务不会混入当前视图。
 
@@ -32,6 +32,6 @@ AI Work 是 DSH 右侧原生工作区。它读取当前会话的 Commerce Networ
 
 `dsh-commerce-network/muse-adapter` 是供 Muse 运行环境调用的薄适配层，复用现有 DSH Worker SDK。它不启动进程、模型或轮询。Muse 需要由其自身运行环境主动调用 `connect`、`claim`、`heartbeat`、`status`、`resources`、`submitResult` 和 `confirmStopped`。需要通过安全渠道配置专用的 DSH HTTPS 网关地址与该项目 Muse Worker 凭证。`reportFailed` 记录失败报告，但不会确认远端停止。任务仅在用户审批且 DSH 会话派发后可领取；结果依然需要用户验收。
 
-Muse 侧应保存领取结果中的 `order.id` 和 `order.leaseId`，以原租约发送心跳、读取授权资料、提交文本结果和确认停止。每个请求使用稳定的 `requestId`；网络结果未知时保留原 ID 并先核对，不要创建新执行。轮询及心跳必须符合网关的限速和 120 秒租约。适配器的 `submitResult` 接受文本与来源 URL；它不实现旧接口的文件上传或工具证据契约。
+Muse 侧应保存领取结果中的 `order.id` 和 `order.leaseId`，以原租约发送心跳、读取授权资料、提���文本结果和确认停止。每个请求使用稳定的 `requestId`；网络结果未知时保留原 ID 并先核对，不要创建新执行。轮询及心跳必须符合网关的限速和 120 秒租约。适配器的 `submitResult` 接受文本与来源 URL；它不实现旧接口的文件上传或工具证据契约。
 
 旧 `/api/muse-worker/v1/*` 及其 attempt/fence、upload-file 与 DSH 网关不是同一协议；本适配器不是透明兼容的旧服务。需要把适配器接入真实 Muse 客户端或根据实际协议另做受控映射，再核验真实轮询、取消及交付。目前这些仅经过本地合成测试，没有连接真实 Muse。
