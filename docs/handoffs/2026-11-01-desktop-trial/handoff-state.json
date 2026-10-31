@@ -1,0 +1,23 @@
+{
+  "savedDate": "2026-11-01",
+  "timezone": "Asia/Shanghai",
+  "status": "paused_by_user_after_context_save",
+  "contextFile": "H:/dsh-enterprise-trial-work/DEVELOPMENT_CONTEXT.md",
+  "lastValidatedInstallerVersion": "0.1.0-trial.2",
+  "lastValidatedInstaller": "H:/dsh-enterprise-trial-work/delivery/DSH-Enterprise-Trial-0.1.0-trial.2-Setup.exe",
+  "lastValidatedInstallerSha256": "ce4ba0670be3365203ea2b977ecdc940cad2db40edeb55eab8f2ec9de01723d2",
+  "workingVersion": "0.1.0-trial.3",
+  "workingInstallerReleased": false,
+  "executionKernel": "@deepseek-ai/dsh@0.2.1-rc.3",
+  "desktopFramework": "Electron 45.2.1",
+  "nextUserIntent": "开发定制 UI 外壳，保留 DeepSeek Harness 内核",
+  "latestChecks": {
+    "hardeningTests": {"passed": 19, "failed": 0},
+    "syntheticCredentialProtection": "passed",
+    "candidateInstallation": "passed",
+    "lifecycleSuite": "incomplete: download event timeout after earlier checks passed",
+    "forcedExitAndRendererCrash": "not_reached",
+    "realModelsAndMicrophone": "not_validated",
+    "windowsServerAndIndependentStandardAccount": "not_validated"
+  }
+}
