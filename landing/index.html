@@ -76,8 +76,8 @@
     var copy=document.getElementById('copy-command');
     var repo='https://github.com/magicy565-web/Dsh-new.git';
     var cmds={
-      bash:['# Node.js 24+ 和 DeepSeek Harness 需预先安装','node --version','dsh --version','git clone --depth 1 --branch agent/harness-20261023 '+repo+' buyer-magazine-source','cd buyer-magazine-source','npm pack ./integrations/dsh/dsh-buyer-magazine --ignore-scripts','dsh plugin --profile web add ./'+file,'dsh --profile web --host 127.0.0.1 --port 4187 --no-open'].join('\n'),
-      ps:['# Node.js 24+ 和 DeepSeek Harness 需预先安装','node --version','dsh.cmd --version','git clone --depth 1 --branch agent/harness-20261023 '+repo+' buyer-magazine-source','Set-Location buyer-magazine-source','npm.cmd pack ./integrations/dsh/dsh-buyer-magazine --ignore-scripts','dsh.cmd plugin --profile web add .\\'+file,'dsh.cmd --profile web --host 127.0.0.1 --port 4187 --no-open'].join('\n')
+      bash:['# Node.js 24+ 和 DeepSeek Harness 需预先安装','node --version','dsh --version','cd \"$HOME\"','git clone --depth 1 --branch agent/harness-20261023 '+repo+' buyer-magazine-source','cd buyer-magazine-source','npm pack ./integrations/dsh/dsh-buyer-magazine --ignore-scripts','dsh plugin --profile web add ./'+file,'dsh --profile web --host 127.0.0.1 --port 4187 --no-open'].join('\n'),
+      ps:['# Node.js 24+ 和 DeepSeek Harness 需预先安装','node --version','dsh.cmd --version','Set-Location $HOME','git clone --depth 1 --branch agent/harness-20261023 '+repo+' buyer-magazine-source','Set-Location buyer-magazine-source','npm.cmd pack ./integrations/dsh/dsh-buyer-magazine --ignore-scripts','dsh.cmd plugin --profile web add .\\'+file,'dsh.cmd --profile web --host 127.0.0.1 --port 4187 --no-open'].join('\n')
     };
     var download=document.getElementById('download-package');
     download.hidden=true;
