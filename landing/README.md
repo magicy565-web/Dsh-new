@@ -16,7 +16,7 @@ For Vercel, configure the repository **root** as the project directory (because 
 
 ## Install from the published site
 
-Use the landing page's OS-specific copy command. It downloads the generated archive and calls `dsh plugin --profile web add <archive>`. Node.js and the official DSH host must already be installed; live source collection additionally requires configured Apify credentials. No credentials are required to build the landing page.
+Use the landing page's OS-specific copy command. It clones the public source branch, runs `npm pack` to generate the real archive locally, and calls `dsh plugin --profile web add <archive>`. A direct `.tgz` link only appears after the deployed site serves an actual build manifest. Node.js and the official DSH host must already be installed; live source collection additionally requires configured Apify credentials. No credentials are required to build the landing page.
 
 ## Scope and honesty
 
