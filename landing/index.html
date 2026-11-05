@@ -82,8 +82,18 @@
     var download=document.getElementById('download-package');
     download.hidden=true;
     if(window.location.protocol==='https:'||window.location.protocol==='http:'){
-      fetch(new URL('./downloads/manifest.json',window.location.href),{method:'HEAD',cache:'no-store'})
-        .then(function(r){if(r.ok)download.hidden=false;}).catch(function(){});
+      Promise.all([
+        fetch(new URL('./downloads/manifest.json',window.location.href),{cache:'no-store'}).then(function(r){if(!r.ok)throw Error('manifest missing');return r.json();}),
+        fetch(url,{method:'HEAD',cache:'no-store'})
+      ]).then(function(results){
+        var m=results[0],archive=results[1];
+        var length=Number(archive.headers.get('content-length'));
+        if(!archive.ok||m.name!=='dsh-buyer-magazine'||m.version!=='0.4.3'||m.filename!==file||
+           !/^[a-f0-9]{64}$/.test(m.sha256)||!Number.isSafeInteger(m.bytes)||m.bytes<4096||
+           (archive.headers.has('content-length')&&length!==m.bytes))return;
+        download.hidden=false;
+        download.title='Verified archive listing: '+m.bytes+' bytes, SHA-256 '+m.sha256;
+      }).catch(function(){});
     }
     function render(){box.textContent=cmds[selected];btnBash.setAttribute('aria-selected',String(selected==='bash'));btnPs.setAttribute('aria-selected',String(selected==='ps'));}
     btnBash.addEventListener('click',function(){selected='bash';render()});
