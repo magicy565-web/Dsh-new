@@ -19,6 +19,10 @@ test('transport diagnostics disclose only allowlisted codes, never exception tex
 test('design preset offers collection and authored-file review, not a fixed generator',()=>{
  const names=magazineTools({}).map(t=>t.name);
  assert.deepEqual(names,['buyer_magazine_collect_site','buyer_magazine_review_artifact']);
+ const withSites=magazineTools({},{sitesBridge:true}).map(t=>t.name);
+ assert.deepEqual(withSites,['buyer_magazine_prepare_sites_evidence','buyer_magazine_collect_site','buyer_magazine_review_artifact']);
+ const prepare=magazineTools({},{sitesBridge:true})[0];
+ assert.deepEqual(prepare.parameters.required,['recordJson','expectedRevision']);
  const legacy=magazineTools({},{legacyCompiler:true}).map(t=>t.name);
  assert(legacy.includes('buyer_magazine_generate'));
 });
