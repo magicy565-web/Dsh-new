@@ -86,3 +86,26 @@ Dataset，并标为 `failed / APIFY_RUN_FAILED / partialDataset`；部分结果�
 原 `compiler`/`adapters` 公共入口保留。旧 Studio JSON 或十模块调用方显式配置 `legacyCompiler: true` 后才注册原 validate/generate/review 工具。Sourcing 兼容配置已显式启用；创意设计预设默认看不到固定生成工具。
 
 `npm run check` 检查源数据、文件边界、兼容性和默认工具路由。可显式运行 `node dev/authored-review-smoke.mjs` 检查自由 DOM、本地 CSS/JS、交互截图和 PDF；这是合成浏览器验证，不是设计验收。实际 Apify 采集必须另有真实凭据与成功 run 证明。
+
+## Sites 工作台证据交接（只读，不是直接 API 同步）
+
+当 ChatGPT 的 Sites「买手杂志工作台」已有真实企业记录时，可用现有 Sites 连接读取
+`get_factory_draft` 的 `structuredContent`，将其作为完整 JSON 文本交给
+DSH 工具 `buyer_magazine_prepare_sites_evidence`，同时将该记录的 `revision`
+作为 `expectedRevision`。DSH 原生「网站转杂志」预设已经启用这个**只读、按值传递**
+校验工具；这不是 DSH 对 Sites API 的直接调用，也不会回写 Site。当前 Site 连接
+仅开放查看列表、查看记录、创建候选草稿，没有修改/审核/发布端点。
+
+工具输出 `factsForEditor`、`pendingReview`、`invalidEvidence`、
+`declaredMissingFields`、`notConfirmedFields` 及 `editorialDraftAllowed`。
+只有处于 `buyer_enabled` 且资料没有无效证据的已确认条目进入
+`factsForEditor`；`research_review` 阶段的候选事实不会冒充审核事实。
+`confirmed` 是工作台中的状态，不是第三方独立验厂结论。来源摘录和采集时间虽被
+保留，但该工具**没有重新抓取网页验证引文**。记录版本变化返回
+`REVISION_CONFLICT`，必须重新读取后重做。不要复制包含买手私人联系方式的记录；
+未知元数据不会进入输出。
+
+工具始终返回 `publicationAllowed:false`、`outreachAllowed:false`。
+即使允许写内部英文编辑草稿，也不代表已取得产品图权利、供应商披露授权、
+出刊批准或买手触达许可。实际 HTML 继续通过原生 write/edit 写作，再通过
+`buyer_magazine_review_artifact` 验证桌面、手机和交互，人工审核后才可交付。
