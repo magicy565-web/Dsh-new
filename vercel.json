@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "framework": null,
+  "buildCommand": "node landing/build.mjs",
+  "outputDirectory": "landing/dist",
+  "installCommand": "node --version"
+}
