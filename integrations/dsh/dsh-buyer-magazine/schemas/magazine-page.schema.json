@@ -1,0 +1,27 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://buyer-magazine.local/schemas/magazine-page.schema.json",
+  "title":"Buyer Magazine Page",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["page_id","path","page_type","locale","title","description","h1","intent","sections","evidence_refs","primary_cta","indexable"],
+  "properties":{
+    "page_id":{"type":"string"},"path":{"type":"string","pattern":"^/"},
+    "page_type":{"enum":["home","category-guide","supplier-profile","product-editorial","buyer-guide","issue"]},
+    "locale":{"type":"string"},"title":{"type":"string","minLength":15,"maxLength":65},
+    "description":{"type":"string","minLength":50,"maxLength":170},
+    "canonical_url":{"type":["string","null"],"format":"uri"},
+    "h1":{"type":"string","minLength":8},
+    "intent":{"type":"string","minLength":10},
+    "buyer_persona":{"type":"string"},
+    "last_reviewed":{"type":["string","null"],"format":"date-time"},
+    "author":{"type":["string","null"]},
+    "sections":{"type":"array","minItems":2,"items":{"type":"object","required":["type","heading","body"],"properties":{"type":{"enum":["answer","editorial","product","specification","comparison","process","supplier","faq","evidence","cta"]},"heading":{"type":"string"},"body":{"type":"string"},"data_ref":{"type":["string","null"]},"image_ref":{"type":["string","null"]}},"additionalProperties":false}},
+    "evidence_refs":{"type":"array","items":{"type":"string"}},
+    "primary_cta":{"type":"object","required":["label","action"],"properties":{"label":{"type":"string"},"action":{"enum":["open-assistant","request-quote","request-sample","contact","view-products"]},"target":{"type":["string","null"]}},"additionalProperties":false},
+    "structured_data":{"type":"array","items":{"type":"object"}},
+    "indexable":{"type":"boolean"},
+    "noindex_reason":{"type":["string","null"]},
+    "hreflang":{"type":"array","items":{"type":"object","required":["locale","url"],"properties":{"locale":{"type":"string"},"url":{"type":"string","format":"uri"}},"additionalProperties":false}}
+  }
+}
