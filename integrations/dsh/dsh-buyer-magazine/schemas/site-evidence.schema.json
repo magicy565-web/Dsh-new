@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://buyer-magazine.local/schemas/site-evidence.schema.json",
+  "title":"Buyer Magazine Evidence",
+  "type":"object","additionalProperties":false,
+  "required":["evidence_id","claim","value","status","source_url","captured_at","publication_permission"],
+  "properties":{
+    "evidence_id":{"type":"string"},"claim":{"type":"string"},"value":{"type":["string","number","boolean","null"]},
+    "status":{"enum":["supplier-stated","independently-verified","derived","unverified","conflicting","unknown"]},
+    "source_url":{"type":["string","null"],"format":"uri"},"source_quote":{"type":["string","null"]},
+    "captured_at":{"type":"string","format":"date-time"},"verified_by":{"type":["string","null"]},
+    "valid_until":{"type":["string","null"],"format":"date-time"},
+    "publication_permission":{"enum":["approved","public-source-review-only","internal-only","denied","unknown"]},
+    "notes":{"type":["string","null"]}
+  }
+}
