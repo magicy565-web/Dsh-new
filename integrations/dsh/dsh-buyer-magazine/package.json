@@ -25,7 +25,8 @@
     "cli.js",
     "skill-pack.json",
     "schemas/",
-    "site-starter/"
+    "site-starter/",
+    "site-starter/.openai/"
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
