@@ -9,11 +9,15 @@ test('site schemas are valid JSON and define required publication contracts', as
   const manifest = JSON.parse(await read('schemas/site-manifest.schema.json'));
   const page = JSON.parse(await read('schemas/magazine-page.schema.json'));
   const evidence = JSON.parse(await read('schemas/site-evidence.schema.json'));
+  const hosting = JSON.parse(await read('site-starter/.openai/hosting.json'));
   assert.equal(manifest.title, 'Buyer Magazine Site Manifest');
   assert.ok(manifest.required.includes('routes'));
   assert.ok(page.required.includes('evidence_refs'));
   assert.ok(page.required.includes('primary_cta'));
   assert.ok(evidence.required.includes('publication_permission'));
+  assert.equal(hosting.d1, null);
+  assert.equal(hosting.r2, null);
+  assert.equal(Object.hasOwn(hosting, 'project_id'), false);
 });
 test('site skill pack registers all new publishing capabilities', async () => {
   const pack = JSON.parse(await read('skill-pack.json'));
