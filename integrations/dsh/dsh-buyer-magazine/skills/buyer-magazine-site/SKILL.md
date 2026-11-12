@@ -6,7 +6,7 @@ description: Build a complete, public-facing, multi-page interactive buyer magaz
 # Buyer Magazine Site Orchestrator
 
 ## Mission
-Create a buyer-first editorial commerce website, not a brochure and not an email. The target runtime is ChatGPT Sites. Work in a compatible local source project when available, then use Sites to save a reviewable version and deploy only after approval. Do not claim a Site was published unless Sites reports a successful deployment and production URL.
+Create a buyer-first editorial commerce website, not a brochure and not an email. The target runtime is ChatGPT Sites. Produce a compatible local source project (including `.openai/hosting.json`) that can be opened from ChatGPT web/desktop Sites. ChatGPT Sites itself provisions hosting and may update the project ID in `.openai/hosting.json`. Site creation, save-version, deploy and management happen in ChatGPT web or desktop; there is no standalone Sites management CLI/API in this plugin. Ask Sites to check compatibility and prepare the local project, then save a reviewable version. A deployment URL is production, not a preview. Deploy only after human approval. Do not claim a Site was published unless Sites reports a successful deployment and production URL.
 
 ## Required sequence
 1. Read the existing procurement editorial standard and reading notes in ../editorial-magazine-design/resources/.
@@ -21,6 +21,13 @@ Create a buyer-first editorial commerce website, not a brochure and not an email
 10. Run the SEO/GEO, design, accessibility, security, performance, assistant, and link QA. Save the report and unresolved limitations.
 11. Save a reviewable Sites version. Human review must approve claims, imagery rights, assistant permissions, and public audience. Deploy only after explicit approval.
 
+## ChatGPT Sites handoff
+- Package the actual project directory, not only an isolated HTML snippet. Include `.openai/hosting.json` with optional storage bindings; a new local project can omit `project_id` and let Sites add it when provisioning hosting.
+- Open ChatGPT web or desktop, start Sites from the compatible local project (or use `@Sites`), and ask Sites to check compatibility and prepare it for publishing.
+- Use Save version to create a reviewable candidate. Review it in the Sites preview. Only use Deploy after explicit approval because every deployed URL is production.
+- Sites management is performed in ChatGPT web/desktop. Codex CLI/IDE may edit and test the local project but cannot manage Sites deployments.
+- Keep secrets in Site Settings hosted environment values, never in `.openai/hosting.json`, source files, prompts or committed `.env` files.
+
 ## Site architecture
 - One canonical magazine hub per publication brand, plus supplier editions only where each needs a distinct public identity.
 - Each substantive editorial guide or product story gets a stable, human-readable URL.
@@ -29,6 +36,7 @@ Create a buyer-first editorial commerce website, not a brochure and not an email
 - Use per-site public identifiers, tenant-scoped API authorization, rate limits, and server-side secrets.
 
 ## Required output
+- `.openai/hosting.json` (no secrets; omit `project_id` before Sites provisions hosting)
 - site-manifest.json
 - one magazine-page.json per route
 - evidence-map.json
