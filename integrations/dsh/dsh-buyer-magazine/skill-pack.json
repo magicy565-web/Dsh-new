@@ -1,7 +1,7 @@
 {
-  "name": "Luxury Editorial Web-Card Skill Pack",
-  "version": "0.4.2",
-  "entry": "ai-media-kinetic-commerce",
+  "name": "Buyer Magazine Site Publishing Skill Pack",
+  "version": "0.5.0",
+  "entry": "buyer-magazine-site",
   "compatibilityEntry": "buyer-magazine",
   "skills": [
     {
@@ -19,6 +19,26 @@
     {
       "name": "ai-media-kinetic-commerce",
       "path": "skills/ai-media-kinetic-commerce/SKILL.md"
+    },
+    {
+      "name": "buyer-magazine-site",
+      "path": "skills/buyer-magazine-site/SKILL.md"
+    },
+    {
+      "name": "site-seo-geo",
+      "path": "skills/site-seo-geo/SKILL.md"
+    },
+    {
+      "name": "editorial-commerce-design",
+      "path": "skills/editorial-commerce-design/SKILL.md"
+    },
+    {
+      "name": "buyer-ai-assistant",
+      "path": "skills/buyer-ai-assistant/SKILL.md"
+    },
+    {
+      "name": "site-release-qa",
+      "path": "skills/site-release-qa/SKILL.md"
     }
   ],
   "tools": [
@@ -26,7 +46,7 @@
     "buyer_magazine_review_artifact"
   ],
   "source": "User supplied luxury_ecommerce_skills_package.zip",
-  "runtime": "DeepSeek Harness; one compiler; no separate Agent host",
+  "runtime": "DeepSeek Harness authors and reviews a ChatGPT Sites-compatible source project; final save/deploy is performed in the ChatGPT Sites workflow after explicit owner approval.",
   "externalIntegrations": {
     "apify": "Native Actor adapter; explicit credentialId 1..100; no automatic rotation or silent fallback",
     "fastai": "reference only until configured host image tool",
@@ -34,5 +54,14 @@
     "leadSubmission": "actual contact link or local brief; no fake webhook"
   },
   "authorship": "LLM-authored HTML/CSS/JS driven by the four supplied skills",
-  "legacyCompiler": "Explicit opt-in for existing Studio/module callers; not part of the design workflow"
+  "legacyCompiler": "Explicit opt-in for existing Studio/module callers; not part of the design workflow",
+  "outputs": [
+    "site-manifest.json",
+    "magazine-page.json",
+    "evidence-map.json",
+    "site source project",
+    "SEO/GEO QA report",
+    "assistant API contract",
+    "release report"
+  ]
 }
