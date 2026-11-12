@@ -1,0 +1,73 @@
+name: Buyer Magazine landing package verification
+
+on:
+  pull_request:
+    paths:
+      - "landing/**"
+      - "integrations/dsh/dsh-buyer-magazine/**"
+      - "vercel.json"
+      - ".github/workflows/buyer-magazine-landing.yml"
+  push:
+    branches:
+      - feat/buyer-magazine-landing-20261105
+    paths:
+      - "landing/**"
+      - "integrations/dsh/dsh-buyer-magazine/**"
+      - "vercel.json"
+      - ".github/workflows/buyer-magazine-landing.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Build real plugin from repository source
+        run: node landing/build.mjs
+      - name: Verify downloadable package and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd landing/dist/downloads
+          test -s dsh-buyer-magazine-0.5.0.tgz
+          sha256sum -c SHA256SUMS.txt
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import assert from 'node:assert/strict';
+          const m = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          const data = fs.readFileSync(m.filename);
+          assert.equal(m.name, 'dsh-buyer-magazine');
+          assert.equal(m.version, '0.5.0');
+          assert.equal(m.bytes, data.length);
+          assert.equal(m.sha256, crypto.createHash('sha256').update(data).digest('hex'));
+          assert.ok(m.files > 8);
+          NODE
+          tar -tzf dsh-buyer-magazine-0.5.0.tgz > /tmp/buyer-magazine-files.txt
+          for file in package/index.js package/cordis.patch.yml package/src/apify.js package/src/authored-review.js package/src/browser-review.js package/skills/apify-ecommerce-intelligence/SKILL.md package/skills/editorial-magazine-design/SKILL.md package/skills/editorial-typography-system/SKILL.md package/skills/ai-media-kinetic-commerce/SKILL.md package/skills/buyer-magazine-site/SKILL.md package/skills/site-seo-geo/SKILL.md package/skills/editorial-commerce-design/SKILL.md package/skills/buyer-ai-assistant/SKILL.md package/skills/site-release-qa/SKILL.md package/schemas/site-manifest.schema.json package/schemas/magazine-page.schema.json package/schemas/site-evidence.schema.json package/site-starter/index.html package/site-starter/.openai/hosting.json package/site-starter/assets/site.css package/site-starter/assets/assistant.js; do
+            grep -Fxq "$file" /tmp/buyer-magazine-files.txt
+          done
+      - name: Verify static web download endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --directory landing/dist >/tmp/buyer-site-http.log 2>&1 &
+          server=$!
+          trap 'kill "$server" || true' EXIT
+          sleep 1
+          curl -fsS http://127.0.0.1:8765/ -o /tmp/buyer-landing.html
+          grep -q 'Buyer Magazine' /tmp/buyer-landing.html
+          curl -fsS http://127.0.0.1:8765/downloads/dsh-buyer-magazine-0.5.0.tgz -o /tmp/buyer-download.tgz
+          cmp /tmp/buyer-download.tgz landing/dist/downloads/dsh-buyer-magazine-0.5.0.tgz
+          curl -fsS http://127.0.0.1:8765/downloads/manifest.json -o /tmp/buyer-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: buyer-magazine-real-source-package
+          path: landing/dist/downloads/
+          if-no-files-found: error

@@ -1,0 +1,22 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://buyer-magazine.local/schemas/site-manifest.schema.json",
+  "title":"Buyer Magazine Site Manifest",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","site_slug","publication","locale","base_url","routes","design_system","assistant"],
+  "properties":{
+    "schema_version":{"const":"1.0.0"},
+    "site_slug":{"type":"string","pattern":"^[a-z0-9][a-z0-9-]{1,62}$"},
+    "publication":{"type":"object","required":["name","kind","primary_category"],"properties":{"name":{"type":"string","minLength":2},"kind":{"enum":["buyer-hub","supplier-edition","category-edition"]},"primary_category":{"type":"string"},"supplier_public_id":{"type":["string","null"]},"description":{"type":"string"},"editorial_contact":{"type":["string","null"]}},"additionalProperties":false},
+    "locale":{"type":"string","pattern":"^[a-z]{2}(-[A-Z]{2})?$"},
+    "base_url":{"type":"string","format":"uri"},
+    "routes":{"type":"array","minItems":1,"items":{"type":"object","required":["path","page_id","page_type"],"properties":{"path":{"type":"string","pattern":"^/"},"page_id":{"type":"string"},"page_type":{"enum":["home","category-guide","supplier-profile","product-editorial","buyer-guide","issue"]},"indexable":{"type":"boolean","default":true}},"additionalProperties":false}},
+    "design_system":{"type":"object","required":["direction","tokens_ref"],"properties":{"direction":{"type":"string"},"tokens_ref":{"type":"string"},"category_profile":{"type":"string"},"motion":{"enum":["reduced","subtle","expressive"]}},"additionalProperties":false},
+    "assistant":{"type":"object","required":["enabled","api_base_url","public_site_slug"],"properties":{"enabled":{"type":"boolean"},"api_base_url":{"type":["string","null"]},"public_site_slug":{"type":"string"},"features":{"type":"array","items":{"enum":["product-qa","supplier-qa","comparison","rfq-draft","human-handoff"]}}},"additionalProperties":false},
+    "sitemap":{"type":["string","null"]},
+    "robots":{"type":["string","null"]},
+    "search_console_property":{"type":["string","null"]},
+    "last_reviewed":{"type":["string","null"],"format":"date-time"}
+  }
+}
