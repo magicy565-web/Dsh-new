@@ -1,9 +1,9 @@
 {
   "name": "dsh-buyer-magazine",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "Four-skill LLM-led editorial design, actual Apify research, authored-file browser/PDF review and native DSH delivery",
+  "description": "Evidence-led ChatGPT Sites buyer magazine authoring, SEO/GEO audits, editorial design, buyer AI assistant UI and native DSH research/review",
   "exports": {
     ".": "./index.js",
     "./compiler": "./compiler.js",
@@ -23,7 +23,9 @@
     "docs/",
     "adapters.js",
     "cli.js",
-    "skill-pack.json"
+    "skill-pack.json",
+    "schemas/",
+    "site-starter/"
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
