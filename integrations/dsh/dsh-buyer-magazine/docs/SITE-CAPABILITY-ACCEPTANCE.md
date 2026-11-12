@@ -5,12 +5,20 @@ Status: NOT TESTED against a live public Site. This checklist prevents unsupport
 ## Test fixture
 Create a public test Site with three distinct pages: `/`, `/guides/test-category/`, `/suppliers/test-factory/`. Use non-sensitive synthetic fixture data clearly labelled as test content. Connect a custom domain only if available to the account. Do not use a real supplier's unapproved private data.
 
+## Local project handoff
+- Open the generated source project in ChatGPT web/desktop Sites from a compatible local project.
+- Ask Sites to check compatibility and prepare it for publishing.
+- Verify `.openai/hosting.json` is linked to the provisioned project and contains no secrets. A new project may omit `project_id` before provisioning.
+- Save a version without deploying; verify it appears as a reviewable candidate.
+- Only deploy after approval; verify the resulting URL is production and the selected audience is correct.
+
 ## Required observations
 For each URL record timestamp, final URL, HTTP status, response headers, raw HTML, rendered DOM, screenshot, and test result.
 
 | Capability | Procedure | Pass condition |
 |---|---|---|
 | Public access | Open in private browser without ChatGPT login | Public page loads anonymously |
+| Local project import | Open compatible local project through Sites | Compatibility check succeeds; hosted project linkage is saved |
 | Stable route | Open and refresh each deep URL | No 404 or forced homepage redirect |
 | Server-visible content | Inspect response HTML and rendered DOM | Title, H1 and primary copy are present and crawlable |
 | Unique metadata | Inspect each page title/description/canonical/OG | Each route has correct unique values |
