@@ -18,7 +18,7 @@ LLM 使用 DSH 原生 write/edit 创作文件。无需填写 issue JSON，没有
 ## 安装
 
 ```sh
-dsh plugin --profile web add /absolute/path/dsh-buyer-magazine-0.4.3.tgz
+dsh plugin --profile web add /absolute/path/dsh-buyer-magazine-0.5.0.tgz
 dsh web
 ```
 
