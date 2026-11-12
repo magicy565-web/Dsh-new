@@ -86,3 +86,20 @@ Dataset，并标为 `failed / APIFY_RUN_FAILED / partialDataset`；部分结果�
 原 `compiler`/`adapters` 公共入口保留。旧 Studio JSON 或十模块调用方显式配置 `legacyCompiler: true` 后才注册原 validate/generate/review 工具。Sourcing 兼容配置已显式启用；创意设计预设默认看不到固定生成工具。
 
 `npm run check` 检查源数据、文件边界、兼容性和默认工具路由。可显式运行 `node dev/authored-review-smoke.mjs` 检查自由 DOM、本地 CSS/JS、交互截图和 PDF；这是合成浏览器验证，不是设计验收。实际 Apify 采集必须另有真实凭据与成功 run 证明。
+
+
+## ChatGPT Sites Buyer Magazine System v0.5.0
+
+The package now adds a separate website-publication workflow alongside the existing HTML email and authored-file magazine workflow. The new entry skill is [buyer-magazine-site](skills/buyer-magazine-site/SKILL.md), supported by:
+
+- [site-seo-geo](skills/site-seo-geo/SKILL.md): technical SEO, GEO content structure, crawler and indexability checks.
+- [editorial-commerce-design](skills/editorial-commerce-design/SKILL.md): category-specific editorial design system and responsive interaction rules.
+- [buyer-ai-assistant](skills/buyer-ai-assistant/SKILL.md): secure public chat UI contract to the central OpenMausBot/Sourcing MCP gateway.
+- [site-release-qa](skills/site-release-qa/SKILL.md): evidence, SEO, design, assistant and release gates.
+
+Schemas: [site manifest](schemas/site-manifest.schema.json), [page content](schemas/magazine-page.schema.json), [evidence](schemas/site-evidence.schema.json).
+Starter project: [site-starter](site-starter/README.md). Architecture: [SITE-ARCHITECTURE](docs/SITE-ARCHITECTURE.md). P0 live platform test: [SITE-CAPABILITY-ACCEPTANCE](docs/SITE-CAPABILITY-ACCEPTANCE.md).
+
+Important boundary: this package creates and reviews a ChatGPT Sites-compatible source project. The actual Sites owner workflow must import/create the hosted Site, configure secrets and audience, save a candidate version and deploy after approval. This repository does not claim an undocumented Sites deployment API. The assistant starter is UI-only until the central HTTPS gateway is implemented. SEO capability (per-route metadata, robots.txt, sitemap.xml, server-visible HTML and crawler access) is NOT TESTED on a live Site and must pass the P0 acceptance checklist before the system is described as SEO-ready.
+
+Run package tests with `node --test test/*.test.mjs` from this package directory.
