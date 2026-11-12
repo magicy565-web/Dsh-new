@@ -6,7 +6,7 @@ description: Embed a buyer-facing AI sourcing assistant in a ChatGPT Site and co
 # Buyer AI Assistant Skill
 
 ## Architecture
-The Site hosts only the public chat UI and page context. A central HTTPS API gateway authenticates the Site and issues short-lived anonymous visitor sessions. The gateway routes conversations to the OpenMausBot Buyer Assistant Worker and approved Sourcing MCP tools. Business records live in the central tenant-aware database.
+The Site hosts the public chat UI and page context. A central HTTPS API gateway authenticates the Site and issues short-lived anonymous visitor sessions. The gateway routes conversations to the OpenMausBot Buyer Assistant Worker and approved Sourcing MCP tools. Business records live in the central tenant-aware database. ChatGPT Sites can also host an MCP server and create a ChatGPT plugin after owner publication, but that plugin is for ChatGPT/Codex conversations; it does not automatically provide an embedded assistant to anonymous visitors on the public website. Keep the public visitor chat UI and its API gateway as a separate integration.
 
 Do not assume public Site visitors have ChatGPT accounts or connected-app permissions. Do not rely on the Site creator's personal connectors. Do not put OpenAI, model-provider, Apify, Shopify Admin, database, or Worker credentials in browser code.
 
