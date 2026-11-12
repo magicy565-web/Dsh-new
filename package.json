@@ -34,7 +34,8 @@
     "test:commerce-business": "node --test packages/domain-commerce-network/test/*.test.mjs integrations/dsh/dsh-commerce-network/test/*.test.mjs integrations/dsh/dsh-service-billing/test/*.test.mjs",
     "package:commerce-business": "npm run package:business-services",
     "package:service-billing": "node scripts/package-commerce-business.mjs dist/service-billing --only=dsh-service-billing",
-    "package:business-services": "npm run build:commerce-client && node scripts/package-commerce-business.mjs dist/business-services --only=dsh-commerce-network,dsh-service-billing"
+    "package:business-services": "npm run build:commerce-client && node scripts/package-commerce-business.mjs dist/business-services --only=dsh-commerce-network,dsh-service-billing",
+    "package:buyer-magazine-site": "npm pack --workspace=dsh-buyer-magazine --pack-destination dist"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
