@@ -20,3 +20,15 @@ Portable semantic HTML/CSS/JS starter for a ChatGPT Sites-compatible buyer magaz
 POST /v1/public-sites/{siteSlug}/sessions returns {"session_id":"opaque-short-lived-id"}.
 POST /v1/public-sites/{siteSlug}/chat accepts X-Visitor-Session and JSON message/page_url/page_title/product_context; returns {"answer":"grounded answer"}.
 The gateway validates origin, slug, expiry, tenant scope, quotas and rate limits. The session ID is not an authorization substitute. The included chat client is not live until this API exists and is tested.
+
+## Open in ChatGPT Sites
+This folder is a local source project for the ChatGPT Sites workflow. It includes `.openai/hosting.json` with no project ID and no storage bindings. Sites can add a project ID and binding names after it provisions hosted hosting.
+
+1. Open ChatGPT on the web or desktop and start Sites from a compatible local project (or mention `@Sites`).
+2. Ask Sites to check compatibility and prepare this project for publishing.
+3. Review the generated Site and test each route and interaction.
+4. Save a version without deploying to create a reviewable candidate.
+5. Deploy only after approval. A Sites deployment URL is production.
+6. Configure secrets under Site Settings > environment values. Never commit secrets or place them in `.openai/hosting.json`.
+
+Sites projects are managed from ChatGPT web/desktop. Codex CLI/IDE can edit and test the local source, but cannot manage Sites deployment lifecycle.
