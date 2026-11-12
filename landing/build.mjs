@@ -24,6 +24,8 @@ for (const path of required) if (!names.has(path)) throw new Error("Missing pack
 const archive = readFileSync(join(downloads, filename));
 const skillPack = JSON.parse(readFileSync(join(pluginDir, "skill-pack.json"), "utf8"));
 if (skillPack.version !== pkg.version || skillPack.entry !== "buyer-magazine-site") throw new Error("Skill pack version or entry mismatch");
+const hosting = JSON.parse(readFileSync(join(pluginDir, "site-starter/.openai/hosting.json"), "utf8"));
+if (Object.hasOwn(hosting, "project_id") || hosting.d1 !== null || hosting.r2 !== null) throw new Error("New Site starter must omit project_id and declare no unused storage bindings");
 for (const name of ["buyer-magazine-site", "site-seo-geo", "editorial-commerce-design", "buyer-ai-assistant", "site-release-qa"]) if (!skillPack.skills.some(s => s.name === name)) throw new Error("Missing registered Site skill: " + name);
 if (archive.length < 4096) throw new Error("Suspiciously small package");
 const sha256 = createHash("sha256").update(archive).digest("hex");
