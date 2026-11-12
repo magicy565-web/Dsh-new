@@ -88,6 +88,24 @@ Dataset，并标为 `failed / APIFY_RUN_FAILED / partialDataset`；部分结果�
 `npm run check` 检查源数据、文件边界、兼容性和默认工具路由。可显式运行 `node dev/authored-review-smoke.mjs` 检查自由 DOM、本地 CSS/JS、交互截图和 PDF；这是合成浏览器验证，不是设计验收。实际 Apify 采集必须另有真实凭据与成功 run 证明。
 
 
+## Build and install v0.5.0
+
+From the repository root (Node.js 24+):
+
+```sh
+npm ci --ignore-scripts
+npm run package:buyer-magazine-site
+```
+
+The command creates a local tarball in `dist/`. Install it into the selected DSH Web profile:
+
+```sh
+dsh plugin --profile web add ./dist/dsh-buyer-magazine-0.5.0.tgz
+dsh web
+```
+
+If the package manager emits a tarball name with a different suffix, use the exact generated filename from `dist/`. After installing, reload the DSH host and select **网站转杂志**. This installs the Site-generation skills into DSH; it does not create or publish a ChatGPT Site automatically.
+
 ## ChatGPT Sites Buyer Magazine System v0.5.0
 
 The package now adds a separate website-publication workflow alongside the existing HTML email and authored-file magazine workflow. The new entry skill is [buyer-magazine-site](skills/buyer-magazine-site/SKILL.md), supported by:
