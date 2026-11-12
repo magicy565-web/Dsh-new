@@ -1,7 +1,7 @@
 # Buyer Magazine Site Architecture v0.1
 
 ## Product boundary
-This package generates and reviews a ChatGPT Sites-compatible source project. The ChatGPT Sites owner workflow remains responsible for creating the hosted Site, configuring sharing/custom domains/secrets, saving a candidate version and deploying it. The DSH plugin does not claim to call an undocumented Sites deployment API.
+This package generates and reviews a ChatGPT Sites-compatible source project. The ChatGPT Sites owner workflow remains responsible for opening the compatible local source project, provisioning the hosted Site, configuring sharing/custom domains/secrets, saving a candidate version and deploying it. Sites can link a local project through `.openai/hosting.json`; a fresh starter may omit `project_id`, which Sites adds after provisioning. The DSH plugin does not claim to call an undocumented Sites deployment API.
 
 ## Components
 - Existing research tools: Apify website crawler, source capture, browser/PDF artifact review.
@@ -17,14 +17,14 @@ Canonical business data remains in the central API/PostgreSQL. Public Site asset
 
 ## Site deployment
 1. Prepare a compatible source project and .openai/hosting.json only after Sites provisions its project ID and storage binding names.
-2. Open Sites in ChatGPT Work/Desktop, import or create from compatible source, review preview.
-3. Configure server-side secrets in Site Settings. Do not place secrets in HTML, JS, prompts or committed hosting config.
-4. Save a reviewable version. Test public access and all direct routes.
-5. Obtain human approval, then deploy and confirm the production URL.
+2. Open ChatGPT web/desktop Sites from the compatible local project (or mention `@Sites`), ask Sites to check compatibility and prepare it for publishing, then review the preview.
+3. Configure server-side secrets in Site Settings. Do not place secrets in HTML, JS, prompts, `.openai/hosting.json` or committed `.env` files.
+4. Save a reviewable version. Test public access and all direct routes. Saving a version and deploying it are separate operations.
+5. Obtain human approval, then deploy and confirm the production URL. A deployed URL is production, not a preview.
 6. Export source and separately back up business database and uploaded assets. Sites code version restore does not restore database/files.
 
 ## Known limitations
-- No documented API in this package automates Sites creation, saving or deployment. Owner interaction in Sites is required.
+- Sites management is performed in ChatGPT web/desktop; Codex CLI/IDE can edit and test the local source but does not manage the Sites deployment lifecycle. Owner interaction in Sites is required.
 - SEO controls (robots.txt, sitemap.xml, per-route metadata rendering, canonical behavior, SSR/HTML response and crawler access) must be verified on a real deployed Site. A source-level template cannot guarantee platform support.
 - Assistant is a UI and API contract until the central gateway is implemented and tested.
 - Placeholder assets and copy in site-starter are not production content.
